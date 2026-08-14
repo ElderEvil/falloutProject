@@ -99,28 +99,8 @@ describe('Room Store', () => {
     })
   })
 
-  describe('fetchRoomsData', () => {
-    it('should fetch available room types without vault ID (legacy)', async () => {
-      const mockAvailableRooms = [
-        { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
-        { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
-      ]
-
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockAvailableRooms })
-
-      const store = useRoomStore()
-      await store.fetchRoomsData('test-token')
-
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/rooms/read_data/',
-        expect.objectContaining({
-          headers: { Authorization: 'Bearer test-token' },
-        })
-      )
-      expect(store.availableRooms).toEqual(mockAvailableRooms)
-    })
-
-    it('should fetch buildable rooms when vault ID is provided', async () => {
+  describe('fetchBuildableRooms', () => {
+    it('should fetch buildable rooms for the vault', async () => {
       const mockBuildableRooms = [
         { id: 'power-gen', name: 'Power Generator', type: 'power', cost: 100 },
         { id: 'diner', name: 'Diner', type: 'food', cost: 150 },
@@ -130,7 +110,7 @@ describe('Room Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockBuildableRooms })
 
       const store = useRoomStore()
-      await store.fetchRoomsData('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-1')
 
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/rooms/buildable/vault-1/',
@@ -145,8 +125,42 @@ describe('Room Store', () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Failed'))
 
       const store = useRoomStore()
-      await store.fetchRoomsData('test-token')
+      await store.fetchBuildableRooms('test-token', 'vault-1')
+    })
 
+    it('should ignore stale responses and errors', async () => {
+      let resolveFirst!: (value: unknown) => void
+      let rejectThird!: (reason: unknown) => void
+      const freshRooms = [{ id: 'fresh', name: 'New Gym' }]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectThird = reject
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+
+      const store = useRoomStore()
+      const staleResponse = store.fetchBuildableRooms('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-2')
+      resolveFirst({ data: [{ id: 'stale', name: 'Old Gym' }] })
+      await staleResponse
+      expect(store.availableRooms).toEqual(freshRooms)
+
+      const staleError = store.fetchBuildableRooms('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-2')
+      rejectThird(new Error('Failed'))
+      await staleError
+      expect(store.availableRooms).toEqual(freshRooms)
     })
   })
 
@@ -162,13 +176,6 @@ describe('Room Store', () => {
         vault_id: 'vault-1',
       }
 
-      const roomData = {
-        type: 'water',
-        position_x: 2,
-        position_y: 0,
-        vault_id: 'vault-1',
-      }
-
       vi.mocked(axios.post).mockResolvedValueOnce({ data: newRoom })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
 
@@ -176,11 +183,16 @@ describe('Room Store', () => {
       const vaultStore = useVaultStore()
       vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
 
-      await store.buildRoom(roomData, 'test-token', 'vault-1')
+      await store.buildRoom('Water Treatment', 2, 0, 'test-token', 'vault-1')
 
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/rooms/build/',
-        roomData,
+        {
+          vault_id: 'vault-1',
+          room_name: 'Water Treatment',
+          coordinate_x: 2,
+          coordinate_y: 0,
+        },
         expect.objectContaining({
           headers: { Authorization: 'Bearer test-token' },
         })
@@ -200,7 +212,7 @@ describe('Room Store', () => {
 
       const store = useRoomStore()
       await expect(
-        store.buildRoom({ type: 'power' } as any, 'test-token', 'vault-1')
+        store.buildRoom('Power Generator', 0, 0, 'test-token', 'vault-1')
       ).rejects.toThrow('Insufficient caps')
     })
   })

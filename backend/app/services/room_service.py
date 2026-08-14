@@ -6,13 +6,14 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.schemas.room import RoomCreate, RoomRead
+from app.schemas.room import RoomBuild, RoomCreate, RoomRead
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
     UniqueRoomViolationException,
     VaultOperationException,
 )
+from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,13 @@ class RoomService:
     async def build_room(
         self,
         db_session: AsyncSession,
-        room_data: RoomCreate,
+        room_request: RoomBuild,
     ) -> RoomRead:
         """Build a new room in a vault.
 
         Args:
             db_session: Database session
-            room_data: Room creation data
+            room_request: Requested template and placement
 
         Returns:
             Created room
@@ -41,6 +42,18 @@ class RoomService:
             VaultOperationException: On other build failures
         """
         try:
+            room_template = game_data_store.get_room(room_request.room_name)
+            if room_template is None or room_template.name.lower() == "vault door":
+                raise VaultOperationException(detail=f"Room cannot be built: {room_request.room_name}")
+            room_data = RoomCreate(
+                **room_template.model_dump()
+                | {
+                    "vault_id": room_request.vault_id,
+                    "size": room_template.size_min,
+                    "coordinate_x": room_request.coordinate_x,
+                    "coordinate_y": room_request.coordinate_y,
+                }
+            )
             return await crud.room.build(db_session=db_session, obj_in=room_data)
         except (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException):
             raise

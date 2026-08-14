@@ -95,6 +95,10 @@ class StaticGameData:
 
         return buildable_rooms
 
+    def get_room(self, room_name: str) -> RoomCreateWithoutVaultID | None:
+        """Return the canonical template matching a room name."""
+        return next((room for room in self.rooms if room.name.lower() == room_name.lower()), None)
+
     @property
     def quests(self) -> list[QuestChainJSON]:
         """Load all quest chains from JSON files."""

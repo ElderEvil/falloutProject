@@ -114,7 +114,10 @@ const resourceRates = computed(() =>
 const activeIncidents = computed(() => incidentStore.activeIncidents)
 
 usePolling(
-  () => (vaultId.value && authStore.token ? vaultStore.fetchGameState(vaultId.value, authStore.token) : undefined),
+  () =>
+    vaultId.value && authStore.token
+      ? vaultStore.fetchGameState(vaultId.value, authStore.token)
+      : undefined,
   { interval: 60_000, immediate: false }
 )
 
@@ -260,9 +263,7 @@ const toggleBuildMode = async () => {
     roomStore.deselectRoom()
   } else {
     // Enter build mode
-    if (roomStore.availableRooms.length === 0) {
-      await roomStore.fetchRoomsData(authStore.token as string, vaultId.value)
-    }
+    await roomStore.fetchBuildableRooms(authStore.token as string, vaultId.value)
     showRoomMenu.value = true
   }
 }

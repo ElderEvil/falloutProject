@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
-import type { Room, RoomCreate, RoomTemplate } from '../models/room'
+import type { Room, RoomBuild, RoomTemplate } from '../models/room'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
@@ -13,6 +13,7 @@ export const useRoomStore = defineStore('room', () => {
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
   let fetchRoomsRequestSequence = 0
+  let fetchBuildableRoomsRequestSequence = 0
 
   // Background vault refresh — non-throwing, while still surfacing failures consistently.
   async function refreshVaultSafely(vaultId: string, token: string, context: string) {
@@ -44,25 +45,40 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
-  async function fetchRoomsData(token: string, vaultId?: string): Promise<void> {
-    try {
-      // Use buildable endpoint if vault ID is provided to filter out vault door and unique rooms
-      const endpoint = vaultId ? `/api/v1/rooms/buildable/${vaultId}/` : '/api/v1/rooms/read_data/'
+  async function fetchBuildableRooms(token: string, vaultId: string): Promise<void> {
+    const requestSequence = ++fetchBuildableRoomsRequestSequence
 
-      const response = await axios.get<RoomTemplate[]>(endpoint, {
+    try {
+      const response = await axios.get<RoomTemplate[]>(`/api/v1/rooms/buildable/${vaultId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-      availableRooms.value = response.data
+      if (requestSequence === fetchBuildableRoomsRequestSequence) {
+        availableRooms.value = response.data
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to fetch rooms data')
-      availableRooms.value = []
+      if (requestSequence === fetchBuildableRoomsRequestSequence) {
+        availableRooms.value = []
+      }
     }
   }
 
-  async function buildRoom(roomData: RoomCreate, token: string, vaultId: string): Promise<void> {
+  async function buildRoom(
+    roomName: string,
+    coordinateX: number,
+    coordinateY: number,
+    token: string,
+    vaultId: string
+  ) {
     try {
+      const roomData: RoomBuild = {
+        vault_id: vaultId,
+        room_name: roomName,
+        coordinate_x: coordinateX,
+        coordinate_y: coordinateY,
+      }
       const response = await axios.post<Room>('/api/v1/rooms/build/', roomData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -145,7 +161,7 @@ export const useRoomStore = defineStore('room', () => {
     isPlacingRoom,
     // Actions
     fetchRooms,
-    fetchRoomsData,
+    fetchBuildableRooms,
     buildRoom,
     destroyRoom,
     upgradeRoom,

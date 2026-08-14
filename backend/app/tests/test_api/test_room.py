@@ -3,24 +3,28 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.schemas.room import RoomCreate
+from app.schemas.room import RoomBuild, RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.services.room_service import room_service
 from app.tests.factory.rooms import create_fake_room
+from app.tests.utils.user import authentication_token_from_email, user_authentication_headers
 
 
 @pytest.mark.asyncio
-async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSession, room: Room):
+async def test_read_room_list(
+    async_client: AsyncClient, async_session: AsyncSession, room: Room, superuser_token_headers: dict[str, str]
+):
     room_2_data = create_fake_room()
     room_2 = RoomCreate(**room_2_data, vault_id=room.vault_id)
     await crud.room.create(async_session, room_2)
-    response = await async_client.get("/rooms/")
+    response = await async_client.get("/rooms/", headers=superuser_token_headers)
     rooms = response.json()
     assert response.status_code == 200
     assert len(rooms) == 2
@@ -38,6 +42,14 @@ async def test_read_room_list(async_client: AsyncClient, async_session: AsyncSes
         assert "output" in r
         assert "size_min" in r
         assert "size_max" in r
+
+
+@pytest.mark.asyncio
+async def test_read_room_list_rejects_non_admin(
+    async_client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await async_client.get("/rooms/", headers=normal_user_token_headers)
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -60,6 +72,92 @@ async def test_get_buildable_rooms_awaits_static_game_data() -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_room_uses_backend_template(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+):
+    """The build endpoint derives every room attribute from its template."""
+    payload = {
+        "vault_id": str(vault.id),
+        "room_name": "Power Generator",
+        "coordinate_x": 3,
+        "coordinate_y": 2,
+    }
+    response = await async_client.post(
+        "/rooms/build/",
+        json=payload,
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    room = response.json()
+    assert room["base_cost"] == 100
+    assert room["category"] == "production"
+    assert room["tier"] == 1
+    assert room["size"] == 3
+    assert room["image_url"]
+
+    response = await async_client.post(
+        "/rooms/build/", json=payload | {"base_cost": 1}, headers=superuser_token_headers
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_build_room_allows_vault_owner_and_rejects_other_user(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    user_with_vault: tuple,
+):
+    _, vault = user_with_vault
+    payload = {
+        "vault_id": str(vault.id),
+        "room_name": "Power Generator",
+        "coordinate_x": 3,
+        "coordinate_y": 2,
+    }
+    owner_token_headers = await user_authentication_headers(
+        client=async_client, email="test@example.com", password="testpass123"
+    )
+    outsider_token_headers = await authentication_token_from_email(
+        client=async_client, email="room-outsider@example.com", db_session=async_session
+    )
+
+    assert (await async_client.post("/rooms/build/", json=payload, headers=owner_token_headers)).status_code == 200
+    assert (await async_client.post("/rooms/build/", json=payload, headers=outsider_token_headers)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_build_room_rejects_unknown_or_infrastructure_template(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+):
+    for room_name in ("Unknown Room", "Vault Door"):
+        response = await async_client.post(
+            "/rooms/build/",
+            json={
+                "vault_id": str(vault.id),
+                "room_name": room_name,
+                "coordinate_x": 3,
+                "coordinate_y": 2,
+            },
+            headers=superuser_token_headers,
+        )
+
+        assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_room_mutations_only_use_gameplay_commands(async_client: AsyncClient, room: Room):
+    """Generic CRUD routes cannot bypass build, destroy, and upgrade rules."""
+    assert (await async_client.post("/rooms/", json={})).status_code == 405
+    assert (await async_client.put(f"/rooms/{room.id}", json={})).status_code == 405
+    assert (await async_client.delete(f"/rooms/{room.id}")).status_code == 405
+
+
+@pytest.mark.asyncio
 async def test_read_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
     response = await async_client.get(f"/rooms/{room.id}", headers=superuser_token_headers)
     assert response.status_code == 200
@@ -76,35 +174,6 @@ async def test_read_room(async_client: AsyncClient, superuser_token_headers: dic
     assert response_room["output"] == room.output
     assert response_room["size_min"] == room.size_min
     assert response_room["size_max"] == room.size_max
-
-
-@pytest.mark.asyncio
-async def test_update_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
-    room_new_data = create_fake_room()
-    update_response = await async_client.put(f"/rooms/{room.id}", json=room_new_data, headers=superuser_token_headers)
-    updated_room = update_response.json()
-    assert update_response.status_code == 200
-    assert updated_room["id"] == str(room.id)
-    assert updated_room["name"] == room_new_data["name"]
-    assert updated_room["category"] == room_new_data["category"]
-    assert updated_room["ability"] == room_new_data["ability"]
-    assert updated_room["population_required"] == room_new_data["population_required"]
-    assert updated_room["base_cost"] == room_new_data["base_cost"]
-    assert updated_room["incremental_cost"] == room_new_data["incremental_cost"]
-    assert updated_room["tier"] == room_new_data["tier"]
-    assert updated_room["t2_upgrade_cost"] == room_new_data["t2_upgrade_cost"]
-    assert updated_room["t3_upgrade_cost"] == room_new_data["t3_upgrade_cost"]
-    assert updated_room["output"] == room_new_data["output"]
-    assert updated_room["size_min"] == room_new_data["size_min"]
-    assert updated_room["size_max"] == room_new_data["size_max"]
-
-
-@pytest.mark.asyncio
-async def test_delete_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
-    delete_response = await async_client.delete(f"/rooms/{room.id}", headers=superuser_token_headers)
-    assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/rooms/{room.id}", headers=superuser_token_headers)
-    assert read_response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -695,54 +764,6 @@ class TestVaultDoorProtection:
         existing_door = await crud.room.get(async_session, door_room.id)
         assert existing_door is not None
 
-    @pytest.mark.asyncio
-    async def test_cannot_build_multiple_vault_doors(
-        self,
-        async_client: AsyncClient,
-        superuser_token_headers: dict[str, str],
-        async_session: AsyncSession,
-        vault: Vault,
-    ):
-        """Test that only one vault door can be built per vault."""
-        # Create first vault door
-        vault_door_1 = RoomCreate(
-            name="Vault Door",
-            category=RoomTypeEnum.MISC,
-            ability=None,
-            base_cost=100,
-            incremental_cost=25,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=2000,
-            size_min=6,
-            size_max=6,
-            vault_id=vault.id,
-            size=6,
-            coordinate_x=0,
-            coordinate_y=0,
-        )
-        await crud.room.create(async_session, vault_door_1)
-
-        # Attempt to build second vault door
-        vault_door_2_data = {
-            "name": "Vault Door",
-            "category": "Misc.",
-            "ability": None,
-            "base_cost": 100,
-            "incremental_cost": 25,
-            "t2_upgrade_cost": 500,
-            "t3_upgrade_cost": 2000,
-            "size_min": 6,
-            "size_max": 6,
-            "vault_id": str(vault.id),
-            "size": 6,
-            "coordinate_x": 0,
-            "coordinate_y": 1,
-        }
-
-        response = await async_client.post("/rooms/build/", json=vault_door_2_data, headers=superuser_token_headers)
-        assert response.status_code in [400, 422]
-        assert "vault door" in response.json()["detail"].lower()
-
 
 class TestElevatorAccessControl:
     """Tests for elevator level access control (v2.4.0 bug fix #2)."""
@@ -847,37 +868,20 @@ class TestElevatorAccessControl:
         assert response.status_code == 204
 
 
-class TestRoomSizeValidation:
-    """Tests for room size validation (v2.4.0 bug fix #9)."""
+class TestRoomBuildValidation:
+    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(0, 0), (7, 15)])
+    def test_build_accepts_rendered_grid_limits(self, coordinate_x: int, coordinate_y: int) -> None:
+        room = RoomBuild(
+            vault_id=uuid4(), room_name="Power Generator", coordinate_x=coordinate_x, coordinate_y=coordinate_y
+        )
+        assert (room.coordinate_x, room.coordinate_y) == (coordinate_x, coordinate_y)
 
-    @pytest.mark.asyncio
-    async def test_build_rejects_invalid_size(
-        self, async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault
-    ):
-        """Test that building with invalid size returns proper error."""
-        invalid_room_data = {
-            "name": "Power Generator",
-            "category": "Production",
-            "ability": "Strength",
-            "base_cost": 100,
-            "incremental_cost": 25,
-            "t2_upgrade_cost": 500,
-            "t3_upgrade_cost": 1500,
-            "size_min": 10,  # Exceeds size_max
-            "size_max": 9,
-            "vault_id": str(vault.id),
-            "size": 10,
-            "coordinate_x": 0,
-            "coordinate_y": 2,
-        }
-
-        response = await async_client.post("/rooms/build/", json=invalid_room_data, headers=superuser_token_headers)
-        assert response.status_code in [400, 422]  # Either validation error or bad request
-
-        # Handle both string detail (400) and list detail (422 validation errors)
-        detail = response.json()["detail"]
-        detail_str = str(detail).lower() if isinstance(detail, list) else detail.lower()
-        assert "size" in detail_str
+    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(-1, 0), (8, 0), (0, -1), (0, 16)])
+    def test_build_rejects_coordinates_outside_rendered_grid(self, coordinate_x: int, coordinate_y: int) -> None:
+        with pytest.raises(ValidationError):
+            RoomBuild(
+                vault_id=uuid4(), room_name="Power Generator", coordinate_x=coordinate_x, coordinate_y=coordinate_y
+            )
 
     @pytest.mark.asyncio
     async def test_build_rejects_invalid_coordinates(
@@ -885,17 +889,8 @@ class TestRoomSizeValidation:
     ):
         """Test that building with out-of-bounds coordinates returns proper error."""
         invalid_room_data = {
-            "name": "Power Generator",
-            "category": "Production",
-            "ability": "Strength",
-            "base_cost": 100,
-            "incremental_cost": 25,
-            "t2_upgrade_cost": 500,
-            "t3_upgrade_cost": 1500,
-            "size_min": 3,
-            "size_max": 9,
             "vault_id": str(vault.id),
-            "size": 3,
+            "room_name": "Power Generator",
             "coordinate_x": 50,  # Out of bounds (max is 8)
             "coordinate_y": 2,
         }

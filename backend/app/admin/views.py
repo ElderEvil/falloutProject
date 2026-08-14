@@ -214,6 +214,10 @@ class RoomAdmin(ModelView, model=Room):
 
     icon = "fa-solid fa-door-open"
 
+    can_create = False
+    can_edit = False
+    can_delete = False
+
 
 class WeaponAdmin(ModelView, model=Weapon):
     column_list: ClassVar[list] = [

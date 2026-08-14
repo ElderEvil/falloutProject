@@ -36,13 +36,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Clear backfilled outfit image URLs."""
-    conn = op.get_bind()
-    for name in OUTFIT_NAME_TO_IMAGE_FILE:
-        image_url = get_outfit_image_url(name)
-        if not image_url:
-            continue
-        conn.execute(
-            sa.text("UPDATE outfit SET image_url = NULL WHERE image_url = :url"),
-            {"url": image_url},
-        )
+    """No-op — data enrichment must not be reverted."""

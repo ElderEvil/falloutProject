@@ -288,6 +288,7 @@ class RewardService:
                     outfit_type=wtype,
                     gender=gender,
                     value=random.randint(30, 100),
+                    image_url=get_outfit_image_url(name),
                 )
 
             # Get storage

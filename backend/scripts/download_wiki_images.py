@@ -33,6 +33,29 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
+# Supported legendary dweller names — must match LEGENDARY_DWELLER_IMAGE_FILES
+# in app/utils/legendary_dweller_assets.py.  Only entries whose casefolded
+# name appears here are kept; everything else is silently dropped.
+SUPPORTED_LEGENDARY_NAMES: set[str] = {
+    "abraham washington",
+    "allistair tenpenny",
+    "amata",
+    "augustus autumn",
+    "bittercup",
+    "butch",
+    "confessor cromwell",
+    "eulogy jones",
+    "harkness",
+    "james",
+    "jericho",
+    "lucas simms",
+    "madison li",
+    "owyn lyons",
+    "preston garvey",
+    "scribe rothchild",
+    "three dog",
+}
+
 CATEGORIES = {
     "rooms": "Category:Fallout_Shelter_room_images",
     "weapons": "Category:Fallout_Shelter_weapon_images",
@@ -47,8 +70,24 @@ def _api(client: httpx.Client, params: dict) -> dict:
     return response.json()
 
 
-def _download(client: httpx.Client, url: str, destination: Path) -> bool:
-    """Download a URL to destination if it doesn't already exist."""
+def _is_safe_destination(destination: Path, allowed_parent: Path) -> bool:
+    """Return True if destination resolves inside allowed_parent (no path traversal)."""
+    try:
+        return destination.resolve().is_relative_to(allowed_parent.resolve())
+    except (ValueError, OSError):
+        return False
+
+
+def _download(client: httpx.Client, url: str, destination: Path, *, allowed_parent: Path | None = None) -> bool:
+    """Download a URL to destination if it doesn't already exist.
+
+    When *allowed_parent* is given, the resolved destination must sit inside
+    it — otherwise the download is skipped to prevent path traversal.
+    """
+    if allowed_parent is not None and not _is_safe_destination(destination, allowed_parent):
+        print(f"  skip {destination.name}: path traversal detected")
+        return False
+
     if destination.exists() and destination.stat().st_size > 0:
         print(f"  skip {destination.name}")
         return False
@@ -129,11 +168,12 @@ def _download_category(client: httpx.Client, category: str, download_dir: Path, 
 
     urls = _image_info(client, titles)
     downloaded = 0
+    resolved_parent = download_dir.resolve()
     for title, url in urls.items():
         filename = _filename_from_title(title)
         if not filename.lower().endswith(allowed_exts):
             continue
-        if _download(client, url, download_dir / filename):
+        if _download(client, url, download_dir / filename, allowed_parent=resolved_parent):
             downloaded += 1
     print(f"Downloaded {downloaded} new images to {download_dir}")
     return downloaded
@@ -239,18 +279,28 @@ def legendary_dwellers(
     download_path = Path(download_dir)
     with httpx.Client(headers={"User-Agent": USER_AGENT}) as client:
         print("Parsing legendary dweller table...")
-        dwellers = _legendary_dwellers(client)
-        print(f"Found {len(dwellers)} legendary dwellers")
+        all_dwellers = _legendary_dwellers(client)
+        print(f"Found {len(all_dwellers)} legendary dwellers on wiki")
+
+        dwellers = [d for d in all_dwellers if d["name"].casefold() in SUPPORTED_LEGENDARY_NAMES]
+        print(f"Kept {len(dwellers)} dwellers matching supported roster")
+
+        found_names = {d["name"].casefold() for d in dwellers}
+        missing = SUPPORTED_LEGENDARY_NAMES - found_names
+        if missing:
+            ty.echo(f"Error: supported roster names not found on wiki: {sorted(missing)}", err=True)
+            raise ty.Exit(1)
 
         urls = _image_info(client, [d["image_title"] for d in dwellers])
         downloaded = 0
+        resolved_parent = download_path.resolve()
         for dweller in dwellers:
             # MediaWiki normalizes file titles to spaces; match that here.
             url = urls.get(dweller["image_title"].replace("_", " "))
             if not url:
                 print(f"  no URL for {dweller['name']}")
                 continue
-            if _download(client, url, download_path / dweller["image_filename"]):
+            if _download(client, url, download_path / dweller["image_filename"], allowed_parent=resolved_parent):
                 downloaded += 1
 
     meta_path = Path(metadata_path)

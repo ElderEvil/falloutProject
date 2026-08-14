@@ -43,7 +43,7 @@ With defaults (20 dwellers, avg SPECIAL 4, level 5, raider power 10):
 
 ### Finding
 **Incidents are trivial.** Dweller combat power is calculated as:
-```
+```text
 power = adults × ((strength×0.4 + endurance×0.3 + agility×0.3) + level×2)
        = 18 × ((4×0.4 + 4×0.3 + 4×0.3) + 5×2)
        = 18 × (4.0 + 10.0)
@@ -81,7 +81,7 @@ With defaults (20 dwellers, 70% working, 80% healthy, 30% partnered):
 
 ### Finding
 **Happiness has no tension.** The per-dweller gains scale linearly with population, while penalties are either flat (base_decay) or situational (incidents, resource shortage). With 12 working dwellers:
-```
+```text
 gain_from_working = 12 × 1.0 = +12.0/tick
 base_decay = -0.5/tick
 net_from_work = +11.5/tick
@@ -119,7 +119,7 @@ Add 16 healthy (+8.0), 6 partnered (+6.0), 1 training (+0.5), rooms (+3.0), vaul
 ### Proposed Breeding Mechanics (to be implemented)
 
 **Option A — Hard Cap (simplest)**
-```
+```python
 if population >= population_cap:
     conception_chance = 0
 ```
@@ -127,7 +127,7 @@ if population >= population_cap:
 - Cons: Abrupt wall; players hit cap and breeding stops entirely
 
 **Option B — Soft Scaling (recommended)**
-```
+```python
 cap_ratio = population / population_cap
 effective_chance = base_chance × max(0.05, 1.0 - cap_ratio)
 ```
@@ -138,7 +138,7 @@ effective_chance = base_chance × max(0.05, 1.0 - cap_ratio)
 - Cons: Still allows slow overgrowth; needs companion mechanic
 
 **Option C — Per-Mother Cooldown**
-```
+```python
 if (now - mother.last_conception_time) < pregnancy_duration_hours × 2:
     conception_chance = 0
 ```
@@ -154,7 +154,7 @@ Use soft scaling (Option B) as the primary pressure, with a short per-mother coo
 
 **Simulation note**: the old room-economy simulator was retired because it used hard-coded formulas that diverged from production. Resource tuning now uses `simulate_resource_economy.py`, which calls the live `ResourceManager` formulas. The remaining gap is cap-scaled conception in the breeding simulation.
 
-**Expected outcome with Option B**:
+**Expected outcome with Option D**:
 - Starting from 10 dwellers, cap ~14 (4 rooms), growth would slow naturally around hour 2–3
 - Population would plateau near cap + 10–20% instead of 1,200+
 - Room building becomes meaningful because living quarters directly enable more births

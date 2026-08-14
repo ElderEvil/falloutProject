@@ -43,6 +43,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    conn = op.get_bind()
-    conn.execute(sa.text("UPDATE weapon SET image_url = NULL WHERE image_url LIKE '/static/weapon_images/%'"))
-    conn.execute(sa.text("UPDATE dweller SET image_url = NULL WHERE image_url LIKE '/static/legendary_dweller_images/%'"))
+    """No-op — data enrichment must not be reverted."""

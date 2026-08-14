@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton, UCard } from '@/core/components/ui'
 import { getStaticImageUrl } from '@/core/utils/image'
@@ -101,12 +101,25 @@ const itemIcon = computed(() => {
   return 'mdi:wrench'
 })
 
+const imageError = ref(false)
+
+watch(
+  () => item.image_url,
+  () => {
+    imageError.value = false
+  },
+)
+
 const itemImageUrl = computed(() => {
-  if (item.image_url) {
-    return getStaticImageUrl(item.image_url)
+  if (imageError.value || !item.image_url) {
+    return ''
   }
-  return ''
+  return getStaticImageUrl(item.image_url)
 })
+
+function onImageError() {
+  imageError.value = true
+}
 
 // Format weapon/outfit type for display
 const itemTypeDisplay = computed(() => {
@@ -236,6 +249,7 @@ const rarityTextClass = computed(() => {
           :src="itemImageUrl"
           :alt="itemName"
           class="w-11 h-11 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          @error="onImageError"
         />
         <Icon
           v-else

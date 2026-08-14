@@ -169,15 +169,15 @@ const itemImageUrl = computed(() => (item.image_url ? getStaticImageUrl(item.ima
 }
 
 .equipment-icon {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 4rem;
+  height: 4rem;
   color: var(--color-theme-primary);
   filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .equipment-image {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 4rem;
+  height: 4rem;
   object-fit: contain;
   filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }

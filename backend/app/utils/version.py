@@ -57,22 +57,18 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
     with changelog_path.open(encoding="utf-8") as f:
         content = f.read()
 
-    sections = re.split(r"\n---\n", content)
     versions = []
+    heading_pattern = re.compile(
+        r"^## \[(?P<version>\d+\.\d+\.\d+)\](?:\([^\n)]*\))?(?:\s+-\s+|\s+\()(?P<date>\d{4}-\d{2}-\d{2})\)?\s*$",
+        re.MULTILINE,
+    )
+    headings = list(heading_pattern.finditer(content))
 
-    for section in sections[1:]:
-        lines = section.strip().split("\n")
-        if not lines:
-            continue
-
-        version_line = lines[0]
-        version_match = re.match(r"## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2})", version_line)
-
-        if not version_match:
-            continue
-
-        version = version_match.group(1)
-        date_str = version_match.group(2)
+    for index, heading in enumerate(headings):
+        version = heading.group("version")
+        date_str = heading.group("date")
+        section_end = headings[index + 1].start() if index + 1 < len(headings) else len(content)
+        lines = content[heading.end() : section_end].split("\n")
 
         current_category = None
         changes = []

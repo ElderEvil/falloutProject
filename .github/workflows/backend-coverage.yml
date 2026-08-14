@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
 
     services:
       redis:
@@ -62,16 +61,10 @@ jobs:
         working-directory: backend
         run: uv run coverage-badge -o coverage.svg -f
 
-      - name: Upload coverage badge to Gist
-        uses: exuanbo/actions-deploy-gist@47697fceaeea2006a90594ee24eb9cd0a1121ef8 # v1.1.4
-        with:
-          token: ${{ secrets.GIST_TOKEN }}
-          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
-          file_path: backend/coverage.svg
-          file_type: text
-
-      - name: Upload coverage HTML report
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: coverage-report
-          path: backend/htmlcov
+          path: |
+            backend/coverage.svg
+            backend/htmlcov

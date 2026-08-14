@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { normalizeImageUrl } from '@/core/utils/image'
+import { getStaticImageUrl } from '@/core/utils/image'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -32,7 +32,7 @@ const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, roo
 const getRoomForDweller = (roomId: string | null | undefined) =>
   roomId ? roomsById.value.get(roomId) : undefined
 
-const getImageUrl = (imagePath: string) => normalizeImageUrl(imagePath)
+const getImageUrl = (imagePath: string | null | undefined) => getStaticImageUrl(imagePath) ?? ''
 
 const getRelevantStatForRoom = (
   dweller: DwellerShort,

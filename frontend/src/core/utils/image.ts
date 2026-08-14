@@ -47,8 +47,13 @@ export function getRoomImageUrl(imageUrl: string | null | undefined): string | n
 
 /**
  * Builds a full URL for any backend static image (outfits, weapons, portraits).
- * Same logic as getRoomImageUrl but named generically.
+ * Absolute URLs (http://, https://, data:, blob:) are returned as-is.
+ * Root-relative paths (/static/...) are prepended with API_BASE_URL.
  */
 export function getStaticImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:') || imageUrl.includes('://') || imageUrl.startsWith('//')) {
+    return normalizeImageUrl(imageUrl)
+  }
   return getRoomImageUrl(imageUrl)
 }

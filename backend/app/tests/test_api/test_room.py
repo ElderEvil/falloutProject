@@ -3,16 +3,18 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
-from app.schemas.room import RoomCreate
+from app.schemas.room import RoomBuild, RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.services.room_service import room_service
 from app.tests.factory.rooms import create_fake_room
+from app.tests.utils.user import authentication_token_from_email, user_authentication_headers
 
 
 @pytest.mark.asyncio
@@ -100,6 +102,30 @@ async def test_build_room_uses_backend_template(
         "/rooms/build/", json=payload | {"base_cost": 1}, headers=superuser_token_headers
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_build_room_allows_vault_owner_and_rejects_other_user(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    user_with_vault: tuple,
+):
+    _, vault = user_with_vault
+    payload = {
+        "vault_id": str(vault.id),
+        "room_name": "Power Generator",
+        "coordinate_x": 3,
+        "coordinate_y": 2,
+    }
+    owner_token_headers = await user_authentication_headers(
+        client=async_client, email="test@example.com", password="testpass123"
+    )
+    outsider_token_headers = await authentication_token_from_email(
+        client=async_client, email="room-outsider@example.com", db_session=async_session
+    )
+
+    assert (await async_client.post("/rooms/build/", json=payload, headers=owner_token_headers)).status_code == 200
+    assert (await async_client.post("/rooms/build/", json=payload, headers=outsider_token_headers)).status_code == 403
 
 
 @pytest.mark.asyncio
@@ -843,6 +869,20 @@ class TestElevatorAccessControl:
 
 
 class TestRoomBuildValidation:
+    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(0, 0), (7, 15)])
+    def test_build_accepts_rendered_grid_limits(self, coordinate_x: int, coordinate_y: int) -> None:
+        room = RoomBuild(
+            vault_id=uuid4(), room_name="Power Generator", coordinate_x=coordinate_x, coordinate_y=coordinate_y
+        )
+        assert (room.coordinate_x, room.coordinate_y) == (coordinate_x, coordinate_y)
+
+    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(-1, 0), (8, 0), (0, -1), (0, 16)])
+    def test_build_rejects_coordinates_outside_rendered_grid(self, coordinate_x: int, coordinate_y: int) -> None:
+        with pytest.raises(ValidationError):
+            RoomBuild(
+                vault_id=uuid4(), room_name="Power Generator", coordinate_x=coordinate_x, coordinate_y=coordinate_y
+            )
+
     @pytest.mark.asyncio
     async def test_build_rejects_invalid_coordinates(
         self, async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault

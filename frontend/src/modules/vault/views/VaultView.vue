@@ -263,9 +263,7 @@ const toggleBuildMode = async () => {
     roomStore.deselectRoom()
   } else {
     // Enter build mode
-    if (roomStore.availableRooms.length === 0) {
-      await roomStore.fetchBuildableRooms(authStore.token as string, vaultId.value)
-    }
+    await roomStore.fetchBuildableRooms(authStore.token as string, vaultId.value)
     showRoomMenu.value = true
   }
 }

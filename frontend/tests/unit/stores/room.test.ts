@@ -127,6 +127,41 @@ describe('Room Store', () => {
       const store = useRoomStore()
       await store.fetchBuildableRooms('test-token', 'vault-1')
     })
+
+    it('should ignore stale responses and errors', async () => {
+      let resolveFirst!: (value: unknown) => void
+      let rejectThird!: (reason: unknown) => void
+      const freshRooms = [{ id: 'fresh', name: 'New Gym' }]
+
+      vi.mocked(axios.get)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectThird = reject
+            })
+        )
+        .mockResolvedValueOnce({ data: freshRooms })
+
+      const store = useRoomStore()
+      const staleResponse = store.fetchBuildableRooms('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-2')
+      resolveFirst({ data: [{ id: 'stale', name: 'Old Gym' }] })
+      await staleResponse
+      expect(store.availableRooms).toEqual(freshRooms)
+
+      const staleError = store.fetchBuildableRooms('test-token', 'vault-1')
+      await store.fetchBuildableRooms('test-token', 'vault-2')
+      rejectThird(new Error('Failed'))
+      await staleError
+      expect(store.availableRooms).toEqual(freshRooms)
+    })
   })
 
   describe('buildRoom', () => {

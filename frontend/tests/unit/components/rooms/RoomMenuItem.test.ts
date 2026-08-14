@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomMenuItem from '@/modules/rooms/components/RoomMenuItem.vue'
+import { getRoomImageUrl } from '@/core/utils/image'
 
 vi.mock('vue-router', () => ({ useRoute: () => ({ params: { id: 'vault-1' } }) }))
 vi.mock('@iconify/vue', () => ({ Icon: { props: ['icon'], template: '<i :data-icon="icon" />' } }))
@@ -24,11 +25,13 @@ const room = {
 describe('RoomMenuItem', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('shows the template image and falls back to a category icon if it fails', async () => {
+  it('shows the template image and falls back to the preview category icon if it fails', async () => {
     const wrapper = mount(RoomMenuItem, { props: { room } })
+    const preview = wrapper.find('.room-icon img')
 
-    expect(wrapper.find('img').attributes('src')).toBe(room.image_url)
-    await wrapper.find('img').trigger('error')
-    expect(wrapper.find('[data-icon="mdi:lightning-bolt"]').exists()).toBe(true)
+    expect(preview.attributes('src')).toBe(getRoomImageUrl(room.image_url))
+    await preview.trigger('error')
+    expect(wrapper.find('.room-icon img').exists()).toBe(false)
+    expect(wrapper.find('.room-icon [data-icon="mdi:lightning-bolt"]').exists()).toBe(true)
   })
 })

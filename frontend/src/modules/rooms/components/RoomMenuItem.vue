@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
+import { getRoomImageUrl } from '@/core/utils/image'
 import type { RoomTemplate } from '../models/room'
 
 const props = defineProps<{
@@ -77,7 +78,7 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
       <div class="room-icon">
         <img
           v-if="room.image_url && showRoomImage"
-          :src="room.image_url"
+          :src="getRoomImageUrl(room.image_url) ?? undefined"
           :alt="`${room.name} preview`"
           class="room-preview"
           @error="showRoomImage = false"

@@ -23,8 +23,8 @@ class RoomBuild(SQLModel):
 
     vault_id: UUID4
     room_name: str = Field(min_length=3, max_length=32)
-    coordinate_x: int = Field(ge=0, le=8)
-    coordinate_y: int = Field(ge=0, le=25)
+    coordinate_x: int = Field(ge=0, le=7)
+    coordinate_y: int = Field(ge=0, le=15)
 
 
 class RoomRead(RoomBase):

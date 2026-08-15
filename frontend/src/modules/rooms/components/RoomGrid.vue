@@ -14,7 +14,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
-import { getTrainingRoomCapacity } from '@/core/utils/room'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal

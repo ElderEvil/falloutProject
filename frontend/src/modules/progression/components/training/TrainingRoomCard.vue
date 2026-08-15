@@ -5,7 +5,7 @@ import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Room } from '@/modules/rooms/models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
-import { getTrainingRoomCapacity } from '@/core/utils/room'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 interface Props {
   room: Room

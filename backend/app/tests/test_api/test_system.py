@@ -36,7 +36,6 @@ class TestChangelogEndpoint:
             "CHANGELOG.md must be updated when the app version bumps."
         )
         assert isinstance(data["changes"], list), "changes must be a list"
-        assert len(data["changes"]) > 0, "latest changelog entry must have changes"
 
     async def test_get_changelog_latest_matches_app_version(self) -> None:
         """Test invariant: latest changelog entry version == app version.

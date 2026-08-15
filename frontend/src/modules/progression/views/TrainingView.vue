@@ -1,27 +1,58 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
+import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
+const roomStore = useRoomStore()
+const trainingStore = useTrainingStore()
 const { isCollapsed } = useSidePanel()
 
 const vaultId = route.params.id as string
 
 const showInfo = ref(false)
 
+const trainingRooms = computed(() => {
+  return roomStore.rooms.filter((room) => room.category === 'training')
+})
+
+const activeTrainings = computed(() => trainingStore.allActiveTrainings)
+
+const getRoomActiveCount = (roomId: string) => {
+  return activeTrainings.value.filter((training) => training.room_id === roomId).length
+}
+
+const roomsInUse = computed(() => {
+  const roomIds = new Set(activeTrainings.value.map((training) => training.room_id))
+  return trainingRooms.value.filter((room) => roomIds.has(room.id)).length
+})
+
+const totalCapacity = computed(() => {
+  return trainingRooms.value.reduce((sum, room) => sum + (room.capacity ?? 0), 0)
+})
+
+const capacityPercent = computed(() => {
+  if (totalCapacity.value <= 0) return 0
+  return Math.min(100, Math.round((activeTrainings.value.length / totalCapacity.value) * 100))
+})
+
 onMounted(async () => {
   if (authStore.token && vaultId) {
     // Ensure vault is loaded - loadVault handles the check internally
     await vaultStore.loadVault(vaultId, authStore.token)
+    await roomStore.fetchRooms(vaultId, authStore.token)
+    await trainingStore.fetchVaultTrainings(vaultId, authStore.token)
   }
 })
 </script>
@@ -40,6 +71,52 @@ onMounted(async () => {
             icon="mdi:dumbbell"
             subtitle="Monitor and manage SPECIAL stat training across your vault"
           />
+
+          <section class="training-rooms-section">
+            <div class="rooms-header">
+              <div class="header-title">
+                <Icon icon="mdi:office-building" class="header-icon" />
+                <h3>Training Rooms ({{ trainingRooms.length }})</h3>
+              </div>
+              <div class="rooms-summary">
+                <span class="summary-chip">
+                  <Icon icon="mdi:account-multiple" class="summary-chip-icon" />
+                  {{ activeTrainings.length }} training
+                </span>
+                <span class="summary-chip">
+                  <Icon icon="mdi:progress-clock" class="summary-chip-icon" />
+                  {{ roomsInUse }} / {{ trainingRooms.length }} in use
+                </span>
+              </div>
+            </div>
+
+            <div v-if="trainingRooms.length === 0" class="rooms-empty">
+              <Icon icon="mdi:hammer-wrench" class="rooms-empty-icon" />
+              <p class="rooms-empty-text">No training rooms built yet</p>
+              <p class="rooms-empty-hint">Build training rooms in the vault to train dwellers</p>
+            </div>
+
+            <div v-else class="rooms-grid">
+              <TrainingRoomCard
+                v-for="room in trainingRooms"
+                :key="room.id"
+                :room="room"
+                :active-count="getRoomActiveCount(room.id)"
+              />
+            </div>
+
+            <div v-if="trainingRooms.length > 0" class="capacity-strip">
+              <div class="capacity-header">
+                <span class="capacity-label">Overall Capacity</span>
+                <span class="capacity-value"
+                  >{{ activeTrainings.length }} / {{ totalCapacity }}</span
+                >
+              </div>
+              <div class="capacity-bar">
+                <div class="capacity-fill" :style="{ width: `${capacityPercent}%` }"></div>
+              </div>
+            </div>
+          </section>
 
           <div class="w-full">
             <TrainingQueuePanel />
@@ -159,6 +236,152 @@ onMounted(async () => {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
+}
+
+.training-rooms-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.rooms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-icon {
+  font-size: 1.5rem;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
+}
+
+.header-title h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--color-theme-primary);
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rooms-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.summary-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background: rgb(0 0 0 / 0.3);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.summary-chip-icon {
+  font-size: 0.875rem;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.rooms-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  border: 2px dashed var(--color-theme-glow);
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.rooms-empty-icon {
+  font-size: 3rem;
+  color: var(--color-theme-primary);
+  opacity: 0.3;
+}
+
+.rooms-empty-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  font-family: 'Courier New', monospace;
+}
+
+.rooms-empty-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
+  font-family: 'Courier New', monospace;
+}
+
+.capacity-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 0.375rem;
+  background: rgb(0 0 0 / 0.3);
+}
+
+.capacity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capacity-label {
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.capacity-value {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--color-theme-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.capacity-bar {
+  height: 8px;
+  background: rgb(0 0 0 / 0.5);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.capacity-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent));
+  transition: width 0.3s ease;
 }
 
 .info-toggle {

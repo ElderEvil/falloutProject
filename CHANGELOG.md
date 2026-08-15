@@ -18,6 +18,8 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Training room capacity** — capacity is computed through a shared `getTrainingRoomCapacity` helper used by both
   the room grid drop logic and the training tab, replacing duplicated inline math
 
+## [2.39.4](https://github.com/ElderEvil/falloutProject/compare/v2.39.3...v2.39.4) (2026-08-14)
+
 ## [2.39.3](https://github.com/ElderEvil/falloutProject/compare/v2.39.2...v2.39.3) (2026-08-14)
 
 ## [2.39.2](https://github.com/ElderEvil/falloutProject/compare/v2.39.1...v2.39.2) (2026-08-14)

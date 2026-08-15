@@ -606,7 +606,7 @@ lua = [
 
 [[package]]
 name = "fallout-shelter-fast-api"
-version = "2.39.4"
+version = "2.40.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosmtplib" },

@@ -7420,15 +7420,9 @@ export interface components {
              * @default 0
              */
             progress: number;
-            /**
-             * Started At
-             * Format: date-time
-             */
+            /** Started At */
             started_at: string;
-            /**
-             * Estimated Completion At
-             * Format: date-time
-             */
+            /** Estimated Completion At */
             estimated_completion_at: string;
             /** Completed At */
             completed_at?: string | null;
@@ -7476,15 +7470,9 @@ export interface components {
              * @default 0
              */
             progress: number;
-            /**
-             * Started At
-             * Format: date-time
-             */
+            /** Started At */
             started_at: string;
-            /**
-             * Estimated Completion At
-             * Format: date-time
-             */
+            /** Estimated Completion At */
             estimated_completion_at: string;
             /** Completed At */
             completed_at?: string | null;
@@ -7495,15 +7483,9 @@ export interface components {
              * Format: uuid4
              */
             id: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
+            /** Created At */
             created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
+            /** Updated At */
             updated_at: string;
         };
         /**

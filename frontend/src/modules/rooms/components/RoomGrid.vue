@@ -14,6 +14,7 @@ import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal
@@ -148,9 +149,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
 
     // Check room capacity
     if (targetRoom) {
-      const roomSize = targetRoom.size || targetRoom.size_min || 3
-      const cellsOccupied = Math.ceil(roomSize / 3)
-      const capacity = cellsOccupied * 2
+      const capacity = getTrainingRoomCapacity(targetRoom)
       const currentDwellers = dwellerStore.dwellers.filter((d) => d.room_id === roomId).length
 
       // Prevent assignment if room is full (unless moving from same room)

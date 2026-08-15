@@ -2,9 +2,10 @@
 
 from datetime import datetime
 
-from pydantic import UUID4
+from pydantic import UUID4, field_serializer
 
 from app.models.training import TrainingBase
+from app.schemas.common import serialize_optional_utc_datetime, serialize_utc_datetime
 
 
 class TrainingCreate(TrainingBase):
@@ -25,6 +26,20 @@ class TrainingRead(TrainingBase):
     class Config:
         from_attributes = True
 
+    @field_serializer(
+        "started_at",
+        "estimated_completion_at",
+        "created_at",
+        "updated_at",
+        when_used="json",
+    )
+    def serialize_required_datetime(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
+
+    @field_serializer("completed_at", when_used="json")
+    def serialize_optional_datetime(self, value: datetime | None) -> str | None:
+        return serialize_optional_utc_datetime(value)
+
 
 class TrainingStartRequest(TrainingBase):
     """Request to start training a dweller."""
@@ -43,3 +58,15 @@ class TrainingProgress(TrainingBase):
 
     class Config:
         from_attributes = True
+
+    @field_serializer(
+        "started_at",
+        "estimated_completion_at",
+        when_used="json",
+    )
+    def serialize_required_datetime(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
+
+    @field_serializer("completed_at", when_used="json")
+    def serialize_optional_datetime(self, value: datetime | None) -> str | None:
+        return serialize_optional_utc_datetime(value)

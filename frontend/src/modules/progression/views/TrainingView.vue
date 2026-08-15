@@ -1,27 +1,60 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
+import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
+const roomStore = useRoomStore()
+const trainingStore = useTrainingStore()
 const { isCollapsed } = useSidePanel()
 
 const vaultId = route.params.id as string
 
 const showInfo = ref(false)
 
+const trainingRooms = computed(() => {
+  return roomStore.rooms.filter((room) => room.category === 'training')
+})
+
+const activeTrainings = computed(() => trainingStore.allActiveTrainings)
+
+const getRoomActiveCount = (roomId: string) => {
+  return activeTrainings.value.filter((training) => training.room_id === roomId).length
+}
+
+const roomsInUse = computed(() => {
+  const roomIds = new Set(activeTrainings.value.map((training) => training.room_id))
+  return trainingRooms.value.filter((room) => roomIds.has(room.id)).length
+})
+
+const totalCapacity = computed(() => {
+  return trainingRooms.value.reduce((sum, room) => sum + getTrainingRoomCapacity(room), 0)
+})
+
+const capacityPercent = computed(() => {
+  if (totalCapacity.value <= 0) return 0
+  return Math.min(100, Math.round((activeTrainings.value.length / totalCapacity.value) * 100))
+})
+
 onMounted(async () => {
   if (authStore.token && vaultId) {
     // Ensure vault is loaded - loadVault handles the check internally
     await vaultStore.loadVault(vaultId, authStore.token)
+    await roomStore.fetchRooms(vaultId, authStore.token)
+    await trainingStore.fetchVaultTrainings(vaultId, authStore.token)
   }
 })
 </script>
@@ -40,6 +73,78 @@ onMounted(async () => {
             icon="mdi:dumbbell"
             subtitle="Monitor and manage SPECIAL stat training across your vault"
           />
+
+          <section class="flex w-full flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <Icon
+                  icon="mdi:office-building"
+                  class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+                />
+                <h3
+                  class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+                >
+                  Training Rooms ({{ trainingRooms.length }})
+                </h3>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span
+                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+                >
+                  <Icon icon="mdi:account-multiple" class="text-sm" />
+                  {{ activeTrainings.length }} training
+                </span>
+                <span
+                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+                >
+                  <Icon icon="mdi:progress-clock" class="text-sm" />
+                  {{ roomsInUse }} / {{ trainingRooms.length }} in use
+                </span>
+              </div>
+            </div>
+
+            <div
+              v-if="trainingRooms.length === 0"
+              class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
+            >
+              <Icon icon="mdi:hammer-wrench" class="text-5xl text-theme-primary opacity-30" />
+              <p class="m-0 font-mono text-sm text-theme-primary opacity-70">
+                No training rooms built yet
+              </p>
+              <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
+                Build training rooms in the vault to train dwellers
+              </p>
+            </div>
+
+            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+              <TrainingRoomCard
+                v-for="room in trainingRooms"
+                :key="room.id"
+                :room="room"
+                :active-count="getRoomActiveCount(room.id)"
+              />
+            </div>
+
+            <div
+              v-if="trainingRooms.length > 0"
+              class="flex flex-col gap-1.5 rounded-md border border-theme-glow bg-black/30 px-4 py-3"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
+                  >Overall Capacity</span
+                >
+                <span class="font-mono text-xs font-bold text-theme-primary"
+                  >{{ activeTrainings.length }} / {{ totalCapacity }}</span
+                >
+              </div>
+              <UProgressBar
+                :model-value="capacityPercent"
+                :height="8"
+                color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
+                :glow="false"
+              />
+            </div>
+          </section>
 
           <div class="w-full">
             <TrainingQueuePanel />

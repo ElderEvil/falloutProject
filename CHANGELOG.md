@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+- **Training tab UX** — training rooms now render as occupancy cards with live capacity and per-room active training
+  counts; the queue groups active sessions by room, and progress cards show dweller avatars with live progress bars
+  that fill even before the game-loop worker persists an update
+
+### Changed
+
+- **Training timestamps** — training schemas now serialize datetimes as unambiguous UTC (`Z`-suffixed ISO-8601),
+  so naive-UTC and tz-aware values render consistently to the client
+- **Training room capacity** — capacity is computed through a shared `getTrainingRoomCapacity` helper used by both
+  the room grid drop logic and the training tab, replacing duplicated inline math
+
 ## [2.39.4](https://github.com/ElderEvil/falloutProject/compare/v2.39.3...v2.39.4) (2026-08-14)
 
 ## [2.39.3](https://github.com/ElderEvil/falloutProject/compare/v2.39.2...v2.39.3) (2026-08-14)

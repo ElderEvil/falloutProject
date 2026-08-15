@@ -4,18 +4,45 @@ import { Icon } from '@iconify/vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { usePolling } from '@/core/composables/usePolling'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 
 const trainingStore = useTrainingStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
+const dwellerStore = useDwellerFilterStore()
+const roomStore = useRoomStore()
 
 const loading = ref(false)
 
 const activeTrainings = computed(() => trainingStore.allActiveTrainings)
 
 const completingSoon = computed(() => trainingStore.completingSoon)
+
+const dwellerLookup = computed(() => {
+  const lookup = new Map<string, { name: string; image: string | null }>()
+  for (const dweller of dwellerStore.dwellers) {
+    lookup.set(dweller.id, {
+      name: `${dweller.first_name} ${dweller.last_name ?? ''}`.trim(),
+      image: dweller.thumbnail_url ?? null,
+    })
+  }
+  return lookup
+})
+
+const roomLookup = computed(() => {
+  const lookup = new Map<string, string>()
+  for (const room of roomStore.rooms) {
+    lookup.set(room.id, room.name)
+  }
+  return lookup
+})
+
+const getDweller = (dwellerId: string) => dwellerLookup.value.get(dwellerId)
+
+const getRoomName = (roomId: string) => roomLookup.value.get(roomId) ?? 'Training Room'
 
 const groupedByRoom = computed(() => {
   const groups: Record<string, typeof activeTrainings.value> = {}
@@ -31,12 +58,24 @@ const groupedByRoom = computed(() => {
   return groups
 })
 
+const roomGroups = computed(() => {
+  return Object.entries(groupedByRoom.value).map(([roomId, trainings]) => ({
+    roomId,
+    roomName: getRoomName(roomId),
+    trainings,
+  }))
+})
+
 const fetchTrainings = async () => {
   if (!vaultStore.activeVault?.id || !authStore.token) return
 
   loading.value = true
   try {
-    await trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token)
+    await Promise.all([
+      trainingStore.fetchVaultTrainings(vaultStore.activeVault.id, authStore.token),
+      dwellerStore.fetchDwellersByVault(vaultStore.activeVault.id, authStore.token),
+      roomStore.fetchRooms(vaultStore.activeVault.id, authStore.token),
+    ])
   } finally {
     loading.value = false
   }
@@ -104,26 +143,47 @@ onMounted(() => {
             v-for="training in completingSoon"
             :key="training.id"
             :training="training"
+            :dweller-name="getDweller(training.dweller_id)?.name"
+            :dweller-image="getDweller(training.dweller_id)?.image"
             @cancel="handleCancelTraining"
             @complete="handleCompleteTraining"
           />
         </div>
       </div>
 
-      <!-- Active Trainings -->
+      <!-- Active Trainings grouped by room -->
       <div v-if="activeTrainings.length > 0" class="active-trainings-section">
         <div class="section-header">
           <Icon icon="mdi:account-clock" class="section-icon" />
           <h4 class="section-title">Active Training ({{ activeTrainings.length }})</h4>
         </div>
-        <div class="training-list">
-          <TrainingProgressCard
-            v-for="training in activeTrainings"
-            :key="training.id"
-            :training="training"
-            @cancel="handleCancelTraining"
-            @complete="handleCompleteTraining"
-          />
+        <div v-for="group in roomGroups" :key="group.roomId" class="mb-4 flex flex-col gap-3">
+          <div
+            class="flex items-center gap-2 rounded border border-theme-glow bg-black/30 px-2 py-1.5"
+          >
+            <Icon
+              icon="mdi:office-building"
+              class="text-base text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+            />
+            <span
+              class="flex-1 font-mono text-xs font-bold uppercase tracking-[0.05em] text-theme-primary"
+              >{{ group.roomName }}</span
+            >
+            <span class="font-mono text-xs font-bold text-theme-accent">{{
+              group.trainings.length
+            }}</span>
+          </div>
+          <div class="training-list">
+            <TrainingProgressCard
+              v-for="training in group.trainings"
+              :key="training.id"
+              :training="training"
+              :dweller-name="getDweller(training.dweller_id)?.name"
+              :dweller-image="getDweller(training.dweller_id)?.image"
+              @cancel="handleCancelTraining"
+              @complete="handleCompleteTraining"
+            />
+          </div>
         </div>
       </div>
 

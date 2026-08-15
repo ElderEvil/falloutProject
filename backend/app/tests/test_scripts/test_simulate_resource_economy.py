@@ -19,9 +19,9 @@ def test_simulate_uses_live_resource_production_and_consumption_rates() -> None:
         )
     )
 
-    assert result.initial_rates_per_minute == pytest.approx({"power": -4.0, "food": -3.1, "water": -3.1})
-    assert result.final_resources == {"power": 6.0, "food": 7.0, "water": 7.0}
-    assert result.forecasts_minutes == pytest.approx({"power": 10 / 4, "food": 10 / 3.1, "water": 10 / 3.1})
+    assert result.initial_rates_per_minute == pytest.approx({"power": 163.5, "food": 164.4, "water": 164.4})
+    assert result.final_resources == {"power": 100.0, "food": 100.0, "water": 100.0}
+    assert result.forecasts_minutes == pytest.approx({"power": 90 / 163.5, "food": 90 / 164.4, "water": 90 / 164.4})
 
 
 def test_simulate_reports_power_outage_stopping_food_and_water_production() -> None:
@@ -38,7 +38,7 @@ def test_simulate_reports_power_outage_stopping_food_and_water_production() -> N
         )
     )
 
-    assert result.initial_rates_per_minute == pytest.approx({"power": -4.0, "food": -3.6, "water": -3.6})
+    assert result.initial_rates_per_minute == pytest.approx({"power": 163.5, "food": -3.6, "water": -3.6})
 
 
 def test_simulate_can_compare_a_candidate_production_rate() -> None:

@@ -5,6 +5,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
+import { normalizeImageUrl } from '@/core/utils/image'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -12,6 +13,7 @@ type TrainingProgress = components['schemas']['TrainingProgress']
 interface Props {
   training: TrainingRead | TrainingProgress
   dwellerName?: string
+  dwellerImage?: string | null
 }
 
 const props = defineProps<Props>()
@@ -38,6 +40,17 @@ onUnmounted(() => {
 })
 
 const progressPercentage = computed(() => {
+  // Prefer the backend's persisted progress when present (it's 0.0-1.0),
+  // but recompute live from timestamps so the bar fills even when the
+  // game-loop worker hasn't persisted an update yet.
+  const started = new Date(props.training.started_at).getTime()
+  const end = new Date(props.training.estimated_completion_at).getTime()
+  const total = end - started
+  if (total > 0 && props.training.status === 'active') {
+    const elapsed = Math.min(Math.max(now.value - started, 0), total)
+    const livePercent = (elapsed / total) * 100
+    return Math.min(100, Math.max(props.training.progress * 100, livePercent))
+  }
   return Math.min(100, props.training.progress * 100)
 })
 
@@ -107,14 +120,50 @@ const handleComplete = () => {
 
 <template>
   <div
-    class="training-card"
-    :class="{ ready: isReadyToComplete, inactive: training.status !== 'active' }"
+    class="rounded-lg border bg-transparent px-3 py-2.5 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-all duration-300"
+    :class="{
+      'border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
+        !isReadyToComplete && training.status === 'active',
+      'border-theme-accent shadow-[0_0_15px_var(--color-theme-accent),inset_0_0_10px_rgb(0_0_0_/_0.5)] animate-[pulse_2s_ease-in-out_infinite]':
+        isReadyToComplete,
+      'border-theme-glow opacity-60 hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
+        training.status !== 'active',
+    }"
   >
-    <div class="training-header">
-      <Icon :icon="getStatIcon(training.stat_being_trained)" class="stat-icon" />
-      <div class="header-content">
-        <span class="stat-name">Training {{ training.stat_being_trained.toUpperCase() }}</span>
-        <span v-if="dwellerName" class="dweller-name">{{ dwellerName }}</span>
+    <div class="mb-2 flex items-center gap-3">
+      <div class="flex shrink-0 items-center gap-1.5">
+        <img
+          v-if="dwellerImage"
+          :src="normalizeImageUrl(dwellerImage)"
+          :alt="dwellerName ?? 'Dweller'"
+          class="h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
+          :class="{
+            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
+          }"
+        />
+        <Icon
+          v-else
+          icon="mdi:account"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-black/30 text-theme-primary"
+          :class="{
+            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
+          }"
+        />
+        <Icon
+          :icon="getStatIcon(training.stat_being_trained)"
+          class="text-2xl text-theme-primary"
+          :class="{
+            'text-theme-accent animate-[bounce_1s_ease-in-out_infinite]': isReadyToComplete,
+          }"
+        />
+      </div>
+      <div class="flex flex-1 flex-col gap-1">
+        <span v-if="dwellerName" class="font-mono text-xs text-theme-primary">{{
+          dwellerName
+        }}</span>
+        <span class="font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
+          >Training {{ training.stat_being_trained.toUpperCase() }}</span
+        >
       </div>
       <UBadge
         :variant="
@@ -129,36 +178,42 @@ const handleComplete = () => {
       </UBadge>
     </div>
 
-    <div class="training-progress">
-      <UProgressBar
-        :model-value="progressPercentage"
-        :height="16"
-        :color="fillGradient"
-        animation="shine"
-        :glow="false"
-      />
-      <span class="progress-text">{{ progressPercentage.toFixed(1) }}%</span>
-    </div>
-
-    <div class="training-footer">
-      <div class="time-info">
-        <Icon icon="mdi:clock-outline" class="time-icon" />
-        <span class="time-remaining" :class="{ 'ready-text': isReadyToComplete }">
+    <div class="flex items-center gap-3">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <UProgressBar
+          :model-value="progressPercentage"
+          :height="12"
+          :color="fillGradient"
+          :glow="false"
+        />
+        <span class="w-10 shrink-0 text-right font-mono text-xs text-theme-primary"
+          >{{ progressPercentage.toFixed(0) }}%</span
+        >
+      </div>
+      <div class="flex shrink-0 items-center gap-1.5">
+        <Icon icon="mdi:clock-outline" class="text-sm text-theme-primary" />
+        <span
+          class="whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
+          :class="{
+            'text-theme-accent [text-shadow:0_0_4px_var(--color-theme-accent)] animate-[pulse-text_1s_ease-in-out_infinite]':
+              isReadyToComplete,
+          }"
+        >
           {{ timeRemaining }}
         </span>
       </div>
-      <div class="actions">
-        <UButton v-if="isReadyToComplete" size="sm" variant="primary" @click="handleComplete">
-          <Icon icon="mdi:check-circle" class="h-4 w-4" />
+      <div class="flex shrink-0 gap-1.5">
+        <UButton v-if="isReadyToComplete" size="xs" variant="primary" @click="handleComplete">
+          <Icon icon="mdi:check-circle" class="h-3.5 w-3.5" />
           Complete
         </UButton>
         <UButton
           v-if="training.status === 'active'"
-          size="sm"
+          size="xs"
           variant="danger"
           @click="handleCancel"
         >
-          <Icon icon="mdi:close-circle" class="h-4 w-4" />
+          <Icon icon="mdi:close-circle" class="h-3.5 w-3.5" />
           Cancel
         </UButton>
       </div>
@@ -167,129 +222,6 @@ const handleComplete = () => {
 </template>
 
 <style scoped>
-.training-card {
-  background: transparent;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow:
-    0 0 10px var(--color-theme-primary),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-  transition: all 0.3s ease;
-}
-
-.training-card:hover {
-  border-color: var(--color-theme-primary);
-  box-shadow:
-    0 0 15px var(--color-theme-primary),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-}
-
-.training-card.ready {
-  border-color: var(--color-theme-accent);
-  box-shadow:
-    0 0 15px var(--color-theme-accent),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.training-card.inactive {
-  opacity: 0.6;
-  border-color: var(--color-theme-glow);
-}
-
-.training-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.stat-icon {
-  font-size: 2rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-primary));
-}
-
-.training-card.ready .stat-icon {
-  color: var(--color-theme-accent);
-  filter: drop-shadow(0 0 4px var(--color-theme-accent));
-  animation: bounce 1s ease-in-out infinite;
-}
-
-.header-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stat-name {
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dweller-name {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.training-progress {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.progress-text {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  min-width: 3rem;
-  text-align: right;
-}
-
-.training-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.time-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.time-icon {
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-}
-
-.time-remaining {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-}
-
-.time-remaining.ready-text {
-  color: var(--color-theme-accent);
-  text-shadow: 0 0 4px var(--color-theme-accent);
-  animation: pulse-text 1s ease-in-out infinite;
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
 @keyframes pulse {
   0%,
   100% {

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -11,6 +12,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
@@ -39,7 +41,7 @@ const roomsInUse = computed(() => {
 })
 
 const totalCapacity = computed(() => {
-  return trainingRooms.value.reduce((sum, room) => sum + (room.capacity ?? 0), 0)
+  return trainingRooms.value.reduce((sum, room) => sum + getTrainingRoomCapacity(room), 0)
 })
 
 const capacityPercent = computed(() => {
@@ -72,31 +74,49 @@ onMounted(async () => {
             subtitle="Monitor and manage SPECIAL stat training across your vault"
           />
 
-          <section class="training-rooms-section">
-            <div class="rooms-header">
-              <div class="header-title">
-                <Icon icon="mdi:office-building" class="header-icon" />
-                <h3>Training Rooms ({{ trainingRooms.length }})</h3>
+          <section class="flex w-full flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <Icon
+                  icon="mdi:office-building"
+                  class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+                />
+                <h3
+                  class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+                >
+                  Training Rooms ({{ trainingRooms.length }})
+                </h3>
               </div>
-              <div class="rooms-summary">
-                <span class="summary-chip">
-                  <Icon icon="mdi:account-multiple" class="summary-chip-icon" />
+              <div class="flex flex-wrap items-center gap-2">
+                <span
+                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+                >
+                  <Icon icon="mdi:account-multiple" class="text-sm" />
                   {{ activeTrainings.length }} training
                 </span>
-                <span class="summary-chip">
-                  <Icon icon="mdi:progress-clock" class="summary-chip-icon" />
+                <span
+                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+                >
+                  <Icon icon="mdi:progress-clock" class="text-sm" />
                   {{ roomsInUse }} / {{ trainingRooms.length }} in use
                 </span>
               </div>
             </div>
 
-            <div v-if="trainingRooms.length === 0" class="rooms-empty">
-              <Icon icon="mdi:hammer-wrench" class="rooms-empty-icon" />
-              <p class="rooms-empty-text">No training rooms built yet</p>
-              <p class="rooms-empty-hint">Build training rooms in the vault to train dwellers</p>
+            <div
+              v-if="trainingRooms.length === 0"
+              class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
+            >
+              <Icon icon="mdi:hammer-wrench" class="text-5xl text-theme-primary opacity-30" />
+              <p class="m-0 font-mono text-sm text-theme-primary opacity-70">
+                No training rooms built yet
+              </p>
+              <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
+                Build training rooms in the vault to train dwellers
+              </p>
             </div>
 
-            <div v-else class="rooms-grid">
+            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
               <TrainingRoomCard
                 v-for="room in trainingRooms"
                 :key="room.id"
@@ -105,16 +125,24 @@ onMounted(async () => {
               />
             </div>
 
-            <div v-if="trainingRooms.length > 0" class="capacity-strip">
-              <div class="capacity-header">
-                <span class="capacity-label">Overall Capacity</span>
-                <span class="capacity-value"
+            <div
+              v-if="trainingRooms.length > 0"
+              class="flex flex-col gap-1.5 rounded-md border border-theme-glow bg-black/30 px-4 py-3"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
+                  >Overall Capacity</span
+                >
+                <span class="font-mono text-xs font-bold text-theme-primary"
                   >{{ activeTrainings.length }} / {{ totalCapacity }}</span
                 >
               </div>
-              <div class="capacity-bar">
-                <div class="capacity-fill" :style="{ width: `${capacityPercent}%` }"></div>
-              </div>
+              <UProgressBar
+                :model-value="capacityPercent"
+                :height="8"
+                color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
+                :glow="false"
+              />
             </div>
           </section>
 
@@ -236,152 +264,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-}
-
-.training-rooms-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-}
-
-.rooms-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-icon {
-  font-size: 1.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.header-title h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.rooms-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.summary-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
-  background: rgb(0 0 0 / 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.summary-chip-icon {
-  font-size: 0.875rem;
-}
-
-.rooms-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.rooms-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 2rem;
-  border: 2px dashed var(--color-theme-glow);
-  border-radius: 0.5rem;
-  text-align: center;
-}
-
-.rooms-empty-icon {
-  font-size: 3rem;
-  color: var(--color-theme-primary);
-  opacity: 0.3;
-}
-
-.rooms-empty-text {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  font-family: 'Courier New', monospace;
-}
-
-.rooms-empty-hint {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-  font-family: 'Courier New', monospace;
-}
-
-.capacity-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.375rem;
-  background: rgb(0 0 0 / 0.3);
-}
-
-.capacity-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.capacity-label {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-}
-
-.capacity-value {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.capacity-bar {
-  height: 8px;
-  background: rgb(0 0 0 / 0.5);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.25rem;
-  overflow: hidden;
-}
-
-.capacity-fill {
-  height: 100%;
-  background: linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent));
-  transition: width 0.3s ease;
 }
 
 .info-toggle {

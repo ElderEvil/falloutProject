@@ -157,11 +157,21 @@ onMounted(() => {
           <Icon icon="mdi:account-clock" class="section-icon" />
           <h4 class="section-title">Active Training ({{ activeTrainings.length }})</h4>
         </div>
-        <div v-for="group in roomGroups" :key="group.roomId" class="room-group">
-          <div class="room-group-header">
-            <Icon icon="mdi:office-building" class="room-group-icon" />
-            <span class="room-group-name">{{ group.roomName }}</span>
-            <span class="room-group-count">{{ group.trainings.length }}</span>
+        <div v-for="group in roomGroups" :key="group.roomId" class="mb-4 flex flex-col gap-3">
+          <div
+            class="flex items-center gap-2 rounded border border-theme-glow bg-black/30 px-2 py-1.5"
+          >
+            <Icon
+              icon="mdi:office-building"
+              class="text-base text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+            />
+            <span
+              class="flex-1 font-mono text-xs font-bold uppercase tracking-[0.05em] text-theme-primary"
+              >{{ group.roomName }}</span
+            >
+            <span class="font-mono text-xs font-bold text-theme-accent">{{
+              group.trainings.length
+            }}</span>
           </div>
           <div class="training-list">
             <TrainingProgressCard
@@ -343,46 +353,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.room-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.room-group-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.5rem;
-  background: rgb(0 0 0 / 0.3);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.25rem;
-}
-
-.room-group-icon {
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.room-group-name {
-  flex: 1;
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.room-group-count {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-accent);
-  font-family: 'Courier New', monospace;
 }
 
 .training-summary {

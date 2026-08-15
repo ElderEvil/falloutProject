@@ -54,28 +54,63 @@ const occupancyLabel = computed(() => {
 </script>
 
 <template>
-  <div class="training-room-card" :class="occupancyTone">
-    <div class="room-visual">
-      <img v-if="roomImageUrl" :src="roomImageUrl" :alt="room.name" class="room-image" />
-      <Icon v-else :icon="ability?.icon ?? 'mdi:star'" class="room-icon" />
+  <div
+    class="flex items-stretch gap-4 rounded-lg border-2 border-theme-primary bg-transparent p-4 shadow-[0_0_10px_var(--color-theme-glow)] transition-all duration-200"
+    :class="{
+      'hover:border-theme-accent hover:shadow-[0_0_15px_var(--color-theme-accent)]':
+        occupancyTone === 'ok',
+      'border-danger shadow-[0_0_10px_rgb(255_0_0_/_0.4)]': occupancyTone === 'full',
+      'border-warning shadow-[0_0_10px_rgb(255_170_0_/_0.4)]': occupancyTone === 'busy',
+    }"
+  >
+    <div
+      class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-theme-glow bg-black/30"
+    >
+      <img
+        v-if="roomImageUrl"
+        :src="roomImageUrl"
+        :alt="room.name"
+        class="h-full w-full object-cover [image-rendering:pixelated]"
+      />
+      <Icon
+        v-else
+        :icon="ability?.icon ?? 'mdi:star'"
+        class="text-4xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+      />
     </div>
 
-    <div class="room-body">
-      <div class="room-header">
-        <div class="room-title">
-          <span class="room-name">{{ room.name }}</span>
-          <span v-if="ability" class="room-ability">
-            <Icon :icon="ability.icon" class="ability-icon" />
+    <div class="flex min-w-0 flex-1 flex-col gap-3">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex min-w-0 flex-col gap-1">
+          <span
+            class="truncate font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
+            >{{ room.name }}</span
+          >
+          <span
+            v-if="ability"
+            class="flex items-center gap-1.5 font-mono text-xs text-theme-primary opacity-70"
+          >
+            <Icon :icon="ability.icon" class="text-sm" />
             {{ ability.letter }} - {{ ability.label }}
           </span>
         </div>
-        <span class="tier-badge">T{{ room.tier }}</span>
+        <span
+          class="shrink-0 rounded border border-theme-primary px-2 py-0.5 font-mono text-xs font-bold text-theme-primary"
+          >T{{ room.tier }}</span
+        >
       </div>
 
-      <div class="occupancy">
-        <div class="occupancy-header">
-          <span class="occupancy-label">Occupancy</span>
-          <span class="occupancy-value" :class="occupancyTone">{{ occupancyLabel }}</span>
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs uppercase text-theme-primary opacity-60">Occupancy</span>
+          <span
+            class="font-mono text-xs font-bold text-theme-primary"
+            :class="{
+              'text-warning': occupancyTone === 'busy',
+              'text-danger': occupancyTone === 'full',
+            }"
+            >{{ occupancyLabel }}</span
+          >
         </div>
         <UProgressBar
           :model-value="occupancyPercent"
@@ -87,152 +122,3 @@ const occupancyLabel = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.training-room-card {
-  display: flex;
-  align-items: stretch;
-  gap: 1rem;
-  padding: 1rem;
-  background: transparent;
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 0.5rem;
-  box-shadow: 0 0 10px var(--color-theme-glow);
-  transition: all 0.2s ease;
-}
-
-.training-room-card:hover {
-  border-color: var(--color-theme-accent);
-  box-shadow: 0 0 15px var(--color-theme-accent);
-}
-
-.training-room-card.full {
-  border-color: var(--color-danger);
-  box-shadow: 0 0 10px rgb(255 0 0 / 0.4);
-}
-
-.training-room-card.busy {
-  border-color: var(--color-warning);
-  box-shadow: 0 0 10px rgb(255 170 0 / 0.4);
-}
-
-.room-visual {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 5rem;
-  height: 5rem;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 0.375rem;
-  background: rgb(0 0 0 / 0.3);
-  overflow: hidden;
-}
-
-.room-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
-}
-
-.room-icon {
-  font-size: 2.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.room-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.room-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.room-title {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.room-name {
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.room-ability {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  font-family: 'Courier New', monospace;
-}
-
-.ability-icon {
-  font-size: 0.875rem;
-}
-
-.tier-badge {
-  flex-shrink: 0;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.occupancy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.occupancy-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.occupancy-label {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-}
-
-.occupancy-value {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.occupancy-value.busy {
-  color: var(--color-warning);
-}
-
-.occupancy-value.full {
-  color: var(--color-danger);
-}
-</style>

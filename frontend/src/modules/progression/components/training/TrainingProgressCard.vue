@@ -120,23 +120,50 @@ const handleComplete = () => {
 
 <template>
   <div
-    class="training-card"
-    :class="{ ready: isReadyToComplete, inactive: training.status !== 'active' }"
+    class="rounded-lg border bg-transparent px-3 py-2.5 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-all duration-300"
+    :class="{
+      'border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
+        !isReadyToComplete && training.status === 'active',
+      'border-theme-accent shadow-[0_0_15px_var(--color-theme-accent),inset_0_0_10px_rgb(0_0_0_/_0.5)] animate-[pulse_2s_ease-in-out_infinite]':
+        isReadyToComplete,
+      'border-theme-glow opacity-60 hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
+        training.status !== 'active',
+    }"
   >
-    <div class="training-header">
-      <div class="training-visual">
+    <div class="mb-2 flex items-center gap-3">
+      <div class="flex shrink-0 items-center gap-1.5">
         <img
           v-if="dwellerImage"
           :src="normalizeImageUrl(dwellerImage)"
           :alt="dwellerName ?? 'Dweller'"
-          class="dweller-avatar"
+          class="h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
+          :class="{
+            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
+          }"
         />
-        <Icon v-else icon="mdi:account" class="dweller-placeholder" />
-        <Icon :icon="getStatIcon(training.stat_being_trained)" class="stat-icon" />
+        <Icon
+          v-else
+          icon="mdi:account"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-black/30 text-theme-primary"
+          :class="{
+            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
+          }"
+        />
+        <Icon
+          :icon="getStatIcon(training.stat_being_trained)"
+          class="text-2xl text-theme-primary"
+          :class="{
+            'text-theme-accent animate-[bounce_1s_ease-in-out_infinite]': isReadyToComplete,
+          }"
+        />
       </div>
-      <div class="header-content">
-        <span v-if="dwellerName" class="dweller-name">{{ dwellerName }}</span>
-        <span class="stat-name">Training {{ training.stat_being_trained.toUpperCase() }}</span>
+      <div class="flex flex-1 flex-col gap-1">
+        <span v-if="dwellerName" class="font-mono text-xs text-theme-primary">{{
+          dwellerName
+        }}</span>
+        <span class="font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
+          >Training {{ training.stat_being_trained.toUpperCase() }}</span
+        >
       </div>
       <UBadge
         :variant="
@@ -151,23 +178,31 @@ const handleComplete = () => {
       </UBadge>
     </div>
 
-    <div class="training-progress-row">
-      <div class="training-progress">
+    <div class="flex items-center gap-3">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
         <UProgressBar
           :model-value="progressPercentage"
           :height="12"
           :color="fillGradient"
           :glow="false"
         />
-        <span class="progress-text">{{ progressPercentage.toFixed(0) }}%</span>
+        <span class="w-10 shrink-0 text-right font-mono text-xs text-theme-primary"
+          >{{ progressPercentage.toFixed(0) }}%</span
+        >
       </div>
-      <div class="time-info">
-        <Icon icon="mdi:clock-outline" class="time-icon" />
-        <span class="time-remaining" :class="{ 'ready-text': isReadyToComplete }">
+      <div class="flex shrink-0 items-center gap-1.5">
+        <Icon icon="mdi:clock-outline" class="text-sm text-theme-primary" />
+        <span
+          class="whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
+          :class="{
+            'text-theme-accent [text-shadow:0_0_4px_var(--color-theme-accent)] animate-[pulse-text_1s_ease-in-out_infinite]':
+              isReadyToComplete,
+          }"
+        >
           {{ timeRemaining }}
         </span>
       </div>
-      <div class="actions">
+      <div class="flex shrink-0 gap-1.5">
         <UButton v-if="isReadyToComplete" size="xs" variant="primary" @click="handleComplete">
           <Icon icon="mdi:check-circle" class="h-3.5 w-3.5" />
           Complete
@@ -187,176 +222,6 @@ const handleComplete = () => {
 </template>
 
 <style scoped>
-.training-card {
-  background: transparent;
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  box-shadow:
-    0 0 10px var(--color-theme-primary),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-  transition: all 0.3s ease;
-}
-
-.training-card:hover {
-  border-color: var(--color-theme-primary);
-  box-shadow:
-    0 0 15px var(--color-theme-primary),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-}
-
-.training-card.ready {
-  border-color: var(--color-theme-accent);
-  box-shadow:
-    0 0 15px var(--color-theme-accent),
-    inset 0 0 10px rgb(0 0 0 / 0.5);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.training-card.inactive {
-  opacity: 0.6;
-  border-color: var(--color-theme-glow);
-}
-
-.training-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.training-visual {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex-shrink: 0;
-}
-
-.stat-icon {
-  font-size: 1.5rem;
-  color: var(--color-theme-primary);
-}
-
-.dweller-avatar {
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--color-theme-glow);
-  object-fit: cover;
-  image-rendering: pixelated;
-}
-
-.dweller-placeholder {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--color-theme-glow);
-  color: var(--color-theme-primary);
-  background: rgb(0 0 0 / 0.3);
-}
-
-.dweller-placeholder svg {
-  width: 1.75rem;
-  height: 1.75rem;
-}
-
-.training-card.ready .dweller-placeholder {
-  border-color: var(--color-theme-accent);
-  box-shadow: 0 0 8px var(--color-theme-accent);
-}
-
-.training-card.ready .dweller-avatar {
-  border-color: var(--color-theme-accent);
-  box-shadow: 0 0 8px var(--color-theme-accent);
-}
-
-.training-card.ready .stat-icon {
-  color: var(--color-theme-accent);
-  animation: bounce 1s ease-in-out infinite;
-}
-
-.header-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stat-name {
-  font-size: 0.875rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dweller-name {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.training-progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.training-progress {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.progress-text {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  min-width: 2.5rem;
-  text-align: right;
-}
-
-.time-info {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  flex-shrink: 0;
-}
-
-.time-icon {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-}
-
-.time-remaining {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.time-remaining.ready-text {
-  color: var(--color-theme-accent);
-  text-shadow: 0 0 4px var(--color-theme-accent);
-  animation: pulse-text 1s ease-in-out infinite;
-}
-
-.actions {
-  display: flex;
-  gap: 0.375rem;
-  flex-shrink: 0;
-}
-
 @keyframes pulse {
   0%,
   100% {

@@ -103,9 +103,8 @@ class TestChatWebSocketStreaming:
             patch(
                 "app.api.v1.endpoints.websocket.chat_service.stream_response",
                 new=_fake_stream_response,
-            ), ws_client.websocket_connect(
-            f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}"
-        ) as ws
+            ),
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
         ):
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "token", "text": "Hello"}
@@ -120,9 +119,7 @@ class TestChatWebSocketStreaming:
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
 
-        with ws_client.websocket_connect(
-            f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}"
-        ) as ws:
+        with ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws:
             ws.send_json({"type": "message", "content": "   "})
             assert ws.receive_json() == {
                 "type": "error",
@@ -143,9 +140,8 @@ class TestChatWebSocketStreaming:
             patch(
                 "app.api.v1.endpoints.websocket.user_crud.get",
                 new=AsyncMock(return_value=None),
-            ), ws_client.websocket_connect(
-            f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}"
-        ) as ws
+            ),
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
         ):
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "error", "detail": "User not found"}
@@ -171,9 +167,8 @@ class TestChatWebSocketStreaming:
             patch(
                 "app.api.v1.endpoints.websocket.chat_service.stream_response",
                 new=failing_stream,
-            ), ws_client.websocket_connect(
-            f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}"
-        ) as ws
+            ),
+            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
         ):
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "error", "detail": "AI quota exceeded"}

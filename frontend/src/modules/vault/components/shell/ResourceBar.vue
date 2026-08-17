@@ -54,6 +54,11 @@ const status = computed(() => {
   return 'healthy'
 })
 
+// Persistent warning: resource is draining and critically low
+const isDrainingCritical = computed(
+  () => (props.productionRate ?? 0) < 0 && (status.value === 'critical' || status.value === 'low')
+)
+
 const barColorClass = computed(() => {
   // Bar fill color changes based on resource status
   switch (status.value) {
@@ -117,6 +122,10 @@ const tooltipText = computed(() => {
     text += '\n⚠️ LOW - Attention needed'
   }
 
+  if (isDrainingCritical.value) {
+    text += '\n↓ Depleting - resource will run out!'
+  }
+
   return text
 })
 
@@ -167,21 +176,20 @@ const ariaLabel = computed(
           </div>
         </div>
 
-        <!-- Trend Indicator -->
+        <!-- Trend Indicator (transient on change, persistent while draining) -->
         <div
-          v-if="showTrend && trend !== 'stable'"
-          class="absolute -right-6 top-0 transition-opacity duration-300"
-          :class="showTrend ? 'opacity-100' : 'opacity-0'"
+          v-if="(showTrend && trend !== 'stable') || isDrainingCritical"
+          class="absolute -right-6 top-0"
         >
           <Icon
-            v-if="trend === 'up'"
-            icon="mdi:arrow-up"
-            class="h-4 w-4 text-green-500 animate-bounce"
-          />
-          <Icon
-            v-else-if="trend === 'down'"
+            v-if="isDrainingCritical || trend === 'down'"
             icon="mdi:arrow-down"
             class="h-4 w-4 text-red-500 animate-bounce"
+          />
+          <Icon
+            v-else-if="trend === 'up'"
+            icon="mdi:arrow-up"
+            class="h-4 w-4 text-green-500 animate-bounce"
           />
         </div>
       </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
@@ -8,6 +9,7 @@ import axios from '@/core/plugins/axios'
 
 interface Notification {
   id: string
+  vault_id?: string | null
   notification_type: string
   title: string
   message: string
@@ -18,6 +20,7 @@ interface Notification {
 }
 
 const authStore = useAuthStore()
+const router = useRouter()
 const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
@@ -113,6 +116,7 @@ watch(currentSseEvent, (evt) => {
 
     const newNotif: Notification = {
       id: notificationData.id,
+      vault_id: notificationData.vault_id ?? null,
       notification_type: notificationData.notification_type,
       title: notificationData.title,
       message: notificationData.message,
@@ -146,6 +150,43 @@ const markAsRead = async (notificationId: string) => {
 
 const markAllAsRead = async () => {
   if (authStore.token) await runMarkAllAsRead(authStore.token)
+}
+
+const getNotificationRoute = (notification: Notification): string | null => {
+  if (!notification.vault_id) return null
+  const vaultPath = `/vault/${notification.vault_id}`
+  const dwellerId = notification.meta_data?.dweller_id as string | undefined
+
+  switch (notification.notification_type) {
+    case 'exploration_complete':
+    case 'exploration_update':
+      return `${vaultPath}/exploration`
+    case 'training_complete':
+    case 'training_started':
+      return `${vaultPath}/training`
+    case 'quest_complete':
+      return `${vaultPath}/quests`
+    case 'level_up':
+      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
+    case 'dweller_died':
+    case 'dweller_injured':
+    case 'baby_born':
+    case 'relationship_formed':
+    case 'pregnancy_detected':
+    case 'radio_new_dweller':
+      return `${vaultPath}/dwellers`
+    case 'achievement_unlocked':
+      return `${vaultPath}/objectives`
+    default:
+      return vaultPath
+  }
+}
+
+const handleNotificationClick = async (notification: Notification) => {
+  if (!notification.is_read) await markAsRead(notification.id)
+  showPopup.value = false
+  const route = getNotificationRoute(notification)
+  if (route) await router.push(route)
 }
 
 const getNotificationIcon = (type: string): string => {
@@ -260,7 +301,7 @@ onBeforeUnmount(() => {
               v-for="notification in notifications"
               :key="notification.id"
               type="button"
-              @click="!notification.is_read && markAsRead(notification.id)"
+              @click="handleNotificationClick(notification)"
               class="w-full border-0 p-4 text-left transition-colors cursor-pointer"
               :class="{
                 'bg-[#141210]': !notification.is_read,

@@ -125,7 +125,7 @@ export const useIncidentStore = defineStore('incident', () => {
         switch (data.type) {
           case 'incident_spawned':
             sseConnected.value = true
-            fetchIncidents(vaultId, token).catch(() => {})
+            void fetchIncidents(vaultId, token)
             break
 
           case 'incident_resolved': {

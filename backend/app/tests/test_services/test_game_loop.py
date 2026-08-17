@@ -887,17 +887,25 @@ class TestUpdateRoomRelationships:
 
     @pytest.mark.asyncio
     async def test_no_dwellers_in_rooms(self, async_session: AsyncSession, vault: Vault):
-        with patch.object(game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, return_value=[]):
-            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+        result = await game_loop_service._update_room_relationships(async_session, vault.id)
+        assert result["relationships_updated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_excludes_dwellers_without_room(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
 
     @pytest.mark.asyncio
     async def test_single_dweller_skips(self, async_session: AsyncSession, vault: Vault):
         md = MagicMock()
         md.id = "d-1"
+        md.room_id = "r-1"
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [md]
         with (
-            patch.object(game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, return_value=[md]),
-            patch.object(game_loop_service, "_group_dwellers_by_room", return_value={"r-1": [md]}),
+            patch.object(async_session, "execute", new_callable=AsyncMock, return_value=mock_result),
+            patch("app.services.game_loop.group_dwellers_by_room", return_value={"r-1": [md]}),
+            patch.object(game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]),
         ):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
@@ -906,11 +914,15 @@ class TestUpdateRoomRelationships:
     async def test_processes_pairs(self, async_session: AsyncSession, vault: Vault):
         d1 = MagicMock()
         d1.id = "d-1"
+        d1.room_id = "r-1"
         d2 = MagicMock()
         d2.id = "d-2"
+        d2.room_id = "r-1"
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [d1, d2]
         with (
-            patch.object(game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, return_value=[d1, d2]),
-            patch.object(game_loop_service, "_group_dwellers_by_room", return_value={"r-1": [d1, d2]}),
+            patch.object(async_session, "execute", new_callable=AsyncMock, return_value=mock_result),
+            patch("app.services.game_loop.group_dwellers_by_room", return_value={"r-1": [d1, d2]}),
             patch.object(game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]),
             patch.object(game_loop_service, "_build_relationships_map", return_value={}),
             patch.object(game_loop_service, "_update_pair_affinity", new_callable=AsyncMock, return_value=0),
@@ -923,39 +935,15 @@ class TestUpdateRoomRelationships:
     async def test_handles_db_error(self, async_session: AsyncSession, vault: Vault):
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch.object(
-            game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, side_effect=SQLAlchemyError("DB error")
-        ):
+        with patch.object(async_session, "execute", new_callable=AsyncMock, side_effect=SQLAlchemyError("DB error")):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
 
     @pytest.mark.asyncio
     async def test_handles_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch.object(
-            game_loop_service, "_get_dwellers_in_rooms", new_callable=AsyncMock, side_effect=ValueError("Invalid")
-        ):
+        with patch.object(async_session, "execute", new_callable=AsyncMock, side_effect=ValueError("Invalid")):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _get_dwellers_in_rooms
-# ═════════════════════════════════════════════════════════════════════
-
-
-class TestGetDwellersInRooms:
-    """Tests for fetching dwellers in rooms."""
-
-    @pytest.mark.asyncio
-    async def test_empty(self, async_session: AsyncSession, vault: Vault):
-        result = await game_loop_service._get_dwellers_in_rooms(async_session, vault.id)
-        assert result == []
-
-    @pytest.mark.usefixtures("dweller")
-    @pytest.mark.asyncio
-    async def test_excludes_dwellers_without_room(self, async_session: AsyncSession, vault: Vault):
-        result = await game_loop_service._get_dwellers_in_rooms(async_session, vault.id)
-        assert len(result) == 0
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -969,15 +957,6 @@ class TestGetDwellersInRooms:
 
 class TestRelationshipHelpers:
     """Tests for relationship helper methods."""
-
-    def test_group_dwellers_by_room_delegates(self):
-        mock_dwellers = [MagicMock()]
-        mock_dwellers[0].room_id = "r-1"
-        with patch("app.services.game_loop.group_dwellers_by_room") as mg:
-            mg.return_value = {"r-1": mock_dwellers}
-            result = game_loop_service._group_dwellers_by_room(mock_dwellers)
-        mg.assert_called_once_with(mock_dwellers)
-        assert result == {"r-1": mock_dwellers}
 
     def test_build_relationships_map_bidirectional(self):
         r1 = MagicMock()

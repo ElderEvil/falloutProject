@@ -134,6 +134,34 @@ class IncidentConfig(BaseSettings):
         }
 
 
+class VaultEventConfig(BaseSettings):
+    """Random vault event spawn and reward configuration (Phase 5)."""
+
+    model_config = SettingsConfigDict(env_prefix="VAULT_EVENT_")
+
+    spawn_chance_per_hour: float = Field(
+        default=0.05,
+        description="5% chance per hour for a random vault event",
+        ge=0.0,
+        le=1.0,
+    )
+    min_vault_population: int = Field(
+        default=3,
+        description="Minimum dwellers required for vault events",
+        ge=0,
+    )
+
+    # Spawn weights (higher = more common)
+    weight_resource_cache: int = 40
+    weight_wanderer: int = 35
+    weight_raider_scout: int = 25
+
+    resource_cache_caps_min: int = 25
+    resource_cache_caps_max: int = 100
+    wanderer_caps_min: int = 10
+    wanderer_caps_max: int = 50
+
+
 class CombatConfig(BaseSettings):
     """Combat and loot configuration."""
 
@@ -670,6 +698,7 @@ class GameConfig(BaseSettings):
     # Nested configs
     game_loop: GameLoopConfig = Field(default_factory=GameLoopConfig)
     incident: IncidentConfig = Field(default_factory=IncidentConfig)
+    vault_event: VaultEventConfig = Field(default_factory=VaultEventConfig)
     combat: CombatConfig = Field(default_factory=CombatConfig)
     health: HealthConfig = Field(default_factory=HealthConfig)
     happiness: HappinessConfig = Field(default_factory=HappinessConfig)

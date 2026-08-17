@@ -1,6 +1,7 @@
 """Main game loop coordinator for vault simulation."""
 
 import logging
+import random
 from datetime import datetime
 
 from pydantic import UUID4
@@ -108,10 +109,6 @@ class GameLoopService:
         }
 
         # === PHASE 1: Resource Management ===
-        from sqlalchemy.exc import SQLAlchemyError
-
-        from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
-
         try:
             resource_update, resource_events = await self.resource_manager.process_vault_resources(
                 db_session, vault_id, seconds_passed
@@ -159,8 +156,8 @@ class GameLoopService:
         results["updates"]["breeding"] = breeding_update
 
         # === PHASE 5: Event System ===
-        # TODO: Implement in next phase
-        results["updates"]["events"] = {"triggered": 0}
+        event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
+        results["updates"]["events"] = event_update
 
         # Update game state
         game_state.update_tick(seconds_passed)
@@ -258,10 +255,6 @@ class GameLoopService:
         - Generate events for explorations that are due
         - Auto-complete explorations that have reached their duration
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
-        from app.utils.exceptions import ResourceNotFoundException
-
         stats = {
             "active_count": 0,
             "events_generated": 0,
@@ -317,7 +310,6 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'xp_awarded' and 'leveled_up' counts
         """
-        from app.core.game_config import game_config
         from app.schemas.common import RoomTypeEnum
         from app.services.leveling_service import leveling_service
 
@@ -368,8 +360,6 @@ class GameLoopService:
         - Check for level-ups
         - Check for deaths (health <= 0 or radiation threshold)
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.models.dweller import Dweller
         from app.models.room import Room
         from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
@@ -443,11 +433,9 @@ class GameLoopService:
         - Auto-complete trainings that have finished
         - Track statistics
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.crud import training as training_crud
         from app.services.training_service import training_service
-        from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+        from app.utils.exceptions import ResourceConflictException
 
         stats = {
             "sessions_updated": 0,
@@ -513,10 +501,7 @@ class GameLoopService:
         - Handle incident spreading
         """
         # Import here to avoid circular import
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.services.incident_service import incident_service
-        from app.utils.exceptions import ResourceNotFoundException
 
         stats = {
             "spawned": 0,
@@ -588,31 +573,79 @@ class GameLoopService:
 
         return stats
 
-    async def _get_dwellers_in_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list:
-        """Get all dwellers in a vault that are assigned to rooms.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID to query
-        :type vault_id: UUID4
-        :returns: List of dwellers with room assignments
-        :rtype: list
-        """
+    async def _process_events(
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
+    ) -> dict:
+        """Fire weighted random vault events (raider scout, resource cache, wanderer)."""
+        # Import here to avoid circular import
         from app.models.dweller import Dweller
+        from app.models.incident import IncidentType
+        from app.models.notification import NotificationPriority, NotificationType
+        from app.services.incident_service import incident_service
+        from app.services.notification_service import notification_service
 
-        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
-        dwellers_result = await db_session.execute(dwellers_query)
-        return dwellers_result.scalars().all()
+        stats = {"triggered": 0, "events": []}
 
-    def _group_dwellers_by_room(self, dwellers: list) -> dict:
-        """Group dwellers by their room_id.
+        # Events do not punish players for time away from the vault
+        if game_state and not game_state.is_user_online():
+            return stats
 
-        :param dwellers: List of dwellers to group
-        :type dwellers: list
-        :returns: Dictionary mapping room_id to list of dwellers
-        :rtype: dict
-        """
-        return group_dwellers_by_room(dwellers)
+        # Minimum population gate
+        dwellers_result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id))
+        if len(dwellers_result.scalars().all()) < game_config.vault_event.min_vault_population:
+            return stats
+
+        # Time-based spawn chance (capped like incidents)
+        hours_passed = min(seconds_passed / 3600, 2.0)
+        if random.random() >= game_config.vault_event.spawn_chance_per_hour * hours_passed:
+            return stats
+
+        # Pick weighted event type
+        weights = {
+            "resource_cache": game_config.vault_event.weight_resource_cache,
+            "wanderer": game_config.vault_event.weight_wanderer,
+            "raider_scout": game_config.vault_event.weight_raider_scout,
+        }
+        event_type = random.choices(list(weights), weights=list(weights.values()), k=1)[0]
+
+        vault = await vault_crud.get(db_session, vault_id)
+        if not vault or not vault.user_id:
+            return stats
+
+        if event_type == "raider_scout":
+            incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
+            if incident:
+                stats["triggered"] = 1
+                stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
+            return stats
+
+        # Positive events award caps
+        if event_type == "resource_cache":
+            caps = random.randint(
+                game_config.vault_event.resource_cache_caps_min, game_config.vault_event.resource_cache_caps_max
+            )
+            title, message = "Resource Cache Found!", f"Dwellers found a hidden cache worth {caps} caps!"
+        else:  # wanderer
+            caps = random.randint(
+                game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max
+            )
+            title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
+
+        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
+        await notification_service.create_and_send(
+            db_session,
+            user_id=vault.user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.ACHIEVEMENT_UNLOCKED,
+            priority=NotificationPriority.NORMAL,
+            title=title,
+            message=message,
+            meta_data={"event_type": event_type, "caps": caps},
+        )
+        stats["triggered"] = 1
+        stats["events"].append({"type": event_type, "caps": caps})
+        self.logger.info(f"Vault event {event_type} triggered in vault {vault_id}")
+        return stats
 
     async def _fetch_existing_relationships(self, db_session: AsyncSession, dweller_ids: set) -> list:
         """Batch fetch all relationships for a set of dweller IDs.
@@ -669,7 +702,6 @@ class GameLoopService:
         :returns: Count of relationships updated (0 or 1)
         :rtype: int
         """
-        from app.core.game_config import game_config
         from app.models.relationship import Relationship
         from app.schemas.common import RelationshipTypeEnum
         from app.services.relationship_service import relationship_service
@@ -711,7 +743,6 @@ class GameLoopService:
         :returns: Count of relationships created and updated
         :rtype: int
         """
-        from app.core.game_config import game_config
         from app.services.relationship_service import relationship_service
 
         if not new_relationships:
@@ -742,18 +773,20 @@ class GameLoopService:
         :returns: Statistics with 'relationships_updated' count
         :rtype: dict
         """
-        from sqlalchemy.exc import SQLAlchemyError
+        from app.models.dweller import Dweller
 
         stats = {"relationships_updated": 0}
 
         try:
             # Get all dwellers in this vault that are in rooms
-            dwellers = await self._get_dwellers_in_rooms(db_session, vault_id)
+            dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
+            dwellers_result = await db_session.execute(dwellers_query)
+            dwellers = dwellers_result.scalars().all()
             if not dwellers:
                 return stats
 
             # Group dwellers by room
-            room_dwellers = self._group_dwellers_by_room(dwellers)
+            room_dwellers = group_dwellers_by_room(dwellers)
 
             # Batch fetch all existing relationships for these dwellers
             all_dweller_ids = {d.id for d in dwellers}
@@ -795,8 +828,6 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'conceptions' and 'births' counts
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.services.breeding_service import breeding_service
 
         stats = {"conceptions": 0, "births": 0}
@@ -838,8 +869,6 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'children_aged' count
         """
-        from sqlalchemy.exc import SQLAlchemyError
-
         from app.services.breeding_service import breeding_service
 
         stats = {"children_aged": 0}

@@ -1,7 +1,7 @@
 """Tests for game loop exploration integration."""
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,6 +15,7 @@ from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEve
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.game_loop import game_loop_service
+from app.services.stream_manager import sse_manager
 from app.tests.factory.dwellers import create_fake_dweller
 
 
@@ -110,6 +111,56 @@ async def test_process_explorations_auto_complete(
     # Verify caps transferred
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 50
+
+
+@pytest.mark.asyncio
+async def test_process_explorations_auto_complete_publishes_sse_to_vault_channel(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Auto-completed explorations publish SSE to the vault.id channel with rewards.
+
+    The SSE endpoint ``/stream/exploration/{vault_id}`` subscribes by ``vault.id``
+    (see stream.py), but the exploration coordinator published to ``vault.user_id`` —
+    so completion events (and their rewards payload) never reached the frontend.
+    This pins the publish channel to the vault id so the rewards modal can appear.
+    """
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=1,  # 1 hour
+    )
+
+    # Add some rewards
+    await crud.exploration.update_stats(
+        async_session,
+        exploration_id=exploration.id,
+        caps=50,
+        distance=25,
+        enemies=3,
+    )
+
+    # Set start time to past (more than 1 hour ago)
+    exploration.start_time = datetime.utcnow() - timedelta(hours=2)
+    await async_session.commit()
+
+    with patch.object(sse_manager, "publish", new_callable=AsyncMock) as mock_publish:
+        result = await game_loop_service._process_explorations(async_session, vault.id)
+
+    assert result["completed"] == 1
+
+    # The SSE publish must target the vault channel the frontend subscribes to.
+    # (The notification service also publishes via sse_manager; filter by topic.)
+    exploration_publishes = [c for c in mock_publish.call_args_list if c.args[1] == "exploration"]
+    assert len(exploration_publishes) == 1
+    args = exploration_publishes[0]
+    assert args[0][0] == vault.id
+    payload = args[0][2]
+    assert payload["type"] == "exploration_complete"
+    # Rewards payload must reach the client so it can render the modal.
+    assert payload["rewards"]["caps"] == 50
 
 
 @pytest.mark.asyncio

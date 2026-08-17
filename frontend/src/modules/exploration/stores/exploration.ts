@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useSse } from '@/core/composables/useEventStream'
 
 export interface ExplorationEvent {
   type: string
@@ -84,8 +85,10 @@ export const useExplorationStore = defineStore('exploration', () => {
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
+  const pendingSseRewards = ref<{ rewards: RewardsSummary; dwellerId: string } | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  let sseInstance: ReturnType<typeof useSse> | null = null
 
   // Getters
   function getExplorationByDwellerId(dwellerId: string) {
@@ -98,6 +101,43 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   function isDwellerExploring(dwellerId: string) {
     return explorations.value.some((e) => e.dweller_id === dwellerId && e.status === 'active')
+  }
+
+  function startSseSubscription(vaultId: string, token: string): void {
+    stopSseSubscription()
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
+    sseInstance = useSse(`${apiBase}/api/v1/stream/exploration/${vaultId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    void sseInstance.start()
+
+    watch(
+      () => sseInstance?.event.value,
+      (evt) => {
+        if (!evt || evt.event !== 'exploration') return
+        const data = evt.data as Record<string, unknown> | undefined
+        if (!data || typeof data.type !== 'string') return
+        if (data.type === 'exploration_complete' || data.type === 'exploration_recalled') {
+          pendingSseRewards.value = {
+            rewards: (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary,
+            dwellerId: (data.dweller_id as string) ?? '',
+          }
+        }
+      }
+    )
+  }
+
+  function stopSseSubscription(): void {
+    if (sseInstance) {
+      sseInstance.stopReconnect()
+      sseInstance.close()
+      sseInstance = null
+    }
+  }
+
+  function clearPendingSseRewards(): void {
+    pendingSseRewards.value = null
   }
 
   // Actions
@@ -297,6 +337,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     explorations,
     activeExplorations,
     lastRewards,
+    pendingSseRewards,
     isLoading,
     error,
     // Getters
@@ -310,6 +351,9 @@ export const useExplorationStore = defineStore('exploration', () => {
     fetchExplorationProgress,
     recallDweller,
     completeExploration,
+    startSseSubscription,
+    stopSseSubscription,
+    clearPendingSseRewards,
     clearError,
   }
 })

@@ -120,7 +120,6 @@ class ExplorationCoordinator:
                 )
 
         await self._publish_sse(
-            db_session,
             exploration,
             event_type=event.type,
             description=event.description,
@@ -340,7 +339,6 @@ class ExplorationCoordinator:
 
         # Publish SSE event
         await self._publish_sse(
-            db_session,
             exploration,
             "exploration_complete",
             rewards=rewards.model_dump(mode="json"),
@@ -378,7 +376,6 @@ class ExplorationCoordinator:
         rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
 
         await self._publish_sse(
-            db_session,
             exploration,
             "exploration_recalled",
             rewards=rewards.model_dump(mode="json"),
@@ -734,27 +731,24 @@ class ExplorationCoordinator:
 
     @staticmethod
     async def _publish_sse(
-        db_session: AsyncSession,
         exploration: Exploration,
         event_type: str,
         **extra: Any,
     ) -> None:
         """Publish an exploration event to SSE. Best-effort."""
         try:
-            vault = await crud_vault.get(db_session, exploration.vault_id)
-            if vault and vault.user_id:
-                await sse_manager.publish(
-                    vault.user_id,
-                    "exploration",
-                    {
-                        "event_id": str(exploration.id),
-                        "type": event_type,
-                        "vault_id": str(exploration.vault_id),
-                        "exploration_id": str(exploration.id),
-                        "dweller_id": str(exploration.dweller_id),
-                        **extra,
-                    },
-                )
+            await sse_manager.publish(
+                exploration.vault_id,
+                "exploration",
+                {
+                    "event_id": str(exploration.id),
+                    "type": event_type,
+                    "vault_id": str(exploration.vault_id),
+                    "exploration_id": str(exploration.id),
+                    "dweller_id": str(exploration.dweller_id),
+                    **extra,
+                },
+            )
         except Exception:
             logger.exception("Failed to publish SSE for exploration %s", event_type)
 

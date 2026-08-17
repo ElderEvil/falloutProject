@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
@@ -64,7 +64,27 @@ const loadData = async () => {
 // Fetch explorations on mount
 onMounted(async () => {
   await loadData()
+  if (vaultId.value && authStore.token) {
+    explorationStore.startSseSubscription(vaultId.value, authStore.token)
+  }
 })
+
+onUnmounted(() => {
+  explorationStore.stopSseSubscription()
+})
+
+// Surface rewards when the game loop auto-completes an exploration server-side
+watch(
+  () => explorationStore.pendingSseRewards,
+  (pending) => {
+    if (!pending) return
+    const dweller = getDwellerById(pending.dwellerId)
+    completedExplorationRewards.value = pending.rewards
+    completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+    showRewardsModal.value = true
+    explorationStore.clearPendingSseRewards()
+  }
+)
 
 const pollExplorations = async () => {
   if (!vaultId.value || !authStore.token) return

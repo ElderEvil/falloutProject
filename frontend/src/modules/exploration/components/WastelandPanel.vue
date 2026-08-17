@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -62,11 +62,30 @@ onMounted(async () => {
       for (const exploration of activeExplorationsArray.value) {
         await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
       }
+
+      explorationStore.startSseSubscription(vaultId.value, authStore.token)
     } catch (error) {
       toast.error('Failed to load explorations')
     }
   }
 })
+
+onUnmounted(() => {
+  explorationStore.stopSseSubscription()
+})
+
+// Surface rewards when the game loop auto-completes an exploration server-side
+watch(
+  () => explorationStore.pendingSseRewards,
+  (pending) => {
+    if (!pending) return
+    const dweller = getDwellerById(pending.dwellerId)
+    completedExplorationRewards.value = pending.rewards
+    completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+    showRewardsModal.value = true
+    explorationStore.clearPendingSseRewards()
+  }
+)
 
 // Poll for exploration updates every 30 seconds. usePolling owns cleanup when
 // this component's scope is disposed and prevents overlapping refreshes.

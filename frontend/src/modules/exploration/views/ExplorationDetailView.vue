@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -202,8 +202,27 @@ onMounted(async () => {
     if (exploration.value) {
       await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
     }
+
+    explorationStore.startSseSubscription(vaultId.value, authStore.token)
   }
 })
+
+onUnmounted(() => {
+  explorationStore.stopSseSubscription()
+})
+
+// Surface rewards when the game loop auto-completes an exploration server-side
+watch(
+  () => explorationStore.pendingSseRewards,
+  (pending) => {
+    if (!pending) return
+    if (pending.dwellerId !== exploration.value?.dweller_id) return
+    completedExplorationRewards.value = pending.rewards
+    completedDwellerName.value = dwellerName.value
+    showRewardsModal.value = true
+    explorationStore.clearPendingSseRewards()
+  }
+)
 
 // Watch for exploration completion
 watch(

@@ -90,7 +90,6 @@ class DwellerVisualAttributes(BaseModel):
     # Equipment
     accessory: str | None = None
     object_held: str | None = None
-    # TODO: Choose from inventory
 
     # Scene & Action
     pose: str | None = None

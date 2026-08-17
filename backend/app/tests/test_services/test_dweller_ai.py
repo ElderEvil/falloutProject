@@ -34,6 +34,8 @@ def _make_dweller_mock(
     dweller.rarity = rarity
     dweller.id = uuid.uuid4()
     dweller.vault_id = uuid.uuid4()
+    dweller.weapon = None
+    dweller.outfit = None
     # SPECIAL stats (used by format_special_stats)
     dweller.strength = 5
     dweller.perception = 5
@@ -293,6 +295,87 @@ async def test_generate_visual_usage_extraction_fails(
     assert llm_kwargs.prompt_tokens is None
     assert llm_kwargs.completion_tokens is None
     assert llm_kwargs.total_tokens is None
+
+
+@patch("app.services.dweller_ai.llm_interaction_crud")
+@patch("app.services.dweller_ai.visual_attributes_agent")
+@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai.quota_service")
+async def test_generate_visual_attributes_constrains_accessory_and_object_held(
+    mock_quota: MagicMock,
+    mock_crud: MagicMock,
+    mock_agent: MagicMock,
+    mock_llm: MagicMock,
+) -> None:
+    """Accessory/object_held output is constrained to the dweller's equipped items."""
+    import app.schemas.dweller as dweller_schemas
+
+    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
+    mock_crud.update = AsyncMock()
+    mock_llm.create = AsyncMock()
+
+    mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+    mock_dweller.weapon = MagicMock()
+    mock_dweller.weapon.name = "Laser Rifle"
+    mock_dweller.outfit = MagicMock()
+    mock_dweller.outfit.name = "Vault Suit"
+
+    mock_output = dweller_schemas.DwellerVisualAttributes(
+        height="tall", accessory="Bandolier", object_held="Laser Rifle"
+    )
+    mock_result = MagicMock()
+    mock_result.output = mock_output
+    mock_result.usage = MagicMock(return_value=MagicMock(input_tokens=10, output_tokens=5, total_tokens=15))
+    mock_agent.run = AsyncMock(return_value=mock_result)
+
+    user = _make_user_mock()
+
+    await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
+
+    deps = mock_agent.run.call_args.kwargs["deps"]
+    assert deps.equipped_items == ["Laser Rifle", "Vault Suit"]
+
+    stored = mock_crud.update.call_args[0][2].visual_attributes
+    assert stored.object_held == "Laser Rifle"
+    assert stored.accessory is None
+    assert stored.height == "tall"
+
+
+@patch("app.services.dweller_ai.llm_interaction_crud")
+@patch("app.services.dweller_ai.visual_attributes_agent")
+@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai.quota_service")
+async def test_generate_visual_attributes_drops_equipment_when_none_equipped(
+    mock_quota: MagicMock,
+    mock_crud: MagicMock,
+    mock_agent: MagicMock,
+    mock_llm: MagicMock,
+) -> None:
+    """Accessory/object_held are dropped entirely when the dweller has no equipped items."""
+    import app.schemas.dweller as dweller_schemas
+
+    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
+    mock_crud.update = AsyncMock()
+    mock_llm.create = AsyncMock()
+
+    mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+
+    mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", object_held="Laser Rifle")
+    mock_result = MagicMock()
+    mock_result.output = mock_output
+    mock_result.usage = MagicMock(return_value=MagicMock(input_tokens=10, output_tokens=5, total_tokens=15))
+    mock_agent.run = AsyncMock(return_value=mock_result)
+
+    user = _make_user_mock()
+
+    await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
+
+    deps = mock_agent.run.call_args.kwargs["deps"]
+    assert deps.equipped_items == []
+
+    stored = mock_crud.update.call_args[0][2].visual_attributes
+    assert stored.object_held is None
+    assert stored.height == "tall"
 
 
 # ── _has_substantial_visual_attributes ──────────────────────────────────

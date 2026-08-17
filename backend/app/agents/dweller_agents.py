@@ -148,10 +148,19 @@ def visual_attributes_instructions(ctx: RunContext[VisualAttributesDeps]) -> str
             "equipment, and overall appearance."
         )
 
+    equipment_context = ""
+    if ctx.deps.equipped_items:
+        equipment_context = (
+            f"\nThe dweller carries these items: {', '.join(ctx.deps.equipped_items)}. "
+            "The 'object_held' field MUST be exactly one of these items (or empty if the list is empty). "
+            "The 'accessory' field MUST be exactly one of these items (or empty if the list is empty). "
+            "NEVER invent items the dweller does not carry."
+        )
+
     return (
         f"Create visual attributes for {ctx.deps.first_name} {ctx.deps.last_name}. "
         f"Consider {pronoun} background and personality when selecting visual traits."
-        f"{race_context}{faction_context}{bio_context}\n\n"
+        f"{race_context}{faction_context}{equipment_context}{bio_context}\n\n"
         "Generate a cohesive visual description that matches their character. "
         "Use the available options to create a believable Fallout character appearance. "
         "IMPORTANT: For the 'build' field, use lore-appropriate options based on the dweller's race. "

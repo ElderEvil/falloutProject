@@ -1,6 +1,6 @@
 """Dependency types for PydanticAI agents."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.schemas.common import FactionEnum, GenderEnum, RaceEnum
 
@@ -32,3 +32,4 @@ class VisualAttributesDeps:
     bio: str | None
     race: RaceEnum | None = None
     faction: FactionEnum | None = None
+    equipped_items: list[str] = field(default_factory=list)

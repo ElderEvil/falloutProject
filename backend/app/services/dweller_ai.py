@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from math import ceil
+from typing import Any
 
 from fastapi import HTTPException
 from pydantic import UUID4
@@ -59,6 +60,16 @@ class DwellerAIService:
         except Exception:
             logger.exception("Failed to register map places for dweller %s", dweller_obj.id)
 
+    def _extract_usage(self, result: Any, *, agent_name: str) -> tuple[int | None, int | None, int | None]:
+        """Extract token usage from an agent result, tolerating provider failures."""
+        try:
+            usage = result.usage()
+        except Exception:
+            logger.exception("Failed to extract usage info from %s agent result", agent_name)
+            return None, None, None
+        else:
+            return usage.input_tokens, usage.output_tokens, usage.total_tokens
+
     async def generate_backstory(
         self,
         user: User,
@@ -112,16 +123,7 @@ class DwellerAIService:
             explicit_origin=origin,
         )
 
-        try:
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
-            total_tokens = usage.total_tokens
-        except Exception:
-            logger.exception("Failed to extract usage info from backstory agent result")
-            prompt_tokens = None
-            completion_tokens = None
-            total_tokens = None
+        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name="backstory")
 
         llm_int_create = LLMInteractionCreate(
             parameters=origin,
@@ -177,16 +179,7 @@ class DwellerAIService:
             visited_places=result.output.visited_places,
         )
 
-        try:
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
-            total_tokens = usage.total_tokens
-        except Exception:
-            logger.exception("Failed to extract usage info from bio extension agent result")
-            prompt_tokens = None
-            completion_tokens = None
-            total_tokens = None
+        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name="bio extension")
 
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,
@@ -231,6 +224,8 @@ class DwellerAIService:
         dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
         dweller_faction = existing_attrs.get("faction") if isinstance(existing_attrs, dict) else None
 
+        equipped_items = [item.name for item in (dweller_obj.weapon, dweller_obj.outfit) if item is not None]
+
         # Create dependencies for the agent
         deps = VisualAttributesDeps(
             first_name=dweller_obj.first_name,
@@ -239,6 +234,7 @@ class DwellerAIService:
             bio=dweller_obj.bio,
             race=dweller_race,
             faction=dweller_faction,
+            equipped_items=equipped_items,
         )
 
         # Run the visual attributes agent
@@ -249,6 +245,15 @@ class DwellerAIService:
         # Convert Pydantic model to dict, excluding None values
         visual_attributes = result.output.model_dump(exclude_none=True)
 
+        if equipped_items:
+            owned = set(equipped_items)
+            for field in ("accessory", "object_held"):
+                if field in visual_attributes and visual_attributes[field] not in owned:
+                    del visual_attributes[field]
+        else:
+            visual_attributes.pop("accessory", None)
+            visual_attributes.pop("object_held", None)
+
         # Merge with existing identity fields (race/faction) to preserve defaults
         if isinstance(existing_attrs, dict):
             for key in ("race", "faction", "age", "state_of_being"):
@@ -257,16 +262,7 @@ class DwellerAIService:
 
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(visual_attributes=visual_attributes))
 
-        try:
-            usage = result.usage()
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
-            total_tokens = usage.total_tokens
-        except Exception:
-            logger.exception("Failed to extract usage info from visual attributes agent result")
-            prompt_tokens = None
-            completion_tokens = None
-            total_tokens = None
+        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result, agent_name="visual attributes")
 
         llm_int_create = LLMInteractionCreate(
             parameters=dweller_obj.bio,

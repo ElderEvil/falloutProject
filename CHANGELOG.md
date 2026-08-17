@@ -3,6 +3,43 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+- **Chat over WebSocket** — chat messages now stream over the existing WebSocket (`token`/`done`/`error` chunks)
+  instead of punting to REST, with an automatic REST fallback when the socket is disconnected; the chat UI renders
+  tokens incrementally as the AI replies
+- **Vault event system** — the game loop now fires weighted random vault events (resource cache, wanderer at the
+  door, raider scout) for online vaults above a minimum population, awarding caps or spawning incidents with
+  configurable spawn chance and reward ranges
+- **Notification navigation** — clicking a notification in the bell now routes to the relevant view (exploration,
+  training, quests, dwellers, objectives) based on its type, in addition to marking it read
+- **Visual equipment consistency** — generated dweller visual attributes (`accessory`, `object_held`) are now
+  constrained to items the dweller actually has equipped, instead of free text chosen from anywhere
+- **Resource depletion warning** — resource bars show a persistent draining indicator when a resource is critically
+  low and trending downward, instead of only a transient arrow
+
+### Changed
+
+- **Exploration rewards via SSE** — exploration completion/recall events now publish to the vault channel the
+  frontend subscribes to, so auto-completed explorations surface their rewards modal in real time
+
+### Fixed
+
+- **Exploration SSE channel** — the exploration coordinator published completion events to the vault owner id while
+  the frontend subscribes to the vault id, so rewards never reached the client; the publish now targets the vault
+  channel
+- **Silent incident fetch failure** — SSE-triggered incident refreshes no longer swallow errors silently; failures
+  surface through the standard error handler
+- **Room relationships** — dwellers without an assigned room are now excluded from affinity pairing, and the room
+  query no longer depends on a helper that fetched every dweller first
+
+### Removed
+
+- **Objectives debug overlay** — the floating debug button and its `console.log` patching are removed from the
+  player UI
+
 ## [2.40.0](https://github.com/ElderEvil/falloutProject/compare/v2.39.4...v2.40.0) (2026-08-15)
 
 ## Unreleased

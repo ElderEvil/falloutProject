@@ -143,6 +143,81 @@ validation, cache isolation, or runtime behavior.
 - **Tailwind CSS** — use newer semantic utilities such as native text shadows, safe alignment, pointer variants, or
   `@source inline()` only in the component that needs them. Avoid a formatting-only CRT-style rewrite.
 
+---
+
+## Low-Hanging Fruit — Immediate User-Facing Improvements
+
+These items are small, scoped changes that deliver noticeable player value without requiring new systems or heavy
+architecture. They are ordered by a rough impact/effort ratio, and they respect the v2.35+ constraint that every
+update reduce net source LOC (features that add code must first offset it by removing or compacting existing code).
+
+### P2 — Quality of Life
+
+- [ ] **Fix silent incident fetch failure**
+  - **Where:** `frontend/src/modules/combat/stores/incident.ts:128`
+  - **Issue:** `fetchIncidents(vaultId, token).catch(() => {})` swallows errors when an SSE `incident_spawned` event
+    arrives. If the follow-up fetch fails, the incident never appears and the player gets no feedback.
+  - **Fix:** Route the error through `handleStoreError` so the player sees a toast.
+  - **Effort:** trivial.
+
+- [ ] **Gate or remove the Objectives debug overlay in production**
+  - **Where:** `frontend/src/modules/progression/components/ObjectivesDebugOverlay.vue`
+  - **Issue:** A floating `DEBUG` button that patches `console.log` is visible in the player UI.
+  - **Fix:** Render only when `import.meta.env.DEV` is true, or remove the component from production views.
+  - **Effort:** trivial.
+
+- [ ] **Add notification click-through navigation**
+  - **Where:** `frontend/src/modules/vault/components/shell/NotificationBell.vue`
+  - **Issue:** The bell displays typed notifications (`exploration_complete`, `dweller_died`, `baby_born`, etc.), but
+    tapping a notification only marks it read.
+  - **Fix:** Navigate to the relevant view (exploration detail, dweller detail, vault) based on `notification_type`.
+  - **Effort:** small.
+
+### P1 — Resource Economy (aligns with current trajectory)
+
+- [ ] **Surface resource trend alerts from existing rate/forecast data**
+  - **Where:** `frontend/src/modules/vault/components/shell/ResourceBar.vue`
+  - **Opportunity:** `ResourceBar` already computes per-minute rate and "estimated empty/full" in its tooltip.
+  - **Fix:** Promote that signal to a visible warning when a resource is trending to critical or low within the next
+    few ticks. This directly supports the resource-economy baseline goal of making staffing trade-offs obvious.
+  - **Effort:** small; mostly UI/UX around existing calculations.
+
+### P1 — Gameplay Gaps
+
+- [ ] **Implement the vault-level event system stub**
+  - **Where:** `backend/app/services/game_loop.py:161-163`
+  - **Issue:** `PHASE 5: Event System` is a TODO that always returns `{"triggered": 0}`. This is the main missing
+    source of mid-game tension in a Fallout Shelter-style game.
+  - **Fix:** Fire weighted random vault events (raider scout, radroach breach, resource cache, wanderer at the door)
+    using the existing incident, notification, and SSE plumbing. Start with 2-3 event types and expand.
+  - **Effort:** medium — a few days — but the infrastructure is already in place.
+
+- [ ] **Fix missing exploration rewards**
+  - **Where:** `backend/app/services/exploration/` (coordinator + event generator)
+  - **Issue:** Completed explorations return no rewards to the player (caps/items/loot not delivered or not shown).
+  - **Fix:** Trace the completion path end-to-end (reward accumulation → delivery → frontend rewards modal) and make
+    rewards land atomically with the completion result.
+  - **Effort:** medium — first reproduction test, then the fix.
+
+### P2 — Chat Polish
+
+- [x] **Stream chat messages over the existing WebSocket**
+  - **Where:** `backend/app/api/v1/endpoints/websocket.py:44-51`
+  - **Issue:** The WebSocket endpoint handles `ping` and `typing`, but for `message` it only acks and tells the client
+    to use REST. `DwellerChat.vue` already uses the socket for typing indicators.
+  - **Fix:** Move the full chat round-trip to the socket so messages feel immediate and the REST fallback can be
+    removed.
+  - **Effort:** medium.
+
+### P3 — Consistency
+
+- [x] **Wire dweller visual equipment to actual inventory**
+  - **Where:** `backend/app/schemas/dweller.py:90-93`
+  - **Issue:** `accessory` and `object_held` are free-text fields marked `# TODO: Choose from inventory`, so generated
+    dweller visuals can show items the dweller does not own.
+  - **Fix:** Constrain visual-attribute generation to equipped or owned items.
+  - **Effort:** medium.
+
 ## Latest Release
 
 ### Measurable Release Policy (v2.31.0+)
@@ -482,4 +557,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-14_ (v2.38.0 released)
+_Last updated: 2026-08-16_ (v2.40.0 released)

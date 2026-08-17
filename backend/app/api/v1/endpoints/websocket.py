@@ -8,6 +8,9 @@ from jose import JWTError, jwt
 from pydantic import UUID4
 
 from app.core.config import settings
+from app.crud.user import user as user_crud
+from app.db.session import async_session_maker
+from app.services.chat_service import chat_service
 from app.services.websocket_manager import manager
 
 router = APIRouter()
@@ -42,13 +45,26 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
             )
 
         elif message_type == "message":
-            # TODO: migrate chat from REST to WebSocket
-            # Currently text chat uses POST /api/v1/chat/{dweller_id} (REST)
-            # which returns the AI response. This WebSocket should eventually
-            # stream responses directly instead of punting to REST.
-            await websocket.send_json(
-                {"type": "ack", "message": "Message received. Use REST API for full chat functionality."}
-            )
+            content = message.get("content")
+            if not isinstance(content, str) or not content.strip():
+                await websocket.send_json(
+                    {"type": "error", "detail": "Message content must be a non-empty string"}
+                )
+                return
+
+            async with async_session_maker() as db_session:
+                user = await user_crud.get(db_session, user_id)
+                if not user:
+                    await websocket.send_json({"type": "error", "detail": "User not found"})
+                    return
+
+                async for chunk in chat_service.stream_response(
+                    db_session=db_session,
+                    user=user,
+                    dweller_id=dweller_id,
+                    message_text=content,
+                ):
+                    await websocket.send_json(chunk)
 
         else:
             await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
@@ -107,18 +123,23 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
 
     Server -> Client messages:
     {
-        "type": "message",
-        "content": "Hello overseer!",
-        "sender": "dweller"
+        "type": "token",
+        "text": "Hello"
+    }
+    {
+        "type": "done",
+        "dweller_message_id": "uuid",
+        "happiness_impact": {...} | null,
+        "action_suggestion": {...} | null
+    }
+    {
+        "type": "error",
+        "detail": "Error description"
     }
     {
         "type": "typing",
         "is_typing": true,
         "sender": "dweller"
-    }
-    {
-        "type": "error",
-        "message": "Error description"
     }
     """
     # WS Auth: verify token matches user_id BEFORE accepting/registering the connection.

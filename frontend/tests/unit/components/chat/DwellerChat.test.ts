@@ -33,18 +33,21 @@ vi.mock('@/modules/chat/composables/useAudioRecorder', () => ({
 
 // Mock useChatWebSocket with event handlers
 const mockWebSocketHandlers: Record<string, Function[]> = {}
+const mockWsState = { value: 'disconnected' as 'connected' | 'disconnected' }
+const mockSendMessage = vi.fn()
 vi.mock('@/core/composables/useWebSocket', () => ({
   useChatWebSocket: () => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     sendTypingIndicator: vi.fn(),
+    sendMessage: mockSendMessage,
     on: (event: string, handler: Function) => {
       if (!mockWebSocketHandlers[event]) {
         mockWebSocketHandlers[event] = []
       }
       mockWebSocketHandlers[event].push(handler)
     },
-    state: { value: 'connected' },
+    state: mockWsState,
   }),
 }))
 
@@ -150,6 +153,7 @@ describe('DwellerChat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
+    mockWsState.value = 'disconnected'
 
     mockSendDwellerToWasteland.mockReset()
     mockRecallDweller.mockReset()
@@ -1987,6 +1991,99 @@ describe('DwellerChat', () => {
 
       // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+    })
+  })
+
+  describe('WebSocket Message Streaming', () => {
+    beforeEach(() => {
+      mockWsState.value = 'connected'
+      mockWebSocketHandlers['token'] = []
+      mockWebSocketHandlers['done'] = []
+      mockWebSocketHandlers['error'] = []
+    })
+
+    it('should send message via WebSocket and render streamed tokens', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Hello stream')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      expect(mockSendMessage).toHaveBeenCalledWith('Hello stream')
+      expect(apiClient.post).not.toHaveBeenCalled()
+
+      let messages = wrapper.findAll('.message-wrapper')
+      expect(messages.length).toBe(1)
+      expect(messages[0].text()).toContain('Hello stream')
+      expect(wrapper.find('.typing-indicator').exists()).toBe(true)
+
+      const tokenHandlers = mockWebSocketHandlers['token']
+      expect(tokenHandlers.length).toBeGreaterThan(0)
+      tokenHandlers[0]({ text: 'Hel' })
+      await wrapper.vm.$nextTick()
+      tokenHandlers[0]({ text: 'lo' })
+      await wrapper.vm.$nextTick()
+
+      messages = wrapper.findAll('.message-wrapper')
+      expect(messages.length).toBe(2)
+      expect(messages[1].text()).toContain('Hello')
+
+      mockWebSocketHandlers['done'][0]({
+        dweller_message_id: 'msg-stream-1',
+        happiness_impact: null,
+        action_suggestion: null,
+      })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.typing-indicator').exists()).toBe(false)
+    })
+
+    it('should attach happiness impact and action suggestion from done event', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Stream with metadata')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      mockWebSocketHandlers['token'][0]({ text: 'Great!' })
+      await wrapper.vm.$nextTick()
+      mockWebSocketHandlers['done'][0]({
+        dweller_message_id: 'msg-stream-2',
+        happiness_impact: { delta: 5, reason_text: 'Positive conversation' },
+        action_suggestion: {
+          action_type: 'start_training',
+          stat: 'strength',
+          reason: 'Low strength',
+        },
+      })
+      await wrapper.vm.$nextTick()
+
+      const happiness = wrapper.find('.happiness-indicator')
+      expect(happiness.exists()).toBe(true)
+      expect(happiness.text()).toContain('+5')
+
+      const actionCard = wrapper.find('.action-suggestion-card')
+      expect(actionCard.exists()).toBe(true)
+      expect(actionCard.text()).toContain('Train strength')
+    })
+
+    it('should mark message as failed when stream errors', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('Trigger error')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      mockWebSocketHandlers['error'][0]({ detail: 'AI quota exceeded' })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.typing-indicator').exists()).toBe(false)
+      expect(wrapper.text()).toContain('[Failed to send]')
     })
   })
 })

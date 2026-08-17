@@ -20,6 +20,11 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   const chatMessages = ref<HTMLElement | null>(null)
   const isTyping = ref(false)
 
+  // Streaming state: the dweller message being built from token events, and
+  // the resolver that settles sendMessage once the stream completes.
+  let streamingIndex: number | null = null
+  let sendResolver: (() => void) | null = null
+
   const getToken = () =>
     typeof options.token === 'string' || options.token === null
       ? options.token
@@ -29,6 +34,61 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   const dwellerAvatarUrl = computed(() => normalizeImageUrl(options.dwellerAvatar))
 
   const canSend = computed(() => userMessage.value.trim().length > 0)
+
+  const markUserMessageFailed = () => {
+    const lastMsg = messages.value[messages.value.length - 1]
+    if (lastMsg && lastMsg.type === 'user') {
+      lastMsg.content = '[Failed to send] ' + lastMsg.content
+    }
+  }
+
+  if (options.chatWs) {
+    options.chatWs.on('token', (msg: any) => {
+      if (streamingIndex === null) {
+        messages.value.push({
+          type: 'dweller',
+          content: '',
+          timestamp: new Date(),
+          avatar: options.dwellerAvatar,
+        })
+        streamingIndex = messages.value.length - 1
+      }
+      const streamingMsg = messages.value[streamingIndex]
+      if (streamingMsg) {
+        streamingMsg.content += msg.text ?? ''
+      }
+    })
+
+    options.chatWs.on('done', (msg: any) => {
+      if (streamingIndex !== null) {
+        const streamingMsg = messages.value[streamingIndex]
+        if (streamingMsg) {
+          streamingMsg.messageId = msg.dweller_message_id
+          streamingMsg.happinessImpact = msg.happiness_impact || null
+          streamingMsg.actionSuggestion = msg.action_suggestion || null
+        }
+        streamingIndex = null
+      }
+      isTyping.value = false
+      sendResolver?.()
+      sendResolver = null
+    })
+
+    options.chatWs.on('error', (_msg: any) => {
+      if (streamingIndex !== null) {
+        const streamingMsg = messages.value[streamingIndex]
+        if (streamingMsg && streamingMsg.type === 'dweller') {
+          streamingMsg.content = '[Failed to send] ' + streamingMsg.content
+        }
+        streamingIndex = null
+      } else {
+        markUserMessageFailed()
+      }
+      isTyping.value = false
+      sendResolver?.()
+      sendResolver = null
+    })
+  }
 
   const loadChatHistory = async () => {
     try {
@@ -67,16 +127,20 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       const messageToSend = userMessage.value
       userMessage.value = ''
 
-      let pushedOptimistic = false
-      if (isWsConnected) {
-        messages.value.push({
-          type: 'user',
-          content: messageToSend,
-          timestamp: new Date(),
-          avatar: userAvatar.value,
+      messages.value.push({
+        type: 'user',
+        content: messageToSend,
+        timestamp: new Date(),
+        avatar: userAvatar.value,
+      })
+      isTyping.value = true
+
+      if (isWsConnected && options.chatWs) {
+        options.chatWs.sendMessage(messageToSend)
+        await new Promise<void>((resolve) => {
+          sendResolver = resolve
         })
-        pushedOptimistic = true
-        isTyping.value = true
+        return
       }
 
       try {
@@ -102,17 +166,9 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         })
       } catch (error) {
         handleStoreError(error, 'Error sending message')
-        // Only mark the optimistic message as failed if we actually pushed one
-        if (pushedOptimistic && messages.value.length > 0) {
-          const lastMsg = messages.value[messages.value.length - 1]
-          if (lastMsg.type === 'user') {
-            lastMsg.content = '[Failed to send] ' + lastMsg.content
-          }
-        }
+        markUserMessageFailed()
       } finally {
-        if (isWsConnected) {
-          isTyping.value = false
-        }
+        isTyping.value = false
       }
     }
   }

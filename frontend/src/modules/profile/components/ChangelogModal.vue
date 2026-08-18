@@ -192,7 +192,7 @@ onUnmounted(() => {
             <div v-for="entry in entriesToShow" :key="entry.version" class="mb-8 last:mb-0">
               <!-- Version header -->
               <div
-                class="flex items-center justify-between mb-4 pb-2 border-b border-[--color-terminal-green-500]/30"
+                class="flex items-center justify-between mb-4 pb-2 border-b border-terminal-green/30"
               >
                 <div class="flex items-center gap-3">
                   <UBadge variant="success" class="text-lg"> v{{ entry.version }} </UBadge>

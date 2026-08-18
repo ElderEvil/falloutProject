@@ -144,7 +144,7 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <UCard class="mb-8 !bg-surface-warm" glow>
+    <UCard class="mb-8 bg-surface-warm!" glow>
       <div class="flex flex-wrap gap-4 items-center">
         <!-- Search -->
         <div class="flex-1 min-w-64">
@@ -152,7 +152,7 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="Search changelog..."
-            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-green-400 placeholder-gray-500 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
+            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-terminal-green placeholder-gray-500 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
           />
         </div>
 
@@ -193,13 +193,13 @@ onMounted(() => {
     </div>
 
     <!-- Error state -->
-    <UCard v-else-if="error" glow class="text-center py-12 !bg-surface-warm">
+    <UCard v-else-if="error" glow class="text-center py-12 bg-surface-warm!">
       <div class="text-red-400 text-xl mb-4">{{ error }}</div>
       <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
     </UCard>
 
     <!-- No results -->
-    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12 !bg-surface-warm">
+    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12 bg-surface-warm!">
       <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
       <div class="text-gray-500">Try adjusting your search or filter criteria</div>
     </UCard>
@@ -208,7 +208,7 @@ onMounted(() => {
     <div v-else class="space-y-8">
       <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
-        <UCard class="mb-4 !bg-surface-warm" glow>
+        <UCard class="mb-4 bg-surface-warm!" glow>
           <div class="flex items-center gap-3">
             <UBadge variant="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
             <span class="text-gray-400">{{ entry.date_display }}</span>

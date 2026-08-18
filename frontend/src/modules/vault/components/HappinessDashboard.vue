@@ -229,9 +229,7 @@ const distributionPercentage = (count: number) => {
         <div class="distribution-bars">
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: var(--color-theme-primary)"
-                >High (75-100)</span
-              >
+              <span class="distribution-label text-theme-primary">High (75-100)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.high }} ({{
                   distributionPercentage(dwellerDistribution.high)
@@ -240,18 +238,17 @@ const distributionPercentage = (count: number) => {
             </div>
             <div class="distribution-bar">
               <div
-                class="distribution-fill"
+                class="distribution-fill bg-theme-primary"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.high)}%`,
-                  backgroundColor: 'var(--color-theme-primary)',
                 }"
               ></div>
             </div>
           </div>
 
-          <div class="distribution-item">
+            <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: var(--color-terminal-green-dark)">Medium (50-74)</span>
+              <span class="distribution-label text-terminal-green-dark">Medium (50-74)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.medium }} ({{
                   distributionPercentage(dwellerDistribution.medium)
@@ -260,10 +257,9 @@ const distributionPercentage = (count: number) => {
             </div>
             <div class="distribution-bar">
               <div
-                class="distribution-fill"
+                class="distribution-fill bg-terminal-green-dark"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.medium)}%`,
-                  backgroundColor: 'var(--color-terminal-green-dark)',
                 }"
               ></div>
             </div>
@@ -271,7 +267,7 @@ const distributionPercentage = (count: number) => {
 
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: var(--color-warning)">Low (25-49)</span>
+              <span class="distribution-label text-warning">Low (25-49)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.low }} ({{
                   distributionPercentage(dwellerDistribution.low)
@@ -280,10 +276,9 @@ const distributionPercentage = (count: number) => {
             </div>
             <div class="distribution-bar">
               <div
-                class="distribution-fill"
+                class="distribution-fill bg-warning"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.low)}%`,
-                  backgroundColor: 'var(--color-warning)',
                 }"
               ></div>
             </div>
@@ -291,7 +286,7 @@ const distributionPercentage = (count: number) => {
 
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: var(--color-danger)">Critical (10-24)</span>
+              <span class="distribution-label text-danger">Critical (10-24)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.critical }} ({{
                   distributionPercentage(dwellerDistribution.critical)
@@ -300,10 +295,9 @@ const distributionPercentage = (count: number) => {
             </div>
             <div class="distribution-bar">
               <div
-                class="distribution-fill"
+                class="distribution-fill bg-danger"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.critical)}%`,
-                  backgroundColor: 'var(--color-danger)',
                 }"
               ></div>
             </div>

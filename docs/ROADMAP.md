@@ -156,6 +156,9 @@ access control — permissions live in the service layer.
 
 **Success criteria:** an external MCP client can read live vault state and perform one safe action (e.g., start
 training) with ownership checks and quota enforcement, while in-game chat behavior and test suites remain unchanged.
+Resource authorization checks are part of the definition of done: loading `dweller://{id}/bio` requires resolving the
+dweller and authorizing its vault (`get_user_vault_or_403` / `verify_dweller_access`), and `notifications://{user_id}`
+must reject any identifier that does not match the authenticated user.
 
 ---
 

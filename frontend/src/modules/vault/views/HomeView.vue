@@ -83,10 +83,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="relative min-h-screen bg-terminal-background font-mono"
-    :style="{ color: 'var(--color-theme-primary)' }"
-  >
+  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
     <div v-if="scanlinesEnabled" class="scanlines"></div>
     <div
       class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"

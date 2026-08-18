@@ -48,12 +48,14 @@ Two viable shapes; **Option A is recommended**.
 ### Option A — MCP server inside the backend (`backend/app/mcp/`)
 
 A new module that imports existing services and registers them as MCP tools/resources/prompts.
-Runs over `stdio` (local clients) or SSE over HTTP (web clients).
+Runs over `stdio` (local clients) or **Streamable HTTP** over HTTP (web clients). SSE transport
+is retained only as a legacy compatibility option for older clients; new remote integrations
+should use Streamable HTTP.
 
-```
+```text
 backend/app/mcp/
 ├── server.py          # FastMCP instance + registration
-├── auth.py            # Bearer-token auth for SSE transport
+├── auth.py            # Bearer-token auth for Streamable HTTP transport
 ├── tools/
 │   ├── vault.py       # get_vault_summary, build_room, pause/resume
 │   ├── dweller.py     # list_dwellers, assign_to_room, start_training
@@ -82,8 +84,8 @@ separately (e.g., a public sandbox).
 
 | Tool | Maps to |
 |---|---|
-| `get_vault_summary(vault_id)` | `crud.vault` / `vault_service` |
-| `list_dwellers(vault_id, status?)` | `dweller_service` / `crud.dweller` |
+| `get_vault_summary(vault_id)` | `vault_service.get_vault_summary` (new service method wrapping `crud.vault.get_vault_with_room_and_dweller_count`) |
+| `list_dwellers(vault_id, status?)` | `dweller_service.list_dwellers` (new service method wrapping the existing dweller CRUD queries) |
 | `assign_dweller_to_room(dweller_id, room_id)` | `dweller_service.assign_to_room` |
 | `start_training(dweller_id, stat, hours)` | `training_service.start_training` |
 | `send_to_wasteland(dweller_id, hours, stimpaks, radaways)` | `exploration_service` |
@@ -93,12 +95,14 @@ separately (e.g., a public sandbox).
 
 ### Resources (read-only)
 
-| Resource | Content |
-|---|---|
-| `vault://{vault_id}/state` | Caps, power/food/water (+max), happiness, population |
-| `dweller://{dweller_id}/bio` | Dweller full info + SPECIAL + status |
-| `map://{vault_id}/places` | Wasteland map places |
-| `notifications://{user_id}` | Recent unread notifications |
+Every resource is authorized against the authenticated user before content is returned:
+
+| Resource | Content | Authorization |
+|---|---|---|
+| `vault://{vault_id}/state` | Caps, power/food/water (+max), happiness, population | Resolve vault and check ownership via `get_user_vault_or_403`; reject access to other users' vaults |
+| `dweller://{dweller_id}/bio` | Dweller full info + SPECIAL + status | Resolve the dweller, then authorize its vault via `get_user_vault_or_403` / `verify_dweller_access` before loading |
+| `map://{vault_id}/places` | Wasteland map places | Same vault ownership check as `vault://` |
+| `notifications://{user_id}` | Recent unread notifications | `user_id` must match the authenticated user; reject mismatches |
 
 ### Prompts
 
@@ -120,6 +124,13 @@ separately (e.g., a public sandbox).
 - **Auth:** never expose tools without the existing user/vault ownership checks.
 - **Consistency:** tools must go through services so events (notifications, happiness, game loop)
   fire exactly as they do for REST calls.
+- **Retry safety (idempotency):** every state-changing tool (`build_room`, `start_training`,
+  `send_dweller`, …) accepts an idempotency key scoped to the authenticated user, vault, tool, and
+  arguments. The service layer deduplicates atomically (unique constraint on the key hash) and
+  returns the previously committed result for repeated keys, including concurrent retries — a
+  client retry can never double-apply an action. If durable deduplication storage is required
+  (beyond a per-process cache), a small `mcp_idempotency_keys` table is needed — see the migration
+  note in §8.
 - **Scope creep:** start read-only + a few safe actions; expand only when proven useful.
 
 ## 7. Recommended rollout
@@ -134,4 +145,7 @@ separately (e.g., a public sandbox).
 
 - Backend: `mcp` (FastMCP) package — add to `backend/pyproject.toml` via `uv add mcp`.
 - No frontend changes required.
-- No DB migrations required (no new tables).
+- **No DB migrations for the P0 read-only phase** (no new tables).
+- **Migration note (idempotency):** when state-changing tools ship with durable deduplication
+  (see §6), add an `mcp_idempotency_keys` table via Alembic — columns for the key hash (unique),
+  user id, vault id, tool name, request hash, and the committed result payload.

@@ -62,11 +62,11 @@ onMounted(async () => {
 
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string }> = {
-  main: { bg: 'var(--color-quest-main)', text: '#000000' },
-  side: { bg: 'var(--color-quest-side)', text: '#000000' },
-  daily: { bg: 'var(--color-quest-daily)', text: '#000000' },
-  event: { bg: 'var(--color-quest-event)', text: '#ffffff' },
-  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000' },
+  main: { bg: 'bg-quest-main!', text: 'text-black!' },
+  side: { bg: 'bg-quest-side!', text: 'text-black!' },
+  daily: { bg: 'bg-quest-daily!', text: 'text-black!' },
+  event: { bg: 'bg-quest-event!', text: 'text-white!' },
+  repeatable: { bg: 'bg-theme-primary!', text: 'text-black!' },
 }
 
 const typeColor = computed(() => {
@@ -173,7 +173,7 @@ const goBack = () => {
             <div class="quest-header-section">
               <div class="quest-badges">
                 <UBadge
-                  :style="{ backgroundColor: typeColor.bg, color: typeColor.text }"
+                  :class="[typeColor.bg, typeColor.text]"
                   class="type-badge"
                 >
                   {{ typeLabel }}
@@ -429,7 +429,7 @@ const goBack = () => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: rgba(0, 255, 0, 0.1);
+  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
   border: 2px solid var(--color-theme-primary);
   border-radius: 4px;
   color: var(--color-theme-primary);
@@ -494,7 +494,7 @@ const goBack = () => {
 }
 
 .prerequisite-item.met {
-  background: rgba(0, 255, 0, 0.1);
+  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
 }
 
 .prerequisite-item.unmet {
@@ -641,7 +641,7 @@ const goBack = () => {
 }
 
 .completed-message {
-  background: rgba(0, 255, 0, 0.1);
+  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
   border: 2px solid var(--color-theme-primary);
   color: var(--color-theme-primary);
 }

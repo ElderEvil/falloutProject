@@ -11,6 +11,12 @@ Severity legend: 🔴 CRITICAL (silent rendering bug / dead code) · 🟠 MAJOR 
 
 ## 🔴 CRITICAL — Dead classes from camelCase token usage (20 files)
 
+> **Status: ✅ REMEDIATED** (baseline finding from 2026-08-18; fixed in `fix/frontend-audit`).
+> The camelCase utilities below were a real defect at audit time, but the token migration is now
+> complete — all `text-terminalGreen` / `bg-terminalBackground` / `bg-terminalGreen` occurrences
+> were converted to their kebab-case equivalents. Keep this section as the historical baseline;
+> do not treat these as active defects.
+
 **Rule violated** (`tailwindcss-v4`): design tokens are consumed via their exact utility name. The theme defines
 **kebab-case** tokens (`--color-terminal-green`, `--color-terminal-background` → utilities `text-terminal-green`,
 `bg-terminal-background`). CamelCase spellings generate **nothing** in Tailwind v4.
@@ -44,22 +50,27 @@ background + black text = **invisible button** on the black page.
 
 ---
 
-## 🔴 CRITICAL — References to non-existent CSS variables (2 files)
+## 🔴 CRITICAL — References to non-existent CSS variables
 
-**Rule violated** (`tailwindcss-v4`): arbitrary values must reference real tokens.
+> **Status: ✅ REMEDIATED** (baseline finding from 2026-08-18; fixed in `fix/frontend-audit`).
+> The `text-[--color-terminal-green-400]` / `-100` / `-300` text utilities in `AboutView.vue` and
+> `ChangelogModal.vue` were switched to kebab-case token classes, and the
+> `border-[--color-terminal-green-500]/30` border in `ChangelogModal.vue:195` was replaced with the
+> existing `border-terminal-green/30` token. No active references remain.
 
-`AboutView.vue:56,60,76,94,104` and `ChangelogModal.vue:103,153,154,158,168` use
-`text-[--color-terminal-green-400]`, `-100`, `-300` — **none of these vars exist** in `@theme` (only `-green`,
-`-green-light`, `-green-dark`, `-green-dim`, `-green-glow`).
+**Rule violated** (`tailwindcss-v4`): arbitrary values must reference real tokens. (Note: consuming
+design tokens is a **project policy** — AGENTS.md "Design token source of truth" + STYLEGUIDE —
+not a Tailwind requirement; Tailwind only requires arbitrary values to resolve to valid CSS.)
 
-**Evidence (compiled CSS):** `.text-\[--color-terminal-green-400\]{color:--color-terminal-green-400}` → invalid →
-silently ignored.
+**Historical evidence (compiled CSS):** `.border-\[--color-terminal-green-500\]\/30{border-color:var(--color-terminal-green-500)}`
+→ invalid (undefined var) → silently ignored.
 
-**Fix:** use `text-terminal-green` / `text-terminal-green-dim`, or add the missing shades to `@theme`.
+**Fix (applied):** use the existing token `border-terminal-green/30` instead of the undeclared
+`--color-terminal-green-500` shade.
 
 ---
 
-## 🟠 MAJOR — Hardcoded hex where design tokens exist (6 files)
+## 🟠 MAJOR — Hardcoded hex where design tokens exist (9 files)
 
 **Rule violated** (`tailwindcss-v4` "Use Design Token Classes" + AGENTS.md "Design token source of truth"):
 
@@ -96,7 +107,7 @@ logger instead of `console.warn`.
 
 ---
 
-## 🟡 MINOR — v-for index keys (9 files)
+## 🟡 MINOR — v-for index keys (8 files)
 
 **Rule violated** (`vue-best-practices` stable keys): `:key="index"/"idx"/"i"` in:
 
@@ -146,9 +157,15 @@ Precedent already set — `src/modules/auth/stores/auth.ts` uses `useLocalStorag
 
 ## Suggested fix order
 
-1. 🔴 CRITICAL batch 1 — dead camelCase classes (~20 files) incl. invisible `VaultView.vue:314` retry button
-2. 🔴 CRITICAL batch 2 — broken `--color-terminal-green-*00` vars in `AboutView.vue` / `ChangelogModal.vue`
-3. 🟠 MAJOR — `NotificationBell` / `NavBar` / `GameControlPanel` hex → existing `surface-warm` tokens
-4. 🟠 MAJOR — remaining hex → token migrations (`ExplorerCard`, `HappinessDashboard`, quest-type palette)
-5. 🟠 MAJOR — router patch typing, inline styles
+> **Status (post-`fix/frontend-audit`):** items 1–5 are done. The CRITICAL camelCase migration,
+> the `-green-*00` text-variable fixes, the hex→token migrations, the router-instance remediation,
+> and the inline-style cleanup are all applied and verified (typecheck/lint/tests/build green).
+> Item 6 (MINOR) remains open and is incremental.
+
+1. ✅ 🔴 CRITICAL batch 1 — dead camelCase classes (~20 files) incl. invisible `VaultView.vue:314` retry button
+2. ✅ 🔴 CRITICAL batch 2 — broken `--color-terminal-green-*00` vars in `AboutView.vue` / `ChangelogModal.vue`
+   (incl. the `--color-terminal-green-500` border reference, now `border-terminal-green/30`)
+3. ✅ 🟠 MAJOR — `NotificationBell` / `NavBar` / `GameControlPanel` hex → existing `surface-warm` tokens
+4. ✅ 🟠 MAJOR — remaining hex → token migrations (`ExplorerCard`, `HappinessDashboard`, quest-type palette)
+5. ✅ 🟠 MAJOR — router patch typing (now wraps the router instance, not the prototype), inline styles
 6. 🟡 MINOR — v-for keys, timers, localStorage (incremental, no rush)

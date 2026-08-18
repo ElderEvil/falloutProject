@@ -67,7 +67,7 @@ onUnmounted(() => {
 
 <template>
   <nav
-    class="fixed left-0 right-0 top-0 z-50 bg-[#1c1917] p-4 shadow-lg"
+    class="fixed left-0 right-0 top-0 z-50 bg-surface-warm p-4 shadow-lg"
     role="navigation"
     aria-label="Main navigation"
   >

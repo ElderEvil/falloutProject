@@ -73,11 +73,11 @@ export const happinessService = {
       case 'high':
         return 'var(--color-theme-primary)'
       case 'medium':
-        return '#4ade80'
+        return 'var(--color-terminal-green-dark)'
       case 'low':
-        return '#fbbf24'
+        return 'var(--color-warning)'
       case 'critical':
-        return '#ef4444'
+        return 'var(--color-danger)'
       default:
         return 'var(--color-theme-primary)'
     }

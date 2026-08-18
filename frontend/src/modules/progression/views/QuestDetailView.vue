@@ -62,11 +62,11 @@ onMounted(async () => {
 
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string }> = {
-  main: { bg: '#ffb000', text: '#000000' },
-  side: { bg: '#c0c0c0', text: '#000000' },
-  daily: { bg: '#00d9ff', text: '#000000' },
-  event: { bg: '#9b59b6', text: '#ffffff' },
-  repeatable: { bg: '#00ff00', text: '#000000' },
+  main: { bg: 'var(--color-quest-main)', text: '#000000' },
+  side: { bg: 'var(--color-quest-side)', text: '#000000' },
+  daily: { bg: 'var(--color-quest-daily)', text: '#000000' },
+  event: { bg: 'var(--color-quest-event)', text: '#ffffff' },
+  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000' },
 }
 
 const typeColor = computed(() => {
@@ -138,7 +138,7 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines"></div>
 
     <div class="vault-layout">
@@ -430,9 +430,9 @@ const goBack = () => {
   gap: 8px;
   padding: 12px 24px;
   background: rgba(0, 255, 0, 0.1);
-  border: 2px solid #00ff00;
+  border: 2px solid var(--color-theme-primary);
   border-radius: 4px;
-  color: #00ff00;
+  color: var(--color-theme-primary);
   font-weight: bold;
   font-size: 1.1rem;
 }
@@ -506,11 +506,11 @@ const goBack = () => {
 }
 
 .prerequisite-item.met .prerequisite-icon {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .prerequisite-item.unmet .prerequisite-icon {
-  color: #ff6600;
+  color: var(--color-quest-locked);
 }
 
 .prerequisite-details {
@@ -642,14 +642,14 @@ const goBack = () => {
 
 .completed-message {
   background: rgba(0, 255, 0, 0.1);
-  border: 2px solid #00ff00;
-  color: #00ff00;
+  border: 2px solid var(--color-theme-primary);
+  color: var(--color-theme-primary);
 }
 
 .locked-message {
   background: rgba(255, 102, 0, 0.1);
-  border: 2px solid #ff6600;
-  color: #ff6600;
+  border: 2px solid var(--color-quest-locked);
+  color: var(--color-quest-locked);
 }
 
 .message-icon {

@@ -80,7 +80,7 @@ const handleAccelerate = async (id: string) => {
             <div class="relative">
               <select
                 v-model="selectedMother"
-                class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminalGreen rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
+                class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminal-green rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
               >
                 <option value="" disabled>Select Subject A</option>
                 <option v-for="m in mothers" :key="m.id" :value="m.id">
@@ -108,7 +108,7 @@ const handleAccelerate = async (id: string) => {
             <div class="relative">
               <select
                 v-model="selectedFather"
-                class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminalGreen rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
+                class="w-full appearance-none bg-gray-900 border-2 border-gray-700 text-terminal-green rounded px-3 py-2 focus:border-amber-500 focus:outline-none text-sm transition-colors cursor-pointer"
               >
                 <option value="" disabled>Select Subject B</option>
                 <option v-for="f in fathers" :key="f.id" :value="f.id">
@@ -159,7 +159,7 @@ const handleAccelerate = async (id: string) => {
           >
             <div class="text-sm">
               <span class="text-gray-500 font-mono text-xs uppercase block mb-1">Subject</span>
-              <span class="font-bold text-terminalGreen">
+              <span class="font-bold text-terminal-green">
                 {{ dwellers.find((d) => d.id === p.mother_id)?.first_name }}
                 {{ dwellers.find((d) => d.id === p.mother_id)?.last_name }}
               </span>

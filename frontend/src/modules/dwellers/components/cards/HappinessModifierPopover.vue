@@ -190,11 +190,11 @@ const loadHappinessModifiers = async () => {
 }
 
 .modifiers-label.positive {
-  color: #4ade80;
+  color: var(--color-terminal-green-dark);
 }
 
 .modifiers-label.negative {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .modifier-item {
@@ -215,11 +215,11 @@ const loadHappinessModifiers = async () => {
 }
 
 .modifier-item.positive {
-  border-left: 2px solid #4ade80;
+  border-left: 2px solid var(--color-terminal-green-dark);
 }
 
 .modifier-item.negative {
-  border-left: 2px solid #ef4444;
+  border-left: 2px solid var(--color-danger);
 }
 
 .modifier-icon {
@@ -228,16 +228,16 @@ const loadHappinessModifiers = async () => {
 }
 
 .modifier-item.positive .modifier-icon {
-  color: #4ade80;
+  color: var(--color-terminal-green-dark);
 }
 
 .modifier-item.negative .modifier-icon {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .modifier-name {
   flex: 1;
-  color: #e5e7eb;
+  color: var(--color-gray-200);
 }
 
 .modifier-value {
@@ -247,10 +247,10 @@ const loadHappinessModifiers = async () => {
 }
 
 .modifier-item.positive .modifier-value {
-  color: #4ade80;
+  color: var(--color-terminal-green-dark);
 }
 
 .modifier-item.negative .modifier-value {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 </style>

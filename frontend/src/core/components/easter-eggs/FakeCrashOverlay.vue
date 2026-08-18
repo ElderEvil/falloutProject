@@ -96,7 +96,7 @@ onMounted(() => {
           <div
             v-for="(msg, idx) in crashMessages"
             :key="idx"
-            class="text-[--color-terminal-green-400] text-lg terminal-glow"
+            class="text-terminal-green text-lg terminal-glow"
             :class="{ 'text-red-400': idx === 0 || idx === 3, 'text-2xl font-bold': idx === 0 }"
           >
             {{ msg }}
@@ -109,17 +109,17 @@ onMounted(() => {
             <div
               v-for="(line, idx) in bootText"
               :key="idx"
-              class="text-[--color-terminal-green-400] text-sm terminal-glow"
+              class="text-terminal-green text-sm terminal-glow"
               :class="{
                 'text-lg font-bold': line.includes('REBOOT'),
-                'text-[--color-terminal-green-300]': line.includes('OK'),
+                'text-terminal-green-dark': line.includes('OK'),
                 'text-xl': line.includes('READY'),
               }"
             >
               <span v-if="line">{{ line }}</span>
               <span v-else>&nbsp;</span>
             </div>
-            <div class="text-[--color-terminal-green-400] animate-pulse">█</div>
+            <div class="text-terminal-green animate-pulse">█</div>
           </div>
         </div>
       </div>

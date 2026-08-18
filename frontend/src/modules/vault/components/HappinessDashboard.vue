@@ -55,11 +55,11 @@ const happinessColor = computed(() => {
     case 'high':
       return 'var(--color-theme-primary)'
     case 'medium':
-      return '#4ade80'
+      return 'var(--color-terminal-green-dark)'
     case 'low':
-      return '#fbbf24'
+      return 'var(--color-warning)'
     case 'critical':
-      return '#ef4444'
+      return 'var(--color-danger)'
     default:
       return 'var(--color-theme-primary)'
   }
@@ -119,9 +119,9 @@ const trendColor = computed(() => {
     case 'increasing':
       return 'var(--color-theme-primary)'
     case 'decreasing':
-      return '#ef4444'
+      return 'var(--color-danger)'
     default:
-      return '#9ca3af'
+      return 'var(--color-gray-400)'
   }
 })
 
@@ -134,7 +134,7 @@ const activeModifiers = computed(() => {
       name: 'Low Resources',
       icon: 'mdi:alert-circle',
       severity: 'negative',
-      color: '#ef4444',
+      color: 'var(--color-danger)',
     })
   }
 
@@ -152,7 +152,7 @@ const activeModifiers = computed(() => {
       name: `Idle Dwellers (${idleDwellerCount})`,
       icon: 'mdi:sleep',
       severity: 'negative',
-      color: '#fbbf24',
+      color: 'var(--color-warning)',
     })
   }
 
@@ -251,7 +251,7 @@ const distributionPercentage = (count: number) => {
 
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: #4ade80">Medium (50-74)</span>
+              <span class="distribution-label" style="color: var(--color-terminal-green-dark)">Medium (50-74)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.medium }} ({{
                   distributionPercentage(dwellerDistribution.medium)
@@ -263,7 +263,7 @@ const distributionPercentage = (count: number) => {
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.medium)}%`,
-                  backgroundColor: '#4ade80',
+                  backgroundColor: 'var(--color-terminal-green-dark)',
                 }"
               ></div>
             </div>
@@ -271,7 +271,7 @@ const distributionPercentage = (count: number) => {
 
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: #fbbf24">Low (25-49)</span>
+              <span class="distribution-label" style="color: var(--color-warning)">Low (25-49)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.low }} ({{
                   distributionPercentage(dwellerDistribution.low)
@@ -283,7 +283,7 @@ const distributionPercentage = (count: number) => {
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.low)}%`,
-                  backgroundColor: '#fbbf24',
+                  backgroundColor: 'var(--color-warning)',
                 }"
               ></div>
             </div>
@@ -291,7 +291,7 @@ const distributionPercentage = (count: number) => {
 
           <div class="distribution-item">
             <div class="distribution-header">
-              <span class="distribution-label" style="color: #ef4444">Critical (10-24)</span>
+              <span class="distribution-label" style="color: var(--color-danger)">Critical (10-24)</span>
               <span class="distribution-count"
                 >{{ dwellerDistribution.critical }} ({{
                   distributionPercentage(dwellerDistribution.critical)
@@ -303,7 +303,7 @@ const distributionPercentage = (count: number) => {
                 class="distribution-fill"
                 :style="{
                   width: `${distributionPercentage(dwellerDistribution.critical)}%`,
-                  backgroundColor: '#ef4444',
+                  backgroundColor: 'var(--color-danger)',
                 }"
               ></div>
             </div>
@@ -474,7 +474,7 @@ const distributionPercentage = (count: number) => {
 }
 
 .distribution-count {
-  color: #9ca3af;
+  color: var(--color-gray-400);
 }
 
 .distribution-bar {
@@ -509,7 +509,7 @@ const distributionPercentage = (count: number) => {
 }
 
 .modifier-item.negative {
-  border-left: 2px solid #ef4444;
+  border-left: 2px solid var(--color-danger);
 }
 
 .modifier-item.positive {
@@ -521,7 +521,7 @@ const distributionPercentage = (count: number) => {
 }
 
 .modifier-name {
-  color: #e5e7eb;
+  color: var(--color-gray-200);
 }
 
 /* Footer Actions Section */

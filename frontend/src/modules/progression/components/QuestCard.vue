@@ -102,11 +102,11 @@ const isQuestReady = computed(() => hasParty.value)
 
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
-  main: { bg: '#ffb000', text: '#000000', border: '#ffb000' },
-  side: { bg: '#c0c0c0', text: '#000000', border: '#c0c0c0' },
-  daily: { bg: '#00d9ff', text: '#000000', border: '#00d9ff' },
-  event: { bg: '#9b59b6', text: '#ffffff', border: '#9b59b6' },
-  repeatable: { bg: '#00ff00', text: '#000000', border: '#00ff00' },
+  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
+  side: { bg: 'var(--color-quest-side)', text: '#000000', border: 'var(--color-quest-side)' },
+  daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
+  event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
+  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
 }
 
 const typeColor = computed(() => {
@@ -238,13 +238,13 @@ const actionButtonText = computed(() => {
 
 const cardBorderColor = computed(() => {
   if (isLocked) {
-    return '#ff6600'
+    return 'var(--color-quest-locked)'
   }
   switch (status) {
     case 'active':
       return 'var(--color-theme-accent)'
     case 'completed':
-      return '#666666'
+      return 'var(--color-quest-muted)'
     default:
       return typeColor.value.border
   }
@@ -474,7 +474,7 @@ const handleAction = () => {
 }
 
 .completed-quest::before {
-  background: #666666;
+  background: var(--color-quest-muted);
 }
 
 .quest-header {
@@ -513,8 +513,8 @@ const handleAction = () => {
 }
 
 .locked-badge {
-  border-color: #ff6600 !important;
-  color: #ff6600 !important;
+  border-color: var(--color-quest-locked) !important;
+  color: var(--color-quest-locked) !important;
 }
 
 .quest-description {
@@ -567,7 +567,7 @@ const handleAction = () => {
 }
 
 .prerequisite-item.unmet {
-  color: #666666;
+  color: var(--color-quest-muted);
 }
 
 .prerequisite-icon {
@@ -575,11 +575,11 @@ const handleAction = () => {
 }
 
 .prerequisite-item.met .prerequisite-icon {
-  color: #00ff00;
+  color: var(--color-theme-primary);
 }
 
 .prerequisite-item.unmet .prerequisite-icon {
-  color: #ff6600;
+  color: var(--color-quest-locked);
 }
 
 .rewards-list {
@@ -706,14 +706,14 @@ const handleAction = () => {
 /* Locked quest info styling */
 .locked-info {
   background: rgba(255, 102, 0, 0.1);
-  border: 1px solid #ff6600;
+  border: 1px solid var(--color-quest-locked);
   border-radius: 6px;
   padding: 12px;
   margin: 12px 0;
 }
 
 .locked-info .section-label {
-  color: #ff6600;
+  color: var(--color-quest-locked);
   font-size: 0.75rem;
   font-weight: bold;
   text-transform: uppercase;
@@ -733,7 +733,7 @@ const handleAction = () => {
 }
 
 .locked-icon {
-  color: #ff6600;
+  color: var(--color-quest-locked);
   font-size: 1.1rem;
 }
 </style>

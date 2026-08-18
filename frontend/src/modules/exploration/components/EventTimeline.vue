@@ -291,7 +291,7 @@ const getLootDisplay = (event: ExplorationEvent): string => {
   border: 1px solid rgba(255, 215, 0, 0.3);
   border-radius: 4px;
   font-size: 0.75rem;
-  color: #ffd700;
+  color: var(--color-rarity-legendary);
   margin-bottom: 0.5rem;
 }
 

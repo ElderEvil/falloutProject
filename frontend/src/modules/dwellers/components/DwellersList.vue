@@ -93,7 +93,7 @@ const getStatColorClass = (value: number) => {
       </div>
 
       <div class="flex flex-col" style="min-width: 140px">
-        <h3 class="font-bold text-base text-terminalGreen">
+        <h3 class="font-bold text-base text-terminal-green">
           {{ dweller.first_name }} {{ dweller.last_name }}
         </h3>
         <p class="text-sm text-gray-400">Level {{ dweller.level }}</p>
@@ -157,7 +157,7 @@ const getStatColorClass = (value: number) => {
             <Icon icon="mdi:close" class="h-4 w-4 text-red-400" />
           </button>
         </div>
-        <Icon icon="mdi:chevron-right" class="h-5 w-5 flex-shrink-0 text-terminalGreen/50" />
+        <Icon icon="mdi:chevron-right" class="h-5 w-5 flex-shrink-0 text-terminal-green/50" />
       </div>
     </li>
   </ul>

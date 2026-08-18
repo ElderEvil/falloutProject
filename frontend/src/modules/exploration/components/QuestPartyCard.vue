@@ -74,7 +74,7 @@ const timeRemaining = computed(() => {
 
 const statusColor = computed(() => {
   const progress = progressPercentage.value
-  if (progress >= 100) return '#FFD700'
+  if (progress >= 100) return 'var(--color-rarity-legendary)'
   if (progress >= 75) return 'var(--color-theme-accent)'
   return 'var(--color-theme-primary)'
 })

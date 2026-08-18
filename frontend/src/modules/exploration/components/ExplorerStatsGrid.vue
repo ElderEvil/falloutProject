@@ -46,7 +46,7 @@ defineProps<{
     >
       <Icon
         icon="mdi:currency-usd"
-        class="mb-1 h-7 w-7 text-[#ffd700] [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
+        class="mb-1 h-7 w-7 text-rarity-legendary [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
         <div

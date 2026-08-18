@@ -84,7 +84,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="relative min-h-screen bg-terminalBackground font-mono"
+    class="relative min-h-screen bg-terminal-background font-mono"
     :style="{ color: 'var(--color-theme-primary)' }"
   >
     <div v-if="scanlinesEnabled" class="scanlines"></div>

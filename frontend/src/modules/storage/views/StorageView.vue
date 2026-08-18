@@ -215,7 +215,7 @@ const getRarityColor = (rarity?: string) => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-theme-primary">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
     <SidePanel />
 
     <div

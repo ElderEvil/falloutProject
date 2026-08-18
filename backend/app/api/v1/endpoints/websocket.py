@@ -47,9 +47,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
         elif message_type == "message":
             content = message.get("content")
             if not isinstance(content, str) or not content.strip():
-                await websocket.send_json(
-                    {"type": "error", "detail": "Message content must be a non-empty string"}
-                )
+                await websocket.send_json({"type": "error", "detail": "Message content must be a non-empty string"})
                 return
 
             async with async_session_maker() as db_session:

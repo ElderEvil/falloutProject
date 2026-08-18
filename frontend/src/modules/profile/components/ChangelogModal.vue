@@ -100,7 +100,7 @@ const groupChangesByCategory = (changes: ChangeEntry[]) => {
 // Category colors and icons
 const getCategoryInfo = (category: string) => {
   const categoryMap: Record<string, { color: string; icon: string }> = {
-    Added: { color: 'text-[--color-terminal-green-400]', icon: 'mdi:plus-circle' },
+    Added: { color: 'text-terminal-green', icon: 'mdi:plus-circle' },
     Fixed: { color: 'text-red-400', icon: 'mdi:wrench' },
     Changed: { color: 'text-yellow-400', icon: 'mdi:swap-horizontal' },
     Removed: { color: 'text-red-400', icon: 'mdi:minus-circle' },
@@ -150,12 +150,12 @@ onUnmounted(() => {
           <template #header>
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">
-                <Icon icon="mdi:history" class="h-7 w-7 text-[--color-terminal-green-400]" />
-                <h2 class="text-2xl font-bold text-[--color-terminal-green-400]">What's New</h2>
+                <Icon icon="mdi:history" class="h-7 w-7 text-terminal-green" />
+                <h2 class="text-2xl font-bold text-terminal-green">What's New</h2>
               </div>
               <button
                 @click="$emit('close')"
-                class="text-gray-400 hover:text-[--color-terminal-green-400] transition-colors p-1"
+                class="text-gray-400 hover:text-terminal-green transition-colors p-1"
                 aria-label="Close modal"
               >
                 <Icon icon="mdi:close" class="h-6 w-6" />
@@ -165,7 +165,7 @@ onUnmounted(() => {
 
           <!-- Loading state -->
           <div v-if="loading" class="flex items-center justify-center py-12">
-            <div class="terminal-glow text-[--color-terminal-green-400]">Loading changelog...</div>
+            <div class="terminal-glow text-terminal-green">Loading changelog...</div>
           </div>
 
           <!-- Error state -->
@@ -178,9 +178,9 @@ onUnmounted(() => {
           <div v-else-if="!hasNewVersions" class="flex flex-col items-center justify-center py-12">
             <Icon
               icon="mdi:check-circle"
-              class="h-16 w-16 text-[--color-terminal-green-400] mb-4"
+              class="h-16 w-16 text-terminal-green mb-4"
             />
-            <div class="text-[--color-terminal-green-400] text-xl mb-2">All caught up!</div>
+            <div class="text-terminal-green text-xl mb-2">All caught up!</div>
             <div class="text-gray-400">You're running the latest version</div>
           </div>
 
@@ -192,7 +192,7 @@ onUnmounted(() => {
             <div v-for="entry in entriesToShow" :key="entry.version" class="mb-8 last:mb-0">
               <!-- Version header -->
               <div
-                class="flex items-center justify-between mb-4 pb-2 border-b border-[--color-terminal-green-500]/30"
+                class="flex items-center justify-between mb-4 pb-2 border-b border-terminal-green/30"
               >
                 <div class="flex items-center gap-3">
                   <UBadge variant="success" class="text-lg"> v{{ entry.version }} </UBadge>

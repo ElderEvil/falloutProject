@@ -129,23 +129,23 @@ describe('happinessService', () => {
       expect(happinessService.getHappinessColor(100)).toBe('var(--color-theme-primary)')
       expect(happinessService.getHappinessColor(75)).toBe('var(--color-theme-primary)')
 
-      expect(happinessService.getHappinessColor(60)).toBe('#4ade80')
-      expect(happinessService.getHappinessColor(50)).toBe('#4ade80')
+      expect(happinessService.getHappinessColor(60)).toBe('var(--color-terminal-green-dark)')
+      expect(happinessService.getHappinessColor(50)).toBe('var(--color-terminal-green-dark)')
 
-      expect(happinessService.getHappinessColor(35)).toBe('#fbbf24')
-      expect(happinessService.getHappinessColor(25)).toBe('#fbbf24')
+      expect(happinessService.getHappinessColor(35)).toBe('var(--color-warning)')
+      expect(happinessService.getHappinessColor(25)).toBe('var(--color-warning)')
 
-      expect(happinessService.getHappinessColor(20)).toBe('#ef4444')
-      expect(happinessService.getHappinessColor(0)).toBe('#ef4444')
+      expect(happinessService.getHappinessColor(20)).toBe('var(--color-danger)')
+      expect(happinessService.getHappinessColor(0)).toBe('var(--color-danger)')
     })
 
     it('should handle boundary values correctly', () => {
       expect(happinessService.getHappinessColor(75)).toBe('var(--color-theme-primary)') // high
-      expect(happinessService.getHappinessColor(74)).toBe('#4ade80') // medium
-      expect(happinessService.getHappinessColor(50)).toBe('#4ade80') // medium
-      expect(happinessService.getHappinessColor(49)).toBe('#fbbf24') // low
-      expect(happinessService.getHappinessColor(25)).toBe('#fbbf24') // low
-      expect(happinessService.getHappinessColor(24)).toBe('#ef4444') // critical
+      expect(happinessService.getHappinessColor(74)).toBe('var(--color-terminal-green-dark)') // medium
+      expect(happinessService.getHappinessColor(50)).toBe('var(--color-terminal-green-dark)') // medium
+      expect(happinessService.getHappinessColor(49)).toBe('var(--color-warning)') // low
+      expect(happinessService.getHappinessColor(25)).toBe('var(--color-warning)') // low
+      expect(happinessService.getHappinessColor(24)).toBe('var(--color-danger)') // critical
     })
   })
 })

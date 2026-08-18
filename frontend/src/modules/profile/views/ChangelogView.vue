@@ -16,12 +16,23 @@ const changelog = ref<ChangelogEntry[]>([])
 const loading = ref(false)
 const error = ref('')
 const searchQuery = ref('')
-const selectedCategory = ref('all')
+const selectedCategories = ref<string[]>([])
 
 const clearFilters = () => {
   searchQuery.value = ''
-  selectedCategory.value = 'all'
+  selectedCategories.value = []
 }
+
+const toggleCategory = (category: string) => {
+  const index = selectedCategories.value.indexOf(category)
+  if (index >= 0) {
+    selectedCategories.value.splice(index, 1)
+  } else {
+    selectedCategories.value.push(category)
+  }
+}
+
+const isCategorySelected = (category: string) => selectedCategories.value.includes(category)
 
 // All available categories for filtering
 const categories = computed(() => {
@@ -39,11 +50,13 @@ const filteredChangelog = computed(() => {
   let filtered = changelog.value
 
   // Category filter
-  if (selectedCategory.value !== 'all') {
+  if (selectedCategories.value.length > 0) {
     filtered = filtered
       .map((entry) => ({
         ...entry,
-        changes: entry.changes.filter((change) => change.category === selectedCategory.value),
+        changes: entry.changes.filter((change) =>
+          selectedCategories.value.includes(change.category)
+        ),
       }))
       .filter((entry) => entry.changes.length > 0)
   }
@@ -131,7 +144,7 @@ onMounted(() => {
     </div>
 
     <!-- Filters -->
-    <UCard class="mb-8" glow>
+    <UCard class="mb-8 bg-surface-warm!" glow>
       <div class="flex flex-wrap gap-4 items-center">
         <!-- Search -->
         <div class="flex-1 min-w-64">
@@ -139,29 +152,35 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="Search changelog..."
-            class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-green-400 placeholder-gray-500 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
+            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-terminal-green placeholder-gray-500 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
           />
         </div>
 
         <!-- Category Filter -->
-        <div class="flex items-center gap-2">
-          <label class="text-gray-400">Category:</label>
-          <select
-            v-model="selectedCategory"
-            class="px-4 py-2 bg-gray-800 border border-gray-700 rounded text-green-400 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-gray-400">Category:</span>
+          <button
+            v-for="category in categories"
+            :key="category"
+            type="button"
+            @click="toggleCategory(category)"
+            :aria-pressed="isCategorySelected(category)"
+            class="px-3 py-1 rounded border text-sm transition-colors"
+            :class="
+              isCategorySelected(category)
+                ? 'border-[var(--color-theme-primary)] text-[var(--color-theme-primary)] bg-theme-primary/10'
+                : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+            "
           >
-            <option value="all">All Categories</option>
-            <option v-for="category in categories" :key="category" :value="category">
-              {{ getCategoryInfo(category).icon }} {{ category }}
-            </option>
-          </select>
+            {{ getCategoryInfo(category).icon }} {{ category }}
+          </button>
         </div>
 
         <!-- Clear Filters -->
         <UButton
           variant="secondary"
           @click="clearFilters"
-          :disabled="!searchQuery && selectedCategory === 'all'"
+          :disabled="!searchQuery && selectedCategories.length === 0"
         >
           Clear Filters
         </UButton>
@@ -174,13 +193,13 @@ onMounted(() => {
     </div>
 
     <!-- Error state -->
-    <UCard v-else-if="error" glow class="text-center py-12">
+    <UCard v-else-if="error" glow class="text-center py-12 bg-surface-warm!">
       <div class="text-red-400 text-xl mb-4">{{ error }}</div>
       <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
     </UCard>
 
     <!-- No results -->
-    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12">
+    <UCard v-else-if="filteredChangelog.length === 0" glow class="text-center py-12 bg-surface-warm!">
       <div class="text-gray-400 text-xl mb-2">No matching entries found</div>
       <div class="text-gray-500">Try adjusting your search or filter criteria</div>
     </UCard>
@@ -189,7 +208,7 @@ onMounted(() => {
     <div v-else class="space-y-8">
       <div v-for="entry in filteredChangelog" :key="entry.version" class="mb-8">
         <!-- Version header -->
-        <UCard class="mb-4" glow>
+        <UCard class="mb-4 bg-surface-warm!" glow>
           <div class="flex items-center gap-3">
             <UBadge variant="primary" class="text-xl font-bold"> v{{ entry.version }} </UBadge>
             <span class="text-gray-400">{{ entry.date_display }}</span>
@@ -201,7 +220,7 @@ onMounted(() => {
           <div
             v-for="[category, changes] in groupChangesByCategory(entry.changes)"
             :key="`${entry.version}-${category}`"
-            class="bg-gray-900 rounded-lg p-4 border border-gray-800"
+            class="bg-surface-warm-dark rounded-lg p-4 border border-gray-800"
           >
             <!-- Category header -->
             <div class="flex items-center gap-2 mb-3 pb-2 border-b border-gray-700">

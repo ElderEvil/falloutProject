@@ -65,7 +65,7 @@ const activeQuestTab = ref('active')
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono">
+  <div class="relative min-h-screen bg-terminal-background font-mono">
     <div class="scanlines" v-if="scanlines"></div>
 
     <div class="vault-layout">

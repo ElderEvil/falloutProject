@@ -17,7 +17,7 @@ const emit = defineEmits<{
     <button
       v-if="canComplete"
       @click="emit('complete')"
-      class="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-[#ffd700] bg-[#ffd700]/10 p-3.5 font-mono text-base font-bold text-[#ffd700] [text-shadow:0_0_10px_rgba(255,215,0,0.6)] transition-all duration-300 hover:scale-105 hover:bg-[#ffd700]/20 hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]"
+      class="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-rarity-legendary bg-rarity-legendary/10 p-3.5 font-mono text-base font-bold text-rarity-legendary [text-shadow:0_0_10px_rgba(255,215,0,0.6)] transition-all duration-300 hover:scale-105 hover:bg-rarity-legendary/20 hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]"
     >
       <Icon icon="mdi:check-circle" class="h-6 w-6" />
       Complete Exploration

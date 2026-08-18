@@ -60,7 +60,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines"></div>
 
     <div class="vault-layout">

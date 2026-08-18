@@ -57,7 +57,7 @@ const sizeClasses = {
 
 const inputClasses = computed(() => {
   const base = [
-    'w-full rounded text-terminalGreen',
+    'w-full rounded text-terminal-green',
     'border-2 transition-colors',
     'focus:outline-none',
     'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -74,7 +74,7 @@ const inputClasses = computed(() => {
   } else {
     base.push('bg-gray-700')
     base.push(error ? 'border-danger' : 'border-gray-600')
-    base.push(error ? 'focus:border-danger' : 'focus:border-terminalGreen')
+    base.push(error ? 'focus:border-danger' : 'focus:border-terminal-green')
   }
 
   return base.join(' ')

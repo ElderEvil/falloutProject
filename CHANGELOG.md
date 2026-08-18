@@ -61,11 +61,31 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [2.39.4](https://github.com/ElderEvil/falloutProject/compare/v2.39.3...v2.39.4) (2026-08-14)
 
+### Fixed
+
+- **Resource production rate** — bump `base_production_rate` from 0.01 to 0.1 (another ~10x) for a livelier resource
+  economy
+
 ## [2.39.3](https://github.com/ElderEvil/falloutProject/compare/v2.39.2...v2.39.3) (2026-08-14)
+
+### Fixed
+
+- **Dweller thumbnails** — thumbnails now resolve through `getStaticImageUrl`, which prepends the API base URL so
+  images load from the backend directly; root-relative `/static/` paths previously 404'd on deployments where the
+  frontend and backend are separate origins
 
 ## [2.39.2](https://github.com/ElderEvil/falloutProject/compare/v2.39.1...v2.39.2) (2026-08-14)
 
+### Changed
+
+- **Release housekeeping** — changelog cleanup; no functional changes in this release
+
 ## [2.39.1](https://github.com/ElderEvil/falloutProject/compare/v2.39.0...v2.39.1) (2026-08-14)
+
+### Fixed
+
+- **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.01 (~33x) so vaults produce usable
+  resources instead of trickling at ~0.36 units per tick
 
 ## [2.39.0](https://github.com/ElderEvil/falloutProject/compare/v2.38.0...v2.39.0) (2026-08-14)
 

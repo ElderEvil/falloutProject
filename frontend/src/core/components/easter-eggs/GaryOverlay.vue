@@ -16,26 +16,26 @@ defineProps<Props>()
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="text-center space-y-8 animate-pulse">
               <div
-                class="text-[--color-terminal-green-400] text-9xl font-bold terminal-glow-strong font-mono"
+                class="text-terminal-green text-9xl font-bold terminal-glow-strong font-mono"
               >
                 GARY
               </div>
-              <div class="text-[--color-terminal-green-300] text-4xl font-mono terminal-glow">
+              <div class="text-terminal-green-dark text-4xl font-mono terminal-glow">
                 GARY GARY GARY
               </div>
               <div class="flex justify-center gap-8 text-6xl">
                 <Icon
                   icon="mdi:account-alert"
-                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                  class="text-terminal-green terminal-glow animate-bounce"
                 />
                 <Icon
                   icon="mdi:alert"
-                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                  class="text-terminal-green terminal-glow animate-bounce"
                   style="animation-delay: 0.2s"
                 />
                 <Icon
                   icon="mdi:account-alert"
-                  class="text-[--color-terminal-green-400] terminal-glow animate-bounce"
+                  class="text-terminal-green terminal-glow animate-bounce"
                   style="animation-delay: 0.4s"
                 />
               </div>
@@ -43,7 +43,7 @@ defineProps<Props>()
           </div>
 
           <div class="absolute bottom-8 left-0 right-0 text-center">
-            <p class="text-[--color-terminal-green-200] text-xl font-mono terminal-glow">
+            <p class="text-terminal-green-dim text-xl font-mono terminal-glow">
               VAULT 108 PROTOCOL ACTIVATED
             </p>
           </div>

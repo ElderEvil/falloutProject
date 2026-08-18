@@ -279,7 +279,7 @@ const handleViewLowHappiness = () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div v-if="scanlinesEnabled" class="scanlines"></div>
 
     <div class="vault-layout">
@@ -385,10 +385,6 @@ const handleViewLowHappiness = () => {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
-.text-terminalGreen {
-  color: var(--color-theme-primary);
 }
 
 .scanlines {

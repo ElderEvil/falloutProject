@@ -82,14 +82,14 @@ const populationWidthPercent = computed(() => `${Math.min(populationUtilization.
 const populationColor = computed(() => {
   if (populationUtilization.value >= 90) return 'text-red-500'
   if (populationUtilization.value >= 75) return 'text-yellow-400'
-  return 'text-terminalGreen'
+  return 'text-terminal-green'
 })
 
 const happiness = computed(() => currentVault.value?.happiness ?? 0)
 
 const happinessColor = computed(() => {
   const h = happiness.value
-  if (h >= 75) return 'text-terminalGreen'
+  if (h >= 75) return 'text-terminal-green'
   if (h >= 50) return 'text-green-400'
   if (h >= 25) return 'text-yellow-400'
   return 'text-red-500'
@@ -292,14 +292,14 @@ const handleIncidentResponded = async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminalBackground font-mono text-terminalGreen">
+  <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div v-if="scanlinesEnabled" class="scanlines"></div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex min-h-screen items-center justify-center">
       <div class="text-center">
         <div class="mb-4 text-6xl animate-pulse">⚙️</div>
-        <p class="text-xl text-terminalGreen">Loading Vault Data...</p>
+        <p class="text-xl text-terminal-green">Loading Vault Data...</p>
       </div>
     </div>
 
@@ -308,10 +308,10 @@ const handleIncidentResponded = async () => {
       <div class="max-w-md rounded border-2 border-red-500 bg-gray-900 p-8 text-center">
         <div class="mb-4 text-6xl">⚠️</div>
         <h2 class="mb-4 text-2xl font-bold text-red-500">Error Loading Vault</h2>
-        <p class="mb-6 text-terminalGreen">{{ errorMessage }}</p>
+        <p class="mb-6 text-terminal-green">{{ errorMessage }}</p>
         <router-link
           to="/"
-          class="rounded bg-terminalGreen px-6 py-2 font-bold text-black hover:bg-green-400"
+          class="rounded bg-terminal-green px-6 py-2 font-bold text-black hover:bg-green-400"
         >
           Go to Vault List
         </router-link>
@@ -334,7 +334,7 @@ const handleIncidentResponded = async () => {
                 position="bottom"
               >
                 <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                  <Icon icon="mdi:account-group" class="h-8 w-8 text-terminalGreen" />
+                  <Icon icon="mdi:account-group" class="h-8 w-8 text-terminal-green" />
                   <p :class="`whitespace-nowrap ${populationColor}`">
                     {{ dwellersCount }} / {{ populationMax }}
                   </p>
@@ -398,7 +398,7 @@ const handleIncidentResponded = async () => {
                 position="bottom"
               >
                 <div class="flex items-center space-x-2 cursor-help" tabindex="0">
-                  <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminalGreen" />
+                  <Icon icon="mdi:currency-usd" class="h-6 w-6 text-terminal-green" />
                   <p>{{ bottleCaps }}</p>
                 </div>
               </UTooltip>

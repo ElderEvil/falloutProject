@@ -49,7 +49,7 @@ onUnmounted(() => {
   >
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="text-xl font-bold text-terminalGreen">Room to Build</h2>
+        <h2 class="text-xl font-bold text-terminal-green">Room to Build</h2>
         <button @click="closeModal" class="close-btn" aria-label="Close">×</button>
       </div>
       <div class="rooms-scroll-container">

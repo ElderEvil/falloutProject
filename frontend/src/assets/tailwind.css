@@ -59,6 +59,14 @@
   --color-rarity-rare: #4169e1;
   --color-rarity-legendary: #ffd700;
 
+  /* Quest Type Colors */
+  --color-quest-main: #ffb000;
+  --color-quest-side: #c0c0c0;
+  --color-quest-daily: #00d9ff;
+  --color-quest-event: #9b59b6;
+  --color-quest-locked: #ff6600;
+  --color-quest-muted: #666666;
+
   /* === TYPOGRAPHY === */
   --font-family-mono: 'Courier New', Courier, monospace;
   --font-family-base: var(--font-family-mono);

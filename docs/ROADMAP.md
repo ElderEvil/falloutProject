@@ -128,9 +128,37 @@ version, and CI rejects divergent metadata before publication.
 - 🔄 **Reduce only demonstrated runtime overhead** — assess direct ownership on `COPY` for the backend and a minimal
   static frontend server only after smoke tests prove unchanged SPA routing and container behavior.
 
-**Success criteria:** record exact before/after frontend and backend build-and-push durations plus published image
-bytes, with the CI run or command used for each measurement; improve at least one metric without weakening tag
+**Success criteria:** record exact before/after frontend and backend build-and-push durations plus published
+image bytes, with the CI run or command used for each measurement; improve at least one metric without weakening tag
 validation, cache isolation, or runtime behavior.
+
+---
+
+### AI Overseer — MCP Integration (Proposal, Target: TBD)
+
+**Focus**: Expose game capabilities to external AI clients (Claude Desktop, Cursor, custom agents) through the Model
+Context Protocol so an external "Overseer assistant" can read live vault state and issue high-level commands without
+bespoke glue code. Full design in `docs/backend/MCP.md`. Complementary to the in-game dweller chat agent — it does
+NOT replace it.
+
+**Planned:**
+
+- 🔄 **P0 — Read-only MCP resources** — `vault://{id}/state`, `dweller://{id}/bio`, `notifications://{user_id}` behind
+  the existing JWT auth; no new tables or migrations.
+- 🔄 **P1 — Safe action tools** — `assign_dweller_to_room`, `start_training`, `pause_game`/`resume_game`; routed
+  through the existing service layer and quota service, with mutating tools gated behind human approval.
+- 🔄 **P2 — Curated prompts** — `overseer_daily_briefing(vault_id)` and `vault_triage(vault_id)` prompt templates.
+- 🔄 **P3 — Evaluate usage** — assess before adding exploration/room-building tools or a standalone bridge.
+
+**Guardrails:** tools must delegate to services (never CRUD directly) so events, notifications, and game-loop side
+effects fire exactly as they do for REST calls; in-game chat path unchanged; tool exposure is context management, not
+access control — permissions live in the service layer.
+
+**Success criteria:** an external MCP client can read live vault state and perform one safe action (e.g., start
+training) with ownership checks and quota enforcement, while in-game chat behavior and test suites remain unchanged.
+Resource authorization checks are part of the definition of done: loading `dweller://{id}/bio` requires resolving the
+dweller and authorizing its vault (`get_user_vault_or_403` / `verify_dweller_access`), and `notifications://{user_id}`
+must reject any identifier that does not match the authenticated user.
 
 ---
 
@@ -142,6 +170,14 @@ validation, cache isolation, or runtime behavior.
   touching the shared CRUD update path for another reason.
 - **Tailwind CSS** — use newer semantic utilities such as native text shadows, safe alignment, pointer variants, or
   `@source inline()` only in the component that needs them. Avoid a formatting-only CRT-style rewrite.
+- **Pydantic AI agent tool scaling** — the dweller chat agent's toolset is small and bounded
+  (`DwellerActivityBriefing` already caps tool output); revisit only if the tool catalog grows well past ~10 tools:
+  - **Search-then-execute** — replace "one schema per tool" with two tools (search for an action, execute by ID) so
+    context stays flat regardless of catalog size.
+  - **On-demand tool loading** — keep tools out of context until the agent actually needs them (harness-style
+    `defer_loading`).
+  - **Tool output limits** — cap oversized tool returns so a large export cannot eat the context window.
+  - **Human approval on mutating tools** — gate write actions behind approval, distinct from read tools.
 
 ---
 
@@ -150,6 +186,18 @@ validation, cache isolation, or runtime behavior.
 These items are small, scoped changes that deliver noticeable player value without requiring new systems or heavy
 architecture. They are ordered by a rough impact/effort ratio, and they respect the v2.35+ constraint that every
 update reduce net source LOC (features that add code must first offset it by removing or compacting existing code).
+
+### P1 — Verification (merged without review)
+
+- [ ] **Backfill tests for merged low-hanging fruit**
+  - **Why:** The two checked-off items below (chat WebSocket streaming, dweller visual equipment) were merged without
+    code review. They need regression coverage before they can be considered verified.
+  - **What:**
+    - **Chat WebSocket streaming** (`backend/app/api/v1/endpoints/websocket.py`): integration test covering the full
+      chat round-trip over the socket (`ping`/`typing`/`message`), error paths, and the REST fallback removal safety.
+    - **Dweller visual equipment** (`backend/app/schemas/dweller.py:90-93`): test that `accessory`/`object_held`
+      generation is constrained to equipped/owned inventory items and cannot show unowned items.
+  - **Effort:** medium.
 
 ### P2 — Quality of Life
 
@@ -557,4 +605,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-16_ (v2.40.0 released)
+_Last updated: 2026-08-18_ (v2.40.0 released)

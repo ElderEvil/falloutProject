@@ -1,16 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationRaw } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-
-// Suppress route not found warnings during initial navigation
-const originalPush = createRouter.prototype.push
-createRouter.prototype.push = function push(location: any) {
-  return originalPush.call(this, location).catch((err: any) => {
-    if (err.message !== 'NavigationDuplicated' && !err.message.includes('No match found')) {
-      console.warn('[Vue Router]', err.message)
-    }
-    return Promise.resolve()
-  })
-}
 
 // Module routes
 import { authRoutes } from '@/modules/auth/routes'
@@ -66,5 +55,18 @@ router.beforeEach((to) => {
   }
   return true
 })
+
+// Suppress route not found and duplicate-navigation warnings, re-throw everything else
+const originalPush = router.push.bind(router)
+router.push = function push(location: RouteLocationRaw) {
+  return originalPush(location).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message === 'NavigationDuplicated' || message.includes('No match found')) {
+      return Promise.resolve()
+    }
+    console.warn('[Vue Router]', message)
+    throw err
+  })
+}
 
 export default router

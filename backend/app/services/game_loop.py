@@ -626,9 +626,7 @@ class GameLoopService:
             )
             title, message = "Resource Cache Found!", f"Dwellers found a hidden cache worth {caps} caps!"
         else:  # wanderer
-            caps = random.randint(
-                game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max
-            )
+            caps = random.randint(game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max)
             title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
 
         await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)

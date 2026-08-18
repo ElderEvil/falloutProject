@@ -156,7 +156,7 @@ onUnmounted(() => {
           v-bind="modalLabel"
           :class="[
             'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
-            'border-terminalGreen',
+            'border-terminal-green',
             sizeClasses[size],
           ]"
           @click.stop

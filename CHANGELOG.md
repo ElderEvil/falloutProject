@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Fixed
+
+- **Postpartum breeding cooldown** — mothers who delivered within `birth_cooldown_hours` (default 6h) are excluded
+  from conception checks, so a high-affinity couple can no longer conceive again on the next game tick and produce
+  a baby every pregnancy cycle (3h) indefinitely
+- **Baby last-name inheritance** — newborns now take the father's last name by default, with a 20% chance of the
+  mother's last name (`maternal_last_name_chance`), so a baby no longer routinely shares the mother's exact full
+  name ("April Hernandez gave birth to April Hernandez!")
+
 ## [2.41.2](https://github.com/ElderEvil/falloutProject/compare/v2.41.1...v2.41.2) (2026-08-19)
 
 ### Fixed
@@ -60,17 +71,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 - **Objectives debug overlay** — the floating debug button and its `console.log` patching are removed from the
   player UI
-
-## Unreleased
-
-### Fixed
-
-- **Postpartum breeding cooldown** — mothers who delivered within `birth_cooldown_hours` (default 6h) are excluded
-  from conception checks, so a high-affinity couple can no longer conceive again on the next game tick and produce
-  a baby every pregnancy cycle (3h) indefinitely
-- **Baby last-name inheritance** — newborns now take the father's last name by default, with a 20% chance of the
-  mother's last name (`maternal_last_name_chance`), so a baby no longer routinely shares the mother's exact full
-  name ("April Hernandez gave birth to April Hernandez!")
 
 ## [2.40.0](https://github.com/ElderEvil/falloutProject/compare/v2.39.4...v2.40.0) (2026-08-15)
 

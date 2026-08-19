@@ -132,7 +132,10 @@ class BreedingService:
         return set((await db_session.execute(query)).scalars().all())
 
     @staticmethod
-    async def _get_postpartum_mother_ids(db_session: AsyncSession) -> set[UUID4]:
+    async def _get_postpartum_mother_ids(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+    ) -> set[UUID4]:
         """Get set of mother IDs still within the post-birth cooldown window.
 
         Mothers who delivered within ``birth_cooldown_hours`` are excluded from
@@ -141,14 +144,20 @@ class BreedingService:
 
         :param db_session: Database session
         :type db_session: AsyncSession
+        :param vault_id: Vault ID to scope the query
+        :type vault_id: UUID4
         :returns: Set of mother IDs in the postpartum cooldown window
         :rtype: set[UUID4]
         """
+        from app.models.dweller import Dweller
+
         cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(
             hours=game_config.breeding.birth_cooldown_hours
         )
         query = (
             select(Pregnancy.mother_id)
+            .join(Dweller, Pregnancy.mother_id == Dweller.id)
+            .where(Dweller.vault_id == vault_id)
             .where(Pregnancy.status == PregnancyStatusEnum.DELIVERED)
             .where(Pregnancy.updated_at.is_not(None))
             .where(Pregnancy.updated_at >= cooldown_start)
@@ -270,7 +279,7 @@ class BreedingService:
         living_quarters_ids = [room.id for room in living_quarters]
         dwellers = await BreedingService._get_eligible_dwellers(db_session, vault_id, living_quarters_ids)
         pregnant_mother_ids = await BreedingService._get_pregnant_mother_ids(db_session)
-        postpartum_mother_ids = await BreedingService._get_postpartum_mother_ids(db_session)
+        postpartum_mother_ids = await BreedingService._get_postpartum_mother_ids(db_session, vault_id)
         unavailable_mother_ids = pregnant_mother_ids | postpartum_mother_ids
 
         new_pregnancies: list[Pregnancy] = []

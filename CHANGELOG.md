@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.41.3](https://github.com/ElderEvil/falloutProject/compare/v2.41.2...v2.41.3) (2026-08-19)
+
+### Fixed
+
+- **Postpartum breeding cooldown** — mothers who delivered within `birth_cooldown_hours` (default 6h) are excluded
+  from conception checks, so a high-affinity couple can no longer conceive again on the next game tick and produce
+  a baby every pregnancy cycle (3h) indefinitely
+- **Baby last-name inheritance** — newborns now take the father's last name by default, with a 20% chance of the
+  mother's last name (`maternal_last_name_chance`), so a baby no longer routinely shares the mother's exact full
+  name ("April Hernandez gave birth to April Hernandez!")
+- **Cross-vault postpartum data leak** — `_get_postpartum_mother_ids` now joins to `Dweller` and filters by
+  `Dweller.vault_id` so the cooldown only applies to the current vault
+
 ## Unreleased
 
 ### Fixed

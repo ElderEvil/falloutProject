@@ -20,8 +20,10 @@ AI-powered dweller interactions.
 - [x] **v2.41.1 released** — Frontend audit CRITICAL/MAJOR fixes (design-token migration, dead camelCase utilities,
       router typing).
 - [x] **v2.41.2 released** — Quest storage 500 fix (ValueError → 404/409) and EventBus cross-loop asyncpg race fix.
-- [ ] **Postpartum breeding cooldown + last-name inheritance** — mothers can no longer re-conceive on the next tick
-      after delivery; newborns take the father's last name by default. (Branch `fix/breeding-cooldown-and-naming`.)
+- [x] **v2.41.3 released** — Postpartum breeding cooldown + last-name inheritance.
+- [x] ~~**Postpartum breeding cooldown + last-name inheritance**~~ — ✅ **Done.** Merged in v2.41.3. Mothers can no longer
+      re-conceive on the next tick after delivery; newborns take the father's last name by default.
+- [ ] **Family Relations & Lineage** — Next big feature. See "Planned" section below.
 
 ---
 
@@ -213,51 +215,21 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 ### P2 — Quality of Life
 
-- [ ] **Fix silent incident fetch failure**
-  - **Where:** `frontend/src/modules/combat/stores/incident.ts:128`
-  - **Issue:** `fetchIncidents(vaultId, token).catch(() => {})` swallows errors when an SSE `incident_spawned` event
-    arrives. If the follow-up fetch fails, the incident never appears and the player gets no feedback.
-  - **Fix:** Route the error through `handleStoreError` so the player sees a toast.
-  - **Effort:** trivial.
+- [x] ~~**Fix silent incident fetch failure**~~ — ✅ **Done.** `incident.ts` already routes errors through `handleStoreError` (line 75). The `.catch(() => {})` mentioned in the original plan no longer exists at that location.
 
-- [ ] **Gate or remove the Objectives debug overlay in production**
-  - **Where:** `frontend/src/modules/progression/components/ObjectivesDebugOverlay.vue`
-  - **Issue:** A floating `DEBUG` button that patches `console.log` is visible in the player UI.
-  - **Fix:** Render only when `import.meta.env.DEV` is true, or remove the component from production views.
-  - **Effort:** trivial.
+- [x] ~~**Gate or remove the Objectives debug overlay in production**~~ — ✅ **Done.** The `ObjectivesDebugOverlay.vue` component no longer exists in the codebase. The debug panel was removed in a prior cleanup.
 
-- [ ] **Add notification click-through navigation**
-  - **Where:** `frontend/src/modules/vault/components/shell/NotificationBell.vue`
-  - **Issue:** The bell displays typed notifications (`exploration_complete`, `dweller_died`, `baby_born`, etc.), but
-    tapping a notification only marks it read.
-  - **Fix:** Navigate to the relevant view (exploration detail, dweller detail, vault) based on `notification_type`.
-  - **Effort:** small.
+- [x] ~~**Add notification click-through navigation**~~ — ✅ **Done.** `NotificationBell.vue` already has `handleNotificationClick` with `getNotificationRoute()` that navigates to the relevant view based on `notification_type` (exploration, training, quests, dweller detail, etc.).
 
 ### P1 — Resource Economy (aligns with current trajectory)
 
-- [ ] **Surface resource trend alerts from existing rate/forecast data**
-  - **Where:** `frontend/src/modules/vault/components/shell/ResourceBar.vue`
-  - **Opportunity:** `ResourceBar` already computes per-minute rate and "estimated empty/full" in its tooltip.
-  - **Fix:** Promote that signal to a visible warning when a resource is trending to critical or low within the next
-    few ticks. This directly supports the resource-economy baseline goal of making staffing trade-offs obvious.
-  - **Effort:** small; mostly UI/UX around existing calculations.
+- [x] ~~**Surface resource trend alerts from existing rate/forecast data**~~ — ✅ **Done.** `ResourceBar.vue` already has `isDrainingCritical` (persistent warning when resource is draining and critically low), trend arrows, and tooltip with rate/forecast. The `useResourceWarnings` composable already shows toast warnings from backend `resource_warnings`.
 
 ### P1 — Gameplay Gaps
 
-- [ ] **Implement the vault-level event system stub**
-  - **Where:** `backend/app/services/game_loop.py:161-163`
-  - **Issue:** `PHASE 5: Event System` is a TODO that always returns `{"triggered": 0}`. This is the main missing
-    source of mid-game tension in a Fallout Shelter-style game.
-  - **Fix:** Fire weighted random vault events (raider scout, radroach breach, resource cache, wanderer at the door)
-    using the existing incident, notification, and SSE plumbing. Start with 2-3 event types and expand.
-  - **Effort:** medium — a few days — but the infrastructure is already in place.
+- [x] ~~**Implement the vault-level event system stub**~~ — ✅ **Done.** `game_loop.py:_process_events` (line 576-646) fires weighted random vault events: raider scout (spawns incident), resource cache (awards caps + notification), wanderer (awards caps + notification). Configured via `VaultEventConfig` in `game_config.py`. Only fires when user is online and vault has minimum population.
 
-- [ ] **Fix missing exploration rewards**
-  - **Where:** `backend/app/services/exploration/` (coordinator + event generator)
-  - **Issue:** Completed explorations return no rewards to the player (caps/items/loot not delivered or not shown).
-  - **Fix:** Trace the completion path end-to-end (reward accumulation → delivery → frontend rewards modal) and make
-    rewards land atomically with the completion result.
-  - **Effort:** medium — first reproduction test, then the fix.
+- [x] ~~**Fix missing exploration rewards**~~ — ✅ **Done.** `coordinator.py:_apply_rewards` (line 411-485) delivers caps to vault, calculates/applies XP with survival + luck bonuses, transfers loot to storage, returns unused stimpaks/radaways, emits item collection events, and publishes SSE completion events with full rewards summary.
 
 ### P2 — Chat Polish
 
@@ -637,4 +609,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-19_ (v2.41.2 released; next focus: Family Relations)
+_Last updated: 2026-08-20_ (v2.41.3 released; most low-hanging fruit implemented; next focus: Family Relations, Pydantic AI Gateway activation)

@@ -317,6 +317,81 @@ async def test_check_for_conception_already_pregnant(
 
 
 @pytest.mark.asyncio
+async def test_check_for_conception_postpartum_cooldown(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Test that mothers who recently delivered can't conceive again within cooldown."""
+    # Make them partners in living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # Deliver a pregnancy now (within cooldown window)
+    pregnancy = await BreedingService.create_pregnancy(
+        async_session,
+        female_dweller.id,
+        male_dweller.id,
+    )
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+    await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    # Try to conceive again while still in the postpartum cooldown
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert pregnancies == []
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_after_cooldown_expires(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Test that mothers can conceive again once the postpartum cooldown expires."""
+    # Make them partners in living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # Deliver a pregnancy, then backdate the delivery outside the cooldown window
+    pregnancy = await BreedingService.create_pregnancy(
+        async_session,
+        female_dweller.id,
+        male_dweller.id,
+    )
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+    await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    pregnancy.updated_at = datetime.utcnow() - timedelta(hours=game_config.breeding.birth_cooldown_hours + 1)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert len(pregnancies) == 1
+    assert pregnancies[0].mother_id == female_dweller.id
+
+
+@pytest.mark.asyncio
 async def test_check_for_conception_only_one_in_living_quarters(
     async_session: AsyncSession,
     vault: Vault,
@@ -554,15 +629,42 @@ async def test_deliver_baby_inherits_name(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    child = await BreedingService.deliver_baby(
-        async_session,
-        pregnancy.id,
-    )
+    with patch("random.random", return_value=0.99):
+        child = await BreedingService.deliver_baby(
+            async_session,
+            pregnancy.id,
+        )
 
     # First name should be from one of the parents
     assert child.first_name in [male_dweller.first_name, female_dweller.first_name]
 
-    # Last name should be mother's last name
+    # Father's last name is the default inheritance
+    assert child.last_name == male_dweller.last_name
+
+
+@pytest.mark.asyncio
+async def test_deliver_baby_inherits_mother_last_name_on_chance(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Test that baby occasionally inherits mother's last name."""
+    pregnancy = await BreedingService.create_pregnancy(
+        async_session,
+        female_dweller.id,
+        male_dweller.id,
+    )
+
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    # random.random < maternal_last_name_chance (0.2) triggers mother's last name
+    with patch("random.random", return_value=0.1):
+        child = await BreedingService.deliver_baby(
+            async_session,
+            pregnancy.id,
+        )
+
     assert child.last_name == female_dweller.last_name
 
 

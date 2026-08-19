@@ -132,6 +132,39 @@ class BreedingService:
         return set((await db_session.execute(query)).scalars().all())
 
     @staticmethod
+    async def _get_postpartum_mother_ids(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+    ) -> set[UUID4]:
+        """Get set of mother IDs still within the post-birth cooldown window.
+
+        Mothers who delivered within ``birth_cooldown_hours`` are excluded from
+        conceiving again, preventing a high-affinity couple from producing a baby
+        every pregnancy cycle back-to-back.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param vault_id: Vault ID to scope the query
+        :type vault_id: UUID4
+        :returns: Set of mother IDs in the postpartum cooldown window
+        :rtype: set[UUID4]
+        """
+        from app.models.dweller import Dweller
+
+        cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            hours=game_config.breeding.birth_cooldown_hours
+        )
+        query = (
+            select(Pregnancy.mother_id)
+            .join(Dweller, Pregnancy.mother_id == Dweller.id)
+            .where(Dweller.vault_id == vault_id)
+            .where(Pregnancy.status == PregnancyStatusEnum.DELIVERED)
+            .where(Pregnancy.updated_at.is_not(None))
+            .where(Pregnancy.updated_at >= cooldown_start)
+        )
+        return set((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
     def _is_pair_eligible(
         dweller: Dweller,
         pregnant_mother_ids: set[UUID4],
@@ -246,12 +279,14 @@ class BreedingService:
         living_quarters_ids = [room.id for room in living_quarters]
         dwellers = await BreedingService._get_eligible_dwellers(db_session, vault_id, living_quarters_ids)
         pregnant_mother_ids = await BreedingService._get_pregnant_mother_ids(db_session)
+        postpartum_mother_ids = await BreedingService._get_postpartum_mother_ids(db_session, vault_id)
+        unavailable_mother_ids = pregnant_mother_ids | postpartum_mother_ids
 
         new_pregnancies: list[Pregnancy] = []
         checked_pairs: set[tuple[str, str]] = set()
 
         for dweller in dwellers:
-            if not BreedingService._is_pair_eligible(dweller, pregnant_mother_ids, checked_pairs):
+            if not BreedingService._is_pair_eligible(dweller, unavailable_mother_ids, checked_pairs):
                 continue
 
             pair_key = tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
@@ -439,7 +474,11 @@ class BreedingService:
 
         # Generate name (simplified - take from mother or father)
         first_name = random.choice([mother.first_name, father.first_name])
-        last_name = mother.last_name  # Use mother's last name by default
+        # Father's last name by default; occasionally inherit the mother's instead
+        if random.random() < game_config.breeding.maternal_last_name_chance:
+            last_name = mother.last_name
+        else:
+            last_name = father.last_name
 
         # Create a child dweller
         from app import crud

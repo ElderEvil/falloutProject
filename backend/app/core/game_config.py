@@ -406,6 +406,17 @@ class BreedingConfig(BaseSettings):
         le=1.0,
     )
     pregnancy_duration_hours: int = Field(default=3, description="Real-time hours", ge=1)
+    birth_cooldown_hours: int = Field(
+        default=6,
+        description="Hours after delivery before the mother can conceive again",
+        ge=0,
+    )
+    maternal_last_name_chance: float = Field(
+        default=0.2,
+        description="20% chance baby takes mother's last name instead of father's",
+        ge=0.0,
+        le=1.0,
+    )
     trait_inheritance_variance: int = Field(default=2, description="± SPECIAL variance from parents", ge=0)
     rarity_upgrade_chance: float = Field(
         default=0.15,

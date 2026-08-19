@@ -12,6 +12,7 @@ from pydantic import UUID4
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
+from app.services.event_bus import event_bus
 from app.services.game_loop import game_loop_service
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def game_tick():
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
             from app.services.objective_notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
@@ -61,6 +62,7 @@ def game_tick():
                 pool_pre_ping=True,
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            set_current_session_maker(session_maker)
 
             try:
                 async with session_maker() as session:
@@ -75,6 +77,8 @@ def game_tick():
     else:
         logger.info(f"Game tick completed: {stats}")
         return stats
+    finally:
+        event_bus.clear_locks()
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
@@ -94,7 +98,7 @@ def process_vault_tick(vault_id: str):
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
             from app.services.objective_notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
@@ -107,6 +111,7 @@ def process_vault_tick(vault_id: str):
                 pool_pre_ping=True,
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            set_current_session_maker(session_maker)
 
             try:
                 async with session_maker() as session:
@@ -121,6 +126,8 @@ def process_vault_tick(vault_id: str):
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result
+    finally:
+        event_bus.clear_locks()
 
 
 @dramatiq.actor(actor_name="check_permanent_deaths", max_retries=3, min_backoff=3600000)

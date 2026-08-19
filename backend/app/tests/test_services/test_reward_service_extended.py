@@ -15,6 +15,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services.reward_service import reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,7 @@ async def test_grant_item_no_storage_raises(async_session: AsyncSession) -> None
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
-    with pytest.raises(ValueError, match="No storage found"):
+    with pytest.raises(ResourceNotFoundException, match="Storage"):
         await reward_service.grant_item(
             async_session,
             vault.id,
@@ -144,7 +145,7 @@ async def test_grant_item_storage_full_raises(async_session: AsyncSession) -> No
     async_session.add(weapon)
     await async_session.commit()
 
-    with pytest.raises(ValueError, match="Storage full"):
+    with pytest.raises(ResourceConflictException, match="Storage full"):
         await reward_service.grant_item(
             async_session,
             vault.id,

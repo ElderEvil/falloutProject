@@ -12,6 +12,7 @@ from pydantic import UUID4
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
+from app.services.event_bus import event_bus
 from app.services.game_loop import game_loop_service
 
 logger = logging.getLogger(__name__)
@@ -76,6 +77,8 @@ def game_tick():
     else:
         logger.info(f"Game tick completed: {stats}")
         return stats
+    finally:
+        event_bus.clear_locks()
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
@@ -123,6 +126,8 @@ def process_vault_tick(vault_id: str):
     else:
         logger.info(f"Vault {vault_id} tick completed")
         return result
+    finally:
+        event_bus.clear_locks()
 
 
 @dramatiq.actor(actor_name="check_permanent_deaths", max_retries=3, min_backoff=3600000)

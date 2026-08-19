@@ -89,6 +89,10 @@ class EventBus:
         self._emit_locks.clear()
         logger.debug("All event handlers cleared")
 
+    def clear_locks(self) -> None:
+        """Remove all emit locks while preserving subscriptions and handlers."""
+        self._emit_locks.clear()
+
     @staticmethod
     async def _safe_call(handler: EventHandler, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
         await handler(event_type, vault_id, data)

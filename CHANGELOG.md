@@ -5,11 +5,26 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## [2.41.2](https://github.com/ElderEvil/falloutProject/compare/v2.41.1...v2.41.2) (2026-08-19)
 
+### Fixed
+
+- **Quest completion 500 on full storage** — `reward_service.grant_item` now raises `ResourceNotFoundException`
+  (404, no storage row) and `ResourceConflictException` (409, storage full) instead of bare `ValueError`, so the
+  quest completion endpoint returns the correct HTTP status code
+- **Cross-thread EventBus / asyncpg InterfaceError race** — `EventBus.emit` locks are now keyed by
+  `(event_type, vault_id, event_loop)` so each Dramatiq worker thread gets its own lock; objective evaluators
+  use a loop-local session maker (via `set_current_session_maker`) so concurrent ticks never share a single
+  asyncpg connection, eliminating the `InterfaceError: another operation is in progress` (324×/24h on Hetzner)
+
 ## [2.41.1](https://github.com/ElderEvil/falloutProject/compare/v2.41.0...v2.41.1) (2026-08-18)
 
-## [2.41.0](https://github.com/ElderEvil/falloutProject/compare/v2.40.0...v2.41.0) (2026-08-17)
+### Fixed
 
-## Unreleased
+- **Frontend audit CRITICAL/MAJOR fixes** — dead camelCase token utilities replaced with kebab-case equivalents
+  across 20+ components (Tailwind v4 generates no utilities for camelCase tokens); broken `--color-terminal-green-*`
+  theme vars removed and remapped to the surviving semantic tokens; hardcoded hex colors migrated to design tokens
+  (happiness bands, quest palette, rarity, vault shell); router monkey-patch properly typed instead of implicit `any`
+
+## [2.41.0](https://github.com/ElderEvil/falloutProject/compare/v2.40.0...v2.41.0) (2026-08-17)
 
 ### Features
 
@@ -33,13 +48,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 
-- **Quest completion 500 on full storage** — `reward_service.grant_item` now raises `ResourceNotFoundException`
-  (404, no storage row) and `ResourceConflictException` (409, storage full) instead of bare `ValueError`, so the
-  quest completion endpoint returns the correct HTTP status code
-- **Cross-thread EventBus / asyncpg InterfaceError race** — `EventBus.emit` locks are now keyed by
-  `(event_type, vault_id, event_loop)` so each Dramatiq worker thread gets its own lock; objective evaluators
-  use a loop-local session maker (via `set_current_session_maker`) so concurrent ticks never share a single
-  asyncpg connection, eliminating the `InterfaceError: another operation is in progress` (324×/24h on Hetzner)
 - **Exploration SSE channel** — the exploration coordinator published completion events to the vault owner id while
   the frontend subscribes to the vault id, so rewards never reached the client; the publish now targets the vault
   channel
@@ -53,9 +61,18 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Objectives debug overlay** — the floating debug button and its `console.log` patching are removed from the
   player UI
 
-## [2.40.0](https://github.com/ElderEvil/falloutProject/compare/v2.39.4...v2.40.0) (2026-08-15)
-
 ## Unreleased
+
+### Fixed
+
+- **Postpartum breeding cooldown** — mothers who delivered within `birth_cooldown_hours` (default 6h) are excluded
+  from conception checks, so a high-affinity couple can no longer conceive again on the next game tick and produce
+  a baby every pregnancy cycle (3h) indefinitely
+- **Baby last-name inheritance** — newborns now take the father's last name by default, with a 20% chance of the
+  mother's last name (`maternal_last_name_chance`), so a baby no longer routinely shares the mother's exact full
+  name ("April Hernandez gave birth to April Hernandez!")
+
+## [2.40.0](https://github.com/ElderEvil/falloutProject/compare/v2.39.4...v2.40.0) (2026-08-15)
 
 ### Features
 

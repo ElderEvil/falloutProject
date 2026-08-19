@@ -11,32 +11,44 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [x] **v2.32.0 planning** — Ruff lint cleanup + Google-style docstring convention enforcement.
-- [x] **v2.33.0 released** — Frontend type-aware linting and stale-request safety.
-- [x] **v2.33.2 patch released** — Automatic training-room assignments now create queue-visible training sessions.
-- [x] **v2.34.0 released** — Pydantic AI observability and structured-output reliability.
-- [x] **v2.35.0 released** — Automated release-version synchronization and Conventional Commit enforcement.
-- [x] **v2.38.0 released** — Server-owned room templates, visual equipment assets, and legendary boosted-vault fixtures.
+- [x] **v2.39.0–v2.39.4 released** — Resource production rate corrections (0.0003 → 0.1) for a livelier economy,
+      dweller thumbnail URL fix, release housekeeping.
+- [x] **v2.40.0 released** — Training tab UX (occupancy cards, live progress bars), UTC training timestamps, shared
+      training-room capacity helper.
+- [x] **v2.41.0 released** — Chat WebSocket streaming, vault event system, notification navigation, visual equipment
+      consistency, resource depletion warning, exploration rewards via SSE.
+- [x] **v2.41.1 released** — Frontend audit CRITICAL/MAJOR fixes (design-token migration, dead camelCase utilities,
+      router typing).
+- [x] **v2.41.2 released** — Quest storage 500 fix (ValueError → 404/409) and EventBus cross-loop asyncpg race fix.
+- [ ] **Postpartum breeding cooldown + last-name inheritance** — mothers can no longer re-conceive on the next tick
+      after delivery; newborns take the father's last name by default. (Branch `fix/breeding-cooldown-and-naming`.)
 
 ---
 
 ## Planned
 
-### Next Gameplay Balance Iteration — Resource Economy Baseline
+### Next Big Feature — Family Relations (Target: TBD)
 
-**Focus**: Make the existing 60-second resource tick create understandable staffing pressure before tuning broader
-economy systems.
+**Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,
+relationship depth, and legacy that persists across generations. This is the natural successor to the breeding
+cooldown and naming fixes.
 
-- ✅ **Define a starter-vault baseline** — two matching production workers are safe; reassigning one creates a
-  recoverable deficit on the next tick. See `docs/features/RESOURCE_ECONOMY_BALANCE.md` for the targets and tuning
-  sequence.
-- 🔄 **Calibrate production first** — reduce only the base production rate for the first pass; preserve room output
-  formulas, consumption, capacity, prices, thresholds, and rewards until live play-testing identifies the next lever.
-- 🔄 **Tune in isolated passes** — evaluate starter staffing, then population bands, then room tiers; change one
-  economic input per cycle and record the observed outcome.
+- 🔄 **Family tree visualization** — graph view of parents, children, siblings, and partners per dweller, building on
+  the existing `parent_1_id`/`parent_2_id`/`partner_id` fields and the world-map marker system.
+- 🔄 **Relationship depth** — affinity already gates conception; add visible relationship stages (acquaintance →
+  friends → partners → married) with event/notification hooks and stat bonuses.
+- 🔄 **Legacy & lineage** — surface generational data on dweller detail (house/family name, generation number,
+  inherited traits from `_calculate_inherited_stats`), and consider a "founder's vault" distinction.
+- 🔄 **Postpartum cooldown tuning** — after the cooldown ships, play-test the 6h default against high-affinity
+  couples and adjust `birth_cooldown_hours` before building on top of it.
 
-**Success criteria:** a player can see a resource trade-off within one 60-second tick, restore a healthy vault by
-staffing matching rooms, and identify the next expansion or training decision from the resource-rate feedback.
+**Guardrails:** delegate to the service layer (never CRUD directly) so events, notifications, and game-loop side
+effects fire exactly as they do for REST calls; respect the v2.35+ net-LOC-reduction constraint by extracting shared
+lineage/tree helpers instead of duplicating map-marker logic.
+
+**Success criteria:** a player can open any dweller's family tree, see relationship stage progression with
+notifications, and identify multi-generation lineage from the detail view — with backend coverage for the tree and
+stage-transition logic.
 
 ---
 
@@ -283,23 +295,37 @@ percentage change. Claims must be reproducible from committed commands or CI art
 as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
 feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
 
-### v2.38.0 — Safe Room Construction & Visual Inventory (Released 2026-08-14)
+### v2.41.2 — Quest Storage & EventBus Race Fixes (Released 2026-08-19)
 
-**Focus**: Move room-definition authority to the backend and make the equipment and legendary-dweller systems easier
-to understand at a glance.
+**Focus**: Correct HTTP semantics on quest completion and eliminate a production cross-thread race that was
+poisoning the asyncpg connection pool.
 
-**Completed:**
+- ✅ **Quest storage 500 → 404/409** — `reward_service.grant_item` raises `ResourceNotFoundException` / `ResourceConflictException` instead of bare `ValueError`, so full-storage quest completion returns the right status.
+- ✅ **EventBus cross-loop race** — emit locks keyed by `(event_type, vault_id, event_loop)`; objective evaluators use
+  a loop-local session maker. Eliminates `InterfaceError: another operation is in progress` (324×/24h on Hetzner).
 
-- ✅ **Server-owned room templates** — builds now accept a template identity and grid coordinates; the backend derives
-  room economics, limits, capacities, and upgrade data. Buildable-room results are scoped to the active vault and the
-  grid and menu display the matching room artwork.
-- ✅ **Visual item and dweller assets** — storage and combat equipment views show outfit and weapon artwork;
-  legendary dwellers have full portraits and list/grid thumbnails. Existing records are backfilled by migration.
-- ✅ **Boosted-vault test fixtures** — boosted vaults receive a small equipped legendary team to make high-level
-  gameplay and asset checks immediately testable.
+### v2.41.0 — Chat Streaming, Vault Events & Notification UX (Released 2026-08-17)
 
-**Validation:** 36 focused backend tests cover the asset and boosted-vault flows; migration-head and changelog-parser
-checks pass. This was a feature release, so no performance claim is recorded.
+**Focus**: Real-time polish across chat, events, and notifications.
+
+- ✅ **Chat over WebSocket** — token streaming over the existing socket with automatic REST fallback.
+- ✅ **Vault event system** — weighted random events (resource cache, wanderer, raider scout) with caps/incidents.
+- ✅ **Notification navigation** — bell notifications route to the relevant view by type.
+- ✅ **Visual equipment consistency** — generated visuals constrained to equipped/owned items.
+- ✅ **Exploration rewards via SSE** — completion events publish to the vault channel the frontend subscribes to.
+
+### v2.40.0 — Training Tab UX (Released 2026-08-15)
+
+**Focus**: Make training rooms legible at a glance.
+
+- ✅ **Occupancy-card training rooms** — live capacity and per-room active training counts.
+- ✅ **Live progress bars** — fill even before the game-loop worker persists an update.
+- ✅ **UTC training timestamps** — consistent `Z`-suffixed ISO-8601 serialization.
+
+### v2.39.x — Resource Production Corrections (Released 2026-08-14)
+
+- ✅ **Livelier economy** — `base_production_rate` corrected 0.0003 → 0.01 → 0.1 across patch releases.
+- ✅ **Dweller thumbnail fix** — thumbnails resolve through `getStaticImageUrl` with the API base URL prepended.
 
 ### v2.33.2 — Training Queue Assignment Repair (Released 2026-08-13)
 
@@ -503,7 +529,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 - Combat enhancements (statistics, log/replay)
 - Exploration enhancement (events with choices, journal)
-- Family visualization (relationship graph, family tree)
+- ~~Family visualization (relationship graph, family tree)~~ → **now the next big feature** (see Planned above)
 
 ### Phase 3: Endgame
 
@@ -564,6 +590,12 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 | Version | Release      | Highlights                                                        |
 | ------- | ------------ | ----------------------------------------------------------------- |
+| v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix               |
+| v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)               |
+| v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation             |
+| v2.40.0 | Aug 15, 2026 | Training tab UX (occupancy cards, live progress)                  |
+| v2.39.x | Aug 14, 2026 | Resource production corrections, thumbnail URL fix                |
+| v2.38.0 | Aug 14, 2026 | Safe room construction, visual inventory                          |
 | v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings                       |
 | v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
 | v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck)        |
@@ -605,4 +637,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-18_ (v2.40.0 released)
+_Last updated: 2026-08-19_ (v2.41.2 released; next focus: Family Relations)

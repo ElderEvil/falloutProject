@@ -11,6 +11,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import ResourceNotFoundException
 
 
 @pytest.mark.asyncio
@@ -625,7 +626,7 @@ async def test_quest_completion_rolls_back_when_any_reward_fails(async_session: 
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
 
-    with pytest.raises(ValueError, match="No storage found"):
+    with pytest.raises(ResourceNotFoundException, match="Storage"):
         await crud.quest_crud.complete(
             db_session=async_session,
             quest_entity_id=quest.id,

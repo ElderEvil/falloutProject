@@ -13,6 +13,7 @@ Example flow:
 """
 
 import abc
+import contextvars
 import logging
 from typing import Any
 
@@ -31,6 +32,17 @@ from app.utils.objective_constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Loop-local session maker: dramatiq worker threads each run ``asyncio.run(run_tick())``
+# with their own event loop, so handlers must open sessions from the maker bound to
+# the loop that emitted the event (not the module-global one, which would share a
+# single asyncpg connection across loops and trigger InterfaceError collisions).
+current_session_maker: contextvars.ContextVar[Any] = contextvars.ContextVar("current_session_maker", default=None)
+
+
+def set_current_session_maker(maker: Any) -> None:
+    """Set the session maker for the current event loop's context."""
+    current_session_maker.set(maker)
 
 
 class ObjectiveEvaluator(abc.ABC):
@@ -55,7 +67,8 @@ class ObjectiveEvaluator(abc.ABC):
 
     async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
         logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
-        async with async_session_maker() as db_session:
+        maker = current_session_maker.get() or async_session_maker
+        async with maker() as db_session:
             objectives = await self._get_active_objectives(db_session, vault_id)
             for objective, link in objectives:
                 try:

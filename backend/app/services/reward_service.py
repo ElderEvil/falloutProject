@@ -16,6 +16,7 @@ from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.services.event_bus import GameEvent, event_bus
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.weapon_assets import get_weapon_image_url
@@ -53,13 +54,13 @@ class RewardService:
         if not storage_obj:
             msg = f"No storage found for vault {vault_id}"
             logger.warning(msg)
-            raise ValueError(msg)
+            raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
 
         available = await get_available_space(db_session, storage_obj.id)
         if available <= 0:
             msg = f"Storage full for vault {vault_id}"
             logger.warning(msg)
-            raise ValueError(msg)
+            raise ResourceConflictException(msg)
 
         item_type = item_data.get("item_type", "weapon")
         item_name = item_data.get("name", "Unknown Item")

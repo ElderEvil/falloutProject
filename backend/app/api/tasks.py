@@ -48,7 +48,7 @@ def game_tick():
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
             from app.services.objective_notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
@@ -61,6 +61,7 @@ def game_tick():
                 pool_pre_ping=True,
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            set_current_session_maker(session_maker)
 
             try:
                 async with session_maker() as session:
@@ -94,7 +95,7 @@ def process_vault_tick(vault_id: str):
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager
+            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
             from app.services.objective_notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
@@ -107,6 +108,7 @@ def process_vault_tick(vault_id: str):
                 pool_pre_ping=True,
             )
             session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            set_current_session_maker(session_maker)
 
             try:
                 async with session_maker() as session:

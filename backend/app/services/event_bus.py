@@ -45,7 +45,7 @@ class EventBus:
 
     def __init__(self) -> None:
         self._handlers: dict[GameEvent, list[EventHandler]] = defaultdict(list)
-        self._emit_locks: dict[tuple[GameEvent, UUID4], asyncio.Lock] = {}
+        self._emit_locks: dict[tuple[GameEvent, UUID4, int], asyncio.Lock] = {}
 
     def subscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         if handler not in self._handlers[event_type]:
@@ -60,7 +60,7 @@ class EventBus:
         shared database connection, while preserving independent delivery for
         other vaults and event types.
         """
-        lock = self._emit_locks.setdefault((event_type, vault_id), asyncio.Lock())
+        lock = self._emit_locks.setdefault((event_type, vault_id, id(asyncio.get_running_loop())), asyncio.Lock())
         async with lock:
             handlers = self._handlers.get(event_type, [])
             if not handlers:

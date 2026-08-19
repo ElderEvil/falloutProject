@@ -31,6 +31,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Fixed
 
+- **Quest completion 500 on full storage** — `reward_service.grant_item` now raises `ResourceNotFoundException`
+  (404, no storage row) and `ResourceConflictException` (409, storage full) instead of bare `ValueError`, so the
+  quest completion endpoint returns the correct HTTP status code
+- **Cross-thread EventBus / asyncpg InterfaceError race** — `EventBus.emit` locks are now keyed by
+  `(event_type, vault_id, event_loop)` so each Dramatiq worker thread gets its own lock; objective evaluators
+  use a loop-local session maker (via `set_current_session_maker`) so concurrent ticks never share a single
+  asyncpg connection, eliminating the `InterfaceError: another operation is in progress` (324×/24h on Hetzner)
 - **Exploration SSE channel** — the exploration coordinator published completion events to the vault owner id while
   the frontend subscribes to the vault id, so rewards never reached the client; the publish now targets the vault
   channel

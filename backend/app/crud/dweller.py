@@ -26,9 +26,7 @@ from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferE
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 
-def determine_status_for_room(
-    room_category: RoomTypeEnum | None, room_name: str | None = None
-) -> DwellerStatusEnum:
+def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str | None = None) -> DwellerStatusEnum:
     """
     Determine the appropriate dweller status based on room category.
 
@@ -280,7 +278,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ):
             raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
 
-        new_status = determine_status_for_room(room_obj.category if room_id else None, room_obj.name if room_id else None)
+        new_status = determine_status_for_room(
+            room_obj.category if room_id else None, room_obj.name if room_id else None
+        )
 
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
 

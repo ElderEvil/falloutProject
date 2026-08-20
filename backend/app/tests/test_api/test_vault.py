@@ -520,16 +520,20 @@ async def test_vault_initiate_boosted_creates_23_dwellers(
     assert vault_with_counts.dweller_count == 23, f"Expected 23 dwellers, got {vault_with_counts.dweller_count}"
 
     social_dwellers = (
-        await async_session.execute(
-            select(Dweller)
-            .join(Room)
-            .where(
-                Dweller.vault_id == vault_id,
-                Dweller.status == DwellerStatusEnum.RESTING,
-                Room.name.ilike("%living%"),
+        (
+            await async_session.execute(
+                select(Dweller)
+                .join(Room)
+                .where(
+                    Dweller.vault_id == vault_id,
+                    Dweller.status == DwellerStatusEnum.RESTING,
+                    Room.name.ilike("%living%"),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(social_dwellers) == 2
     assert all(dweller.charisma == game_config.dweller.boosted_stat_value for dweller in social_dwellers)
 

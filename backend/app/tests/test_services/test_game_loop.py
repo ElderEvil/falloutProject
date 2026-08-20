@@ -1060,7 +1060,10 @@ class TestRelationshipHelpers:
         ):
             result = await game_loop_service._create_new_relationships(
                 async_session,
-                [(r1, game_config.relationship.affinity_increase_per_tick), (r2, game_config.relationship.affinity_increase_per_tick)],
+                [
+                    (r1, game_config.relationship.affinity_increase_per_tick),
+                    (r2, game_config.relationship.affinity_increase_per_tick),
+                ],
             )
         assert result == 2
 

@@ -151,16 +151,13 @@ docker compose up -d
 
 # Local dev with hot reload
 docker compose -f docker-compose.local.yml up -d
-
-# TrueNAS staging
-# See docs/deployment/TRUENAS_SETUP.md
 ```
 
 ### Docker Images
 
-Pre-built images (automated by CI/CD):
-- Backend: `elerevil/fo-shelter-be:latest`
-- Frontend: `elerevil/fo-shelter-fe:latest`
+Pre-built images (automated by CI/CD, org from the `DOCKER_USERNAME` secret):
+- Backend: `$DOCKER_USERNAME/fo-shelter-be:latest`
+- Frontend: `$DOCKER_USERNAME/fo-shelter-fe:latest`
 
 See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment guide.
 
@@ -308,7 +305,6 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 
 - [docs/ROADMAP.md](./docs/ROADMAP.md) - Changelog and upcoming features
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment guide
-- [docs/deployment/TRUENAS_SETUP.md](./docs/deployment/TRUENAS_SETUP.md) - TrueNAS staging setup
 - [docs/frontend/README.md](./docs/frontend/README.md) - Frontend architecture
 - [docs/frontend/STYLEGUIDE.md](./docs/frontend/STYLEGUIDE.md) - Design system
 

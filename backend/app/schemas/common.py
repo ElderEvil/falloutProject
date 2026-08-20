@@ -103,7 +103,13 @@ class RelationshipTypeEnum(CaseInsensitiveEnum):
     FRIEND = "friend"
     ROMANTIC = "romantic"
     PARTNER = "partner"
+    MARRIED = "MARRIED"
     EX = "ex"
+
+
+PARTNER_LINKED_STAGES: frozenset[RelationshipTypeEnum] = frozenset(
+    {RelationshipTypeEnum.PARTNER, RelationshipTypeEnum.MARRIED}
+)
 
 
 class PregnancyStatusEnum(CaseInsensitiveEnum):

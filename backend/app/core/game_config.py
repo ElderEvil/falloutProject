@@ -351,14 +351,8 @@ class RelationshipConfig(BaseSettings):
     affinity_increase_per_tick: int = Field(default=2, description="Affinity gain when in same room", ge=0)
     romance_threshold: int = Field(default=70, description="Affinity required for romance", ge=0, le=100)
     partner_happiness_bonus: int = Field(default=10, description="Happiness bonus from having partner", ge=0)
-
-    # Quick pair affinity setting (for admin quick-pair feature)
-    quick_pair_affinity: int = Field(
-        default=90,
-        description="Affinity percentage for quick-paired dwellers",
-        ge=0,
-        le=100,
-    )
+    marriage_threshold: int = Field(default=85, description="Affinity required for marriage", ge=0, le=100)
+    married_happiness_bonus: int = Field(default=15, description="Extra happiness bonus from being married", ge=0)
 
     # Compatibility calculation settings
     max_special_diff: int = Field(

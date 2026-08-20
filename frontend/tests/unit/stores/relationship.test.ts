@@ -186,35 +186,6 @@ describe('Relationship Store', () => {
     })
   })
 
-  describe('quickPair', () => {
-    it('should quick pair dwellers successfully', async () => {
-      const partnerRelationship = {
-        ...mockRelationship,
-        relationship_type: 'partner',
-        affinity: 90,
-      }
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: partnerRelationship })
-
-      const store = useRelationshipStore()
-      const result = await store.quickPair('vault-1')
-
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/relationships/vault/vault-1/quick-pair')
-      expect(result).toEqual(partnerRelationship)
-      expect(store.relationships).toContainEqual(partnerRelationship)
-    })
-
-    it('should handle quick pair error with insufficient dwellers', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce({
-        response: { data: { detail: 'Need at least 2 adult dwellers without partners' } },
-      })
-
-      const store = useRelationshipStore()
-      const result = await store.quickPair('vault-1')
-
-      expect(result).toBeNull()
-    })
-  })
-
   describe('Computed Properties', () => {
     it('should get relationship by dwellers', () => {
       const store = useRelationshipStore()

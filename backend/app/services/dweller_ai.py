@@ -33,6 +33,26 @@ GENDER_PRONOUNS_MAP = {
 BIO_MAX_LENGTH = 1_000
 BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 
+# Visual-attribute fields that may only reflect items the dweller owns/equips.
+EQUIPMENT_RESTRICTED_FIELDS = ("accessory", "object_held")
+
+
+def restrict_equipment_fields(visual_attributes: dict[str, Any], equipped_items: list[str]) -> None:
+    """Ensure accessory/object_held only reference equipped/owned items.
+
+    Mutates ``visual_attributes`` in place: any restricted field whose value is
+    not among ``equipped_items`` is removed. When nothing is equipped, both
+    fields are removed entirely.
+    """
+    if equipped_items:
+        owned = set(equipped_items)
+        for field in EQUIPMENT_RESTRICTED_FIELDS:
+            if field in visual_attributes and visual_attributes[field] not in owned:
+                visual_attributes.pop(field)
+    else:
+        for field in EQUIPMENT_RESTRICTED_FIELDS:
+            visual_attributes.pop(field, None)
+
 
 class DwellerAIService:
     def __init__(self):
@@ -245,14 +265,7 @@ class DwellerAIService:
         # Convert Pydantic model to dict, excluding None values
         visual_attributes = result.output.model_dump(exclude_none=True)
 
-        if equipped_items:
-            owned = set(equipped_items)
-            for field in ("accessory", "object_held"):
-                if field in visual_attributes and visual_attributes[field] not in owned:
-                    del visual_attributes[field]
-        else:
-            visual_attributes.pop("accessory", None)
-            visual_attributes.pop("object_held", None)
+        restrict_equipment_fields(visual_attributes, equipped_items)
 
         # Merge with existing identity fields (race/faction) to preserve defaults
         if isinstance(existing_attrs, dict):

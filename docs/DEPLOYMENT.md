@@ -20,7 +20,6 @@ docker compose up -d
 | Local Dev | `docker-compose.yml` | Hot reload, Mailpit, debug logging |
 | Local Full | `docker-compose.local.yml` | Full stack local testing |
 | Hetzner Production | `deployment/k3s/` | K3s deployments updated by the GitHub Actions workflow |
-| TrueNAS (legacy) | [examples/docker-compose.truenas.yml](examples/docker-compose.truenas.yml) | Retained as a historical staging template |
 
 ## Local Development
 
@@ -91,35 +90,6 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
 
-## TrueNAS Staging (Legacy)
-
-**Complete Guide:** [deployment/TRUENAS_SETUP.md](deployment/TRUENAS_SETUP.md)
-
-**Summary:**
-- Production-like environment on TrueNAS Scale
-- Pre-built images from Docker Hub
-- Automated updates via semantic-release
-- Nginx Proxy Manager for SSL/reverse proxy
-- External domains (fallout.evillab.dev)
-
-**Quick Setup:**
-```bash
-# On TrueNAS
-mkdir -p /mnt/dead-pool/apps/fallout-shelter/config
-cd /mnt/dead-pool/apps/fallout-shelter/config
-
-# Download configs
-curl -o compose.yml https://raw.githubusercontent.com/ElderEvil/falloutProject/master/docs/examples/docker-compose.truenas.yml
-curl -O https://raw.githubusercontent.com/ElderEvil/falloutProject/master/docs/examples/.env.staging.example
-mv .env.staging.example .env
-
-# Edit .env with your values
-nano .env
-
-# Deploy
-docker compose up -d
-```
-
 ## Environment Configuration
 
 ### Required Variables
@@ -180,7 +150,6 @@ For the complete provider, local verification, Logfire, and Hetzner procedure, s
 | File | Purpose |
 |------|---------|
 | `.env.example` | Development template |
-| `docs/examples/.env.staging.example` | Legacy TrueNAS/staging template |
 | `.env` | Your local config (never commit!) |
 
 ### Docker vs Native Services
@@ -207,11 +176,18 @@ Every push to `master` triggers:
 3. Git tag creation
 4. GitHub release publication
 
+There is **no root `package.json`**: `.github/workflows/release.yml` runs a pinned
+`npx --package semantic-release@...` invocation (installing the non-bundled
+`@semantic-release/changelog`/`@semantic-release/exec`/`@semantic-release/git` plugins the same way),
+so no `npm ci` or root lockfile is needed. Backend/frontend versions are synchronized by
+`.releaserc.json` (`@semantic-release/exec` runs `uv --directory backend version`; `@semantic-release/npm`
+updates `frontend/package.json` with `npmPublish: false`).
+
 ### Docker Image Builds
 
-Images built on push to `master` (when files change):
-- `elerevil/fo-shelter-be:latest`, `v1.x.x`
-- `elerevil/fo-shelter-fe:latest`, `v1.x.x`
+Images built on push to `master` (when files change), org from the `DOCKER_USERNAME` secret:
+- `$DOCKER_USERNAME/fo-shelter-be:latest`, `v1.x.x`
+- `$DOCKER_USERNAME/fo-shelter-fe:latest`, `v1.x.x`
 
 ### Commit Conventions
 
@@ -356,9 +332,9 @@ COPY . .
 **BuildKit Cache:** Enable registry caching in CI:
 ```yaml
 cache_from:
-  - type=registry,ref=${DOCKER_USERNAME}/fastapi:cache
+  - type=registry,ref=${DOCKER_USERNAME}/fo-shelter-be:cache
 cache_to:
-  - type=registry,ref=${DOCKER_USERNAME}/fastapi:cache,mode=max
+  - type=registry,ref=${DOCKER_USERNAME}/fo-shelter-be:cache,mode=max
 ```
 
 ### .dockerignore Recommendations
@@ -389,7 +365,6 @@ tests
 
 ## Related Documentation
 
-- [TrueNAS Setup](deployment/TRUENAS_SETUP.md) - TrueNAS-specific guide
 - [Security Guide](SECURITY_GUIDE.md) - Security best practices
 
 ---

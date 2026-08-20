@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
+import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import type { Pregnancy } from '../models/pregnancy'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -37,7 +38,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
   })
 
   const getPartnerRelationships = computed(() => {
-    return relationships.value.filter((r) => r.relationship_type === 'partner')
+    return relationships.value.filter((r) =>
+      isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+    )
   })
 
   const getRomanticRelationships = computed(() => {
@@ -144,6 +147,28 @@ export const useRelationshipStore = defineStore('relationship', () => {
     }
   }
 
+  async function marry(relationshipId: string): Promise<Relationship | null> {
+    isLoading.value = true
+    try {
+      const response = await axios.put(`/api/v1/relationships/${relationshipId}/marry`)
+      const updated = response.data
+
+      // Update local state
+      const index = relationships.value.findIndex((r) => r.id === relationshipId)
+      if (index !== -1) {
+        relationships.value[index] = updated
+      }
+
+      toast.success('Dwellers are now married!')
+      return updated
+    } catch (error: unknown) {
+      handleStoreError(error, 'Failed to marry dwellers')
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function breakUp(relationshipId: string): Promise<boolean> {
     isLoading.value = true
     try {
@@ -184,25 +209,6 @@ export const useRelationshipStore = defineStore('relationship', () => {
     }
   }
 
-  async function quickPair(vaultId: string): Promise<Relationship | null> {
-    isLoading.value = true
-    try {
-      const response = await axios.post(`/api/v1/relationships/vault/${vaultId}/quick-pair`)
-      const relationship = response.data
-
-      // Add to local state
-      relationships.value.push(relationship)
-
-      toast.success('Dwellers paired successfully!')
-      return relationship
-    } catch (error: unknown) {
-      handleStoreError(error, 'Failed to quick pair')
-      return null
-    } finally {
-      isLoading.value = false
-    }
-  }
-
   async function processVaultBreeding(
     vaultId: string
   ): Promise<ProcessVaultBreedingResponse | null> {
@@ -239,9 +245,9 @@ export const useRelationshipStore = defineStore('relationship', () => {
     createRelationship,
     initiateRomance,
     makePartners,
+    marry,
     breakUp,
     calculateCompatibility,
-    quickPair,
     processVaultBreeding,
     clearRelationships,
   }

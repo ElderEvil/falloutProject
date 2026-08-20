@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.relationship import Relationship
+from app.schemas.common import PARTNER_LINKED_STAGES
 from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
 
 
@@ -109,7 +110,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         query = select(Relationship).where(
             and_(
                 (Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id),
-                Relationship.relationship_type == "partner",
+                Relationship.relationship_type.in_(PARTNER_LINKED_STAGES),
             )
         )
         result = await db.execute(query)

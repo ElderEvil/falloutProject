@@ -143,6 +143,34 @@ async def make_partners(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
+@router.put("/{relationship_id}/marry", response_model=RelationshipRead)
+async def marry(
+    relationship_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> RelationshipRead:
+    """Marry two partners in a relationship.
+
+    Returns:
+        The updated relationship.
+
+    Raises:
+        HTTPException: 404 if relationship not found.
+        HTTPException: 400 if marriage cannot be performed.
+        HTTPException: 403 if user doesn't have access.
+    """
+    relationship = await relationship_crud.get(db_session, relationship_id)
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+
+    await verify_dweller_access(relationship.dweller_1_id, user, db_session)
+
+    try:
+        return await relationship_service.marry(db_session, relationship_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.delete("/{relationship_id}", response_model=RelationshipActionResponse)
 async def break_up_relationship(
     relationship_id: UUID4,
@@ -170,39 +198,6 @@ async def break_up_relationship(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return RelationshipActionResponse(message="Relationship ended")
-
-
-@router.post("/vault/{vault_id}/quick-pair", response_model=RelationshipRead)
-async def quick_pair_dwellers(
-    vault_id: UUID4,
-    user: CurrentActiveUser,
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> RelationshipRead:
-    """☢️ Irradiated Cupid ☢️.
-
-    Instantly pairs two random compatible dwellers for testing/fun.
-    - Finds one male and one female without partners
-    - Creates a high-affinity relationship (90%)
-    - Makes them romantic partners
-    - Moves them to a private living quarters (kicks out any third wheels!)
-    - Ready to breed immediately with 90% conception chance per tick
-
-    Returns:
-        The created relationship.
-
-    Raises:
-        HTTPException: 403 if user doesn't own the vault.
-        HTTPException: 400 if no compatible dwellers found.
-    """
-    await get_user_vault_or_403(vault_id, user, db_session)
-
-    # Use service for quick pairing logic
-    try:
-        relationship = await relationship_service.quick_pair_dwellers(db_session, vault_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    return relationship
 
 
 @router.get("/compatibility/{dweller_1_id}/{dweller_2_id}", response_model=CompatibilityScore)

@@ -138,7 +138,7 @@ const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group 
 }
 
 .child-card {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface);
   border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
   padding: 1.5rem;

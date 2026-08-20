@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.cli.app.dweller_bios import dweller_bios as _dweller_bios
+from app.cli.app.family_scenario import app as family_scenario
 from app.cli.app.manage import startapp as _startapp
 from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
 from app.cli.migrations.cli import migrations
@@ -32,6 +33,7 @@ cli = typer.Typer(
 
 # Register sub-command groups
 cli.add_typer(migrations, name="migrations", help="Alembic database migrations")
+cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
 
 # Re-register startapp as a flat command
 cli.command(name="startapp", help="Scaffold a new app module (model, schema, CRUD, API, service)")(_startapp)

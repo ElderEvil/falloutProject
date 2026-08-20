@@ -739,6 +739,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/{dweller_id}/lineage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dweller Lineage
+         * @description Get the computed family lineage for a dweller.
+         *
+         *     Returns:
+         *         LineageResponse: Parents, children, siblings, partners and generation.
+         *
+         *     Raises:
+         *         HTTPException: 404 if dweller not found.
+         *         HTTPException: 403 if user doesn't have access.
+         */
+        get: operations["get_dweller_lineage_api_v1_dwellers__dweller_id__lineage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}/rename": {
         parameters: {
             query?: never;
@@ -2885,7 +2912,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/relationships/vault/{vault_id}/quick-pair": {
+    "/api/v1/relationships/{relationship_id}/marry": {
         parameters: {
             query?: never;
             header?: never;
@@ -2893,26 +2920,20 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Quick Pair Dwellers
-         * @description ☢️ Irradiated Cupid ☢️.
-         *
-         *     Instantly pairs two random compatible dwellers for testing/fun.
-         *     - Finds one male and one female without partners
-         *     - Creates a high-affinity relationship (90%)
-         *     - Makes them romantic partners
-         *     - Moves them to a private living quarters (kicks out any third wheels!)
-         *     - Ready to breed immediately with 90% conception chance per tick
+         * Marry
+         * @description Marry two partners in a relationship.
          *
          *     Returns:
-         *         The created relationship.
+         *         The updated relationship.
          *
          *     Raises:
-         *         HTTPException: 403 if user doesn't own the vault.
-         *         HTTPException: 400 if no compatible dwellers found.
+         *         HTTPException: 404 if relationship not found.
+         *         HTTPException: 400 if marriage cannot be performed.
+         *         HTTPException: 403 if user doesn't have access.
          */
-        post: operations["quick_pair_dwellers_api_v1_relationships_vault__vault_id__quick_pair_post"];
+        put: operations["marry_api_v1_relationships__relationship_id__marry_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6113,6 +6134,54 @@ export interface components {
             storage_id?: string | null;
         };
         /**
+         * LineageMember
+         * @description A single dweller in a lineage response.
+         */
+        LineageMember: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string | null;
+            /** Generation */
+            generation: number;
+            /**
+             * Is Dead
+             * @default false
+             */
+            is_dead: boolean;
+            /** @default adult */
+            age_group: components["schemas"]["AgeGroupEnum"];
+            relationship_type?: components["schemas"]["RelationshipTypeEnum"] | null;
+            /** Affinity */
+            affinity?: number | null;
+        };
+        /**
+         * LineageResponse
+         * @description Response schema for a dweller's computed family lineage.
+         */
+        LineageResponse: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Generation */
+            generation: number;
+            /** Parents */
+            parents: components["schemas"]["LineageMember"][];
+            /** Children */
+            children: components["schemas"]["LineageMember"][];
+            /** Siblings */
+            siblings: components["schemas"]["LineageMember"][];
+            /** Partners */
+            partners: components["schemas"]["LineageMember"][];
+        };
+        /**
          * LocationTypeEnum
          * @description Type of wasteland location — row-level classification.
          * @enum {string}
@@ -7087,7 +7156,7 @@ export interface components {
          * RelationshipTypeEnum
          * @enum {string}
          */
-        RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "ex";
+        RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "MARRIED" | "ex";
         /**
          * ResourceLevelWarning
          * @description A resource level that requires player attention.
@@ -9234,6 +9303,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dweller_lineage_api_v1_dwellers__dweller_id__lineage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineageResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -12411,12 +12511,12 @@ export interface operations {
             };
         };
     };
-    quick_pair_dwellers_api_v1_relationships_vault__vault_id__quick_pair_post: {
+    marry_api_v1_relationships__relationship_id__marry_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                vault_id: string;
+                relationship_id: string;
             };
             cookie?: never;
         };

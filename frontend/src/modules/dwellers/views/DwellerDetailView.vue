@@ -113,6 +113,10 @@ const navigateToChatPage = () => {
   router.push(`/dweller/${dwellerId.value}/chat`)
 }
 
+const navigateToDweller = (id: string) => {
+  router.push(`/vault/${vaultId.value}/dwellers/${id}`)
+}
+
 const assigning = ref(false)
 
 const handleAssign = async () => {
@@ -459,6 +463,7 @@ const saveNewName = async () => {
               <!-- Right Column: Dweller Panel -->
               <DwellerPanel
                 :dweller="dweller"
+                :dweller-id="dwellerId"
                 :generating-bio="generatingBio"
                 :generating-appearance="generatingAppearance"
                 :generating-portrait="generatingPortrait"
@@ -471,6 +476,7 @@ const saveNewName = async () => {
                 @generate-portrait="generateDwellerPortrait"
                 @generate-all="generateDwellerInfo"
                 @edit-appearance="showAppearanceEditor = true"
+                @navigate-dweller="navigateToDweller"
               />
             </div>
           </div>

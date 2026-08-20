@@ -36,6 +36,7 @@ describe('RelationshipCard', () => {
       { type: 'friend', expectClass: 'bg-warning' },
       { type: 'romantic', expectClass: 'border-2' },
       { type: 'partner', expectClass: 'bg-danger' },
+      { type: 'MARRIED', expectClass: 'bg-danger' },
       { type: 'ex', expectClass: 'bg-gray-700' },
     ])('$type badge should have correct variant class', async ({ type, expectClass }) => {
       const wrapper = createWrapper({
@@ -63,6 +64,44 @@ describe('RelationshipCard', () => {
 
       const badge = wrapper.find('span.mt-1')
       expect(badge.classes()).toContain('bg-success')
+    })
+  })
+
+  describe('action buttons per stage', () => {
+    it('shows a Marry button for partners at 85+ affinity', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 85,
+      })
+
+      expect(wrapper.text()).toContain('Marry')
+    })
+
+    it('hides the Marry button for partners below 85 affinity', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 84,
+      })
+
+      expect(wrapper.text()).not.toContain('Marry')
+    })
+
+    it('shows a Break Up button for married relationships', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'MARRIED',
+        affinity: 90,
+      })
+
+      expect(wrapper.text()).toContain('Break Up')
     })
   })
 })

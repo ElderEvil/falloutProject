@@ -2,7 +2,32 @@
  * TypeScript models for dweller relationships
  */
 
-export type RelationshipType = 'acquaintance' | 'friend' | 'romantic' | 'partner' | 'ex'
+export type RelationshipType = 'acquaintance' | 'friend' | 'romantic' | 'partner' | 'MARRIED' | 'ex'
+
+export const PARTNER_LINKED_RELATIONSHIP_TYPES: readonly RelationshipType[] = ['partner', 'MARRIED']
+
+export const COMMITTED_RELATIONSHIP_TYPES: readonly RelationshipType[] = [
+  ...PARTNER_LINKED_RELATIONSHIP_TYPES,
+  'romantic',
+]
+
+export type RelationshipVariant = 'success' | 'warning' | 'danger' | 'info' | 'default'
+
+export const RELATIONSHIP_TYPE_VARIANT: Record<RelationshipType, RelationshipVariant> = {
+  acquaintance: 'success',
+  friend: 'warning',
+  romantic: 'info',
+  partner: 'danger',
+  MARRIED: 'danger',
+  ex: 'default',
+}
+
+export function isRelationshipType(
+  type: RelationshipType,
+  types: readonly RelationshipType[]
+): boolean {
+  return types.includes(type)
+}
 
 export interface Relationship {
   id: string

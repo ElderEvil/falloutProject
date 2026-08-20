@@ -9,7 +9,7 @@ Developer utilities for the Fallout Shelter backend. All Python scripts are
 
 **Layout convention:** this directory holds *backend* (Python) scripts.
 Repo-root `scripts/` holds general *shell* scripts (`dev-up.sh`,
-`backup-db.sh`, `redeploy-truenas.sh`).
+`backup-db.sh`).
 
 ## Admin & Data Migration
 

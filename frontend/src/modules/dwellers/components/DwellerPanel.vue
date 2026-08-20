@@ -6,10 +6,12 @@ import type { MapPlaceLink } from './DwellerBio.vue'
 import DwellerStats from './stats/DwellerStats.vue'
 import DwellerEquipment from './DwellerEquipment.vue'
 import DwellerAppearance from './DwellerAppearance.vue'
+import FamilyTreePanel from './FamilyTreePanel.vue'
 import type { Dweller } from '../models/dweller'
 
 interface Props {
   dweller: Dweller
+  dwellerId?: string
   generatingBio?: boolean
   generatingAppearance?: boolean
   generatingPortrait?: boolean
@@ -26,6 +28,7 @@ const emit = defineEmits<{
   'generate-portrait': []
   'generate-all': []
   'edit-appearance': []
+  'navigate-dweller': [dwellerId: string]
 }>()
 
 const activeTab = ref('profile')
@@ -35,6 +38,7 @@ const tabs = [
   { key: 'appearance', label: 'Appearance' },
   { key: 'stats', label: 'Stats' },
   { key: 'equipment', label: 'Equipment' },
+  { key: 'family', label: 'Family' },
 ]
 </script>
 
@@ -78,6 +82,13 @@ const tabs = [
             v-else-if="currentTab === 'equipment'"
             :dweller="dweller"
             @refresh="emit('refresh')"
+          />
+          <FamilyTreePanel
+            v-else-if="currentTab === 'family'"
+            :dweller-id="props.dwellerId"
+            :dweller-name="dweller ? `${dweller.first_name} ${dweller.last_name}` : ''"
+            :vault-id="props.vaultId"
+            @select="emit('navigate-dweller', $event)"
           />
         </div>
       </template>

@@ -29,6 +29,19 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: fallout_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -53,6 +66,18 @@ jobs:
       - name: Set up test environment
         working-directory: backend
         run: cp .env.example .env
+
+      - name: Apply migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Verify no pending model changes
+        working-directory: backend
+        run: uv run alembic check
+
+      - name: Verify head is applied
+        working-directory: backend
+        run: uv run alembic current --check-heads
 
       - name: Run tests with coverage
         working-directory: backend

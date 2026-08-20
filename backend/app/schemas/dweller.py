@@ -13,6 +13,7 @@ from app.schemas.common import (
     GenderEnum,
     RaceEnum,
     RarityEnum,
+    RelationshipTypeEnum,
     SPECIALEnum,
 )
 from app.schemas.outfit import OutfitRead
@@ -230,3 +231,28 @@ class RevivalCostResponse(SQLModel):
     days_until_permanent: int | None
     can_afford: bool
     vault_caps: int
+
+
+class LineageMember(SQLModel):
+    """A single dweller in a lineage response."""
+
+    id: UUID4
+    first_name: str
+    last_name: str | None
+    generation: int
+    is_dead: bool = False
+    age_group: AgeGroupEnum = AgeGroupEnum.ADULT
+    # Partner context — only populated for the `partners` array.
+    relationship_type: RelationshipTypeEnum | None = None
+    affinity: int | None = None
+
+
+class LineageResponse(SQLModel):
+    """Response schema for a dweller's computed family lineage."""
+
+    dweller_id: UUID4
+    generation: int
+    parents: list[LineageMember]
+    children: list[LineageMember]
+    siblings: list[LineageMember]
+    partners: list[LineageMember]

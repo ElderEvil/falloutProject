@@ -78,6 +78,33 @@ async def male_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+@pytest_asyncio.fixture(name="male_dweller_2")
+async def male_dweller_2_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Create a second male dweller for same-sex couple breeding tests."""
+    dweller_data = {
+        "first_name": "Mike",
+        "last_name": "Rogers",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 7,
+        "experience": 70,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 70,
+        "strength": 7,
+        "perception": 4,
+        "endurance": 6,
+        "charisma": 6,
+        "intelligence": 5,
+        "agility": 5,
+        "luck": 6,
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
 @pytest_asyncio.fixture(name="female_dweller")
 async def female_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
     """Create a female dweller for breeding tests."""
@@ -280,6 +307,47 @@ async def test_check_for_conception_in_living_quarters(
     assert len(pregnancies) == 1
     assert pregnancies[0].mother_id == female_dweller.id
     assert pregnancies[0].father_id == male_dweller.id
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_same_sex_couple_never_conceives(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    male_dweller_2: Dweller,
+):
+    """Test that a same-sex partner couple never conceives, even at high affinity.
+
+    Same-sex couples may form (partner/MARRIED) but cannot reproduce — this is a
+    deliberate Fallout-universe / vault-logic rule. Auto-conception must skip the
+    pair regardless of affinity.
+    """
+    # Make them partners in living quarters
+    male_dweller.partner_id = male_dweller_2.id
+    male_dweller_2.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    male_dweller_2.room_id = living_quarters.id
+    await async_session.commit()
+
+    from app.crud.relationship import relationship_crud
+    from app.schemas.common import RelationshipTypeEnum
+
+    await relationship_crud.create_with_defaults(
+        async_session,
+        male_dweller.id,
+        male_dweller_2.id,
+        relationship_type=RelationshipTypeEnum.MARRIED,
+        affinity=100,
+    )
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert pregnancies == []
 
 
 @pytest.mark.asyncio

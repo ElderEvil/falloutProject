@@ -172,3 +172,51 @@ class TestChatWebSocketStreaming:
         ):
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "error", "detail": "AI quota exceeded"}
+
+
+class TestChatWebSocketRoundTrip:
+    """Full round-trip coverage: typing, malformed payloads, unknown types."""
+
+    def test_typing_indicator_round_trips_to_sender(self, ws_client: TestClient) -> None:
+        """A typing event is delivered back to the connected chat socket."""
+        user_id = uuid4()
+        dweller_id = uuid4()
+        token = create_access_token(subject=str(user_id))
+
+        with ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws:
+            ws.send_json({"type": "typing", "is_typing": True})
+            assert ws.receive_json() == {
+                "type": "typing",
+                "is_typing": True,
+                "sender": "user",
+            }
+
+    def test_non_object_payload_returns_error(self, ws_client: TestClient) -> None:
+        """A JSON array payload is rejected with a clear error."""
+        user_id = uuid4()
+        dweller_id = uuid4()
+        token = create_access_token(subject=str(user_id))
+
+        with ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws:
+            ws.send_text("[1, 2, 3]")
+            assert ws.receive_json() == {"type": "error", "message": "Message must be a JSON object"}
+
+    def test_invalid_json_returns_error(self, ws_client: TestClient) -> None:
+        """Malformed JSON is rejected with an invalid-format error."""
+        user_id = uuid4()
+        dweller_id = uuid4()
+        token = create_access_token(subject=str(user_id))
+
+        with ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws:
+            ws.send_text("{not valid json")
+            assert ws.receive_json() == {"type": "error", "message": "Invalid JSON format"}
+
+    def test_unknown_message_type_returns_error(self, ws_client: TestClient) -> None:
+        """An unsupported message type is reported to the client."""
+        user_id = uuid4()
+        dweller_id = uuid4()
+        token = create_access_token(subject=str(user_id))
+
+        with ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws:
+            ws.send_json({"type": "bogus"})
+            assert ws.receive_json() == {"type": "error", "message": "Unknown message type: bogus"}

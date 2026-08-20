@@ -12,12 +12,13 @@ from app.agents.dweller_chat_agent import (
     DwellerActivityBriefing,
     DwellerChatDeps,
     DwellerChatOutput,
+    build_dweller_social_context,
     dweller_chat_agent,
     parse_action_suggestion,
     validate_dweller_chat_output,
 )
 from app.schemas.chat import NoAction
-from app.schemas.common import SPECIALEnum
+from app.schemas.common import DwellerStatusEnum, SPECIALEnum
 
 
 def _make_dweller() -> MagicMock:
@@ -174,6 +175,75 @@ async def test_test_model_invokes_activity_briefing_before_activity_suggestion()
 
     mock_briefing.assert_awaited_once_with(deps)
     assert result.usage.tool_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_test_model_invokes_social_context_for_family_questions() -> None:
+    """The chat agent can ground status and family answers in current vault data."""
+    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
+    context = {
+        "status": "Socializing",
+        "room_name": "Living Room",
+        "family": [{"name": "Sarah Jones", "relation": "partner"}],
+        "relationships": [{"name": "Sarah Jones", "relationship_type": "partner", "affinity": 80}],
+    }
+    model = TestModel(
+        call_tools=["get_dweller_social_context"],
+        custom_output_args={
+            "response_text": "Sarah and I are enjoying some time together.",
+            "sentiment_score": 2,
+            "reason_text": "The dweller is content.",
+            "action_type": "no_action",
+            "action_reason": "No action needed.",
+        },
+    )
+
+    with (
+        patch(
+            "app.agents.dweller_chat_agent.build_dweller_social_context",
+            new_callable=AsyncMock,
+            return_value=context,
+        ) as mock_context,
+        dweller_chat_agent.override(model=model),
+    ):
+        result = await dweller_chat_agent.run("Who is my family, and what am I doing?", deps=deps)
+
+    mock_context.assert_awaited_once_with(deps)
+    assert result.usage.tool_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_social_context_reports_live_status_family_and_affinity() -> None:
+    dweller_id, partner_id, child_id = uuid4(), uuid4(), uuid4()
+    dweller = MagicMock(id=dweller_id, room_id=uuid4(), partner_id=partner_id, parent_1_id=None, parent_2_id=None)
+    dweller.status = DwellerStatusEnum.RESTING
+    partner = MagicMock(id=partner_id, first_name="Sarah", last_name="Jones", parent_1_id=None, parent_2_id=None)
+    child = MagicMock(id=child_id, first_name="Jamie", last_name="Jones", parent_1_id=dweller_id, parent_2_id=None)
+    relationship = MagicMock(
+        dweller_1_id=dweller_id,
+        dweller_2_id=partner_id,
+        relationship_type=MagicMock(value="partner"),
+        affinity=80,
+    )
+    room_result, relationships_result, relatives_result = MagicMock(), MagicMock(), MagicMock()
+    room_result.scalar_one_or_none.return_value = "Living Room"
+    relationships_result.scalars.return_value.all.return_value = [relationship]
+    relatives_result.scalars.return_value.all.return_value = [partner, child]
+    session = MagicMock(get=AsyncMock(return_value=dweller), execute=AsyncMock(
+        side_effect=[room_result, relationships_result, relatives_result]
+    ))
+
+    context = await build_dweller_social_context(
+        DwellerChatDeps(db_session=session, dweller=MagicMock(id=dweller_id), vault_id=uuid4())
+    )
+
+    assert context["status"] == "Socializing"
+    assert context["room_name"] == "Living Room"
+    assert context["family"] == [
+        {"name": "Sarah Jones", "relation": "partner"},
+        {"name": "Jamie Jones", "relation": "child"},
+    ]
+    assert context["relationships"] == [{"name": "Sarah Jones", "relationship_type": "partner", "affinity": 80}]
 
 
 @pytest.mark.asyncio

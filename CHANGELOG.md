@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.42.0](https://github.com/ElderEvil/falloutProject/compare/v2.41.3...v2.42.0) (2026-08-20)
+
+### Features
+
+* **family:** married stage, lineage API, and family tree UI ([#447](https://github.com/ElderEvil/falloutProject/issues/447)) ([f0ab891](https://github.com/ElderEvil/falloutProject/commit/f0ab891d9459921983d9158d716f47bc94ea0fed))
+
 ## Unreleased
 
 ### Features

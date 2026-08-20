@@ -242,3 +242,25 @@ async def test_lineage_not_found_raises(
 
     with pytest.raises(ResourceNotFoundException):
         await lineage_service.get_lineage(async_session, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_lineage_excludes_soft_deleted_ancestors(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """Soft-deleted parents are omitted from the lineage and do not count toward
+    the generation number."""
+    grandparent = await _make_dweller(async_session, vault, first_name="GrandParent")
+    deleted_parent = await _make_dweller(
+        async_session, vault, first_name="DeletedParent", parent_1_id=grandparent.id
+    )
+    await crud.dweller.delete(db_session=async_session, id=deleted_parent.id, soft=True)
+    child = await _make_dweller(async_session, vault, first_name="Child", parent_1_id=deleted_parent.id)
+
+    lineage = await lineage_service.get_lineage(async_session, child.id)
+
+    # The deleted parent is omitted from the results and its own ancestor chain
+    # is not followed, so the child reports generation 1 (not 2) with no parents.
+    assert lineage.parents == []
+    assert lineage.generation == 1

@@ -138,8 +138,8 @@ class LineageService:
     async def _compute_generation(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> int:
         """Walk parents upward to compute the generation number (0 for orphans).
 
-        Only parents within the same vault are followed, so a stray cross-vault
-        link cannot inflate the generation count.
+        Only live parents within the same vault are followed, so a stray
+        cross-vault or soft-deleted link cannot inflate the generation count.
         """
         generation = 0
         seen: set[UUID4] = set()
@@ -151,8 +151,9 @@ class LineageService:
                 if current_id in seen:
                     continue
                 seen.add(current_id)
-                parent = await dweller_crud.get(db_session, current_id)
-                if not parent or parent.vault_id != vault_id:
+                # include_deleted so a deleted ancestor is filtered here (vault+is_deleted), not raised as not-found
+                parent = await dweller_crud.get(db_session, current_id, include_deleted=True)
+                if not parent or parent.vault_id != vault_id or parent.is_deleted:
                     continue
                 if parent.parent_1_id:
                     next_frontier.append(parent.parent_1_id)
@@ -182,8 +183,8 @@ class LineageService:
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
         parents: list[Dweller] = []
         for parent_id in parent_ids:
-            parent = await dweller_crud.get(db_session, parent_id)
-            if parent and parent.vault_id == dweller.vault_id:
+            parent = await dweller_crud.get(db_session, parent_id, include_deleted=True)
+            if parent and parent.vault_id == dweller.vault_id and not parent.is_deleted:
                 parents.append(parent)
 
         children = await cls._find_children(db_session, dweller_id, dweller.vault_id)

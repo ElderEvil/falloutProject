@@ -714,3 +714,45 @@ async def test_increase_affinity_auto_marry_rolls_back_on_bonus_failure(
     await async_session.refresh(dweller_2)
     assert dweller.happiness == base_1
     assert dweller_2.happiness == base_2
+
+
+@pytest.mark.asyncio
+async def test_increase_affinity_auto_marry_rolls_back_when_commit_fails(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failed transaction commit after bonus preparation persists no partial
+    state: the relationship stays PARTNER and the happiness bonus is not applied.
+
+    The relationship type change and both dwellers' marriage bonuses are flushed
+    in a single commit, so a persistence failure must roll everything back.
+    """
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold - 1
+    await async_session.commit()
+    rel_id = partner_rel.id
+    await async_session.refresh(dweller)
+    base_1 = dweller.happiness
+    await async_session.refresh(dweller_2)
+    base_2 = dweller_2.happiness
+
+    original_commit = async_session.commit
+
+    async def _boom_commit():
+        raise RuntimeError("persistence failed")
+
+    monkeypatch.setattr(async_session, "commit", _boom_commit)
+
+    with pytest.raises(RuntimeError, match="persistence failed"):
+        await RelationshipService.increase_affinity(async_session, dweller.id, dweller_2.id, amount=1)
+
+    monkeypatch.setattr(async_session, "commit", original_commit)
+    await async_session.rollback()
+    reloaded = await relationship_crud.get(async_session, rel_id)
+    assert reloaded.relationship_type == RelationshipTypeEnum.PARTNER
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    assert dweller.happiness == base_1
+    assert dweller_2.happiness == base_2

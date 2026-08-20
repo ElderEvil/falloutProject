@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
@@ -141,6 +141,13 @@ class FamilyScenarioService:
             return await crud.dweller.get(db_session, dweller_id)
         except ResourceNotFoundException as exc:
             raise ValueError(f"Dweller not found (id={dweller_id})") from exc
+
+    @staticmethod
+    async def _get_room(db_session: AsyncSession, room_id: UUID4) -> Room:
+        try:
+            return await crud.room.get(db_session, room_id)
+        except ResourceNotFoundException as exc:
+            raise ValueError(f"Room not found (id={room_id})") from exc
 
     # ------------------------------------------------------------------
     # couple pairing
@@ -269,7 +276,7 @@ class FamilyScenarioService:
             raise ValueError(f"Couple '{couple.label}' has no female member — cannot create a pregnancy")
 
         pregnancy = await breeding_service.create_pregnancy(db_session, mother.id, father.id)
-        pregnancy.due_at = datetime.utcnow() + timedelta(minutes=due_in_minutes)
+        pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=due_in_minutes)
         db_session.add(pregnancy)
         await db_session.commit()
         await db_session.refresh(pregnancy)
@@ -295,7 +302,7 @@ class FamilyScenarioService:
         if mother is None or father is None:
             raise ValueError(f"Couple '{couple.label}' has no female member — cannot create a delivery")
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         pregnancy = Pregnancy(
             mother_id=mother.id,
             father_id=father.id,
@@ -333,7 +340,7 @@ class FamilyScenarioService:
         )
         child.age_group = AgeGroupEnum.CHILD
         child.is_adult = False
-        child.birth_date = datetime.utcnow() - timedelta(hours=age_hours)
+        child.birth_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=age_hours)
         child.parent_1_id = couple.dweller_1.id
         child.parent_2_id = couple.dweller_2.id
         db_session.add(child)
@@ -404,14 +411,14 @@ class FamilyScenarioService:
             mother = await _name(preg.mother_id)
             father = await _name(preg.father_id)
             if preg.status == PregnancyStatusEnum.PREGNANT:
-                due_in = preg.due_at - datetime.utcnow()
+                due_in = preg.due_at - datetime.now(UTC).replace(tzinfo=None)
                 countdown = f"due in {_fmt_delta(due_in)}"
                 rows.append(
                     TimelineRow(kind="pregnancy", label=f"{mother} ⚧ {father}", detail="pregnant", countdown=countdown)
                 )
             else:
                 cooldown_ends = preg.updated_at + timedelta(hours=game_config.breeding.birth_cooldown_hours)
-                remaining = cooldown_ends - datetime.utcnow()
+                remaining = cooldown_ends - datetime.now(UTC).replace(tzinfo=None)
                 if remaining > timedelta(0):
                     countdown = f"cooldown ends in {_fmt_delta(remaining)}"
                 else:
@@ -428,7 +435,7 @@ class FamilyScenarioService:
             if child.birth_date is None:
                 continue
             grows_at = child.birth_date + timedelta(hours=game_config.breeding.child_growth_duration_hours)
-            remaining = grows_at - datetime.utcnow()
+            remaining = grows_at - datetime.now(UTC).replace(tzinfo=None)
             if remaining > timedelta(0):
                 countdown = f"grows up in {_fmt_delta(remaining)}"
             else:
@@ -458,7 +465,13 @@ class FamilyScenarioService:
         """
         counts: dict[str, int] = {"relationships": 0, "pregnancies": 0, "children": 0}
 
-        for rel in await crud.relationship.get_by_vault(db_session, vault_id):
+        relationships = await crud.relationship.get_by_vault(db_session, vault_id)
+        for rel in relationships:
+            for dweller_id in (rel.dweller_1_id, rel.dweller_2_id):
+                dweller = await crud.dweller.get(db_session, dweller_id)
+                if dweller and dweller.partner_id in (rel.dweller_1_id, rel.dweller_2_id):
+                    dweller.partner_id = None
+                    db_session.add(dweller)
             await crud.relationship.delete(db_session, rel.id, soft=False)
             counts["relationships"] += 1
 
@@ -528,7 +541,10 @@ class FamilyScenarioService:
 
         room = None
         if co_locate:
-            room = room_id if room_id is not None else await cls.find_living_quarters(db_session, vault_id)
+            if room_id is not None:
+                room = await cls._get_room(db_session, room_id)
+            else:
+                room = await cls.find_living_quarters(db_session, vault_id)
         for couple in couples:
             await cls._co_locate(db_session, couple, room)
 

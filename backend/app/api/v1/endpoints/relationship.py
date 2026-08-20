@@ -165,10 +165,8 @@ async def marry(
 
     await verify_dweller_access(relationship.dweller_1_id, user, db_session)
 
-    try:
-        return await relationship_service.marry(db_session, relationship_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    # marry raises ValidationException (HTTP 400) for invalid marriage attempts.
+    return await relationship_service.marry(db_session, relationship_id)
 
 
 @router.delete("/{relationship_id}", response_model=RelationshipActionResponse)

@@ -135,8 +135,12 @@ class LineageService:
         return partners, context
 
     @staticmethod
-    async def _compute_generation(db_session: AsyncSession, dweller_id: UUID4) -> int:
-        """Walk parents upward to compute the generation number (0 for orphans)."""
+    async def _compute_generation(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> int:
+        """Walk parents upward to compute the generation number (0 for orphans).
+
+        Only parents within the same vault are followed, so a stray cross-vault
+        link cannot inflate the generation count.
+        """
         generation = 0
         seen: set[UUID4] = set()
         frontier = [dweller_id]
@@ -148,7 +152,7 @@ class LineageService:
                     continue
                 seen.add(current_id)
                 parent = await dweller_crud.get(db_session, current_id)
-                if not parent:
+                if not parent or parent.vault_id != vault_id:
                     continue
                 if parent.parent_1_id:
                     next_frontier.append(parent.parent_1_id)
@@ -173,13 +177,13 @@ class LineageService:
 
             raise ResourceNotFoundException(detail="Dweller not found")
 
-        generation = await cls._compute_generation(db_session, dweller_id)
+        generation = await cls._compute_generation(db_session, dweller_id, dweller.vault_id)
 
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
         parents: list[Dweller] = []
         for parent_id in parent_ids:
             parent = await dweller_crud.get(db_session, parent_id)
-            if parent:
+            if parent and parent.vault_id == dweller.vault_id:
                 parents.append(parent)
 
         children = await cls._find_children(db_session, dweller_id, dweller.vault_id)

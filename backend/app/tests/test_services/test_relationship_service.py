@@ -6,12 +6,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
+from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.relationship_service import RelationshipService
+from app.utils.exceptions import ValidationException
 
 
 @pytest_asyncio.fixture(name="dweller_2")
@@ -632,7 +634,7 @@ async def test_marry_fails_not_partner(
     relationship.affinity = game_config.relationship.marriage_threshold
     await async_session.commit()
 
-    with pytest.raises(ValueError, match="Only partners can marry"):
+    with pytest.raises(ValidationException, match="Only partners can marry"):
         await RelationshipService.marry(async_session, relationship.id)
 
 
@@ -647,7 +649,7 @@ async def test_marry_fails_low_affinity(
     partner_rel.affinity = game_config.relationship.marriage_threshold - 1
     await async_session.commit()
 
-    with pytest.raises(ValueError, match="Affinity too low"):
+    with pytest.raises(ValidationException, match="Affinity too low"):
         await RelationshipService.marry(async_session, partner_rel.id)
 
 
@@ -658,7 +660,7 @@ async def test_marry_fails_relationship_not_found(
     """Test that marrying fails if relationship not found."""
     from uuid import uuid4
 
-    with pytest.raises(ValueError, match="Relationship not found"):
+    with pytest.raises(ValidationException, match="Relationship not found"):
         await RelationshipService.marry(async_session, uuid4())
 
 
@@ -677,3 +679,38 @@ async def test_increase_affinity_auto_marries_partners(
 
     assert updated.relationship_type == RelationshipTypeEnum.MARRIED
     assert updated.affinity == game_config.relationship.marriage_threshold
+
+
+@pytest.mark.asyncio
+async def test_increase_affinity_auto_marry_rolls_back_on_bonus_failure(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A failed marriage transition commits no partial state: the relationship
+    stays PARTNER and the happiness bonus is not applied."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold - 1
+    await async_session.commit()
+    rel_id = partner_rel.id
+    await async_session.refresh(dweller)
+    base_1 = dweller.happiness
+    await async_session.refresh(dweller_2)
+    base_2 = dweller_2.happiness
+
+    async def _boom(*args, **kwargs):
+        raise RuntimeError("bonus failed")
+
+    monkeypatch.setattr(RelationshipService, "_apply_marriage_bonus", _boom)
+
+    with pytest.raises(RuntimeError, match="bonus failed"):
+        await RelationshipService.increase_affinity(async_session, dweller.id, dweller_2.id, amount=1)
+
+    await async_session.rollback()
+    reloaded = await relationship_crud.get(async_session, rel_id)
+    assert reloaded.relationship_type == RelationshipTypeEnum.PARTNER
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    assert dweller.happiness == base_1
+    assert dweller_2.happiness == base_2

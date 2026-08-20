@@ -66,32 +66,35 @@ const revivalLoading = ref(false)
 const isDead = computed(() => dweller.value?.is_dead === true)
 const placeLinks = ref<MapPlaceLink[]>([])
 
-onMounted(async () => {
-  if (authStore.isAuthenticated && dwellerId.value) {
-    loading.value = true
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string)
-    loading.value = false
+async function loadDweller() {
+  if (!authStore.isAuthenticated || !dwellerId.value) return
+  loading.value = true
+  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string)
+  loading.value = false
 
-    // Fetch revival cost if dweller is dead
-    if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
-      revivalCost.value = await dwellerDeathStore.getRevivalCost(
-        dwellerId.value,
-        authStore.token as string
-      )
-    }
-
-    // Fetch vault map to compute place links for bio linkification
-    try {
-      const mapData = await getVaultMap(authStore.token as string, vaultId.value)
-      placeLinks.value = mapData.locations
-        .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === dwellerId.value))
-        .map((loc) => ({ name: loc.name, locationId: loc.id }))
-    } catch (error) {
-      // Graceful degradation: bio renders unlinked if map fetch fails
-      handleStoreError(error, 'Failed to load vault map for bio place links')
-    }
+  // Fetch revival cost if dweller is dead
+  if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
+    revivalCost.value = await dwellerDeathStore.getRevivalCost(
+      dwellerId.value,
+      authStore.token as string
+    )
   }
-})
+
+  // Fetch vault map to compute place links for bio linkification
+  try {
+    const mapData = await getVaultMap(authStore.token as string, vaultId.value)
+    placeLinks.value = mapData.locations
+      .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === dwellerId.value))
+      .map((loc) => ({ name: loc.name, locationId: loc.id }))
+  } catch (error) {
+    // Graceful degradation: bio renders unlinked if map fetch fails
+    handleStoreError(error, 'Failed to load vault map for bio place links')
+  }
+}
+
+onMounted(loadDweller)
+// Reload when navigating between dweller details where the component is reused.
+watch(dwellerId, loadDweller)
 
 // Watch for changes in dweller's dead status to fetch/clear revival cost
 watch(isDead, async (newIsDead) => {

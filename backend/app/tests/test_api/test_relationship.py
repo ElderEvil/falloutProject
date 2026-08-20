@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.dweller import DwellerCreateCommonOverride
-from app.utils.exceptions import AccessDeniedException
+from app.utils.exceptions import AccessDeniedException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -766,7 +766,11 @@ async def test_marry_value_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/marry returns 400 when ValueError from service."""
+    """PUT /relationships/{id}/marry returns 400 when the service rejects the marriage.
+
+    The endpoint no longer catches ValueError: it lets the service's
+    ValidationException (HTTP 400) propagate to FastAPI's exception handling.
+    """
     mock_rel = _make_mock_relationship()
 
     with (
@@ -780,7 +784,7 @@ async def test_marry_value_error(
         ),
         patch(
             "app.api.v1.endpoints.relationship.relationship_service.marry",
-            AsyncMock(side_effect=ValueError("Affinity too low for marriage")),
+            AsyncMock(side_effect=ValidationException("Affinity too low for marriage")),
         ),
     ):
         response = await async_client.put(

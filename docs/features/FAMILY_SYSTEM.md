@@ -38,9 +38,9 @@ All stored on `Dweller` (one row per dweller) + two child tables.
 
 **What exists (keep):**
 - Affinity auto-growth per game tick (+2 when in the same room).
-- Auto-upgrade on affinity: `acquaintance→friend→romantic` at 70, `→partner` at 70, `partner→MARRIED` at 85.
+- Auto-upgrade on affinity: `acquaintance→friend→romantic` at 70, `→partner` at 70, `partner→MARRIED` at 85 (defaults: romance 70, partnership 70, marriage 85).
 - `initiate_romance` / `make_partners` / `marry` / `break_up` endpoints + service methods.
-- `marry` grants a happiness bonus (+10 partner, +15 married) and fires a `RELATIONSHIP_FORMED` notification.
+- `marry` grants **each** dweller a one-time cumulative **+25** happiness bonus (+10 for becoming partners, +15 for becoming married) and fires a `RELATIONSHIP_FORMED` notification.
 - `break_up` marks `ex`, −30 affinity, clears `partner_id` for partner-linked couples.
 - Compatibility scoring (SPECIAL / happiness / level / proximity weighted).
 

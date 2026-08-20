@@ -19,7 +19,7 @@ from app.schemas.common import (
 )
 from app.schemas.relationship import CompatibilityScore
 from app.services.notification_service import NotificationService
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -115,19 +115,28 @@ class RelationshipService:
                     db_session, relationship.dweller_1_id, relationship.dweller_2_id
                 )
 
-        if (
+        is_marriage_transition = (
             relationship.relationship_type == RelationshipTypeEnum.PARTNER
             and update_data["affinity"] >= game_config.relationship.marriage_threshold
-        ):
+        )
+        if is_marriage_transition:
             # Partner to married at 85+ affinity
             update_data["relationship_type"] = RelationshipTypeEnum.MARRIED
-            await RelationshipService._apply_marriage_bonus(
-                db_session, relationship.dweller_1_id, relationship.dweller_2_id
-            )
-            await RelationshipService._notify_marriage(db_session, relationship)
 
-        # Update via CRUD
-        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+        if is_marriage_transition:
+            # Apply the relationship update and the happiness bonus atomically by
+            # mutating the ORM object and committing once, so neither persists
+            # without the other. Notify only after the commit succeeds.
+            for field, value in update_data.items():
+                setattr(relationship, field, value)
+            db_session.add(relationship)
+            await RelationshipService._apply_marriage_bonus(
+                db_session, relationship.dweller_1_id, relationship.dweller_2_id, commit=False
+            )
+            await db_session.commit()
+            await RelationshipService._notify_marriage(db_session, relationship)
+        else:
+            relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.debug(
             f"Affinity increased {dweller_1_id} ↔ {dweller_2_id}: {old_type} → {relationship.relationship_type}"
@@ -233,36 +242,52 @@ class RelationshipService:
             raise ValueError(msg) from e
 
     @staticmethod
-    async def _apply_marriage_bonus(db_session: AsyncSession, dweller_1_id: UUID4, dweller_2_id: UUID4) -> None:
-        """Apply the one-time happiness bonus to both newly married dwellers."""
+    async def _apply_marriage_bonus(
+        db_session: AsyncSession,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+        *,
+        commit: bool = True,
+    ) -> None:
+        """Apply the one-time happiness bonus to both newly married dwellers.
+
+        Args:
+            db_session: Database session
+            dweller_1_id: First dweller ID
+            dweller_2_id: Second dweller ID
+            commit: Whether to commit the bonus (default True); pass False to defer
+                the commit so it lands in the same transaction as the relationship update.
+        """
         for dweller_id in (dweller_1_id, dweller_2_id):
             dweller = await dweller_crud.get(db_session, dweller_id)
             bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
             dweller.happiness = max(0, min(100, dweller.happiness + bonus))
             db_session.add(dweller)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
 
     @staticmethod
     async def marry(db_session: AsyncSession, relationship_id: UUID4) -> Relationship:
         """Marry two partners with affinity at or above the marriage threshold.
 
         Raises:
-            ValueError: If the relationship is not found, is not PARTNER, or affinity is below the threshold.
+            ValidationException: If the relationship is not found, is not PARTNER,
+                or affinity is below the threshold.
         """
         try:
             relationship = await relationship_crud.get(db_session, relationship_id)
         except ResourceNotFoundException:
             msg = "Relationship not found"
-            raise ValueError(msg) from None
+            raise ValidationException(msg) from None
 
         if relationship.relationship_type != RelationshipTypeEnum.PARTNER:
             msg = "Only partners can marry"
-            raise ValueError(msg)
+            raise ValidationException(msg)
 
         if relationship.affinity < game_config.relationship.marriage_threshold:
             threshold = game_config.relationship.marriage_threshold
             msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
-            raise ValueError(msg)
+            raise ValidationException(msg)
 
         update_data = {"relationship_type": RelationshipTypeEnum.MARRIED, "updated_at": datetime.utcnow()}
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)

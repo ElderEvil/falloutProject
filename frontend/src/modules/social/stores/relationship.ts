@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
+import { relationshipService } from '../services/relationshipService'
 import type { Relationship, RelationshipCreate, CompatibilityScore } from '../models/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import type { Pregnancy } from '../models/pregnancy'
@@ -150,8 +151,7 @@ export const useRelationshipStore = defineStore('relationship', () => {
   async function marry(relationshipId: string): Promise<Relationship | null> {
     isLoading.value = true
     try {
-      const response = await axios.put(`/api/v1/relationships/${relationshipId}/marry`)
-      const updated = response.data
+      const updated = await relationshipService.marry(relationshipId)
 
       // Update local state
       const index = relationships.value.findIndex((r) => r.id === relationshipId)

@@ -14,6 +14,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   const lineage = ref<LineageResponse | null>(null)
   const isLoadingLineage = ref(false)
+  let lineageRequestSeq = 0
 
   async function assignDwellerToRoom(
     dwellerId: string,
@@ -312,15 +313,24 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   }
 
   async function fetchLineage(dwellerId: string): Promise<LineageResponse | null> {
+    const seq = ++lineageRequestSeq
     isLoadingLineage.value = true
     try {
-      lineage.value = await getLineage(dwellerId)
-      return lineage.value
+      const result = await getLineage(dwellerId)
+      if (seq === lineageRequestSeq) {
+        lineage.value = result
+        return result
+      }
+      return null
     } catch (error: unknown) {
-      handleStoreError(error, 'Failed to fetch lineage')
+      if (seq === lineageRequestSeq) {
+        handleStoreError(error, 'Failed to fetch lineage')
+      }
       return null
     } finally {
-      isLoadingLineage.value = false
+      if (seq === lineageRequestSeq) {
+        isLoadingLineage.value = false
+      }
     }
   }
 

@@ -28,7 +28,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # PostgreSQL doesn't support removing a single value from an enum.
-    # Rename back to the lowercase form so the value still exists (no DROP VALUE).
-    # A full revert would require recreating the type (see AGENTS.md).
-    op.execute("ALTER TYPE relationshiptypeenum RENAME VALUE 'MARRIED' TO 'married'")
+    # PostgreSQL cannot drop a single enum value, so recreate the type to fully
+    # restore the original label set (without MARRIED). Any rows still using
+    # MARRIED are normalized to 'partner' before the type is swapped, matching
+    # the upstream partner stage semantics.
+    op.execute(
+        "ALTER TABLE relationship ALTER COLUMN relationship_type TYPE VARCHAR(32) "
+        "USING relationship_type::text"
+    )
+    op.execute(
+        "UPDATE relationship SET relationship_type = 'partner' "
+        "WHERE relationship_type IN ('MARRIED', 'married')"
+    )
+    op.execute("DROP TYPE relationshiptypeenum")
+    op.execute(
+        "CREATE TYPE relationshiptypeenum AS ENUM "
+        "('acquaintance', 'friend', 'romantic', 'partner', 'ex')"
+    )
+    op.execute(
+        "ALTER TABLE relationship ALTER COLUMN relationship_type TYPE relationshiptypeenum "
+        "USING relationship_type::relationshiptypeenum"
+    )

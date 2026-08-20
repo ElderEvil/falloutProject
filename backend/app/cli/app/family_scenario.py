@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -122,7 +122,17 @@ def setup(
         valid = ", ".join(m.value for m in RelationshipTypeEnum)
         raise typer.BadParameter(f"Unknown stage {stage!r}. Valid stages: {valid}") from None
 
-    async def _run() -> None:
+    parsed_pairs = _parse_pairs(pairs)
+    parsed_pregnancy = _parse_int_list(pregnancy_due_minutes)
+    parsed_postpartum = _parse_float_list(postpartum_hours)
+    parsed_child_ages = _parse_float_list(child_ages_hours)
+
+    async def _run(
+        parsed_pairs: list[tuple[UUID, UUID]] | None,
+        parsed_pregnancy: list[int] | None,
+        parsed_postpartum: list[float] | None,
+        parsed_child_ages: list[float] | None,
+    ) -> None:
         from app.cli.main import _make_async_session
 
         session_factory = _make_async_session()
@@ -132,13 +142,13 @@ def setup(
                     db_session=session,
                     vault_id=vault_id,
                     count=count,
-                    pairs=_parse_pairs(pairs),
+                    pairs=parsed_pairs,
                     stage=stage,
                     affinity=affinity,
                     room_id=room_id,
-                    pregnancy_due_minutes=_parse_int_list(pregnancy_due_minutes),
-                    postpartum_hours=_parse_float_list(postpartum_hours),
-                    child_ages_hours=_parse_float_list(child_ages_hours),
+                    pregnancy_due_minutes=parsed_pregnancy,
+                    postpartum_hours=parsed_postpartum,
+                    child_ages_hours=parsed_child_ages,
                     seed=seed,
                     co_locate=not no_colocate,
                 )
@@ -158,9 +168,10 @@ def setup(
                     f"{couple.relationship.affinity}{room_str}"
                 )
             for preg in result.pregnancies:
-                typer.echo(f"  Pregnancy: due in {(preg.due_at - preg.conceived_at).total_seconds() / 60:.0f} min")
+                due_in = max(0, (preg.due_at - datetime.now(UTC).replace(tzinfo=None)).total_seconds() / 60)
+                typer.echo(f"  Pregnancy: due in {due_in:.0f} min")
             for preg in result.postpartum:
-                hours_ago = max(0, (datetime.utcnow() - preg.updated_at).total_seconds() / 3600)
+                hours_ago = max(0, (datetime.now(UTC).replace(tzinfo=None) - preg.updated_at).total_seconds() / 3600)
                 typer.echo(f"  Postpartum: delivered {hours_ago:.1f} h ago")
             for child in result.children:
                 typer.echo(f"  Child: {child.first_name} {child.last_name or ''}".rstrip())
@@ -172,7 +183,7 @@ def setup(
                 typer.echo(f"  [{row.kind:>13}] {row.label} ({row.detail}){suffix}")
 
     try:
-        asyncio.run(_run())
+        asyncio.run(_run(parsed_pairs, parsed_pregnancy, parsed_postpartum, parsed_child_ages))
         typer.echo("✓ family-scenario setup complete.")
     except typer.Exit:
         raise

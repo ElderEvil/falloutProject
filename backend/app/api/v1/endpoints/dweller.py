@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -24,6 +24,7 @@ from app.schemas.dweller import (
     DwellerReviveResponse,
     DwellerUpdate,
     DwellerVisualAttributes,
+    LineageResponse,
     RevivalCostResponse,
 )
 from app.schemas.happiness import HappinessModifiersResponse
@@ -31,7 +32,8 @@ from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
 from app.services.happiness_service import happiness_service
-from app.utils.exceptions import ContentNoChangeException
+from app.services.lineage_service import lineage_service
+from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/dwellers", tags=["Dweller"])
@@ -80,6 +82,28 @@ async def read_dweller(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     return await crud.dweller.get(db_session, dweller_id)
+
+
+@router.get("/{dweller_id}/lineage", response_model=LineageResponse)
+async def get_dweller_lineage(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> LineageResponse:
+    """Get the computed family lineage for a dweller.
+
+    Returns:
+        LineageResponse: Parents, children, siblings, partners and generation.
+
+    Raises:
+        HTTPException: 404 if dweller not found.
+        HTTPException: 403 if user doesn't have access.
+    """
+    await verify_dweller_access(dweller_id, user, db_session)
+    try:
+        return await lineage_service.get_lineage(db_session, dweller_id)
+    except ResourceNotFoundException:
+        raise HTTPException(status_code=404, detail="Dweller not found") from None
 
 
 @router.put("/{dweller_id}", response_model=DwellerRead)

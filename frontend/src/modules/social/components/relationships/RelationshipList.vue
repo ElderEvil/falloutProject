@@ -33,16 +33,31 @@
     </div>
 
     <div v-else class="space-y-2">
-      <RelationshipCard
+      <div
         v-for="relationship in filteredRelationships"
         :key="relationship.id"
-        :relationship="relationship"
-        :dweller1Name="getDwellerName(relationship.dweller_1_id)"
-        :dweller2Name="getDwellerName(relationship.dweller_2_id)"
-        @initiate-romance="initiateRomance(relationship.id)"
-        @make-partners="makePartners(relationship.id)"
-        @break-up="breakUp(relationship.id)"
-      />
+        class="relationship-entry"
+      >
+        <RelationshipCard
+          :relationship="relationship"
+          :dweller1Name="getDwellerName(relationship.dweller_1_id)"
+          :dweller2Name="getDwellerName(relationship.dweller_2_id)"
+          @initiate-romance="initiateRomance(relationship.id)"
+          @make-partners="makePartners(relationship.id)"
+          @marry="marry(relationship.id)"
+          @break-up="breakUp(relationship.id)"
+        />
+        <CoupleFamilyDiagram
+          v-if="
+            isPartnerLinked(relationship) &&
+            getDweller(relationship.dweller_1_id) &&
+            getDweller(relationship.dweller_2_id)
+          "
+          :dweller1="getDweller(relationship.dweller_1_id)!"
+          :dweller2="getDweller(relationship.dweller_2_id)!"
+          @select="emit('select-dweller', $event)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -51,8 +66,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../../stores/relationship'
+import {
+  isRelationshipType,
+  PARTNER_LINKED_RELATIONSHIP_TYPES,
+  type Relationship,
+  type RelationshipType,
+} from '../../models/relationship'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RelationshipCard from './RelationshipCard.vue'
+import CoupleFamilyDiagram from './CoupleFamilyDiagram.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 
@@ -62,6 +85,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{ (e: 'select-dweller', dwellerId: string): void }>()
 
 const relationshipStore = useRelationshipStore()
 const { filter: dwellerStore } = useDwellerStore()
@@ -75,15 +99,20 @@ const filteredRelationships = computed(() => {
 
   // Apply stage filter
   if (props.stageFilter === 'forming') {
-    filtered = filtered.filter((r) => r.relationship_type !== 'partner')
+    filtered = filtered.filter(
+      (r) => !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+    )
   } else if (props.stageFilter === 'partners') {
-    filtered = filtered.filter((r) => r.relationship_type === 'partner')
+    filtered = filtered.filter((r) =>
+      isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+    )
   }
 
   // Sort by relationship type priority
   return filtered.sort((a, b) => {
-    const priority: Record<string, number> = {
+    const priority: Record<RelationshipType, number> = {
       partner: 0,
+      MARRIED: 0,
       romantic: 1,
       friend: 2,
       acquaintance: 3,
@@ -116,6 +145,14 @@ function getDwellerName(dwellerId: string): string {
   return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
 }
 
+function getDweller(dwellerId: string): DwellerShort | undefined {
+  return dwellerStore.dwellers.find((d) => d.id === dwellerId)
+}
+
+function isPartnerLinked(relationship: Relationship): boolean {
+  return isRelationshipType(relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+}
+
 async function refreshRelationships() {
   error.value = null
   try {
@@ -135,6 +172,10 @@ async function initiateRomance(relationshipId: string) {
 
 async function makePartners(relationshipId: string) {
   await relationshipStore.makePartners(relationshipId)
+}
+
+async function marry(relationshipId: string) {
+  await relationshipStore.marry(relationshipId)
 }
 
 async function breakUp(relationshipId: string) {

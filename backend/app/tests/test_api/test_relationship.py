@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.dweller import DwellerCreateCommonOverride
-from app.utils.exceptions import AccessDeniedException
+from app.utils.exceptions import AccessDeniedException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -665,82 +665,134 @@ async def test_break_up_value_error(
     assert "Cannot break up" in response.json()["detail"]
 
 
-# --- POST /relationships/vault/{vault_id}/quick-pair -----------------------
+# --- PUT /relationships/{id}/marry -----------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_quick_pair_success(
+async def test_marry(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Test marrying partners from a partner relationship."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault = await crud.vault.create_with_user_id(
+        db_session=async_session,
+        obj_in={"number": 892},
+        user_id=user.id,
+    )
+
+    dweller1 = await crud.dweller.create_random(
+        async_session,
+        vault.id,
+        obj_in=DwellerCreateCommonOverride(gender="male"),
+    )
+    dweller2 = await crud.dweller.create_random(
+        async_session,
+        vault.id,
+        obj_in=DwellerCreateCommonOverride(gender="female"),
+    )
+
+    from app.services.relationship_service import relationship_service
+
+    relationship = await relationship_service.get_or_create_relationship(async_session, dweller1.id, dweller2.id)
+    relationship.affinity = 85
+    relationship.relationship_type = "partner"
+    dweller1.partner_id = dweller2.id
+    dweller2.partner_id = dweller1.id
+    await async_session.commit()
+
+    response = await async_client.put(
+        f"/relationships/{relationship.id}/marry",
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["relationship_type"] == "MARRIED"
+
+    await async_session.refresh(dweller1)
+    await async_session.refresh(dweller2)
+    assert dweller1.partner_id == dweller2.id
+    assert dweller2.partner_id == dweller1.id
+
+
+@pytest.mark.asyncio
+async def test_marry_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /relationships/vault/{id}/quick-pair returns 200 on successful pairing."""
-    vault_id = uuid4()
-    mock_rel = _make_mock_relationship(relationship_type="partner", affinity=90)
+    """PUT /relationships/{id}/marry returns 404 when relationship not found."""
+    fake_id = uuid4()
+
+    with patch(
+        "app.api.v1.endpoints.relationship.relationship_crud.get",
+        AsyncMock(return_value=None),
+    ):
+        response = await async_client.put(
+            f"/relationships/{fake_id}/marry",
+            headers=superuser_token_headers,
+        )
+    assert response.status_code == 404
+    assert "Relationship not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_marry_access_denied(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """PUT /relationships/{id}/marry returns 403 when dweller access fails."""
+    mock_rel = _make_mock_relationship()
 
     with (
         patch(
-            "app.api.v1.endpoints.relationship.get_user_vault_or_403",
-            AsyncMock(return_value=None),
-        ),
-        patch(
-            "app.api.v1.endpoints.relationship.relationship_service.quick_pair_dwellers",
+            "app.api.v1.endpoints.relationship.relationship_crud.get",
             AsyncMock(return_value=mock_rel),
         ),
+        patch(
+            "app.api.v1.endpoints.relationship.verify_dweller_access",
+            AsyncMock(side_effect=AccessDeniedException("The user doesn't have enough privileges")),
+        ),
     ):
-        response = await async_client.post(
-            f"/relationships/vault/{vault_id}/quick-pair",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["relationship_type"] == "partner"
-    assert data["affinity"] == 90
-    assert data["id"] == str(mock_rel.id)
-
-
-@pytest.mark.asyncio
-async def test_quick_pair_access_denied(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """POST /relationships/vault/{id}/quick-pair returns 403 when user doesn't own vault."""
-    vault_id = uuid4()
-
-    with patch(
-        "app.api.v1.endpoints.relationship.get_user_vault_or_403",
-        AsyncMock(side_effect=AccessDeniedException("The user doesn't have enough privileges")),
-    ):
-        response = await async_client.post(
-            f"/relationships/vault/{vault_id}/quick-pair",
+        response = await async_client.put(
+            f"/relationships/{mock_rel.id}/marry",
             headers=superuser_token_headers,
         )
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_quick_pair_value_error(
+async def test_marry_value_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /relationships/vault/{id}/quick-pair returns 400 when ValueError from service."""
-    vault_id = uuid4()
+    """PUT /relationships/{id}/marry returns 400 when the service rejects the marriage.
+
+    The endpoint no longer catches ValueError: it lets the service's
+    ValidationException (HTTP 400) propagate to FastAPI's exception handling.
+    """
+    mock_rel = _make_mock_relationship()
 
     with (
         patch(
-            "app.api.v1.endpoints.relationship.get_user_vault_or_403",
+            "app.api.v1.endpoints.relationship.relationship_crud.get",
+            AsyncMock(return_value=mock_rel),
+        ),
+        patch(
+            "app.api.v1.endpoints.relationship.verify_dweller_access",
             AsyncMock(return_value=None),
         ),
         patch(
-            "app.api.v1.endpoints.relationship.relationship_service.quick_pair_dwellers",
-            AsyncMock(side_effect=ValueError("Not enough compatible dwellers")),
+            "app.api.v1.endpoints.relationship.relationship_service.marry",
+            AsyncMock(side_effect=ValidationException("Affinity too low for marriage")),
         ),
     ):
-        response = await async_client.post(
-            f"/relationships/vault/{vault_id}/quick-pair",
+        response = await async_client.put(
+            f"/relationships/{mock_rel.id}/marry",
             headers=superuser_token_headers,
         )
     assert response.status_code == 400
-    assert "Not enough compatible dwellers" in response.json()["detail"]
+    assert "Affinity too low" in response.json()["detail"]
 
 
 # --- GET /relationships/compatibility/{dweller_1_id}/{dweller_2_id} --------

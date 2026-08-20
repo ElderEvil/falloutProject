@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -5,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
 
@@ -346,3 +349,55 @@ async def test_sort_dwellers(
     assert len(dwellers) == 2
     assert dwellers[0]["level"] == 10
     assert dwellers[1]["level"] == 5
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_lineage(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """GET /dwellers/{id}/lineage returns parents, children, siblings, partners and generation."""
+    parent = DwellerCreate(
+        first_name="Parent",
+        last_name="Dweller",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.ADULT,
+        vault_id=dweller.vault_id,
+    )
+    parent_obj = await crud.dweller.create(async_session, parent)
+
+    child = DwellerCreate(
+        first_name="Child",
+        last_name="Dweller",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.ADULT,
+        vault_id=dweller.vault_id,
+    )
+    child_obj = await crud.dweller.create(async_session, child)
+    # parent_1_id is not part of DwellerCreate; set the link on the persisted ORM object
+    child_obj.parent_1_id = parent_obj.id
+    await async_session.commit()
+
+    response = await async_client.get(f"/dwellers/{child_obj.id}/lineage", headers=superuser_token_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dweller_id"] == str(child_obj.id)
+    assert data["generation"] == 1
+    assert {p["id"] for p in data["parents"]} == {str(parent_obj.id)}
+    assert data["children"] == []
+    assert data["siblings"] == []
+    assert data["partners"] == []
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_lineage_not_found(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """GET /dwellers/{id}/lineage returns 404 for a non-existent dweller."""
+    response = await async_client.get(f"/dwellers/{uuid4()}/lineage", headers=superuser_token_headers)
+    assert response.status_code == 404

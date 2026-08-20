@@ -1,43 +1,35 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useRelationshipStore } from '../stores/relationship'
+import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useToast } from '@/core/composables/useToast'
-import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
-import PregnancyDebugPanel from '../components/pregnancy/PregnancyDebugPanel.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 
 const route = useRoute()
+const router = useRouter()
 const { isCollapsed } = useSidePanel()
 const relationshipStore = useRelationshipStore()
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
-const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming')
-const { run: runQuickPair, isLoading } = useAsyncAction(
-  (currentVaultId: string) => relationshipStore.quickPair(currentVaultId),
-  { context: 'Failed to pair dwellers', showToast: false }
-)
-const { run: runProcessBreeding, isLoading: isProcessing } = useAsyncAction(
-  (currentVaultId: string) => relationshipStore.processVaultBreeding(currentVaultId),
-  { context: 'Failed to process breeding', showToast: false }
-)
 
 // Stats
 const totalRelationships = computed(() => relationshipStore.relationships.length)
 const partnersCount = computed(
-  () => relationshipStore.relationships.filter((r) => r.relationship_type === 'partner').length
+  () =>
+    relationshipStore.relationships.filter((r) =>
+      isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+    ).length
 )
 const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
 const childrenCount = computed(
@@ -50,7 +42,9 @@ const stages = computed(() => [
     id: 'forming',
     label: 'Forming',
     icon: 'mdi:account-group',
-    count: relationshipStore.relationships.filter((r) => r.relationship_type !== 'partner').length,
+    count: relationshipStore.relationships.filter(
+      (r) => !isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
+    ).length,
   },
   {
     id: 'partners',
@@ -72,46 +66,6 @@ const stages = computed(() => [
   },
 ])
 
-async function handleQuickPair() {
-  if (!vaultId.value) return
-
-  const result = await runQuickPair(vaultId.value)
-
-  if (result) {
-    // Refresh relationships list
-    await relationshipStore.fetchVaultRelationships(vaultId.value)
-  }
-}
-
-async function handleProcessBreeding() {
-  if (!vaultId.value) return
-
-  const result = await runProcessBreeding(vaultId.value)
-  if (result) {
-    // Show results toast
-    const stats = result.stats
-    const messages = []
-    if (stats.relationships_updated > 0)
-      messages.push(`${stats.relationships_updated} relationships updated`)
-    if (stats.conceptions > 0) messages.push(`${stats.conceptions} new pregnancy!`)
-    if (stats.births > 0) messages.push(`${stats.births} baby born!`)
-    if (stats.children_aged > 0) messages.push(`${stats.children_aged} children became adults!`)
-
-    if (messages.length > 0) {
-      toast.success(`Processed: ${messages.join(', ')}`)
-    } else {
-      toast.info('No changes this cycle')
-    }
-
-    // Refresh all data
-    await Promise.all([
-      relationshipStore.fetchVaultRelationships(vaultId.value),
-      relationshipStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token!),
-    ])
-  }
-}
-
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await Promise.all([
@@ -121,6 +75,10 @@ onMounted(async () => {
     ])
   }
 })
+
+const navigateToDweller = (dwellerId: string) => {
+  router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
+}
 </script>
 
 <template>
@@ -142,34 +100,6 @@ onMounted(async () => {
               icon="mdi:heart-multiple"
               subtitle="Manage relationships, pregnancies, and family growth in your vault"
             >
-              <template #actions>
-                <div class="flex gap-2">
-                  <UButton
-                    v-if="authStore.isSuperuser"
-                    @click="handleProcessBreeding"
-                    :disabled="isProcessing"
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <Icon
-                      icon="mdi:refresh"
-                      class="mr-2"
-                      :class="{ 'animate-spin': isProcessing }"
-                    />
-                    {{ isProcessing ? 'Processing...' : 'Process Now' }}
-                  </UButton>
-                  <UButton
-                    v-if="authStore.isSuperuser"
-                    @click="handleQuickPair"
-                    :disabled="isLoading"
-                    variant="primary"
-                    size="sm"
-                  >
-                    <Icon icon="mdi:radioactive" class="mr-2" />
-                    {{ isLoading ? 'Matchmaking...' : 'Vault-Tec Matchmaker' }}
-                  </UButton>
-                </div>
-              </template>
             </PageHeader>
 
             <!-- Stats Overview -->
@@ -234,7 +164,12 @@ onMounted(async () => {
                     begin at 70+ affinity.
                   </p>
                 </div>
-                <RelationshipList v-if="vaultId" :vaultId="vaultId" stageFilter="forming" />
+                <RelationshipList
+                  v-if="vaultId"
+                  :vaultId="vaultId"
+                  stageFilter="forming"
+                  @select-dweller="navigateToDweller"
+                />
               </div>
 
               <!-- Stage 2: Partners -->
@@ -249,7 +184,12 @@ onMounted(async () => {
                     via game settings).
                   </p>
                 </div>
-                <RelationshipList v-if="vaultId" :vaultId="vaultId" stageFilter="partners" />
+                <RelationshipList
+                  v-if="vaultId"
+                  :vaultId="vaultId"
+                  stageFilter="partners"
+                  @select-dweller="navigateToDweller"
+                />
               </div>
 
               <!-- Stage 3: Pregnancies -->
@@ -263,7 +203,6 @@ onMounted(async () => {
                     Pregnancies last 3 hours. Babies inherit traits from both parents.
                   </p>
                 </div>
-                <PregnancyDebugPanel v-if="vaultId" :vaultId="vaultId" class="mb-6" />
                 <PregnancyTracker v-if="vaultId" :vaultId="vaultId" :autoRefresh="true" />
               </div>
 
@@ -432,7 +371,7 @@ onMounted(async () => {
 
 /* Stage Content */
 .stage-content {
-  padding: 2rem 0;
+  padding: 1.5rem 0 2rem;
 }
 
 .stage-panel {
@@ -451,8 +390,8 @@ onMounted(async () => {
 }
 
 .stage-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--color-theme-glow);
 }
 

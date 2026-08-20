@@ -76,10 +76,6 @@ describe('RelationshipsView', () => {
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
     vi.spyOn(relationshipStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
-    vi.spyOn(relationshipStore, 'quickPair').mockResolvedValue(true)
-    vi.spyOn(relationshipStore, 'processVaultBreeding').mockResolvedValue({
-      stats: { relationships_updated: 0, conceptions: 0, births: 0, children_aged: 0 },
-    })
 
     // Set up mock data
     relationshipStore.relationships = []
@@ -149,36 +145,6 @@ describe('RelationshipsView', () => {
       expect(wrapper.text()).toContain('Partner Couples')
       expect(wrapper.text()).toContain('Active Pregnancies')
       expect(wrapper.text()).toContain('Growing Children')
-    })
-
-    it('should render action buttons for superuser', async () => {
-      authStore.user = { is_superuser: true } as any
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Vault-Tec Matchmaker')
-      expect(wrapper.text()).toContain('Process Now')
-    })
-
-    it('should not render action buttons for non-superuser', async () => {
-      authStore.user = { is_superuser: false } as any
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Vault-Tec Matchmaker')
-      expect(wrapper.text()).not.toContain('Process Now')
     })
 
     it('should have terminal-style tab styling', async () => {
@@ -270,104 +236,6 @@ describe('RelationshipsView', () => {
       await tabs[1].trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
-    })
-  })
-
-  describe('Quick Pair Functionality', () => {
-    it('should call quickPair when button is clicked', async () => {
-      authStore.user = { is_superuser: true } as any
-      await router.isReady()
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const matchmakerButton = wrapper
-        .findAll('.u-button-mock')
-        .find((btn) => btn.text().includes('Vault-Tec Matchmaker'))
-
-      expect(matchmakerButton).toBeDefined()
-      await matchmakerButton!.trigger('click')
-
-      await flushPromises()
-
-      expect(relationshipStore.quickPair).toHaveBeenCalledWith('test-vault-id')
-    })
-
-    it('should refresh relationships after quick pair', async () => {
-      authStore.user = { is_superuser: true } as any
-      await router.isReady()
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const matchmakerButton = wrapper
-        .findAll('.u-button-mock')
-        .find((btn) => btn.text().includes('Vault-Tec Matchmaker'))
-
-      await matchmakerButton!.trigger('click')
-      await flushPromises()
-
-      expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalled()
-    })
-  })
-
-  describe('Process Breeding Functionality', () => {
-    it('should call processVaultBreeding when button is clicked', async () => {
-      authStore.user = { is_superuser: true } as any
-      await router.isReady()
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const processButton = wrapper
-        .findAll('.u-button-mock')
-        .find((btn) => btn.text().includes('Process Now'))
-
-      expect(processButton).toBeDefined()
-      await processButton!.trigger('click')
-
-      await flushPromises()
-
-      expect(relationshipStore.processVaultBreeding).toHaveBeenCalledWith('test-vault-id')
-    })
-
-    it('should refresh all data after processing', async () => {
-      authStore.user = { is_superuser: true } as any
-      await router.isReady()
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const processButton = wrapper
-        .findAll('.u-button-mock')
-        .find((btn) => btn.text().includes('Process Now'))
-
-      await processButton!.trigger('click')
-      await flushPromises()
-
-      expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalled()
-      expect(relationshipStore.fetchVaultPregnancies).toHaveBeenCalled()
-      expect(dwellerStore.fetchDwellersByVault).toHaveBeenCalled()
     })
   })
 

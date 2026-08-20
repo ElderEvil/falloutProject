@@ -1,340 +1,108 @@
 # Fallout Shelter - Agent Development Guide
 
 > **Repo:** `D:\Projects\falloutProject` | **Stack:** FastAPI + Vue 3 + PostgreSQL + Redis
+>
+> Agentic-coding guide. Keep every line here because removing it would cause a mistake the agent couldn't infer from code.
 
-This file is written for agentic coding agents working in this repository.
+## Orientation
 
-## Repo Structure
+| Topic | Source |
+|---|---|
+| Setup, run, env vars | `README.md` |
+| Design tokens & UI theme | `frontend/src/assets/tailwind.css`, `docs/frontend/STYLEGUIDE.md` |
+| Deployment | `docs/DEPLOYMENT.md` |
+| Roadmap & theming | `docs/ROADMAP.md`, `CHANGELOG.md` |
+| Project skills | `.agents/skills/` (load the matching one, e.g. `fastapi`, `pytest`, `vue-best-practices`, `sqlmodel`) |
 
-```
-backend/app/      # FastAPI (api, core, crud, models, services, utils)
-frontend/src/     # Vue 3 (modules, core, components, stores, services)
-```
-
-## Rules Files (Cursor/Copilot)
-
-- No `.cursorrules`, `.cursor/rules/**`, or `.github/copilot-instructions.md` found in this repo (as of 2026-02-01).
+Stack rules: `uv` (Python), `pnpm` (Node). Python uses double quotes; TypeScript/Vue uses single quotes, no semicolons.
 
 ## Backend (Python/FastAPI)
 
-### Setup & Dev
+### Commands (from `backend/`)
 
 ```bash
-cd backend
 uv sync --dev
-uv run fastapi dev main.py              # http://localhost:8000
-uv run alembic upgrade head
+uv run ruff check .          # lint; add --fix to autofix
+uv run ruff format .         # 120-col formatting
+uv run pytest app/tests      # full suite (~4.5 min)
+uv run pytest <file>::<Test>::<method>   # single test
+uv run alembic upgrade head  # apply migrations
+uv run fastapi dev main.py   # dev server :8000
 ```
 
-### Lint / Format
+CI gate: `uv run prek run` (see `.github/workflows/backend-ci.yml`).
 
-Authoritative config: `backend/pyproject.toml` (`[tool.ruff]`, line-length=120, target=py313).
+### Architecture (MANDATORY)
 
-```bash
-cd backend
-uv run ruff check .
-uv run ruff check . --fix
-uv run ruff format .
-uv run prek run                          # CI uses this (see .github/workflows/backend-ci.yml)
-```
+Business logic lives in **services**, never endpoints. Endpoints are thin: parse params → call a service → map exceptions to HTTP.
 
-### Tests (pytest)
+Rule of thumb: if an endpoint has >3 lines of non-trivial logic beyond a service call, move it into a service.
 
-Authoritative config: `backend/pyproject.toml` (`[tool.pytest.ini_options]`, coverage defaults).
+Error handling:
+- Prefer custom exceptions in `backend/app/utils/exceptions.py` over ad-hoc `HTTPException`.
+- Endpoints map service exceptions: `ValidationException`→400, `ResourceNotFoundException`→404, `ResourceConflictException`→409, `VaultOperationException`→400.
+- Log with `logging.getLogger(__name__)`; use `logger.exception(...)` for unexpected errors.
+- Do **not** nest try-except; extract inner blocks into helpers.
 
-```bash
-cd backend
-uv run pytest app/tests                  # all backend tests
-uv run pytest app/tests -v --tb=short    # CI style
+Ownership checks: use `get_user_vault_or_403` / `verify_dweller_access` from `app.api.deps`, never inline vault-ownership checks.
 
-# Single test (recommended patterns)
-uv run pytest app/tests/test_file.py
-uv run pytest app/tests/test_file.py::TestClass::test_method
-uv run pytest -k "name_substring"
-```
+### DB Enums & Alembic Migrations (MANDATORY)
 
-### Backend Code Style
+When adding/removing/renaming a Python `StrEnum`/`IntEnum` mapped to a PostgreSQL enum column:
 
-- **Formatting**: 120 char line length (ruff).
-- **Quotes**: use double quotes in Python.
-- **Typing**: add type hints for new functions; prefer `UUID4`/Pydantic types where applicable.
-- **Import order** (see `backend/app/api/deps.py`): stdlib → third-party → local `app.*`.
-- **Architecture**: endpoint → service → crud → DB (see `Service Layer` below).
+1. **Autogenerate does NOT detect enum value changes** — write the migration manually with `op.execute()` (e.g. `ALTER TYPE notificationtype ADD VALUE 'DWELLER_DIED'`).
+2. PG constraints: `ADD VALUE` works in a transaction; there is **no `DROP VALUE`** (recreate the type); rename via `ALTER TYPE ... RENAME VALUE`.
+3. **Regression guard:** update `PG_ENUM_LABELS_SNAPSHOT` in `backend/app/tests/test_db/test_enum_drift.py` in the SAME commit; run `uv run pytest app/tests/test_db/test_enum_drift.py`.
 
-### Service Layer (MANDATORY)
-
-All business logic MUST live in service classes, not in endpoint functions. Endpoints are thin HTTP handlers — they parse request params, delegate to services, and map exceptions to HTTP responses.
-
-**Rule of thumb:** If an endpoint function contains more than 3 lines of non-trivial logic (validation, orchestration, side effects) beyond calling a service, that logic needs to move into a service.
-
-**Existing services:**
-| Service | File | Covers |
-|---|---|---|
-| `auth_service` | `backend/app/services/auth_service.py` | Login, token refresh, password mgmt, email verification |
-| `chat_service` | `backend/app/services/chat_service.py` | Chat with dweller, objective generation |
-| `room_service` | `backend/app/services/room_service.py` | Build, destroy, upgrade rooms |
-| `vault_service` | `backend/app/services/vault_service.py` | Initiate vault, resource updates, medical transfer |
-| `death_service` | `backend/app/services/death_service.py` | Death, revival, permanent death |
-| `dweller_service` | `backend/app/services/dweller_service.py` | Dweller updates with room-based status |
-| `training_service` | `backend/app/services/training_service.py` | Start/cancel/complete training |
-| `quest_service` | `backend/app/services/quest_service.py` | Quest lifecycle, party management |
-| `exploration_service` | `backend/app/services/exploration_service.py` | Send/recall/complete explorations |
-| `radio_service` | `backend/app/services/radio_service.py` | Recruitment, radio mode |
-| `relationship_service` | `backend/app/services/relationship_service.py` | Relationships, compatibility, breeding |
-| `user_service` | `backend/app/services/user_service.py` | Registration, profile, AI usage |
-| `breeding_service` | `backend/app/services/breeding_service.py` | Pregnancy, delivery, conception |
-| `incident_service` | `backend/app/services/incident_service.py` | Incident spawning, resolution |
-| `game_loop` | `backend/app/services/game_loop.py` | Game tick processing, pause/resume |
-| `notification_service` | `backend/app/services/notification_service.py` | WebSocket/broadcast notifications |
-| `conversation_service` | `backend/app/services/conversation_service.py` | Voice chat, audio processing |
-
-**Service pattern:**
-
-```python
-# ❌ BAD — business logic in endpoint
-@router.post("/login")
-async def login(...):
-    user = await crud.user.authenticate(...)
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    ...
-
-# ✅ GOOD — thin endpoint, business logic in service
-@router.post("/login", response_model=Token)
-async def login_access_token(...):
-    try:
-        return await auth_service.login(...)
-    except ValidationException as e:
-        raise HTTPException(status_code=400, detail=e.detail) from e
-```
-
-### Avoid Nested try-except
-
-Do NOT nest try-except blocks inside other try blocks. This makes error handling hard to follow and can mask failures.
-
-```python
-# ❌ BAD
-try:
-    result = await some_agent.run(...)
-    try:
-        usage = result.usage()
-    except Exception:
-        logger.warning("...")
-    return result
-except Exception:
-    logger.exception("Fallback")
-
-# ✅ GOOD — extract inner block into a helper
-def _extract_usage(result) -> ...:
-    try:
-        return result.usage()
-    except Exception:
-        logger.warning("...")
-        return None
-
-try:
-    result = await some_agent.run(...)
-    usage = _extract_usage(result)
-    return result, usage
-except Exception:
-    logger.exception("Fallback")
-```
-
-### Vault Ownership Checks
-
-Use `get_user_vault_or_403` from `app.api.deps` for vault ownership verification instead of inline checks.
-
-```python
-# ❌ BAD — inline vault ownership check
-@router.post("/vaults/{vault_id}/pause")
-async def pause_vault(vault_id, user, db_session):
-    vault = await crud.vault.get(db_session, vault_id)
-    if not vault:
-        raise HTTPException(status_code=404, ...)
-    if vault.user_id != user.id and not user.is_superuser:
-        raise HTTPException(status_code=403, ...)
-    ...
-
-# ✅ GOOD — use Depends(get_user_vault_or_403)
-@router.post("/vaults/{vault_id}/pause")
-async def pause_vault(
-    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    ...
-):
-    ...
-```
-
-### Backend Error Handling
-
-- Prefer the custom HTTP exceptions in `backend/app/utils/exceptions.py` (e.g., `ResourceNotFoundException`,
-  `AccessDeniedException`) over ad-hoc `HTTPException`.
-- Log with `logging.getLogger(__name__)` inside services; use `logger.exception(...)` for unexpected errors.
-- Endpoints catch service exceptions (subclasses of `HTTPException`) and map them: `ValidationException` → 400,
-  `ResourceNotFoundException` → 404, `ResourceConflictException` → 409, `VaultOperationException` → 400.
-
-### DB Enums & Alembic Migrations (MANDATORY CHECK)
-
-When adding, removing, or renaming members of a Python `StrEnum` / `IntEnum` that maps to a PostgreSQL enum column:
-
-1. **Check if a migration is needed.** Compare the Python enum class (e.g. `NotificationType`) against the live PG enum values:
-   ```bash
-   cd backend
-   psql "$ASYNC_DATABASE_URI" -c "SELECT enumlabel FROM pg_enum WHERE enumtypid = 'notificationtype'::regtype"
-   ```
-
-2. **Alembic autogenerate does NOT reliably detect enum value changes.** Our `env.py` sets `compare_type=True` in both offline and online modes (commit `a252adab`), which catches *type* changes but value additions/removals are still typically invisible to autogenerate. Do not rely on autogenerate for label changes.
-
-3. **You MUST write the migration manually** when enum values change. Use `op.execute()` for the DDL:
-   ```python
-   # Adding a value
-   op.execute("ALTER TYPE notificationtype ADD VALUE 'DWELLER_DIED'")
-   ```
-
-4. **PostgreSQL enum constraints:**
-   - `ADD VALUE` can be done inside a transaction (PG 12+).
-   - There is no `ALTER TYPE ... DROP VALUE`. Removing a value requires recreating the type with a multi-step process.
-   - Renaming requires `ALTER TYPE ... RENAME VALUE` (PG 10+).
-
-5. **Verification:** After writing the migration, run it and confirm the DB enum matches the Python class:
-   ```bash
-   cd backend
-   uv run alembic upgrade head
-   ```
-   Then query `pg_enum` again to verify.
-
-6. **Regression guard:** Update the golden snapshot `PG_ENUM_LABELS_SNAPSHOT` in `backend/app/tests/test_db/test_enum_drift.py` in the SAME commit as the migration. The test suite then fails CI if the Python StrEnum and the live PG enum ever drift again:
-   ```bash
-   cd backend
-   uv run pytest app/tests/test_db/test_enum_drift.py
-   ```
-   - `test_metadata_enum_columns_match_snapshot` runs anywhere (no DB needed) and catches Python-side drift (member added/removed/renamed).
-   - `test_live_pg_enum_labels_match_metadata` runs only against a live PostgreSQL and catches DB-side drift (migration never applied).
-
-**Common pitfall (like the `DWELLER_DIED` outage):** A member is added to the Python enum but never migrated to PostgreSQL. Application code starts using it → `InvalidTextRepresentationError` → poisoned connection pool → worker crash-loop. Always catch this in review.
+> **Outage trap:** a member added to the Python enum but never migrated → `InvalidTextRepresentationError` → poisoned connection pool → crash-loop. Always migrate before using a new enum member.
 
 ## Frontend (Vue 3 / TypeScript)
 
-### Setup & Dev
+### Commands (from `frontend/`)
 
 ```bash
-cd frontend
 pnpm install
-pnpm run dev                              # http://localhost:5173 (runs types:generate first)
-pnpm run types:generate                   # requires backend running at :8000
+pnpm run dev                  # :5173 (runs types:generate first)
+pnpm run types:generate       # requires backend at :8000; run after backend API changes
+pnpm run lint && pnpm run typecheck
+pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 ```
 
-### Lint / Format / Types
+### Conventions
 
-Authoritative config:
+- Naming: components/types `PascalCase`, composables `useXxx`, stores `useXxxStore` (Pinia composition-style).
+- Architecture: Store → Service → API; prefer `@/` aliases.
+- Error handling: use `frontend/src/core/utils/errorHandler.ts` (`getErrorMessage`, `handleStoreError`); log context, don't swallow errors.
 
-- `frontend/vite.config.ts` (`fmt`: 100 cols, single quotes, no semicolons, 2 spaces)
-- `frontend/oxlint.json` (lint rules and ignore patterns)
-- `frontend/tsconfig.app.json` (strict: true, strictTemplates: true)
+## UI (Terminal CRT Theme)
 
-```bash
-cd frontend
-pnpm run lint
-pnpm run lint:fix
-pnpm run format
-pnpm run format:check
-pnpm run typecheck
-```
-
-### Tests (Vitest)
-
-Authoritative config: `frontend/vitest.config.ts` (jsdom; includes `tests/**/*.test.ts`).
-
-```bash
-cd frontend
-pnpm run test                             # watch
-pnpm run test:run                          # once (CI equivalent)
-
-# Single test
-pnpm run test -- tests/unit/stores/auth.test.ts
-pnpm run test -- -t "test name substring"
-pnpm run test -- --coverage
-
-```
-
-### Frontend Code Style
-
-- **Formatting**: 100 char line width; single quotes; no semicolons; 2-space indent (`frontend/vite.config.ts` under `fmt`). Run `pnpm run format` or `pnpm exec vp fmt src`.
-- **Imports**: prefer `@/` aliases (`frontend/tsconfig.app.json` paths); order roughly: Vue/core → third-party → `@/` → relative.
-- **Naming**:
-  - Components/types: `PascalCase`
-  - Composables: `useXxx`
-  - Stores: `useXxxStore` (Pinia composition-style)
-- **Architecture**: Store → Service → API.
-
-### Frontend Error Handling
-
-- Use helpers in `frontend/src/core/utils/errorHandler.ts` (e.g., `getErrorMessage`, `handleStoreError`).
-- Avoid swallowing errors silently; log context in stores/services.
-
-## UI Guidelines (Terminal CRT Theme)
-
-- Primary color: `#00ff00`.
-- Prefer the repo UI components (see `frontend/src/core/components/ui/`): `UButton`, `UCard`, `UInput`, `UModal`, etc.
-- Tailwind utilities only; avoid inline styles.
-- Use CRT effects classes where appropriate: `.flicker`, `.terminal-glow`, `.crt-screen`.
-- Design token source of truth: `frontend/src/assets/tailwind.css` and `docs/frontend/STYLEGUIDE.md`.
+- Primary: `#00ff00`; use repo components (`UButton`, `UCard`, `UInput`, `UModal`, …); Tailwind utilities only (no inline styles); CRT classes where fitting (`.flicker`, `.terminal-glow`, `.crt-screen`).
+- Design tokens live in `frontend/src/assets/tailwind.css` and `docs/frontend/STYLEGUIDE.md`.
 
 ## Bug Fix Workflow (MANDATORY)
 
-When a bug is reported:
+1. Write a failing test reproducing the bug first.
+2. Fix, then prove it by running the test (and the relevant suite).
 
-1. **Write a failing test first** that reproduces the bug.
-2. **Delegate the fix to subagents** (provide the failing test file + repro steps).
-3. **Prove the fix** by running the test and ensuring it passes (and run the relevant suite).
+## Releases
 
-## Release Version Workflow
+- **Version authority:** Semantic Release chooses versions — never bump manually.
+- **No root `package.json`:** release tooling runs from CI via a pinned `npx --package` invocation (`.github/workflows/release.yml`), so the repo root has no npm manifest or lockfile; frontend deps stay in `frontend/` (pnpm) and backend deps in `backend/` (uv). Keep it that way — do not reintroduce a root `package.json` or `npm ci` for release purposes.
+- **Theming (v2.42+):** each release is named after its headline feature (e.g. "The Family Update"); theme recorded in `docs/ROADMAP.md` and as the `CHANGELOG.md` release title. A theme may span backend + frontend; it does not constrain which workstreams ship.
+- ROADMAP stays **future-plans-first**; history lives in `CHANGELOG.md`.
 
-Semantic Release is the sole release-version authority. Do not choose or manually bump a release version; it updates
-the backend manifest and lockfile, frontend manifest, and changelog in one generated release commit and tag.
-
-## Repo Guardrails
+## Guardrails
 
 1. Never push to git without explicit approval.
-2. After backend API changes: regenerate frontend API types: `cd frontend && pnpm run types:generate`.
-3. Prefer small, test-backed changes; follow existing patterns (don't introduce new architectures).
-4. Commit messages: `feat:`, `fix:`, `chore:`; branch prefixes: `feat/`, `fix/`, `chore/`.
-5. Starting with v2.35, every update must have a negative net source-LOC change. When a feature needs new code, first
-   compact or remove existing code by applying DRY and extracting reusable common behavior; validate retained behavior
-   with relevant tests. Do not count generated files, lockfiles, or formatting-only changes toward the reduction.
-
-## Frontend Simplification Heuristic
-
-Before writing any new frontend code, apply this ordering to every decision:
-
-1. Does this need to exist?   → no: skip it (YAGNI)
-2. Stdlib does it?            → use it
-3. Native platform feature?   → use it
-4. Installed dependency?      → use it
-5. One line?                  → one line
-6. Only then: the minimum that works
-
----
-
-_Last updated: 2026-07-02_
+2. After backend API changes: `cd frontend && pnpm run types:generate`.
+3. Small, test-backed changes; follow existing patterns; commit messages `feat:`/`fix:`/`chore:`; branch prefixes `feat/`/`fix/`/`chore/`.
+4. **Net-LOC rule (v2.35+):** every update must have a negative net source-LOC change — compact/remove existing code (DRY) before adding; don't count generated files, lockfiles, or format-only changes.
+5. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
 
 ## Dev Environment (Agent Quick-Start)
 
-When asked to "start the dev environment" or "run infra + BE + FE" — run `scripts/dev-up.sh`.
+To start infra + BE + FE: run `./scripts/dev-up.sh` (or `--reload` for backend hot reload). It starts infra, runs migrations, and launches `fallout-be`/`fallout-fe` tmux sessions (fresh restart each run). Stop with `tmux kill-session -t fallout-be && tmux kill-session -t fallout-fe`.
 
-This script does everything in one shot:
-1. Starts infra (PostgreSQL, Redis, etc.) via `podman-compose` or `docker compose`
-2. Waits for DB, runs Alembic migrations
-3. Starts Backend (uvicorn) in a tmux session named `fallout-be`
-4. Starts Dramatiq workers
-5. Starts Frontend (Vite) in a tmux session named `fallout-fe`
-6. Verifies both services respond
+---
 
-To stop: `tmux kill-session -t fallout-be && tmux kill-session -t fallout-fe`
-
-Or call the script from a task:
-```
-task(category="quick", load_skills=[], prompt="Run ./scripts/dev-up.sh from the repo root")
-```
-
-Use `./scripts/dev-up.sh --reload` when editing backend code; it starts Uvicorn with hot reload. The launcher
-always replaces the `fallout-be` and `fallout-fe` tmux sessions, so running it again is already a fresh restart.
+_Last updated: 2026-08-20_

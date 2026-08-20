@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Integration
 
-> **Status:** Proposal / Design
+> **Status:** Deferred — design doc stands; scheduled for a future themed release (was S5 / v2.42 scope-out).
 > **Scope:** External "Overseer assistant" surface — NOT a replacement for the in-game dweller chat agent.
 
 ## 1. What is MCP (in this context)

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.dweller_ai import dweller_ai
+from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
 
 # --- _has_substantial_visual_attributes ---
 
@@ -155,6 +155,49 @@ async def test_generate_allows_with_only_defaults(
 
     # Verify result is returned
     assert result is not None
+
+
+# --- Options module ---
+
+
+def test_restrict_equipment_fields_removes_non_owned() -> None:
+    """accessory/object_held not among equipped items are dropped."""
+    attrs = {"accessory": "Fancy Hat", "object_held": "Laser Rifle", "hair_color": "brown"}
+    restrict_equipment_fields(attrs, ["Leather Armor", "Pistol"])
+    assert "accessory" not in attrs
+    assert "object_held" not in attrs
+    assert attrs["hair_color"] == "brown"
+
+
+def test_restrict_equipment_fields_keeps_owned() -> None:
+    """accessory/object_held matching an equipped item are preserved."""
+    attrs = {"accessory": "Leather Armor", "object_held": "Pistol"}
+    restrict_equipment_fields(attrs, ["Leather Armor", "Pistol"])
+    assert attrs["accessory"] == "Leather Armor"
+    assert attrs["object_held"] == "Pistol"
+
+
+def test_restrict_equipment_fields_keeps_one_owned_one_stripped() -> None:
+    """Only the field matching an owned item survives."""
+    attrs = {"accessory": "Pistol", "object_held": "Nuka-Cola Bottle"}
+    restrict_equipment_fields(attrs, ["Pistol"])
+    assert attrs["accessory"] == "Pistol"
+    assert "object_held" not in attrs
+
+
+def test_restrict_equipment_fields_empty_equipment_removes_all() -> None:
+    """With no equipped items, both equipment fields are removed."""
+    attrs = {"accessory": "Sunglasses", "object_held": "Crowbar"}
+    restrict_equipment_fields(attrs, [])
+    assert "accessory" not in attrs
+    assert "object_held" not in attrs
+
+
+def test_restrict_equipment_fields_noop_when_fields_absent() -> None:
+    """Missing equipment fields cause no changes to unrelated attributes."""
+    attrs = {"height": "tall", "hair_color": "brown"}
+    restrict_equipment_fields(attrs, ["Leather Armor"])
+    assert attrs == {"height": "tall", "hair_color": "brown"}
 
 
 # --- Options module ---

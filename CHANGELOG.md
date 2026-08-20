@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+- **Incident response** — dispatch healthy adult dwellers to an active incident room; combat now resolves in bounded,
+  online vault rounds instead of allowing a manual instant-win action
+- **MARRIED relationship stage** — partners at the marriage threshold (affinity ≥ 85) can marry via
+  `PUT /relationships/{id}/marry`; marriage grants a happiness bonus and fires a notification; `break_up` now also
+  clears married couples
+- **Lineage API + family tree** — `GET /dwellers/{id}/lineage` returns parents, children, siblings, partners, and a
+  computed generation; the dweller detail page adds a "Family" tab rendering the family tree (clickable nodes)
+
+### Changed
+
+- **Incident balance** — use configured threat weights and difficulty ranges; unsupported client-only incident types
+  are removed from the interface
+- **Development server** — `./scripts/dev-up.sh --reload` enables backend hot reload; every launcher run already
+  replaces the managed frontend and backend sessions
+- **Debug controls removed** — Quick-Pair ("Irradiated Cupid") button + backend endpoint, Process Breeding button,
+  and the PregnancyDebugPanel were removed from the relationships UI
+
+### Fixed
+
+- **Migration-safety CI** — `backend-coverage.yml` now runs `alembic check` + `alembic current --check-heads` against a
+  live PostgreSQL service container; a migration (`b7e9f2c1a3d5`) drops two stale schema objects so `alembic check`
+  passes
+
 ## [2.41.3](https://github.com/ElderEvil/falloutProject/compare/v2.41.2...v2.41.3) (2026-08-19)
 
 ### Fixed
@@ -15,17 +42,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   name ("April Hernandez gave birth to April Hernandez!")
 - **Cross-vault postpartum data leak** — `_get_postpartum_mother_ids` now joins to `Dweller` and filters by
   `Dweller.vault_id` so the cooldown only applies to the current vault
-
-## Unreleased
-
-### Fixed
-
-- **Postpartum breeding cooldown** — mothers who delivered within `birth_cooldown_hours` (default 6h) are excluded
-  from conception checks, so a high-affinity couple can no longer conceive again on the next game tick and produce
-  a baby every pregnancy cycle (3h) indefinitely
-- **Baby last-name inheritance** — newborns now take the father's last name by default, with a 20% chance of the
-  mother's last name (`maternal_last_name_chance`), so a baby no longer routinely shares the mother's exact full
-  name ("April Hernandez gave birth to April Hernandez!")
 
 ## [2.41.2](https://github.com/ElderEvil/falloutProject/compare/v2.41.1...v2.41.2) (2026-08-19)
 
@@ -156,20 +172,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   existing outfit, weapon, and legendary-dweller records are backfilled on upgrade.
 
 ## [2.37.0](https://github.com/ElderEvil/falloutProject/compare/v2.36.0...v2.37.0) (2026-08-14)
-
-## Unreleased
-
-### Features
-
-- **Incident response** — dispatch healthy adult dwellers to an active incident room; combat now resolves in bounded,
-  online vault rounds instead of allowing a manual instant-win action
-
-### Changed
-
-- **Incident balance** — use configured threat weights and difficulty ranges; unsupported client-only incident types
-  are removed from the interface
-- **Development server** — `./scripts/dev-up.sh --reload` enables backend hot reload; every launcher run already
-  replaces the managed frontend and backend sessions
 
 ## [2.36.0](https://github.com/ElderEvil/falloutProject/compare/v2.35.1...v2.36.0) (2026-08-14)
 

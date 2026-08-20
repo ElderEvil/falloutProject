@@ -298,6 +298,9 @@ class BreedingService:
             if not partner or partner.room_id not in living_quarters_ids or partner.age_group != AgeGroupEnum.ADULT:
                 continue
 
+            if partner.gender == dweller.gender:
+                continue
+
             conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
             pregnancy = await BreedingService._roll_for_conception(db_session, dweller, partner, conception_chance)
 

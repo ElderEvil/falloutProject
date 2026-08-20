@@ -1,12 +1,12 @@
 <template>
-  <UCard class="mb-2 bg-black/90">
-    <div class="flex items-center justify-between gap-4">
+  <UCard class="mb-2">
+    <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_14rem_auto] items-center gap-4">
       <!-- Parent names -->
-      <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <span class="font-mono text-sm">{{ motherName }}</span>
-          <span class="text-pink-400">+</span>
-          <span class="font-mono text-sm">{{ fatherName }}</span>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="font-mono text-sm truncate">{{ motherName }}</span>
+          <span class="shrink-0 text-pink-400">+</span>
+          <span class="font-mono text-sm truncate">{{ fatherName }}</span>
         </div>
 
         <!-- Status badge -->
@@ -15,8 +15,8 @@
         </UBadge>
       </div>
 
-      <!-- Progress bar -->
-      <div class="flex-1 max-w-md">
+      <!-- Progress bar (fixed column position) -->
+      <div class="w-full md:w-56">
         <div
           class="flex items-center justify-between text-xs mb-1"
           :style="{ color: 'var(--color-theme-primary)' }"
@@ -38,14 +38,16 @@
       </div>
 
       <!-- Deliver button -->
-      <UButton
-        v-if="pregnancy.is_due"
-        @click="$emit('deliver')"
-        :disabled="isDelivering"
-        class="animate-pulse"
-      >
-        {{ isDelivering ? 'Delivering...' : 'Deliver Baby' }}
-      </UButton>
+      <div class="flex justify-end">
+        <UButton
+          v-if="pregnancy.is_due"
+          @click="$emit('deliver')"
+          :disabled="isDelivering"
+          class="animate-pulse"
+        >
+          {{ isDelivering ? 'Delivering...' : 'Deliver Baby' }}
+        </UButton>
+      </div>
     </div>
   </UCard>
 </template>

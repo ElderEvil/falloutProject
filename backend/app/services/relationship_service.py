@@ -4,17 +4,22 @@ import logging
 from datetime import datetime
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
+from app.crud import vault as vault_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
+from app.models.notification import NotificationType
 from app.models.relationship import Relationship
-from app.schemas.common import GenderEnum, RelationshipTypeEnum
+from app.schemas.common import (
+    PARTNER_LINKED_STAGES,
+    RelationshipTypeEnum,
+)
 from app.schemas.relationship import CompatibilityScore
-from app.utils.exceptions import ResourceNotFoundException
+from app.services.notification_service import NotificationService
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +97,8 @@ class RelationshipService:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
-        update_data = {"affinity": min(100, relationship.affinity + amount), "updated_at": datetime.utcnow()}
+        new_affinity = min(100, relationship.affinity + amount)
+        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
         old_type = relationship.relationship_type
 
         # Auto-upgrade relationship based on affinity thresholds
@@ -103,9 +109,37 @@ class RelationshipService:
             elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
                 # Upgrade to romantic at 70+ affinity
                 update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
+            elif relationship.relationship_type == RelationshipTypeEnum.ROMANTIC:
+                # Upgrade to partner at 70+ affinity
+                update_data["relationship_type"] = RelationshipTypeEnum.PARTNER
+                await RelationshipService._set_partner_ids(
+                    db_session, relationship.dweller_1_id, relationship.dweller_2_id
+                )
 
-        # Update via CRUD
-        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+        is_marriage_transition = (
+            relationship.relationship_type == RelationshipTypeEnum.PARTNER
+            and new_affinity >= game_config.relationship.marriage_threshold
+        )
+        if is_marriage_transition:
+            # Conditional PARTNER->MARRIED update so only one concurrent request
+            # wins the transition and applies the one-time bonus/notification.
+            if await relationship_crud.transition_partner_to_married(
+                db_session, relationship.id, affinity=new_affinity
+            ):
+                relationship.relationship_type = RelationshipTypeEnum.MARRIED
+                relationship.affinity = new_affinity
+                relationship.updated_at = update_data["updated_at"]
+                db_session.add(relationship)
+                await RelationshipService._apply_marriage_bonus(
+                    db_session, relationship.dweller_1_id, relationship.dweller_2_id, commit=False
+                )
+                await db_session.commit()
+                await RelationshipService._notify_marriage(db_session, relationship)
+            else:
+                # Lost the race (already not PARTNER): just persist the affinity bump.
+                relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+        else:
+            relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.debug(
             f"Affinity increased {dweller_1_id} ↔ {dweller_2_id}: {old_type} → {relationship.relationship_type}"
@@ -185,16 +219,21 @@ class RelationshipService:
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
         # Update both dwellers to have each other as partners in a single transaction
-        # Fetch both dwellers, update in memory, then commit once to ensure atomicity
+        await RelationshipService._set_partner_ids(db_session, dweller_1_id, dweller_2_id)
+
+        logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
+        return relationship
+
+    @staticmethod
+    async def _set_partner_ids(db_session: AsyncSession, dweller_1_id: UUID4, dweller_2_id: UUID4) -> None:
+        """Set reciprocal partner_ids on both dwellers atomically."""
         try:
             dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
             dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
 
-            # Update partner_id in memory
             dweller_1.partner_id = dweller_2_id
             dweller_2.partner_id = dweller_1_id
 
-            # Add both to session and commit atomically
             db_session.add(dweller_1)
             db_session.add(dweller_2)
             await db_session.commit()
@@ -205,8 +244,93 @@ class RelationshipService:
             msg = f"Failed to update partner IDs for dwellers: {e}"
             raise ValueError(msg) from e
 
-        logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
+    @staticmethod
+    async def _apply_marriage_bonus(
+        db_session: AsyncSession,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+        *,
+        commit: bool = True,
+    ) -> None:
+        """Apply the one-time happiness bonus to both newly married dwellers.
+
+        Args:
+            db_session: Database session
+            dweller_1_id: First dweller ID
+            dweller_2_id: Second dweller ID
+            commit: Whether to commit the bonus (default True); pass False to defer
+                the commit so it lands in the same transaction as the relationship update.
+        """
+        for dweller_id in (dweller_1_id, dweller_2_id):
+            dweller = await dweller_crud.get(db_session, dweller_id)
+            bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
+            dweller.happiness = max(0, min(100, dweller.happiness + bonus))
+            db_session.add(dweller)
+        if commit:
+            await db_session.commit()
+
+    @staticmethod
+    async def marry(db_session: AsyncSession, relationship_id: UUID4) -> Relationship:
+        """Marry two partners with affinity at or above the marriage threshold.
+
+        Raises:
+            ValidationException: If the relationship is not found, is not PARTNER,
+                or affinity is below the threshold.
+        """
+        try:
+            relationship = await relationship_crud.get(db_session, relationship_id)
+        except ResourceNotFoundException:
+            msg = "Relationship not found"
+            raise ValidationException(msg) from None
+
+        if relationship.relationship_type != RelationshipTypeEnum.PARTNER:
+            msg = "Only partners can marry"
+            raise ValidationException(msg)
+
+        if relationship.affinity < game_config.relationship.marriage_threshold:
+            threshold = game_config.relationship.marriage_threshold
+            msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
+            raise ValidationException(msg)
+
+        # Conditional PARTNER->MARRIED update: only one concurrent request wins;
+        # the loser raises so it applies no bonus/notification.
+        if not await relationship_crud.transition_partner_to_married(db_session, relationship_id):
+            msg = "Only partners can marry"
+            raise ValidationException(msg)
+
+        relationship.relationship_type = RelationshipTypeEnum.MARRIED
+        await RelationshipService._apply_marriage_bonus(
+            db_session, relationship.dweller_1_id, relationship.dweller_2_id
+        )
+        await db_session.refresh(relationship)
+        await RelationshipService._notify_marriage(db_session, relationship)
+
+        logger.info(f"Married: {relationship.dweller_1_id} ↔ {relationship.dweller_2_id}")
         return relationship
+
+    @staticmethod
+    async def _notify_marriage(db_session: AsyncSession, relationship: Relationship) -> None:
+        """Best-effort notification for the vault owner when two dwellers marry."""
+        try:
+            dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
+            vault = await vault_crud.get(db_session, dweller_1.vault_id)
+            if not vault:
+                return
+            name_1 = f"{dweller_1.first_name} {dweller_1.last_name or ''}".strip()
+            dweller_2 = await dweller_crud.get(db_session, relationship.dweller_2_id)
+            name_2 = f"{dweller_2.first_name} {dweller_2.last_name or ''}".strip()
+            await NotificationService.create_and_send(
+                db_session,
+                user_id=vault.user_id,
+                notification_type=NotificationType.RELATIONSHIP_FORMED,
+                title="Marriage!",
+                message=f"{name_1} and {name_2} are now married.",
+                vault_id=vault.id,
+                from_dweller_id=relationship.dweller_1_id,
+                meta_data={"relationship_id": str(relationship.id)},
+            )
+        except Exception:
+            logger.exception("Failed to send marriage notification for relationship %s", relationship.id)
 
     @staticmethod
     async def break_up(
@@ -226,8 +350,8 @@ class RelationshipService:
             msg = "Relationship not found"
             raise ValueError(msg) from None
 
-        # If partners, clear partner_id on both dwellers atomically
-        if relationship.relationship_type == RelationshipTypeEnum.PARTNER:
+        # If partners or married, clear partner_id on both dwellers atomically
+        if relationship.relationship_type in PARTNER_LINKED_STAGES:
             try:
                 dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
                 dweller_2 = await dweller_crud.get(db_session, relationship.dweller_2_id)
@@ -259,85 +383,6 @@ class RelationshipService:
         await relationship_crud.update(db_session, relationship.id, update_data)
 
         logger.info(f"Break up: {relationship.dweller_1_id} and {relationship.dweller_2_id}")
-
-    @staticmethod
-    async def quick_pair_dwellers(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-    ) -> Relationship:
-        """Irradiated Cupid.
-
-        Instantly pairs two random compatible dwellers for testing/fun.
-        - Finds one male and one female without partners
-        - Creates a high-affinity relationship (90%)
-        - Makes them romantic partners
-        - Moves them to a private living quarters (kicks out any third wheels!)
-        - Ready to breed immediately with 90% conception chance per tick
-        """
-        # Pre-validate affinity meets romance threshold before creating any records
-        quick_pair_affinity = game_config.relationship.quick_pair_affinity
-        if quick_pair_affinity < game_config.relationship.romance_threshold:
-            msg = (
-                f"Quick pair affinity ({quick_pair_affinity}) is below romance threshold "
-                f"({game_config.relationship.romance_threshold}). Cannot create partners."
-            )
-            raise ValueError(msg)
-
-        # Get all adult dwellers in vault without partners (existing logic preserved)
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.age_group == "adult")
-            .where(Dweller.partner_id.is_(None))  # type: ignore[union-attr]
-        )
-        result = await db_session.execute(query)
-        available_dwellers = list(result.scalars().all())
-
-        if len(available_dwellers) < 2:
-            msg = "Need at least 2 adult dwellers without partners"
-            raise ValueError(msg)
-
-        # Separate by gender
-        males = [d for d in available_dwellers if d.gender == GenderEnum.MALE]
-        females = [d for d in available_dwellers if d.gender == GenderEnum.FEMALE]
-
-        if not males or not females:
-            msg = "Need at least one male and one female dweller"
-            raise ValueError(msg)
-
-        # Pick first available from each gender
-        dweller_1 = males[0]
-        dweller_2 = females[0]
-
-        # Create relationship with partner type directly (since we pre-validated affinity)
-        relationship = await relationship_crud.create_with_defaults(
-            db_session,
-            dweller_1.id,
-            dweller_2.id,
-            relationship_type=RelationshipTypeEnum.PARTNER,
-            affinity=quick_pair_affinity,
-        )
-
-        # Update both dwellers to have each other as partners atomically
-        try:
-            # dweller_1 and dweller_2 are already loaded, update in memory
-            dweller_1.partner_id = dweller_2.id
-            dweller_2.partner_id = dweller_1.id
-
-            # Add both to session and commit atomically
-            db_session.add(dweller_1)
-            db_session.add(dweller_2)
-            await db_session.commit()
-            await db_session.refresh(dweller_1)
-            await db_session.refresh(dweller_2)
-        except Exception as e:
-            await db_session.rollback()
-            msg = f"Failed to update partner IDs for dwellers: {e}"
-            raise ValueError(msg) from e
-
-        # Simplified - just create the relationship and partners, skip complex room management
-        logger.info(f"Quick paired: {dweller_1.id} and {dweller_2.id}")
-        return relationship
 
     @staticmethod
     async def calculate_compatibility_score(

@@ -20,8 +20,11 @@ AI-powered dweller interactions.
 - [x] **v2.41.1 released** — Frontend audit CRITICAL/MAJOR fixes (design-token migration, dead camelCase utilities,
       router typing).
 - [x] **v2.41.2 released** — Quest storage 500 fix (ValueError → 404/409) and EventBus cross-loop asyncpg race fix.
-- [ ] **Postpartum breeding cooldown + last-name inheritance** — mothers can no longer re-conceive on the next tick
-      after delivery; newborns take the father's last name by default. (Branch `fix/breeding-cooldown-and-naming`.)
+- [x] **v2.41.3 released** — Postpartum breeding cooldown + last-name inheritance.
+- [x] ~~**Postpartum breeding cooldown + last-name inheritance**~~ — ✅ **Done.** Merged in v2.41.3. Mothers can no longer
+      re-conceive on the next tick after delivery; newborns take the father's last name by default.
+- [ ] **v2.42.0 — The Family Update** — MARRIED relationship stage, lineage API + family tree UI (Family tab),
+      migration-safety CI, and Pydantic AI/Logfire verification. See "Version Milestones".
 
 ---
 
@@ -213,51 +216,21 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 ### P2 — Quality of Life
 
-- [ ] **Fix silent incident fetch failure**
-  - **Where:** `frontend/src/modules/combat/stores/incident.ts:128`
-  - **Issue:** `fetchIncidents(vaultId, token).catch(() => {})` swallows errors when an SSE `incident_spawned` event
-    arrives. If the follow-up fetch fails, the incident never appears and the player gets no feedback.
-  - **Fix:** Route the error through `handleStoreError` so the player sees a toast.
-  - **Effort:** trivial.
+- [x] ~~**Fix silent incident fetch failure**~~ — ✅ **Done.** `incident.ts` already routes errors through `handleStoreError` (line 75). The `.catch(() => {})` mentioned in the original plan no longer exists at that location.
 
-- [ ] **Gate or remove the Objectives debug overlay in production**
-  - **Where:** `frontend/src/modules/progression/components/ObjectivesDebugOverlay.vue`
-  - **Issue:** A floating `DEBUG` button that patches `console.log` is visible in the player UI.
-  - **Fix:** Render only when `import.meta.env.DEV` is true, or remove the component from production views.
-  - **Effort:** trivial.
+- [x] ~~**Gate or remove the Objectives debug overlay in production**~~ — ✅ **Done.** The `ObjectivesDebugOverlay.vue` component no longer exists in the codebase. The debug panel was removed in a prior cleanup.
 
-- [ ] **Add notification click-through navigation**
-  - **Where:** `frontend/src/modules/vault/components/shell/NotificationBell.vue`
-  - **Issue:** The bell displays typed notifications (`exploration_complete`, `dweller_died`, `baby_born`, etc.), but
-    tapping a notification only marks it read.
-  - **Fix:** Navigate to the relevant view (exploration detail, dweller detail, vault) based on `notification_type`.
-  - **Effort:** small.
+- [x] ~~**Add notification click-through navigation**~~ — ✅ **Done.** `NotificationBell.vue` already has `handleNotificationClick` with `getNotificationRoute()` that navigates to the relevant view based on `notification_type` (exploration, training, quests, dweller detail, etc.).
 
 ### P1 — Resource Economy (aligns with current trajectory)
 
-- [ ] **Surface resource trend alerts from existing rate/forecast data**
-  - **Where:** `frontend/src/modules/vault/components/shell/ResourceBar.vue`
-  - **Opportunity:** `ResourceBar` already computes per-minute rate and "estimated empty/full" in its tooltip.
-  - **Fix:** Promote that signal to a visible warning when a resource is trending to critical or low within the next
-    few ticks. This directly supports the resource-economy baseline goal of making staffing trade-offs obvious.
-  - **Effort:** small; mostly UI/UX around existing calculations.
+- [x] ~~**Surface resource trend alerts from existing rate/forecast data**~~ — ✅ **Done.** `ResourceBar.vue` already has `isDrainingCritical` (persistent warning when resource is draining and critically low), trend arrows, and tooltip with rate/forecast. The `useResourceWarnings` composable already shows toast warnings from backend `resource_warnings`.
 
 ### P1 — Gameplay Gaps
 
-- [ ] **Implement the vault-level event system stub**
-  - **Where:** `backend/app/services/game_loop.py:161-163`
-  - **Issue:** `PHASE 5: Event System` is a TODO that always returns `{"triggered": 0}`. This is the main missing
-    source of mid-game tension in a Fallout Shelter-style game.
-  - **Fix:** Fire weighted random vault events (raider scout, radroach breach, resource cache, wanderer at the door)
-    using the existing incident, notification, and SSE plumbing. Start with 2-3 event types and expand.
-  - **Effort:** medium — a few days — but the infrastructure is already in place.
+- [x] ~~**Implement the vault-level event system stub**~~ — ✅ **Done.** `game_loop.py:_process_events` (line 576-646) fires weighted random vault events: raider scout (spawns incident), resource cache (awards caps + notification), wanderer (awards caps + notification). Configured via `VaultEventConfig` in `game_config.py`. Only fires when user is online and vault has minimum population.
 
-- [ ] **Fix missing exploration rewards**
-  - **Where:** `backend/app/services/exploration/` (coordinator + event generator)
-  - **Issue:** Completed explorations return no rewards to the player (caps/items/loot not delivered or not shown).
-  - **Fix:** Trace the completion path end-to-end (reward accumulation → delivery → frontend rewards modal) and make
-    rewards land atomically with the completion result.
-  - **Effort:** medium — first reproduction test, then the fix.
+- [x] ~~**Fix missing exploration rewards**~~ — ✅ **Done.** `coordinator.py:_apply_rewards` (line 411-485) delivers caps to vault, calculates/applies XP with survival + luck bonuses, transfers loot to storage, returns unused stimpaks/radaways, emits item collection events, and publishes SSE completion events with full rewards summary.
 
 ### P2 — Chat Polish
 
@@ -277,244 +250,6 @@ update reduce net source LOC (features that add code must first offset it by rem
     dweller visuals can show items the dweller does not own.
   - **Fix:** Constrain visual-attribute generation to equipped or owned items.
   - **Effort:** medium.
-
-## Latest Release
-
-### Measurable Release Policy (v2.31.0+)
-
-Each release has one or two focused improvement areas and publishes the measured result. A release must improve at
-least one of the following without regressing features, readability, accessibility, or correctness:
-
-- startup/load time, endpoint latency, throughput, or test runtime;
-- memory footprint or bundle size;
-- code quality, including meaningful LOC reduction, complexity reduction, coverage, or static-analysis findings;
-- security, such as a remediated vulnerability, a hardened trust boundary, or new automated security coverage.
-
-Release notes must state the baseline, the after value, the measurement method/environment, and the absolute and
-percentage change. Claims must be reproducible from committed commands or CI artifacts. Do not report LOC reduction
-as an improvement unless the release retains equivalent behaviour and test coverage. If the release is primarily a
-feature delivery, record its measurable non-functional impact rather than inventing an optimization claim.
-
-### v2.41.2 — Quest Storage & EventBus Race Fixes (Released 2026-08-19)
-
-**Focus**: Correct HTTP semantics on quest completion and eliminate a production cross-thread race that was
-poisoning the asyncpg connection pool.
-
-- ✅ **Quest storage 500 → 404/409** — `reward_service.grant_item` raises `ResourceNotFoundException` / `ResourceConflictException` instead of bare `ValueError`, so full-storage quest completion returns the right status.
-- ✅ **EventBus cross-loop race** — emit locks keyed by `(event_type, vault_id, event_loop)`; objective evaluators use
-  a loop-local session maker. Eliminates `InterfaceError: another operation is in progress` (324×/24h on Hetzner).
-
-### v2.41.0 — Chat Streaming, Vault Events & Notification UX (Released 2026-08-17)
-
-**Focus**: Real-time polish across chat, events, and notifications.
-
-- ✅ **Chat over WebSocket** — token streaming over the existing socket with automatic REST fallback.
-- ✅ **Vault event system** — weighted random events (resource cache, wanderer, raider scout) with caps/incidents.
-- ✅ **Notification navigation** — bell notifications route to the relevant view by type.
-- ✅ **Visual equipment consistency** — generated visuals constrained to equipped/owned items.
-- ✅ **Exploration rewards via SSE** — completion events publish to the vault channel the frontend subscribes to.
-
-### v2.40.0 — Training Tab UX (Released 2026-08-15)
-
-**Focus**: Make training rooms legible at a glance.
-
-- ✅ **Occupancy-card training rooms** — live capacity and per-room active training counts.
-- ✅ **Live progress bars** — fill even before the game-loop worker persists an update.
-- ✅ **UTC training timestamps** — consistent `Z`-suffixed ISO-8601 serialization.
-
-### v2.39.x — Resource Production Corrections (Released 2026-08-14)
-
-- ✅ **Livelier economy** — `base_production_rate` corrected 0.0003 → 0.01 → 0.1 across patch releases.
-- ✅ **Dweller thumbnail fix** — thumbnails resolve through `getStaticImageUrl` with the API base URL prepended.
-
-### v2.33.2 — Training Queue Assignment Repair (Released 2026-08-13)
-
-**Fixed:** Auto-assigning dwellers to training rooms previously set their status to `training` without creating an
-active training session. Assignment now delegates to `TrainingService`, keeping progression, duration, and the Training
-Queue synchronized. `test_auto_assign_training_room_sets_training_status` protects this invariant.
-
-### v2.33.0 — Frontend Type Safety & Async Correctness (Released 2026-08-13)
-
-**Focus**: Enable compatible type-aware frontend linting and make filter-driven dweller requests safe against stale
-responses without changing gameplay behaviour.
-
-**Completed:**
-
-- ✅ **Type-aware Vite+/Oxlint** — enabled bundled type-aware linting with the pinned TypeScript 6.x toolchain;
-  retained the independent `vue-tsc` gate and added no standalone Oxc dependencies or TypeScript/Pinia upgrades.
-- ✅ **Promise-safety cleanup** — resolved all 15 type-aware findings (13 `no-floating-promises` and 2
-  `no-redundant-type-constituents`), leaving the type-aware lint gate at zero warnings/errors.
-- ✅ **Async watcher cleanup** — dweller filter/sort watcher requests now use `AbortController` cleanup; filtered,
-  modal-room, and dead-dweller stores accept only the most recent response. Regression coverage proves late obsolete
-  responses cannot replace newer results.
-- ✅ **Navigation consistency** — Profile, Dweller Detail, and exploration navigation share one labelled terminal
-  back control.
-- ✅ **Measurement** — `env -C frontend ./node_modules/.bin/vp lint src` increased active rules from **95** to
-  **110** (**+15; 15.8%**) while retaining **0 warnings and 0 errors**. Final lint wall time was **0.84s** with
-  Vite+ 0.2.7 in the locked frontend environment. `vue-tsc` and the frontend suite passed (93 files; 1,180 passed,
-  1 skipped).
-
-### v2.32.0 — Ruff Lint Cleanup & Google-Style Docstrings (Released 2026-08-12)
-
-**Focus**: Strengthen backend static analysis while adopting Google-style docstrings for the public API surface.
-
-**Completed:**
-
-- ✅ **Higher-signal Ruff coverage** — enabled `PERF`, `ERA`, `FURB`, `TC`, `S`, and `D`; removed no-longer-needed
-  suppressions and fixed the newly actionable findings while retaining explicit, documented project exceptions.
-- ✅ **Google-style docstrings** — configured Ruff's Google convention and documented public API interfaces; code areas
-  not yet migrated are explicitly excluded through scoped per-file ignores.
-- ✅ **Release alignment** — backend/frontend versions and the changelog are aligned at v2.32.0.
-- ✅ **Measurement** — `cd backend && uv run ruff check . --select ALL --statistics` reduced findings from **11,081**
-  (baseline: commit `f97e2597a58426f6fa3a4ce498ec000e7e4a62bf`) to **6,416**: **4,665 fewer findings (42.1%)**. Both
-  measurements used `uv 0.11.24`, the locked project environment on Python 3.13.13, and Ruff 0.16.2 with the command
-  above. The final configured gate, `cd backend && uv run ruff check .`, passes.
-- ✅ **Completed scope** — merged #419, #411, and #410; retained TypeScript 6.x / Pinia 3.x after deferring Pinia
-  4.0.2; enabled higher-signal Ruff rules and Google-style docstrings in scoped phases; and kept tests, CLI, Alembic,
-  and unmigrated modules under explicit per-file policy until their migration is complete.
-
-### v2.31.0 — Bio-to-Map Registration Reliability (Released 2026-08-12)
-
-**Focus**: Ensure a dweller's bio places are never silently absent from the world map after a registration failure, and
-provide a way to retroactively fill gaps for existing active vaults.
-
-**Completed:**
-
-- ✅ **Retry + durable failure signal** — `map_service.register_bio_places` now retries once and emits a
-  `MAP_REGISTRATION_FAILED` notification when both attempts fail; no longer log-only.
-- ✅ **Retroactive active-vault backfill** — New `BioPlaceBackfillService` with
-  `backfill_bio_places_for_vault` and `backfill_bio_places_for_active_vaults`; CLI script supports
-  `--all-active`, `--max-dwellers`, and `--max-vaults`.
-- ✅ **Service separation** — Backfill logic lives in its own service so `map_service.py` remains focused on
-  runtime registration and map assembly.
-- ✅ **Tests** — `test_bio_place_backfill_service.py` covers place extraction, single-vault backfill,
-  max-dwellers limit, and deleted-vault exclusion; script CLI tests updated.
-- ✅ **Coverage 80%+ achieved and enforced** — Current backend coverage is 82.44%. The fast PR/push CI
-  no longer runs coverage; a separate nightly/master coverage workflow runs with `--cov-fail-under=80`.
-
-### v2.30.0 — Frontend Refactor (August 11, 2026)
-
-**Focus**: Simplify and harden the Vue frontend without changing backend runtime behavior.
-
-**Completed:**
-
-- ✅ **Truthful frontend checks** — typecheck and module-boundary checks are enforced in CI
-- ✅ **Shared async behavior** — polling and async actions centralize loading and error handling
-- ✅ **View simplification** — major dweller, chat, exploration, and room views use focused components
-- ✅ **UX polish** — user-facing errors surface through toasts; loading and empty states are consistent
-- ✅ **Version bump** — backend/frontend aligned at v2.30.0
-
-### v2.26.0 — Alembic Enum Sync & Regression Coverage (August 7, 2026)
-
-**Focus**: Close the enum-drift gap that caused the `DWELLER_DIED` production outage — verify no drift exists today, then lock it with regression tests
-
-**Completed:**
-
-- ✅ **Zero-drift audit** — `alembic check` clean (no pending operations); live `pg_enum` catalog matches model metadata exactly (24 enum types); `compare_type=True` confirmed active in both offline and online modes
-- ✅ **Enum regression tests** — `backend/app/tests/test_db/test_enum_drift.py`: CI-safe golden-snapshot test (`PG_ENUM_LABELS_SNAPSHOT`) catching Python-side StrEnum drift + live-PG test (auto-skips without PostgreSQL) querying `pg_enum` to catch unapplied migrations; drift-detection proven by negative test
-- ✅ **AGENTS.md docs fix** — Corrected stale "offline-only `compare_type=True`" claim (commit `a252adab` enabled it in both modes); documented the manual enum-migration procedure + regression guard requirement
-- ✅ **Dweller age-coherence fix** — `create_random_common_dweller` now derives `age_group` + `birth_date` from the `is_adult` roll (was: random `is_adult` with `age_group` falling back to `ADULT` and `birth_date` `NULL`) and uses `max_health=100` (adult baseline, matching the breeding path) instead of the hardcoded 50; regression tests in `test_crud/test_dweller.py`
-- ✅ **Version bump** — Backend/frontend aligned at v2.26.0
-
-### v2.25.0 — Map Declutter & Dweller Data Integrity (August 7, 2026)
-
-**Focus**: Hide low-value single-dweller visited markers from the wasteland map, widen the render world to 160×160 via read-time scaling, and harden dweller bio/map seeding
-
-**Completed:**
-
-- ✅ **Map declutter** — Low-value single-dweller `VISITED` locations hidden from the SVG map (kept in the new marker list panel + detail modal); `MarkerListPanel`, `MapLegend`, `TerrainLayer` components, marker spread/zoom-pan/terrain utilities
-- ✅ **160-world read-time scaling** — `WORLD_SCALE = 1.6` applied in backend map read paths (`map_service`), no DB migration; frontend world grid 0–160 with matching `viewBox`
-- ✅ **Pregen service extraction** — Bio/map seeding moved from CLI into `PregenService` (service layer); `fo-cli pregen-dwellers` + `fo-cli dweller-bios` are thin wrappers; deterministic `seed` threaded through `crud.dweller.create_random` / `create_random_common_dweller` (`random.Random` + `Faker.seed_instance`)
-- ✅ **DwellerBio linkify fix** — Place-name linkification now works on entity-encoded text (e.g. `R&amp;D Labs`); DOM-fragment TreeWalker linkifier, 27 tests
-- ✅ **Review fixes** — DwellerDetailView routes map-fetch errors through `handleStoreError`; MapView `?place=` watcher covered by a reactive route-mock test
-
-### v2.24.0 — World Map (August 7, 2026)
-
-**Focus**: Schematic wasteland map with dweller bio-derived markers, procedural exploration discoveries, and seeded vault locations
-
-**Completed:**
-
-- ✅ **Map domain models** — `WastelandLocation` + `DwellerLocation` tables, `locationtype` + `dwellerlocationrelation` PG enums, hand-written Alembic migration `edb924d8dbeb`
-- ✅ **Place utilities** — `places.py`: name normalization, deterministic coordinate hashing, collision nudge, vault seed generation (pure stdlib, no DB/RNG)
-- ✅ **Discovery event** — new `discovery` exploration event type at 10% independent roll, `discovery_names.json` data
-- ✅ **Race-safe CRUD** — `wasteland_location.py` with get-or-create (IntegrityError rollback pattern), idempotent dweller linking, batched dweller refs
-- ✅ **Map service** — bio place registration (origin + up to 5 visited), discovery registration, idempotent home marker, computed vault markers
-- ✅ **Bio place extraction** — `DwellerBackstory`/`ExtendedBio` schemas expose `origin_place`/`visited_places`; `dweller_ai.py` extracts from generated bios
-- ✅ **Server-side hooks** — discovery registration in exploration coordinator, newborn origin link in breeding service (best-effort, non-blocking)
-- ✅ **Map API endpoints** — `GET /api/v1/map/vault/{id}` + `GET /api/v1/map/locations/{id}` with vault ownership checks
-- ✅ **Frontend data layer** — `map.ts` models, `mapService.ts`, `useMapStore` (30s polling), regenerated `api.generated.ts`
-- ✅ **Frontend map UI** — `WorldMap.vue` (SVG 100×100 grid), `MapMarker.vue` (type-color-coded), `MarkerDetailModal.vue`, `MapView.vue` (vault-shell layout)
-- ✅ **Frontend wiring** — route registration (`/vault/:id/map`), SidePanel nav entry (icon: `mdi:map`), module README
-
-### v2.23.1 — Vue 3.5 Reactive Destructure Migration (July 13, 2026)
-
-**Focus**: Migrate 30 components from `withDefaults()` to Vue 3.5 reactive destructure pattern
-
-**Completed:**
-
-- ✅ **30 components migrated** — Replaced `const props = withDefaults(defineProps<Props>(), {...})` with `const { ... } = defineProps<Props>()` across core UI, vault, dweller, progression, social, storage, combat, profile, and rooms modules
-- ✅ **Reactive destructure defaults** — All default values moved inline in destructure; factory defaults (`() => []`) replaced with `?? []` fallbacks where needed
-- ✅ **`props.X` references cleaned** — All `props.X` references in migrated files rewritten to direct variable access for both script and template
-- ✅ **TypeScript types preserved** — All type safety maintained; `vue-tsc --noEmit` passes clean; Oxlint 0 warnings
-
----
-
-### v2.23.0 — Chat WebSocket Migration (July 1, 2026)
-
-**Focus**: Chat WebSocket migration
-
-**Completed:**
-
-- ✅ **Chat REST→WebSocket migration** — Replaced POST-SSE chat streaming with dedicated WebSocket endpoint; removed chat SSE stub from stream.py
-- ✅ **Version bump** — Backend/frontend aligned at v2.23.0
-
----
-
-### v2.22.0 — Terminal Background Cleanup (June 28, 2026)
-
-**Focus**: Remove grey surfaces from auth forms, create reusable VaultNumberField component
-
-**Completed:**
-
-- ✅ **UInput `variant="terminal"` prop** — Added transparent background styling option to core UInput component (`bg-transparent`, no border on non-hover)
-- ✅ **Auth form cleanup** — Applied `variant="terminal"` to LoginFormTerminal, RegisterForm, ForgotPasswordView, and ResetPasswordView
-- ✅ **VaultNumberField component** — Extracted vault-number-input logic from HomeView into a reusable component
-- ✅ **HomeView simplification** — Replaced inline UInput with VaultNumberField; removed dead duplicates
-- ✅ **Version bump** — Backend/frontend aligned at v2.22.0
-
----
-
-### v2.21.0 — SSE Polish (June 24, 2026)
-
-**Focus**: Real-time SSE for incidents and game ticks, radio recruitment PostgreSQL fix
-
-**Completed:**
-
-- ✅ **Incident SSE publishing** — Incident service publishes via SSE (3 TDD tests)
-- ✅ **Incidents SSE endpoint** — `GET /stream/incidents/{vault_id}` with vault ownership check
-- ✅ **Incident store SSE subscription** — Replaced `setInterval` polling with SSE; 30s fallback on disconnect
-- ✅ **Vault store game-tick SSE** — Live resource updates via SSE; lifecycle bound to vault load/close/play-pause
-- ✅ **`useSseBase` auto-reconnect** — Exponential backoff (1s→2s→4s→...→30s max)
-- ✅ **Radio recruitment fix** — `datetime.now(UTC)` → `datetime.utcnow()` stops PostgreSQL `DataError`
-- ✅ **SSE heartbeat configurable** — `SSE_HEARTBEAT_INTERVAL` setting
-- ✅ **Dead code removal** — Removed dead POST-SSE `/stream/chat/{dweller_id}` endpoint
-
----
-
-### v2.20.0 — FE Simplification (YAGNI + DRY) (June 22, 2026)
-
-**Focus**: Reduce frontend complexity, remove dead code, consolidate DRY violations, migrate barrel imports
-
-**Completed:**
-
-- ✅ **6-step YAGNI heuristic** — Added to AGENTS.md governing all FE work
-- ✅ **~1500 LOC reduction** — Deleted ~1000 LOC dead code across 43 files
-- ✅ **DRY consolidation** — Merged useSse/usePostEventStream into useSseBase; merged WeaponCard/OutfitCard into EquipmentCard
-- ✅ **Barrel migration** — All legacy barrel imports migrated to @/modules/\* paths
-- ✅ **Dweller store split** — dweller.ts (796 LOC) split into 5 focused stores
-- ✅ **Dead composables removed** — useTerminalAudio (326 LOC), useAuth, useFlickering, composables/index.ts barrel
-- ✅ **Unused UI removed** — ComingSoonBadge, UDropdown (104 LOC)
-- ✅ **Aspirational infra removed** — api.ts wrapper (116 LOC), core/types/index.ts barrel, api/incident.ts dead duplicate
 
 ---
 
@@ -559,11 +294,18 @@ provide a way to retroactively fill gaps for existing active vaults.
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
 - [x] Test coverage target 80% — achieved 82.44%; enforced via nightly/master coverage workflow with `--cov-fail-under=80`
+- [ ] Reduce test flakiness — the suite runs on an in-memory SQLite engine with a single `StaticPool` connection, which
+      serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
+      not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition
+      coverage and to harden `test_vault` segfaults under garbage collection.
 
 ### Frontend
 
 - [x] Vue architecture refactor → COMPLETED (v2.1.0)
 - [ ] Component refactoring: Break down large components (DwellerCard, RoomGrid)
+- [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
+      ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
+      Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
 
 ### DevOps
 
@@ -590,6 +332,7 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 | Version | Release      | Highlights                                                        |
 | ------- | ------------ | ----------------------------------------------------------------- |
+| v2.42.0 | TBD          | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix               |
 | v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)               |
 | v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation             |
@@ -625,6 +368,22 @@ provide a way to retroactively fill gaps for existing active vaults.
 | v2.9.0  | Feb 07, 2026 | Chat exploration actions                                          |
 | v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                     |
 
+### v2.42.0 Observability Measurement (Pydantic AI & Logfire)
+
+Verified the Gateway path is live and documented (see `docs/backend/PYDANTIC_AI_GATEWAY.md`): `PYDANTIC_AI_GATEWAY_API_KEY`
+sets `ai_provider_mode == "gateway"` and `AIService._initialize_gateway()` builds the Gateway provider; Logfire
+instruments Pydantic AI with `include_content=False`.
+
+| Metric | Value |
+| ------ | ----- |
+| Deterministic agent-contract tests | 12 (`test_agents/test_dweller_agent_contracts.py`) |
+| Output-validation retry coverage | covered via `TestModel` (`validate_dweller_chat_output`, `test_invalid_structured_output_retries_before_failing`) |
+| Logfire config tests | 3 (`test_logfire_config.py`) — config + `instrument_pydantic_ai(include_content=False)` both paths |
+| C4 verification run | `test_logfire_config.py` + `test_dweller_agent_contracts.py` → 13 passed |
+
+No agent code changes were required — the Gateway path and instrumentation were already correctly wired; measurement
+recorded per D8. No gaps found; no future ROADMAP items added from this workstream.
+
 ---
 
 ## Priority System
@@ -637,4 +396,4 @@ provide a way to retroactively fill gaps for existing active vaults.
 
 ---
 
-_Last updated: 2026-08-19_ (v2.41.2 released; next focus: Family Relations)
+_Last updated: 2026-08-20_ (v2.41.3 released; most low-hanging fruit implemented; next focus: Family Relations, Pydantic AI Gateway activation)

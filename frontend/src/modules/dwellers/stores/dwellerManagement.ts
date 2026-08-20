@@ -1,14 +1,20 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
+import { getLineage, type LineageResponse } from '../services/lineageService'
 
 export const useDwellerManagementStore = defineStore('dwellerManagement', () => {
   const toast = useToast()
   const filterStore = useDwellerFilterStore()
+
+  const lineage = ref<LineageResponse | null>(null)
+  const isLoadingLineage = ref(false)
+  let lineageRequestSeq = 0
 
   async function assignDwellerToRoom(
     dwellerId: string,
@@ -306,6 +312,28 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
+  async function fetchLineage(dwellerId: string): Promise<LineageResponse | null> {
+    const seq = ++lineageRequestSeq
+    isLoadingLineage.value = true
+    try {
+      const result = await getLineage(dwellerId)
+      if (seq === lineageRequestSeq) {
+        lineage.value = result
+        return result
+      }
+      return null
+    } catch (error: unknown) {
+      if (seq === lineageRequestSeq) {
+        handleStoreError(error, 'Failed to fetch lineage')
+      }
+      return null
+    } finally {
+      if (seq === lineageRequestSeq) {
+        isLoadingLineage.value = false
+      }
+    }
+  }
+
   return {
     assignDwellerToRoom,
     unassignDwellerFromRoom,
@@ -315,5 +343,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     unassignAllDwellers,
     autoAssignProductionDwellers,
     autoAssignAllDwellers,
+    lineage,
+    isLoadingLineage,
+    fetchLineage,
   }
 })

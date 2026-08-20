@@ -679,13 +679,18 @@ class GameLoopService:
             relationships_map[key2] = rel
         return relationships_map
 
+    @staticmethod
+    def _affinity_gain(dweller1, dweller2) -> int:
+        """Give a small bonus when both dwellers are highly charismatic."""
+        return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
+
     async def _update_pair_affinity(
         self,
         db_session: AsyncSession,
         dweller1,
         dweller2,
         relationships_map: dict,
-        new_relationships: list,
+        new_relationships: list[tuple],
     ) -> int:
         """Update affinity for a pair of dwellers, creating relationship if needed.
 
@@ -715,23 +720,23 @@ class GameLoopService:
                 relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
                 affinity=0,
             )
-            new_relationships.append(relationship)
+            new_relationships.append((relationship, self._affinity_gain(dweller1, dweller2)))
             relationships_map[key] = relationship
             relationships_map[(dweller2.id, dweller1.id)] = relationship
             return 0  # New relationships updated later after commit
 
         # Only update affinity for existing (persistent) relationships
-        if relationship not in new_relationships:
+        if not any(new_relationship is relationship for new_relationship, _ in new_relationships):
             await relationship_service.increase_affinity(
                 db_session,
                 relationship.dweller_1_id,
                 relationship.dweller_2_id,
-                game_config.relationship.affinity_increase_per_tick,
+                self._affinity_gain(dweller1, dweller2),
             )
             return 1
         return 0
 
-    async def _create_new_relationships(self, db_session: AsyncSession, new_relationships: list) -> int:
+    async def _create_new_relationships(self, db_session: AsyncSession, new_relationships: list[tuple]) -> int:
         """Bulk create new relationships and update their affinity.
 
         :param db_session: Database session
@@ -746,23 +751,23 @@ class GameLoopService:
         if not new_relationships:
             return 0
 
-        db_session.add_all(new_relationships)
+        db_session.add_all([relationship for relationship, _ in new_relationships])
         await db_session.commit()
 
         # Update affinity for newly created relationships
         count = 0
-        for relationship in new_relationships:
+        for relationship, affinity_gain in new_relationships:
             await relationship_service.increase_affinity(
                 db_session,
                 relationship.dweller_1_id,
                 relationship.dweller_2_id,
-                game_config.relationship.affinity_increase_per_tick,
+                affinity_gain,
             )
             count += 1
         return count
 
     async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Update relationship affinity for dwellers in the same room.
+        """Update relationship affinity for dwellers sharing living quarters.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -772,12 +777,16 @@ class GameLoopService:
         :rtype: dict
         """
         from app.models.dweller import Dweller
+        from app.models.room import Room
 
         stats = {"relationships_updated": 0}
 
         try:
-            # Get all dwellers in this vault that are in rooms
-            dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None))
+            dwellers_query = (
+                select(Dweller)
+                .join(Room)
+                .where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None), Room.name.ilike("%living%"))
+            )
             dwellers_result = await db_session.execute(dwellers_query)
             dwellers = dwellers_result.scalars().all()
             if not dwellers:
@@ -792,13 +801,11 @@ class GameLoopService:
 
             relationships_map = self._build_relationships_map(existing_relationships)
 
-            # Update affinity for dwellers in the same room
             new_relationships = []
             for room_dweller_list in room_dwellers.values():
                 if len(room_dweller_list) < 2:
                     continue
 
-                # For each pair in the room, increase affinity
                 for i, dweller1 in enumerate(room_dweller_list):
                     for dweller2 in room_dweller_list[i + 1 :]:
                         updated = await self._update_pair_affinity(

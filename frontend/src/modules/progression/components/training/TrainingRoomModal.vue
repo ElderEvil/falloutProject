@@ -75,7 +75,7 @@ const availableDwellers = computed(() => {
     if (statValue >= 10) return false
 
     // Check dweller status (must be idle or working)
-    if (dweller.status !== 'idle' && dweller.status !== 'working') return false
+    if (!['idle', 'working', 'resting'].includes(dweller.status)) return false
 
     return true
   })

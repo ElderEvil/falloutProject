@@ -83,7 +83,7 @@ const availableDwellers = computed(() => {
     if (selectedDwellerIds.value.includes(dweller.id)) return true
 
     // Only show idle or working dwellers (not on other quests)
-    return dweller.status === 'idle' || dweller.status === 'working'
+    return ['idle', 'working', 'resting'].includes(dweller.status)
   })
 })
 

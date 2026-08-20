@@ -92,8 +92,8 @@ const getStatColorClass = (value: number) => {
         />
       </div>
 
-      <div class="flex flex-col" style="min-width: 140px">
-        <h3 class="font-bold text-base text-terminal-green">
+      <div class="dweller-identity flex w-44 min-w-0 flex-col">
+        <h3 class="truncate text-base font-bold text-terminal-green">
           {{ dweller.first_name }} {{ dweller.last_name }}
         </h3>
         <p class="text-sm text-gray-400">Level {{ dweller.level }}</p>

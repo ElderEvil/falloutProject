@@ -50,7 +50,7 @@ class DwellerService:
                     from app.utils.exceptions import ResourceNotFoundException
 
                     raise ResourceNotFoundException(model="Room", identifier=room_id)
-                data["status"] = determine_status_for_room(room_obj.category)
+                data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
         return await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data))
 

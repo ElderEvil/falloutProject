@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.vault import Vault
@@ -986,15 +987,19 @@ class TestRelationshipHelpers:
 
         d1 = MagicMock()
         d1.id = "d-1"
+        d1.charisma = 10
         d2 = MagicMock()
         d2.id = "d-2"
+        d2.charisma = 10
         new_rels = []
         result = await game_loop_service._update_pair_affinity(async_session, d1, d2, {}, new_rels)
         assert result == 0
         assert len(new_rels) == 1
-        assert new_rels[0].dweller_1_id == "d-1"
-        assert new_rels[0].dweller_2_id == "d-2"
-        assert new_rels[0].relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+        relationship, affinity_gain = new_rels[0]
+        assert relationship.dweller_1_id == "d-1"
+        assert relationship.dweller_2_id == "d-2"
+        assert relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+        assert affinity_gain == game_config.relationship.affinity_increase_per_tick + 1
 
     @pytest.mark.asyncio
     async def test_update_pair_affinity_existing(self, async_session: AsyncSession):
@@ -1003,8 +1008,10 @@ class TestRelationshipHelpers:
         mr.dweller_2_id = "d-2"
         d1 = MagicMock()
         d1.id = "d-1"
+        d1.charisma = 5
         d2 = MagicMock()
         d2.id = "d-2"
+        d2.charisma = 5
         rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
         with patch(
             "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
@@ -1020,9 +1027,11 @@ class TestRelationshipHelpers:
         mr.dweller_2_id = "d-2"
         d1 = MagicMock()
         d1.id = "d-1"
+        d1.charisma = 5
         d2 = MagicMock()
         d2.id = "d-2"
-        new_rels = [mr]
+        d2.charisma = 5
+        new_rels = [(mr, game_config.relationship.affinity_increase_per_tick)]
         rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
         with patch(
             "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
@@ -1049,7 +1058,10 @@ class TestRelationshipHelpers:
             patch.object(async_session, "commit", new_callable=AsyncMock),
             patch.object(async_session, "add_all"),
         ):
-            result = await game_loop_service._create_new_relationships(async_session, [r1, r2])
+            result = await game_loop_service._create_new_relationships(
+                async_session,
+                [(r1, game_config.relationship.affinity_increase_per_tick), (r2, game_config.relationship.affinity_increase_per_tick)],
+            )
         assert result == 2
 
 

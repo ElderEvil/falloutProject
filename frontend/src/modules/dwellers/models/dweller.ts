@@ -132,6 +132,14 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     borderColor: 'border-orange-500/50',
     glowColor: 'shadow-orange-500/30',
   },
+  resting: {
+    icon: 'mdi:heart-outline',
+    label: 'Socializing',
+    color: 'text-pink-400',
+    bgColor: 'bg-pink-900/30',
+    borderColor: 'border-pink-500/50',
+    glowColor: 'shadow-pink-500/30',
+  },
   dead: {
     icon: 'mdi:skull',
     label: 'Dead',

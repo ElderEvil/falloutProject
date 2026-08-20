@@ -547,9 +547,7 @@ class FamilyScenarioService:
 
         couples: list[Couple] = []
         for i, (d1_id, d2_id) in enumerate(raw_pairs):
-            couple = await cls.pair(
-                db_session, vault_id, d1_id, d2_id, stage, affinity, room_id if co_locate else None
-            )
+            couple = await cls.pair(db_session, vault_id, d1_id, d2_id, stage, affinity, room_id if co_locate else None)
             couple.index = i
             couples.append(couple)
 

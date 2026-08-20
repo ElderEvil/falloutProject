@@ -229,9 +229,10 @@ async def test_social_context_reports_live_status_family_and_affinity() -> None:
     room_result.scalar_one_or_none.return_value = "Living Room"
     relationships_result.scalars.return_value.all.return_value = [relationship]
     relatives_result.scalars.return_value.all.return_value = [partner, child]
-    session = MagicMock(get=AsyncMock(return_value=dweller), execute=AsyncMock(
-        side_effect=[room_result, relationships_result, relatives_result]
-    ))
+    session = MagicMock(
+        get=AsyncMock(return_value=dweller),
+        execute=AsyncMock(side_effect=[room_result, relationships_result, relatives_result]),
+    )
 
     context = await build_dweller_social_context(
         DwellerChatDeps(db_session=session, dweller=MagicMock(id=dweller_id), vault_id=uuid4())

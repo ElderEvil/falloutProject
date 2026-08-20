@@ -663,9 +663,7 @@ class GameLoopService:
         relationships_result = await db_session.execute(relationships_query)
         return relationships_result.scalars().all()
 
-    def _build_relationships_map(
-        self, relationships: list[Relationship]
-    ) -> dict[tuple[UUID4, UUID4], Relationship]:
+    def _build_relationships_map(self, relationships: list[Relationship]) -> dict[tuple[UUID4, UUID4], Relationship]:
         """Build a bidirectional lookup map for relationships.
 
         :param relationships: List of relationships to map

@@ -354,7 +354,9 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
         relation.dweller_2_id if relation.dweller_1_id == dweller.id else relation.dweller_1_id
         for relation in relationships
     }
-    family_ids = {member_id for member_id in (dweller.partner_id, dweller.parent_1_id, dweller.parent_2_id) if member_id}
+    family_ids = {
+        member_id for member_id in (dweller.partner_id, dweller.parent_1_id, dweller.parent_2_id) if member_id
+    }
     relatives_result = await deps.db_session.execute(
         select(Dweller).where(
             Dweller.id.in_(family_ids | relation_ids)

@@ -11,7 +11,10 @@ from app.crud import room as room_crud
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 
-MIGRATION_PATH = Path(__file__).parents[2] / "alembic/versions/2026_08_21_0001-d4e5f6a7b8c9_backfill_living_quarters_socializing_status.py"
+MIGRATION_PATH = (
+    Path(__file__).parents[2]
+    / "alembic/versions/2026_08_21_0001-d4e5f6a7b8c9_backfill_living_quarters_socializing_status.py"
+)
 MIGRATION_SPEC = importlib.util.spec_from_file_location("living_room_status_migration", MIGRATION_PATH)
 assert MIGRATION_SPEC
 assert MIGRATION_SPEC.loader

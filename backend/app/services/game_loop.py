@@ -13,7 +13,9 @@ from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
+from app.models.dweller import Dweller
 from app.models.game_state import GameState
+from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
@@ -645,31 +647,29 @@ class GameLoopService:
         self.logger.info(f"Vault event {event_type} triggered in vault {vault_id}")
         return stats
 
-    async def _fetch_existing_relationships(self, db_session: AsyncSession, dweller_ids: set) -> list:
+    async def _fetch_existing_relationships(
+        self, db_session: AsyncSession, dweller_ids: set[UUID4]
+    ) -> list[Relationship]:
         """Batch fetch all relationships for a set of dweller IDs.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param dweller_ids: Set of dweller IDs to fetch relationships for
-        :type dweller_ids: set
         :returns: List of existing relationships
-        :rtype: list
         """
-        from app.models.relationship import Relationship
-
         relationships_query = select(Relationship).where(
             (Relationship.dweller_1_id.in_(dweller_ids)) | (Relationship.dweller_2_id.in_(dweller_ids))
         )
         relationships_result = await db_session.execute(relationships_query)
         return relationships_result.scalars().all()
 
-    def _build_relationships_map(self, relationships: list) -> dict:
+    def _build_relationships_map(
+        self, relationships: list[Relationship]
+    ) -> dict[tuple[UUID4, UUID4], Relationship]:
         """Build a bidirectional lookup map for relationships.
 
         :param relationships: List of relationships to map
-        :type relationships: list
         :returns: Dictionary mapping (dweller_id, dweller_id) tuples to relationships
-        :rtype: dict
         """
         relationships_map = {}
         for rel in relationships:
@@ -680,17 +680,17 @@ class GameLoopService:
         return relationships_map
 
     @staticmethod
-    def _affinity_gain(dweller1, dweller2) -> int:
+    def _affinity_gain(dweller1: Dweller, dweller2: Dweller) -> int:
         """Give a small bonus when both dwellers are highly charismatic."""
         return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
 
     async def _update_pair_affinity(
         self,
         db_session: AsyncSession,
-        dweller1,
-        dweller2,
-        relationships_map: dict,
-        new_relationships: list[tuple],
+        dweller1: Dweller,
+        dweller2: Dweller,
+        relationships_map: dict[tuple[UUID4, UUID4], Relationship],
+        new_relationships: list[tuple[Relationship, int]],
     ) -> int:
         """Update affinity for a pair of dwellers, creating relationship if needed.
 
@@ -699,13 +699,10 @@ class GameLoopService:
         :param dweller1: First dweller in the pair
         :param dweller2: Second dweller in the pair
         :param relationships_map: Lookup map for existing relationships
-        :type relationships_map: dict
         :param new_relationships: List to append new relationships to
-        :type new_relationships: list
         :returns: Count of relationships updated (0 or 1)
         :rtype: int
         """
-        from app.models.relationship import Relationship
         from app.schemas.common import RelationshipTypeEnum
         from app.services.relationship_service import relationship_service
 
@@ -736,13 +733,14 @@ class GameLoopService:
             return 1
         return 0
 
-    async def _create_new_relationships(self, db_session: AsyncSession, new_relationships: list[tuple]) -> int:
+    async def _create_new_relationships(
+        self, db_session: AsyncSession, new_relationships: list[tuple[Relationship, int]]
+    ) -> int:
         """Bulk create new relationships and update their affinity.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param new_relationships: List of new relationships to persist
-        :type new_relationships: list
         :returns: Count of relationships created and updated
         :rtype: int
         """
@@ -776,7 +774,6 @@ class GameLoopService:
         :returns: Statistics with 'relationships_updated' count
         :rtype: dict
         """
-        from app.models.dweller import Dweller
         from app.models.room import Room
 
         stats = {"relationships_updated": 0}
@@ -801,7 +798,7 @@ class GameLoopService:
 
             relationships_map = self._build_relationships_map(existing_relationships)
 
-            new_relationships = []
+            new_relationships: list[tuple[Relationship, int]] = []
             for room_dweller_list in room_dwellers.values():
                 if len(room_dweller_list) < 2:
                     continue

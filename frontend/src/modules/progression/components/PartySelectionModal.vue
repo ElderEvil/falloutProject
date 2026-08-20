@@ -216,7 +216,7 @@ const handleAssignAndStart = () => {
             </div>
             <div class="dweller-status">
               <UBadge :variant="dweller.status === 'idle' ? 'success' : 'warning'">
-                {{ dweller.status }}
+                {{ dweller.status === 'resting' ? 'Socializing' : dweller.status }}
               </UBadge>
             </div>
           </div>

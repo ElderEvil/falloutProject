@@ -259,6 +259,59 @@ async def test_lineage_excludes_soft_deleted_ancestors(
     lineage = await lineage_service.get_lineage(async_session, child.id)
 
     # The deleted parent is omitted from the results and its own ancestor chain
-    # is not followed, so the child reports generation 1 (not 2) with no parents.
+    # is not followed, so the child reports generation 0 (orphan) with no parents.
     assert lineage.parents == []
+    assert lineage.generation == 0
+
+
+@pytest.mark.asyncio
+async def test_lineage_generation_ignores_cycles(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """A parent cycle must not create phantom generation levels."""
+    dweller_a = await _make_dweller(async_session, vault, first_name="CycleA")
+    dweller_b = await _make_dweller(async_session, vault, first_name="CycleB")
+    # Set both dwellers as each other's parent to form a 2-node cycle.
+    dweller_a.parent_1_id = dweller_b.id
+    dweller_b.parent_1_id = dweller_a.id
+    await async_session.commit()
+
+    lineage = await lineage_service.get_lineage(async_session, dweller_a.id)
+
+    # The other cycle member counts as one level; the cycle is not followed further.
     assert lineage.generation == 1
+
+
+@pytest.mark.asyncio
+async def test_lineage_generation_ignores_cross_vault_parent(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """A parent from another vault does not add a generation level."""
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
+
+    user = await crud.user.create(
+        db_session=async_session,
+        obj_in=UserCreate(username="other_owner", email="other@example.com", password="secret123"),
+    )
+    other = await crud.vault.create(
+        db_session=async_session,
+        obj_in=VaultCreateWithUserID(
+            number=999,
+            bottle_caps=0,
+            happiness=50,
+            power=50,
+            food=50,
+            water=50,
+            user_id=user.id,
+        ),
+    )
+    other_parent = await _make_dweller(async_session, other, first_name="OtherParent")
+    child = await _make_dweller(async_session, vault, first_name="Child", parent_1_id=other_parent.id)
+
+    lineage = await lineage_service.get_lineage(async_session, child.id)
+
+    assert lineage.parents == []
+    assert lineage.generation == 0

@@ -43,7 +43,10 @@ def _parse_pairs(pairs: str | None) -> list[tuple[UUID, UUID]] | None:
         ids = [part.strip() for part in chunk.split(",") if part.strip()]
         if len(ids) != 2:
             raise typer.BadParameter(f"Each pair must be exactly two dweller ids, got {chunk!r}")
-        result.append((UUID(ids[0]), UUID(ids[1])))
+        try:
+            result.append((UUID(ids[0]), UUID(ids[1])))
+        except ValueError as exc:
+            raise typer.BadParameter(f"Invalid dweller id in --pairs chunk {chunk!r}: {exc}") from exc
     return result
 
 
@@ -51,14 +54,32 @@ def _parse_float_list(values: str | None) -> list[float] | None:
     """Parse a comma-separated list of numbers."""
     if not values:
         return None
-    return [float(part.strip()) for part in values.split(",") if part.strip()]
+    result: list[float] = []
+    for token in values.split(","):
+        stripped = token.strip()
+        if not stripped:
+            continue
+        try:
+            result.append(float(stripped))
+        except ValueError as exc:
+            raise typer.BadParameter(f"Invalid number {stripped!r} in --postpartum-hours / --child-ages-hours") from exc
+    return result
 
 
 def _parse_int_list(values: str | None) -> list[int] | None:
     """Parse a comma-separated list of integers."""
     if not values:
         return None
-    return [int(part.strip()) for part in values.split(",") if part.strip()]
+    result: list[int] = []
+    for token in values.split(","):
+        stripped = token.strip()
+        if not stripped:
+            continue
+        try:
+            result.append(int(stripped))
+        except ValueError as exc:
+            raise typer.BadParameter(f"Invalid integer {stripped!r} in --pregnancy-due-minutes") from exc
+    return result
 
 
 @app.command()

@@ -756,3 +756,46 @@ async def test_increase_affinity_auto_marry_rolls_back_when_commit_fails(
     await async_session.refresh(dweller_2)
     assert dweller.happiness == base_1
     assert dweller_2.happiness == base_2
+
+
+@pytest.mark.asyncio
+async def test_marry_applies_bonus_once_under_repeated_attempts(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A repeated marry attempt on an already-married relationship is rejected
+    without re-applying the one-time happiness bonus or re-sending the
+    notification (only the request that wins the PARTNER->MARRIED transition
+    applies them)."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    base_1 = dweller.happiness
+    base_2 = dweller_2.happiness
+
+    notify_count = {"n": 0}
+    real_notify = RelationshipService._notify_marriage
+
+    async def _counting_notify(db_session, relationship):
+        notify_count["n"] += 1
+        await real_notify(db_session, relationship)
+
+    monkeypatch.setattr(RelationshipService, "_notify_marriage", _counting_notify)
+
+    married = await RelationshipService.marry(async_session, partner_rel.id)
+    assert married.relationship_type == RelationshipTypeEnum.MARRIED
+
+    # Second attempt loses the transition and must not re-apply anything.
+    with pytest.raises(ValidationException, match="Only partners can marry"):
+        await RelationshipService.marry(async_session, partner_rel.id)
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(dweller_2)
+    expected = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
+    assert dweller.happiness == min(100, base_1 + expected)
+    assert dweller_2.happiness == min(100, base_2 + expected)
+    assert notify_count["n"] == 1

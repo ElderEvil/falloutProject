@@ -294,11 +294,18 @@ update reduce net source LOC (features that add code must first offset it by rem
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
 - [x] Test coverage target 80% — achieved 82.44%; enforced via nightly/master coverage workflow with `--cov-fail-under=80`
+- [ ] Reduce test flakiness — the suite runs on an in-memory SQLite engine with a single `StaticPool` connection, which
+      serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
+      not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition
+      coverage and to harden `test_vault` segfaults under garbage collection.
 
 ### Frontend
 
 - [x] Vue architecture refactor → COMPLETED (v2.1.0)
 - [ ] Component refactoring: Break down large components (DwellerCard, RoomGrid)
+- [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
+      ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
+      Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
 
 ### DevOps
 

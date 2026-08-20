@@ -82,8 +82,10 @@ jobs:
         # Extra plugins are not bundled with semantic-release core, so install
         # everything into the working directory (gitignored node_modules) so
         # semantic-release can resolve them from the project cwd. No package.json
-        # or lockfile is created/committed.
-        run: npm install --no-save --no-package-lock --no-audit --no-fund semantic-release@25.0.9 @semantic-release/changelog@7.0.0 @semantic-release/exec@7.1.0 @semantic-release/git@11.0.1
+        # or lockfile is created/committed. conventional-changelog-conventionalcommits
+        # is the preset selected by .releaserc.json and must be resolvable by the
+        # commit-analyzer / release-notes-generator plugins.
+        run: npm install --no-save --no-package-lock --no-audit --no-fund semantic-release@25.0.9 @semantic-release/changelog@7.0.0 @semantic-release/exec@7.1.0 @semantic-release/git@11.0.1 conventional-changelog-conventionalcommits@8.0.0
 
       - name: Run semantic-release
         env:
@@ -92,7 +94,7 @@ jobs:
           GIT_AUTHOR_EMAIL: semantic-release-bot@github.com
           GIT_COMMITTER_NAME: semantic-release-bot
           GIT_COMMITTER_EMAIL: semantic-release-bot@github.com
-        run: npx --no-install semantic-release
+        run: npx --no semantic-release
 
       - name: Identify published release
         id: published-release

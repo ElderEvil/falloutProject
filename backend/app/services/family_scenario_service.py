@@ -143,11 +143,14 @@ class FamilyScenarioService:
             raise ValueError(f"Dweller not found (id={dweller_id})") from exc
 
     @staticmethod
-    async def _get_room(db_session: AsyncSession, room_id: UUID4) -> Room:
+    async def _get_room(db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         try:
-            return await crud.room.get(db_session, room_id)
+            room = await crud.room.get(db_session, room_id)
         except ResourceNotFoundException as exc:
             raise ValueError(f"Room not found (id={room_id})") from exc
+        if vault_id is not None and room.vault_id != vault_id:
+            raise ValueError(f"Room {room_id} does not belong to vault {vault_id}")
+        return room
 
     # ------------------------------------------------------------------
     # couple pairing
@@ -533,18 +536,23 @@ class FamilyScenarioService:
         else:
             raw_pairs = await cls.auto_pair(db_session, vault_id, count, seed)
 
-        couples: list[Couple] = []
-        for i, (d1_id, d2_id) in enumerate(raw_pairs):
-            couple = await cls.pair(db_session, vault_id, d1_id, d2_id, stage, affinity, room_id)
-            couple.index = i
-            couples.append(couple)
-
+        # Resolve and validate the co-location room before creating any couples,
+        # so an invalid or cross-vault room is rejected up front.
         room = None
         if co_locate:
             if room_id is not None:
-                room = await cls._get_room(db_session, room_id)
+                room = await cls._get_room(db_session, room_id, vault_id)
             else:
                 room = await cls.find_living_quarters(db_session, vault_id)
+
+        couples: list[Couple] = []
+        for i, (d1_id, d2_id) in enumerate(raw_pairs):
+            couple = await cls.pair(
+                db_session, vault_id, d1_id, d2_id, stage, affinity, room_id if co_locate else None
+            )
+            couple.index = i
+            couples.append(couple)
+
         for couple in couples:
             await cls._co_locate(db_session, couple, room)
 

@@ -1,7 +1,10 @@
 """CRUD operations for relationships."""
 
+from datetime import UTC, datetime
+
 from pydantic import UUID4
 from sqlalchemy import and_
+from sqlalchemy import update as sa_update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,6 +37,30 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         )
         result = await db.execute(query)
         return result.scalars().first()
+
+    async def transition_partner_to_married(
+        self,
+        db: AsyncSession,
+        relationship_id: UUID4,
+        affinity: int | None = None,
+    ) -> bool:
+        """Atomically transition a PARTNER relationship to MARRIED.
+
+        Uses a conditional UPDATE so only one concurrent request wins: it only
+        updates rows that are still PARTNER. Returns True if this call performed
+        the transition (and so should apply the one-time bonus/notification),
+        False if the relationship was already not PARTNER (another request won).
+        """
+        values: dict = {"relationship_type": "MARRIED", "updated_at": datetime.now(UTC).replace(tzinfo=None)}
+        if affinity is not None:
+            values["affinity"] = affinity
+        query = (
+            sa_update(Relationship)
+            .where(Relationship.id == relationship_id, Relationship.relationship_type == "PARTNER")
+            .values(**values)
+        )
+        result = await db.execute(query)
+        return result.rowcount > 0
 
     async def get_by_dweller(
         self,

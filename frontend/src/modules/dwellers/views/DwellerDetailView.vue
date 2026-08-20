@@ -44,6 +44,7 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
 const loading = ref(false)
+let loadSeq = 0
 const generatingAI = ref(false)
 const generatingBio = ref(false)
 const generatingPortrait = ref(false)
@@ -68,25 +69,27 @@ const placeLinks = ref<MapPlaceLink[]>([])
 
 async function loadDweller() {
   if (!authStore.isAuthenticated || !dwellerId.value) return
+  const requestedId = dwellerId.value
+  const seq = ++loadSeq
   loading.value = true
-  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string)
+  const fetched = await dwellerStore.fetchDwellerDetails(requestedId, authStore.token as string)
+  if (seq !== loadSeq) return
   loading.value = false
 
   // Fetch revival cost if dweller is dead
-  if (dweller.value?.is_dead && !dweller.value?.is_permanently_dead) {
-    revivalCost.value = await dwellerDeathStore.getRevivalCost(
-      dwellerId.value,
-      authStore.token as string
-    )
+  if (fetched?.is_dead && !fetched.is_permanently_dead) {
+    revivalCost.value = await dwellerDeathStore.getRevivalCost(requestedId, authStore.token as string)
   }
 
   // Fetch vault map to compute place links for bio linkification
   try {
     const mapData = await getVaultMap(authStore.token as string, vaultId.value)
+    if (seq !== loadSeq) return
     placeLinks.value = mapData.locations
-      .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === dwellerId.value))
+      .filter((loc) => loc.dwellers?.some((d) => d.dweller_id === requestedId))
       .map((loc) => ({ name: loc.name, locationId: loc.id }))
   } catch (error) {
+    if (seq !== loadSeq) return
     // Graceful degradation: bio renders unlinked if map fetch fails
     handleStoreError(error, 'Failed to load vault map for bio place links')
   }

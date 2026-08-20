@@ -138,8 +138,9 @@ class LineageService:
     async def _compute_generation(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> int:
         """Walk parents upward to compute the generation number (0 for orphans).
 
-        Only live parents within the same vault are followed, so a stray
-        cross-vault or soft-deleted link cannot inflate the generation count.
+        Only live, same-vault parents are followed, and a candidate is validated
+        before being added to the next frontier so cross-vault links, soft-deleted
+        dwellers, and cycles never add phantom generation levels.
         """
         generation = 0
         seen: set[UUID4] = set()
@@ -155,10 +156,12 @@ class LineageService:
                 parent = await dweller_crud.get(db_session, current_id, include_deleted=True)
                 if not parent or parent.vault_id != vault_id or parent.is_deleted:
                     continue
-                if parent.parent_1_id:
-                    next_frontier.append(parent.parent_1_id)
-                if parent.parent_2_id:
-                    next_frontier.append(parent.parent_2_id)
+                for candidate_id in (parent.parent_1_id, parent.parent_2_id):
+                    if candidate_id is None or candidate_id in seen:
+                        continue
+                    candidate = await dweller_crud.get(db_session, candidate_id, include_deleted=True)
+                    if candidate and candidate.vault_id == vault_id and not candidate.is_deleted:
+                        next_frontier.append(candidate_id)
             if next_frontier:
                 generation += 1
             frontier = next_frontier

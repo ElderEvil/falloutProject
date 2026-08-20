@@ -97,7 +97,8 @@ class RelationshipService:
             msg = "Relationship not found between dwellers"
             raise ValueError(msg)
 
-        update_data = {"affinity": min(100, relationship.affinity + amount), "updated_at": datetime.utcnow()}
+        new_affinity = min(100, relationship.affinity + amount)
+        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
         old_type = relationship.relationship_type
 
         # Auto-upgrade relationship based on affinity thresholds
@@ -117,24 +118,26 @@ class RelationshipService:
 
         is_marriage_transition = (
             relationship.relationship_type == RelationshipTypeEnum.PARTNER
-            and update_data["affinity"] >= game_config.relationship.marriage_threshold
+            and new_affinity >= game_config.relationship.marriage_threshold
         )
         if is_marriage_transition:
-            # Partner to married at 85+ affinity
-            update_data["relationship_type"] = RelationshipTypeEnum.MARRIED
-
-        if is_marriage_transition:
-            # Apply the relationship update and the happiness bonus atomically by
-            # mutating the ORM object and committing once, so neither persists
-            # without the other. Notify only after the commit succeeds.
-            for field, value in update_data.items():
-                setattr(relationship, field, value)
-            db_session.add(relationship)
-            await RelationshipService._apply_marriage_bonus(
-                db_session, relationship.dweller_1_id, relationship.dweller_2_id, commit=False
-            )
-            await db_session.commit()
-            await RelationshipService._notify_marriage(db_session, relationship)
+            # Conditional PARTNER->MARRIED update so only one concurrent request
+            # wins the transition and applies the one-time bonus/notification.
+            if await relationship_crud.transition_partner_to_married(
+                db_session, relationship.id, affinity=new_affinity
+            ):
+                relationship.relationship_type = RelationshipTypeEnum.MARRIED
+                relationship.affinity = new_affinity
+                relationship.updated_at = update_data["updated_at"]
+                db_session.add(relationship)
+                await RelationshipService._apply_marriage_bonus(
+                    db_session, relationship.dweller_1_id, relationship.dweller_2_id, commit=False
+                )
+                await db_session.commit()
+                await RelationshipService._notify_marriage(db_session, relationship)
+            else:
+                # Lost the race (already not PARTNER): just persist the affinity bump.
+                relationship = await relationship_crud.update(db_session, relationship.id, update_data)
         else:
             relationship = await relationship_crud.update(db_session, relationship.id, update_data)
 
@@ -289,12 +292,17 @@ class RelationshipService:
             msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
             raise ValidationException(msg)
 
-        update_data = {"relationship_type": RelationshipTypeEnum.MARRIED, "updated_at": datetime.utcnow()}
-        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+        # Conditional PARTNER->MARRIED update: only one concurrent request wins;
+        # the loser raises so it applies no bonus/notification.
+        if not await relationship_crud.transition_partner_to_married(db_session, relationship_id):
+            msg = "Only partners can marry"
+            raise ValidationException(msg)
 
+        relationship.relationship_type = RelationshipTypeEnum.MARRIED
         await RelationshipService._apply_marriage_bonus(
             db_session, relationship.dweller_1_id, relationship.dweller_2_id
         )
+        await db_session.refresh(relationship)
         await RelationshipService._notify_marriage(db_session, relationship)
 
         logger.info(f"Married: {relationship.dweller_1_id} ↔ {relationship.dweller_2_id}")

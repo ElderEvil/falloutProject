@@ -1,7 +1,5 @@
 """Tests for deterministic world-map place utilities."""
 
-from uuid import UUID
-
 from app.utils.places import (
     GENERIC_ORIGIN_SKIP,
     collision_nudge,
@@ -95,45 +93,38 @@ class TestCollisionNudge:
 class TestSeededVaultSpecs:
     """Tests for seeded_vault_specs."""
 
-    VAULT_1 = UUID("00000000-0000-0000-0000-000000000001")
-
     def test_count_in_range(self) -> None:
-        for i in range(20):
-            specs = seeded_vault_specs(UUID(int=i + 1), home_number=1)
+        for home in range(1, 21):
+            specs = seeded_vault_specs(home_number=home)
             assert 3 <= len(specs) <= 7
 
     def test_deterministic_across_calls(self) -> None:
-        first = seeded_vault_specs(self.VAULT_1, home_number=1)
-        second = seeded_vault_specs(self.VAULT_1, home_number=1)
-        assert first == second
+        assert seeded_vault_specs(home_number=1) == seeded_vault_specs(home_number=1)
 
-    def test_numbers_distinct_and_exclude_home(self) -> None:
-        for i in range(10):
-            home = i + 1
-            specs = seeded_vault_specs(UUID(int=i + 100), home_number=home)
+    def test_numbers_are_distinct_and_valid(self) -> None:
+        for home in range(1, 11):
+            specs = seeded_vault_specs(home_number=home)
             numbers = [int(seed.name.split()[-1]) for seed in specs]
             assert len(numbers) == len(set(numbers))
-            assert home not in numbers
             for number in numbers:
                 assert 1 <= number <= 999
 
     def test_names_formatted(self) -> None:
-        specs = seeded_vault_specs(self.VAULT_1, home_number=1)
-        for seed in specs:
+        for seed in seeded_vault_specs(home_number=1):
             assert seed.name == f"Vault {int(seed.name.split()[-1]):03}"
 
     def test_coords_within_bounds(self) -> None:
-        specs = seeded_vault_specs(self.VAULT_1, home_number=1)
-        for seed in specs:
+        for seed in seeded_vault_specs(home_number=1):
             assert 0.0 <= seed.coord_x <= 100.0
             assert 0.0 <= seed.coord_y <= 100.0
 
     def test_coords_avoid_home_origin_and_each_other(self) -> None:
-        specs = seeded_vault_specs(self.VAULT_1, home_number=1)
+        specs = seeded_vault_specs(home_number=1)
         coords = {(seed.coord_x, seed.coord_y) for seed in specs}
         assert len(coords) == len(specs)
         assert (50.0, 50.0) not in coords
 
-    def test_different_vaults_differ(self) -> None:
-        other = UUID("00000000-0000-0000-0000-000000000002")
-        assert seeded_vault_specs(self.VAULT_1, home_number=1) != seeded_vault_specs(other, home_number=1)
+    def test_viewer_independent_shared_world(self) -> None:
+        roster = seeded_vault_specs(home_number=1)
+        for home_number in range(2, 1_000):
+            assert seeded_vault_specs(home_number=home_number) == roster

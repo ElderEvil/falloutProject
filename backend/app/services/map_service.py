@@ -382,7 +382,7 @@ class MapService:
             )
 
         # --- computed vault markers ---
-        specs = seeded_vault_specs(vault.id, vault.number)
+        specs = seeded_vault_specs(vault.number)
         vault_markers = [
             VaultMarkerRead(
                 name=s.name,

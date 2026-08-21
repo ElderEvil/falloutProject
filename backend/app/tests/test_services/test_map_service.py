@@ -1,6 +1,7 @@
 """Tests for MapService — registration and map assembly."""
 
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -228,6 +229,24 @@ async def test_get_vault_map_returns_vault_markers(async_session: AsyncSession, 
     assert len(response.locations) >= 1
     home_locs = [loc for loc in response.locations if loc.type == LocationTypeEnum.HOME_VAULT]
     assert len(home_locs) == 1
+
+
+@pytest.mark.asyncio
+async def test_register_discovery_rolls_back_with_callers_transaction(async_session: AsyncSession, vault: Vault) -> None:
+    """Discovery registration must not commit before its event can be persisted."""
+    location = await map_service.register_discovery(async_session, vault.id, uuid4(), "Rollback Depot")
+    assert location is not None
+
+    await async_session.rollback()
+
+    rows = (
+        await async_session.execute(
+            select(WastelandLocation).where(
+                WastelandLocation.normalized_name == normalize_place_name("Rollback Depot")
+            )
+        )
+    ).scalars().all()
+    assert rows == []
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getEventIcon, getEventColor } from '@/modules/exploration/models/exploration'
 import type { ExplorationEvent } from '@/modules/exploration/stores/exploration'
@@ -14,6 +15,13 @@ const props = withDefaults(defineProps<Props>(), {
   reverse: false,
   showLoot: true,
 })
+
+const router = useRouter()
+const route = useRoute()
+
+const goToLocation = (locationId: string) => {
+  router.push(`/vault/${route.params.id}/map?place=${locationId}`)
+}
 
 const orderedEvents = computed(() => {
   if (!props.reverse) return props.events
@@ -99,6 +107,14 @@ const getLootDisplay = (event: ExplorationEvent): string => {
             <span class="text-[0.8125rem] leading-[1.4] text-theme-primary/90">{{
               event.description
             }}</span>
+            <button
+              v-if="event.type === 'discovery' && event.location_id"
+              class="inline-flex items-center gap-1 self-start rounded-[3px] border border-theme-primary/40 bg-theme-primary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-theme-primary transition-colors duration-150 hover:bg-theme-primary/20"
+              @click="goToLocation(event.location_id)"
+            >
+              <Icon icon="mdi:map-marker" class="h-3.5 w-3.5" />
+              View on map
+            </button>
             <div
               v-if="showLoot && hasLoot(event)"
               class="loot-line inline-flex items-center gap-1 self-start rounded-[3px] border border-rarity-legendary/30 bg-rarity-legendary/10 px-1.5 py-0.5 text-[0.75rem] font-semibold text-rarity-legendary"

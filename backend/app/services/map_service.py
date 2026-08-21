@@ -266,17 +266,25 @@ class MapService:
         vault_id: UUID4,
         exploration_id: UUID4,
         location_name: str,
-    ) -> None:
-        """Upsert a DISCOVERY location row for an exploration — best-effort."""
+    ) -> WastelandLocation | None:
+        """Upsert a DISCOVERY location row for an exploration — best-effort.
+
+        Returns the location row (with id and coordinates) when successful, else None.
+        """
         try:
-            await wl_crud.get_or_create(
+            return await wl_crud.get_or_create(
                 db_session,
                 vault_id=vault_id,
                 name=location_name[:64],
                 type=LocationTypeEnum.DISCOVERY,
                 exploration_id=exploration_id,
+                commit=False,
             )
         except Exception:
+            # A failed flush leaves SQLAlchemy's transaction unusable. This
+            # registration is best-effort and runs before the event mutation,
+            # so reset it and let the discovery event continue without a link.
+            await db_session.rollback()
             logger.exception(
                 "register_discovery failed: vault=%s exploration=%s name=%r",
                 vault_id,

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { RewardsSummary } from '@/modules/exploration/stores/exploration'
+import { getRarityColor } from '@/modules/exploration/models/exploration'
 
 interface Props {
   rewards: RewardsSummary | null
@@ -27,18 +28,6 @@ const safeRewards = computed(
 const emit = defineEmits<{
   close: []
 }>()
-
-const getRarityColor = (rarity?: string): string => {
-  const colors: Record<string, string> = {
-    Common: 'var(--color-rarity-common)',
-    Rare: 'var(--color-rarity-rare)',
-    Legendary: 'var(--color-rarity-legendary)',
-  }
-  if (rarity && colors[rarity]) {
-    return colors[rarity]!
-  }
-  return colors.Common!
-}
 </script>
 
 <template>

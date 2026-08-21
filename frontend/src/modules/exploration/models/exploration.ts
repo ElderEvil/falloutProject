@@ -44,3 +44,13 @@ export function getEventIcon(eventType: string): string {
 export function getEventColor(eventType: string): string {
   return EVENT_COLOR_MAP[eventType as ExplorationEventType] ?? DEFAULT_COLOR
 }
+
+const RARITY_COLOR_MAP: Record<string, string> = {
+  Common: 'var(--color-rarity-common)',
+  Rare: 'var(--color-rarity-rare)',
+  Legendary: 'var(--color-rarity-legendary)',
+}
+
+export function getRarityColor(rarity?: string): string {
+  return (rarity && RARITY_COLOR_MAP[rarity]) || RARITY_COLOR_MAP.Common!
+}

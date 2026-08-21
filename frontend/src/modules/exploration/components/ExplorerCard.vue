@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/core/utils/image'
+import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 
 interface Props {
   exploration: Exploration
@@ -29,40 +30,7 @@ const dwellerName = computed(() =>
   props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
 )
 
-const now = ref(Date.now())
-let clock: ReturnType<typeof setInterval> | undefined
-
-onMounted(() => {
-  clock = setInterval(() => {
-    now.value = Date.now()
-  }, 60_000)
-})
-
-onUnmounted(() => {
-  if (clock !== undefined) clearInterval(clock)
-})
-
-const progressPercentage = computed(() => {
-  const startTime = props.exploration.start_time.replace(' ', 'T')
-  const start = new Date(
-    /(?:Z|[+-]\d{2}:?\d{2})$/i.test(startTime) ? startTime : `${startTime}Z`
-  ).getTime()
-  const duration = props.exploration.duration * 3600 * 1000
-  const elapsed = now.value - start
-
-  return Math.min(100, (elapsed / duration) * 100)
-})
-
-const timeRemaining = computed(() => {
-  const remaining = props.exploration.duration * 3600 * (1 - progressPercentage.value / 100)
-  if (remaining <= 0) return 'Complete!'
-
-  const hours = Math.floor(remaining / 3600)
-  const minutes = Math.floor((remaining % 3600) / 60)
-
-  if (hours > 0) return `${hours}h ${minutes}m remaining`
-  return `${minutes}m remaining`
-})
+const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => props.exploration)
 
 const statusColor = computed(() => {
   const progress = progressPercentage.value

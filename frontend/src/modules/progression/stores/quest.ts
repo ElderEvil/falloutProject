@@ -98,16 +98,15 @@ export const useQuestStore = defineStore('quest', () => {
     const active = vaultQuests.value.filter(
       (q) => q.is_visible && q.started_at != null && !q.is_completed
     )
+    const nextPartyMap: Record<string, QuestPartyMember[]> = {}
     for (const quest of active) {
       try {
-        const party = await getParty(vaultId, quest.id)
-        if (party.length > 0) {
-          questPartyMap.value[quest.id] = party
-        }
+        nextPartyMap[quest.id] = await getParty(vaultId, quest.id)
       } catch {
-        questPartyMap.value[quest.id] = []
+        nextPartyMap[quest.id] = []
       }
     }
+    questPartyMap.value = nextPartyMap
   }
 
   async function getQuest(vaultId: string, questId: string): Promise<Quest> {

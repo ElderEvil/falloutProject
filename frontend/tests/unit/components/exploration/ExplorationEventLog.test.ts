@@ -89,4 +89,91 @@ describe('ExplorationEventLog', () => {
 
     expect(wrapper.find('.section-title').text()).toContain('Event Log')
   })
+
+  it('renders newest-first when reverse is true', () => {
+    const events = [
+      makeEvent({ type: 'combat', description: 'First event', time_elapsed_hours: 1.0 }),
+      makeEvent({ type: 'loot', description: 'Second event', time_elapsed_hours: 2.0 }),
+    ]
+
+    const wrapper = mount(ExplorationEventLog, {
+      props: { events, reverse: true },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const rows = wrapper.findAll('.event-row')
+    expect(rows[0].text()).toContain('Second event')
+    expect(rows[1].text()).toContain('First event')
+  })
+
+  it('keeps chronological order by default', () => {
+    const events = [
+      makeEvent({ type: 'combat', description: 'First event', time_elapsed_hours: 1.0 }),
+      makeEvent({ type: 'loot', description: 'Second event', time_elapsed_hours: 2.0 }),
+    ]
+
+    const wrapper = mount(ExplorationEventLog, {
+      props: { events },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const rows = wrapper.findAll('.event-row')
+    expect(rows[0].text()).toContain('First event')
+    expect(rows[1].text()).toContain('Second event')
+  })
+
+  it('renders loot line when showLoot is true', () => {
+    const events = [
+      {
+        type: 'loot',
+        description: 'Found a stash.',
+        timestamp: '2026-01-01T00:00:00Z',
+        time_elapsed_hours: 1.5,
+        loot: {
+          item: { name: 'Laser rifle', rarity: 'Rare', value: 100 },
+          caps: 25,
+        },
+      },
+    ]
+
+    const wrapper = mount(ExplorationEventLog, {
+      props: { events },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    const lootLine = wrapper.find('.loot-line')
+    expect(lootLine.exists()).toBe(true)
+    expect(lootLine.text()).toContain('Laser rifle (Rare)')
+    expect(lootLine.text()).toContain('25 caps')
+  })
+
+  it('hides loot line when showLoot is false', () => {
+    const events = [
+      {
+        type: 'loot',
+        description: 'Found a stash.',
+        timestamp: '2026-01-01T00:00:00Z',
+        time_elapsed_hours: 1.5,
+        loot: {
+          item: { name: 'Laser rifle', rarity: 'Rare', value: 100 },
+          caps: 25,
+        },
+      },
+    ]
+
+    const wrapper = mount(ExplorationEventLog, {
+      props: { events, showLoot: false },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.loot-line').exists()).toBe(false)
+  })
 })

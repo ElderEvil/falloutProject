@@ -6,18 +6,21 @@ import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
 import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import type { ExplorationEventType } from '../models/exploration'
 
 export interface ExplorationEvent {
-  type: string
+  type: ExplorationEventType
   description: string
   timestamp: string
   time_elapsed_hours: number
+  location_name?: string
   loot?: {
     item: {
       name: string
       rarity: string
       value: number
     }
+    item_type?: string
     caps: number
   }
 }
@@ -54,6 +57,8 @@ export interface Exploration {
   dweller_luck: number
   stimpaks: number
   radaways: number
+  health?: number
+  radiation?: number
 }
 
 export interface ExplorationProgress {
@@ -92,6 +97,7 @@ export const useExplorationStore = defineStore('exploration', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   let sseInstance: ReturnType<typeof useSse> | null = null
+  let sseWatchStop: (() => void) | null = null
   let currentVaultId = ''
 
   // Getters
@@ -117,7 +123,8 @@ export const useExplorationStore = defineStore('exploration', () => {
     })
     void sseInstance.start()
 
-    watch(
+    const seenEventKeys = new Set<string>()
+    sseWatchStop = watch(
       () => sseInstance?.event.value,
       (evt) => {
         if (!evt || evt.event !== 'exploration') return
@@ -134,12 +141,39 @@ export const useExplorationStore = defineStore('exploration', () => {
             const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
             addPendingReport({ vaultId: currentVaultId, dwellerId, dwellerName, rewards })
           }
+          return
         }
+
+        const explorationId = data.exploration_id as string | undefined
+        const exploration = explorationId
+          ? activeExplorations.value[explorationId] ?? explorations.value.find((e) => e.id === explorationId)
+          : undefined
+        if (!exploration) return
+
+        const eventRecord = data.event as ExplorationEvent | undefined
+        if (eventRecord?.type && eventRecord.description) {
+          const key = `${eventRecord.timestamp}|${eventRecord.type}|${eventRecord.description}`
+          if (!seenEventKeys.has(key)) {
+            seenEventKeys.add(key)
+            exploration.events.push(eventRecord)
+          }
+        }
+
+        if (typeof data.total_caps_found === 'number') exploration.total_caps_found = data.total_caps_found
+        if (typeof data.enemies_encountered === 'number') exploration.enemies_encountered = data.enemies_encountered
+        if (typeof data.stimpaks === 'number') exploration.stimpaks = data.stimpaks
+        if (typeof data.radaways === 'number') exploration.radaways = data.radaways
+        if (typeof data.health === 'number') exploration.health = data.health
+        if (typeof data.radiation === 'number') exploration.radiation = data.radiation
       }
     )
   }
 
   function stopSseSubscription(): void {
+    if (sseWatchStop) {
+      sseWatchStop()
+      sseWatchStop = null
+    }
     if (sseInstance) {
       sseInstance.stopReconnect()
       sseInstance.close()

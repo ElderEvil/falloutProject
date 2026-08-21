@@ -14,7 +14,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
-import EventTimeline from '../components/EventTimeline.vue'
+import ExplorationEventLog from '../components/ExplorationEventLog.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -351,10 +351,7 @@ const closeRewardsModal = () => {
               <Icon icon="mdi:close" />
             </button>
           </div>
-          <EventTimeline
-            :exploration="selectedExploration"
-            :dweller="getDetailedDweller(selectedExploration.dweller_id) ?? undefined"
-          />
+          <ExplorationEventLog :events="selectedExploration.events" reverse />
         </div>
       </div>
 

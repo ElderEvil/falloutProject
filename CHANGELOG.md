@@ -3,44 +3,80 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+- **Overseer Reports** — long-running dweller activities end in a visible outcome instead of a silent state change.
+  Training completion now sends a persistent `training_complete` notification carrying the stat change (`stat_name`,
+  `old_value`, `new_value`); clicking it opens the dweller's Stats tab with the improved SPECIAL stat highlighted
+  (+1 badge, reduced-motion aware). Exploration completion notifications carry the full rewards payload, and reward
+  reports are queued durably in localStorage (`usePendingReports`, survive reload/offline) and re-shown as the
+  rewards modal on the next visit to the exploration view until acknowledged
+- **Incident outcome reports** — resolving an incident now sends a `combat_victory` or `combat_defeat` notification
+  carrying the outcome summary (`caps_earned`, `loot` in `meta_data`), so attacks and fires report their result
+  instead of ending silently; clicking the notification opens the vault view
+
+### Fixed
+
+- **Breeding at population capacity** — `check_for_conception` no longer starts a new pregnancy when the vault
+  population has reached `population_max`; already-committed pregnancies reserve their slot, and a single free slot
+  can only be consumed by one new conception per game tick (regression coverage in `test_breeding_service.py`)
+
+### Changed
+
+- **Notification plumbing compaction** — a shared `notify_owner` helper centralizes the vault-owner lookup and
+  best-effort delivery across the training, death, and incident services, and the exploration report queue now
+  uses VueUse `useStorage` instead of hand-rolled localStorage sync (unused `consumePendingReport`/
+  `clearPendingReports` exports removed)
+
 ## [2.43.0](https://github.com/ElderEvil/falloutProject/compare/v2.42.0...v2.43.0) (2026-08-21)
 
 ### Features
 
-* social update ([#448](https://github.com/ElderEvil/falloutProject/issues/448)) ([0e7175d](https://github.com/ElderEvil/falloutProject/commit/0e7175dc4e3538d6df37a7c3718f975b5a7e3ea1))
+- **Living quarters socializing** — dwellers assigned to living quarters now rest instead of idling: the new
+  `RESTING` status renders as "Socializing" (heart badge plus a filter option), and the game loop raises affinity
+  only between dwellers sharing living-quarters rooms rather than any shared room. Charismatic pairs bond faster
+  (+`min(charisma)/10` bonus per tick). A backfill migration sets `RESTING` on dwellers already living in living
+  quarters, and boosted starter vaults spawn a charisma-boosted male/female pair resting there
+- **Dweller social context chat tool** — the chat agent gained `get_dweller_social_context()`, so questions about a
+  dweller's mood, family, or relationships are answered from live status, room, family members, and relationship
+  affinities instead of a static profile
 
 ## [2.42.0](https://github.com/ElderEvil/falloutProject/compare/v2.41.3...v2.42.0) (2026-08-20)
 
 ### Features
 
-* **family:** married stage, lineage API, and family tree UI ([#447](https://github.com/ElderEvil/falloutProject/issues/447)) ([f0ab891](https://github.com/ElderEvil/falloutProject/commit/f0ab891d9459921983d9158d716f47bc94ea0fed))
-
-## Unreleased
-
-### Features
-
-- **Incident response** — dispatch healthy adult dwellers to an active incident room; combat now resolves in bounded,
-  online vault rounds instead of allowing a manual instant-win action
 - **MARRIED relationship stage** — partners at the marriage threshold (affinity ≥ 85) can marry via
-  `PUT /relationships/{id}/marry`; marriage grants a happiness bonus and fires a notification; `break_up` now also
-  clears married couples
-- **Lineage API + family tree** — `GET /dwellers/{id}/lineage` returns parents, children, siblings, partners, and a
-  computed generation; the dweller detail page adds a "Family" tab rendering the family tree (clickable nodes)
+  `PUT /relationships/{id}/marry`; marriage grants a one-time happiness bonus and fires a notification, auto-marry
+  triggers when affinity reaches the threshold, and `break_up` now also clears married couples
+- **Lineage API** — `GET /dwellers/{id}/lineage` returns parents, children, siblings, partners, and a computed
+  generation; results are vault-scoped and immune to cycles, cross-vault links, and soft-deleted ancestors
+- **Family tree UI** — the dweller detail page adds a "Family" tab rendering the family tree with clickable nodes,
+  a siblings row, dead/age/partner-stage+affinity labels, and error/retry + refresh states
+- **Relationship UI polish** — relationship cards show milestone hints toward the next stage, couples render a
+  compact family diagram, and cards share consistent backgrounds with fixed-position affinity
+- **Family scenario tooling** — a `family_scenario` CLI command plus `family_scenario_service` seed test couples and
+  multi-generation families (co-location, pairing, births) for balance testing
 
 ### Changed
 
-- **Incident balance** — use configured threat weights and difficulty ranges; unsupported client-only incident types
-  are removed from the interface
-- **Development server** — `./scripts/dev-up.sh --reload` enables backend hot reload; every launcher run already
-  replaces the managed frontend and backend sessions
-- **Debug controls removed** — Quick-Pair ("Irradiated Cupid") button + backend endpoint, Process Breeding button,
-  and the PregnancyDebugPanel were removed from the relationships UI
+- **Release tooling** — root `package.json`/lockfile removed; semantic-release runs from CI via a pinned `npx`
+  invocation so frontend deps stay in `frontend/` (pnpm) and backend deps in `backend/` (uv)
+- **Docs cleanup** — ROADMAP pruned to future plans (history lives here); TrueNAS deployment docs, examples, and
+  redeploy script removed; `docs/features/FAMILY_SYSTEM.md` documents the family domain
+- **Debug controls removed** — PregnancyDebugPanel and its pregnancy store slice were removed from the social UI
 
 ### Fixed
 
-- **Migration-safety CI** — `backend-coverage.yml` now runs `alembic check` + `alembic current --check-heads` against a
-  live PostgreSQL service container; a migration (`b7e9f2c1a3d5`) drops two stale schema objects so `alembic check`
+- **Migration-safety CI** — `backend-coverage.yml` now runs `alembic check` + `alembic current --check-heads` against
+  a live PostgreSQL service container; migration (`b7e9f2c1a3d5`) drops two stale schema objects so `alembic check`
   passes
+- **Marriage integrity** — the relationship update and happiness bonus apply atomically (bonus failure rolls back the
+  whole transition, surfaced as HTTP 400), and a conditional `PARTNER→MARRIED` update makes concurrent marry requests
+  single-winner so the bonus/notification can never fire twice; the enum downgrade normalizes rows back to `partner`
+- **Stale detail responses** — DwellerDetailView tracks the requested dweller id with a monotonic load sequence so
+  out-of-order completions cannot clobber a newer dweller's state
 
 ## [2.41.3](https://github.com/ElderEvil/falloutProject/compare/v2.41.2...v2.41.3) (2026-08-19)
 

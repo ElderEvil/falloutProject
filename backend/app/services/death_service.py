@@ -78,25 +78,20 @@ class DeathService:
         )
 
         # Broadcast WebSocket event (best-effort, don't fail death flow)
-        vault = await vault_crud.get(db_session, dweller.vault_id)
-        if vault and vault.user_id:
-            try:
-                await notification_service.notify_dweller_died(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=dweller.vault_id,
-                    dweller_id=dweller.id,
-                    dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                    cause=cause.value,
-                    meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to send death notification for dweller %s (vault %s, cause: %s)",
-                    dweller.id,
-                    dweller.vault_id,
-                    cause.value,
-                )
+        await notification_service.notify_owner(
+            db_session,
+            dweller.vault_id,
+            context=f"dweller_died vault={dweller.vault_id} dweller={dweller.id} cause={cause.value}",
+            sender=lambda user_id: notification_service.notify_dweller_died(
+                db_session,
+                user_id=user_id,
+                vault_id=dweller.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                cause=cause.value,
+                meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
+            ),
+        )
 
         return updated_dweller
 

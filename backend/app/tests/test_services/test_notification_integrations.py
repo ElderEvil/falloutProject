@@ -1,5 +1,6 @@
 """Tests for notification integrations in game services."""
 
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,8 +9,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.exploration import ExplorationStatus
 from app.models.incident import IncidentStatus, IncidentType
+from app.models.notification import NotificationType
 from app.services.exploration.coordinator import ExplorationCoordinator
 from app.services.incident_service import IncidentService
+from app.services.notification_service import NotificationService
 from app.services.radio_service import RadioService
 
 
@@ -174,3 +177,137 @@ class TestIncidentNotifications:
                     incident.status = IncidentStatus.RESOLVED
                     async_session.add(incident)
                     await async_session.commit()
+
+    @pytest.mark.asyncio
+    async def test_incident_victory_sends_notification(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        dweller_in_vault,
+        room_in_vault,
+    ):
+        """Resolving an incident successfully fires a COMBAT_VICTORY notification."""
+        _, vault = user_with_vault
+
+        dweller_in_vault.room_id = room_in_vault.id
+        async_session.add(dweller_in_vault)
+        await async_session.commit()
+
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_in_vault.id,
+            incident_type=IncidentType.RADROACH_INFESTATION,
+            difficulty=1,
+        )
+        incident.enemies_defeated = 10  # force immediate victory
+        async_session.add(incident)
+        await async_session.commit()
+        await async_session.refresh(incident)
+
+        incident_service = IncidentService()
+
+        with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+            mock_notify.return_value = AsyncMock()
+
+            await incident_service.process_incident(async_session, incident, 60)
+
+        mock_notify.assert_called_once()
+        call_args = mock_notify.call_args
+        assert call_args.kwargs["notification_type"] == NotificationType.COMBAT_VICTORY
+        assert call_args.kwargs["vault_id"] == vault.id
+        assert call_args.kwargs["meta_data"]["caps_earned"] >= 0
+        assert "loot" in call_args.kwargs["meta_data"]
+
+    @pytest.mark.asyncio
+    async def test_incident_defeat_sends_notification(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        room_in_vault,
+    ):
+        """An incident that cannot be contained fires a COMBAT_DEFEAT notification."""
+        _, vault = user_with_vault
+
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_in_vault.id,
+            incident_type=IncidentType.FIRE,
+            difficulty=1,
+        )
+        incident.start_time = datetime.utcnow() - timedelta(seconds=incident.duration)
+        async_session.add(incident)
+        await async_session.commit()
+        await async_session.refresh(incident)
+
+        incident_service = IncidentService()
+
+        with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+            mock_notify.return_value = AsyncMock()
+
+            await incident_service.process_incident(async_session, incident, 60)
+
+        mock_notify.assert_called_once()
+        call_args = mock_notify.call_args
+        assert call_args.kwargs["notification_type"] == NotificationType.COMBAT_DEFEAT
+        assert call_args.kwargs["vault_id"] == vault.id
+
+    @pytest.mark.asyncio
+    async def test_incident_victory_no_notification_when_commit_fails(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        dweller_in_vault,
+        room_in_vault,
+    ):
+        """A resolution notification is not sent if the incident commit fails."""
+        _, vault = user_with_vault
+
+        dweller_in_vault.room_id = room_in_vault.id
+        async_session.add(dweller_in_vault)
+        await async_session.commit()
+
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_in_vault.id,
+            incident_type=IncidentType.RADROACH_INFESTATION,
+            difficulty=1,
+        )
+        incident.enemies_defeated = 10
+        async_session.add(incident)
+        await async_session.commit()
+        await async_session.refresh(incident)
+
+        async def fail_commit():  # type: ignore[no-untyped-def]
+            raise RuntimeError("commit failed")
+
+        async_session.commit = fail_commit  # type: ignore[method-assign]
+
+        incident_service = IncidentService()
+
+        with (
+            patch("app.services.incident_service.notification_service.create_and_send") as mock_notify,
+            pytest.raises(RuntimeError),
+        ):
+            await incident_service.process_incident(async_session, incident, 60)
+
+        mock_notify.assert_not_called()
+
+
+class TestNotificationService:
+    """Tests for the notification service helper."""
+
+    @pytest.mark.asyncio
+    async def test_notify_owner_survives_lookup_failure(self, async_session: AsyncSession, user_with_vault: tuple):
+        """A failed vault-owner lookup does not propagate out of notify_owner."""
+        _, vault = user_with_vault
+
+        with patch("app.crud.vault.vault.get", side_effect=RuntimeError("db down")):
+            await NotificationService.notify_owner(
+                async_session,
+                vault.id,
+                context="test",
+                sender=lambda user_id: None,
+            )

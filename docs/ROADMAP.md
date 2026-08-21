@@ -55,6 +55,35 @@ stage-transition logic.
 
 ---
 
+### Overseer Reports — CodeRabbit Review Follow-ups (Target: TBD)
+
+**Focus**: Follow-ups from the CodeRabbit review of the Overseer Reports PR (#449). The two stability fixes shipped
+with the PR (incident victory notification now fires only after the incident commit succeeds; `notify_owner`
+swallows vault-owner lookup failures). The remaining items were deferred or recommended for a follow-up.
+
+- 🔄 **Breeding capacity concurrency** — `check_for_conception` reads `available_slots` without locking, so two
+  concurrent ticks can each reserve the last free slot and over-commit pregnancies. Enforce the capacity check and
+  the pregnancy insert in one transaction (`SELECT ... FOR UPDATE` on the vault row), at the `create_pregnancy`
+  boundary so every conception path is covered. Heavy lift; the in-memory SQLite test harness cannot exercise row
+  locks today.
+- 🔄 **Pending-report dedup by `exploration_id`** — `usePendingReports` deduplicates by dweller + rewards content, so
+  two identical completions from the same dweller are collapsed. Propagate the SSE `exploration_id` through the
+  notification metadata and dedup on it instead. Heavy lift (backend metadata change).
+- 🔄 **DwellerPanel query-prop sync** — clicking the same dweller's `training_complete` notification again (query-only
+  `?tab=stats&stat=X` change) does not update the active tab or badge because the component instance is reused
+  without re-running setup. Watch `initialTab`/`highlightStat` props and restart the badge timer on change.
+- 🔄 **ExplorationView vault filter** — pending reports are global (single `localStorage` key), so reports from one
+  vault can surface while viewing another. Scope selection/acknowledgement to the active `vaultId`.
+- 🔄 **DwellerStats animations → Tailwind utilities** — move the scoped `stat-pulse`/`badge-fade` keyframes into
+  `tailwind.css` as utilities with motion-reduce variants (aligns with the Tailwind-utilities-only guideline).
+- ⚪ **Nitpicks (optional)** — route exploration-completion notifications through `notify_owner` for consistency with
+  the other flows; wrap a >100-char line in `exploration.ts`.
+
+**Guardrails:** keep the resolution-notification ordering fix (notify only after a successful commit) intact when
+touching incident handling; any breeding change must keep `population_max=None` unbounded.
+
+---
+
 ### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
 
 **Focus**: Make existing dweller agents easier to debug and more reliable at the boundary between structured model
@@ -396,4 +425,4 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-20_ (v2.41.3 released; most low-hanging fruit implemented; next focus: Family Relations, Pydantic AI Gateway activation)
+_Last updated: 2026-08-21_ (Overseer Reports PR #449 in review; CodeRabbit follow-ups tracked under Planned; next focus: Family Relations, Pydantic AI Gateway activation)

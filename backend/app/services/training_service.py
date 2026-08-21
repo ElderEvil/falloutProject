@@ -16,6 +16,7 @@ from app.models.room import Room
 from app.models.training import Training, TrainingStatus
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
 from app.services.event_bus import GameEvent, event_bus
+from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
@@ -292,6 +293,27 @@ class TrainingService:
                 "dweller_id": str(dweller.id),
                 "stat_trained": training.stat_being_trained.value,
             },
+        )
+
+        # Send notification (non-critical, don't break completion on failure)
+        await notification_service.notify_owner(
+            db_session,
+            dweller.vault_id,
+            context=f"training_complete vault={dweller.vault_id} dweller={dweller.id}",
+            sender=lambda user_id: notification_service.notify_training_complete(
+                db_session,
+                user_id=user_id,
+                vault_id=dweller.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                stat_name=training.stat_being_trained.value,
+                meta_data={
+                    "dweller_id": str(dweller.id),
+                    "stat_name": training.stat_being_trained.value,
+                    "old_value": current_value,
+                    "new_value": new_value,
+                },
+            ),
         )
 
         self.logger.info(

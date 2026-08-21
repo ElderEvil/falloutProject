@@ -130,8 +130,9 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
     with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
         result = await incident_service.process_incident(async_session, incident_resolve, 60)
         assert result.skipped is False
-        mock_publish.assert_awaited_once()
-        call_args = mock_publish.call_args
+        incident_calls = [c for c in mock_publish.call_args_list if c[0][1] == "incidents"]
+        assert len(incident_calls) == 1
+        call_args = incident_calls[0]
         assert call_args[0][1] == "incidents"
         payload = call_args[0][2]
         assert payload["type"] == "incident_resolved"
@@ -206,7 +207,8 @@ async def test_undefended_max_spread_publishes_failed_resolution(async_session: 
     await async_session.refresh(incident)
     assert result.no_defenders is True
     assert incident.status == IncidentStatus.FAILED
-    mock_publish.assert_awaited_once()
-    payload = mock_publish.call_args.args[2]
+    incident_calls = [c for c in mock_publish.call_args_list if c[0][1] == "incidents"]
+    assert len(incident_calls) == 1
+    payload = incident_calls[0][0][2]
     assert payload["type"] == "incident_resolved"
     assert payload["success"] is False

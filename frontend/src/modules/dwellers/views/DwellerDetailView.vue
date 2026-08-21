@@ -67,6 +67,16 @@ const revivalLoading = ref(false)
 const isDead = computed(() => dweller.value?.is_dead === true)
 const placeLinks = ref<MapPlaceLink[]>([])
 
+const queryTab = computed(() => {
+  const tab = route.query.tab
+  return typeof tab === 'string' ? tab : undefined
+})
+
+const queryStat = computed(() => {
+  const stat = route.query.stat
+  return typeof stat === 'string' ? stat.toLowerCase() : undefined
+})
+
 async function loadDweller() {
   if (!authStore.isAuthenticated || !dwellerId.value) return
   const requestedId = dwellerId.value
@@ -476,6 +486,8 @@ const saveNewName = async () => {
                 :is-any-generating="isAnyGenerating"
                 :vault-id="vaultId"
                 :place-links="placeLinks"
+                :initial-tab="queryTab"
+                :highlight-stat="queryStat"
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
                 @generate-appearance="generateDwellerAppearance"

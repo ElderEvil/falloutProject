@@ -20,6 +20,7 @@ import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useExplorationStore } from '../stores/exploration'
 import type { RewardsSummary } from '../stores/exploration'
+import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -41,6 +42,19 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const activeQueuedReportId = ref<string | null>(null)
+
+const { pendingReports } = usePendingReports()
+
+function showNextPendingReport(): void {
+  const next = pendingReports.value[0]
+  if (next) {
+    activeQueuedReportId.value = next.id
+    completedExplorationRewards.value = next.rewards
+    completedDwellerName.value = next.dwellerName
+    showRewardsModal.value = true
+  }
+}
 
 // Centralized data loading function
 const loadData = async () => {
@@ -67,6 +81,9 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
   }
+  if (pendingReports.value.length > 0) {
+    showNextPendingReport()
+  }
 })
 
 onUnmounted(() => {
@@ -78,6 +95,7 @@ watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {
     if (!pending) return
+    activeQueuedReportId.value = null
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
@@ -214,6 +232,14 @@ const handleRecallExploration = async (explorationId: string) => {
 }
 
 const closeRewardsModal = () => {
+  if (activeQueuedReportId.value) {
+    removePendingReport(activeQueuedReportId.value)
+    activeQueuedReportId.value = null
+    if (pendingReports.value.length > 0) {
+      showNextPendingReport()
+      return
+    }
+  }
   showRewardsModal.value = false
   completedExplorationRewards.value = null
   completedDwellerName.value = ''

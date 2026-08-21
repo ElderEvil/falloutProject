@@ -132,6 +132,33 @@ async def female_dweller_fixture(async_session: AsyncSession, vault: Vault) -> D
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+@pytest_asyncio.fixture(name="female_dweller_2")
+async def female_dweller_2_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Create a second female dweller for population-capacity breeding tests."""
+    dweller_data = {
+        "first_name": "Sarah",
+        "last_name": "Rogers",
+        "gender": GenderEnum.FEMALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 6,
+        "experience": 60,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 65,
+        "strength": 5,
+        "perception": 6,
+        "endurance": 5,
+        "charisma": 7,
+        "intelligence": 5,
+        "agility": 6,
+        "luck": 5,
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
 @pytest.mark.asyncio
 async def test_create_pregnancy(
     async_session: AsyncSession,
@@ -484,6 +511,186 @@ async def test_check_for_conception_only_one_in_living_quarters(
         )
 
     assert pregnancies == []
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_at_capacity(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """No new conception when the vault population is exactly at capacity.
+
+    Regression guard: check_for_conception must refuse new conceptions once
+    the vault population reaches population_max, even for an eligible couple
+    with a guaranteed-successful conception roll.
+    """
+    # Make them partners in living quarters (eligible couple)
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # The vault holds exactly these 2 dwellers -> population_max of 2 is at capacity
+    vault.population_max = 2
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert pregnancies == []
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_over_capacity(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """No new conception when the vault population is already over capacity."""
+    # Make them partners in living quarters (eligible couple)
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # 2 dwellers with population_max of 1 -> over capacity
+    vault.population_max = 1
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert pregnancies == []
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_one_slot_allows_single(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Exactly one free population slot allows exactly one conception."""
+    # Make them partners in living quarters (eligible couple)
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # 2 dwellers, population_max of 3 -> exactly one free slot
+    vault.population_max = 3
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert len(pregnancies) == 1
+    assert pregnancies[0].mother_id == female_dweller.id
+    assert pregnancies[0].father_id == male_dweller.id
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_reserves_for_committed_pregnancies(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    male_dweller_2: Dweller,
+    female_dweller_2: Dweller,
+):
+    """A committed pregnancy reserves the last free population slot.
+
+    The eligible couple (male+female) would otherwise conceive, but the vault
+    already has a PREGNANT mother whose committed pregnancy counts toward
+    capacity: one free slot minus one committed pregnancy leaves no room, so
+    no new conception may occur.
+    """
+    # Eligible couple in living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    await async_session.commit()
+
+    # Second mother is already carrying a committed pregnancy
+    await BreedingService.create_pregnancy(
+        async_session,
+        female_dweller_2.id,
+        male_dweller_2.id,
+    )
+
+    # 4 dwellers, population_max of 5 -> one free slot, consumed by the committed pregnancy
+    vault.population_max = 5
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    assert pregnancies == []
+
+
+@pytest.mark.asyncio
+async def test_check_for_conception_single_slot_limits_pairs(
+    async_session: AsyncSession,
+    vault: Vault,
+    living_quarters: Room,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+    male_dweller_2: Dweller,
+    female_dweller_2: Dweller,
+):
+    """A single free slot allows at most one conception even with two couples."""
+    # Two eligible couples in the same living quarters
+    male_dweller.partner_id = female_dweller.id
+    female_dweller.partner_id = male_dweller.id
+    male_dweller_2.partner_id = female_dweller_2.id
+    female_dweller_2.partner_id = male_dweller_2.id
+    male_dweller.room_id = living_quarters.id
+    female_dweller.room_id = living_quarters.id
+    male_dweller_2.room_id = living_quarters.id
+    female_dweller_2.room_id = living_quarters.id
+    await async_session.commit()
+
+    # 4 dwellers, population_max of 5 -> exactly one free slot
+    vault.population_max = 5
+    async_session.add(vault)
+    await async_session.commit()
+
+    with patch("random.random", return_value=0.0):
+        pregnancies = await BreedingService.check_for_conception(
+            async_session,
+            vault.id,
+        )
+
+    # Both couples have guaranteed-successful rolls, but the single free slot
+    # caps the tick at exactly one conception.
+    assert len(pregnancies) == 1
 
 
 @pytest.mark.asyncio

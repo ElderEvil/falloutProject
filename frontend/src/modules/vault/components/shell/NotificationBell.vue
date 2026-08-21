@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
@@ -161,13 +162,24 @@ const getNotificationRoute = (notification: Notification): string | null => {
     case 'exploration_complete':
     case 'exploration_update':
       return `${vaultPath}/exploration`
-    case 'training_complete':
+    case 'training_complete': {
+      if (dwellerId) {
+        const statName = notification.meta_data?.stat_name as string | undefined
+        const statParam = statName ? `?tab=stats&stat=${statName}` : '?tab=stats'
+        return `${vaultPath}/dwellers/${dwellerId}${statParam}`
+      }
+      return `${vaultPath}/training`
+    }
     case 'training_started':
       return `${vaultPath}/training`
     case 'quest_complete':
       return `${vaultPath}/quests`
     case 'level_up':
       return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
+    case 'combat_started':
+    case 'combat_victory':
+    case 'combat_defeat':
+      return vaultPath
     case 'dweller_died':
     case 'dweller_injured':
     case 'baby_born':
@@ -182,9 +194,22 @@ const getNotificationRoute = (notification: Notification): string | null => {
   }
 }
 
+const enqueuePendingReport = (notification: Notification): void => {
+  if (notification.notification_type !== 'exploration_complete') return
+  const rewards = notification.meta_data?.rewards
+  if (!rewards || !notification.vault_id) return
+  addPendingReport({
+    vaultId: notification.vault_id,
+    dwellerId: notification.meta_data!.dweller_id,
+    dwellerName: notification.meta_data!.dweller_name,
+    rewards,
+  })
+}
+
 const handleNotificationClick = async (notification: Notification) => {
   if (!notification.is_read) await markAsRead(notification.id)
   showPopup.value = false
+  enqueuePendingReport(notification)
   const route = getNotificationRoute(notification)
   if (route) await router.push(route)
 }
@@ -197,7 +222,9 @@ const getNotificationIcon = (type: string): string => {
     exploration_update: 'mdi:map-marker',
     level_up: 'mdi:arrow-up-bold',
     training_complete: 'mdi:school',
+    combat_started: 'mdi:sword-cross',
     combat_victory: 'mdi:sword',
+    combat_defeat: 'mdi:skull-crossbones',
     radio_new_dweller: 'mdi:radio',
     resource_low: 'mdi:alert',
   }

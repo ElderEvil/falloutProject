@@ -4,6 +4,8 @@ import axios from '@/core/plugins/axios'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
+import { addPendingReport } from '../composables/usePendingReports'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 export interface ExplorationEvent {
   type: string
@@ -80,6 +82,7 @@ export interface RewardsSummary {
 
 export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
+  const { filter: dwellerFilter } = useDwellerStore()
 
   // State
   const explorations = ref<Exploration[]>([])
@@ -89,6 +92,7 @@ export const useExplorationStore = defineStore('exploration', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   let sseInstance: ReturnType<typeof useSse> | null = null
+  let currentVaultId = ''
 
   // Getters
   function getExplorationByDwellerId(dwellerId: string) {
@@ -105,6 +109,7 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   function startSseSubscription(vaultId: string, token: string): void {
     stopSseSubscription()
+    currentVaultId = vaultId
 
     const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
     sseInstance = useSse(`${apiBase}/api/v1/stream/exploration/${vaultId}`, {
@@ -119,9 +124,15 @@ export const useExplorationStore = defineStore('exploration', () => {
         const data = evt.data as Record<string, unknown> | undefined
         if (!data || typeof data.type !== 'string') return
         if (data.type === 'exploration_complete' || data.type === 'exploration_recalled') {
-          pendingSseRewards.value = {
-            rewards: (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary,
-            dwellerId: (data.dweller_id as string) ?? '',
+          const rewards = (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary
+          const dwellerId = (data.dweller_id as string) ?? ''
+          pendingSseRewards.value = { rewards, dwellerId }
+
+          // Persist to durable queue for offline/elsewhere viewing
+          if (dwellerId) {
+            const dweller = dwellerFilter.dwellers.find((d) => d.id === dwellerId)
+            const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+            addPendingReport({ vaultId: currentVaultId, dwellerId, dwellerName, rewards })
           }
         }
       }

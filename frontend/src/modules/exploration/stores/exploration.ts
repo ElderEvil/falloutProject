@@ -14,6 +14,11 @@ export interface ExplorationEvent {
   timestamp: string
   time_elapsed_hours: number
   location_name?: string
+  location_id?: string
+  coord_x?: number
+  coord_y?: number
+  health_loss?: number
+  health_restored?: number
   loot?: {
     item: {
       name: string

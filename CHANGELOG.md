@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.46.0](https://github.com/ElderEvil/falloutProject/compare/v2.45.1...v2.46.0) (2026-08-21)
+
+### Features
+
+* **exploration:** journal loot, vitals, and discovery deep-links ([1de6b22](https://github.com/ElderEvil/falloutProject/commit/1de6b228817c2fbdff565dd6f808799e2c241f6e))
+* **map:** event-authoritative discovery routes ([8a02317](https://github.com/ElderEvil/falloutProject/commit/8a0231702cd4aa9fd968e76a585da3eac358bc92))
+
+### Bug Fixes
+
+* **exploration:** consolidate progress math, drop dead components, show quest parties ([3850550](https://github.com/ElderEvil/falloutProject/commit/38505508673ff9c10c6b48d3f1d41514ded30d85))
+* **map:** address review feedback and detail loading ([95a7e18](https://github.com/ElderEvil/falloutProject/commit/95a7e18569369bcf8752eccf59238a3f122d4255))
+
 ## [2.45.1](https://github.com/ElderEvil/falloutProject/compare/v2.45.0...v2.45.1) (2026-08-21)
 
 ### Bug Fixes

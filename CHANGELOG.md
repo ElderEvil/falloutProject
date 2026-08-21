@@ -28,6 +28,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Breeding at population capacity** — `check_for_conception` no longer starts a new pregnancy when the vault
   population has reached `population_max`; already-committed pregnancies reserve their slot, and a single free slot
   can only be consumed by one new conception per game tick (regression coverage in `test_breeding_service.py`)
+- **Stale storage check constraints** — migration drops the leftover `ck_storage_radaway_bounds`/
+  `ck_storage_stimpack_bounds` DB constraints (the Storage model validates bounds via Pydantic), restoring the
+  `alembic check` CI gate
+- **Stale production URLs** — the CORS default and deployment docs now reference the live `fallout*.evillab.tech`
+  domains instead of the dead `fallout*.evillab.dev`
 
 ### Changed
 

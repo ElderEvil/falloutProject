@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.44.0](https://github.com/ElderEvil/falloutProject/compare/v2.43.0...v2.44.0) (2026-08-21)
+
+### Features
+
+* **overseer:** activity and incident outcome reports ([#449](https://github.com/ElderEvil/falloutProject/issues/449)) ([7804ea0](https://github.com/ElderEvil/falloutProject/commit/7804ea0ea077e9542eefbd527519c14522c7072b))
+
 ## Unreleased
 
 ### Features

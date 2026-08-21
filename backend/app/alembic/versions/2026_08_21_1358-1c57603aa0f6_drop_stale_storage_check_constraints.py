@@ -1,4 +1,4 @@
-"""drop_stale_storage_check_constraints
+"""Drop stale storage check constraints.
 
 Revision ID: 1c57603aa0f6
 Revises: d4e5f6a7b8c9
@@ -18,6 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """Drop stale storage check constraints that the model no longer emits."""
     # The Storage model validates bounds via Pydantic (ge=0, le=10_000) and no
     # longer emits DB-level check constraints; drop the leftovers from the
     # medical-supplies migration so `alembic check` passes. IF EXISTS keeps the
@@ -27,6 +28,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Restore the storage check constraints for rollback."""
     op.create_check_constraint(
         "ck_storage_stimpack_bounds", "storage", "stimpack >= 0 AND stimpack <= 10000"
     )

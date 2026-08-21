@@ -14,7 +14,7 @@ describe('exploration event model maps', () => {
   })
 
   it('has no orphaned keys besides default', () => {
-    const canonical = new Set(EXPLORATION_EVENT_TYPES)
+    const canonical: Set<string> = new Set(EXPLORATION_EVENT_TYPES)
     for (const key of Object.keys(EVENT_ICON_MAP)) {
       if (key !== 'default') expect(canonical.has(key), `orphan icon key ${key}`).toBe(true)
     }

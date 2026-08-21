@@ -6,7 +6,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
 import { addPendingReport } from '../composables/usePendingReports'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import type { ExplorationEventType } from '../models/exploration'
+import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
 
 export interface ExplorationEvent {
   type: ExplorationEventType

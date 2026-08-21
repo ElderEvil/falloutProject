@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -549,6 +549,11 @@ describe('Exploration Store', () => {
 
   describe('SSE Live Event Log', () => {
     const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
+
+    afterEach(() => {
+      useExplorationStore().stopSseSubscription()
+      mockSseEvent.value = null
+    })
 
     it('appends live event frames and updates counters and health', async () => {
       const store = useExplorationStore()

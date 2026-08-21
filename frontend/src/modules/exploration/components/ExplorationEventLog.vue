@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { getEventIcon, getEventColor } from '../models/exploration'
-import type { ExplorationEvent } from '../stores/exploration'
+import { getEventIcon, getEventColor } from '@/modules/exploration/models/exploration'
+import type { ExplorationEvent } from '@/modules/exploration/stores/exploration'
 
 interface Props {
   events: ExplorationEvent[]

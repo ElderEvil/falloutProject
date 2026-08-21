@@ -21,6 +21,17 @@ const makeEvent = (overrides: Partial<{
   time_elapsed_hours: overrides.time_elapsed_hours ?? 2.5,
 })
 
+const makeLootEvent = () => ({
+  type: 'loot',
+  description: 'Found a stash.',
+  timestamp: '2026-01-01T00:00:00Z',
+  time_elapsed_hours: 1.5,
+  loot: {
+    item: { name: 'Laser rifle', rarity: 'Rare', value: 100 },
+    caps: 25,
+  },
+})
+
 describe('ExplorationEventLog', () => {
   it('renders event rows when events are provided', () => {
     const events = [
@@ -127,18 +138,7 @@ describe('ExplorationEventLog', () => {
   })
 
   it('renders loot line when showLoot is true', () => {
-    const events = [
-      {
-        type: 'loot',
-        description: 'Found a stash.',
-        timestamp: '2026-01-01T00:00:00Z',
-        time_elapsed_hours: 1.5,
-        loot: {
-          item: { name: 'Laser rifle', rarity: 'Rare', value: 100 },
-          caps: 25,
-        },
-      },
-    ]
+    const events = [makeLootEvent()]
 
     const wrapper = mount(ExplorationEventLog, {
       props: { events },
@@ -154,18 +154,7 @@ describe('ExplorationEventLog', () => {
   })
 
   it('hides loot line when showLoot is false', () => {
-    const events = [
-      {
-        type: 'loot',
-        description: 'Found a stash.',
-        timestamp: '2026-01-01T00:00:00Z',
-        time_elapsed_hours: 1.5,
-        loot: {
-          item: { name: 'Laser rifle', rarity: 'Rare', value: 100 },
-          caps: 25,
-        },
-      },
-    ]
+    const events = [makeLootEvent()]
 
     const wrapper = mount(ExplorationEventLog, {
       props: { events, showLoot: false },

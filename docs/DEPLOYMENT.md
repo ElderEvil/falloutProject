@@ -111,7 +111,7 @@ POSTGRES_DB=fallout_db
 **URLs (for Hetzner/production):**
 ```bash
 FRONTEND_URL=https://fallout.evillab.tech
-API_URL=https://fallout-api.evillab.tech
+PRODUCTION_API_URL=https://fallout-api.evillab.tech
 ```
 
 **AI Provider:**

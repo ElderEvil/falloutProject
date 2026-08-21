@@ -356,6 +356,9 @@ async def test_equip_replaces_existing_item() -> None:
     assert old_item.storage_id == mock_storage.id
     assert new_item.dweller_id == mock_dweller.id
     assert new_item.storage_id is None
+    # The relationship must stay untouched; assigning it cascade-deletes old_item.
+    assert mock_dweller.weapon is old_item
+    assert mock_dweller not in [call.args[0] for call in session.add.call_args_list]
 
 
 # ---------------------------------------------------------------------------

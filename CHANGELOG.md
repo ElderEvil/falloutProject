@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.43.0](https://github.com/ElderEvil/falloutProject/compare/v2.42.0...v2.43.0) (2026-08-21)
+
+### Features
+
+* social update ([#448](https://github.com/ElderEvil/falloutProject/issues/448)) ([0e7175d](https://github.com/ElderEvil/falloutProject/commit/0e7175dc4e3538d6df37a7c3718f975b5a7e3ea1))
+
 ## [2.42.0](https://github.com/ElderEvil/falloutProject/compare/v2.41.3...v2.42.0) (2026-08-20)
 
 ### Features

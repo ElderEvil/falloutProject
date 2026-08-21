@@ -25,7 +25,9 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
 
 @pytest.mark.asyncio
-async def test_backfill_skips_non_capacity_living_room(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+async def test_backfill_skips_non_capacity_living_room(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
     room = await room_crud.create(
         async_session,
         RoomCreate(

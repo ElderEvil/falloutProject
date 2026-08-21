@@ -18,6 +18,8 @@ interface Props {
   isAnyGenerating?: boolean
   vaultId?: string
   placeLinks?: MapPlaceLink[]
+  initialTab?: string
+  highlightStat?: string
 }
 
 const props = defineProps<Props>()
@@ -31,7 +33,7 @@ const emit = defineEmits<{
   'navigate-dweller': [dwellerId: string]
 }>()
 
-const activeTab = ref('profile')
+const activeTab = ref(props.initialTab ?? 'profile')
 
 const tabs = [
   { key: 'profile', label: 'Profile' },
@@ -77,6 +79,7 @@ const tabs = [
             :I="dweller.I"
             :A="dweller.A"
             :L="dweller.L"
+            :highlight-stat="props.highlightStat"
           />
           <DwellerEquipment
             v-else-if="currentTab === 'equipment'"

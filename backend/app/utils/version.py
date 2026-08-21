@@ -80,7 +80,7 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
                 current_category = line[4:].strip()
                 continue
 
-            if line.startswith("- ") and current_category:
+            if line.startswith(("- ", "* ")) and current_category:
                 changes.append({"category": current_category, "description": line[2:].strip()})
 
         try:

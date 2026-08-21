@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
@@ -107,6 +108,32 @@ class NotificationService:
             # Best-effort delivery: persistence should succeed even if SSE send fails.
 
         return notification
+
+    @staticmethod
+    async def notify_owner(
+        db: AsyncSession,
+        vault_id: UUID | None,
+        *,
+        sender: Callable[[UUID], Awaitable[Any]],
+        context: str,
+    ) -> None:
+        """Best-effort: resolve ``vault_id``'s owner and run ``sender(user_id)``.
+
+        No-ops when the vault is missing or unowned, and logs (never raises) on
+        delivery failure so a broken notification cannot fail the gameplay
+        action that triggered it.
+        """
+        if not vault_id:
+            return
+        from app.crud import vault as crud_vault
+
+        try:
+            vault = await crud_vault.get(db, vault_id)
+            if not vault or not vault.user_id:
+                return
+            await sender(vault.user_id)
+        except Exception:
+            logger.exception("Failed to notify vault owner (%s)", context)
 
     # Convenience methods for common notification types
 

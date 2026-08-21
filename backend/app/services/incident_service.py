@@ -9,10 +9,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.incident import incident_crud
-from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.models.notification import NotificationPriority, NotificationType
 from app.models.room import Room
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.incident import IncidentRoundResult
@@ -22,6 +22,15 @@ from app.services.stream_manager import sse_manager
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
+
+_INCIDENT_NAMES: dict[IncidentType, str] = {
+    IncidentType.FIRE: "🔥 Fire",
+    IncidentType.RADROACH_INFESTATION: "🪳 Radroach Infestation",
+    IncidentType.RAIDER_ATTACK: "💀 Raider Attack",
+    IncidentType.DEATHCLAW_ATTACK: "👹 Deathclaw Attack",
+    IncidentType.MOLE_RAT_ATTACK: "🐀 Mole Rat Attack",
+    IncidentType.FERAL_GHOUL_ATTACK: "🧟 Feral Ghoul Attack",
+}
 
 
 class IncidentService:
@@ -183,47 +192,28 @@ class IncidentService:
         )
 
         # Send notification (non-critical, don't break incident creation on failure)
-        try:
-            vault = await vault_crud.get(db_session, vault_id)
-            if vault and vault.user_id:
-                incident_names = {
-                    IncidentType.FIRE: "🔥 Fire",
-                    IncidentType.RADROACH_INFESTATION: "🪳 Radroach Infestation",
-                    IncidentType.RAIDER_ATTACK: "💀 Raider Attack",
-                    IncidentType.DEATHCLAW_ATTACK: "👹 Deathclaw Attack",
-                    IncidentType.MOLE_RAT_ATTACK: "🐀 Mole Rat Attack",
-                    IncidentType.FERAL_GHOUL_ATTACK: "🧟 Feral Ghoul Attack",
-                }
-                incident_name = incident_names.get(incident_type, str(incident_type))
-
-                from app.models.notification import NotificationPriority, NotificationType
-
-                await notification_service.create_and_send(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=vault_id,
-                    notification_type=NotificationType.COMBAT_STARTED,
-                    priority=NotificationPriority.HIGH,
-                    title=f"Incident: {incident_name}",
-                    message=f"{incident_name} in {target_room.name}! Send dwellers to defend.",
-                    meta_data={
-                        "incident_id": str(incident.id),
-                        "room_id": str(target_room.id),
-                        "room_name": target_room.name,
-                        "incident_type": incident_type.value,
-                        "difficulty": difficulty,
-                    },
-                )
-        except Exception:
-            self.logger.exception(
-                "Failed to send incident notification: incident_id=%s, vault_id=%s, "
-                "incident_type=%s, room_id=%s, room_name=%s",
-                incident.id,
-                vault_id,
-                incident_type.value,
-                target_room.id,
-                target_room.name,
-            )
+        incident_name = _INCIDENT_NAMES.get(incident_type, str(incident_type))
+        await notification_service.notify_owner(
+            db_session,
+            vault_id,
+            context=f"combat_started incident={incident.id} vault={vault_id}",
+            sender=lambda user_id: notification_service.create_and_send(
+                db_session,
+                user_id=user_id,
+                vault_id=vault_id,
+                notification_type=NotificationType.COMBAT_STARTED,
+                priority=NotificationPriority.HIGH,
+                title=f"Incident: {incident_name}",
+                message=f"{incident_name} in {target_room.name}! Send dwellers to defend.",
+                meta_data={
+                    "incident_id": str(incident.id),
+                    "room_id": str(target_room.id),
+                    "room_name": target_room.name,
+                    "incident_type": incident_type.value,
+                    "difficulty": difficulty,
+                },
+            ),
+        )
 
         try:
             await sse_manager.publish(
@@ -305,6 +295,7 @@ class IncidentService:
                 db_session.add(incident)
                 await db_session.commit()
                 await self._publish_event(incident, "incident_resolved", success=False)
+                await self._notify_resolution(db_session, incident, success=False)
             return IncidentRoundResult(no_defenders=True)
 
         # Calculate combat power
@@ -366,6 +357,7 @@ class IncidentService:
         await db_session.commit()
 
         if transitioned:
+            await self._notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
             await self._publish_event(incident, "incident_resolved", success=True)
 
         return IncidentRoundResult(
@@ -375,6 +367,41 @@ class IncidentService:
             dwellers_killed=deaths_count,
             enemies_defeated=enemies_this_tick,
             caps_earned=caps_earned,
+        )
+
+    async def _notify_resolution(
+        self, db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0
+    ) -> None:
+        """Best-effort: notify the owner that an incident was resolved."""
+        incident_name = _INCIDENT_NAMES.get(incident.type, str(incident.type))
+        if success:
+            title = f"Victory: {incident_name}"
+            message = f"Your dwellers defeated the attackers and recovered {caps_earned} caps!"
+            notification_type = NotificationType.COMBAT_VICTORY
+        else:
+            title = f"Incident Lost: {incident_name}"
+            message = f"Your dwellers failed to contain the {incident_name}."
+            notification_type = NotificationType.COMBAT_DEFEAT
+
+        await notification_service.notify_owner(
+            db_session,
+            incident.vault_id,
+            context=f"incident_resolved incident={incident.id} vault={incident.vault_id} success={success}",
+            sender=lambda user_id: notification_service.create_and_send(
+                db_session,
+                user_id=user_id,
+                vault_id=incident.vault_id,
+                notification_type=notification_type,
+                priority=NotificationPriority.HIGH,
+                title=title,
+                message=message,
+                meta_data={
+                    "incident_id": str(incident.id),
+                    "incident_type": incident.type.value,
+                    "loot": incident.loot,
+                    "caps_earned": caps_earned,
+                },
+            ),
         )
 
     async def get_incident_for_vault(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Incident:

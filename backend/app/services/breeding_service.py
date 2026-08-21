@@ -10,9 +10,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.crud import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.common import (
     AgeGroupEnum,
     GenderEnum,
@@ -276,6 +278,23 @@ class BreedingService:
         if not living_quarters:
             return []
 
+        # Capacity reservation: a full vault cannot start new conceptions, and
+        # already-committed pregnancies reserve one population slot each, so at
+        # most (population_max - population - active_pregnancies) new babies may
+        # be conceived this tick. population_max=None means unbounded (legacy).
+        population_max = (
+            await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
+        ).scalar_one_or_none()
+
+        if population_max is not None:
+            population = await vault_crud.get_population(db_session=db_session, vault_id=vault_id)
+            if population >= population_max:
+                return []
+            active_pregnancies = await BreedingService.get_active_pregnancies(db_session, vault_id)
+            available_slots = max(0, population_max - population - len(active_pregnancies))
+        else:
+            available_slots = None
+
         living_quarters_ids = [room.id for room in living_quarters]
         dwellers = await BreedingService._get_eligible_dwellers(db_session, vault_id, living_quarters_ids)
         pregnant_mother_ids = await BreedingService._get_pregnant_mother_ids(db_session)
@@ -286,6 +305,9 @@ class BreedingService:
         checked_pairs: set[tuple[str, str]] = set()
 
         for dweller in dwellers:
+            if available_slots is not None and available_slots <= 0:
+                break
+
             if not BreedingService._is_pair_eligible(dweller, unavailable_mother_ids, checked_pairs):
                 continue
 
@@ -306,6 +328,8 @@ class BreedingService:
 
             if pregnancy:
                 new_pregnancies.append(pregnancy)
+                if available_slots is not None:
+                    available_slots -= 1
 
         return new_pregnancies
 

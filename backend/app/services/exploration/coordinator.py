@@ -328,6 +328,9 @@ class ExplorationCoordinator:
                         "caps_earned": rewards.caps,
                         "xp_earned": rewards.experience,
                         "items_found": len(rewards.items),
+                        "dweller_id": str(dweller.id),
+                        "dweller_name": f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                        "rewards": rewards.model_dump(mode="json"),
                     },
                 )
         except Exception:

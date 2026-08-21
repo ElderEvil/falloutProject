@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+
 interface Props {
   S: number
   P: number
@@ -7,11 +9,12 @@ interface Props {
   I: number
   A: number
   L: number
+  highlightStat?: string
 }
 
 const props = defineProps<Props>()
 
-const statValue = (key: keyof Props): number => props[key] ?? 0
+const statValue = (key: keyof Props): number => (props[key] as number) ?? 0
 
 const stats: Array<{ key: keyof Props; label: string; description: string }> = [
   { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
@@ -22,16 +25,51 @@ const stats: Array<{ key: keyof Props; label: string; description: string }> = [
   { key: 'A', label: 'Agility', description: 'Speed and weapon reload' },
   { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
 ]
+
+const statKeyByLowercase: Record<string, keyof Props> = {
+  strength: 'S',
+  perception: 'P',
+  endurance: 'E',
+  charisma: 'C',
+  intelligence: 'I',
+  agility: 'A',
+  luck: 'L',
+}
+
+const highlightedKey = computed<keyof Props | undefined>(() => {
+  if (!props.highlightStat) return undefined
+  return statKeyByLowercase[props.highlightStat.toLowerCase()]
+})
+
+const showBadge = ref(!!highlightedKey.value)
+
+onMounted(() => {
+  if (showBadge.value) {
+    setTimeout(() => {
+      showBadge.value = false
+    }, 2500)
+  }
+})
+
+const isHighlighted = (key: keyof Props) => highlightedKey.value === key
 </script>
 
 <template>
   <div class="dweller-stats">
     <h3 class="stats-title">S.P.E.C.I.A.L.</h3>
     <div class="stats-grid">
-      <div v-for="stat in stats" :key="stat.key" class="stat-item">
+      <div
+        v-for="stat in stats"
+        :key="stat.key"
+        class="stat-item"
+        :class="{ 'stat-highlighted': isHighlighted(stat.key) }"
+      >
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
-          <span class="stat-value">{{ statValue(stat.key) }}</span>
+          <span class="stat-value-group">
+            <span class="stat-value">{{ statValue(stat.key) }}</span>
+            <span v-if="isHighlighted(stat.key) && showBadge" class="stat-badge">+1</span>
+          </span>
         </div>
         <div class="stat-bar">
           <div class="stat-fill" :style="{ width: `${statValue(stat.key) * 10}%` }"></div>
@@ -127,5 +165,69 @@ const stats: Array<{ key: keyof Props; label: string; description: string }> = [
   opacity: 0.6;
   text-shadow: 0 0 2px var(--color-theme-glow);
   line-height: 1.3;
+}
+
+.stat-value-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.stat-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-theme-accent);
+  text-shadow: 0 0 6px var(--color-theme-glow);
+  animation: badge-fade 2.5s ease-out forwards;
+}
+
+.stat-highlighted {
+  border-left-color: var(--color-theme-accent);
+  background: rgba(0, 255, 0, 0.06);
+  animation: stat-pulse 2.5s ease-out forwards;
+}
+
+@keyframes stat-pulse {
+  0% {
+    box-shadow: 0 0 12px var(--color-theme-glow);
+    filter: brightness(1.3);
+  }
+  40% {
+    box-shadow:
+      0 0 20px var(--color-theme-glow),
+      0 0 30px var(--color-theme-glow);
+    filter: brightness(1.5);
+  }
+  100% {
+    box-shadow: 0 0 6px var(--color-theme-glow);
+    filter: brightness(1);
+  }
+}
+
+@keyframes badge-fade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-highlighted {
+    animation: none;
+    box-shadow: 0 0 12px var(--color-theme-glow);
+  }
+
+  .stat-badge {
+    animation: none;
+    opacity: 1;
+  }
 }
 </style>

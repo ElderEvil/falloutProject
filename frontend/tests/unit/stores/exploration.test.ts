@@ -1,9 +1,35 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import axios from '@/core/plugins/axios'
+import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 
 vi.mock('@/core/plugins/axios')
+vi.mock('@/modules/exploration/composables/usePendingReports', () => ({
+  addPendingReport: vi.fn(),
+}))
+
+const mockSseEvent = ref<Record<string, unknown> | null>(null)
+
+vi.mock('@/core/composables/useEventStream', () => ({
+  useSse: vi.fn(() => ({
+    start: vi.fn().mockResolvedValue(undefined),
+    stopReconnect: vi.fn(),
+    close: vi.fn(),
+    event: mockSseEvent,
+  })),
+}))
+
+vi.mock('@/modules/dwellers/stores/dweller', () => ({
+  useDwellerStore: vi.fn(() => ({
+    filter: {
+      dwellers: [
+        { id: 'dweller-1', first_name: 'Amata', last_name: 'Almodovar' },
+      ],
+    },
+  })),
+}))
 
 describe('Exploration Store', () => {
   beforeEach(() => {
@@ -449,6 +475,75 @@ describe('Exploration Store', () => {
       expect(store.explorations[0].total_caps_found).toBe(100)
       expect(store.activeExplorations['exploration-1'].total_caps_found).toBe(100)
       expect(store.explorations[0].events).toHaveLength(1)
+    })
+  })
+
+  describe('SSE Rewards Enqueuing', () => {
+    it('should enqueue rewards via addPendingReport on completion SSE', async () => {
+      const store = useExplorationStore()
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'exploration_complete',
+          dweller_id: 'dweller-1',
+          rewards: mockRewardsSummary,
+        },
+      }
+
+      await nextTick()
+
+      expect(addPendingReport).toHaveBeenCalledWith({
+        vaultId: 'vault-1',
+        dwellerId: 'dweller-1',
+        dwellerName: 'Amata Almodovar',
+        rewards: mockRewardsSummary,
+      })
+    })
+
+    it('should use fallback dweller name when dweller not found', async () => {
+      const store = useExplorationStore()
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'exploration_complete',
+          dweller_id: 'unknown-dweller',
+          rewards: mockRewardsSummary,
+        },
+      }
+
+      await nextTick()
+
+      expect(addPendingReport).toHaveBeenCalledWith({
+        vaultId: 'vault-1',
+        dwellerId: 'unknown-dweller',
+        dwellerName: 'Dweller',
+        rewards: mockRewardsSummary,
+      })
+    })
+
+    it('should still set pendingSseRewards for live display', async () => {
+      const store = useExplorationStore()
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'exploration_complete',
+          dweller_id: 'dweller-1',
+          rewards: mockRewardsSummary,
+        },
+      }
+
+      await nextTick()
+
+      expect(store.pendingSseRewards).toEqual({
+        rewards: mockRewardsSummary,
+        dwellerId: 'dweller-1',
+      })
     })
   })
 })

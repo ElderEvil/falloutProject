@@ -2,17 +2,14 @@
 
 Pure functions only: no DB access, no randomness, no time, no I/O. The same
 input always yields the same output across calls and processes, so map
-markers derived from place names and vault ids are stable and reproducible.
+markers derived from place names and a fixed world seed are stable and
+reproducible — and identical for every viewer (shared world).
 """
 
 from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from uuid import UUID
 
 #: Place origins that should never produce a map marker.
 GENERIC_ORIGIN_SKIP: frozenset[str] = frozenset({"", "wasteland", "the wasteland", "unknown"})
@@ -90,16 +87,24 @@ class VaultSeed:
     coord_y: float
 
 
-def seeded_vault_specs(vault_id: UUID, home_number: int) -> list[VaultSeed]:
-    """Generate 3-7 deterministic vault marker specs from a vault UUID.
+#: Fixed global seed — viewer-independent so every player sees the same wasteland.
+#: Never derive this from a viewer's vault id.
+_NEIGHBOR_VAULT_SEED = b"wasteland:neighbor-vaults"
 
-    Numbers are drawn in the 1-999 range, distinct from each other and from
-    ``home_number``, from a chained sha256 stream seeded by the vault id
-    (each digest is re-hashed with an appended counter byte for entropy).
+
+def seeded_vault_specs(home_number: int | None = None) -> list[VaultSeed]:
+    """Generate 3-7 deterministic neighbor-vault marker specs for the shared world.
+
+    Numbers are drawn in the 1-999 range from a chained sha256 stream seeded by
+    a fixed global constant (not the viewer's vault id), so every player sees
+    the same neighbor vaults at the same coordinates. ``home_number`` is
+    retained only for call-site compatibility and does not affect the roster.
+
     Coordinates come from the schematic hash of the vault name, nudged away
-    from every previously seeded marker and from the home-vault origin.
+    from the home-vault origin (50, 50) and from every previously seeded marker.
     """
-    digest = hashlib.sha256(str(vault_id).encode("utf-8")).digest()
+    del home_number
+    digest = hashlib.sha256(_NEIGHBOR_VAULT_SEED).digest()
     count = 3 + digest[0] % 5
     specs: list[VaultSeed] = []
     occupied: set[tuple[float, float]] = {(50.0, 50.0)}
@@ -109,7 +114,7 @@ def seeded_vault_specs(vault_id: UUID, home_number: int) -> list[VaultSeed]:
         number = int.from_bytes(digest[:2], "big") % 999 + 1
         digest = hashlib.sha256(digest + bytes([counter])).digest()
         counter += 1
-        if number in numbers or number == home_number:
+        if number in numbers:
             continue
         numbers.add(number)
         name = f"Vault {number:03}"

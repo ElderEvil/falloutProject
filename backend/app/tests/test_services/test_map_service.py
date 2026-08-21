@@ -214,16 +214,13 @@ async def test_get_vault_map_seeds_home_marker_once(async_session: AsyncSession,
 
 @pytest.mark.asyncio
 async def test_get_vault_map_returns_vault_markers(async_session: AsyncSession, vault: Vault) -> None:
-    """get_vault_map returns computed VaultMarkerRead items (3-7, excluding home)."""
+    """get_vault_map returns the globally consistent computed signal roster."""
     response = await map_service.get_vault_map(async_session, vault)
 
     assert response.vault_markers is not None
     assert 3 <= len(response.vault_markers) <= 7
 
-    # None of the computed markers should match the home vault
-    home_name = f"Vault {vault.number:03}"
     for marker in response.vault_markers:
-        assert marker.name != home_name
         assert marker.type == "vault"
         assert "Unexplored vault signal" in marker.description
 

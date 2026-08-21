@@ -110,8 +110,8 @@ POSTGRES_DB=fallout_db
 
 **URLs (for Hetzner/production):**
 ```bash
-FRONTEND_URL=https://fallout.evillab.dev
-API_URL=https://fallout-api.evillab.dev
+FRONTEND_URL=https://fallout.evillab.tech
+API_URL=https://fallout-api.evillab.tech
 ```
 
 **AI Provider:**
@@ -208,7 +208,7 @@ DOCKER_PASSWORD  - Docker Hub access token
 
 **Required Variables:**
 ```
-PRODUCTION_API_URL  - Frontend build API URL (e.g., https://fallout-api.evillab.dev)
+PRODUCTION_API_URL  - Frontend build API URL (e.g., https://fallout-api.evillab.tech)
 ```
 
 **Setup:** GitHub > Repository > Settings > Secrets and variables > Actions

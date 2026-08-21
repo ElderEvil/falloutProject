@@ -5,8 +5,6 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## Unreleased
 
-## [2.44.0](https://github.com/ElderEvil/falloutProject/compare/v2.43.0...v2.44.0) (2026-08-21)
-
 ### Features
 
 - **Overseer Reports** — long-running dweller activities end in a visible outcome instead of a silent state change.

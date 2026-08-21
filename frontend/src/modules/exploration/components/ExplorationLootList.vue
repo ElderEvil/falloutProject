@@ -3,7 +3,7 @@ import { Icon } from '@iconify/vue'
 import type { LootItem } from '../stores/exploration'
 import { getRarityColor } from '../models/exploration'
 
-defineProps<{ items: LootItem[] }>()
+withDefaults(defineProps<{ items: LootItem[] }>(), { items: () => [] })
 </script>
 
 <template>

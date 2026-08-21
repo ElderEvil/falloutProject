@@ -269,19 +269,25 @@ class MapService:
         db_session: AsyncSession,
         vault_id: UUID4,
         exploration_id: UUID4,
+        dweller_id: UUID4,
         location_name: str,
     ) -> WastelandLocation | None:
-        """Upsert a DISCOVERY location row for an exploration — best-effort.
-
-        Returns the location row (with id and coordinates) when successful, else None.
-        """
+        """Upsert a DISCOVERY row and unlock it for the exploring dweller (best-effort)."""
         try:
-            return await wl_crud.get_or_create(
+            location = await wl_crud.get_or_create(
                 db_session,
                 vault_id=vault_id,
                 name=location_name[:64],
                 type=LocationTypeEnum.DISCOVERY,
                 exploration_id=exploration_id,
+                commit=False,
+            )
+            await wl_crud.link_dweller(
+                db_session,
+                dweller_id,
+                location.id,
+                DwellerLocationRelationEnum.VISITED,
+                is_unlocked=True,
                 commit=False,
             )
         except Exception:
@@ -296,6 +302,8 @@ class MapService:
                 location_name,
             )
             return None
+        else:
+            return location
 
     async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
         """Project discovery events into ordered map trails.

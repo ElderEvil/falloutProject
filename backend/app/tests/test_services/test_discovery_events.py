@@ -104,7 +104,7 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
         dweller_id=dweller.id,
         duration=4,
     )
-    location = await map_service.register_discovery(async_session, vault.id, exploration.id, "Rusty Depot")
+    location = await map_service.register_discovery(async_session, vault.id, exploration.id, dweller.id, "Rusty Depot")
     assert location is not None
 
     exploration.add_event(
@@ -296,6 +296,38 @@ async def test_process_event_registers_discovery_location(
     llm_count_stmt = select(LLMInteraction)
     llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
     assert len(llm_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_process_event_discovery_unlocks_location_on_map(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Happy: a discovery event unlocks the place for the exploring dweller."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await async_session.refresh(exploration)
+    _make_expired_exploration(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Your dweller has discovered Rusty Depot in the wasteland. "
+        "This location has been added to your world map.",
+        location_name="Rusty Depot",
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        await exploration_service.process_event(async_session, exploration)
+
+    payload = await map_service.get_vault_map(async_session, vault)
+    discovery_locs = [loc for loc in payload.locations if loc.type == LocationTypeEnum.DISCOVERY]
+    assert len(discovery_locs) == 1
+    assert discovery_locs[0].name == "Rusty Depot"
+    assert discovery_locs[0].is_unlocked is True
 
 
 @pytest.mark.asyncio

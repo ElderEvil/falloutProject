@@ -309,4 +309,24 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('No events yet')
     })
   })
+
+  describe('Short-schema exploration (missing loot_collected)', () => {
+    it('renders without crashing when loot_collected is undefined', async () => {
+      const { loot_collected: _omit, ...shortExploration } = mockExploration
+      explorationStore.activeExplorations['expl-1'] = shortExploration as typeof mockExploration
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      // Should render the summary card, not throw / blank out
+      expect(wrapper.text()).toContain('Amata Almodovar')
+      expect(wrapper.text()).toContain('Event Log')
+      expect(wrapper.find('.loading-state').exists()).toBe(false)
+    })
+  })
 })

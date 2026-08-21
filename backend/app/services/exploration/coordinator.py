@@ -90,7 +90,11 @@ class ExplorationCoordinator:
                 from app.services.map_service import map_service
 
                 location = await map_service.register_discovery(
-                    db_session, exploration.vault_id, exploration.id, location_name
+                    db_session,
+                    exploration.vault_id,
+                    exploration.id,
+                    exploration.dweller_id,
+                    location_name,
                 )
                 if location is not None:
                     location_id = location.id

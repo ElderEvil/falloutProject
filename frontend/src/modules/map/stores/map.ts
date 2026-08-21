@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useIntervalFn } from '@vueuse/core'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import * as mapService from '../services/mapService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
@@ -9,6 +9,7 @@ export const useMapStore = defineStore('map', () => {
   // State
   const locations = ref<WastelandLocationWithDwellers[]>([])
   const vaultMarkers = ref<VaultMarkerRead[]>([])
+  const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -28,6 +29,7 @@ export const useMapStore = defineStore('map', () => {
           if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
           locations.value = data.locations
           vaultMarkers.value = data.vault_markers
+          discoveryRoutes.value = data.discovery_routes ?? []
         } catch (err) {
           if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
           handleStoreError(err, 'Failed to poll map')
@@ -58,6 +60,7 @@ export const useMapStore = defineStore('map', () => {
       if (gen !== _pollGeneration) return
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
+      discoveryRoutes.value = data.discovery_routes ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
       handleStoreError(err, 'Failed to fetch map')
@@ -96,6 +99,7 @@ export const useMapStore = defineStore('map', () => {
       if (gen !== _pollGeneration) return
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
+      discoveryRoutes.value = data.discovery_routes ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
       error.value = handleStoreError(err, 'Failed to refresh map after chat')
@@ -106,6 +110,7 @@ export const useMapStore = defineStore('map', () => {
     // State
     locations,
     vaultMarkers,
+    discoveryRoutes,
     isLoading,
     error,
     // Getters

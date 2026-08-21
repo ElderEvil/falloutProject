@@ -131,6 +131,7 @@ const hasNoData = computed(
             v-else
             :locations="mapStore.locations"
             :vault-markers="mapStore.vaultMarkers"
+            :discovery-routes="mapStore.discoveryRoutes"
             @marker-click="handleMarkerClick"
           />
 

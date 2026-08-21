@@ -7876,6 +7876,26 @@ export interface components {
             locations: components["schemas"]["WastelandLocationWithDwellers"][];
             /** Vault Markers */
             vault_markers: components["schemas"]["VaultMarkerRead"][];
+            /** Discovery Routes */
+            discovery_routes?: components["schemas"]["DiscoveryRouteRead"][];
+        };
+        /** DiscoveryRoutePoint */
+        DiscoveryRoutePoint: {
+            /** Location Id */
+            location_id: string;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /** Timestamp */
+            timestamp: string;
+        };
+        /** DiscoveryRouteRead */
+        DiscoveryRouteRead: {
+            /** Exploration Id */
+            exploration_id: string;
+            /** Points */
+            points: components["schemas"]["DiscoveryRoutePoint"][];
         };
         /**
          * VaultMarkerRead

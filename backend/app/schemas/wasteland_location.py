@@ -53,8 +53,25 @@ class VaultMarkerRead(SQLModel):
     description: str
 
 
+class DiscoveryRoutePoint(SQLModel):
+    """One persisted discovery event, projected into map coordinates."""
+
+    location_id: UUID4
+    coord_x: float
+    coord_y: float
+    timestamp: str
+
+
+class DiscoveryRouteRead(SQLModel):
+    """Ordered discovery trail for a single exploration."""
+
+    exploration_id: UUID4
+    points: list[DiscoveryRoutePoint]
+
+
 class VaultMapResponse(SQLModel):
     """Full world-map payload: persisted locations + computed vault markers."""
 
     locations: list[WastelandLocationWithDwellers]
     vault_markers: list[VaultMarkerRead]
+    discovery_routes: list[DiscoveryRouteRead] = []

@@ -162,6 +162,24 @@ describe('DwellersView', () => {
   })
 
   describe('Filter Panel Integration', () => {
+    it('applies the Socializing query filter', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=resting')
+      await router.isReady()
+
+      mount(DwellersView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('status=resting'),
+        expect.any(Object)
+      )
+    })
+
     it('should render filter panel', async () => {
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault

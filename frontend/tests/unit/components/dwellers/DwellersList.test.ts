@@ -70,4 +70,43 @@ describe('DwellersList', () => {
     expect(wrapper.text()).toContain('STR')
     expect(wrapper.text()).toContain('8')
   })
+
+  it('keeps the status column aligned when a dweller has a long name', () => {
+    const wrapper = shallowMount(DwellersList, {
+      props: {
+        dwellers: [
+          {
+            id: 'dweller-2',
+            first_name: 'Maximilianus',
+            last_name: 'Von-Longname-Example',
+            thumbnail_url: null,
+            level: 5,
+            health: 80,
+            max_health: 100,
+            radiation: 0,
+            happiness: 75,
+            room_id: null,
+            status: 'resting',
+            is_adult: true,
+            age_group: 'adult',
+            gender: 'male',
+            strength: 4,
+            perception: 4,
+            endurance: 4,
+            charisma: 8,
+            intelligence: 4,
+            agility: 4,
+            luck: 4,
+          },
+        ],
+        generatingAI: {},
+        isLoading: false,
+        rooms: [],
+        viewMode: 'list',
+      },
+    })
+
+    expect(wrapper.find('.dweller-identity').classes()).toContain('w-44')
+    expect(wrapper.find('h3').classes()).toContain('truncate')
+  })
 })

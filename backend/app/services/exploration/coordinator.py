@@ -384,9 +384,10 @@ class ExplorationCoordinator:
         return rewards
 
     async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
-        """Update dweller status back to IDLE or WORKING."""
+        """Restore the dweller's room-appropriate status after exploration."""
+        from app.crud.dweller import determine_status_for_room
         from app.crud.dweller import dweller as dweller_crud
-        from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+        from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
@@ -396,12 +397,7 @@ class ExplorationCoordinator:
             from app.crud.room import room as room_crud
 
             room_obj = await room_crud.get(db_session, dweller_obj.room_id)
-            if room_obj.category == RoomTypeEnum.TRAINING:
-                new_status = DwellerStatusEnum.TRAINING
-            elif room_obj.category == RoomTypeEnum.PRODUCTION:
-                new_status = DwellerStatusEnum.WORKING
-            else:
-                new_status = DwellerStatusEnum.WORKING
+            new_status = determine_status_for_room(room_obj.category, room_obj.name)
         else:
             # No room - set to IDLE
             new_status = DwellerStatusEnum.IDLE

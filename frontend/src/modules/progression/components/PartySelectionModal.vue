@@ -82,8 +82,8 @@ const availableDwellers = computed(() => {
     // Include if already selected for this quest
     if (selectedDwellerIds.value.includes(dweller.id)) return true
 
-    // Only show idle or working dwellers (not on other quests)
-    return dweller.status === 'idle' || dweller.status === 'working'
+    // Only show idle, working, or resting dwellers (not on other quests)
+    return ['idle', 'working', 'resting'].includes(dweller.status)
   })
 })
 
@@ -216,7 +216,7 @@ const handleAssignAndStart = () => {
             </div>
             <div class="dweller-status">
               <UBadge :variant="dweller.status === 'idle' ? 'success' : 'warning'">
-                {{ dweller.status }}
+                {{ dweller.status === 'resting' ? 'Socializing' : dweller.status }}
               </UBadge>
             </div>
           </div>

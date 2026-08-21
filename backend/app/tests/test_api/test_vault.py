@@ -499,8 +499,15 @@ async def test_vault_initiate_boosted_creates_23_dwellers(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test that boosted vault initialization creates 23 dwellers, including three legendary fixtures."""
+    """Boosted vaults include two high-Charisma dwellers socializing in living quarters."""
     from uuid import UUID
+
+    from sqlmodel import select
+
+    from app.core.game_config import game_config
+    from app.models.dweller import Dweller
+    from app.models.room import Room
+    from app.schemas.common import DwellerStatusEnum
 
     vault_number = {"number": 101, "boosted": True}
     response = await async_client.post("/vaults/initiate", headers=normal_user_token_headers, json=vault_number)
@@ -511,6 +518,24 @@ async def test_vault_initiate_boosted_creates_23_dwellers(
         db_session=async_session, vault_id=vault_id
     )
     assert vault_with_counts.dweller_count == 23, f"Expected 23 dwellers, got {vault_with_counts.dweller_count}"
+
+    social_dwellers = (
+        (
+            await async_session.execute(
+                select(Dweller)
+                .join(Room)
+                .where(
+                    Dweller.vault_id == vault_id,
+                    Dweller.status == DwellerStatusEnum.RESTING,
+                    Room.name.ilike("%living%"),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(social_dwellers) == 2
+    assert all(dweller.charisma == game_config.dweller.boosted_stat_value for dweller in social_dwellers)
 
 
 @pytest.mark.asyncio

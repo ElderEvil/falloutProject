@@ -13,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.game_config import game_config
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
+from app.models.relationship import Relationship
 from app.models.room import Room
 from app.schemas.chat import (
     AssignToRoomAction,
@@ -21,7 +22,7 @@ from app.schemas.chat import (
     StartExplorationAction,
     StartTrainingAction,
 )
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
+from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
 from app.services.ai_service import get_model
 
@@ -40,8 +41,6 @@ class ModelCache:
             cls._instance = get_model()
         return cls._instance
 
-
-# --- Structured Output Schema ---
 
 ACTION_TYPES = Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"]
 
@@ -73,86 +72,28 @@ ALLOWED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
 
 
 class DwellerChatOutput(BaseModel):
-    """Structured output from the dweller chat agent."""
-
-    response_text: str = Field(
-        ...,
-        description="The dweller's in-character response to the user's message",
-    )
-    sentiment_score: int = Field(
-        ...,
-        ge=-5,
-        le=5,
-        description="Sentiment score from -5 (very negative) to +5 (very positive) based on the conversation tone",
-    )
-    reason_text: str = Field(
-        ...,
-        max_length=200,
-        description="Brief explanation of why the sentiment score was chosen",
-    )
-    action_type: ACTION_TYPES = Field(
-        ...,
-        description="Type of action suggestion based on conversation context",
-    )
-    action_room_id: UUID4 | None = Field(
-        None,
-        description="Room ID if action_type is assign_to_room",
-    )
-    action_room_name: str | None = Field(
-        None,
-        description="Room name if action_type is assign_to_room",
-    )
-    action_stat: SPECIALEnum | None = Field(
-        None,
-        description="SPECIAL stat if action_type is start_training",
-    )
-    action_reason: str | None = Field(
-        None,
-        max_length=200,
-        description="Reason for the action suggestion",
-    )
-    action_duration_hours: int | None = Field(
-        None,
-        ge=1,
-        le=24,
-        description="Exploration duration in hours if action_type is start_exploration",
-    )
-    action_stimpaks: int | None = Field(
-        None,
-        ge=0,
-        le=25,
-        description="Number of stimpaks if action_type is start_exploration",
-    )
-    action_radaways: int | None = Field(
-        None,
-        ge=0,
-        le=25,
-        description="Number of radaways if action_type is start_exploration",
-    )
-    action_exploration_id: UUID4 | None = Field(
-        None,
-        description="Exploration ID if action_type is recall_exploration (enriched by server)",
-    )
-
-
-# --- Dependencies ---
+    response_text: str = Field(description="In-character response to the user")
+    sentiment_score: int = Field(ge=-5, le=5, description="Conversation sentiment from -5 to 5")
+    reason_text: str = Field(max_length=200, description="Brief sentiment explanation")
+    action_type: ACTION_TYPES = Field(description="Suggested action type")
+    action_room_id: UUID4 | None = Field(None, description="Room ID for an assignment")
+    action_room_name: str | None = Field(None, description="Room name for an assignment")
+    action_stat: SPECIALEnum | None = Field(None, description="Stat for training")
+    action_reason: str | None = Field(None, max_length=200, description="Suggested action rationale")
+    action_duration_hours: int | None = Field(None, ge=1, le=24, description="Exploration duration")
+    action_stimpaks: int | None = Field(None, ge=0, le=25, description="Exploration stimpaks")
+    action_radaways: int | None = Field(None, ge=0, le=25, description="Exploration radaways")
+    action_exploration_id: UUID4 | None = Field(None, description="Exploration ID for recall")
 
 
 @dataclass
 class DwellerChatDeps:
-    """Dependencies for dweller chat agent."""
-
     db_session: AsyncSession
     dweller: DwellerReadFull
     vault_id: UUID4
 
 
-# --- Room Info Models for Tools ---
-
-
 class RoomInfo(BaseModel):
-    """Basic room information for tool responses."""
-
     room_id: str
     name: str
     category: str
@@ -162,8 +103,6 @@ class RoomInfo(BaseModel):
 
 
 class TrainingOption(BaseModel):
-    """A currently startable training option for the dweller."""
-
     room_name: str
     stat: SPECIALEnum
     current_stat: int
@@ -172,8 +111,6 @@ class TrainingOption(BaseModel):
 
 
 class DwellerActivityBriefing(BaseModel):
-    """Grounded training and wasteland state used before suggesting an activity."""
-
     active_training_stat: SPECIALEnum | None = None
     active_training_progress_percent: float | None = None
     training_options: list[TrainingOption] = []
@@ -188,8 +125,6 @@ class DwellerActivityBriefing(BaseModel):
     recommended_radaways: int | None = None
     exploration_blocker: str | None = None
 
-
-# --- Agent Definition ---
 
 dweller_chat_agent = Agent(
     model=ModelCache.get_model(),
@@ -230,53 +165,21 @@ def chat_instructions(ctx: RunContext[DwellerChatDeps]) -> str:
     weapon_name = dweller.weapon.name if dweller.weapon else "Fist"
 
     return f"""
-You are {dweller.first_name} {dweller.last_name}, a {gender} {age_group} dweller of level {dweller.level}.
-You are a {dweller.rarity.value} rarity dweller in vault {dweller.vault.number}.
-Currently in: {room_name}.
-Outfit: {outfit_name}.
-Weapon: {weapon_name}.
-Health: {dweller.health}/{dweller.max_health}, Stimpacks: {dweller.stimpack}, Radaways: {dweller.radaway}.
-Happiness: {dweller.happiness}/100 - act according to this mood level.
-SPECIAL stats: {special_stats}. Use these to inform your personality but don't mention explicitly unless asked.
-Vault info: {vault_stats}. Share naturally if asked.
-
-IMPORTANT: Keep your response natural and conversational. When you suggest an action
-(assign_to_room, etc.), do NOT explicitly state the action details in your
-response_text. The action details will be shown separately in an action card.
-Instead, express your feeling or desire naturally without being too specific about room/stat.
-
-Examples:
-- BAD: "I'd love to work in the Power Generator!" (too specific, duplicates action card)
-- GOOD: "I'm feeling energetic and ready to help out!" (expresses desire, action card shows specifics)
-
-After responding, analyze:
-1. Sentiment: Rate from -5 to +5 based on conversation tone (positive = higher, complaints = lower)
-2. Actions: Use tools to check available rooms if the dweller expresses interest in work or moving.
-   - Dwellers can be assigned to ANY room type: production, training, crafting, capacity, misc, quests, or theme.
-    - If the user asks to move to a specific room by name, follow their order strictly
-      and use `list_all_rooms()` to find it.
-    - If they want productive work (and no specific room is mentioned):
-      use `list_production_rooms()` to find a room matching their highest SPECIAL stat.
-   - Before suggesting training, exploration, or recall: call `get_dweller_activity_briefing()`.
-     Treat it as the source of truth: do not suggest training while active training is reported, do not suggest
-     exploration while an exploration is active, and only suggest recall when one is active.
-   - If they want to train or improve stats: use the briefing's training options, then `list_training_rooms()` if
-     you need a displayable room choice.
-   - For any other room request or general "move me somewhere" queries: use `list_all_rooms()` for a complete overview.
-   - If they want adventure or to explore the wasteland: suggest start_exploration
-   - If they want to come home or you sense danger during exploration: suggest recall_exploration
-   - Otherwise: no_action
+You are {dweller.first_name} {dweller.last_name}, a level-{dweller.level} {gender} {age_group} {dweller.rarity.value} dweller in vault {dweller.vault.number}.
+Room: {room_name}. Outfit: {outfit_name}. Weapon: {weapon_name}. Health: {dweller.health}/{dweller.max_health}; Stimpacks: {dweller.stimpack}; Radaways: {dweller.radaway}.
+Happiness: {dweller.happiness}/100. SPECIAL: {special_stats}. Vault: {vault_stats}. Share facts naturally when asked.
+Keep response_text conversational and do not duplicate details rendered in an action card.
+Rate sentiment from -5 to +5, then choose an action only when it naturally follows.
+- For a named or general room move, use `list_all_rooms()`; for productive work without a named room, use `list_production_rooms()`.
+- Before training, exploring, or recalling, call `get_dweller_activity_briefing()` and obey its blockers; use `list_training_rooms()` when needed.
+- For current status, socializing, family, or relationships, call `get_dweller_social_context()`; its live result overrides this profile.
+- Suggest start_exploration for adventure, recall_exploration for returning home or danger, otherwise no_action.
 """
 
 
 @dweller_chat_agent.output_validator
 def validate_dweller_chat_output(output: DwellerChatOutput) -> DwellerChatOutput:
-    """Reject cross-field action payloads before gameplay code reads them.
-
-    Pydantic validates individual fields, but action payloads have contextual requirements. Raising
-    ``ModelRetry`` gives the model a bounded opportunity to correct an otherwise well-typed response.
-    ``action_reason`` is intentionally allowed for every action because it is explanatory rather than gameplay data.
-    """
+    """Reject action payloads whose fields do not match their action type."""
     required_fields = REQUIRED_ACTION_FIELDS[output.action_type]
     missing_fields = [field for field in required_fields if getattr(output, field) is None]
     if missing_fields:
@@ -428,6 +331,78 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
         briefing.recommended_radaways = min(1, available_radaways)
 
     return briefing
+
+
+async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
+    """Return the current social status, family, and relationship state for chat answers."""
+    dweller = await deps.db_session.get(Dweller, deps.dweller.id)
+    if dweller is None:
+        return {"status": "Unknown", "room_name": None, "family": [], "relationships": []}
+
+    room_name = None
+    if dweller.room_id:
+        room_result = await deps.db_session.execute(select(Room.name).where(Room.id == dweller.room_id))
+        room_name = room_result.scalar_one_or_none()
+
+    relationships_result = await deps.db_session.execute(
+        select(Relationship).where(
+            (Relationship.dweller_1_id == dweller.id) | (Relationship.dweller_2_id == dweller.id)
+        )
+    )
+    relationships = relationships_result.scalars().all()
+    relation_ids = {
+        relation.dweller_2_id if relation.dweller_1_id == dweller.id else relation.dweller_1_id
+        for relation in relationships
+    }
+    family_ids = {
+        member_id for member_id in (dweller.partner_id, dweller.parent_1_id, dweller.parent_2_id) if member_id
+    }
+    relatives_result = await deps.db_session.execute(
+        select(Dweller).where(
+            Dweller.id.in_(family_ids | relation_ids)
+            | (Dweller.parent_1_id == dweller.id)
+            | (Dweller.parent_2_id == dweller.id)
+        )
+    )
+    relatives = {relative.id: relative for relative in relatives_result.scalars().all()}
+
+    def name(member_id: UUID4) -> str:
+        member = relatives.get(member_id)
+        return f"{member.first_name} {member.last_name or ''}".strip() if member else "Unknown dweller"
+
+    family = [
+        {"name": name(member_id), "relation": relation}
+        for member_id, relation in (
+            (dweller.partner_id, "partner"),
+            (dweller.parent_1_id, "parent"),
+            (dweller.parent_2_id, "parent"),
+        )
+        if member_id
+    ]
+    family.extend(
+        {"name": name(child.id), "relation": "child"}
+        for child in relatives.values()
+        if child.parent_1_id == dweller.id or child.parent_2_id == dweller.id
+    )
+    return {
+        "status": "Socializing" if dweller.status == DwellerStatusEnum.RESTING else dweller.status.value.title(),
+        "room_name": room_name,
+        "family": family,
+        "relationships": [
+            {
+                "name": name(relation.dweller_2_id if relation.dweller_1_id == dweller.id else relation.dweller_1_id),
+                "relationship_type": relation.relationship_type.value,
+                "affinity": relation.affinity,
+            }
+            for relation in relationships
+        ],
+    }
+
+
+@dweller_chat_agent.tool
+async def get_dweller_social_context(ctx: RunContext[DwellerChatDeps]) -> dict:
+    """Get live status, room, family, and relationship affinity before answering social questions."""
+    return await build_dweller_social_context(ctx.deps)
 
 
 @dweller_chat_agent.tool

@@ -34,6 +34,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
   { value: 'idle', label: 'Idle', icon: 'mdi:coffee-outline' },
+  { value: 'resting', label: 'Socializing', icon: 'mdi:heart-outline' },
   { value: 'working', label: 'Working', icon: 'mdi:hammer-wrench' },
   { value: 'training', label: 'Training', icon: 'mdi:dumbbell' },
   { value: 'exploring', label: 'Exploring', icon: 'mdi:compass-outline' },

@@ -16,6 +16,7 @@ describe('DwellerFilterPanel', () => {
       // Check for all status options
       expect(wrapper.text()).toContain('All')
       expect(wrapper.text()).toContain('Idle')
+      expect(wrapper.text()).toContain('Socializing')
       expect(wrapper.text()).toContain('Working')
       expect(wrapper.text()).toContain('Training')
       expect(wrapper.text()).toContain('Exploring')

@@ -216,54 +216,27 @@ class VaultService:
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
         try:
-            # Production dwellers (always created) - all should be WORKING
-            production_assignments = [
-                (created_production_rooms[0], SPECIALEnum.STRENGTH),
-                (created_production_rooms[0], SPECIALEnum.STRENGTH),
-                (created_production_rooms[1], SPECIALEnum.AGILITY),
-                (created_production_rooms[1], SPECIALEnum.AGILITY),
-                (created_production_rooms[2], SPECIALEnum.PERCEPTION),
-                (created_production_rooms[2], SPECIALEnum.PERCEPTION),
-            ]
-
-            for room, boosted_stat in production_assignments:
-                dweller_data = DwellerCreateCommonOverride(special_boost=boosted_stat)
-                dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
-
-                # Assign dweller to room with WORKING status
-                await dweller_crud.update(
-                    db_session=db_session,
-                    id=dweller_obj.id,
-                    obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+            assignments = [
+                (room, stat, 2)
+                for room, stat in zip(
+                    created_production_rooms[:3],
+                    (SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION),
+                    strict=True,
                 )
-                self.logger.info(f"Dweller {dweller_obj.id} assigned to room {room.id}")
-
-            # Medbay and Science Lab dwellers (boosted only, Intelligence-based)
+            ]
             if is_boosted and len(created_production_rooms) >= 5:
-                medbay_room = created_production_rooms[3]  # 4th room is Medbay
-                science_lab_room = created_production_rooms[4]  # 5th room is Science Lab
-
-                # Create 2 dwellers for Medbay
-                for _ in range(2):
-                    dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.INTELLIGENCE)
-                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                assignments.extend((room, SPECIALEnum.INTELLIGENCE, 2) for room in created_production_rooms[3:5])
+            for room, boosted_stat, count in assignments:
+                for _ in range(count):
+                    dweller_obj = await dweller_crud.create_random(
+                        db_session, vault_id, DwellerCreateCommonOverride(special_boost=boosted_stat)
+                    )
                     await dweller_crud.update(
                         db_session=db_session,
                         id=dweller_obj.id,
-                        obj_in=DwellerUpdate(room_id=medbay_room.id, status=DwellerStatusEnum.WORKING),
+                        obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
                     )
-                    self.logger.info(f"Dweller {dweller_obj.id} assigned to Medbay")
-
-                # Create 2 dwellers for Science Lab
-                for _ in range(2):
-                    dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.INTELLIGENCE)
-                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
-                    await dweller_crud.update(
-                        db_session=db_session,
-                        id=dweller_obj.id,
-                        obj_in=DwellerUpdate(room_id=science_lab_room.id, status=DwellerStatusEnum.WORKING),
-                    )
-                    self.logger.info(f"Dweller {dweller_obj.id} assigned to Science Lab")
+                    self.logger.info("Dweller %s assigned to %s", dweller_obj.id, room.name)
 
             # Training dwellers (boosted only)
             if is_boosted:
@@ -305,31 +278,21 @@ class VaultService:
                     )
                     self.logger.info(f"Dweller {dweller_obj.id} assigned to Radio Studio")
 
-            # Living quarters dwellers (opposite genders for birth testing)
             living_rooms = [r for r in created_capacity_rooms if "living" in r.name.lower()]
             if living_rooms:
-                # Create one male and one female dweller in the first living room
                 living_room = living_rooms[0]
-
-                # Create male dweller
-                male_dweller_data = DwellerCreateCommonOverride(gender=GenderEnum.MALE)
-                male_dweller = await dweller_crud.create_random(db_session, vault_id, male_dweller_data)
-                await dweller_crud.update(
-                    db_session=db_session,
-                    id=male_dweller.id,
-                    obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.IDLE),
-                )
-                self.logger.info(f"Male dweller {male_dweller.id} assigned to living quarters for birth testing")
-
-                # Create female dweller
-                female_dweller_data = DwellerCreateCommonOverride(gender=GenderEnum.FEMALE)
-                female_dweller = await dweller_crud.create_random(db_session, vault_id, female_dweller_data)
-                await dweller_crud.update(
-                    db_session=db_session,
-                    id=female_dweller.id,
-                    obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.IDLE),
-                )
-                self.logger.info(f"Female dweller {female_dweller.id} assigned to living quarters for birth testing")
+                for gender in (GenderEnum.MALE, GenderEnum.FEMALE):
+                    dweller_data = DwellerCreateCommonOverride(
+                        gender=gender,
+                        special_boost=SPECIALEnum.CHARISMA if is_boosted else None,
+                    )
+                    dweller = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    await dweller_crud.update(
+                        db_session=db_session,
+                        id=dweller.id,
+                        obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.RESTING),
+                    )
+                    self.logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
 
         except Exception:
             self.logger.exception("Failed to create dwellers")

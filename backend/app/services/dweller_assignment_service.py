@@ -69,7 +69,7 @@ class DwellerAssignmentService:
             await crud.dweller.update(
                 db_session,
                 dweller.id,
-                DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
+                DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
             )
 
         assignments.append(
@@ -274,7 +274,7 @@ class DwellerAssignmentService:
                     await crud.dweller.update(
                         db_session,
                         dweller.id,
-                        DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category)),
+                        DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
                     )
                     assignments.append(
                         {

@@ -17,6 +17,7 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
+from app.schemas.common import RoomTypeEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
@@ -780,7 +781,12 @@ class GameLoopService:
             dwellers_query = (
                 select(Dweller)
                 .join(Room)
-                .where(Dweller.vault_id == vault_id, Dweller.room_id.is_not(None), Room.name.ilike("%living%"))
+                .where(
+                    Dweller.vault_id == vault_id,
+                    Dweller.room_id.is_not(None),
+                    Room.name.ilike("%living%"),
+                    Room.category == RoomTypeEnum.CAPACITY,
+                )
             )
             dwellers_result = await db_session.execute(dwellers_query)
             dwellers = dwellers_result.scalars().all()

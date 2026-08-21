@@ -258,6 +258,21 @@ describe('ExplorationDetailView', () => {
   })
 
   describe('Loading State', () => {
+    it('renders after a direct link loads only the detailed dweller record', async () => {
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Amata Almodovar')
+      expect(wrapper.text()).not.toContain('Loading exploration data...')
+    })
+
     it('renders loading state when no exploration data', async () => {
       // Remove exploration from activeExplorations
       delete explorationStore.activeExplorations['expl-1']

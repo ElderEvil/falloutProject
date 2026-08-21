@@ -41,12 +41,19 @@ const completedDwellerName = ref('')
 
 // Current exploration and dweller
 const exploration = computed(() => {
-  return explorationStore.activeExplorations[explorationId.value]
+  return (
+    explorationStore.activeExplorations[explorationId.value] ??
+    explorationStore.explorations.find((item) => item.id === explorationId.value)
+  )
 })
 
 const dweller = computed(() => {
   if (!exploration.value) return null
-  return dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id)
+  return (
+    dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id) ??
+    dwellerStore.detailedDwellers[exploration.value.dweller_id] ??
+    null
+  )
 })
 
 const detailedDweller = computed(() => {
@@ -187,6 +194,13 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
+    // A direct link can target a completed exploration, which is absent from
+    // the active-only collection above. Fetch it immediately instead of
+    // leaving the detail view waiting for the polling interval.
+    if (!exploration.value) {
+      await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
+    }
+
     // Fetch full dweller data for the explorer (includes weapon/outfit)
     if (exploration.value) {
       await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, authStore.token)
@@ -258,7 +272,6 @@ watch(
             :progress-percentage="progressPercentage"
             :time-remaining="timeRemaining"
             :exploration-duration="exploration.duration"
-            :dweller="dweller"
           />
 
           <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />

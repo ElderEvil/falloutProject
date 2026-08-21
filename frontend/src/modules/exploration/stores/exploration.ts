@@ -272,10 +272,13 @@ export const useExplorationStore = defineStore('exploration', () => {
         headers: { Authorization: `Bearer ${token}` },
       })
 
-      // Update in explorations list
+      // Update in explorations list, including direct links to completed runs
+      // that are absent from the active-only collection.
       const index = explorations.value.findIndex((e) => e.id === explorationId)
       if (index !== -1) {
         explorations.value[index] = response.data
+      } else {
+        explorations.value.push(response.data)
       }
 
       // Update in active explorations

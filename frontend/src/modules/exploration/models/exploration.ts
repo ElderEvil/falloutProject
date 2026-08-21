@@ -52,5 +52,9 @@ const RARITY_COLOR_MAP: Record<string, string> = {
 }
 
 export function getRarityColor(rarity?: string): string {
-  return (rarity && RARITY_COLOR_MAP[rarity]) || RARITY_COLOR_MAP.Common!
+  const normalizedRarity = rarity?.trim().toLowerCase()
+  const matchingRarity = Object.keys(RARITY_COLOR_MAP).find(
+    (knownRarity) => knownRarity.toLowerCase() === normalizedRarity
+  )
+  return (matchingRarity && RARITY_COLOR_MAP[matchingRarity]) || RARITY_COLOR_MAP.Common!
 }

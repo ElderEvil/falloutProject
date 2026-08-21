@@ -52,9 +52,9 @@ Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist an
 - 🔄 **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
 - 🔄 **Phase D — social** — friends, vault visits, leaderboards, global location registry.
 
-**Guardrails:** async only (no live shared-world simulation); coordinates always derived from names; no
-denormalized global registry until Phase D; respect the v2.35+ net-LOC constraint (journal polish deletes
-more than it adds).
+**Guardrails:** async only (no live shared-world simulation); names determine shared base coordinates, while
+vault-local collision resolution may temporarily offset overlapping markers; no denormalized global registry
+until Phase D; respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
 
 **Success criteria:** the near-term release delivers a legible per-explorer journey (loot + health-change trail +
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent

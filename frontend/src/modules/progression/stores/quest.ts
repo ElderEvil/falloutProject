@@ -4,6 +4,7 @@ import axios from '@/core/plugins/axios'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { handleStoreError } from '@/core/utils/errorHandler'
 
 interface QuestCompleteResponse {
   quest_id: string
@@ -102,7 +103,12 @@ export const useQuestStore = defineStore('quest', () => {
     for (const quest of active) {
       try {
         nextPartyMap[quest.id] = await getParty(vaultId, quest.id)
-      } catch {
+      } catch (error: unknown) {
+        handleStoreError(
+          error,
+          `Failed to fetch party for quest ${quest.id} in vault ${vaultId}`,
+          false
+        )
         nextPartyMap[quest.id] = []
       }
     }

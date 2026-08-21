@@ -315,6 +315,17 @@ describe('Exploration Store', () => {
       expect(store.explorations[0].status).toBe('completed')
     })
 
+    it('retains a directly loaded completed exploration for its detail view', async () => {
+      const store = useExplorationStore()
+      const completedExploration = { ...mockExploration, status: 'completed' }
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: completedExploration })
+
+      await store.fetchExplorationDetails('exploration-1', 'test-token')
+
+      expect(store.explorations).toEqual([completedExploration])
+      expect(store.activeExplorations['exploration-1']).toBeUndefined()
+    })
+
     it('should handle error', async () => {
       const store = useExplorationStore()
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))

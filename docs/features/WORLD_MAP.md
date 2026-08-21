@@ -21,14 +21,16 @@ The map uses a deterministic coordinate engine, not a per-player drawing:
 Persistence stays on a 0–100 grid (`WastelandLocation.coord_x/y`, DB check-constrained); the map API scales
 it with `WORLD_SCALE = 1.6` to the 0–160 render world (`MAP_SIZE = 160`).
 
-Place rows are scoped to `vault_id`, which gives every vault independent discovery and unlock state. Since a
-place name resolves to the same base coordinate for every vault, this produces one shared physical world with
-per-player fog of war.
+Place rows are scoped to `vault_id`, which gives every vault independent discovery and unlock state. A place
+name resolves to the same shared base coordinate for every vault. Until Phase D introduces a global location
+registry, a vault-local `collision_nudge` can move an overlapping persisted marker differently in each vault;
+the current map is therefore a shared-base-coordinate schematic with per-player fog, not yet an exact global
+marker registry.
 
 ## Invariants
 
-1. **One deterministic world, per-player fog.** Coordinates derive from names. Per-player discovery and
-   unlock state belongs to vault-scoped state, not the world model.
+1. **One deterministic base world, per-player fog.** Base coordinates derive from names. Per-player discovery,
+   unlock state, and collision resolution belong to vault-scoped state until a global registry exists.
 2. **Async multiplayer.** A raid resolves against a snapshot, never a live vault simulation. The offline game
    loop makes live shared-world authority incompatible with this architecture.
 3. **`Vault.number` is global identity.** A real vault's world marker derives from its number, never from the

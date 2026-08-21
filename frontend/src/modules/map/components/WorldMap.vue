@@ -206,7 +206,7 @@ function onPanelMarkerSelect(payload: {
         v-for="(route, i) in discoveryRouteLines"
         :key="`route-${i}`"
         :points="route"
-        class="discovery-route"
+        class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
         fill="none"
       />
 
@@ -294,14 +294,6 @@ function onPanelMarkerSelect(payload: {
 
 .world-map-container.is-dragging :deep(.map-marker) {
   cursor: grabbing;
-}
-
-.discovery-route {
-  stroke: var(--color-theme-accent);
-  stroke-width: 0.4;
-  stroke-dasharray: 2 2;
-  stroke-linecap: round;
-  opacity: 0.55;
 }
 
 .world-map-svg {

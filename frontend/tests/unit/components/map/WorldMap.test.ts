@@ -135,7 +135,7 @@ describe('WorldMap', () => {
         global: { stubs: defaultStubs },
       })
 
-      const route = wrapper.find('.discovery-route')
+      const route = wrapper.find('polyline')
       expect(route.attributes('points')).toBe('20,30 20,30')
     })
   })

@@ -96,7 +96,7 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
-):
+) -> None:
     """The map route comes from events, not the de-duplicated location row."""
     exploration = await crud.exploration.create_with_dweller_stats(
         async_session,

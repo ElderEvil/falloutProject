@@ -232,7 +232,9 @@ async def test_get_vault_map_returns_vault_markers(async_session: AsyncSession, 
 
 
 @pytest.mark.asyncio
-async def test_register_discovery_rolls_back_with_callers_transaction(async_session: AsyncSession, vault: Vault) -> None:
+async def test_register_discovery_rolls_back_with_callers_transaction(
+    async_session: AsyncSession, vault: Vault
+) -> None:
     """Discovery registration must not commit before its event can be persisted."""
     location = await map_service.register_discovery(async_session, vault.id, uuid4(), "Rollback Depot")
     assert location is not None
@@ -240,12 +242,16 @@ async def test_register_discovery_rolls_back_with_callers_transaction(async_sess
     await async_session.rollback()
 
     rows = (
-        await async_session.execute(
-            select(WastelandLocation).where(
-                WastelandLocation.normalized_name == normalize_place_name("Rollback Depot")
+        (
+            await async_session.execute(
+                select(WastelandLocation).where(
+                    WastelandLocation.normalized_name == normalize_place_name("Rollback Depot")
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert rows == []
 
 

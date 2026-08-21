@@ -297,9 +297,7 @@ class MapService:
             )
             return None
 
-    async def _get_discovery_routes(
-        self, db_session: AsyncSession, vault_id: UUID4
-    ) -> list[DiscoveryRouteRead]:
+    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
         """Project discovery events into ordered map trails.
 
         A ``WastelandLocation`` is intentionally de-duplicated by place name,

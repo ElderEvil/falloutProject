@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 defineProps<{
   dwellerName: string
@@ -10,7 +9,6 @@ defineProps<{
   progressPercentage: number
   timeRemaining: string
   explorationDuration: number
-  dweller: DwellerShort | null
 }>()
 </script>
 

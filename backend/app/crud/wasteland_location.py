@@ -57,6 +57,7 @@ class CRUDWastelandLocation:
         type: str,
         description: str | None = None,
         exploration_id: UUID4 | None = None,
+        commit: bool = True,
     ) -> WastelandLocation:
         """Get or create a location row with race-safe upsert.
 
@@ -66,7 +67,9 @@ class CRUDWastelandLocation:
         the exact documented pattern from ``CRUDUserProfile.create_for_user``.
 
         Distinguishes name conflicts (return existing row) from coordinate
-        conflicts (re-derive fresh coords, bounded retry).
+        conflicts (re-derive fresh coords, bounded retry). When ``commit`` is
+        false, inserts are flushed and remain part of the caller's outer
+        transaction.
         """
         normalized = normalize_place_name(name)
 
@@ -101,8 +104,13 @@ class CRUDWastelandLocation:
                 vault_id=vault_id,
                 exploration_id=exploration_id,
             )
-            db_session.add(obj)
+            if not commit:
+                db_session.add(obj)
+                await db_session.flush()
+                return obj
+
             try:
+                db_session.add(obj)
                 await db_session.commit()
             except IntegrityError:
                 # Race: another request already inserted this name

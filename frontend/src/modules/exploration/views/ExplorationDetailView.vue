@@ -11,11 +11,13 @@ import { useToast } from '@/core/composables/useToast'
 import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useExplorationStore } from '../stores/exploration'
+import { useExplorationProgress } from '../composables/useExplorationProgress'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
 import ExplorerSummaryCard from '../components/ExplorerSummaryCard.vue'
 import ExplorerStatsGrid from '../components/ExplorerStatsGrid.vue'
 import ExplorationEventLog from '../components/ExplorationEventLog.vue'
+import ExplorationLootList from '../components/ExplorationLootList.vue'
 import ExplorerEquipmentSlots from '../components/ExplorerEquipmentSlots.vue'
 import ExplorerActions from '../components/ExplorerActions.vue'
 import type { RewardsSummary } from '../stores/exploration'
@@ -39,12 +41,19 @@ const completedDwellerName = ref('')
 
 // Current exploration and dweller
 const exploration = computed(() => {
-  return explorationStore.activeExplorations[explorationId.value]
+  return (
+    explorationStore.activeExplorations[explorationId.value] ??
+    explorationStore.explorations.find((item) => item.id === explorationId.value)
+  )
 })
 
 const dweller = computed(() => {
   if (!exploration.value) return null
-  return dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id)
+  return (
+    dwellerStore.dwellers.find((d) => d.id === exploration.value!.dweller_id) ??
+    dwellerStore.detailedDwellers[exploration.value.dweller_id] ??
+    null
+  )
 })
 
 const detailedDweller = computed(() => {
@@ -88,39 +97,34 @@ const goBack = () => {
 }
 
 // Progress calculation
-const progressPercentage = computed(() => {
-  if (!exploration.value) return 0
-  const now = Date.now()
-  let startTimeStr = exploration.value.start_time
-  if (!startTimeStr.endsWith('Z')) {
-    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-  }
-  const start = new Date(startTimeStr).getTime()
-  const duration = exploration.value.duration * 3600 * 1000
-  const elapsed = now - start
-  return Math.min(100, (elapsed / duration) * 100)
-})
-
-const timeRemaining = computed(() => {
-  if (!exploration.value) return ''
-  const progress = progressPercentage.value
-  if (progress >= 100) return 'Complete!'
-
-  const totalDuration = exploration.value.duration * 3600
-  const remaining = totalDuration * (1 - progress / 100)
-
-  const hours = Math.floor(remaining / 3600)
-  const minutes = Math.floor((remaining % 3600) / 60)
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m remaining`
-  }
-  return `${minutes}m remaining`
-})
+const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => exploration.value)
 
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
+
+const healthJourney = computed(() =>
+  (exploration.value?.events ?? []).filter((e) => e.health_loss != null || e.health_restored != null)
+)
+const totalDamage = computed(() => healthJourney.value.reduce((sum, e) => sum + (e.health_loss ?? 0), 0))
+const totalHealed = computed(() => healthJourney.value.reduce((sum, e) => sum + (e.health_restored ?? 0), 0))
+const healthTrendPoints = computed(() => {
+  const deltas = healthJourney.value.map((event) => (event.health_restored ?? 0) - (event.health_loss ?? 0))
+  const values = [0]
+  for (const delta of deltas) values.push(values[values.length - 1]! + delta)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+  const width = 120
+  const height = 28
+  return values
+    .map((value, index) => {
+      const x = (index / Math.max(values.length - 1, 1)) * width
+      const y = height - ((value - min) / range) * height
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+})
 
 // Actions
 const handleCompleteExploration = async () => {
@@ -189,6 +193,13 @@ usePolling(refreshExploration, { interval: 10_000, immediate: false })
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+
+    // A direct link can target a completed exploration, which is absent from
+    // the active-only collection above. Fetch it immediately instead of
+    // leaving the detail view waiting for the polling interval.
+    if (!exploration.value) {
+      await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
+    }
 
     // Fetch full dweller data for the explorer (includes weapon/outfit)
     if (exploration.value) {
@@ -261,10 +272,38 @@ watch(
             :progress-percentage="progressPercentage"
             :time-remaining="timeRemaining"
             :exploration-duration="exploration.duration"
-            :dweller="dweller"
           />
 
           <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+
+          <!-- Vitals journey: cumulative health change (not an absolute health history). -->
+          <div
+            v-if="healthJourney.length > 0"
+            class="mb-4 flex flex-wrap items-center gap-4 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3 text-sm"
+          >
+            <span class="flex items-center gap-1.5">
+              <Icon icon="mdi:heart-broken" class="h-5 w-5 text-[#ff4444]" />
+              <span class="font-bold text-[#ff4444]">-{{ totalDamage }}</span>
+              <span class="text-theme-primary/70">damage</span>
+            </span>
+            <span class="flex items-center gap-1.5">
+              <Icon icon="mdi:heart-plus" class="h-5 w-5 text-[#00ced1]" />
+              <span class="font-bold text-[#00ced1]">+{{ totalHealed }}</span>
+              <span class="text-theme-primary/70">healed</span>
+            </span>
+            <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
+            <svg
+              class="ml-auto h-7 w-[120px] overflow-visible"
+              viewBox="0 0 120 28"
+              role="img"
+              aria-label="Cumulative health change during this expedition"
+            >
+              <polyline :points="healthTrendPoints" fill="none" stroke="var(--color-theme-accent)" stroke-width="2" />
+            </svg>
+          </div>
+
+          <!-- Loot found mid-journey -->
+          <ExplorationLootList :items="exploration.loot_collected" />
 
           <!-- Event Log Section -->
           <ExplorationEventLog :events="exploration?.events ?? []" reverse />

@@ -30,6 +30,36 @@ AI-powered dweller interactions.
 
 ## Planned
 
+### World Map — Multiplayer-First Architecture (Target: TBD)
+
+**Focus**: Evolve the wasteland map into the game's multiplayer surface — one deterministic shared world
+with per-player fog of war, over which async-PvP raiding, cross-vault encounters, and social features layer.
+Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_PLAN.md`.
+
+**Near-term release — "The Wasteland Journal" (implemented locally; pending release):**
+- ✅ **Exploration journal polish** — mid-journey `loot_collected`, cumulative health-change trail,
+  consolidated progress math, and dead-component deletion.
+- ✅ **Discovery → map integration** — discovery event coordinates/IDs, deep-links, and event-authoritative
+  per-exploration routes on `WorldMap` (no migration).
+- ✅ **Determinism correction** — globally seeded neighbor-vault signals with regression coverage.
+- ✅ **Quest party-members fix** — `QuestsView` populates `questPartyMembersMap`, so party rosters render.
+
+Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
+`docs/WORLD_MAP_PLAN.md`.
+
+**Deferred multiplayer phases** (see `docs/WORLD_MAP_PLAN.md`):
+- 🔄 **Phase B — async-PvP raiding** — `RaidTarget` snapshots + a `raid` exploration subtype.
+- 🔄 **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
+- 🔄 **Phase D — social** — friends, vault visits, leaderboards, global location registry.
+
+**Guardrails:** async only (no live shared-world simulation); names determine shared base coordinates, while
+vault-local collision resolution may temporarily offset overlapping markers; no denormalized global registry
+until Phase D; respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
+
+**Success criteria:** the near-term release delivers a legible per-explorer journey (loot + health-change trail +
+map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent
+coordinates — all test-backed.
+
 ### Next Big Feature — Family Relations (Target: TBD)
 
 **Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,
@@ -292,7 +322,7 @@ update reduce net source LOC (features that add code must first offset it by rem
 ### Phase 2: Advanced Gameplay
 
 - Combat enhancements (statistics, log/replay)
-- Exploration enhancement (events with choices, journal)
+- Exploration enhancement (events with choices; "journal" is now the near-term Wasteland Journal release — see World Map plan above)
 - ~~Family visualization (relationship graph, family tree)~~ → **now the next big feature** (see Planned above)
 
 ### Phase 3: Endgame
@@ -425,4 +455,5 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-21_ (Overseer Reports PR #449 in review; CodeRabbit follow-ups tracked under Planned; next focus: Family Relations, Pydantic AI Gateway activation)
+_Last updated: 2026-08-21_ (World Map feature contracts and delivery plan separated; next focus: releasing
+"The Wasteland Journal", then async-PvP raiding. Plan: `docs/WORLD_MAP_PLAN.md`.)

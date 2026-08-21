@@ -18,6 +18,7 @@ from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
 from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
+from app.services.map_service import map_service
 
 
 def _make_expired_exploration(exploration: Exploration) -> None:
@@ -88,6 +89,49 @@ async def test_add_event_persists_location_name(
     persisted = exploration.events[-1]
     assert persisted["type"] == "discovery"
     assert persisted["location_name"] == "Rusty Depot"
+
+
+@pytest.mark.asyncio
+async def test_map_routes_preserve_repeated_discoveries_from_event_history(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """The map route comes from events, not the de-duplicated location row."""
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    location = await map_service.register_discovery(async_session, vault.id, exploration.id, "Rusty Depot")
+    assert location is not None
+
+    exploration.add_event(
+        "discovery",
+        "First discovery.",
+        location_name=location.name,
+        location_id=location.id,
+        coord_x=location.coord_x,
+        coord_y=location.coord_y,
+    )
+    exploration.add_event(
+        "discovery",
+        "Rediscovered on a later leg.",
+        location_name=location.name,
+        location_id=location.id,
+        coord_x=location.coord_x,
+        coord_y=location.coord_y,
+    )
+    async_session.add(exploration)
+    await async_session.commit()
+
+    map_payload = await map_service.get_vault_map(async_session, vault)
+    assert len(map_payload.discovery_routes) == 1
+    route = map_payload.discovery_routes[0]
+    assert route.exploration_id == exploration.id
+    assert [point.location_id for point in route.points] == [location.id, location.id]
+    assert route.points[0].coord_x == round(location.coord_x * 1.6, 1)
 
 
 @pytest.mark.asyncio
@@ -232,9 +276,6 @@ async def test_process_event_registers_discovery_location(
 
     await async_session.refresh(result)
 
-    # Event persisted with location_name
-    assert result.events[0]["location_name"] == "Rusty Depot"
-
     # DISCOVERY WastelandLocation row exists
     location_stmt = select(WastelandLocation).where(
         WastelandLocation.type == LocationTypeEnum.DISCOVERY,
@@ -244,6 +285,12 @@ async def test_process_event_registers_discovery_location(
     assert len(locations) == 1
     assert locations[0].exploration_id == exploration.id
     assert locations[0].name == "Rusty Depot"
+
+    event = result.events[0]
+    assert event["location_name"] == "Rusty Depot"
+    assert event["location_id"] == str(locations[0].id)
+    assert event["coord_x"] == locations[0].coord_x
+    assert event["coord_y"] == locations[0].coord_y
 
     # No LLMInteraction rows created
     llm_count_stmt = select(LLMInteraction)

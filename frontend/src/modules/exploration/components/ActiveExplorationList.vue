@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
+import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
 
 interface Props {
   explorations: Exploration[]
@@ -36,18 +36,6 @@ const getDwellerOutfit = (dwellerId: string) => {
   const detailed = getDetailedDweller(dwellerId)
   if (detailed?.outfit) return detailed.outfit
   return null
-}
-
-const getProgressPercentage = (exploration: Exploration) => {
-  const now = Date.now()
-  let startTimeStr = exploration.start_time
-  if (!startTimeStr.endsWith('Z')) {
-    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-  }
-  const start = new Date(startTimeStr).getTime()
-  const duration = exploration.duration * 3600 * 1000
-  const elapsed = now - start
-  return Math.min(100, (elapsed / duration) * 100)
 }
 </script>
 

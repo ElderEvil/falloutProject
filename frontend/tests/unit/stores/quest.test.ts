@@ -311,4 +311,45 @@ describe('Quest Store', () => {
       expect(store.isLoading).toBe(false)
     })
   })
+
+  describe('fetchPartiesForActiveQuests', () => {
+    it('replaces stale rosters and retains empty active parties', async () => {
+      const store = useQuestStore()
+      store.vaultQuests = [
+        {
+          id: 'active-quest',
+          title: 'Active Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+      store.questPartyMap = {
+        'completed-quest': [
+          {
+            id: 'party-1',
+            quest_id: 'completed-quest',
+            vault_id: 'vault-123',
+            dweller_id: 'dweller-1',
+            slot_number: 1,
+            status: 'completed',
+            created_at: '2025-01-01',
+            updated_at: '2025-01-01',
+          },
+        ],
+      }
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
+
+      await store.fetchPartiesForActiveQuests('vault-123')
+
+      expect(store.questPartyMap).toEqual({ 'active-quest': [] })
+    })
+  })
 })

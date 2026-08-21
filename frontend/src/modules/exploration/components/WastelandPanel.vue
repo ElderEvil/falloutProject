@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { getProgressPercentage as computeProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
@@ -129,18 +130,7 @@ const getDwellerById = (dwellerId: string) => {
 const getProgressPercentage = (explorationId: string) => {
   const exploration = explorationStore.activeExplorations[explorationId]
   if (!exploration) return 0
-
-  const now = Date.now()
-  // Parse as UTC by appending 'Z' if not present
-  let startTimeStr = exploration.start_time
-  if (!startTimeStr.endsWith('Z')) {
-    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
-  }
-  const start = new Date(startTimeStr).getTime()
-  const duration = exploration.duration * 3600 * 1000 // hours to ms
-  const elapsed = now - start
-
-  return Math.min(100, (elapsed / duration) * 100)
+  return computeProgress(exploration)
 }
 
 // --- Dropzone handlers ---

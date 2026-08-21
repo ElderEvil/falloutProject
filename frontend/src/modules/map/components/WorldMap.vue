@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton } from '@/core/components/ui'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
@@ -13,9 +13,10 @@ import { useMapZoomPan } from '../composables/useMapZoomPan'
 interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
+  discoveryRoutes?: DiscoveryRouteRead[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { discoveryRoutes: () => [] })
 
 const emit = defineEmits<{
   (
@@ -31,6 +32,10 @@ const emit = defineEmits<{
 // (they remain in the marker list panel and detail modal).
 const visibleLocations = computed(() =>
   props.locations.filter((loc) => !(loc.type === 'visited' && loc.dwellers.length < 2))
+)
+
+const discoveryRouteLines = computed(() =>
+  props.discoveryRoutes.map((route) => route.points.map((point) => `${point.coord_x},${point.coord_y}`).join(' '))
 )
 
 // ── Zoom & Pan ────────────────────────────────────────────────────────
@@ -194,6 +199,15 @@ function onPanelMarkerSelect(payload: {
         :x2="pos"
         :y2="160"
         class="grid-line"
+      />
+
+      <!-- Discovery routes (per-exploration trail) -->
+      <polyline
+        v-for="(route, i) in discoveryRouteLines"
+        :key="`route-${i}`"
+        :points="route"
+        class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
+        fill="none"
       />
 
       <!-- Location markers (spread-adjusted positions) -->

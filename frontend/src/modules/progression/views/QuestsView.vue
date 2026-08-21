@@ -77,6 +77,18 @@ const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[
   }
 }
 
+const loadPartyMembers = async () => {
+  if (!vaultId.value) return
+  await questStore.fetchPartiesForActiveQuests(vaultId.value)
+  const map: Record<string, DwellerShort[]> = {}
+  for (const [questId, members] of Object.entries(questStore.questPartyMap)) {
+    map[questId] = members
+      .map((m) => dwellerStore.dwellers.find((d) => d.id === m.dweller_id))
+      .filter((d): d is DwellerShort => d !== undefined)
+  }
+  questPartyMembersMap.value = map
+}
+
 // Handle opening party selection modal
 const handleAssignParty = async (questId: string) => {
   const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find(
@@ -119,6 +131,7 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   }
 
   await questStore.fetchVaultQuests(vaultId.value)
+  await loadPartyMembers()
 
   showPartyModal.value = false
   selectedQuest.value = null
@@ -161,6 +174,7 @@ onMounted(async () => {
       // Fetch all quests so we can filter client-side (including locked ones)
       await questStore.fetchVaultQuests(vaultId.value)
       await questStore.fetchAllQuests()
+      await loadPartyMembers()
     }
   }
 })

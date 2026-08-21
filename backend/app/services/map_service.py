@@ -13,9 +13,11 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 
 from app.core.game_config import game_config
 from app.crud.wasteland_location import wasteland_location as wl_crud
+from app.models.exploration import Exploration
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.vault import Vault
 from app.models.wasteland_location import (
@@ -25,6 +27,8 @@ from app.models.wasteland_location import (
 )
 from app.schemas.common import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.schemas.wasteland_location import (
+    DiscoveryRoutePoint,
+    DiscoveryRouteRead,
     DwellerRef,
     VaultMapResponse,
     VaultMarkerRead,
@@ -266,23 +270,66 @@ class MapService:
         vault_id: UUID4,
         exploration_id: UUID4,
         location_name: str,
-    ) -> None:
-        """Upsert a DISCOVERY location row for an exploration — best-effort."""
+    ) -> WastelandLocation | None:
+        """Upsert a DISCOVERY location row for an exploration — best-effort.
+
+        Returns the location row (with id and coordinates) when successful, else None.
+        """
         try:
-            await wl_crud.get_or_create(
+            return await wl_crud.get_or_create(
                 db_session,
                 vault_id=vault_id,
                 name=location_name[:64],
                 type=LocationTypeEnum.DISCOVERY,
                 exploration_id=exploration_id,
+                commit=False,
             )
         except Exception:
+            # A failed flush leaves SQLAlchemy's transaction unusable. This
+            # registration is best-effort and runs before the event mutation,
+            # so reset it and let the discovery event continue without a link.
+            await db_session.rollback()
             logger.exception(
                 "register_discovery failed: vault=%s exploration=%s name=%r",
                 vault_id,
                 exploration_id,
                 location_name,
             )
+            return None
+
+    async def _get_discovery_routes(self, db_session: AsyncSession, vault_id: UUID4) -> list[DiscoveryRouteRead]:
+        """Project discovery events into ordered map trails.
+
+        A ``WastelandLocation`` is intentionally de-duplicated by place name,
+        so it cannot faithfully represent repeated visits across expeditions.
+        Event records are the journey history and therefore the route authority.
+        Older events without the Journal coordinate fields are simply omitted.
+        """
+        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        routes: list[DiscoveryRouteRead] = []
+        for exploration in result.scalars().all():
+            points: list[DiscoveryRoutePoint] = []
+            for event in exploration.events:
+                if event.get("type") != "discovery":
+                    continue
+                location_id = event.get("location_id")
+                coord_x = event.get("coord_x")
+                coord_y = event.get("coord_y")
+                timestamp = event.get("timestamp")
+                if location_id is None or coord_x is None or coord_y is None or not isinstance(timestamp, str):
+                    continue
+                points.append(
+                    DiscoveryRoutePoint(
+                        location_id=location_id,
+                        coord_x=round(float(coord_x) * WORLD_SCALE, 1),
+                        coord_y=round(float(coord_y) * WORLD_SCALE, 1),
+                        timestamp=timestamp,
+                    )
+                )
+            if len(points) >= 2:
+                points.sort(key=lambda point: point.timestamp)
+                routes.append(DiscoveryRouteRead(exploration_id=exploration.id, points=points))
+        return routes
 
     # ------------------------------------------------------------------
     # map assembly
@@ -394,7 +441,12 @@ class MapService:
             for s in specs
         ]
 
-        return VaultMapResponse(locations=locations, vault_markers=vault_markers)
+        discovery_routes = await self._get_discovery_routes(db_session, vault.id)
+        return VaultMapResponse(
+            locations=locations,
+            vault_markers=vault_markers,
+            discovery_routes=discovery_routes,
+        )
 
 
 # ------------------------------------------------------------------

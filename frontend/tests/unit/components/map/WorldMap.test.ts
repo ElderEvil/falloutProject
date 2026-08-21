@@ -116,6 +116,30 @@ describe('WorldMap', () => {
     })
   })
 
+  describe('Discovery routes', () => {
+    it('renders API-projected event routes, including repeated location visits', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          discoveryRoutes: [
+            {
+              exploration_id: 'expl-1',
+              points: [
+                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
+                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const route = wrapper.find('polyline')
+      expect(route.attributes('points')).toBe('20,30 20,30')
+    })
+  })
+
   describe('CRT styling', () => {
     it('should have crt-screen class on the container', () => {
       const wrapper = mount(WorldMap, {

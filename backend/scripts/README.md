@@ -33,6 +33,7 @@ Repo-root `scripts/` holds general *shell* scripts (`dev-up.sh`,
 | Script | Purpose |
 |---|---|
 | `backfill_dweller_bio_places.py` | Extract origin/visited places from existing dweller bios and register them on the world map (`--vault`, `--max-dwellers`) |
+| `backfill_unlock_discoveries.py` | Link DISCOVERY locations to their finding dweller and mark them unlocked (pre-fix discoveries had no dweller link) (`--vault`, `--all-active`) |
 | `fill_dweller_bios_templates.py` | Fill empty dweller bios with SPECIAL-driven template backstories that reference map places |
 
 ## Infrastructure

@@ -129,12 +129,14 @@ async def test_register_bio_places_skips_visited_wasteland(
 
 
 @pytest.mark.asyncio
-async def test_register_discovery_sets_exploration_id(async_session: AsyncSession, vault: Vault) -> None:
+async def test_register_discovery_sets_exploration_id(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
     """register_discovery upserts a DISCOVERY row with exploration_id."""
     from uuid import uuid4
 
     exploration_id = uuid4()
-    await map_service.register_discovery(async_session, vault.id, exploration_id, "Abandoned Bunker")
+    await map_service.register_discovery(async_session, vault.id, exploration_id, dweller.id, "Abandoned Bunker")
 
     result = await async_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault.id))
     rows = result.scalars().all()
@@ -145,8 +147,26 @@ async def test_register_discovery_sets_exploration_id(async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_register_discovery_links_and_unlocks_dweller(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """register_discovery links the discovering dweller and unlocks the place."""
+    from uuid import uuid4
+
+    location = await map_service.register_discovery(async_session, vault.id, uuid4(), dweller.id, "Abandoned Bunker")
+    assert location is not None
+
+    payload = await map_service.get_vault_map(async_session, vault)
+    discovery_locs = [loc for loc in payload.locations if loc.type == LocationTypeEnum.DISCOVERY]
+    assert len(discovery_locs) == 1
+    assert discovery_locs[0].id == location.id
+    assert discovery_locs[0].is_unlocked is True
+    assert any(ref.dweller_id == dweller.id and ref.is_unlocked for ref in discovery_locs[0].dwellers)
+
+
+@pytest.mark.asyncio
 async def test_register_discovery_forced_db_error_logged_not_raised(
-    async_session: AsyncSession, vault: Vault, caplog
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, caplog
 ) -> None:
     """A forced DB error inside register_discovery is logged, not raised."""
     from uuid import uuid4
@@ -157,7 +177,7 @@ async def test_register_discovery_forced_db_error_logged_not_raised(
         side_effect=SQLAlchemyError("forced"),
     ):
         # Must NOT raise
-        await map_service.register_discovery(async_session, vault.id, uuid4(), "Crash Site")
+        await map_service.register_discovery(async_session, vault.id, uuid4(), dweller.id, "Crash Site")
 
     # The exception should have been logged
     assert any("register_discovery failed" in record.message for record in caplog.records)
@@ -233,10 +253,10 @@ async def test_get_vault_map_returns_vault_markers(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_register_discovery_rolls_back_with_callers_transaction(
-    async_session: AsyncSession, vault: Vault
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """Discovery registration must not commit before its event can be persisted."""
-    location = await map_service.register_discovery(async_session, vault.id, uuid4(), "Rollback Depot")
+    location = await map_service.register_discovery(async_session, vault.id, uuid4(), dweller.id, "Rollback Depot")
     assert location is not None
 
     await async_session.rollback()

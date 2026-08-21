@@ -148,10 +148,14 @@ class CRUDWastelandLocation:
         dweller_id: UUID4,
         location_id: UUID4,
         relation: DwellerLocationRelationEnum,
+        is_unlocked: bool = False,
+        commit: bool = True,
     ) -> DwellerLocation:
         """Idempotent get-or-insert a dweller-location link.
 
-        Uses the same IntegrityError-rollback-re-select pattern.
+        Uses the same IntegrityError-rollback-re-select pattern. When
+        ``commit`` is False the insert is flushed and remains part of the
+        caller's outer transaction.
         """
         # Fast path: already linked
         stmt = select(DwellerLocation).where(
@@ -162,10 +166,24 @@ class CRUDWastelandLocation:
         result = await db_session.execute(stmt)
         existing = result.scalar_one_or_none()
         if existing is not None:
+            if is_unlocked and not existing.is_unlocked:
+                existing.is_unlocked = True
+                db_session.add(existing)
+                if commit:
+                    await db_session.commit()
+                    await db_session.refresh(existing)
             return existing
 
-        link = DwellerLocation(dweller_id=dweller_id, location_id=location_id, relation=relation)
+        link = DwellerLocation(
+            dweller_id=dweller_id,
+            location_id=location_id,
+            relation=relation,
+            is_unlocked=is_unlocked,
+        )
         db_session.add(link)
+        if not commit:
+            await db_session.flush()
+            return link
         try:
             await db_session.commit()
         except IntegrityError:
@@ -173,6 +191,11 @@ class CRUDWastelandLocation:
             result = await db_session.execute(stmt)
             existing = result.scalar_one_or_none()
             if existing is not None:
+                if is_unlocked and not existing.is_unlocked:
+                    existing.is_unlocked = True
+                    db_session.add(existing)
+                    await db_session.commit()
+                    await db_session.refresh(existing)
                 return existing
             raise
         else:

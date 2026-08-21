@@ -194,12 +194,8 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
 
-    // A direct link can target a completed exploration, which is absent from
-    // the active-only collection above. Fetch it immediately instead of
-    // leaving the detail view waiting for the polling interval.
-    if (!exploration.value) {
-      await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
-    }
+    // Vault list returns the short schema — always fetch the full record (loot/events).
+    await explorationStore.fetchExplorationDetails(explorationId.value, authStore.token)
 
     // Fetch full dweller data for the explorer (includes weapon/outfit)
     if (exploration.value) {

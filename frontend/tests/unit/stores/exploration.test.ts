@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { ref, nextTick } from 'vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -544,6 +544,101 @@ describe('Exploration Store', () => {
         rewards: mockRewardsSummary,
         dwellerId: 'dweller-1',
       })
+    })
+  })
+
+  describe('SSE Live Event Log', () => {
+    const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
+
+    afterEach(() => {
+      useExplorationStore().stopSseSubscription()
+      mockSseEvent.value = null
+    })
+
+    it('appends live event frames and updates counters and health', async () => {
+      const store = useExplorationStore()
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'combat',
+          exploration_id: 'exploration-1',
+          event: {
+            type: 'combat',
+            description: 'Raider attacked',
+            timestamp: '2026-01-01T00:05:00Z',
+            time_elapsed_hours: 0.1,
+          },
+          total_caps_found: 120,
+          enemies_encountered: 3,
+          stimpaks: 2,
+          radaways: 1,
+          health: 85,
+          radiation: 12,
+        },
+      }
+
+      await nextTick()
+
+      const updated = store.activeExplorations['exploration-1']
+      expect(updated.events).toHaveLength(1)
+      expect(updated.events[0].description).toBe('Raider attacked')
+      expect(updated.total_caps_found).toBe(120)
+      expect(updated.enemies_encountered).toBe(3)
+      expect(updated.stimpaks).toBe(2)
+      expect(updated.radaways).toBe(1)
+      expect(updated.health).toBe(85)
+      expect(updated.radiation).toBe(12)
+    })
+
+    it('deduplicates repeated event frames while still updating counters', async () => {
+      const store = useExplorationStore()
+      store.explorations = [liveExploration()]
+      store.activeExplorations = { 'exploration-1': liveExploration() }
+      store.startSseSubscription('vault-1', 'test-token')
+
+      const frame = {
+        event: 'exploration',
+        data: {
+          type: 'loot',
+          exploration_id: 'exploration-1',
+          event: {
+            type: 'loot',
+            description: 'Found a stash',
+            timestamp: '2026-01-01T00:05:00Z',
+            time_elapsed_hours: 0.1,
+          },
+        },
+      }
+      mockSseEvent.value = frame
+      await nextTick()
+      mockSseEvent.value = { ...frame, data: { ...frame.data, total_caps_found: 55 } }
+      await nextTick()
+
+      const updated = store.activeExplorations['exploration-1']
+      expect(updated.events).toHaveLength(1)
+      expect(updated.total_caps_found).toBe(55)
+    })
+
+    it('ignores per-event frames for unknown explorations', async () => {
+      const store = useExplorationStore()
+      store.startSseSubscription('vault-1', 'test-token')
+
+      mockSseEvent.value = {
+        event: 'exploration',
+        data: {
+          type: 'combat',
+          exploration_id: 'unknown-exploration',
+          event: { type: 'combat', description: 'Ghost', timestamp: '', time_elapsed_hours: 0 },
+        },
+      }
+
+      await nextTick()
+
+      expect(store.pendingSseRewards).toBeNull()
     })
   })
 })

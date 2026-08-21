@@ -1,8 +1,21 @@
 """Schemas for exploration events and related data structures."""
 
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+class ExplorationEventType(StrEnum):
+    """Canonical exploration journey-log event types."""
+
+    COMBAT = "combat"
+    LOOT = "loot"
+    DANGER = "danger"
+    REST = "rest"
+    DISCOVERY = "discovery"
+    ITEM_USE = "item_use"
+    EQUIP = "equip"
 
 
 class ItemSchema(BaseModel):

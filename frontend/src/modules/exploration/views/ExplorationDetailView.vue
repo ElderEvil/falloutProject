@@ -118,14 +118,6 @@ const timeRemaining = computed(() => {
   return `${minutes}m remaining`
 })
 
-// Events sorted by timestamp (most recent first)
-const sortedEvents = computed(() => {
-  if (!exploration.value?.events || exploration.value.events.length === 0) {
-    return []
-  }
-  return [...exploration.value.events].reverse()
-})
-
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
@@ -275,7 +267,7 @@ watch(
           <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
 
           <!-- Event Log Section -->
-          <ExplorationEventLog :events="sortedEvents" />
+          <ExplorationEventLog :events="exploration?.events ?? []" reverse />
 
           <!-- Equipment Section -->
           <ExplorerEquipmentSlots :weapon-name="weaponName" :outfit-name="outfitName" />

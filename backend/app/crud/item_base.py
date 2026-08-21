@@ -111,43 +111,38 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         # Determine which relationship to eager load (weapon or outfit)
         item_attr = self.model.__name__.lower()
 
-        query = (
-            select(Dweller, self.model)
-            .outerjoin(self.model, (Dweller.id == self.model.dweller_id) | (self.model.id == item_id))
+        dweller_result = await db_session.execute(
+            select(Dweller)
             .where(Dweller.id == dweller_id)
-            .options(selectinload(Dweller.vault).selectinload(Vault.storage), selectinload(getattr(Dweller, item_attr)))
+            .options(selectinload(Dweller.vault).selectinload(Vault.storage))
         )
-        result = await db_session.execute(query)
-        row = result.first()
-
-        if not row or not row.Dweller:
+        dweller = dweller_result.scalar_one_or_none()
+        if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
-        dweller, item = row
-
+        item = await db_session.get(self.model, item_id)
         if not item:
-            # The item wasn't found in the join, so we need to fetch it separately
-            item = await db_session.get(self.model, item_id)
-            if not item:
-                raise ResourceNotFoundException(self.model, identifier=item_id)
+            raise ResourceNotFoundException(self.model, identifier=item_id)
 
-        current_item = getattr(dweller, item_attr)
+        current_item = (
+            await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))
+        ).scalar_one_or_none()
 
         if current_item:
             if current_item.id == item_id:
                 raise ContentNoChangeException(detail=f"Dweller {dweller_id} already has this {item_attr} equipped.")
-            # Unequip the current item
             current_item.dweller_id = None
             current_item.storage_id = dweller.vault.storage.id
             db_session.add(current_item)
 
-        # Equip the new item
+        # Equip the new item via FK updates only. Touching the dweller's
+        # weapon/outfit relationship here would orphan-cascade-delete the old
+        # item (Dweller.weapon/outfit use cascade_delete=True) instead of
+        # returning it to storage.
         item.dweller_id = dweller.id
         item.storage_id = None
-        setattr(dweller, item_attr, item)
 
         db_session.add(item)
-        db_session.add(dweller)
         await db_session.commit()
         await db_session.refresh(item)
 

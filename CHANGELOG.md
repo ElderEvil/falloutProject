@@ -22,12 +22,22 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Incident outcome reports** — resolving an incident now sends a `combat_victory` or `combat_defeat` notification
   carrying the outcome summary (`caps_earned`, `loot` in `meta_data`), so attacks and fires report their result
   instead of ending silently; clicking the notification opens the vault view
+- **Wasteland auto-equip & live exploration feed** — dwellers returning from exploration auto-equip the best
+  weapon/outfit they found (old gear returns to storage), with an `exploration_update` notification telling the
+  vault owner what was equipped; the exploration detail view now streams events live over SSE (event log, health,
+  radiation, and counters update in real time), and the obsolete `EventTimeline` component was consolidated into
+  `ExplorationEventLog`
 
 ### Fixed
 
 - **Breeding at population capacity** — `check_for_conception` no longer starts a new pregnancy when the vault
   population has reached `population_max`; already-committed pregnancies reserve their slot, and a single free slot
   can only be consumed by one new conception per game tick (regression coverage in `test_breeding_service.py`)
+- **Stale storage check constraints** — migration drops the leftover `ck_storage_radaway_bounds`/
+  `ck_storage_stimpack_bounds` DB constraints (the Storage model validates bounds via Pydantic), restoring the
+  `alembic check` CI gate
+- **Stale production URLs** — the CORS default and deployment docs now reference the live `fallout*.evillab.tech`
+  domains instead of the dead `fallout*.evillab.dev`
 
 ### Changed
 

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://fallout.evillab.dev",
+        "https://fallout.evillab.tech",
     ]
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

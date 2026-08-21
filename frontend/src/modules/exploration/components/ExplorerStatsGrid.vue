@@ -1,10 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '../stores/exploration'
 
-defineProps<{
+const props = defineProps<{
   exploration: Exploration
 }>()
+
+const vitals = computed(() => {
+  const items = [
+    { label: 'Health', value: props.exploration.health, icon: 'mdi:heart', color: 'text-[#4caf50]' },
+    { label: 'Radiation', value: props.exploration.radiation, icon: 'mdi:radioactive', color: 'text-[#ffeb3b]' },
+  ]
+  return items.filter((v) => v.value != null)
+})
 </script>
 
 <template>
@@ -105,6 +114,27 @@ defineProps<{
           {{ exploration.enemies_encountered }}
         </div>
         <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">Enemies</div>
+      </div>
+    </div>
+    <div
+      v-for="vital in vitals"
+      :key="vital.label"
+      class="flex flex-col items-center rounded-md border border-theme-primary/30 bg-terminal-background p-2 text-center transition duration-[var(--transition-base)] hover:-translate-y-px hover:border-theme-primary hover:shadow-[0_0_12px_var(--color-theme-glow)]"
+    >
+      <Icon
+        :icon="vital.icon"
+        class="mb-1 h-7 w-7 [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
+        :class="vital.color"
+      />
+      <div class="text-center">
+        <div
+          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+        >
+          {{ vital.value }}
+        </div>
+        <div class="text-[0.625rem] uppercase tracking-[0.05em] text-theme-primary/70">
+          {{ vital.label }}
+        </div>
       </div>
     </div>
   </div>

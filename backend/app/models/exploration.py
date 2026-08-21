@@ -116,8 +116,11 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     def add_event(
         self, event_type: str, description: str, loot: dict | None = None, location_name: str | None = None
-    ) -> None:
-        """Add an event to the journey log."""
+    ) -> dict:
+        """Add an event to the journey log.
+
+        Returns the created event record so callers can publish it (e.g. via SSE).
+        """
         event = {
             "type": event_type,
             "description": description,
@@ -131,6 +134,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         self.events.append(event)
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "events")
+        return event
 
     def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common", item_type: str = "junk") -> None:
         """Add loot to the collected items."""

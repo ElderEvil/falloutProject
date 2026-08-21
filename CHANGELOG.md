@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.46.1](https://github.com/ElderEvil/falloutProject/compare/v2.46.0...v2.46.1) (2026-08-21)
+
+### Bug Fixes
+
+* **map:** honor unlock on link race, count backfill changes only ([e137e7d](https://github.com/ElderEvil/falloutProject/commit/e137e7da655b3495bfca5084be653bd25e90caab))
+* **map:** unlock discovered locations and fix exploration detail blank page ([8fb38d7](https://github.com/ElderEvil/falloutProject/commit/8fb38d7bfd477080536ce7ded87e3905c7495a35))
+
 ## [2.46.0](https://github.com/ElderEvil/falloutProject/compare/v2.45.1...v2.46.0) (2026-08-21)
 
 ### Features

@@ -8,6 +8,8 @@ from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import room as room_crud
+from app.models.dweller import Dweller
+from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 
@@ -23,7 +25,7 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
 
 @pytest.mark.asyncio
-async def test_backfill_skips_non_capacity_living_room(async_session: AsyncSession, vault, dweller):
+async def test_backfill_skips_non_capacity_living_room(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     room = await room_crud.create(
         async_session,
         RoomCreate(

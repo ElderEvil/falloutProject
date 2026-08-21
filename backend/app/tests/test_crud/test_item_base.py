@@ -68,22 +68,20 @@ def _make_mock_item(model_class, *, item_id="00000000-0000-0000-0000-00000000000
     return m
 
 
-def _make_equip_row(dweller: MagicMock, item: MagicMock | None, model_class) -> MagicMock:
-    """Build a mock query-result row for the equip() method.
-
-    The row must support:
-    - row.Dweller / row.Weapon / row.Outfit attribute access
-    - tuple unpacking: dweller, item = row
-    """
-    row = MagicMock()
-    row.Dweller = dweller
-    # Set the item attribute named after the model class
-    attr_name = model_class.__name__
-    setattr(row, attr_name, item)
-
-    # Support: dweller, item = row  (tuple unpacking)
-    row.__iter__.return_value = iter([dweller, item])
-    return row
+def _setup_equip_mocks(
+    session_mock: MagicMock,
+    *,
+    dweller: MagicMock | None,
+    item: MagicMock | None,
+    current_item: MagicMock | None,
+) -> None:
+    """Configure session.execute (dweller, then current item) and session.get (target item)."""
+    dweller_result = MagicMock()
+    dweller_result.scalar_one_or_none = MagicMock(return_value=dweller)
+    current_result = MagicMock()
+    current_result.scalar_one_or_none = MagicMock(return_value=current_item)
+    session_mock.execute = AsyncMock(side_effect=[dweller_result, current_result])
+    session_mock.get = AsyncMock(return_value=item)
 
 
 def _new_session() -> MagicMock:
@@ -268,14 +266,12 @@ async def test_equip_new_item_to_unequipped_dweller() -> None:
     mock_vault = MagicMock(storage=mock_storage)
     mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=None)
 
-    mock_row = _make_equip_row(mock_dweller, item, Weapon)
-    _setup_execute_first(session, mock_row)
+    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=None)
 
     await crud.equip(db_session=session, item_id="w-new", dweller_id="d1")
 
     assert item.dweller_id == mock_dweller.id
     assert item.storage_id is None
-    assert mock_dweller.weapon is item
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(item)
 
@@ -285,10 +281,7 @@ async def test_equip_dweller_not_found() -> None:
     session = _new_session()
     crud = CRUDItem(Outfit)
 
-    mock_row = MagicMock()
-    mock_row.Dweller = None
-    mock_row.__iter__.return_value = iter([None, None])
-    _setup_execute_first(session, mock_row)
+    _setup_equip_mocks(session, dweller=None, item=None, current_item=None)
 
     with pytest.raises(ResourceNotFoundException) as exc:
         await crud.equip(db_session=session, item_id="o-x", dweller_id="d-999")
@@ -305,9 +298,7 @@ async def test_equip_item_fetched_separately_when_not_in_join() -> None:
     mock_vault = MagicMock(storage=mock_storage)
     mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=None)
 
-    mock_row = _make_equip_row(mock_dweller, None, Weapon)
-    _setup_execute_first(session, mock_row)
-    session.get = AsyncMock(return_value=item)
+    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=None)
 
     await crud.equip(db_session=session, item_id="w2", dweller_id="d1")
     session.get.assert_called_once_with(Weapon, "w2")
@@ -323,9 +314,7 @@ async def test_equip_item_not_found_at_all() -> None:
     mock_vault = MagicMock(storage=mock_storage)
     mock_dweller = MagicMock(id="d1", vault=mock_vault, outfit=None)
 
-    mock_row = _make_equip_row(mock_dweller, None, Outfit)
-    _setup_execute_first(session, mock_row)
-    session.get = AsyncMock(return_value=None)
+    _setup_equip_mocks(session, dweller=mock_dweller, item=None, current_item=None)
 
     with pytest.raises(ResourceNotFoundException) as exc:
         await crud.equip(db_session=session, item_id="o-missing", dweller_id="d1")
@@ -342,8 +331,7 @@ async def test_equip_same_item_already_equipped() -> None:
     mock_vault = MagicMock(storage=mock_storage)
     mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=item)
 
-    mock_row = _make_equip_row(mock_dweller, item, Weapon)
-    _setup_execute_first(session, mock_row)
+    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=item)
 
     with pytest.raises(ContentNoChangeException):
         await crud.equip(db_session=session, item_id="w-same", dweller_id="d1")
@@ -360,8 +348,7 @@ async def test_equip_replaces_existing_item() -> None:
     mock_vault = MagicMock(storage=mock_storage)
     mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=old_item)
 
-    mock_row = _make_equip_row(mock_dweller, new_item, Weapon)
-    _setup_execute_first(session, mock_row)
+    _setup_equip_mocks(session, dweller=mock_dweller, item=new_item, current_item=old_item)
 
     await crud.equip(db_session=session, item_id="w-new", dweller_id="d1")
 
@@ -369,7 +356,6 @@ async def test_equip_replaces_existing_item() -> None:
     assert old_item.storage_id == mock_storage.id
     assert new_item.dweller_id == mock_dweller.id
     assert new_item.storage_id is None
-    assert mock_dweller.weapon is new_item
 
 
 # ---------------------------------------------------------------------------

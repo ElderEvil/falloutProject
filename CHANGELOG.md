@@ -22,6 +22,11 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Incident outcome reports** — resolving an incident now sends a `combat_victory` or `combat_defeat` notification
   carrying the outcome summary (`caps_earned`, `loot` in `meta_data`), so attacks and fires report their result
   instead of ending silently; clicking the notification opens the vault view
+- **Wasteland auto-equip & live exploration feed** — dwellers returning from exploration auto-equip the best
+  weapon/outfit they found (old gear returns to storage), with an `exploration_update` notification telling the
+  vault owner what was equipped; the exploration detail view now streams events live over SSE (event log, health,
+  radiation, and counters update in real time), and the obsolete `EventTimeline` component was consolidated into
+  `ExplorationEventLog`
 
 ### Fixed
 

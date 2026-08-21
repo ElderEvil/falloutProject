@@ -976,3 +976,129 @@ async def test_process_event_sse_payload_includes_event_and_health(
     assert payload["health"] == 95
     assert payload["radiation"] == 0
     assert payload["enemies_encountered"] == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_equip_keeps_strongest_found_weapon(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A weaker later find never replaces the strongest flagged weapon."""
+    await make_vault_storage()
+    await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
+
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    await _process_loot_event(
+        async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
+    )
+    await _process_loot_event(async_session, exploration, _weapon_loot_event(".38 revolver", "Rare", 10, 15, 100))
+
+    assert exploration.loot_collected[0]["auto_equip"] is True
+    assert exploration.loot_collected[0]["item_name"] == "Fire hydrant bat"
+    assert exploration.loot_collected[1].get("auto_equip") is not True
+
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.flush()
+    await exploration_coordinator.complete_exploration(async_session, exploration.id)
+
+    equipped = (await async_session.execute(select(Weapon).where(Weapon.dweller_id == dweller.id))).scalars().all()
+    assert [w.name for w in equipped] == ["Fire hydrant bat"]
+
+
+@pytest.mark.asyncio
+async def test_auto_equip_keeps_strongest_found_outfit(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A lower-rarity later find never replaces the strongest flagged outfit."""
+    await make_vault_storage()
+    await _equip_outfit(
+        async_session,
+        dweller,
+        name="Mechanic jumpsuit",
+        rarity=RarityEnum.COMMON,
+        value=10,
+        outfit_type=OutfitTypeEnum.COMMON,
+    )
+
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+    )
+    ranger = OutfitSchema(name="NCR Ranger outfit", rarity="Rare", value=100, outfit_type="rare_outfit")
+    await _process_loot_event(
+        async_session,
+        exploration,
+        LootEventSchema(
+            description="Found a NCR Ranger outfit", loot=LootSchema(item=ranger, item_type="outfit", caps=5)
+        ),
+    )
+    rags = OutfitSchema(name="Tattered rags", rarity="Common", value=5, outfit_type="common_outfit")
+    await _process_loot_event(
+        async_session,
+        exploration,
+        LootEventSchema(description="Found some Tattered rags", loot=LootSchema(item=rags, item_type="outfit", caps=0)),
+    )
+
+    assert exploration.loot_collected[0]["auto_equip"] is True
+    assert exploration.loot_collected[0]["item_name"] == "NCR Ranger outfit"
+    assert exploration.loot_collected[1].get("auto_equip") is not True
+
+    exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.flush()
+    await exploration_coordinator.complete_exploration(async_session, exploration.id)
+
+    equipped = (await async_session.execute(select(Outfit).where(Outfit.dweller_id == dweller.id))).scalars().all()
+    assert [o.name for o in equipped] == ["NCR Ranger outfit"]
+
+
+@pytest.mark.asyncio
+async def test_process_event_publishes_followup_events(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Equip and auto-heal records created during an event are all streamed via SSE."""
+    await make_vault_storage()
+    await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
+
+    dweller.health = 20
+    dweller.max_health = 100
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await crud.exploration.create_with_dweller_stats(
+        async_session,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        duration=4,
+        stimpaks=1,
+    )
+    with (
+        patch(
+            "app.services.exploration.coordinator.event_generator.generate_event",
+            return_value=_weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500),
+        ),
+        patch("app.services.exploration.coordinator.sse_manager.publish", new_callable=AsyncMock) as publish_mock,
+    ):
+        await exploration_coordinator.process_event(async_session, exploration)
+
+    published_types = [call.args[2]["type"] for call in publish_mock.await_args_list]
+    assert published_types == ["loot", "equip", "item_use"]
+    assert exploration.stimpaks == 0
+    assert dweller.health == 60

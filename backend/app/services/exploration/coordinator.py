@@ -92,10 +92,11 @@ class ExplorationCoordinator:
             location_name=getattr(event, "location_name", None),
         )
         db_session.add(exploration)
+        event_records = [event_record]
 
         # Handle event-specific logic
         if hasattr(event, "loot") and event.loot:
-            await self._handle_loot_event(db_session, exploration, event)
+            event_records.extend(await self._handle_loot_event(db_session, exploration, event))
 
         if hasattr(event, "health_loss") and event.health_loss:
             await self._apply_health_loss(db_session, exploration, event.health_loss)
@@ -104,7 +105,7 @@ class ExplorationCoordinator:
             await self._apply_health_restoration(db_session, exploration, event.health_restored)
 
         # Trigger auto-heal check (if health low or radiation high)
-        await self._handle_auto_heal(db_session, exploration)
+        event_records.extend(await self._handle_auto_heal(db_session, exploration))
 
         # Update distance traveled for all events
         exploration.total_distance += random.randint(1, 3)
@@ -139,23 +140,25 @@ class ExplorationCoordinator:
         if dweller_obj is not None:
             sse_extra = {"health": dweller_obj.health, "radiation": dweller_obj.radiation}
 
-        await self._publish_sse(
-            exploration,
-            event_type=event.type,
-            description=event.description,
-            event=event_record,
-            progress=exploration.progress_percentage(),
-            stimpaks=exploration.stimpaks,
-            radaways=exploration.radaways,
-            total_caps_found=exploration.total_caps_found,
-            enemies_encountered=exploration.enemies_encountered,
-            **sse_extra,
-        )
+        for record in event_records:
+            await self._publish_sse(
+                exploration,
+                event_type=record["type"],
+                description=record["description"],
+                event=record,
+                progress=exploration.progress_percentage(),
+                stimpaks=exploration.stimpaks,
+                radaways=exploration.radaways,
+                total_caps_found=exploration.total_caps_found,
+                enemies_encountered=exploration.enemies_encountered,
+                total_distance=exploration.total_distance,
+                **sse_extra,
+            )
 
         return exploration
 
-    async def _handle_loot_event(self, db_session: AsyncSession, exploration: Exploration, event) -> None:
-        """Handle loot found in event."""
+    async def _handle_loot_event(self, db_session: AsyncSession, exploration: Exploration, event) -> list[dict]:
+        """Handle loot found in event; returns follow-up event records (e.g. auto-equip)."""
         loot_data = event.loot
         item = loot_data.item
         item_type = loot_data.item_type
@@ -179,9 +182,12 @@ class ExplorationCoordinator:
         elif item_type == "radaway":
             exploration.radaways += 1
 
-        # Check for better gear if weapon or outfit found
+        followups: list[dict] = []
         if item_type in {"weapon", "outfit"}:
-            await self._handle_auto_equip(db_session, exploration, item, item_type)
+            record = await self._handle_auto_equip(db_session, exploration, item, item_type)
+            if record is not None:
+                followups.append(record)
+        return followups
 
     async def _apply_health_loss(self, db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
         """Apply health loss to dweller.
@@ -215,13 +221,15 @@ class ExplorationCoordinator:
         dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
         db_session.add(dweller_obj)
 
-    async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> None:
-        """Automatically use stimpaks/radaways if needed."""
+    async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
+        """Automatically use stimpaks/radaways if needed; returns the item_use event records."""
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
         # Early return if dweller is already dead
         if dweller_obj.is_dead:
-            return
+            return []
+
+        records: list[dict] = []
 
         # Auto-use RadAway if radiation > 30
         if exploration.radaways > 0 and dweller_obj.radiation > 30:
@@ -229,9 +237,11 @@ class ExplorationCoordinator:
             reduction = int(dweller_obj.radiation * 0.5)
             dweller_obj.radiation = max(0, dweller_obj.radiation - reduction)
             exploration.radaways -= 1
-            exploration.add_event(
-                event_type=ExplorationEventType.ITEM_USE,
-                description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
+            records.append(
+                exploration.add_event(
+                    event_type=ExplorationEventType.ITEM_USE,
+                    description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
+                )
             )
             db_session.add(dweller_obj)
             db_session.add(exploration)
@@ -243,12 +253,16 @@ class ExplorationCoordinator:
             healing = int(dweller_obj.max_health * 0.4)
             dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
             exploration.stimpaks -= 1
-            exploration.add_event(
-                event_type=ExplorationEventType.ITEM_USE,
-                description=f"Dweller used a Stimpak. Healed {healing} HP. {exploration.stimpaks} left.",
+            records.append(
+                exploration.add_event(
+                    event_type=ExplorationEventType.ITEM_USE,
+                    description=f"Dweller used a Stimpak. Healed {healing} HP. {exploration.stimpaks} left.",
+                )
             )
             db_session.add(dweller_obj)
             db_session.add(exploration)
+
+        return records
 
     async def _handle_auto_equip(
         self,
@@ -256,41 +270,69 @@ class ExplorationCoordinator:
         exploration: Exploration,
         item_schema: WeaponSchema | OutfitSchema,
         item_type: str,
-    ) -> None:
-        """Mark a better-found weapon/outfit for auto-equip on return."""
+    ) -> dict | None:
+        """Flag the strongest found weapon/outfit for auto-equip; returns the equip event record."""
+        flagged = next(
+            (
+                entry
+                for entry in reversed(exploration.loot_collected)
+                if entry.get("item_type") == item_type and entry.get("auto_equip")
+            ),
+            None,
+        )
+
         if item_type == "weapon":
-            item_result = await db_session.execute(select(Weapon).where(Weapon.dweller_id == exploration.dweller_id))
-            current_item = item_result.scalar_one_or_none()
             new_avg = (item_schema.damage_min + item_schema.damage_max) / 2
-            current_avg = (current_item.damage_min + current_item.damage_max) / 2 if current_item else 0
-            is_better = new_avg > current_avg
+            if flagged is not None:
+                is_better = new_avg > flagged.get("auto_equip_avg_damage", 0)
+            else:
+                item_result = await db_session.execute(
+                    select(Weapon).where(Weapon.dweller_id == exploration.dweller_id)
+                )
+                current_item = item_result.scalar_one_or_none()
+                current_avg = (current_item.damage_min + current_item.damage_max) / 2 if current_item else 0
+                is_better = new_avg > current_avg
         else:
-            item_result = await db_session.execute(select(Outfit).where(Outfit.dweller_id == exploration.dweller_id))
-            current_item = item_result.scalar_one_or_none()
             new_priority = self._rarity_priority(item_schema.rarity)
-            current_priority = self._rarity_priority(current_item.rarity) if current_item else 0
             new_value = item_schema.value or 0
-            current_value = (current_item.value or 0) if current_item else 0
-            is_better = (new_priority, new_value) > (current_priority, current_value)
+            if flagged is not None:
+                is_better = (new_priority, new_value) > (
+                    flagged.get("auto_equip_priority", 0),
+                    flagged.get("auto_equip_value", 0),
+                )
+            else:
+                item_result = await db_session.execute(
+                    select(Outfit).where(Outfit.dweller_id == exploration.dweller_id)
+                )
+                current_item = item_result.scalar_one_or_none()
+                current_priority = self._rarity_priority(current_item.rarity) if current_item else 0
+                current_value = (current_item.value or 0) if current_item else 0
+                is_better = (new_priority, new_value) > (current_priority, current_value)
 
         if not is_better:
-            return
+            return None
 
-        # Only the latest better item of this type is marked; clear any earlier flag.
+        # The new item outclasses the current champion; move the flag to it.
         for entry in exploration.loot_collected:
             if entry.get("item_type") == item_type and entry.get("auto_equip"):
                 entry["auto_equip"] = False
         for entry in reversed(exploration.loot_collected):
             if entry.get("item_type") == item_type and entry.get("item_name") == item_schema.name:
                 entry["auto_equip"] = True
+                if item_type == "weapon":
+                    entry["auto_equip_avg_damage"] = new_avg
+                else:
+                    entry["auto_equip_priority"] = new_priority
+                    entry["auto_equip_value"] = new_value
                 break
         orm.attributes.flag_modified(exploration, "loot_collected")
 
-        exploration.add_event(
+        record = exploration.add_event(
             ExplorationEventType.EQUIP,
             f"Found better {item_type}: {item_schema.name}. Will equip on return.",
         )
         db_session.add(exploration)
+        return record
 
     async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """Complete an exploration and return rewards summary.

@@ -3,23 +3,28 @@
 import asyncio
 import logging
 import random
-from typing import Any
+from typing import Any, TypedDict
 
 from pydantic import UUID4
+from sqlalchemy import orm
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import compute_medical_capacity, game_config
+from app.crud import dweller as dweller_crud
 from app.crud import exploration as crud_exploration
+from app.crud import outfit as crud_outfit
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
+from app.crud import weapon as crud_weapon
 from app.models import Room, Storage
+from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
-from app.schemas.exploration_event import RewardsSchema
+from app.schemas.exploration_event import ExplorationEventType, OutfitSchema, RewardsSchema, WeaponSchema
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.event_generator import event_generator
@@ -33,6 +38,15 @@ logger = logging.getLogger(__name__)
 
 # Error messages as constants to satisfy ruff
 ERROR_NOT_ACTIVE = "Exploration is not active"
+
+
+class TransferResult(TypedDict):
+    """Result of transferring loot to vault storage."""
+
+    transferred: list[dict]
+    overflow: list[dict]
+    auto_equip_ids: list[dict]
+    storage_id: UUID4 | None
 
 
 class ExplorationCoordinator:
@@ -71,7 +85,7 @@ class ExplorationCoordinator:
         if hasattr(event, "loot") and event.loot:
             loot_dict = event.loot.model_dump()
 
-        exploration.add_event(
+        event_record = exploration.add_event(
             event_type=event.type,
             description=event.description,
             loot=loot_dict,
@@ -96,7 +110,7 @@ class ExplorationCoordinator:
         exploration.total_distance += random.randint(1, 3)
 
         # Track combat encounters
-        if event.type == "combat":
+        if event.type == ExplorationEventType.COMBAT:
             exploration.enemies_encountered += 1
 
         # Commit changes
@@ -119,15 +133,23 @@ class ExplorationCoordinator:
                     location_name,
                 )
 
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+
+        sse_extra: dict[str, Any] = {}
+        if dweller_obj is not None:
+            sse_extra = {"health": dweller_obj.health, "radiation": dweller_obj.radiation}
+
         await self._publish_sse(
             exploration,
             event_type=event.type,
             description=event.description,
+            event=event_record,
             progress=exploration.progress_percentage(),
             stimpaks=exploration.stimpaks,
             radaways=exploration.radaways,
             total_caps_found=exploration.total_caps_found,
             enemies_encountered=exploration.enemies_encountered,
+            **sse_extra,
         )
 
         return exploration
@@ -151,19 +173,11 @@ class ExplorationCoordinator:
         exploration.total_caps_found += caps
         exploration.total_distance += random.randint(1, 5)
 
-        # Check for medicine discovery
+        # Counter only: the find is already logged by the single loot entry above
         if item_type == "stimpak":
             exploration.stimpaks += 1
-            exploration.add_event(
-                event_type="loot",
-                description=f"Found a Stimpak! Total: {exploration.stimpaks}",
-            )
         elif item_type == "radaway":
             exploration.radaways += 1
-            exploration.add_event(
-                event_type="loot",
-                description=f"Found a RadAway! Total: {exploration.radaways}",
-            )
 
         # Check for better gear if weapon or outfit found
         if item_type in {"weapon", "outfit"}:
@@ -174,8 +188,6 @@ class ExplorationCoordinator:
 
         If damage would be fatal (health <= 0), the dweller dies from exploration.
         """
-        from app.crud.dweller import dweller as dweller_crud
-
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
         # Short-circuit if dweller is already dead - don't apply damage to dead dwellers
@@ -199,16 +211,12 @@ class ExplorationCoordinator:
 
     async def _apply_health_restoration(self, db_session: AsyncSession, exploration: Exploration, healing: int) -> None:
         """Apply health restoration to dweller."""
-        from app.crud.dweller import dweller as dweller_crud
-
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
         db_session.add(dweller_obj)
 
     async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> None:
         """Automatically use stimpaks/radaways if needed."""
-        from app.crud.dweller import dweller as dweller_crud
-
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
         # Early return if dweller is already dead
@@ -222,7 +230,7 @@ class ExplorationCoordinator:
             dweller_obj.radiation = max(0, dweller_obj.radiation - reduction)
             exploration.radaways -= 1
             exploration.add_event(
-                event_type="item_use",
+                event_type=ExplorationEventType.ITEM_USE,
                 description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
             )
             db_session.add(dweller_obj)
@@ -236,53 +244,53 @@ class ExplorationCoordinator:
             dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
             exploration.stimpaks -= 1
             exploration.add_event(
-                event_type="item_use",
+                event_type=ExplorationEventType.ITEM_USE,
                 description=f"Dweller used a Stimpak. Healed {healing} HP. {exploration.stimpaks} left.",
             )
             db_session.add(dweller_obj)
             db_session.add(exploration)
 
     async def _handle_auto_equip(
-        self, db_session: AsyncSession, exploration: Exploration, item_schema, item_type: str
+        self,
+        db_session: AsyncSession,
+        exploration: Exploration,
+        item_schema: WeaponSchema | OutfitSchema,
+        item_type: str,
     ) -> None:
-        """Auto-equip better weapon or outfit found during exploration."""
-        from app.crud.dweller import dweller as dweller_crud
-
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-
+        """Mark a better-found weapon/outfit for auto-equip on return."""
         if item_type == "weapon":
-            current_weapon = dweller_obj.weapon
-            # Simplified comparison: Use average damage for weapons
-            new_avg_damage = (item_schema.damage_min + item_schema.damage_max) / 2
-            current_avg_damage = (current_weapon.damage_min + current_weapon.damage_max) / 2 if current_weapon else 0
+            item_result = await db_session.execute(select(Weapon).where(Weapon.dweller_id == exploration.dweller_id))
+            current_item = item_result.scalar_one_or_none()
+            new_avg = (item_schema.damage_min + item_schema.damage_max) / 2
+            current_avg = (current_item.damage_min + current_item.damage_max) / 2 if current_item else 0
+            is_better = new_avg > current_avg
+        else:
+            item_result = await db_session.execute(select(Outfit).where(Outfit.dweller_id == exploration.dweller_id))
+            current_item = item_result.scalar_one_or_none()
+            new_priority = self._rarity_priority(item_schema.rarity)
+            current_priority = self._rarity_priority(current_item.rarity) if current_item else 0
+            new_value = item_schema.value or 0
+            current_value = (current_item.value or 0) if current_item else 0
+            is_better = (new_priority, new_value) > (current_priority, current_value)
 
-            if new_avg_damage > current_avg_damage:
-                # In fallout shelters, found items go to loot_collected,
-                # but let's implement a 'swap' logic here if we wanted to be proactive.
-                # Actually, the requirement just says "Think about auto-use found items".
-                # For now, let's just log that a better item was found and "equipped" (simulated for exploration boost)
-                # To actually equip, we'd need to create the DB object and link it.
-                # Since the dweller is in the wasteland, we'll just add it to events for now.
-                # Real implementation should probably create the item in DB and link it to dweller.
-                exploration.add_event(
-                    event_type="equip",
-                    description=(
-                        f"Found better weapon: {item_schema.name}. Using temporarily for better survival "
-                        "(not permanently equipped)."
-                    ),
-                )
-                db_session.add(exploration)
-                # Note: To really affect combat, we'd need to update dweller_obj.weapon_id
-                # but that requires creating the weapon in DB now instead of at the end.
-                # Let's skip the actual DB link for now to keep it simple, or do it properly if needed.
+        if not is_better:
+            return
 
-        elif item_type == "outfit":
-            # Similar logic for outfits (e.g., total SPECIAL points)
-            exploration.add_event(
-                event_type="equip",
-                description=f"Found better outfit: {item_schema.name}. Using temporarily (not permanently equipped).",
-            )
-            db_session.add(exploration)
+        # Only the latest better item of this type is marked; clear any earlier flag.
+        for entry in exploration.loot_collected:
+            if entry.get("item_type") == item_type and entry.get("auto_equip"):
+                entry["auto_equip"] = False
+        for entry in reversed(exploration.loot_collected):
+            if entry.get("item_type") == item_type and entry.get("item_name") == item_schema.name:
+                entry["auto_equip"] = True
+                break
+        orm.attributes.flag_modified(exploration, "loot_collected")
+
+        exploration.add_event(
+            ExplorationEventType.EQUIP,
+            f"Found better {item_type}: {item_schema.name}. Will equip on return.",
+        )
+        db_session.add(exploration)
 
     async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """Complete an exploration and return rewards summary.
@@ -312,8 +320,6 @@ class ExplorationCoordinator:
 
         # Send notification (non-critical, don't break completion on failure)
         try:
-            from app.crud.dweller import dweller as dweller_crud
-
             dweller = await dweller_crud.get(db_session, exploration.dweller_id)
             vault = await crud_vault.get(db_session, exploration.vault_id)
 
@@ -389,7 +395,6 @@ class ExplorationCoordinator:
     async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
         """Restore the dweller's room-appropriate status after exploration."""
         from app.crud.dweller import determine_status_for_room
-        from app.crud.dweller import dweller as dweller_crud
         from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
 
@@ -411,7 +416,6 @@ class ExplorationCoordinator:
         self, db_session: AsyncSession, exploration: Exploration, progress_multiplier: float = 1.0
     ) -> RewardsSchema:
         """Apply rewards to vault and dweller."""
-        from app.crud.dweller import dweller as dweller_crud
         from app.services.leveling_service import leveling_service
 
         # Get dweller
@@ -435,6 +439,24 @@ class ExplorationCoordinator:
 
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)
+
+        auto_equip_ids = transfer_result.get("auto_equip_ids", [])
+        equipped: list[tuple[str, str]] = []
+        for entry in auto_equip_ids:
+            try:
+                crud = crud_weapon if entry["item_type"] == "weapon" else crud_outfit
+                item = await crud.equip(db_session=db_session, item_id=entry["id"], dweller_id=exploration.dweller_id)
+                equipped.append((entry["item_type"], item.name))
+            except Exception:
+                logger.exception(
+                    "Auto-equip failed during exploration completion: exploration=%s item=%s",
+                    exploration.id,
+                    entry["id"],
+                )
+        if transfer_result["storage_id"] is not None:
+            await crud_storage.update_used_space(db_session, transfer_result["storage_id"])
+        if equipped:
+            await self._notify_auto_equip(db_session, exploration, dweller_obj, equipped)
 
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
@@ -482,6 +504,42 @@ class ExplorationCoordinator:
             stimpaks=exploration.stimpaks,
             radaways=exploration.radaways,
         )
+
+    @staticmethod
+    async def _notify_auto_equip(
+        db_session: AsyncSession,
+        exploration: Exploration,
+        dweller_obj: Dweller,
+        equipped: list[tuple[str, str]],
+    ) -> None:
+        """Best-effort: tell the vault owner which items were auto-equipped on return."""
+        try:
+            vault = await crud_vault.get(db_session, exploration.vault_id)
+            if not vault or not vault.user_id:
+                return
+            dweller_name = f"{dweller_obj.first_name} {dweller_obj.last_name or ''}".strip()
+            for item_type, item_name in equipped:
+                await notification_service.notify_exploration_update(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=vault.id,
+                    dweller_id=exploration.dweller_id,
+                    dweller_name=dweller_name,
+                    event_description=f"equipped a better {item_type} found in the wasteland: {item_name}",
+                    meta_data={
+                        "dweller_id": str(exploration.dweller_id),
+                        "item_name": item_name,
+                        "item_type": item_type,
+                    },
+                )
+        except Exception:
+            logger.exception("Failed to send auto-equip notification: exploration=%s", exploration.id)
+
+    @staticmethod
+    def _rarity_priority(rarity: str | RarityEnum) -> int:
+        """Map a rarity (string or enum) to its numeric priority; unknown → 0."""
+        raw = rarity.value if isinstance(rarity, RarityEnum) else rarity
+        return game_config.exploration.get_rarity_priority(raw)
 
     @staticmethod
     def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
@@ -577,7 +635,7 @@ class ExplorationCoordinator:
             storage_id=storage_id,
         )
 
-    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> dict[str, list]:
+    async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
         """Transfer loot items from exploration to vault storage with space validation.
 
         Items are sorted by rarity (legendary > rare > uncommon > common) and
@@ -586,10 +644,10 @@ class ExplorationCoordinator:
 
         :param db_session: Database session
         :param exploration: Completed exploration
-        :returns: Dict with 'transferred' and 'overflow' item lists
+        :returns: TransferResult with transferred/overflow item lists and storage_id
         """
         if not exploration.loot_collected:
-            return {"transferred": [], "overflow": []}
+            return {"transferred": [], "overflow": [], "auto_equip_ids": [], "storage_id": None}
 
         # Get vault and storage (query storage explicitly to avoid lazy load)
         # Check vault exists first (raises ResourceNotFoundException if missing)
@@ -599,12 +657,22 @@ class ExplorationCoordinator:
                 "Vault not found for exploration",
                 extra={"vault_id": str(exploration.vault_id), "exploration_id": str(exploration.id)},
             )
-            return {"transferred": [], "overflow": exploration.loot_collected}
+            return {
+                "transferred": [],
+                "overflow": exploration.loot_collected,
+                "auto_equip_ids": [],
+                "storage_id": None,
+            }
 
         storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
         if not storage:
             logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
-            return {"transferred": [], "overflow": exploration.loot_collected}
+            return {
+                "transferred": [],
+                "overflow": exploration.loot_collected,
+                "auto_equip_ids": [],
+                "storage_id": None,
+            }
         storage_id = storage.id
 
         # Check available space
@@ -632,6 +700,7 @@ class ExplorationCoordinator:
 
         transferred: list[dict] = []
         overflow: list[dict] = []
+        auto_equip_ids: list[dict] = []
         items_added = 0
 
         # Load item data for lookups
@@ -672,6 +741,9 @@ class ExplorationCoordinator:
                     db_session.add(weapon)
                     item_created = True
                     await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "weapon", "amount": 1})
+                    if loot_item.get("auto_equip"):
+                        await db_session.flush()
+                        auto_equip_ids.append({"item_type": "weapon", "id": weapon.id})
 
             elif item_type == "outfit":
                 outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
@@ -680,6 +752,9 @@ class ExplorationCoordinator:
                     db_session.add(outfit)
                     item_created = True
                     await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "outfit", "amount": 1})
+                    if loot_item.get("auto_equip"):
+                        await db_session.flush()
+                        auto_equip_ids.append({"item_type": "outfit", "id": outfit.id})
 
             else:
                 junk = self._create_junk_from_loot(item_name, rarity, storage_id)
@@ -726,7 +801,12 @@ class ExplorationCoordinator:
                 },
             )
 
-        return {"transferred": transferred, "overflow": overflow}
+        return {
+            "transferred": transferred,
+            "overflow": overflow,
+            "auto_equip_ids": auto_equip_ids,
+            "storage_id": storage_id,
+        }
 
     @staticmethod
     async def _publish_sse(

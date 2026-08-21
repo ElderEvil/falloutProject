@@ -191,6 +191,11 @@ class CRUDWastelandLocation:
             result = await db_session.execute(stmt)
             existing = result.scalar_one_or_none()
             if existing is not None:
+                if is_unlocked and not existing.is_unlocked:
+                    existing.is_unlocked = True
+                    db_session.add(existing)
+                    await db_session.commit()
+                    await db_session.refresh(existing)
                 return existing
             raise
         else:

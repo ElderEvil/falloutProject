@@ -26,7 +26,12 @@ from sqlmodel import select
 
 from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.db.session import async_session_maker
-from app.models.wasteland_location import DwellerLocationRelationEnum, LocationTypeEnum, WastelandLocation
+from app.models.wasteland_location import (
+    DwellerLocation,
+    DwellerLocationRelationEnum,
+    LocationTypeEnum,
+    WastelandLocation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +53,20 @@ async def _unlock_discoveries_for_vault(session, vault_id: UUID) -> int:
         if exploration is None:
             logger.warning("No exploration %s for location %s", location.exploration_id, location.name)
             continue
+        existing = (
+            (
+                await session.execute(
+                    select(DwellerLocation).where(
+                        DwellerLocation.dweller_id == exploration.dweller_id,
+                        DwellerLocation.location_id == location.id,
+                        DwellerLocation.relation == DwellerLocationRelationEnum.VISITED,
+                    )
+                )
+            )
+            .scalars()
+            .first()
+        )
+        was_locked = existing is None or not existing.is_unlocked
         await wl_crud.link_dweller(
             session,
             exploration.dweller_id,
@@ -55,7 +74,8 @@ async def _unlock_discoveries_for_vault(session, vault_id: UUID) -> int:
             DwellerLocationRelationEnum.VISITED,
             is_unlocked=True,
         )
-        fixed += 1
+        if was_locked:
+            fixed += 1
     return fixed
 
 

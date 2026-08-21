@@ -161,6 +161,7 @@ async def test_register_discovery_links_and_unlocks_dweller(
     assert len(discovery_locs) == 1
     assert discovery_locs[0].id == location.id
     assert discovery_locs[0].is_unlocked is True
+    assert any(ref.dweller_id == dweller.id and ref.is_unlocked for ref in discovery_locs[0].dwellers)
 
 
 @pytest.mark.asyncio

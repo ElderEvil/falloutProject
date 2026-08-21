@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.45.1](https://github.com/ElderEvil/falloutProject/compare/v2.45.0...v2.45.1) (2026-08-21)
+
+### Bug Fixes
+
+* **map:** derive neighbor-vault signals from a fixed global seed ([ebbb48f](https://github.com/ElderEvil/falloutProject/commit/ebbb48f287bfd08763bdb4e98e72d914f3841514))
+
 ## [2.45.0](https://github.com/ElderEvil/falloutProject/compare/v2.44.0...v2.45.0) (2026-08-21)
 
 ### Features

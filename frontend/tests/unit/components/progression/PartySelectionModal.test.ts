@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PartySelectionModal from '@/modules/progression/components/PartySelectionModal.vue'
-import { useQuestStore } from '@/modules/progression/stores/quest'
+import { useQuestStore, type EligibleDweller } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -16,12 +16,20 @@ const socializingDweller = {
   status: 'resting',
 } as DwellerShort
 
+const socializingEligibleDweller: EligibleDweller = {
+  id: 'dweller-1',
+  first_name: 'Lucy',
+  last_name: 'MacLean',
+  level: 1,
+  rarity: 'common',
+}
+
 describe('PartySelectionModal', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
   it('labels resting dwellers as Socializing', async () => {
     const questStore = useQuestStore()
-    vi.spyOn(questStore, 'getEligibleDwellers').mockResolvedValue([socializingDweller] as never)
+    vi.spyOn(questStore, 'getEligibleDwellers').mockResolvedValue([socializingEligibleDweller])
     const wrapper = mount(PartySelectionModal, {
       props: {
         modelValue: false,

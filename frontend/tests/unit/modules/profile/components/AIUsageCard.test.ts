@@ -68,6 +68,14 @@ describe('AIUsageCard', () => {
   })
 
   describe('Quota Progress Display', () => {
+    it('uses semantic warm surfaces for statistic insets and the quota track', () => {
+      const wrapper = mount(AIUsageCard, { props: { stats: createMockStats() } })
+
+      expect(wrapper.html()).toContain('bg-surface-sunken')
+      expect(wrapper.html()).not.toContain('bg-black/40')
+      expect(wrapper.html()).not.toContain('bg-terminal-background')
+    })
+
     it('should display correct percentage in progress bar at 50%', () => {
       const stats = createMockStats({
         quota_used: 50000,

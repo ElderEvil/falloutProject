@@ -73,7 +73,7 @@ const causeData = computed(() => {
     title="VITAL STATISTICS REGISTRY"
     glow
     crt
-    class="life-death-stats !border-theme-primary/40 !bg-terminal-background"
+    class="life-death-stats !border-theme-primary/40"
   >
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-3 gap-4">
@@ -89,7 +89,7 @@ const causeData = computed(() => {
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Births -->
         <div
-          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+          class="bg-surface-sunken border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
         >
           <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
             Total Births
@@ -102,7 +102,7 @@ const causeData = computed(() => {
 
         <!-- Deaths -->
         <div
-          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+          class="bg-surface-sunken border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
         >
           <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
             Total Deaths
@@ -115,7 +115,7 @@ const causeData = computed(() => {
 
         <!-- Mortality Rate -->
         <div
-          class="bg-black/40 border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
+          class="bg-surface-sunken border border-theme-primary/30 p-3 rounded flex flex-col items-center justify-center text-center"
         >
           <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-1">
             Mortality Rate
@@ -140,7 +140,7 @@ const causeData = computed(() => {
         <div class="space-y-3">
           <div v-for="cause in causeData" :key="cause.id" class="flex items-center gap-3 group">
             <div
-              class="w-8 h-8 rounded flex items-center justify-center bg-black border border-theme-primary/30 shrink-0"
+              class="w-8 h-8 rounded flex items-center justify-center bg-surface-sunken border border-theme-primary/30 shrink-0"
             >
               <Icon :icon="cause.icon" class="w-5 h-5" :class="cause.color" />
             </div>
@@ -161,7 +161,7 @@ const causeData = computed(() => {
               </div>
 
               <div
-                class="h-1.5 bg-gray-900 rounded-full overflow-hidden border border-theme-primary/20"
+                class="h-1.5 bg-surface-sunken rounded-full overflow-hidden border border-theme-primary/20"
               >
                 <div
                   class="h-full w-[var(--width)] bg-theme-primary/60 group-hover:bg-theme-primary transition-all duration-500 shadow-[0_0_5px_currentColor]"

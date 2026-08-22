@@ -15,7 +15,7 @@ describe('SidePanel', () => {
   let router: any
   let pinia: ReturnType<typeof createPinia>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     pinia = createPinia()
     setActivePinia(pinia)
 
@@ -33,13 +33,34 @@ describe('SidePanel', () => {
         { path: '/vault/:id/storage', component: { template: '<div>Storage</div>' } },
         { path: '/vault/:id/map', component: { template: '<div>Map</div>' } },
         { path: '/vault/:id/radio', component: { template: '<div>Radio</div>' } },
+        { path: '/profile', component: { template: '<div>Profile</div>' } },
       ],
     })
 
-    router.push('/vault/vault-1')
+    await router.push('/vault/vault-1')
   })
 
   describe('navItems', () => {
+    it('keeps vault shortcuts 1–9 available on the profile route', async () => {
+      await router.push('/profile')
+      const wrapper = mount(SidePanel, {
+        props: { vaultId: 'vault-1' },
+        global: { plugins: [router, pinia] },
+      })
+
+      const hotkeys = wrapper.findAll('.hotkey-badge').map((badge) => badge.text())
+
+      expect(hotkeys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    })
+
+    it('marks only the most-specific vault route as active', async () => {
+      await router.push('/vault/vault-1/dwellers')
+      const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+
+      expect(wrapper.findAll('.nav-item.active')).toHaveLength(1)
+      expect(wrapper.find('.nav-item.active .nav-label').text()).toBe('Dwellers')
+    })
+
     it('should not include a Happiness nav item', async () => {
       await router.isReady()
       const wrapper = mount(SidePanel, {

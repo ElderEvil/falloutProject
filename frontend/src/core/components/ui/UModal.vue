@@ -14,12 +14,14 @@ interface Props {
   modelValue: boolean
   title?: string
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  surface?: 'base' | 'raised' | 'sunken'
   closeOnEscape?: boolean
   closeOnClickOutside?: boolean
 }
 
 const {
   size = 'md',
+  surface = 'raised',
   closeOnEscape = true,
   closeOnClickOutside = true,
   modelValue,
@@ -37,6 +39,12 @@ const sizeClasses = {
   lg: 'max-w-5xl max-h-[80vh]',
   xl: 'max-w-6xl max-h-[90vh]',
   full: 'max-w-full mx-4 max-h-[90vh]',
+}
+
+const surfaceClasses = {
+  base: 'bg-surface',
+  raised: 'bg-surface-raised',
+  sunken: 'bg-surface-sunken',
 }
 
 const close = () => {
@@ -155,8 +163,9 @@ onUnmounted(() => {
           aria-modal="true"
           v-bind="modalLabel"
           :class="[
-            'bg-surface-raised border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
+            'border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
             'border-terminal-green',
+            surfaceClasses[surface],
             sizeClasses[size],
           ]"
           @click.stop

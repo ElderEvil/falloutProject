@@ -36,4 +36,13 @@ describe('UModal (Accessibility)', () => {
     const dialog = document.querySelector('[role="dialog"]')
     expect(dialog?.getAttribute('style')).toBeFalsy()
   })
+
+  it('uses the requested warm surface role', () => {
+    wrapper = mount(UModal, {
+      props: { modelValue: true, title: 'Map marker', surface: 'base' },
+      attachTo: document.body,
+    })
+
+    expect(document.querySelector('[role="dialog"]')?.classList).toContain('bg-surface')
+  })
 })

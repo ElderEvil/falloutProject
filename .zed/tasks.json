@@ -8,7 +8,7 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "hide": "never",
-    "save": "all",
+    "save": "all"
   },
   {
     "label": "Fallout: Run backend server",
@@ -18,7 +18,7 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "hide": "never",
-    "save": "all",
+    "save": "all"
   },
   {
     "label": "Fallout: Run frontend server",
@@ -28,7 +28,7 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "hide": "never",
-    "save": "all",
+    "save": "all"
   },
   {
     "label": "Fallout: Apply Migrations",
@@ -39,7 +39,7 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "hide": "on_success",
-    "save": "all",
+    "save": "all"
   },
   {
     "label": "Fallout: Stop Podman infrastructure",
@@ -50,6 +50,6 @@
     "allow_concurrent_runs": false,
     "reveal": "always",
     "hide": "on_success",
-    "save": "none",
-  },
+    "save": "none"
+  }
 ]

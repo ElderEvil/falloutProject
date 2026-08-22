@@ -76,7 +76,7 @@ const showWarningBanner = computed(() => {
     title="AI USAGE STATISTICS"
     glow
     crt
-    class="!border-theme-primary/40 !bg-terminal-background"
+    class="!border-theme-primary/40"
   >
     <div v-if="loading" class="space-y-4">
       <USkeleton class="h-8 w-full" />
@@ -103,7 +103,7 @@ const showWarningBanner = computed(() => {
       </UAlert>
 
       <div class="grid grid-cols-2 gap-4">
-        <div class="text-center p-4 bg-black/40 rounded border border-theme-primary/20">
+        <div class="text-center p-4 bg-surface-sunken rounded border border-theme-primary/20">
           <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-2">
             All-Time Tokens
           </div>
@@ -111,7 +111,7 @@ const showWarningBanner = computed(() => {
             {{ formatNumber(allTimeTotal) }}
           </div>
         </div>
-        <div class="text-center p-4 bg-black/40 rounded border border-theme-primary/20">
+        <div class="text-center p-4 bg-surface-sunken rounded border border-theme-primary/20">
           <div class="text-xs text-theme-primary/60 uppercase tracking-wider mb-2">
             {{ monthLabel }} Tokens
           </div>
@@ -179,7 +179,7 @@ const showWarningBanner = computed(() => {
 
         <!-- Progress Bar -->
         <div
-          class="relative h-6 bg-black/40 rounded border border-theme-primary/20 overflow-hidden"
+          class="relative h-6 bg-surface-sunken rounded border border-theme-primary/20 overflow-hidden"
         >
           <div
             class="h-full transition-all duration-300"

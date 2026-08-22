@@ -9,7 +9,9 @@ const route = useRoute()
 const router = useRouter()
 const { isCollapsed, toggle } = useSidePanel()
 
-const vaultId = computed(() => route.params.id as string | undefined)
+const props = defineProps<{ vaultId?: string | null }>()
+
+const vaultId = computed(() => (route.params.id as string | undefined) ?? props.vaultId)
 
 interface NavItem {
   id: string
@@ -115,9 +117,14 @@ const comingSoonItems = computed((): NavItem[] => [
   },
 ])
 
-const isActive = (path: string | undefined) => {
-  return path ? route.path === path : false
-}
+const activePath = computed(() =>
+  navItems.value
+    .map((item) => item.path)
+    .filter((path): path is string => Boolean(path) && (route.path === path || route.path.startsWith(`${path}/`)))
+    .sort((first, second) => second.length - first.length)[0]
+)
+
+const isActive = (path: string | undefined) => path === activePath.value
 
 const navigate = (path: string | undefined) => {
   if (path) {

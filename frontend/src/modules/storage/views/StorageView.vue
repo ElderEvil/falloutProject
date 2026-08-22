@@ -205,15 +205,6 @@ const handleScrapItem = async (
 }
 
 // Get rarity color
-const getRarityColor = (rarity?: string) => {
-  const rarityMap: Record<string, string> = {
-    common: 'var(--color-rarity-common)',
-    uncommon: 'var(--color-rarity-uncommon)',
-    rare: 'var(--color-rarity-rare)',
-    legendary: 'var(--color-rarity-legendary)',
-  }
-  return rarityMap[rarity?.toLowerCase() || 'common'] || rarityMap.common
-}
 </script>
 
 <template>
@@ -266,20 +257,20 @@ const getRarityColor = (rarity?: string) => {
             <div class="flex items-center gap-2 flex-1">
               <Icon icon="mdi:medical-bag" class="w-5 h-5 text-green-500 shrink-0" />
               <div>
-                <div class="text-theme-primary font-bold text-sm leading-tight">
+                <div class="text-theme-primary font-bold text-lg leading-tight">
                   {{ storageSpace.stimpack }}
                 </div>
-                <div class="text-theme-accent/60 text-xs">Stimpaks</div>
+                <div class="text-theme-accent/60 text-sm">Stimpaks</div>
               </div>
             </div>
             <div class="w-px h-8 bg-theme-primary/20"></div>
             <div class="flex items-center gap-2 flex-1">
-              <Icon icon="mdi:pill" class="w-5 h-5 text-purple-500 shrink-0" />
+              <Icon icon="mdi:pill" class="w-5 h-5 text-(--color-caps) shrink-0" />
               <div>
-                <div class="text-theme-primary font-bold text-sm leading-tight">
+                <div class="text-theme-primary font-bold text-lg leading-tight">
                   {{ storageSpace.radaway }}
                 </div>
-                <div class="text-theme-accent/60 text-xs">Radaways</div>
+                <div class="text-theme-accent/60 text-sm">Radaways</div>
               </div>
             </div>
           </div>
@@ -313,15 +304,13 @@ const getRarityColor = (rarity?: string) => {
           :description="`You don't have any ${activeTab} in storage.`"
         />
 
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
+        <div v-else class="grid grid-cols-1 gap-4 pb-8 md:grid-cols-2">
           <StorageItemCard
             v-for="item in activeItems"
             :key="item.id"
             :item="item.item"
             :item-type="activeTab"
             :count="item.count"
-            :ids="item.ids"
-            :get-rarity-color="getRarityColor"
             @sell="handleSellItem(item.ids[0], activeTab)"
             @sell-all="handleSellItem(item.ids, activeTab)"
             @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"

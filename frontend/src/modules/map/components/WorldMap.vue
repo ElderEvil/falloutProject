@@ -34,6 +34,8 @@ const visibleLocations = computed(() =>
   props.locations.filter((loc) => !(loc.type === 'visited' && loc.dwellers.length < 2))
 )
 
+const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
+
 const discoveryRouteLines = computed(() =>
   props.discoveryRoutes.map((route) => route.points.map((point) => `${point.coord_x},${point.coord_y}`).join(' '))
 )
@@ -162,22 +164,23 @@ function onPanelMarkerSelect(payload: {
 </script>
 
 <template>
-  <div
-    class="world-map-container crt-screen"
-    :class="{ 'is-zoomed': isZoomed, 'is-dragging': isDragging }"
-    @mousemove="handleMouseMove"
-    @mouseup="handleMouseUp"
-    @mouseleave="handleMouseUp"
-    @wheel.prevent="handleWheel"
-  >
-    <svg
-      ref="svgRef"
-      :viewBox="viewBox"
-      xmlns="http://www.w3.org/2000/svg"
-      class="world-map-svg"
-      focusable="false"
-      @mousedown="handleMouseDown"
+  <div class="world-map-layout">
+    <div
+      class="world-map-container crt-screen"
+      :class="{ 'is-zoomed': isZoomed, 'is-dragging': isDragging }"
+      @mousemove="handleMouseMove"
+      @mouseup="handleMouseUp"
+      @mouseleave="handleMouseUp"
+      @wheel.prevent="handleWheel"
     >
+      <svg
+        ref="svgRef"
+        :viewBox="viewBox"
+        xmlns="http://www.w3.org/2000/svg"
+        class="world-map-svg"
+        focusable="false"
+        @mousedown="handleMouseDown"
+      >
       <!-- Terrain layer (bottom — behind grid and markers) -->
       <TerrainLayer />
 
@@ -234,46 +237,56 @@ function onPanelMarkerSelect(payload: {
         :selected="selectedMarkerId === `vault-${idx}`"
         @click="onVaultClick(vm)"
       />
-    </svg>
+      </svg>
 
-    <!-- Zoom controls overlay -->
-    <div class="zoom-controls" role="group" aria-label="Map zoom controls">
-      <UButton variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
-        <Icon icon="mdi:plus" class="zoom-icon" />
-      </UButton>
-      <UButton variant="ghost" size="xs" aria-label="Zoom out" class="zoom-btn" @click="zoomOut()">
-        <Icon icon="mdi:minus" class="zoom-icon" />
-      </UButton>
-      <UButton
-        variant="ghost"
-        size="xs"
-        :disabled="!isZoomed"
-        aria-label="Reset zoom"
-        class="zoom-btn"
-        @click="resetZoom()"
-      >
-        <Icon icon="mdi:arrow-expand-all" class="zoom-icon" />
-      </UButton>
-      <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+      <!-- Zoom controls overlay -->
+      <div class="zoom-controls" role="group" aria-label="Map zoom controls">
+        <UButton variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
+          <Icon icon="mdi:plus" class="zoom-icon" />
+        </UButton>
+        <UButton variant="ghost" size="xs" aria-label="Zoom out" class="zoom-btn" @click="zoomOut()">
+          <Icon icon="mdi:minus" class="zoom-icon" />
+        </UButton>
+        <UButton
+          variant="ghost"
+          size="xs"
+          :disabled="!isZoomed"
+          aria-label="Reset zoom"
+          class="zoom-btn"
+          @click="resetZoom()"
+        >
+          <Icon icon="mdi:arrow-expand-all" class="zoom-icon" />
+        </UButton>
+        <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+      </div>
+
+      <!-- Legend overlay -->
+      <MapLegend />
     </div>
 
-    <!-- Marker list panel -->
+    <!-- Persistent desktop location index -->
     <MarkerListPanel
-      :locations="locations"
+      :docked="true"
+      :locations="knownLocations"
       :vault-markers="vaultMarkers"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"
     />
-
-    <!-- Legend overlay -->
-    <MapLegend />
   </div>
 </template>
 
 <style scoped>
+.world-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 800px) minmax(12rem, 14rem);
+  align-items: stretch;
+  gap: 1rem;
+  width: 100%;
+  max-width: 65rem;
+}
+
 .world-map-container {
   width: 100%;
-  max-width: 800px;
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);
@@ -345,5 +358,17 @@ function onPanelMarkerSelect(payload: {
   opacity: 0.6;
   margin-top: 2px;
   letter-spacing: 0.05em;
+}
+
+@media (max-width: 64rem) {
+  .world-map-layout {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 800px;
+  }
+
+  .marker-list-wrapper :deep(.marker-list-panel) {
+    height: auto;
+    min-height: 14rem;
+  }
 }
 </style>

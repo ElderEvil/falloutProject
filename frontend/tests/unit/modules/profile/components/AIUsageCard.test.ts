@@ -68,6 +68,16 @@ describe('AIUsageCard', () => {
   })
 
   describe('Quota Progress Display', () => {
+    it('uses semantic warm surfaces for statistic insets and the quota track', () => {
+      const wrapper = mount(AIUsageCard, { props: { stats: createMockStats() } })
+      const statisticInsets = wrapper.findAll('.grid > div')
+      const quotaTrack = wrapper.find('.relative.h-6')
+
+      expect(statisticInsets).toHaveLength(2)
+      expect(statisticInsets.every((inset) => inset.classes().includes('bg-surface-sunken'))).toBe(true)
+      expect(quotaTrack.classes()).toContain('bg-surface-sunken')
+    })
+
     it('should display correct percentage in progress bar at 50%', () => {
       const stats = createMockStats({
         quota_used: 50000,

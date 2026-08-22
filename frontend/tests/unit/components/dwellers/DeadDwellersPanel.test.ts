@@ -15,13 +15,17 @@ describe('DeadDwellersPanel', () => {
           UButton: { template: '<button><slot /></button>' },
           TerminalEmptyState: {
             props: ['title', 'description'],
-            template: '<section><h3>{{ title }}</h3><p>{{ description }}</p><slot name="actions" /></section>',
+            template:
+              '<section><h3>{{ title }}</h3><p>{{ description }}</p><slot name="actions" /></section>',
           },
         },
       },
     })
 
     expect(wrapper.text()).toContain('No Dead Dwellers')
+    expect(wrapper.text()).toContain(
+      'All dwellers are alive and well. Check the graveyard for permanently deceased.'
+    )
     expect(wrapper.text()).toContain('View Graveyard')
   })
 })

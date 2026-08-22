@@ -65,7 +65,7 @@ const getStatColorClass = (value: number) => {
       <template v-if="dweller.thumbnail_url">
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
-          alt="Dweller Thumbnail"
+          alt=""
           url-mode="static"
           image-class="thumbnail-image"
         />

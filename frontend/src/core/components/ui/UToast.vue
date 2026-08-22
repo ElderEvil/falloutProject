@@ -14,8 +14,8 @@ const emit = defineEmits<{
 const variantConfig = {
   success: {
     icon: 'mdi:check-circle',
-    bgClass: 'bg-surface-raised/95 border-[--color-theme-primary]',
-    iconClass: 'text-[--color-theme-primary]',
+    bgClass: 'bg-surface-raised/95 border-theme-primary',
+    iconClass: 'text-theme-primary',
   },
   error: {
     icon: 'mdi:alert-circle',
@@ -24,13 +24,13 @@ const variantConfig = {
   },
   warning: {
     icon: 'mdi:alert',
-    bgClass: 'bg-surface-raised/95 border-[--color-theme-accent]',
-    iconClass: 'text-[--color-theme-accent]',
+    bgClass: 'bg-surface-raised/95 border-theme-accent',
+    iconClass: 'text-theme-accent',
   },
   info: {
     icon: 'mdi:information',
-    bgClass: 'bg-surface-raised/95 border-[--color-theme-primary]',
-    iconClass: 'text-[--color-theme-primary]',
+    bgClass: 'bg-surface-raised/95 border-theme-primary',
+    iconClass: 'text-theme-primary',
   },
 }
 
@@ -52,7 +52,7 @@ const config = variantConfig[props.toast.variant]
     <p class="flex-1 text-sm text-theme-primary/90 font-medium">{{ toast.message }}</p>
     <span
       v-if="toast.count && toast.count > 1"
-      class="px-2 py-0.5 text-xs font-bold rounded-full bg-[--color-theme-primary] text-black"
+      class="px-2 py-0.5 text-xs font-bold rounded-full bg-theme-primary text-black"
     >
       ×{{ toast.count }}
     </span>

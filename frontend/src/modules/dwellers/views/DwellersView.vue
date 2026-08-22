@@ -10,6 +10,7 @@ import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
 import type { Room } from '@/modules/rooms/models/room'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
@@ -288,8 +289,12 @@ const handleViewLowHappiness = () => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8 lg:px-8">
-          <PageHeader title="Dwellers" icon="mdi:account-group" />
+        <PageContentRail>
+          <PageHeader
+            title="Dwellers"
+            icon="mdi:account-group"
+            subtitle="Assign, train & equip your vault population."
+          />
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
@@ -346,7 +351,7 @@ const handleViewLowHappiness = () => {
             @quick-unassign="handleQuickUnassign"
             @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"
           />
-        </div>
+        </PageContentRail>
       </div>
     </div>
 

@@ -21,10 +21,6 @@
 
         <div class="child-details">
           <div class="detail-row">
-            <span class="detail-label">Gender:</span>
-            <span class="detail-value">{{ (child as any).gender || 'Unknown' }}</span>
-          </div>
-          <div class="detail-row">
             <span class="detail-label">Health:</span>
             <span class="detail-value">{{ child.health }} / {{ child.max_health }}</span>
           </div>
@@ -32,17 +28,6 @@
             <span class="detail-label">Happiness:</span>
             <span class="detail-value">{{ child.happiness }}%</span>
           </div>
-        </div>
-
-        <div class="growth-info">
-          <div class="growth-label">
-            <Icon icon="mdi:clock-outline" class="mr-1" />
-            Growth Progress
-          </div>
-          <div class="growth-bar">
-            <div class="growth-fill" :style="{ width: '50%' }"></div>
-          </div>
-          <div class="growth-time">~1.5 hours remaining</div>
         </div>
 
         <div class="child-stats">
@@ -212,43 +197,6 @@ const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group 
 .detail-value {
   color: var(--color-theme-primary);
   font-weight: 600;
-}
-
-.growth-info {
-  margin: 1rem 0;
-}
-
-.growth-label {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.8;
-  margin-bottom: 0.5rem;
-}
-
-.growth-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.growth-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-accent) 100%);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-  transition: width 0.3s ease;
-}
-
-.growth-time {
-  font-size: 0.75rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-  margin-top: 0.25rem;
-  text-align: right;
 }
 
 .child-stats {

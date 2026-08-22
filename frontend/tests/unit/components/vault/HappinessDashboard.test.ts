@@ -253,6 +253,8 @@ describe('HappinessDashboard', () => {
 
     const trendIcon = wrapper.find('.gauge-trend')
     expect(trendIcon.exists()).toBe(true)
+    expect(wrapper.find('.gauge-value-row').element.firstElementChild).toBe(trendIcon.element)
+    expect(wrapper.find('.dashboard-content').classes()).toContain('compact-dashboard')
   })
 
   it('should not exceed 5 modifiers', () => {

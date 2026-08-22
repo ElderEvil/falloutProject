@@ -10,6 +10,7 @@ import { storageService, type StorageItemsResponse } from '../services/storageSe
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 
@@ -219,10 +220,15 @@ const getRarityColor = (rarity?: string) => {
     <SidePanel />
 
     <div
-      class="flex-1 transition-[margin] duration-300 p-4 md:p-8"
+      class="flex-1 transition-[margin] duration-300"
       :class="isCollapsed ? 'ml-16' : 'ml-60'"
     >
-      <PageHeader title="Vault Storage" icon="mdi:package-variant" />
+      <PageContentRail>
+        <PageHeader
+          title="Vault Storage"
+          icon="mdi:package-variant"
+          subtitle="Organize equipment, supplies & recovered wasteland loot."
+        />
 
       <!-- Storage & Medical Supplies -->
       <div v-if="storageSpace" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -280,7 +286,7 @@ const getRarityColor = (rarity?: string) => {
       </div>
 
       <!-- Tabs -->
-      <UTabs :model-value="activeTab" :tabs="tabs" class="mb-8" @update:model-value="selectTab">
+        <UTabs :model-value="activeTab" :tabs="tabs" class="mb-8" @update:model-value="selectTab">
         <!-- Loading State -->
         <div
           v-if="isLoading"
@@ -334,7 +340,8 @@ const getRarityColor = (rarity?: string) => {
             @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
           />
         </div>
-      </UTabs>
+        </UTabs>
+      </PageContentRail>
     </div>
   </div>
 </template>

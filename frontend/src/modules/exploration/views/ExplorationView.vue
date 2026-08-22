@@ -11,6 +11,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
@@ -251,29 +252,30 @@ const closeRewardsModal = () => {
     <SidePanel />
 
     <div class="exploration-view" :class="{ collapsed: isCollapsed }">
-      <PageHeader
-        title="Wasteland Exploration"
-        icon="mdi:compass"
-        subtitle="Monitor active explorations and quest parties"
-      >
-        <template #actions>
-          <div class="flex gap-3">
-            <div class="stat-badge">
-              <Icon icon="mdi:account-search" class="stat-icon" />
-              <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-              <span class="stat-label">Explorations</span>
+      <PageContentRail>
+        <PageHeader
+          title="Wasteland Exploration"
+          icon="mdi:compass"
+          subtitle="Monitor active explorations and quest parties"
+        >
+          <template #actions>
+            <div class="flex gap-3">
+              <div class="stat-badge">
+                <Icon icon="mdi:account-search" class="stat-icon" />
+                <span class="stat-value">{{ activeExplorationsArray.length }}</span>
+                <span class="stat-label">Explorations</span>
+              </div>
+              <div class="stat-badge">
+                <Icon icon="mdi:sword-cross" class="stat-icon" />
+                <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
+                <span class="stat-label">Quests</span>
+              </div>
             </div>
-            <div class="stat-badge">
-              <Icon icon="mdi:sword-cross" class="stat-icon" />
-              <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
-              <span class="stat-label">Quests</span>
-            </div>
-          </div>
-        </template>
-      </PageHeader>
+          </template>
+        </PageHeader>
 
-      <!-- Main Content -->
-      <div class="exploration-content">
+        <!-- Main Content -->
+        <div class="exploration-content">
         <!-- Loading State -->
         <div v-if="explorationLoading" class="loading-state">
           <UCard glow crt padding="lg">
@@ -353,7 +355,8 @@ const closeRewardsModal = () => {
           </div>
           <ExplorationEventLog :events="selectedExploration.events" reverse />
         </div>
-      </div>
+        </div>
+      </PageContentRail>
 
       <!-- Rewards Modal -->
       <ExplorationRewardsModal
@@ -376,7 +379,6 @@ const closeRewardsModal = () => {
 
 .exploration-view {
   flex: 1;
-  padding: 2rem;
   overflow-y: auto;
   background: var(--color-terminal-background);
   font-family: 'Courier New', monospace;

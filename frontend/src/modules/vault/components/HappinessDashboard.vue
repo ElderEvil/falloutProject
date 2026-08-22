@@ -179,11 +179,11 @@ const distributionPercentage = (count: number) => {
 </script>
 
 <template>
-  <UCard v-if="loading" class="happiness-dashboard">
+  <UCard v-if="loading" padding="sm" class="happiness-dashboard">
     <USkeleton width="100%" height="120px" rounded="lg" />
   </UCard>
-  <UCard v-else class="happiness-dashboard">
-    <div class="dashboard-content">
+  <UCard v-else padding="sm" class="happiness-dashboard">
+    <div class="dashboard-content compact-dashboard">
       <!-- Main Happiness Gauge -->
       <div class="happiness-gauge">
         <div class="gauge-container">
@@ -212,12 +212,16 @@ const distributionPercentage = (count: number) => {
             />
           </svg>
           <div class="gauge-center">
-            <div class="gauge-value" :style="{ color: happinessColor }">{{ vaultHappiness }}%</div>
+            <div class="gauge-value-row">
+              <div class="gauge-trend">
+                <Icon :icon="trendIcon" :style="{ color: trendColor }" />
+              </div>
+              <div class="gauge-value" :style="{ color: happinessColor }">
+                {{ vaultHappiness }}%
+              </div>
+            </div>
             <div class="gauge-label" :style="{ color: happinessColor }">
               {{ happinessLabel }}
-            </div>
-            <div class="gauge-trend">
-              <Icon :icon="trendIcon" :style="{ color: trendColor }" />
             </div>
           </div>
         </div>
@@ -375,10 +379,12 @@ const distributionPercentage = (count: number) => {
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
 }
 
-.dashboard-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.compact-dashboard {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1.25rem;
+  row-gap: 1rem;
 }
 
 /* Happiness Gauge */
@@ -386,13 +392,12 @@ const distributionPercentage = (count: number) => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.5rem;
 }
 
 .gauge-container {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 120px;
+  height: 120px;
 }
 
 .gauge-svg {
@@ -415,8 +420,15 @@ const distributionPercentage = (count: number) => {
   text-align: center;
 }
 
+.gauge-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
 .gauge-value {
-  font-size: 2rem;
+  font-size: 1.625rem;
   font-weight: 700;
   line-height: 1;
   text-shadow: 0 0 10px currentColor;
@@ -430,11 +442,15 @@ const distributionPercentage = (count: number) => {
 }
 
 .gauge-trend {
-  font-size: 1.25rem;
-  margin-top: 0.25rem;
+  display: flex;
+  font-size: 1.125rem;
 }
 
 /* Distribution Section */
+.distribution-section {
+  min-width: 0;
+}
+
 .section-title {
   font-size: 0.875rem;
   font-weight: 600;
@@ -486,6 +502,10 @@ const distributionPercentage = (count: number) => {
 }
 
 /* Modifiers Section */
+.modifiers-section {
+  grid-column: 1 / -1;
+}
+
 .modifiers-list {
   display: flex;
   flex-direction: column;
@@ -567,21 +587,22 @@ const distributionPercentage = (count: number) => {
 
 /* Responsive */
 @media (max-width: 640px) {
+  .compact-dashboard {
+    grid-template-columns: 1fr;
+  }
+
   .gauge-container {
-    width: 140px;
-    height: 140px;
+    width: 110px;
+    height: 110px;
   }
 
   .gauge-value {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
   }
 
   .actions-grid {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-content {
-    gap: 1rem;
-  }
 }
 </style>

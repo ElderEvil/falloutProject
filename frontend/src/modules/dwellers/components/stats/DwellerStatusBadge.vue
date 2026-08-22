@@ -51,9 +51,9 @@ const sizeClasses = computed(() => {
       statusConfig.bgColor,
       statusConfig.borderColor,
       sizeClasses.container,
-      `hover:${statusConfig.glowColor}`,
     ]"
     :title="statusConfig.label"
+    :style="{ '--glow-color': statusConfig.glowColor }"
   >
     <Icon :icon="statusConfig.icon" :class="sizeClasses.icon" />
     <span v-if="showLabel" :class="[sizeClasses.text, 'font-medium']">
@@ -80,5 +80,6 @@ const sizeClasses = computed(() => {
 .status-badge:hover {
   animation: none;
   opacity: 1 !important;
+  box-shadow: 0 0 8px var(--glow-color);
 }
 </style>

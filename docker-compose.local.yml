@@ -33,6 +33,7 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
+      - FALLOUT_WORKER=1
     depends_on:
       db:
         condition: service_healthy
@@ -65,24 +66,6 @@ services:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: always
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=24h
-      - OLLAMA_HOST=0.0.0.0:11434
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   fastapi:
     container_name: fastapi
@@ -127,4 +110,3 @@ volumes:
   postgres-data-local:
   redis-data-local:
   rustfs_data_local:
-  ollama_models:

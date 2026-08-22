@@ -58,7 +58,7 @@ if settings.ENABLE_RATE_LIMITING:
 setup_logging(
     log_level=settings.LOG_LEVEL,
     json_format=settings.LOG_JSON_FORMAT,
-    log_file=settings.LOG_FILE_PATH,
+    log_file=settings.log_file_path,
     retention_days=settings.LOG_FILE_RETENTION_DAYS,
 )
 

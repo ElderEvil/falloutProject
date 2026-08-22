@@ -87,6 +87,17 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
    kubectl -n fallout logs deployment/backend --tail=100
    ```
 
+7. Confirm application log files are present on the persistent volumes:
+
+   ```bash
+   kubectl -n fallout exec deployment/backend -- test -s /var/log/fallout_shelter/backend.log
+   kubectl -n fallout exec deployment/dramatiq-worker -- test -s /var/log/fallout_shelter/worker.log
+   kubectl -n fallout get pvc backend-logs-pvc dramatiq-logs-pvc
+   ```
+
+The API and worker write JSON logs to separate 1 GiB persistent volumes. Files rotate at midnight and retain 14 days
+of rotated logs. Kubernetes stdout logs remain enabled for immediate cluster diagnostics.
+
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
 
@@ -119,7 +130,7 @@ PRODUCTION_API_URL=https://fallout-api.evillab.tech
 PYDANTIC_AI_GATEWAY_API_KEY=... # Recommended: routes chat and Pydantic AI agents through Gateway
 PYDANTIC_AI_GATEWAY_ROUTE=...   # Optional custom Gateway provider or routing-group identifier
 PYDANTIC_AI_GATEWAY_BASE_URL=... # Regional Gateway proxy, e.g. https://gateway-eu.pydantic.dev/proxy
-AI_PROVIDER=openai               # or: anthropic, ollama
+AI_PROVIDER=openai               # or: anthropic; Ollama is local development only
 AI_MODEL=gpt-4o
 OPENAI_API_KEY=sk-...            # Still required for OpenAI image generation, TTS, and Whisper
 ```

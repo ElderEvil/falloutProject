@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check out deployment manifests
+        uses: actions/checkout@v4
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -97,6 +100,31 @@ jobs:
 
             echo "Updated all images. Waiting for rollouts..."
           EOF
+
+      - name: Configure persistent application logs
+        run: |
+          set -euo pipefail
+          for manifest in deployment/k3s/backend-logs-pvc.yaml deployment/k3s/dramatiq-logs-pvc.yaml; do
+            ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+              'kubectl apply -n fallout -f -' < "$manifest"
+          done
+
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+            set -euo pipefail
+
+            kubectl -n fallout set env deployment/backend \
+              LOG_JSON_FORMAT=true \
+              LOG_FILE_PATH=/var/log/fallout_shelter/backend.log \
+              LOG_FILE_RETENTION_DAYS=14
+            kubectl -n fallout set env deployment/dramatiq-worker \
+              FALLOUT_WORKER=1 \
+              LOG_JSON_FORMAT=true \
+              LOG_FILE_PATH=/var/log/fallout_shelter/worker.log \
+              LOG_FILE_RETENTION_DAYS=14
+
+            kubectl -n fallout patch deployment/backend --type='strategic' -p='{"spec":{"template":{"spec":{"securityContext":{"fsGroup":1000},"containers":[{"name":"backend","volumeMounts":[{"name":"application-logs","mountPath":"/var/log/fallout_shelter"}]}],"volumes":[{"name":"application-logs","persistentVolumeClaim":{"claimName":"backend-logs-pvc"}}]}}}}'
+            kubectl -n fallout patch deployment/dramatiq-worker --type='strategic' -p='{"spec":{"template":{"spec":{"securityContext":{"fsGroup":1000},"containers":[{"name":"dramatiq-worker","volumeMounts":[{"name":"application-logs","mountPath":"/var/log/fallout_shelter"}]}],"volumes":[{"name":"application-logs","persistentVolumeClaim":{"claimName":"dramatiq-logs-pvc"}}]}}}}'
+          SHELL
 
       - name: Restart deployments and wait for rollout
         run: |

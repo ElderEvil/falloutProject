@@ -93,27 +93,22 @@ Use these tokens in your CSS/components (mapped in `tailwind.css`):
 </button>
 ```
 
-### Background & Surface Colors
+### Warm-Neutral Surfaces
 
-| Variable                      | Value     | Usage            |
-| ----------------------------- | --------- | ---------------- |
-| `--color-terminal-background` | `#000000` | Page background  |
-| `--color-surface`             | `#111111` | Card backgrounds |
-| `--color-surface-light`       | `#1a1a1a` | Hover surfaces   |
-| `--color-surface-dark`        | `#0a0a0a` | Nested surfaces  |
+Every structural background uses one semantic warm-neutral role. Do not use raw black, gray, Slate, Stone, or
+neutral Tailwind backgrounds for cards, panels, tracks, or overlays.
 
-### Gray Scale
+| Token                    | Value     | Use |
+| ------------------------ | --------- | --- |
+| `--color-surface-canvas` | `#141210` | Application/page canvas and modal scrim base |
+| `--color-surface-sunken` | `#0f0e0d` | Progress tracks and recessed readouts |
+| `--color-surface`        | `#1c1917` | Default card and panel surface |
+| `--color-surface-raised` | `#28231f` | Modals, popovers, selected panels, and inputs |
+| `--color-surface-hover`  | `#302a25` | Hovered surface state |
 
-For secondary UI elements and borders:
-
-| Shade      | Value     | Usage                     |
-| ---------- | --------- | ------------------------- |
-| `gray-900` | `#171717` | Darkest borders           |
-| `gray-800` | `#262626` | Dark backgrounds (NavBar) |
-| `gray-700` | `#404040` | Medium-dark elements      |
-| `gray-600` | `#525252` | Borders                   |
-| `gray-500` | `#737373` | Secondary text            |
-| `gray-400` | `#a3a3a3` | Placeholder text          |
+`terminal-background`, `surface-light`, `surface-dark`, and `surface-warm*` remain compatibility aliases while
+callers migrate. Legacy `gray-*` utilities now render warm neutrals but must not be selected for new backgrounds.
+Use `text-theme-primary/70` and `text-theme-primary/50` for muted terminal text instead.
 
 ### Semantic Colors
 

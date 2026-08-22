@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 import { DeadDwellerCard } from './death'
 
@@ -31,20 +32,19 @@ const emit = defineEmits<{
       <p class="mt-4 text-theme-primary/60">Loading deceased dwellers...</p>
     </div>
 
-    <div
+    <TerminalEmptyState
       v-else-if="dwellers.length === 0"
-      class="w-full rounded-lg border border-gray-700 bg-gray-800/30 py-12 text-center"
+      icon="mdi:emoticon-happy"
+      title="No Dead Dwellers"
+      description="All dwellers are alive and well. Check the graveyard for permanently deceased."
     >
-      <Icon icon="mdi:emoticon-happy" class="mx-auto mb-4 h-16 w-16 text-theme-primary/40" />
-      <h3 class="mb-2 text-xl font-bold text-theme-primary">No Dead Dwellers</h3>
-      <p class="text-sm text-theme-primary/60">
-        All dwellers are alive and well. Check the graveyard for permanently deceased.
-      </p>
-      <UButton variant="secondary" size="sm" class="mt-4" @click="emit('view-graveyard')">
-        <Icon icon="mdi:grave-stone" class="mr-2 h-4 w-4" />
-        View Graveyard
-      </UButton>
-    </div>
+      <template #actions>
+        <UButton variant="secondary" size="sm" @click="emit('view-graveyard')">
+          <Icon icon="mdi:grave-stone" class="mr-2 h-4 w-4" />
+          View Graveyard
+        </UButton>
+      </template>
+    </TerminalEmptyState>
 
     <div v-else class="w-full dead-dweller-grid">
       <DeadDwellerCard

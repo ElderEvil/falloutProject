@@ -13,6 +13,10 @@ describe('DeadDwellersPanel', () => {
       global: {
         stubs: {
           UButton: { template: '<button><slot /></button>' },
+          TerminalEmptyState: {
+            props: ['title', 'description'],
+            template: '<section><h3>{{ title }}</h3><p>{{ description }}</p><slot name="actions" /></section>',
+          },
         },
       },
     })

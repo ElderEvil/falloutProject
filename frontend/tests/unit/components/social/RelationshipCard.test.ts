@@ -37,7 +37,7 @@ describe('RelationshipCard', () => {
       { type: 'romantic', expectClass: 'border-2' },
       { type: 'partner', expectClass: 'bg-danger' },
       { type: 'MARRIED', expectClass: 'bg-danger' },
-      { type: 'ex', expectClass: 'bg-gray-700' },
+      { type: 'ex', expectClass: 'bg-surface-raised' },
     ])('$type badge should have correct variant class', async ({ type, expectClass }) => {
       const wrapper = createWrapper({
         id: '1',

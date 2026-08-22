@@ -33,7 +33,7 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
 
 <template>
   <div
-    class="u-progress-bar"
+    class="u-progress-bar u-progress-bar--sunken"
     :class="{
       'u-progress-bar--pulse': animation === 'pulse',
       'u-progress-bar--shimmer': animation === 'shimmer',
@@ -65,7 +65,7 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
 <style scoped>
 .u-progress-bar {
   width: 100%;
-  background: rgba(68, 68, 68, 0.8);
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 999px;
   overflow: hidden;

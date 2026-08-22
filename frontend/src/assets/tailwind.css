@@ -21,26 +21,32 @@
   --color-terminal-green-dim: var(--color-theme-accent);
   --color-terminal-green-glow: var(--color-theme-glow);
 
-  /* Background & Surface Colors */
-  --color-terminal-background: #000000;
-  --color-surface: #111111;
-  --color-surface-light: #1a1a1a;
-  --color-surface-dark: #0a0a0a;
-  --color-surface-warm: #1c1917;
-  --color-surface-warm-dark: #141210;
-  --color-surface-warm-hover: #211e1b;
+  /* Warm-neutral depth roles. Use semantic surfaces, never raw black/gray backgrounds. */
+  --color-surface-canvas: #141210;
+  --color-surface-sunken: #0f0e0d;
+  --color-surface: #1c1917;
+  --color-surface-raised: #28231f;
+  --color-surface-hover: #302a25;
 
-  /* Gray Scale */
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f5f5f5;
-  --color-gray-200: #e5e5e5;
-  --color-gray-300: #d4d4d4;
-  --color-gray-400: #a3a3a3;
-  --color-gray-500: #737373;
-  --color-gray-600: #525252;
-  --color-gray-700: #404040;
-  --color-gray-800: #262626;
-  --color-gray-900: #171717;
+  /* Compatibility aliases; migrate callers to the semantic depth roles above. */
+  --color-terminal-background: var(--color-surface-canvas);
+  --color-surface-light: var(--color-surface-raised);
+  --color-surface-dark: var(--color-surface-sunken);
+  --color-surface-warm: var(--color-surface);
+  --color-surface-warm-dark: var(--color-surface-canvas);
+  --color-surface-warm-hover: var(--color-surface-hover);
+
+  /* Legacy gray utilities remain available, but their neutrals are warm. */
+  --color-gray-50: #faf7f4;
+  --color-gray-100: #f4eee9;
+  --color-gray-200: #e3d8d0;
+  --color-gray-300: #c8b9ae;
+  --color-gray-400: #a99488;
+  --color-gray-500: #827167;
+  --color-gray-600: #604f47;
+  --color-gray-700: #443a34;
+  --color-gray-800: #2b2521;
+  --color-gray-900: #1b1816;
 
   /* Semantic Colors (theme-aware) */
   --color-success: var(--color-theme-primary);

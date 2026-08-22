@@ -26,11 +26,12 @@
       </UCard>
     </div>
 
-    <div v-else-if="filteredRelationships.length === 0" class="empty-state">
-      <Icon icon="mdi:heart-outline" class="empty-icon" />
-      <p class="empty-text">{{ emptyMessage }}</p>
-      <p class="empty-hint">{{ emptyHint }}</p>
-    </div>
+    <TerminalEmptyState
+      v-else-if="filteredRelationships.length === 0"
+      icon="mdi:heart-outline"
+      :title="emptyMessage"
+      :description="emptyHint"
+    />
 
     <div v-else class="space-y-2">
       <div
@@ -78,6 +79,7 @@ import RelationshipCard from './RelationshipCard.vue'
 import CoupleFamilyDiagram from './CoupleFamilyDiagram.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UCard from '@/core/components/ui/UCard.vue'
+import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 interface Props {
   vaultId: string
@@ -188,33 +190,3 @@ onMounted(() => {
   refreshRelationships()
 })
 </script>
-
-<style scoped>
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: var(--color-theme-primary);
-  opacity: 0.3;
-  margin-bottom: 1rem;
-}
-
-.empty-text {
-  font-size: 1.125rem;
-  color: var(--color-theme-primary);
-  margin-bottom: 0.5rem;
-}
-
-.empty-hint {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-}
-</style>

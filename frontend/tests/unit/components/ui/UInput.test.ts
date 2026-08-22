@@ -38,4 +38,10 @@ describe('UInput (Accessibility)', () => {
     expect(id).toBeTruthy()
     expect(typeof id).toBe('string')
   })
+
+  it('uses the raised warm surface by default', () => {
+    const wrapper = mount(UInput, { props: { modelValue: '' } })
+
+    expect(wrapper.find('input').classes()).toContain('bg-surface-raised')
+  })
 })

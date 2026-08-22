@@ -87,7 +87,7 @@ function dwellerDisplayName(first: string, last: string | null) {
 </script>
 
 <template>
-  <UModal v-model="isOpen" :title="modalTitle" size="lg">
+  <UModal v-model="isOpen" :title="modalTitle" size="lg" surface="base">
     <div v-if="isLocked" class="locked-placeholder">
       <Icon icon="mdi:lock-question" class="locked-icon" />
       <h3 class="locked-heading">Unknown Location</h3>

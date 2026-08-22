@@ -282,8 +282,9 @@ const handleAction = () => {
     :style="{ borderColor: cardBorderColor }"
     :class="{ 'completed-quest': status === 'completed' }"
   >
-    <!-- Header -->
-    <div class="quest-header">
+    <div class="quest-card-content flex-1">
+      <!-- Header -->
+      <div class="quest-header">
       <h3 class="quest-title">{{ quest.title }}</h3>
       <div class="quest-badges">
         <UBadge
@@ -417,27 +418,30 @@ const handleAction = () => {
       <span v-if="!hasParty" class="duration-hint">(Assign party to start)</span>
     </div>
 
-    <!-- Action Button -->
-    <UButton
-      class="quest-action-btn"
-      :variant="status === 'completed' ? 'secondary' : 'primary'"
-      :disabled="isButtonDisabled"
-      @click="handleAction"
-    >
-      <Icon
-        :icon="
-          status === 'completed'
-            ? 'mdi:eye'
-            : status === 'active'
-              ? 'mdi:progress-clock'
-              : hasParty
-                ? 'mdi:play'
-                : 'mdi:account-plus'
-        "
-        class="btn-icon"
-      />
-      {{ actionButtonText }}
-    </UButton>
+    </div>
+
+    <div class="quest-action-footer">
+      <UButton
+        class="quest-action-btn"
+        :variant="status === 'completed' ? 'secondary' : 'primary'"
+        :disabled="isButtonDisabled"
+        @click="handleAction"
+      >
+        <Icon
+          :icon="
+            status === 'completed'
+              ? 'mdi:eye'
+              : status === 'active'
+                ? 'mdi:progress-clock'
+                : hasParty
+                  ? 'mdi:play'
+                  : 'mdi:account-plus'
+          "
+          class="btn-icon"
+        />
+        {{ actionButtonText }}
+      </UButton>
+    </div>
   </UCard>
 </template>
 
@@ -450,6 +454,14 @@ const handleAction = () => {
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.quest-action-footer {
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .quest-card::before {
@@ -609,7 +621,6 @@ const handleAction = () => {
 
 .quest-action-btn {
   width: 100%;
-  margin-top: 12px;
 }
 
 .inline-icon {

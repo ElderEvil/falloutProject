@@ -102,6 +102,7 @@ describe('ExplorationDetailView', () => {
     max_health: 50,
     radiation: 0,
     happiness: 75,
+    image_url: 'example.com/amata.png',
     thumbnail_url: null,
     room_id: null,
     status: 'exploring',
@@ -173,6 +174,8 @@ describe('ExplorationDetailView', () => {
 
       expect(wrapper.text()).toContain('1 / 1')
       expect(wrapper.text()).toContain('Back to Exploration')
+      expect(wrapper.find('.explorer-navigation').classes()).toContain('w-full')
+      expect(wrapper.find('.exploration-detail-content').classes()).toContain('max-w-[1200px]')
     })
 
     it('renders the shared vault sidebar', async () => {
@@ -199,6 +202,19 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('Amata Almodovar')
     })
 
+    it('renders the same dweller portrait used by exploration cards', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/amata.png')
+      expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Amata Almodovar portrait')
+    })
+
     it('renders dweller level', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {
@@ -209,6 +225,20 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('LVL 5')
+    })
+
+    it('uses the terminal meter treatment for health and exploration progress', async () => {
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.findAll('.exploration-meter')).toHaveLength(2)
+      expect(wrapper.findAll('.exploration-meter.rounded-full')).toHaveLength(2)
+      expect(wrapper.findAll('.exploration-meter__fill.rounded-full')).toHaveLength(2)
     })
 
     it('renders stats grid with 6 stat boxes', async () => {
@@ -240,6 +270,43 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('Event Log')
       expect(wrapper.text()).toContain('A raider attacked.')
       expect(wrapper.text()).toContain('Found a medkit.')
+      expect(wrapper.find('.event-log-section').classes()).toContain('mt-4')
+    })
+
+    it('renders the HP trend for legacy damage descriptions without structured health data', async () => {
+      explorationStore.activeExplorations['expl-1'] = {
+        ...mockExploration,
+        events: [
+          {
+            type: 'danger',
+            description: 'Encountered toxic waste. Health reduced by 7.',
+            timestamp: '2026-01-01T00:00:00Z',
+            time_elapsed_hours: 1,
+          },
+          {
+            type: 'item_use',
+            description: 'Used a stimpak. Healed 5 health.',
+            timestamp: '2026-01-01T00:30:00Z',
+            time_elapsed_hours: 1.5,
+          },
+        ],
+      }
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.find('.health-trend').exists()).toBe(true)
+      expect(wrapper.find('.health-trend').classes()).toContain('mt-4')
+      expect(wrapper.find('.health-sparkline-frame').classes()).toContain('border')
+      expect(wrapper.find('.health-sparkline-frame svg').classes()).toContain('w-[240px]')
+      expect(wrapper.text()).toContain('-7')
+      expect(wrapper.text()).toContain('+5')
+      expect(wrapper.find('.health-trend .text-theme-primary').exists()).toBe(true)
     })
 
     it('renders action buttons', async () => {

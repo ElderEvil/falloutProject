@@ -60,6 +60,21 @@ describe('ExplorerCard', () => {
     wrapper.unmount()
   })
 
+  it('keeps long equipment names within their exploration-card slots', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration,
+        dweller: {
+          ...dweller,
+          weapon: { name: 'Experimental Plasma Rifle With an Extremely Long Name' },
+        },
+      },
+    })
+
+    expect(wrapper.find('.equip-name').classes()).toContain('min-w-0')
+    expect(wrapper.find('.equip-name').text()).toContain('Experimental Plasma Rifle')
+  })
+
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))

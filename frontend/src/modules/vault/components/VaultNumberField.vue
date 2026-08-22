@@ -63,3 +63,9 @@ defineExpose({ isValid })
     class="grow"
   />
 </template>
+
+<style scoped>
+:deep(input[type='number']) {
+  color-scheme: dark;
+}
+</style>

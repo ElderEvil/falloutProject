@@ -111,8 +111,10 @@ export const useVaultStore = defineStore('vault', () => {
         }
       )
       await fetchVaults(token)
+      return true
     } catch (error) {
       handleStoreError(error, 'Failed to create vault')
+      return false
     }
   }
 

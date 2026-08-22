@@ -157,7 +157,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.stage-tab')
+      const tabs = wrapper.findAll('.utabs-button')
       expect(tabs.length).toBe(4)
 
       // Check that first tab is active by default
@@ -175,7 +175,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.stage-tab')
+      const tabs = wrapper.findAll('.utabs-button')
       await tabs[1].trigger('click')
 
       await flushPromises()
@@ -193,7 +193,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.stage-tab')
+      const tabs = wrapper.findAll('.utabs-button')
       await tabs[2].trigger('click')
 
       await flushPromises()
@@ -211,7 +211,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.stage-tab')
+      const tabs = wrapper.findAll('.utabs-button')
       await tabs[3].trigger('click')
 
       await flushPromises()
@@ -233,7 +233,7 @@ describe('RelationshipsView', () => {
       expect(wrapper.text()).toContain('Forming Relationships')
 
       // Switch to partners
-      const tabs = wrapper.findAll('.stage-tab')
+      const tabs = wrapper.findAll('.utabs-button')
       await tabs[1].trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')

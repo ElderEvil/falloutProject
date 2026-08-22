@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
+import UModal from '@/core/components/ui/UModal.vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
 // Mock vue-router
@@ -64,6 +65,15 @@ beforeEach(() => {
 
 describe('MarkerDetailModal', () => {
   describe('Location marker display', () => {
+    it('uses a compact field-report dialog width', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: { modelValue: true, location: createLocation(), vaultMarker: null },
+        global: { stubs: { teleport: true } },
+      })
+
+      expect(wrapper.findComponent(UModal).props('size')).toBe('md')
+    })
+
     it('should render the place name in the modal title', () => {
       const wrapper = mount(MarkerDetailModal, {
         props: {
@@ -109,6 +119,9 @@ describe('MarkerDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('A town built around an unexploded atomic bomb')
+      expect(wrapper.text()).toContain('MAP COORDINATES')
+      expect(wrapper.text()).toContain('50, 50')
+      expect(wrapper.text()).toContain('KNOWN DWELLERS')
     })
 
     it('should list linked dwellers', () => {

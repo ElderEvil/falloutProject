@@ -7,12 +7,10 @@ import { getStaticImageUrl } from '@/core/utils/image'
 interface Props {
   item: any
   itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits'
-  getRarityColor: (rarity?: string) => string
   count?: number
-  ids?: string[]
 }
 
-const { count = 1, ids, getRarityColor, item, itemType } = defineProps<Props>()
+const { count = 1, item, itemType } = defineProps<Props>()
 
 const emit = defineEmits<{
   sell: []
@@ -45,14 +43,6 @@ const itemValue = computed(() => {
 // Get item rarity
 const itemRarity = computed(() => {
   return item.rarity || 'common'
-})
-
-// Get item type badge
-const itemTypeBadge = computed(() => {
-  if (itemType === 'weapon' && item.weapon_type && item.weapon_subtype) {
-    return `${item.weapon_type} - ${item.weapon_subtype}`
-  }
-  return null
 })
 
 // Get detailed icon based on subtype
@@ -237,30 +227,30 @@ const rarityTextClass = computed(() => {
   <UCard
     padding="sm"
     :class="[
-      'w-full transition-all duration-200 hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md font-mono overflow-hidden',
+      'h-full w-full overflow-hidden font-mono transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-glow-md',
       rarityBorderClass,
     ]"
   >
-    <div class="flex flex-col gap-2">
+    <div class="flex h-full flex-col gap-3">
       <!-- Header: icon + name + count badge -->
-      <div class="flex items-center gap-2.5">
+      <div class="flex items-start gap-3">
         <img
           v-if="itemImageUrl"
           :src="itemImageUrl"
           :alt="itemName"
-          class="w-11 h-11 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          class="h-16 w-16 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
           @error="onImageError"
         />
         <Icon
           v-else
           :icon="itemIcon"
-          class="w-11 h-11 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
+          class="h-16 w-16 shrink-0 text-(--color-theme-primary) drop-shadow-[0_0_4px_var(--color-theme-glow)]"
         />
-        <div class="flex-1 min-w-0">
+        <div class="min-w-0 flex-1">
           <div class="flex items-center gap-1.5">
             <h3
               :class="[
-                'text-sm font-bold truncate drop-shadow-[0_0_4px_currentColor]',
+                'truncate text-base font-bold drop-shadow-[0_0_4px_currentColor]',
                 rarityTextClass,
               ]"
             >
@@ -268,68 +258,75 @@ const rarityTextClass = computed(() => {
             </h3>
             <span
               v-if="count > 1"
-              class="shrink-0 inline-flex items-center justify-center min-w-[1.4rem] h-5 px-1.5 bg-(--color-theme-primary) text-black rounded-full text-[11px] font-bold shadow-[0_0_6px_var(--color-theme-glow)]"
+              class="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--color-theme-primary) px-2 text-xs font-bold text-black shadow-[0_0_6px_var(--color-theme-glow)]"
             >
               ×{{ count }}
             </span>
           </div>
           <p
-            class="text-xs text-(--color-theme-primary) opacity-70 capitalize truncate leading-tight mt-0.5"
+            class="mt-1 truncate text-xs capitalize leading-tight text-(--color-theme-primary)/70"
           >
             {{ itemTypeDisplay }}
           </p>
         </div>
       </div>
 
-      <!-- Stats inline -->
+      <p class="min-h-8 text-xs leading-4 text-(--color-theme-primary)/70">
+        {{ itemDescription }}
+      </p>
+
+      <!-- Item stats -->
       <div
         v-if="itemStats.length > 0"
-        class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-(--color-theme-primary) leading-tight"
+        class="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded border border-theme-primary/15 bg-surface-sunken p-2 text-xs text-(--color-theme-primary)"
       >
-        <div v-for="stat in itemStats" :key="stat.label" class="flex items-center gap-1">
-          <Icon :icon="stat.icon" class="w-3.5 h-3.5 shrink-0" />
-          <span class="opacity-70">{{ stat.label }}:</span>
+        <div v-for="stat in itemStats" :key="stat.label" class="flex min-w-0 items-center gap-1.5">
+          <Icon :icon="stat.icon" class="h-4 w-4 shrink-0" />
+          <span class="truncate opacity-70">{{ stat.label }}:</span>
           <span class="font-bold">{{ stat.value }}</span>
         </div>
       </div>
 
-      <!-- Footer: value + compact actions -->
+      <!-- Footer: value + inventory actions -->
       <div
-        class="flex items-center justify-between gap-1.5 pt-2 border-t border-(--color-theme-primary)/20"
+        class="mt-auto flex items-center justify-between gap-3 border-t border-(--color-theme-primary)/20 pt-2"
       >
-        <div class="flex items-center gap-1 text-(--color-theme-primary) text-xs font-bold">
-          <Icon icon="mdi:currency-usd" class="w-4 h-4 text-(--color-caps)" />
+        <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">
+          <Icon icon="mdi:currency-usd" class="h-4 w-4 text-(--color-caps)" />
           <span>{{ itemValue }}</span>
         </div>
-        <div class="flex items-center gap-1">
-          <UButton
-            v-if="canScrap"
-            variant="danger"
-            size="xs"
-            @click="handleScrap"
-            title="Scrap"
-            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0"
-          >
-            <Icon icon="mdi:hammer-wrench" class="w-3.5 h-3.5" />
-          </UButton>
+        <div class="flex flex-wrap justify-end gap-2">
           <UButton
             variant="secondary"
-            size="xs"
+            size="sm"
             @click="handleSell"
             :title="count > 1 ? 'Sell one' : 'Sell'"
-            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/20"
+            class="font-mono border-(--color-caps)! text-(--color-caps)! hover:bg-(--color-caps)/20!"
           >
-            <Icon icon="mdi:cash" class="w-3.5 h-3.5" />
+            <Icon icon="mdi:cash" class="h-4 w-4" />
+            Sell
+          </UButton>
+          <UButton
+            v-if="canScrap"
+            variant="secondary"
+            size="sm"
+            @click="handleScrap"
+            title="Scrap"
+            class="font-mono border-danger/60! text-danger! hover:bg-danger/15!"
+          >
+            <Icon icon="mdi:hammer-wrench" class="h-4 w-4" />
+            Scrap
           </UButton>
           <UButton
             v-if="showSellAll"
             variant="primary"
-            size="xs"
+            size="sm"
             @click="handleSellAll"
-            title="Sell all ({{ count }})"
-            class="font-mono !px-1.5 !py-0.5 !text-[11px] !h-auto !min-h-0 !bg-(--color-caps)/20 !text-(--color-caps) !border-(--color-caps) hover:!bg-(--color-caps)/30"
+            :title="`Sell all (${count})`"
+            class="font-mono border-(--color-caps)! bg-(--color-caps)/20! text-(--color-caps)! hover:bg-(--color-caps)/30!"
           >
-            <Icon icon="mdi:cash-multiple" class="w-3.5 h-3.5" />
+            <Icon icon="mdi:cash-multiple" class="h-4 w-4" />
+            Sell all
           </UButton>
         </div>
       </div>

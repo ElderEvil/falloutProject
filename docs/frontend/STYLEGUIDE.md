@@ -259,6 +259,13 @@ This section records the current visual decisions for vault-management screens. 
 - Health and exploration progress use the same meter treatment: a dark, bordered, pill-shaped track; a pill-shaped theme-primary fill; a restrained internal glow; and evenly spaced terminal tick divisions. Do not introduce a separate rounded gradient style for these bars.
 - Prefer semantic labels and `progressbar` ARIA values for meters instead of relying on color or icon alone.
 
+### Relationships & family language
+
+- Relationship stages communicate gameplay state; do not encode couple orientation with colors, icons, labels, or mechanics.
+- The relationship list defaults to the compact roster-style List view. The paired-identity Grid view is optional for users who need more context per relationship.
+- Do not add decorative relationship animation by default. Revisit a restrained, motion-reduced List/Grid transition only after the relationship workflow needs it.
+- CRT scanlines belong to intentional terminal components, never as a page-wide overlay on the Relationships & Family screen.
+
 ---
 
 ## Components

@@ -10,10 +10,10 @@
       </h2>
       <div class="flex items-center gap-2">
         <div class="flex rounded border border-theme-primary/20 p-0.5">
-          <UButton variant="ghost" size="xs" :class="viewMode === 'list' ? '!bg-theme-glow/20' : ''" title="List view" @click="viewMode = 'list'">
+          <UButton variant="ghost" size="xs" :class="viewMode === 'list' ? 'bg-theme-glow/20!' : ''" title="List view" @click="viewMode = 'list'">
             <Icon icon="mdi:format-list-bulleted" />
           </UButton>
-          <UButton variant="ghost" size="xs" :class="viewMode === 'grid' ? '!bg-theme-glow/20' : ''" title="Grid view" @click="viewMode = 'grid'">
+          <UButton variant="ghost" size="xs" :class="viewMode === 'grid' ? 'bg-theme-glow/20!' : ''" title="Grid view" @click="viewMode = 'grid'">
             <Icon icon="mdi:view-grid-outline" />
           </UButton>
         </div>

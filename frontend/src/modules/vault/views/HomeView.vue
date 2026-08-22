@@ -45,11 +45,13 @@ const createVault = async () => {
 
   creatingVault.value = true
   try {
-    await vaultStore.createVault(
+    const created = await vaultStore.createVault(
       parseInt(newVaultNumber.value, 10),
       boostedStart.value,
       authStore.token as string
     )
+    if (!created) return
+
     newVaultNumber.value = ''
     boostedStart.value = false
     showCreation.value = false

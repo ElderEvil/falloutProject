@@ -325,6 +325,36 @@ describe('HomeView', () => {
       expect((input.element as HTMLInputElement).value).toBe('')
     })
 
+    it('keeps commissioning open with the entered number when creation fails', async () => {
+      vaultStore.vaults = [{
+        id: 'vault-1',
+        number: 101,
+        bottle_caps: 1000,
+        happiness: 75,
+        power: 50,
+        power_max: 100,
+        food: 60,
+        food_max: 100,
+        water: 70,
+        water_max: 100,
+        room_count: 5,
+        dweller_count: 10,
+        updated_at: new Date().toISOString(),
+      }]
+      vi.mocked(axios.post).mockRejectedValueOnce(new Error('Vault number is unavailable'))
+
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
+
+      const input = wrapper.find('[data-testid="ui-input"]')
+      await input.setValue('123')
+      await findCreateButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Create New Vault')
+      expect((wrapper.find('[data-testid="ui-input"]').element as HTMLInputElement).value).toBe('123')
+    })
+
     it('should prevent double submission during creation', async () => {
       vi.mocked(axios.post).mockImplementationOnce(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: {} }), 100))

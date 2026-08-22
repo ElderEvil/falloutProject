@@ -25,4 +25,13 @@ describe('StorageItemCard', () => {
     const actions = wrapper.findAll('button').map((button) => button.text())
     expect(actions.indexOf('Sell')).toBeLessThan(actions.indexOf('Scrap'))
   })
+
+  it('includes the junk quantity in the sell-all title', () => {
+    const wrapper = mount(StorageItemCard, {
+      props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
+      global: { stubs: { Icon: true } },
+    })
+
+    expect(wrapper.find('button[title="Sell all (3)"]').exists()).toBe(true)
+  })
 })

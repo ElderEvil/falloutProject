@@ -301,7 +301,7 @@ const rarityTextClass = computed(() => {
             size="sm"
             @click="handleSell"
             :title="count > 1 ? 'Sell one' : 'Sell'"
-            class="font-mono !border-(--color-caps) !text-(--color-caps) hover:!bg-(--color-caps)/20"
+            class="font-mono border-(--color-caps)! text-(--color-caps)! hover:bg-(--color-caps)/20!"
           >
             <Icon icon="mdi:cash" class="h-4 w-4" />
             Sell
@@ -312,7 +312,7 @@ const rarityTextClass = computed(() => {
             size="sm"
             @click="handleScrap"
             title="Scrap"
-            class="font-mono !border-danger/60 !text-danger hover:!bg-danger/15"
+            class="font-mono border-danger/60! text-danger! hover:bg-danger/15!"
           >
             <Icon icon="mdi:hammer-wrench" class="h-4 w-4" />
             Scrap
@@ -322,8 +322,8 @@ const rarityTextClass = computed(() => {
             variant="primary"
             size="sm"
             @click="handleSellAll"
-            title="Sell all ({{ count }})"
-            class="font-mono !border-(--color-caps) !bg-(--color-caps)/20 !text-(--color-caps) hover:!bg-(--color-caps)/30"
+            :title="`Sell all (${count})`"
+            class="font-mono border-(--color-caps)! bg-(--color-caps)/20! text-(--color-caps)! hover:bg-(--color-caps)/30!"
           >
             <Icon icon="mdi:cash-multiple" class="h-4 w-4" />
             Sell all

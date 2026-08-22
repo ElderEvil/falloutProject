@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton } from '@/core/components/ui'
+import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
 type BriefingAction = 'incidents' | 'dwellers' | null
@@ -142,17 +143,16 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
     </div>
 
     <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-      <div
+      <TerminalMetric
         v-for="metric in metrics"
         :key="metric.label"
-        class="briefing-metric flex min-w-0 items-center gap-2 rounded border border-theme-primary/20 bg-black/30 px-2.5 py-2"
-      >
-        <Icon :icon="metric.icon" class="h-4 w-4 shrink-0 text-theme-accent" />
-        <div class="min-w-0">
-          <p class="text-[0.6rem] font-bold tracking-[0.12em] text-theme-primary/60">{{ metric.label }}</p>
-          <p class="mt-0.5 text-sm font-bold tabular-nums text-theme-primary">{{ metric.value }}</p>
-        </div>
-      </div>
+        class="briefing-metric"
+        :icon="metric.icon"
+        :label="metric.label"
+        :value="metric.value"
+        tone="accent"
+        compact
+      />
     </div>
 
     <div v-if="attentionItems.length" class="mt-4 space-y-2">

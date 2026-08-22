@@ -12,6 +12,8 @@ spec:
       labels:
         app: backend
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: backend
           image: elerevil/fastapi:latest
@@ -20,6 +22,16 @@ spec:
           envFrom:
             - secretRef:
                 name: backend-env
+          env:
+            - name: LOG_JSON_FORMAT
+              value: "true"
+            - name: LOG_FILE_PATH
+              value: /var/log/fallout_shelter/backend.log
+            - name: LOG_FILE_RETENTION_DAYS
+              value: "14"
+          volumeMounts:
+            - name: application-logs
+              mountPath: /var/log/fallout_shelter
           livenessProbe:
             httpGet:
               path: /healthcheck
@@ -43,3 +55,7 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+      volumes:
+        - name: application-logs
+          persistentVolumeClaim:
+            claimName: backend-logs-pvc

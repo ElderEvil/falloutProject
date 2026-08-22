@@ -16,26 +16,25 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="sticky top-16 z-40 grid grid-cols-[1fr_auto_1fr] items-center border-b-[3px] border-theme-primary bg-terminal-background px-3 py-3 shadow-[0_2px_20px_var(--color-theme-glow)] sm:px-6 sm:py-4"
+    class="explorer-navigation sticky top-16 z-40 flex w-full justify-center py-2"
   >
-    <div aria-hidden="true"></div>
-    <div
-      class="font-bold text-theme-primary [text-shadow:0_0_10px_var(--color-theme-glow)] sm:text-xl"
-    >
-      {{ currentIndex + 1 }} / {{ total }}
-    </div>
-    <div class="flex justify-self-end gap-2">
+    <div class="explorer-navigation-box flex items-center gap-3 rounded-md border border-theme-primary/40 bg-black/30 px-3 py-2">
       <button
         @click="emit('previous')"
-        class="flex cursor-pointer items-center gap-2 rounded border-2 border-theme-primary bg-theme-primary/10 px-4 py-3 text-2xl font-bold text-theme-primary [font-family:var(--font-family-mono)] [text-shadow:0_0_6px_var(--color-theme-glow)] transition duration-[var(--transition-base)] hover:scale-105 hover:bg-theme-primary/20 hover:shadow-[0_0_15px_var(--color-theme-glow)] focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-30"
+        aria-label="Previous explorer"
+        class="flex h-9 w-9 cursor-pointer items-center justify-center rounded border border-theme-primary bg-theme-primary/10 p-0 text-xl font-bold text-theme-primary [text-shadow:0_0_6px_var(--color-theme-glow)] transition-transform duration-[var(--transition-base)] hover:scale-105 hover:bg-theme-primary/20 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-30"
         :disabled="!hasPrevious"
         :class="{ disabled: !hasPrevious }"
       >
         <Icon icon="mdi:chevron-left" />
       </button>
+      <div class="min-w-12 text-center font-bold text-theme-primary [text-shadow:0_0_10px_var(--color-theme-glow)] sm:text-xl">
+        {{ currentIndex + 1 }} / {{ total }}
+      </div>
       <button
         @click="emit('next')"
-        class="flex cursor-pointer items-center gap-2 rounded border-2 border-theme-primary bg-theme-primary/10 px-4 py-3 text-2xl font-bold text-theme-primary [font-family:var(--font-family-mono)] [text-shadow:0_0_6px_var(--color-theme-glow)] transition duration-[var(--transition-base)] hover:scale-105 hover:bg-theme-primary/20 hover:shadow-[0_0_15px_var(--color-theme-glow)] focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-30"
+        aria-label="Next explorer"
+        class="flex h-9 w-9 cursor-pointer items-center justify-center rounded border border-theme-primary bg-theme-primary/10 p-0 text-xl font-bold text-theme-primary [text-shadow:0_0_6px_var(--color-theme-glow)] transition-transform duration-[var(--transition-base)] hover:scale-105 hover:bg-theme-primary/20 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-30"
         :disabled="!hasNext"
         :class="{ disabled: !hasNext }"
       >

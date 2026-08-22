@@ -7,63 +7,84 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes
 
-* **map:** honor unlock on link race, count backfill changes only ([e137e7d](https://github.com/ElderEvil/falloutProject/commit/e137e7da655b3495bfca5084be653bd25e90caab))
-* **map:** unlock discovered locations and fix exploration detail blank page ([8fb38d7](https://github.com/ElderEvil/falloutProject/commit/8fb38d7bfd477080536ce7ded87e3905c7495a35))
+- **Discovery markers unlock immediately** — registering a discovery now links it to the exploring dweller with
+  `is_unlocked=True`, so its marker is visible on that vault’s map. The race-safe link path also upgrades an
+  existing locked link when a concurrent request created it first.
+- **Existing discoveries can be repaired safely** — `backfill_unlock_discoveries.py` restores missing unlock links
+  for historic discovery rows and reports only actual changes, so re-running it is idempotent.
+- **Exploration journals load on direct navigation** — the detail view always fetches the full exploration record;
+  it no longer renders blank when the vault list supplied its shorter summary schema. Loot rendering also treats
+  missing item lists as empty.
+
+## Unreleased — The Overseer's Toolkit
+
+### Features
+
+- **Overseer Briefing** — the Overseer’s Office now provides a live command readout with expedition, training,
+  quest, staffing, capacity, and morale metrics, plus prioritized threats and resource warnings; its room-grid badge
+  highlights unresolved items without displacing the vault workspace.
+- **Consistent management screens** — shared responsive page rails, aligned headers, and concise terminal-green
+  descriptions bring Dwellers, Quests, Objectives, Map, Training, Relationships, Storage, and Exploration into one
+  operational layout while preserving the distinct Operations Overview.
+
+### Fixed
+
+- **AI stream and quota reliability** — structured chat output streams incrementally and shared quota-cache keys
+  prevent inconsistent usage accounting across AI services.
+- **Dweller UI compatibility** — restore the Build Mode icon, correct status badge glow tokens, and keep children
+  previews aligned without unsafe placeholder data.
+- **Exploration detail polish** — explorer portraits carry through to the detailed journal; legacy health events
+  render a framed cumulative trend, healing uses theme green, and health/progress use consistent pill-shaped terminal
+  meters. Long equipment names stay within exploration-card slots.
+
+### Changed
+
+- **Production observability** — API logs write structured, rotating files to a persistent Kubernetes volume while
+  retaining stdout diagnostics; the worker remains on stdout until it has a deployment manifest. Ollama remains a
+  local-development provider only.
+- **Authenticated browser coverage** — the vault briefing and response flow have deterministic Playwright coverage
+  that does not require production credentials or a local Ollama server.
 
 ## [2.46.0](https://github.com/ElderEvil/falloutProject/compare/v2.45.1...v2.46.0) (2026-08-21)
 
 ### Features
 
-* **exploration:** journal loot, vitals, and discovery deep-links ([1de6b22](https://github.com/ElderEvil/falloutProject/commit/1de6b228817c2fbdff565dd6f808799e2c241f6e))
-* **map:** event-authoritative discovery routes ([8a02317](https://github.com/ElderEvil/falloutProject/commit/8a0231702cd4aa9fd968e76a585da3eac358bc92))
+- **Wasteland Journal loot, vitals, and discovery deep-links** — discovery events persist their map location id
+  and coordinates, and health deltas are recorded on exploration events (JSONB, no migration); the detail view
+  surfaces mid-journey loot as a rarity-tinted list and a cumulative health-change trail, and discovery events
+  deep-link to their map marker via `?place=`
+- **Event-authoritative discovery routes** — the map API projects per-exploration discovery trails from
+  exploration events (which now carry coordinates) instead of de-duplicated location rows, so repeated visits
+  remain part of the journey; ordered `discovery_routes` render as dashed polylines on the WorldMap. Adds the
+  World Map feature contract, delivery plan, and Wasteland Journal feature docs
 
 ### Bug Fixes
 
-* **exploration:** consolidate progress math, drop dead components, show quest parties ([3850550](https://github.com/ElderEvil/falloutProject/commit/38505508673ff9c10c6b48d3f1d41514ded30d85))
-* **map:** address review feedback and detail loading ([95a7e18](https://github.com/ElderEvil/falloutProject/commit/95a7e18569369bcf8752eccf59238a3f122d4255))
+- **Consolidated exploration progress math** — one time-zone-safe elapsed-progress calculation
+  (`useExplorationProgress`) now powers explorer cards, the active list, and the wasteland panel, removing three
+  duplicated implementations (and fixing offset parsing in two); dead components (`ExplorationConfigModal`,
+  `DwellerDropZone` duplicates) are gone, and quest party members render on quest cards
+- **Map detail loading & review feedback** — address review feedback and fix map detail loading
 
 ## [2.45.1](https://github.com/ElderEvil/falloutProject/compare/v2.45.0...v2.45.1) (2026-08-21)
 
 ### Bug Fixes
 
-* **map:** derive neighbor-vault signals from a fixed global seed ([ebbb48f](https://github.com/ElderEvil/falloutProject/commit/ebbb48f287bfd08763bdb4e98e72d914f3841514))
+- **Viewer-independent neighbor-vault signals** — temporary neighbor-vault markers were seeded from the viewer's
+  vault UUID, so every player saw a different set of signals; they now derive from a fixed global constant so the
+  wasteland is shared and viewer-independent, laying the foundation for async-PvP raiding
 
 ## [2.45.0](https://github.com/ElderEvil/falloutProject/compare/v2.44.0...v2.45.0) (2026-08-21)
 
 ### Features
 
-* **exploration:** auto-equip better gear on return with live SSE feed ([#450](https://github.com/ElderEvil/falloutProject/issues/450)) ([4e0a388](https://github.com/ElderEvil/falloutProject/commit/4e0a388e573db8ab7095813a35ecb317b7e3c5e2))
-
-## [2.44.0](https://github.com/ElderEvil/falloutProject/compare/v2.43.0...v2.44.0) (2026-08-21)
-
-### Features
-
-* **overseer:** activity and incident outcome reports ([#449](https://github.com/ElderEvil/falloutProject/issues/449)) ([7804ea0](https://github.com/ElderEvil/falloutProject/commit/7804ea0ea077e9542eefbd527519c14522c7072b))
-
-## Unreleased
-
-### Features
-
-- **Overseer Reports** — long-running dweller activities end in a visible outcome instead of a silent state change.
-  Training completion now sends a persistent `training_complete` notification carrying the stat change (`stat_name`,
-  `old_value`, `new_value`); clicking it opens the dweller's Stats tab with the improved SPECIAL stat highlighted
-  (+1 badge, reduced-motion aware). Exploration completion notifications carry the full rewards payload, and reward
-  reports are queued durably in localStorage (`usePendingReports`, survive reload/offline) and re-shown as the
-  rewards modal on the next visit to the exploration view until acknowledged
-- **Incident outcome reports** — resolving an incident now sends a `combat_victory` or `combat_defeat` notification
-  carrying the outcome summary (`caps_earned`, `loot` in `meta_data`), so attacks and fires report their result
-  instead of ending silently; clicking the notification opens the vault view
 - **Wasteland auto-equip & live exploration feed** — dwellers returning from exploration auto-equip the best
-  weapon/outfit they found (old gear returns to storage), with an `exploration_update` notification telling the
-  vault owner what was equipped; the exploration detail view now streams events live over SSE (event log, health,
-  radiation, and counters update in real time), and the obsolete `EventTimeline` component was consolidated into
-  `ExplorationEventLog`
+  weapon/outfit they found (old gear returns to storage) with an `exploration_update` notification; the
+  exploration detail view streams events live over SSE (event log, health, radiation, and counters update in
+  real time), and the obsolete `EventTimeline` was consolidated into `ExplorationEventLog`
 
 ### Fixed
 
-- **Breeding at population capacity** — `check_for_conception` no longer starts a new pregnancy when the vault
-  population has reached `population_max`; already-committed pregnancies reserve their slot, and a single free slot
-  can only be consumed by one new conception per game tick (regression coverage in `test_breeding_service.py`)
 - **Stale storage check constraints** — migration drops the leftover `ck_storage_radaway_bounds`/
   `ck_storage_stimpack_bounds` DB constraints (the Storage model validates bounds via Pydantic), restoring the
   `alembic check` CI gate
@@ -76,6 +97,23 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   best-effort delivery across the training, death, and incident services, and the exploration report queue now
   uses VueUse `useStorage` instead of hand-rolled localStorage sync (unused `consumePendingReport`/
   `clearPendingReports` exports removed)
+
+## [2.44.0](https://github.com/ElderEvil/falloutProject/compare/v2.43.0...v2.44.0) (2026-08-21)
+
+### Features
+
+- **Overseer activity & incident outcome reports** — long-running dweller activities end in a visible outcome
+  instead of a silent state change: training completion sends a persistent `training_complete` notification
+  carrying the stat change, exploration completion notifications carry the full rewards payload, and resolving an
+  incident sends a `combat_victory` or `combat_defeat` notification with the outcome summary so attacks and fires
+  report their result
+
+### Fixed
+
+- **Breeding at population capacity** — `check_for_conception` no longer starts a new pregnancy when the vault
+  population has reached `population_max`; already-committed pregnancies reserve their slot, and a single free
+  slot can only be consumed by one new conception per game tick (regression coverage in
+  `test_breeding_service.py`)
 
 ## [2.43.0](https://github.com/ElderEvil/falloutProject/compare/v2.42.0...v2.43.0) (2026-08-21)
 

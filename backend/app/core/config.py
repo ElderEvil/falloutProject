@@ -148,6 +148,15 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
     @property
+    def log_file_path(self) -> str | None:
+        """Return the configured log path, with a persistent production default."""
+        if self.LOG_FILE_PATH:
+            return self.LOG_FILE_PATH
+        if self.ENVIRONMENT == "production":
+            return "/var/log/fallout_shelter/app.log"
+        return None
+
+    @property
     def project_root(self) -> Path:
         """Get the project root directory (where CHANGELOG.md is located)."""
         # Go up from backend/app/core/config.py to project root

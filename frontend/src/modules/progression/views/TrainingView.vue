@@ -6,6 +6,7 @@ import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -67,7 +68,7 @@ onMounted(async () => {
       <SidePanel />
 
       <main class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto flex flex-col gap-6 px-4 py-8 lg:px-8">
+        <PageContentRail class="flex flex-col gap-6">
           <PageHeader
             title="Training Center"
             icon="mdi:dumbbell"
@@ -234,7 +235,7 @@ onMounted(async () => {
               </div>
             </template>
           </section>
-        </div>
+        </PageContentRail>
       </main>
     </div>
   </div>

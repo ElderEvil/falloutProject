@@ -101,7 +101,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 
 ## Dev Environment (Agent Quick-Start)
 
-To start infra + BE + FE: run `./scripts/dev-up.sh` (or `--reload` for backend hot reload). It starts infra, runs migrations, and launches `fallout-be`/`fallout-fe` tmux sessions (fresh restart each run). Stop with `tmux kill-session -t fallout-be && tmux kill-session -t fallout-fe`.
+In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallout: Run backend server` and `Fallout: Run frontend server`. The backend task applies migrations before starting FastAPI; use `Fallout: Stop Podman infrastructure` when finished.
 
 ---
 

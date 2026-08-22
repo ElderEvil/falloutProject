@@ -247,9 +247,7 @@ class HealthCheckService:
                             "base_url": settings.OLLAMA_BASE_URL,
                             "configured_model": configured_model,
                             "available_models": model_names,
-                            "recommendation": (
-                                f"Pull model with: docker exec -it ollama ollama pull {configured_model}"
-                            ),
+                            "recommendation": (f"Pull model locally with: ollama pull {configured_model}"),
                         },
                     )
                 return HealthCheckResult(
@@ -265,9 +263,7 @@ class HealthCheckService:
                 details = {
                     "base_url": settings.OLLAMA_BASE_URL,
                     "error": str(e),
-                    "recommendation": (
-                        "Ensure Ollama container is running: docker-compose -f docker-compose.local.yml up -d ollama"
-                    ),
+                    "recommendation": ("Ensure the local Ollama service is running: ollama serve"),
                 }
             elif isinstance(e, httpx.TimeoutException):
                 logger.warning("Ollama health check timed out")

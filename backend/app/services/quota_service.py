@@ -168,7 +168,9 @@ class QuotaService:
             db_session.add(interaction)
             await db_session.flush()
 
-            cache_key = f"user:{user_id}:ai_usage"
+            from app.services.ai_constants import AI_USAGE_CACHE_KEY
+
+            cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)
             try:
                 await redis_client.delete(cache_key)
                 logger.debug("Invalidated cache for user %s after token usage", user_id)

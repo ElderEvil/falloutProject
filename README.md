@@ -30,11 +30,20 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 - **uv** (Python package manager):
   - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   - Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@10.28.2`
+- **pnpm** (via Corepack): `corepack enable && corepack use pnpm@11.9.0`
 
 ## 🚀 Quick Start (Hybrid Development)
 
 **Recommended setup:** Run infrastructure in Docker; run backend + frontend locally for hot reload.
+
+### Zed
+
+Open the repository in Zed and run these project tasks in order from
+`task: spawn`: `Fallout: Run Podman infrastructure`, `Fallout: Run backend
+server`, and `Fallout: Run frontend server`. Each opens its own terminal, like
+separate PyCharm run configurations. The backend task applies migrations before
+starting FastAPI. Run `Fallout: Stop Podman infrastructure` to stop the
+containers.
 
 ```bash
 # 1. Clone and setup environment
@@ -241,7 +250,9 @@ docker compose start fastapi
   - Redis: `REDIS_HOST`, `REDIS_PORT`
 
 **AI Setup Notes:**
-- **Ollama (Free):** For Docker: already runs in `ollama` container. For hybrid: [install locally](https://ollama.ai/download)
+- **Ollama (Free):** [Install locally](https://ollama.ai/download); Compose does not run Ollama. Use
+  `OLLAMA_BASE_URL=http://host.containers.internal:11434/v1` for a Podman container, or
+  `http://localhost:11434/v1` when the backend runs natively.
 - **Gateway + OpenAI (recommended):** Set `PYDANTIC_AI_GATEWAY_API_KEY`, `AI_PROVIDER=openai`, and `AI_MODEL` for
   chat/agent calls. Set `PYDANTIC_AI_GATEWAY_ROUTE` when using a custom Gateway provider or routing group. Retain
   `OPENAI_API_KEY` for image and audio features. See [Pydantic AI Gateway Setup](docs/backend/PYDANTIC_AI_GATEWAY.md)
@@ -298,7 +309,7 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 - For Gateway: verify `PYDANTIC_AI_GATEWAY_API_KEY` is set and that the selected `AI_PROVIDER`/`AI_MODEL` is enabled
   in Gateway
 - For direct OpenAI media features: verify `OPENAI_API_KEY` is set correctly
-- For Ollama: Ensure service is running (`ollama serve` or check Docker container)
+- For Ollama: Ensure the local service is running (`ollama serve`)
 - App works without AI - conversation features will be disabled
 
 ## 📚 Documentation

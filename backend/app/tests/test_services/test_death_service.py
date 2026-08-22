@@ -1,5 +1,6 @@
 """Tests for death service logic."""
 
+import logging
 from datetime import datetime, timedelta
 
 import pytest
@@ -98,8 +99,11 @@ class TestDeathService:
         self,
         async_session: AsyncSession,
         alive_dweller: Dweller,
+        caplog: pytest.LogCaptureFixture,
     ):
         """Test marking a living dweller as dead."""
+        caplog.set_level(logging.INFO, logger="app.services.death_service")
+        alive_dweller.last_name = None
         result = await death_service.mark_as_dead(
             async_session,
             alive_dweller,
@@ -113,6 +117,7 @@ class TestDeathService:
         assert result.health == 0
         assert result.room_id is None
         assert result.epitaph is not None
+        assert f"Dweller {alive_dweller.first_name} () died" in caplog.text
 
     async def test_mark_as_dead_with_custom_epitaph(
         self,

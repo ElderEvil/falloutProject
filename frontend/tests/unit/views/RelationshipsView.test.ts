@@ -115,6 +115,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Relationships & Family')
+      expect(wrapper.find('.main-content > div').classes()).toContain('max-w-[1400px]')
     })
 
     it('should render all four tabs', async () => {

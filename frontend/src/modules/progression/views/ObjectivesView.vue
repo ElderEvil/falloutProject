@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
@@ -51,9 +52,13 @@ const achievementObjectives = computed(() =>
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8">
+        <PageContentRail>
           <div class="objectives-container">
-            <PageHeader title="Objectives" icon="mdi:target" />
+            <PageHeader
+              title="Objectives"
+              icon="mdi:target"
+              subtitle="Complete Vault-Tec directives to earn rewards."
+            />
             <div class="tabs">
               <button
                 @click="activeTab = 'daily'"
@@ -141,7 +146,7 @@ const achievementObjectives = computed(() =>
               </div>
             </div>
           </div>
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>
@@ -191,8 +196,7 @@ const achievementObjectives = computed(() =>
 }
 
 .objectives-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .title {

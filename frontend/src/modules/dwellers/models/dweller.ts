@@ -106,7 +106,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-blue-400',
     bgColor: 'bg-blue-900/30',
     borderColor: 'border-blue-500/50',
-    glowColor: 'shadow-blue-500/30',
+    glowColor: 'rgb(59 130 246 / 0.3)',
   },
   questing: {
     icon: 'mdi:sword-cross',
@@ -114,7 +114,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-orange-400',
     bgColor: 'bg-orange-900/30',
     borderColor: 'border-orange-500/50',
-    glowColor: 'shadow-orange-500/30',
+    glowColor: 'rgb(249 115 22 / 0.3)',
   },
   working: {
     icon: 'mdi:hammer-wrench',
@@ -122,7 +122,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-green-400',
     bgColor: 'bg-green-900/30',
     borderColor: 'border-green-500/50',
-    glowColor: 'shadow-green-500/30',
+    glowColor: 'rgb(34 197 94 / 0.3)',
   },
   training: {
     icon: 'mdi:dumbbell',
@@ -130,7 +130,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-orange-400',
     bgColor: 'bg-orange-900/30',
     borderColor: 'border-orange-500/50',
-    glowColor: 'shadow-orange-500/30',
+    glowColor: 'rgb(249 115 22 / 0.3)',
   },
   resting: {
     icon: 'mdi:heart-outline',
@@ -138,7 +138,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-pink-400',
     bgColor: 'bg-pink-900/30',
     borderColor: 'border-pink-500/50',
-    glowColor: 'shadow-pink-500/30',
+    glowColor: 'rgb(236 72 153 / 0.3)',
   },
   dead: {
     icon: 'mdi:skull',
@@ -146,7 +146,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-red-400',
     bgColor: 'bg-red-900/30',
     borderColor: 'border-red-500/50',
-    glowColor: 'shadow-red-500/30',
+    glowColor: 'rgb(239 68 68 / 0.3)',
   },
   idle: {
     icon: 'mdi:coffee-outline',
@@ -154,7 +154,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-yellow-400',
     bgColor: 'bg-yellow-900/30',
     borderColor: 'border-yellow-500/50',
-    glowColor: 'shadow-yellow-500/30',
+    glowColor: 'rgb(234 179 8 / 0.3)',
   },
   unknown: {
     icon: 'mdi:help-circle-outline',
@@ -162,7 +162,7 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     color: 'text-gray-400',
     bgColor: 'bg-gray-900/30',
     borderColor: 'border-gray-500/50',
-    glowColor: 'shadow-gray-500/30',
+    glowColor: 'rgb(107 114 128 / 0.3)',
   },
 }
 

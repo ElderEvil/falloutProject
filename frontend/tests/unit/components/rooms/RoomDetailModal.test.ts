@@ -159,6 +159,30 @@ describe('RoomDetailModal', () => {
   ]
 
   describe('Rendering', () => {
+    it('shows vault status only in the Overseer’s Office', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: "Overseer's Office", ability: null },
+          modelValue: true,
+          overseerBriefing: {
+            vaultNumber: 42,
+            activeIncidentCount: 1,
+            activeExplorationCount: 2,
+            trainingCount: 1,
+            questingCount: 0,
+            unassignedCount: 0,
+            populationUtilization: 64,
+            happiness: 82,
+            resourceWarnings: [],
+            dwellersPath: '/vault/vault-123/dwellers',
+          },
+        },
+      })
+
+      expect(wrapper.text()).toContain('VAULT STATUS')
+      expect(wrapper.text()).toContain('1 INCIDENT REQUIRES RESPONSE')
+    })
+
     it('should render when show is true', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {

@@ -6,6 +6,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useRelationshipStore } from '../stores/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -92,8 +93,7 @@ const navigateToDweller = (dwellerId: string) => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8 lg:px-8">
-          <div class="max-w-7xl mx-auto">
+        <PageContentRail>
             <!-- Header -->
             <PageHeader
               title="Relationships &amp; Family"
@@ -221,8 +221,7 @@ const navigateToDweller = (dwellerId: string) => {
                 <ChildrenList v-if="vaultId" :vaultId="vaultId" />
               </div>
             </div>
-          </div>
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>
@@ -241,7 +240,7 @@ const navigateToDweller = (dwellerId: string) => {
 }
 
 .main-content.collapsed {
-  margin-left: 60px;
+  margin-left: 64px;
 }
 
 .scanlines {

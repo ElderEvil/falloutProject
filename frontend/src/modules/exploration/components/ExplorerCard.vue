@@ -48,8 +48,8 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <div class="card-header">
       <div class="dweller-info">
         <img
-          v-if="dweller?.image_url"
-          :src="normalizeImageUrl(dweller.image_url)"
+          v-if="dweller?.image_url || dweller?.thumbnail_url"
+          :src="normalizeImageUrl(dweller.image_url || dweller.thumbnail_url)"
           :alt="`${dwellerName} portrait`"
           class="dweller-icon dweller-portrait object-cover border border-theme-primary rounded-full"
         />
@@ -135,13 +135,13 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
     <!-- Equipment Slots -->
     <div class="equipment-section">
-      <div class="equipment-slot">
+      <div class="equipment-slot min-w-0">
         <Icon icon="mdi:sword" class="equip-icon" />
-        <span class="equip-name">{{ dweller?.weapon?.name || 'Unarmed' }}</span>
+        <span class="equip-name min-w-0">{{ dweller?.weapon?.name || 'Unarmed' }}</span>
       </div>
-      <div class="equipment-slot">
+      <div class="equipment-slot min-w-0">
         <Icon icon="mdi:tshirt-crew" class="equip-icon" />
-        <span class="equip-name">{{ dweller?.outfit?.name || 'Vault Suit' }}</span>
+        <span class="equip-name min-w-0">{{ dweller?.outfit?.name || 'Vault Suit' }}</span>
       </div>
     </div>
 

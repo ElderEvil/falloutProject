@@ -58,7 +58,7 @@ const { glowClass } = useVisualEffects()
 </script>
 
 <template>
-  <div :class="['page-header mb-8', { 'text-center': centered }]">
+  <div :class="['page-header mb-6', { 'text-center': centered }]">
     <!-- Back slot -->
     <div v-if="$slots.back" class="mb-4">
       <slot name="back" />
@@ -66,12 +66,12 @@ const { glowClass } = useVisualEffects()
 
     <div :class="['flex', centered ? 'flex-col items-center' : 'items-start justify-between']">
       <!-- Left: icon + text -->
-      <div :class="['flex', centered ? 'flex-col items-center' : 'items-center gap-4']">
+      <div :class="['flex', centered ? 'flex-col items-center' : 'items-start gap-4']">
         <Icon
           v-if="icon"
           :icon="icon"
           class="text-theme-primary shrink-0"
-          :class="centered ? 'w-12 h-12 mb-2' : 'w-10 h-10 md:w-12 md:h-12'"
+          :class="centered ? 'w-12 h-12 mb-2' : 'mt-1 w-10 h-10 md:w-12 md:h-12'"
         />
         <div :class="centered ? 'text-center' : ''">
           <h1
@@ -86,8 +86,7 @@ const { glowClass } = useVisualEffects()
           </h1>
           <p
             v-if="subtitle"
-            class="text-sm mt-1 leading-relaxed"
-            :class="centered ? 'text-theme-primary/60' : 'text-gray-400'"
+            class="mt-1 max-w-2xl text-sm leading-relaxed text-pretty text-theme-primary/60"
           >
             {{ subtitle }}
           </p>

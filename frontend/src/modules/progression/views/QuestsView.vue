@@ -7,6 +7,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -190,7 +191,7 @@ onMounted(async () => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8">
+        <PageContentRail>
           <!-- Locked State -->
           <div v-if="!hasOverseerOffice" class="locked-container">
             <div class="locked-icon">
@@ -209,7 +210,11 @@ onMounted(async () => {
 
           <!-- Quests View -->
           <div v-else class="quests-container">
-            <PageHeader title="Quests" icon="mdi:book-open-page-variant" />
+            <PageHeader
+              title="Quests"
+              icon="mdi:book-open-page-variant"
+              subtitle="Deploy teams, track missions & collect rewards."
+            />
 
             <!-- Tabs -->
             <div class="tabs">
@@ -320,7 +325,7 @@ onMounted(async () => {
             :current-party="questPartyMembers"
             @assign="handleAssignAndStart"
           />
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>
@@ -412,8 +417,7 @@ onMounted(async () => {
 
 /* Quests Container */
 .quests-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .title {

@@ -30,8 +30,9 @@ FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
 # Install uv (needed for uv run commands)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create a non-root user
-RUN useradd -m appuser
+# Create a non-root user and a writable fallback log directory
+RUN useradd --create-home --uid 1000 appuser \
+    && mkdir -p /var/log/fallout_shelter
 
 WORKDIR /app
 
@@ -48,7 +49,7 @@ COPY backend/ /app/
 # Copy changelog to project root
 COPY CHANGELOG.md /CHANGELOG.md
 
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app /var/log/fallout_shelter
 USER appuser
 
 # Command to run the application

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
 import { UButton } from '@/core/components/ui'
@@ -97,8 +98,12 @@ const hasNoData = computed(
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8 lg:px-8">
-          <PageHeader title="World Map" icon="mdi:map" />
+        <PageContentRail>
+          <PageHeader
+            title="World Map"
+            icon="mdi:map"
+            subtitle="Track discoveries, expeditions & the wider wasteland."
+          />
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
@@ -141,7 +146,7 @@ const hasNoData = computed(
             :location="selectedLocation"
             :vault-marker="selectedVaultMarker"
           />
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>

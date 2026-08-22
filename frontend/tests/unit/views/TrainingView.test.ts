@@ -40,6 +40,7 @@ describe('TrainingView', () => {
     expect(wrapper.find('[data-testid="side-panel"]').exists()).toBe(true)
     expect(wrapper.find('.vault-layout').exists()).toBe(true)
     expect(wrapper.find('.main-content').exists()).toBe(true)
+    expect(wrapper.find('.main-content > div').classes()).toContain('max-w-[1400px]')
     expect(
       wrapper.find('[data-testid="training-queue"]').element.parentElement?.className
     ).toContain('w-full')

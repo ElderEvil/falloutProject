@@ -6,11 +6,17 @@ the World Map. Feature behavior belongs in [World Map — Multiplayer-First](fea
 
 ## Current status
 
-**Phase A — The Wasteland Journal:** implemented locally; pending commit/release.
+**Phase A — The Wasteland Journal:** **shipped in v2.46.0.**
 
 The release provides a per-explorer journey record, discovery-to-map links, event-authoritative map routes,
 and viewer-independent temporary vault signals. It also consolidates exploration progress calculation, removes
 two obsolete exploration components, and fixes quest party-member rendering.
+
+**Discovery unlock fix (v2.46.1 follow-up):** released in v2.46.1. `register_discovery` now links the
+exploring dweller to the DISCOVERY marker with `is_unlocked=True`, so discovered locations unlock immediately
+instead of staying locked (previously only bio-linked places could unlock, via chat). A backfill script
+(`scripts/backfill_unlock_discoveries.py`) repairs pre-fix rows. Deploy the v2.46.1 worker image to activate the
+runtime fix.
 
 ## Phase A delivery checklist
 
@@ -24,8 +30,9 @@ two obsolete exploration components, and fixes quest party-member rendering.
 - [x] Use a fixed global neighbor-signal seed, with regression coverage.
 - [x] Consolidate exploration progress logic; delete `ExplorationConfigModal.vue` and `DwellerDropZone.vue`.
 - [x] Populate quest party members for quest cards.
+- [x] Unlock DISCOVERY markers by linking the exploring dweller (`is_unlocked=True`); backfill pre-fix rows.
 
-### Verification recorded for the current working tree
+### Verification recorded for v2.46.0
 
 | Check | Result |
 |---|---|
@@ -35,7 +42,21 @@ two obsolete exploration components, and fixes quest party-member rendering.
 | Frontend typecheck and lint | clean |
 | Diff whitespace check | clean |
 
-## Phase B — async raiding
+### Verification recorded for the discovery-unlock follow-up
+
+| Check | Result |
+|---|---|
+| Backend discovery/map/CRUD/backfill tests | 40 passed |
+| Backend `ruff check` | clean |
+| Backfill idempotency (re-run reports 0 changes) | verified |
+
+## Deferred multiplayer phases (parked)
+
+Raiding and the social/multiplayer layers are intentionally deferred while the single-vault experience is
+polished. The contracts below are retained for when multiplayer is revisited; nothing here is being implemented
+now.
+
+### Phase B — async raiding
 
 1. Introduce a stable `RaidTarget` keyed by target vault number plus snapshot version. The snapshot contains
    only raid-relevant rooms, defenses, and eligible dwellers; never query a live vault while resolving combat.
@@ -47,7 +68,7 @@ two obsolete exploration components, and fixes quest party-member rendering.
 4. Authorize target discovery server-side. The client may display a signal but cannot select arbitrary vault
    IDs, request an old snapshot, or infer private dweller details from the map response.
 
-## Phase C — fallen-dweller encounters
+### Phase C — fallen-dweller encounters
 
 1. Add `FallenDwellerRegistry` as an immutable, minimal encounter projection: public combat stats,
    deterministic encounter seed, transformation flags, source-vault pseudonym, and lifecycle state. Do not
@@ -57,7 +78,7 @@ two obsolete exploration components, and fixes quest party-member rendering.
 3. Seed encounter placement from registry ID/name, not death time or viewing vault, and retain a tombstone or
    audit result for replay and support.
 
-## Phase D — social world registry
+### Phase D — social world registry
 
 1. Introduce `WorldLocation` (normalized-name authority and canonical coordinates) plus
    `VaultLocationState` (discovered/unlocked/first-seen metadata). Backfill per-vault rows by normalized name

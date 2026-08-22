@@ -55,7 +55,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       }
       const streamingMsg = messages.value[streamingIndex]
       if (streamingMsg) {
-        streamingMsg.content += msg.text ?? ''
+        streamingMsg.content = msg.replace ? (msg.text ?? '') : streamingMsg.content + (msg.text ?? '')
       }
     })
 
@@ -63,6 +63,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       if (streamingIndex !== null) {
         const streamingMsg = messages.value[streamingIndex]
         if (streamingMsg) {
+          streamingMsg.content = msg.response_text || streamingMsg.content
           streamingMsg.messageId = msg.dweller_message_id
           streamingMsg.happinessImpact = msg.happiness_impact || null
           streamingMsg.actionSuggestion = msg.action_suggestion || null

@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.47.0](https://github.com/ElderEvil/falloutProject/compare/v2.46.1...v2.47.0) (2026-08-22)
+
+### Features
+
+* **ops:** persist logs and use system Ollama ([3c4ce20](https://github.com/ElderEvil/falloutProject/commit/3c4ce20cbbb98857dcf80b45912940b7ca0e14f4))
+* **overseer:** add office command briefing ([a6b9af7](https://github.com/ElderEvil/falloutProject/commit/a6b9af7fb08d1a9fea7910bccb2a59b013f425b1))
+
+### Bug Fixes
+
+* address PR review findings ([24889cb](https://github.com/ElderEvil/falloutProject/commit/24889cb4f10089a33a4bee5e9e98f1e6717cae94))
+* **ai:** stream structured chat output reliably ([5076820](https://github.com/ElderEvil/falloutProject/commit/507682030a0628adc0603e82d5fa79bfa910ec3a))
+* **dev:** make Zed tasks valid JSON ([d9a0ef4](https://github.com/ElderEvil/falloutProject/commit/d9a0ef419fa9136428d53760e75af2558cf9d9bc))
+* **exploration:** refine active explorer details ([38082d0](https://github.com/ElderEvil/falloutProject/commit/38082d0859869ec30e82294445741fce46300c7b))
+* **logging:** include dweller context in death logs ([633db94](https://github.com/ElderEvil/falloutProject/commit/633db94a428a582986d11df40bbee9977ab5d7ab))
+* **ui:** normalize management screen layouts ([d919c20](https://github.com/ElderEvil/falloutProject/commit/d919c208dc98e095795672150d67d36b9837b3dd))
+
+### Documentation
+
+* detail map fixes in changelog ([3ddff68](https://github.com/ElderEvil/falloutProject/commit/3ddff6807298d78aea49929d3533a39f66bd38b0))
+* prepare overseer's toolkit release notes ([9ff755e](https://github.com/ElderEvil/falloutProject/commit/9ff755e40e1ed63b082db0a3abfa38b38662e593))
+
 ## [2.46.1](https://github.com/ElderEvil/falloutProject/compare/v2.46.0...v2.46.1) (2026-08-21)
 
 ### Bug Fixes

@@ -26,6 +26,21 @@ describe('RoomGrid', () => {
   }
 
   describe('Room Highlighting', () => {
+    it('shows an attention count only on the Overseer’s Office', () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [
+        { ...mockRoom, id: 'office-123', name: "Overseer's Office" },
+        mockRoom,
+      ]
+
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], overseerAttentionCount: 3 },
+      })
+
+      expect(wrapper.findAll('.overseer-alert-badge')).toHaveLength(1)
+      expect(wrapper.find('.overseer-alert-badge').text()).toBe('3')
+    })
+
     it('should apply highlighted class when highlightedRoomId matches room id', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [mockRoom]

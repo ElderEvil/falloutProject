@@ -16,6 +16,7 @@ interface Props {
   isDraggingOver: boolean
   highlighted: boolean
   incident?: Incident | null
+  overseerAttentionCount?: number
 }
 
 const props = defineProps<Props>()
@@ -72,6 +73,10 @@ const handleIncidentClick = (event: MouseEvent | KeyboardEvent) => {
     emit('incident-click', props.incident.id)
   }
 }
+
+const attentionCount = computed(() =>
+  props.room.name.toLowerCase() === "overseer's office" ? (props.overseerAttentionCount ?? 0) : 0
+)
 </script>
 
 <template>
@@ -121,6 +126,9 @@ const handleIncidentClick = (event: MouseEvent | KeyboardEvent) => {
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
         <span>Drop to assign</span>
       </div>
+      <span v-if="attentionCount" class="overseer-alert-badge" :aria-label="`${attentionCount} items need attention`">
+        {{ attentionCount }}
+      </span>
       <div v-if="selected" class="room-actions">
         <button
           v-if="canUpgrade(room)"
@@ -271,6 +279,22 @@ const handleIncidentClick = (event: MouseEvent | KeyboardEvent) => {
   font-weight: bold;
   pointer-events: none;
   z-index: 10;
+}
+
+.overseer-alert-badge {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  min-width: 1.25rem;
+  border: 1px solid rgb(250 204 21 / 0.8);
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.75);
+  color: rgb(253 224 71);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+  z-index: 6;
 }
 
 .room-actions {

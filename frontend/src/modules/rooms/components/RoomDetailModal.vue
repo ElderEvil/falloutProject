@@ -14,10 +14,13 @@ import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
+import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
+import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
 interface Props {
   room: Room | null
   modelValue: boolean
+  overseerBriefing?: OverseerBriefingData
 }
 
 const props = defineProps<Props>()
@@ -25,12 +28,14 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   close: []
   roomUpdated: []
+  reviewIncidents: []
 }>()
 
 const actionError = ref<string | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
+const isOverseersOffice = computed(() => props.room?.name.toLowerCase() === "overseer's office")
 
 // Composables
 const {
@@ -123,6 +128,12 @@ watch(
         :assigned-dweller-count="assignedDwellers.length"
         :dweller-capacity="dwellerCapacity"
         :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+      />
+
+      <OverseerBriefing
+        v-if="isOverseersOffice && overseerBriefing"
+        v-bind="overseerBriefing"
+        @review-incidents="emit('reviewIncidents')"
       />
 
       <ProductionStats v-if="productionInfo" :production-info="productionInfo" />

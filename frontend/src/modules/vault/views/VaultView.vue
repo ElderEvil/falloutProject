@@ -12,6 +12,7 @@ import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import ResourceBar from '@/modules/vault/components/shell/ResourceBar.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
+import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
@@ -110,6 +111,38 @@ const water = computed(() => ({
 const resourceRates = computed(() =>
   vaultId.value ? vaultStore.resourceRates[vaultId.value] : undefined
 )
+
+const resourceWarnings = computed(() => currentVault.value?.resource_warnings ?? [])
+const activeExplorationCount = computed(
+  () => Object.values(explorationStore.activeExplorations).filter((item) => item.vault_id === vaultId.value).length
+)
+const trainingCount = computed(
+  () => dwellerStore.dwellers.filter((dweller) => dweller.status === 'training').length
+)
+const questingCount = computed(
+  () => dwellerStore.dwellers.filter((dweller) => dweller.status === 'questing').length
+)
+const unassignedCount = computed(
+  () =>
+    dwellerStore.dwellers.filter(
+      (dweller) =>
+        !dweller.room_id && dweller.status !== 'dead' && !explorationStore.isDwellerExploring(dweller.id)
+    ).length
+)
+const dwellersPath = computed(() => `/vault/${vaultId.value}/dwellers`)
+const overseerBriefing = computed(() => ({
+  vaultNumber: currentVault.value?.number ?? 0,
+  activeIncidentCount: activeIncidents.value.length,
+  activeExplorationCount: activeExplorationCount.value,
+  trainingCount: trainingCount.value,
+  questingCount: questingCount.value,
+  unassignedCount: unassignedCount.value,
+  populationUtilization: populationUtilization.value,
+  happiness: happiness.value,
+  resourceWarnings: resourceWarnings.value,
+  dwellersPath: dwellersPath.value,
+}))
+const overseerAttentionCount = computed(() => getOverseerAttentionCount(overseerBriefing.value))
 
 const activeIncidents = computed(() => incidentStore.activeIncidents)
 
@@ -278,6 +311,11 @@ const handleIncidentClicked = (incidentId: string) => {
   showCombatModal.value = true
 }
 
+const reviewActiveIncidents = () => {
+  const incident = activeIncidents.value[0]
+  if (incident) handleIncidentClicked(incident.id)
+}
+
 const handleCombatModalClose = () => {
   showCombatModal.value = false
   selectedIncidentId.value = null
@@ -426,7 +464,10 @@ const handleIncidentResponded = async () => {
             <RoomGrid
               :incidents="activeIncidents"
               :highlightedRoomId="highlightedRoomId"
+              :overseer-briefing="overseerBriefing"
+              :overseer-attention-count="overseerAttentionCount"
               @incidentClicked="handleIncidentClicked"
+              @review-incidents="reviewActiveIncidents"
             />
 
             <!-- Floating Build Button -->

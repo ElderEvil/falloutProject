@@ -13,6 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
+import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import type { Room } from '../models/room'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import RoomGridCell from './RoomGridCell.vue'
@@ -28,12 +29,15 @@ const RoomDetailModal = defineAsyncComponent({
 interface Props {
   incidents?: Incident[]
   highlightedRoomId?: string | null
+  overseerBriefing?: OverseerBriefingData
+  overseerAttentionCount?: number
 }
 
-const { incidents, highlightedRoomId } = defineProps<Props>()
+const { incidents, highlightedRoomId, overseerBriefing, overseerAttentionCount } = defineProps<Props>()
 
 const emit = defineEmits<{
   incidentClicked: [incidentId: string]
+  reviewIncidents: []
 }>()
 
 const route = useRoute()
@@ -238,9 +242,11 @@ const closeDetailModal = () => {
     <!-- Room Detail Modal -->
     <RoomDetailModal
       :room="selectedRoomForDetail"
+      :overseer-briefing="overseerBriefing"
       v-model="showDetailModal"
       @close="closeDetailModal"
       @room-updated="handleRoomUpdated"
+      @review-incidents="emit('reviewIncidents')"
     />
 
     <div class="room-grid" :class="{ 'critical-power': isPowerOutage }">
@@ -251,6 +257,7 @@ const closeDetailModal = () => {
         :show-room-images="showRoomImages"
         :is-power-outage="isPowerOutage"
         :incident="getRoomIncident(room.id)"
+        :overseer-attention-count="overseerAttentionCount"
         :selected="selectedRoomId === room.id"
         :is-dragging-over="draggingOverRoomId === room.id"
         :highlighted="highlightedRoomId != null && highlightedRoomId === room.id"

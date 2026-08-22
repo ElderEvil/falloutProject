@@ -20,6 +20,7 @@ const { versionBadgeVisible, showChangelog } = useVersionDetection({
 })
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
+const isProfileRoute = computed(() => route.path === '/profile')
 const currentVaultId = computed(() => {
   // For chat routes, use activeVaultId from store
   // For vault routes, use route param
@@ -135,7 +136,10 @@ onUnmounted(() => {
           <button
             @click="toggleDropdown"
             @keydown.escape="closeDropdown"
-            class="text-[var(--color-theme-primary)] hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30"
+            :class="[
+              'text-[var(--color-theme-primary)] hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30',
+              isProfileRoute ? 'bg-theme-primary/10 shadow-glow-sm' : '',
+            ]"
             :aria-expanded="isDropdownOpen"
             aria-haspopup="true"
             :aria-label="`User menu for ${user?.username || 'user'}`"

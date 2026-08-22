@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { ref } from 'vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+
+const activeVaultId = ref<string | null>(null)
+
+vi.mock('@/modules/vault/stores/vault', () => ({
+  useVaultStore: () => ({ activeVaultId }),
+}))
 
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(_key: string, defaultValue: T) => {
@@ -18,6 +25,7 @@ describe('SidePanel', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    activeVaultId.value = null
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -41,17 +49,16 @@ describe('SidePanel', () => {
   })
 
   describe('navItems', () => {
-    it('marks the global profile item active on the profile route', async () => {
+    it('keeps vault shortcuts 1–9 available on the profile route', async () => {
+      activeVaultId.value = 'vault-1'
       await router.push('/profile')
       const wrapper = mount(SidePanel, {
         global: { plugins: [router, pinia] },
       })
 
-      const profileItem = wrapper
-        .findAll('.nav-item')
-        .find((item) => item.find('.nav-label').text() === 'Overseer Profile')
+      const hotkeys = wrapper.findAll('.hotkey-badge').map((badge) => badge.text())
 
-      expect(profileItem?.classes()).toContain('active')
+      expect(hotkeys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
     })
 
     it('should not include a Happiness nav item', async () => {

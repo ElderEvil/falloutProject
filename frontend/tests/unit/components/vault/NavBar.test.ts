@@ -50,4 +50,25 @@ describe('NavBar', () => {
     expect(profileItem.classes()).toContain('focus:bg-theme-primary/15')
     expect(profileItem.classes()).not.toContain('hover:bg-gray-900')
   })
+
+  it('marks the profile control active on the profile route', async () => {
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = { id: 'user-1', username: 'Overseer', email: 'overseer@example.com' }
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/profile', component: { template: '<div />' } }],
+    })
+    await router.push('/profile')
+    await router.isReady()
+
+    const wrapper = mount(NavBar, {
+      global: { plugins: [router], stubs: { Icon: true, NotificationBell: true } },
+    })
+
+    expect(wrapper.find('button[aria-label="User menu for Overseer"]').classes()).toContain(
+      'bg-theme-primary/10'
+    )
+  })
 })

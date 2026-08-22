@@ -4,12 +4,16 @@ import { Icon } from '@iconify/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const route = useRoute()
 const router = useRouter()
+const vaultStore = useVaultStore()
 const { isCollapsed, toggle } = useSidePanel()
 
-const vaultId = computed(() => route.params.id as string | undefined)
+const vaultId = computed(
+  () => (route.params.id as string | undefined) ?? vaultStore.activeVaultId
+)
 
 interface NavItem {
   id: string
@@ -24,14 +28,7 @@ interface NavItem {
 }
 
 const navItems = computed((): NavItem[] => {
-  const profileItem: NavItem = {
-    id: 'profile',
-    label: 'Overseer Profile',
-    icon: 'mdi:badge-account-horizontal-outline',
-    path: '/profile',
-  }
-
-  if (!vaultId.value) return [profileItem]
+  if (!vaultId.value) return []
 
   const navItems: NavItem[] = [
     {
@@ -98,7 +95,7 @@ const navItems = computed((): NavItem[] => {
       hotkey: '9',
     },
   ]
-  return [...navItems, profileItem]
+  return navItems
 })
 
 const comingSoonItems = computed((): NavItem[] => [

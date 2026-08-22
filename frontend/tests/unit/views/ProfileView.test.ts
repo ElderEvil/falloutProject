@@ -163,7 +163,7 @@ describe('ProfileView', () => {
       })
 
       await wrapper.vm.$nextTick()
-      expect(wrapper.text()).toContain('Loading profile...')
+      expect(wrapper.text()).toContain('Loading personnel record...')
     })
 
     it('should hide loading indicator after profile loads', async () => {
@@ -240,7 +240,7 @@ describe('ProfileView', () => {
       // Verify profile was retried and succeeded (error message should be gone)
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
       expect(wrapper.text()).not.toContain('ERROR: PROFILE LOAD FAILURE')
-      expect(wrapper.text()).toContain('Personnel File')
+      expect(wrapper.text()).toContain('OVERSEER DOSSIER')
     })
   })
 
@@ -284,7 +284,7 @@ describe('ProfileView', () => {
       expect(avatar.attributes('src')).toBe('https://example.com/avatar.jpg')
     })
 
-    it('should display preferences as JSON', async () => {
+    it('keeps preferences in their dedicated screen instead of exposing raw JSON', async () => {
       const wrapper = mount(ProfileView, {
         global: {
           plugins: [router],
@@ -293,8 +293,9 @@ describe('ProfileView', () => {
       await flushPromises()
 
       const prefsText = wrapper.text()
-      expect(prefsText).toContain('"theme": "dark"')
-      expect(prefsText).toContain('"notifications": true')
+      expect(prefsText).toContain('Manage display preferences')
+      expect(prefsText).not.toContain('"theme": "dark"')
+      expect(prefsText).toContain('VAULT RECORD')
     })
 
     it('should display created and updated timestamps', async () => {

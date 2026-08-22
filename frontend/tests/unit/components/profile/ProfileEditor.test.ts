@@ -30,8 +30,8 @@ describe('ProfileEditor', () => {
         },
       })
 
-      expect(wrapper.find('.profile-editor').classes()).toContain('bg-stone-900')
-      expect(wrapper.find('#bio').classes()).toContain('bg-black/40')
+      expect(wrapper.find('.profile-editor').classes()).toContain('bg-surface-raised')
+      expect(wrapper.find('#bio').classes()).toContain('bg-surface-sunken')
       expect(wrapper.find('#bio').classes()).toContain('border-theme-primary/30')
     })
 

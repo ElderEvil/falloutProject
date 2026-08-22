@@ -8,8 +8,8 @@ Developer utilities for the Fallout Shelter backend. All Python scripts are
 - Scripts that touch the DB read `ASYNC_DATABASE_URI` from `backend/.env`
 
 **Layout convention:** this directory holds *backend* (Python) scripts.
-Repo-root `scripts/` holds general *shell* scripts (`dev-up.sh`,
-`backup-db.sh`).
+Repo-root `scripts/` holds general shell utilities such as `backup-db.sh`.
+Development startup is provided through the project Zed tasks.
 
 ## Admin & Data Migration
 

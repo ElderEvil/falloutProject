@@ -74,7 +74,11 @@ class DeathService:
         await self._increment_death_stats(db_session, dweller.vault_id, cause)
 
         logger.info(
+            "Dweller %s (%s) died of %s in vault %s",
+            dweller.first_name,
+            dweller.last_name,
             cause.value,
+            dweller.vault_id,
         )
 
         # Broadcast WebSocket event (best-effort, don't fail death flow)

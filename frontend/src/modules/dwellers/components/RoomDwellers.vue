@@ -4,7 +4,7 @@ import { useDwellerStore } from '../stores/dweller'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from './DwellerPortrait.vue'
 
 interface Props {
   roomId: string
@@ -43,9 +43,6 @@ const handleDragEnd = () => {
   emit('dragEnd')
 }
 
-const getImageUrl = (imagePath: string | null) => {
-  return normalizeImageUrl(imagePath)
-}
 </script>
 
 <template>
@@ -59,13 +56,12 @@ const getImageUrl = (imagePath: string | null) => {
       @dragend="handleDragEnd"
       :title="`${dweller.first_name} ${dweller.last_name} (Lv${dweller.level})`"
     >
-      <img
-        v-if="getImageUrl(dweller.thumbnail_url)"
-        :src="getImageUrl(dweller.thumbnail_url)!"
+      <DwellerPortrait
+        :thumbnail-url="dweller.thumbnail_url"
         :alt="`${dweller.first_name} ${dweller.last_name}`"
-        class="avatar-image"
+        image-class="avatar-image"
+        fallback-class="h-10 w-10 icon-primary"
       />
-      <Icon v-else icon="mdi:account-circle" class="h-10 w-10 icon-primary" />
       <div class="dweller-level">{{ dweller.level }}</div>
       <div class="status-indicator">
         <DwellerStatusBadge :status="dwellerStore.getDwellerStatus(dweller.id)" size="small" />

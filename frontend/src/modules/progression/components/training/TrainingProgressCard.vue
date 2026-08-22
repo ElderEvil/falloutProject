@@ -5,7 +5,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -92,6 +92,12 @@ const fillGradient = computed(() => {
   return 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent), var(--color-theme-primary))'
 })
 
+const portraitStateClass = computed(() =>
+  isReadyToComplete.value
+    ? 'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]'
+    : ''
+)
+
 const getStatIcon = (stat: string): string => {
   const iconMap: Record<string, string> = {
     strength: 'mdi:arm-flex',
@@ -132,22 +138,11 @@ const handleComplete = () => {
   >
     <div class="mb-2 flex items-center gap-3">
       <div class="flex shrink-0 items-center gap-1.5">
-        <img
-          v-if="dwellerImage"
-          :src="normalizeImageUrl(dwellerImage)"
+        <DwellerPortrait
+          :image-url="dwellerImage"
           :alt="dwellerName ?? 'Dweller'"
-          class="h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
-          :class="{
-            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
-          }"
-        />
-        <Icon
-          v-else
-          icon="mdi:account"
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-black/30 text-theme-primary"
-          :class="{
-            'border-theme-accent shadow-[0_0_8px_var(--color-theme-accent)]': isReadyToComplete,
-          }"
+          :image-class="`h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
+          :fallback-class="`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
         />
         <Icon
           :icon="getStatIcon(training.stat_being_trained)"

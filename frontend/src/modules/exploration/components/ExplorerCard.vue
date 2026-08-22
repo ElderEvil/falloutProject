@@ -4,8 +4,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
-import { normalizeImageUrl } from '@/core/utils/image'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
   exploration: Exploration
@@ -47,13 +47,13 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <!-- Header -->
     <div class="card-header">
       <div class="dweller-info">
-        <img
-          v-if="dweller?.image_url || dweller?.thumbnail_url"
-          :src="normalizeImageUrl(dweller.image_url || dweller.thumbnail_url)"
+        <DwellerPortrait
+          :image-url="dweller?.image_url"
+          :thumbnail-url="dweller?.thumbnail_url"
           :alt="`${dwellerName} portrait`"
-          class="dweller-icon dweller-portrait object-cover border border-theme-primary rounded-full"
+          image-class="dweller-icon dweller-portrait rounded-full border border-theme-primary object-cover"
+          fallback-class="dweller-icon"
         />
-        <Icon v-else icon="mdi:account" class="dweller-icon" />
         <div>
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
@@ -188,7 +188,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 <style scoped>
 .explorer-card {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(from var(--color-surface) r g b / 0.85);
   border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
   border-radius: 8px;
   padding: 1.25rem;
@@ -201,7 +201,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 .explorer-card:hover {
   border-color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--color-surface-raised);
   box-shadow: 0 0 20px var(--color-theme-glow);
   transform: translateY(-2px);
 }
@@ -276,7 +276,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .progress-bar-container {
   width: 100%;
   height: 12px;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-sunken);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
   border-radius: 6px;
   overflow: hidden;
@@ -359,7 +359,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgb(from var(--color-surface-sunken) r g b / 0.8);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
   border-radius: 4px;
 }
@@ -400,7 +400,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 .recent-events {
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-sunken);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
   border-radius: 4px;
 }

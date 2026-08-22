@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.48.0](https://github.com/ElderEvil/falloutProject/compare/v2.47.2...v2.48.0) (2026-08-22)
+
+### Features
+
+* **frontend:** refine vault operations interfaces ([6cd624f](https://github.com/ElderEvil/falloutProject/commit/6cd624f93dd4c3a6937c9cb787b36b5632223ba9))
+
+### Bug Fixes
+
+* **frontend:** address profile navigation review ([a003d0d](https://github.com/ElderEvil/falloutProject/commit/a003d0d039aff75b914f0e9238669fd1203154d8))
+* **frontend:** align profile and quest card surfaces ([6d68e20](https://github.com/ElderEvil/falloutProject/commit/6d68e20ac11386913f6e00c2850e1ccb04d40c53))
+* **frontend:** align profile navigation state ([72f0e66](https://github.com/ElderEvil/falloutProject/commit/72f0e66d75d4cbaba3cd037155724991244f7f79))
+* **frontend:** keep core navigation module-independent ([f214bdf](https://github.com/ElderEvil/falloutProject/commit/f214bdf055f5aa992ae4d41514a5f62bf9572537))
+* **frontend:** preserve failed vault commissioning ([3cbddec](https://github.com/ElderEvil/falloutProject/commit/3cbddec295cd9bcaac0608e2aab15323776fab35))
+* **frontend:** preserve vault navigation on profile ([b640fa0](https://github.com/ElderEvil/falloutProject/commit/b640fa0f1d395867ea7f6a8f594398f1318d6392))
+* **frontend:** warm profile analytics surfaces ([26c01be](https://github.com/ElderEvil/falloutProject/commit/26c01bee86b1394caa5e5a2e2f95137243bfbc7c))
+
+### Code Refactoring
+
+* **frontend:** align quest and map surfaces ([1bf26a8](https://github.com/ElderEvil/falloutProject/commit/1bf26a84227d7f481f86ed28834d965d9c110e3c))
+* **profile:** redesign overseer dossier ([ec4e682](https://github.com/ElderEvil/falloutProject/commit/ec4e682ef3d3d96cb5b13aaa2b6d4d5dfc720492))
+
 ## [2.47.2](https://github.com/ElderEvil/falloutProject/compare/v2.47.1...v2.47.2) (2026-08-22)
 
 ### Bug Fixes

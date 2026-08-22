@@ -22,6 +22,7 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
   title?: string
   'aria-label'?: string
+  'aria-expanded'?: boolean
   ariaLabel?: string
 }
 
@@ -34,6 +35,7 @@ const {
   type = 'button',
   title,
   'aria-label': kebabCaseAriaLabel,
+  'aria-expanded': ariaExpanded,
   ariaLabel,
   icon,
   iconRight,
@@ -87,6 +89,7 @@ const handleClick = (event: MouseEvent) => {
     :type="type"
     :title="title"
     :aria-label="resolvedAriaLabel"
+    :aria-expanded="ariaExpanded"
   >
     <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
     <span v-if="loading" class="animate-spin">⚙</span>

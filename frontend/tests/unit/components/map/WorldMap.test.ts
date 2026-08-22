@@ -12,7 +12,7 @@ const MapMarkerStub = {
 
 const MarkerListPanelStub = {
   name: 'MarkerListPanel',
-  props: ['locations', 'vaultMarkers', 'selectedMarkerId'],
+  props: ['locations', 'vaultMarkers', 'selectedMarkerId', 'docked'],
   emits: ['marker-select'],
   template: '<div class="marker-list-panel-stub" />',
 }
@@ -335,6 +335,15 @@ describe('WorldMap', () => {
       expect(panel.props('vaultMarkers')).toEqual(vaultMarkers)
     })
 
+    it('should dock the location index beside the map', () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: createLocations(2), vaultMarkers: createVaultMarkers(1) },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findComponent(MarkerListPanelStub).props('docked')).toBe(true)
+    })
+
     it('should emit marker-click when panel emits marker-select', async () => {
       const locations = createLocations(1)
       const wrapper = mount(WorldMap, {
@@ -382,7 +391,7 @@ describe('WorldMap', () => {
   })
 
   describe('Visibility filter (single-dweller visited)', () => {
-    it('should hide single-dweller VISITED locations from the SVG but keep them in the list', () => {
+    it('should hide unknown locations from the index while keeping the map decluttered', () => {
       const visited = createLocations(1)[0]
       const singleVisited: WastelandLocationWithDwellers = {
         ...visited,
@@ -405,19 +414,27 @@ describe('WorldMap', () => {
         name: 'Origin Place',
         type: 'origin',
       }
+      const unknown: WastelandLocationWithDwellers = {
+        ...visited,
+        id: 'loc-unknown',
+        name: 'Unidentified Signal',
+        type: 'discovery',
+        is_unlocked: false,
+      }
 
       const wrapper = mount(WorldMap, {
-        props: { locations: [singleVisited, multiVisited, origin], vaultMarkers: [] },
+        props: { locations: [singleVisited, multiVisited, origin, unknown], vaultMarkers: [] },
         global: { stubs: defaultStubs },
       })
 
-      // Only multiVisited + origin render on the SVG (singleVisited hidden)
+      // The map still renders discovered signals; only the single visited marker is decluttered.
       const markers = wrapper.findAll('.map-marker-stub')
-      expect(markers).toHaveLength(2)
+      expect(markers).toHaveLength(3)
 
-      // List panel still receives ALL locations
+      // The index only receives locations whose names are known to the vault.
       const panel = wrapper.findComponent(MarkerListPanelStub)
       expect(panel.props('locations')).toHaveLength(3)
+      expect(panel.props('locations')).not.toContain(unknown)
     })
   })
 })

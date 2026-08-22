@@ -73,9 +73,27 @@ describe('HomeView', () => {
       expect(wrapper.find('h2').text()).toContain('Create New Vault')
       expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
       expect(findCreateButton(wrapper)).toBeDefined()
+      expect(wrapper.text()).toContain('VAULT-TEC // COMMISSIONING')
     })
 
-    it('should show empty state when no vaults', async () => {
+    it('keeps the create action compact and high-contrast', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(findCreateButton(wrapper)?.classes()).toContain('whitespace-nowrap')
+      expect(findCreateButton(wrapper)?.classes()).toContain('!bg-theme-primary')
+    })
+
+    it('explains the boosted start and shows the experimental warning once', async () => {
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('20 rooms and 23 dwellers')
+      expect(wrapper.text()).toContain('all seven training rooms')
+      expect(wrapper.text().match(/Vaults are experimental/g)).toHaveLength(1)
+    })
+
+    it('opens vault commissioning when no vaults exist', async () => {
       vaultStore.vaults = []
 
       const wrapper = mount(HomeView, {
@@ -85,7 +103,8 @@ describe('HomeView', () => {
       })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('No vaults found')
+      expect(wrapper.text()).toContain('Create New Vault')
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
     })
 
     it('should show vault list when vaults exist', async () => {
@@ -116,6 +135,14 @@ describe('HomeView', () => {
 
       expect(wrapper.text()).toContain('Your Vaults')
       expect(wrapper.text()).toContain('Vault 101')
+      expect(wrapper.text()).not.toContain('Vault Screenshot')
+      expect(wrapper.find('[aria-label="Vault 101 terminal"]').exists()).toBe(true)
+      expect(wrapper.findAll('[role="progressbar"]')).toHaveLength(3)
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('Create another vault')
+
+      await wrapper.findAll('button').find((button) => button.text().includes('Create another vault'))!.trigger('click')
+      expect(wrapper.find('[data-testid="ui-input"]').exists()).toBe(true)
     })
   })
 
@@ -484,6 +511,28 @@ describe('HomeView', () => {
   })
 
   describe('Vault Display', () => {
+    it('makes loading the primary action and keeps deletion compact', async () => {
+      vaultStore.vaults = [
+        {
+          id: 'vault-1', number: 101, bottle_caps: 0, happiness: 100, power: 0, power_max: 100,
+          food: 0, food_max: 100, water: 0, water_max: 100, room_count: 0, dweller_count: 0,
+          updated_at: new Date().toISOString(),
+        },
+      ]
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await flushPromises()
+      await wrapper.find('li').trigger('click')
+
+      const buttons = wrapper.findAll('button')
+      const loadButton = buttons.find((button) => button.text() === 'Load Vault')
+      const deleteButton = buttons.find((button) => button.text() === 'Delete Vault')
+
+      expect(loadButton?.classes()).toContain('basis-3/4')
+      expect(deleteButton?.classes()).toContain('basis-1/4')
+      expect(deleteButton?.classes()).not.toContain('w-full')
+      expect(deleteButton?.classes()).toContain('py-2')
+    })
+
     it('should display vault stats correctly', async () => {
       vaultStore.vaults = [
         {
@@ -511,13 +560,13 @@ describe('HomeView', () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain('Vault 101')
-      expect(wrapper.text()).toContain('Bottle Caps: 1500')
-      expect(wrapper.text()).toContain('Happiness: 85%')
-      expect(wrapper.text()).toContain('Power: 75 / 100')
-      expect(wrapper.text()).toContain('Food: 80 / 100')
-      expect(wrapper.text()).toContain('Water: 90 / 100')
-      expect(wrapper.text()).toContain('Rooms: 8')
-      expect(wrapper.text()).toContain('Dwellers: 15')
+      expect(wrapper.text()).toContain('Caps1500')
+      expect(wrapper.text()).toContain('Happiness85%')
+      expect(wrapper.text()).toContain('Power75 / 100')
+      expect(wrapper.text()).toContain('Food80 / 100')
+      expect(wrapper.text()).toContain('Water90 / 100')
+      expect(wrapper.text()).toContain('Rooms8')
+      expect(wrapper.text()).toContain('Dwellers15')
     })
 
     it('should sort vaults by last updated', async () => {

@@ -108,5 +108,7 @@ describe('DwellersList', () => {
 
     expect(wrapper.find('.dweller-identity').classes()).toContain('w-44')
     expect(wrapper.find('h3').classes()).toContain('truncate')
+    expect(wrapper.find('li').classes()).toContain('bg-surface-canvas')
+    expect(wrapper.find('li').classes()).toContain('border-theme-primary/20')
   })
 })

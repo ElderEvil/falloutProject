@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { getStaticImageUrl } from '@/core/utils/image'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
+import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
@@ -31,8 +31,6 @@ const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, roo
 
 const getRoomForDweller = (roomId: string | null | undefined) =>
   roomId ? roomsById.value.get(roomId) : undefined
-
-const getImageUrl = (imagePath: string | null | undefined) => getStaticImageUrl(imagePath) ?? ''
 
 const getRelevantStatForRoom = (
   dweller: DwellerShort,
@@ -70,7 +68,7 @@ const getStatColorClass = (value: number) => {
       v-for="dweller in dwellers"
       v-else
       :key="dweller.id"
-      class="flex cursor-pointer items-center gap-3 rounded border border-gray-700 bg-surface-warm-dark p-3 transition-all hover:bg-surface-warm-hover"
+      class="flex cursor-pointer items-center gap-3 rounded border border-theme-primary/20 bg-surface-canvas p-3 transition-all hover:bg-surface-hover"
       role="button"
       tabindex="0"
       @click="emit('view-details', dweller.id)"
@@ -78,17 +76,13 @@ const getStatColorClass = (value: number) => {
       @keydown.space.prevent="emit('view-details', dweller.id)"
     >
       <div class="flex-shrink-0">
-        <img
-          v-if="dweller.thumbnail_url"
-          :src="getImageUrl(dweller.thumbnail_url)"
+        <DwellerPortrait
+          :thumbnail-url="dweller.thumbnail_url"
           alt="Dweller Thumbnail"
-          class="h-16 w-16 rounded object-cover"
-        />
-        <Icon
-          v-else
-          icon="mdi:account-circle"
-          class="h-16 w-16"
-          :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }"
+          url-mode="static"
+          fallback-icon="mdi:account-circle"
+          image-class="h-16 w-16 rounded object-cover"
+          fallback-class="h-16 w-16 text-theme-primary/60"
         />
       </div>
 
@@ -96,14 +90,14 @@ const getStatColorClass = (value: number) => {
         <h3 class="truncate text-base font-bold text-terminal-green">
           {{ dweller.first_name }} {{ dweller.last_name }}
         </h3>
-        <p class="text-sm text-gray-400">Level {{ dweller.level }}</p>
+        <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>
       </div>
 
-      <div class="h-10 w-px flex-shrink-0 bg-gray-600/50"></div>
+      <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
       <div class="flex-shrink-0">
         <DwellerStatusBadge :status="dweller.status" :show-label="true" size="small" />
       </div>
-      <div class="h-10 w-px flex-shrink-0 bg-gray-600/50"></div>
+      <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
 
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-1.5">
@@ -117,9 +111,9 @@ const getStatColorClass = (value: number) => {
       </div>
 
       <template v-if="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))">
-        <div class="h-10 w-px flex-shrink-0 bg-gray-600/50"></div>
+        <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
         <div class="flex items-center gap-1.5">
-          <span class="text-sm text-gray-400">Job Stat:</span>
+          <span class="text-sm text-theme-primary/60">Job Stat:</span>
           <div class="flex items-center gap-1.5">
             <Icon
               :icon="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.icon"
@@ -140,7 +134,7 @@ const getStatColorClass = (value: number) => {
       <div class="ml-auto flex items-center gap-2">
         <div
           v-if="getRoomForDweller(dweller.room_id)"
-          class="flex items-center gap-2 rounded border border-gray-600 bg-gray-700/80 px-3 py-1.5 text-sm font-medium text-gray-200 transition-all hover:bg-gray-700 cursor-pointer"
+          class="flex cursor-pointer items-center gap-2 rounded border border-theme-primary/30 bg-surface-raised px-3 py-1.5 text-sm font-medium text-theme-primary/80 transition-all hover:bg-surface-hover"
           role="button"
           tabindex="0"
           @click.stop="emit('open-room', dweller.room_id!)"

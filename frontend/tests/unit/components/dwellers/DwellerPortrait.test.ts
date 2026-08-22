@@ -34,6 +34,14 @@ describe('DwellerPortrait', () => {
     expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
   })
 
+  it('uses the API origin for backend static portraits', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: { thumbnailUrl: '/static/portraits/lucy.png', alt: 'Lucy MacLean portrait', urlMode: 'static' },
+    })
+
+    expect(wrapper.find('img').attributes('src')).toBe('http://localhost:8000/static/portraits/lucy.png')
+  })
+
   it('renders an accessible account fallback when neither image exists', () => {
     const wrapper = mount(DwellerPortrait, {
       props: { alt: 'Unknown dweller portrait' },

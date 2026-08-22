@@ -4,7 +4,7 @@ import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
-import { getStaticImageUrl } from '@/core/utils/image'
+import DwellerPortrait from '../DwellerPortrait.vue'
 
 interface Props {
   dweller: DwellerShort
@@ -20,10 +20,6 @@ const emit = defineEmits<{
   (e: 'generate-ai'): void
   (e: 'room-click'): void
 }>()
-
-const getImageUrl = (imagePath: string | null | undefined) => {
-  return getStaticImageUrl(imagePath) ?? ''
-}
 
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
@@ -67,10 +63,11 @@ const getStatColorClass = (value: number) => {
     <!-- Thumbnail / Avatar -->
     <div class="thumbnail-container">
       <template v-if="dweller.thumbnail_url">
-        <img
-          :src="getImageUrl(dweller.thumbnail_url)"
+        <DwellerPortrait
+          :thumbnail-url="dweller.thumbnail_url"
           alt="Dweller Thumbnail"
-          class="thumbnail-image"
+          url-mode="static"
+          image-class="thumbnail-image"
         />
       </template>
       <template v-else>
@@ -159,7 +156,7 @@ const getStatColorClass = (value: number) => {
 .dweller-grid-item {
   display: flex;
   flex-direction: column;
-  background: rgba(31, 41, 55, 0.8);
+  background: var(--color-surface);
   border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
   overflow: hidden;
@@ -178,7 +175,7 @@ const getStatColorClass = (value: number) => {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-sunken);
 }
 
 .thumbnail-image {
@@ -193,7 +190,7 @@ const getStatColorClass = (value: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-sunken);
 }
 
 .placeholder-icon {
@@ -207,7 +204,7 @@ const getStatColorClass = (value: number) => {
   position: absolute;
   bottom: 0.5rem;
   right: 0.5rem;
-  background: rgba(31, 41, 55, 0.9);
+  background: var(--color-surface-raised);
   border: none;
   border-radius: 50%;
   padding: 0.5rem;
@@ -219,7 +216,7 @@ const getStatColorClass = (value: number) => {
 .ai-generate-button:hover:not(:disabled) {
   animation: none;
   box-shadow: 0 0 20px var(--color-theme-primary);
-  background: rgba(31, 41, 55, 1);
+  background: var(--color-surface-hover);
 }
 
 .ai-generate-button:disabled {

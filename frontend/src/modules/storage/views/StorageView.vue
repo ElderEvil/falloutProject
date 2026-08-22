@@ -13,6 +13,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
+import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -297,34 +298,20 @@ const getRarityColor = (rarity?: string) => {
         </div>
 
         <!-- Empty State -->
-        <div
+        <TerminalEmptyState
           v-else-if="totalItems === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">Storage Empty</h2>
-          <p class="text-theme-accent font-mono">
-            Your vault storage is empty. Send dwellers on explorations to find items!
-          </p>
-        </div>
+          icon="mdi:package-variant-closed"
+          title="Storage Empty"
+          description="Your vault storage is empty. Send dwellers on explorations to find items!"
+        />
 
         <!-- No Items in Category State -->
-        <div
+        <TerminalEmptyState
           v-else-if="activeItems.length === 0"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <Icon
-            icon="mdi:package-variant-closed"
-            class="w-24 h-24 text-theme-accent opacity-50 mb-6"
-          />
-          <h2 class="text-2xl font-bold text-theme-primary mb-2 font-mono">
-            No {{ activeTab }} Found
-          </h2>
-          <p class="text-theme-accent font-mono">You don't have any {{ activeTab }} in storage.</p>
-        </div>
+          icon="mdi:package-variant-closed"
+          :title="`No ${activeTab} Found`"
+          :description="`You don't have any ${activeTab} in storage.`"
+        />
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-8">
           <StorageItemCard

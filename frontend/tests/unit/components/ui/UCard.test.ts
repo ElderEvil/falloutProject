@@ -21,4 +21,13 @@ describe('UCard (CRT Consistency)', () => {
     const title = wrapper.find('h3')
     expect(title.classes()).toContain('text-theme-primary')
   })
+
+  it('uses a semantic warm surface variant', () => {
+    const wrapper = mount(UCard, {
+      props: { surface: 'raised' },
+      slots: { default: '<p>Content</p>' },
+    })
+
+    expect(wrapper.classes()).toContain('bg-surface-raised')
+  })
 })

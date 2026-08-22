@@ -61,19 +61,19 @@ const inputClasses = computed(() => {
     'border-2 transition-colors',
     'focus:outline-none',
     'disabled:opacity-50 disabled:cursor-not-allowed',
-    'placeholder:text-gray-400',
+    'placeholder:text-theme-primary/40',
     sizeClasses[size],
     icon ? 'pl-10' : '',
     iconRight ? 'pr-10' : '',
   ].filter(Boolean)
 
   if (variant === 'terminal') {
-    base.push('bg-transparent')
+    base.push('bg-surface-sunken')
     base.push(error ? 'border-danger' : 'border-theme-primary/50')
     base.push(error ? 'focus:border-danger' : 'focus:border-theme-primary')
   } else {
-    base.push('bg-gray-700')
-    base.push(error ? 'border-danger' : 'border-gray-600')
+    base.push('bg-surface-raised')
+    base.push(error ? 'border-danger' : 'border-theme-primary/20')
     base.push(error ? 'focus:border-danger' : 'focus:border-terminal-green')
   }
 
@@ -91,7 +91,7 @@ const handleInput = (event: InputEvent) => {
 <template>
   <div class="w-full">
     <!-- Label -->
-    <label v-if="label" :for="inputId" class="block text-sm font-medium text-gray-300 mb-1">
+    <label v-if="label" :for="inputId" class="block text-sm font-medium text-theme-primary/70 mb-1">
       {{ label }}
       <span v-if="required" class="text-danger">*</span>
     </label>
@@ -99,7 +99,7 @@ const handleInput = (event: InputEvent) => {
     <!-- Input Container -->
     <div class="relative">
       <!-- Left Icon -->
-      <div v-if="icon" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+      <div v-if="icon" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-theme-primary/50">
         <component :is="icon" class="h-5 w-5" />
       </div>
 
@@ -121,14 +121,14 @@ const handleInput = (event: InputEvent) => {
       <!-- Right Icon -->
       <div
         v-if="iconRight"
-        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-theme-primary/50"
       >
         <component :is="iconRight" class="h-5 w-5" />
       </div>
     </div>
 
     <!-- Help Text -->
-    <p v-if="helpText && !error" class="mt-1 text-xs text-gray-400">
+    <p v-if="helpText && !error" class="mt-1 text-xs text-theme-primary/50">
       {{ helpText }}
     </p>
 

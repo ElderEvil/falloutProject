@@ -1,13 +1,13 @@
 <template>
   <div
-    class="profile-editor rounded-lg border border-theme-primary/30 bg-stone-900 p-5 shadow-lg sm:p-6"
+    class="profile-editor rounded-lg border border-theme-primary/30 bg-surface-raised p-5 shadow-glow-sm sm:p-6"
   >
-    <header class="mb-6 border-b border-stone-700/80 pb-5">
-      <p class="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-primary">
+    <header class="mb-6 border-b border-theme-primary/20 pb-5">
+      <p class="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-accent">
         Vault Personnel Record
       </p>
-      <h2 class="text-2xl font-bold tracking-tight text-stone-100">Edit Profile</h2>
-      <p class="mt-2 max-w-xl text-sm leading-6 text-stone-400">
+      <h2 class="text-2xl font-bold tracking-tight text-theme-primary terminal-glow">Edit Profile</h2>
+      <p class="mt-2 max-w-xl text-sm leading-6 text-theme-primary/60">
         Update the details other vault dwellers see when they visit your profile.
       </p>
     </header>
@@ -15,8 +15,8 @@
     <form class="space-y-5" @submit.prevent="handleSubmit">
       <div class="space-y-2">
         <div class="flex items-baseline justify-between gap-4">
-          <label for="bio" class="text-sm font-semibold text-stone-200">Bio</label>
-          <span class="text-xs tabular-nums text-stone-500">
+          <label for="bio" class="text-sm font-semibold text-theme-primary/85">Bio</label>
+          <span class="text-xs tabular-nums text-theme-primary/50">
             {{ formData.bio?.length || 0 }} / 500 characters
           </span>
         </div>
@@ -25,16 +25,16 @@
           v-model="formData.bio"
           rows="4"
           maxlength="500"
-          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm leading-6 text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
+          class="w-full rounded-md border border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm leading-6 text-theme-primary placeholder:text-theme-primary/35 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
           placeholder="Share a little about yourself..."
         />
-        <p class="text-xs leading-5 text-stone-500">
+        <p class="text-xs leading-5 text-theme-primary/50">
           A short introduction for your fellow dwellers.
         </p>
       </div>
 
       <div class="space-y-2">
-        <label for="avatar_url" class="block text-sm font-semibold text-stone-200"
+        <label for="avatar_url" class="block text-sm font-semibold text-theme-primary/85"
           >Avatar image</label
         >
         <input
@@ -42,17 +42,17 @@
           v-model="formData.avatar_url"
           type="url"
           maxlength="255"
-          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
+          class="w-full rounded-md border border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary placeholder:text-theme-primary/35 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
           placeholder="https://example.com/avatar.jpg"
         />
-        <p class="text-xs leading-5 text-stone-500">
+        <p class="text-xs leading-5 text-theme-primary/50">
           Use a direct link to a square image for the best result.
         </p>
       </div>
 
       <figure
         v-if="formData.avatar_url"
-        class="flex items-center gap-4 rounded-md border border-stone-700 bg-black/20 p-3"
+        class="flex items-center gap-4 rounded-md border border-theme-primary/20 bg-surface-sunken p-3"
       >
         <img
           :src="formData.avatar_url"
@@ -61,47 +61,52 @@
           @error="handleImageError"
         />
         <figcaption>
-          <p class="text-sm font-semibold text-stone-200">Avatar preview</p>
-          <p class="mt-1 text-xs leading-5 text-stone-500">
+          <p class="text-sm font-semibold text-theme-primary/85">Avatar preview</p>
+          <p class="mt-1 text-xs leading-5 text-theme-primary/50">
             This is how your image will appear on your profile.
           </p>
         </figcaption>
       </figure>
 
       <div class="space-y-2">
-        <label for="theme" class="block text-sm font-semibold text-stone-200"
+        <label for="theme" class="block text-sm font-semibold text-theme-primary/85"
           >Preferred theme</label
         >
         <select
           id="theme"
           v-model="selectedTheme"
-          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 text-sm text-stone-100 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
+          class="w-full rounded-md border border-theme-primary/30 bg-surface-sunken px-3 py-2.5 text-sm text-theme-primary transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
         >
           <option v-for="theme in availableThemes" :key="theme.name" :value="theme.name">
             {{ theme.displayName }}
           </option>
         </select>
-        <p class="text-xs leading-5 text-stone-500">{{ currentThemeDescription }}</p>
+        <p class="text-xs leading-5 text-theme-primary/50">{{ currentThemeDescription }}</p>
       </div>
 
-      <div class="space-y-2">
-        <label for="preferences" class="block text-sm font-semibold text-stone-200">
-          Preferences <span class="font-normal text-stone-500">(JSON)</span>
-        </label>
-        <textarea
-          id="preferences"
-          v-model="preferencesJson"
-          rows="6"
-          class="w-full rounded-md border border-theme-primary/30 bg-black/40 px-3 py-2.5 font-mono text-sm leading-6 text-stone-100 placeholder:text-stone-500 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
-          placeholder='{"theme": "dark", "notifications": true}'
-        />
-        <p class="text-xs leading-5 text-stone-500">
-          Advanced settings are saved alongside your selected theme.
-        </p>
-        <p v-if="jsonError" class="text-xs font-medium text-danger" role="alert">
-          {{ jsonError }}
-        </p>
-      </div>
+      <details :open="Boolean(jsonError)" class="rounded-md border border-theme-primary/20 bg-surface p-3">
+        <summary class="cursor-pointer text-sm font-semibold text-theme-primary/75">
+          Advanced preferences (JSON)
+        </summary>
+        <div class="mt-3 space-y-2">
+          <label for="preferences" class="block text-sm font-semibold text-theme-primary/85">
+            Preferences <span class="font-normal text-theme-primary/50">(JSON)</span>
+          </label>
+          <textarea
+            id="preferences"
+            v-model="preferencesJson"
+            rows="6"
+            class="w-full rounded-md border border-theme-primary/30 bg-surface-sunken px-3 py-2.5 font-mono text-sm leading-6 text-theme-primary placeholder:text-theme-primary/35 transition-colors focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary/25"
+            placeholder='{"theme": "dark", "notifications": true}'
+          />
+          <p class="text-xs leading-5 text-theme-primary/50">
+            Advanced settings are saved alongside your selected theme.
+          </p>
+          <p v-if="jsonError" class="text-xs font-medium text-danger" role="alert">
+            {{ jsonError }}
+          </p>
+        </div>
+      </details>
 
       <div
         v-if="error"
@@ -111,21 +116,22 @@
         {{ error }}
       </div>
 
-      <div class="flex flex-col gap-3 border-t border-stone-700/80 pt-5 sm:flex-row">
-        <button
+      <div class="flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row">
+        <UButton
           type="submit"
-          :disabled="loading"
-          class="flex-1 rounded-md bg-theme-primary px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-theme-primary/90 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-stone-900 disabled:cursor-not-allowed disabled:opacity-50"
+          :loading="loading"
+          block
         >
           {{ loading ? 'Saving...' : 'Save Changes' }}
-        </button>
-        <button
+        </UButton>
+        <UButton
           type="button"
-          class="flex-1 rounded-md border border-stone-600 bg-black/20 px-4 py-2.5 text-sm font-semibold text-stone-200 transition-colors hover:border-stone-500 hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-theme-primary/50 focus:ring-offset-2 focus:ring-offset-stone-900"
+          variant="secondary"
+          block
           @click="$emit('cancel')"
         >
           Cancel
-        </button>
+        </UButton>
       </div>
     </form>
   </div>
@@ -135,6 +141,7 @@
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
+import { UButton } from '@/core/components/ui'
 
 interface Props {
   initialData: {

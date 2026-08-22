@@ -17,7 +17,6 @@ User profile, settings, and preferences module. Manages user account information
 - `views/ChangelogView.vue` — version changelog display
 - `stores/profile.ts` — profile state management
 - `components/ProfileEditor.vue` — profile editing form
-- `components/ProfileStats.vue` — profile statistics display
 - `components/AIUsageCard.vue` — AI usage statistics card
 - `components/ChangelogModal.vue` — changelog detail modal
 - `models/` — profile type definitions

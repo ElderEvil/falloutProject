@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.47.1](https://github.com/ElderEvil/falloutProject/compare/v2.47.0...v2.47.1) (2026-08-22)
+
+### Bug Fixes
+
+* **ci:** deploy only configured API logs ([204ba61](https://github.com/ElderEvil/falloutProject/commit/204ba61fb54e4e1cf328200cb36ad8a252099b51))
+
 ## [2.47.0](https://github.com/ElderEvil/falloutProject/compare/v2.46.1...v2.47.0) (2026-08-22)
 
 ### Features

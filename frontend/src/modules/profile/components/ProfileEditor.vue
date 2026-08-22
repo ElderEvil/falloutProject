@@ -84,7 +84,7 @@
         <p class="text-xs leading-5 text-theme-primary/50">{{ currentThemeDescription }}</p>
       </div>
 
-      <details class="rounded-md border border-theme-primary/20 bg-surface p-3">
+      <details :open="Boolean(jsonError)" class="rounded-md border border-theme-primary/20 bg-surface p-3">
         <summary class="cursor-pointer text-sm font-semibold text-theme-primary/75">
           Advanced preferences (JSON)
         </summary>
@@ -117,20 +117,21 @@
       </div>
 
       <div class="flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row">
-        <button
+        <UButton
           type="submit"
-          :disabled="loading"
-          class="flex-1 rounded-md bg-theme-primary px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-theme-primary/90 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-raised disabled:cursor-not-allowed disabled:opacity-50"
+          :loading="loading"
+          block
         >
           {{ loading ? 'Saving...' : 'Save Changes' }}
-        </button>
-        <button
+        </UButton>
+        <UButton
           type="button"
-          class="flex-1 rounded-md border border-theme-primary/30 bg-surface px-4 py-2.5 text-sm font-semibold text-theme-primary/85 transition-colors hover:border-theme-primary/50 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50 focus:ring-offset-2 focus:ring-offset-surface-raised"
+          variant="secondary"
+          block
           @click="$emit('cancel')"
         >
           Cancel
-        </button>
+        </UButton>
       </div>
     </form>
   </div>
@@ -140,6 +141,7 @@
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
+import { UButton } from '@/core/components/ui'
 
 interface Props {
   initialData: {

@@ -175,6 +175,7 @@ describe('ProfileEditor', () => {
       await preferencesTextarea.setValue('{ invalid json }')
 
       expect(wrapper.text()).toContain('Invalid JSON format')
+      expect((wrapper.find('details').element as HTMLDetailsElement).open).toBe(true)
     })
 
     it('should not show error for valid JSON', async () => {

@@ -278,7 +278,7 @@ const handleAction = () => {
 
 <template>
   <UCard
-    class="quest-card"
+    class="quest-card flex h-full flex-col"
     :style="{ borderColor: cardBorderColor }"
     :class="{ 'completed-quest': status === 'completed' }"
   >
@@ -454,9 +454,6 @@ const handleAction = () => {
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 .quest-card::before {

@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import type { User } from '@/modules/auth/types/user'
 
 vi.mock('@/core/composables/useVersionDetection', () => ({
   useVersionDetection: () => ({
@@ -11,6 +12,17 @@ vi.mock('@/core/composables/useVersionDetection', () => ({
     showChangelog: vi.fn(),
   }),
 }))
+
+const testUser: User = {
+  id: 'user-1',
+  username: 'Overseer',
+  email: 'overseer@example.com',
+  is_active: true,
+  is_superuser: false,
+  email_verified: true,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+}
 
 describe('NavBar', () => {
   beforeEach(() => {
@@ -20,11 +32,7 @@ describe('NavBar', () => {
   it('uses a terminal-green highlight for user menu items', async () => {
     const authStore = useAuthStore()
     authStore.token = 'test-token'
-    authStore.user = {
-      id: 'user-1',
-      username: 'Overseer',
-      email: 'overseer@example.com',
-    }
+    authStore.user = testUser
 
     const router = createRouter({
       history: createMemoryHistory(),
@@ -54,7 +62,7 @@ describe('NavBar', () => {
   it('marks the profile control active on the profile route', async () => {
     const authStore = useAuthStore()
     authStore.token = 'test-token'
-    authStore.user = { id: 'user-1', username: 'Overseer', email: 'overseer@example.com' }
+    authStore.user = testUser
 
     const router = createRouter({
       history: createMemoryHistory(),

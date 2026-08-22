@@ -117,9 +117,14 @@ const comingSoonItems = computed((): NavItem[] => [
   },
 ])
 
-const isActive = (path: string | undefined) => {
-  return path ? route.path === path || route.path.startsWith(`${path}/`) : false
-}
+const activePath = computed(() =>
+  navItems.value
+    .map((item) => item.path)
+    .filter((path): path is string => Boolean(path) && (route.path === path || route.path.startsWith(`${path}/`)))
+    .sort((first, second) => second.length - first.length)[0]
+)
+
+const isActive = (path: string | undefined) => path === activePath.value
 
 const navigate = (path: string | undefined) => {
   if (path) {

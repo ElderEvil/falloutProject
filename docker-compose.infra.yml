@@ -40,6 +40,7 @@ services:
       - RUSTFS_HOSTNAME=rustfs
       - SMTP_HOST=mailpit
       - FALLOUT_WORKER=1
+      - OLLAMA_BASE_URL=http://host.containers.internal:11434/v1
     depends_on:
       db:
         condition: service_healthy

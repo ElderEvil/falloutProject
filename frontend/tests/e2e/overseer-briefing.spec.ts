@@ -206,7 +206,7 @@ async function mockVaultApi(page: Page) {
       return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
     }
 
-    return route.fulfill({ json: [] })
+    throw new Error(`Unhandled API request: ${route.request().method()} ${path}`)
   })
 }
 

@@ -60,6 +60,14 @@ describe('ExplorerCard', () => {
     wrapper.unmount()
   })
 
+  it('uses the thumbnail when image_url is blank', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration, dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' } },
+    })
+
+    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
+  })
+
   it('keeps long equipment names within their exploration-card slots', () => {
     const wrapper = mount(ExplorerCard, {
       props: {
@@ -71,7 +79,7 @@ describe('ExplorerCard', () => {
       },
     })
 
-    expect(wrapper.find('.equip-name').classes()).toContain('min-w-0')
+    expect(wrapper.find('.equipment-slot').classes()).toContain('min-w-0')
     expect(wrapper.find('.equip-name').text()).toContain('Experimental Plasma Rifle')
   })
 

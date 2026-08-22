@@ -38,7 +38,18 @@ describe('RoomGrid', () => {
       })
 
       expect(wrapper.findAll('.overseer-alert-badge')).toHaveLength(1)
-      expect(wrapper.find('.overseer-alert-badge').text()).toBe('3')
+      expect(wrapper.find('.overseer-alert-badge').text()).toBe('3 items need attention')
+    })
+
+    it('does not show an attention count on other rooms', () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [mockRoom]
+
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [], overseerAttentionCount: 3 },
+      })
+
+      expect(wrapper.find('.overseer-alert-badge').exists()).toBe(false)
     })
 
     it('should apply highlighted class when highlightedRoomId matches room id', () => {

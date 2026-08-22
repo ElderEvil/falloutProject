@@ -33,8 +33,9 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Changed
 
-- **Production observability** — API and Dramatiq worker logs write structured, rotating files to persistent
-  Kubernetes volumes while retaining stdout diagnostics; Ollama remains a local-development provider only.
+- **Production observability** — API logs write structured, rotating files to a persistent Kubernetes volume while
+  retaining stdout diagnostics; the worker remains on stdout until it has a deployment manifest. Ollama remains a
+  local-development provider only.
 - **Authenticated browser coverage** — the vault briefing and response flow have deterministic Playwright coverage
   that does not require production credentials or a local Ollama server.
 

@@ -126,8 +126,9 @@ const attentionCount = computed(() =>
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
         <span>Drop to assign</span>
       </div>
-      <span v-if="attentionCount" class="overseer-alert-badge" :aria-label="`${attentionCount} items need attention`">
+      <span v-if="attentionCount" class="overseer-alert-badge">
         {{ attentionCount }}
+        <span class="sr-only">items need attention</span>
       </span>
       <div v-if="selected" class="room-actions">
         <button

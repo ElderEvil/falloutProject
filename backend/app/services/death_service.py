@@ -76,7 +76,7 @@ class DeathService:
         logger.info(
             "Dweller %s (%s) died of %s in vault %s",
             dweller.first_name,
-            dweller.last_name,
+            dweller.last_name or "",
             cause.value,
             dweller.vault_id,
         )

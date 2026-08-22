@@ -1,26 +1,30 @@
-"""Test that AI usage cache key is consistent across services.
+"""Regression tests for the shared AI usage cache key."""
 
-Regression test for cache-key mismatch (A5):
-  user_service.py used "ai_usage:{user_id}"
-  quota_service.py used "user:{user_id}:ai_usage"
-  ai_usage_service.py docstring says "user:{user_id}:ai_usage"
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
-Fix: extracted shared constant ai_constants.AI_USAGE_CACHE_KEY.
-This test asserts both services import and use that constant.
-"""
+import pytest
 
-from pathlib import Path
-
-BACKEND_ROOT = Path(__file__).resolve().parents[3]
+from app.services.ai_constants import AI_USAGE_CACHE_KEY
+from app.services.quota_service import QuotaService
+from app.services.user_service import UserService
 
 
-def test_ai_usage_cache_key_shared_constant() -> None:
-    """Both user_service and quota_service import AI_USAGE_CACHE_KEY."""
-    user_svc_path = str(BACKEND_ROOT / "app" / "services" / "user_service.py")
-    quota_svc_path = str(BACKEND_ROOT / "app" / "services" / "quota_service.py")
+@pytest.mark.asyncio
+async def test_ai_usage_services_use_the_shared_cache_key() -> None:
+    """Read, write, and invalidate the same user-scoped usage cache entry."""
+    user_id = uuid4()
+    cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)
+    redis_client = MagicMock(get=AsyncMock(return_value=None), setex=AsyncMock(), delete=AsyncMock())
+    db_session = MagicMock(flush=AsyncMock())
+    usage = MagicMock(model_dump=MagicMock(return_value={"total_tokens": 42}))
 
-    for filepath in [user_svc_path, quota_svc_path]:
-        source = Path(filepath).read_text()
-        assert "from app.services.ai_constants import AI_USAGE_CACHE_KEY" in source or "AI_USAGE_CACHE_KEY" in source, (
-            f"{filepath} must import AI_USAGE_CACHE_KEY from ai_constants"
-        )
+    with patch("app.services.ai_usage_service.AIUsageService.get_user_usage", new=AsyncMock(return_value=usage)):
+        result = await UserService().get_ai_usage(db_session, redis_client, str(user_id))
+
+    await QuotaService().record_usage(user_id, 1, db_session, redis_client)
+
+    assert result == {"total_tokens": 42}
+    redis_client.get.assert_awaited_once_with(cache_key)
+    redis_client.setex.assert_awaited_once_with(cache_key, 300, '{"total_tokens": 42}')
+    redis_client.delete.assert_awaited_once_with(cache_key)

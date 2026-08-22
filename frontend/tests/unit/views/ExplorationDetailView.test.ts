@@ -215,6 +215,20 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Amata Almodovar portrait')
     })
 
+    it('uses the thumbnail when a detailed dweller has a blank image URL', async () => {
+      dwellerStore.detailedDwellers['dweller-1'] = {
+        ...mockDweller,
+        image_url: '',
+        thumbnail_url: 'example.com/amata-thumb.png',
+      } as any
+      dwellerStore.dwellers = [dwellerStore.detailedDwellers['dweller-1']]
+
+      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await flushPromises()
+
+      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/amata-thumb.png')
+    })
+
     it('renders dweller level', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {

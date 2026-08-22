@@ -122,11 +122,13 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
     Server -> Client messages:
     {
         "type": "token",
-        "text": "Hello"
+        "text": "Hello",
+        "replace": false
     }
     {
         "type": "done",
         "dweller_message_id": "uuid",
+        "response_text": "Hello dweller!",
         "happiness_impact": {...} | null,
         "action_suggestion": {...} | null
     }

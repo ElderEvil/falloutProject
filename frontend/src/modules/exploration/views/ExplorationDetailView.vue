@@ -36,12 +36,10 @@ const { isCollapsed } = useSidePanel()
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
 
-// Rewards modal state
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
 
-// Current exploration and dweller
 const exploration = computed(() => {
   return (
     explorationStore.activeExplorations[explorationId.value] ??
@@ -74,11 +72,10 @@ const dwellerImageUrl = computed(() => {
   return (
     ('image_url' in currentDweller && typeof currentDweller.image_url === 'string'
       ? currentDweller.image_url
-      : null) ?? currentDweller.thumbnail_url
+      : null) || currentDweller.thumbnail_url
   )
 })
 
-// Navigation between explorers
 const allExplorations = computed(() => {
   return Object.values(explorationStore.activeExplorations)
 })
@@ -108,7 +105,6 @@ const goBack = () => {
   router.push(`/vault/${vaultId.value}/exploration`)
 }
 
-// Progress calculation
 const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => exploration.value)
 
 // Equipment computed

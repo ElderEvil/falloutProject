@@ -265,13 +265,15 @@ class ChatService:
             )
 
             async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
-                # Structured output: stream_text() only works for text-output
-                # agents, so emit text deltas from the validated outputs instead.
+                # Structured output snapshots can revise previously emitted text.
+                # Tell clients to replace their draft when that happens.
                 previous_text = ""
                 async for partial in result.stream_output():
                     partial_text = partial.response_text
-                    if len(partial_text) > len(previous_text):
+                    if partial_text.startswith(previous_text):
                         yield {"type": "token", "text": partial_text[len(previous_text) :]}
+                    elif partial_text != previous_text:
+                        yield {"type": "token", "text": partial_text, "replace": True}
                     previous_text = partial_text
 
                 output: DwellerChatOutput = await result.get_output()
@@ -341,6 +343,7 @@ class ChatService:
             yield {
                 "type": "done",
                 "dweller_message_id": str(dweller_message.id),
+                "response_text": output.response_text,
                 "happiness_impact": happiness_impact.model_dump(mode="json") if happiness_impact else None,
                 "action_suggestion": action_suggestion.model_dump(mode="json") if action_suggestion else None,
             }

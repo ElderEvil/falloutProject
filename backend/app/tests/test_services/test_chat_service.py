@@ -322,7 +322,7 @@ class TestChatServiceErrorHandling:
         )
 
         async def fake_stream_output():
-            yield output.model_copy(update={"response_text": "Hello vault"})
+            yield output.model_copy(update={"response_text": "Helo vault"})
             yield output
 
         class FakeStreamResult:
@@ -379,9 +379,13 @@ class TestChatServiceErrorHandling:
                 )
             ]
 
-        tokens = [event["text"] for event in events if event["type"] == "token"]
-        assert tokens == ["Hello vault", " dweller!"]
+        tokens = [event for event in events if event["type"] == "token"]
+        assert tokens == [
+            {"type": "token", "text": "Helo vault"},
+            {"type": "token", "text": "Hello vault dweller!", "replace": True},
+        ]
         assert events[-1]["type"] == "done"
+        assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
 
 

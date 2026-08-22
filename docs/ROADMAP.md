@@ -43,8 +43,8 @@ around it, without displacing the vault workspace. Semantic Release will choose 
 - ✅ **UI consistency & detail polish** — standardize page rails, headers, descriptions, and compact metrics; restore
   the Build control, repair status badge glow tokens, preserve children previews without fake progress data, and
   refine exploration portraits, health trends, terminal meters, and long equipment labels.
-- ✅ **Production logging** — create rotating API and worker log files on persistent volumes, keep stdout enabled,
-  and use JSON output in production. Ollama is intentionally local-development-only.
+- ✅ **Production logging** — create a rotating API log file on a persistent volume, keep stdout enabled, and use
+  JSON output in production. Ollama is intentionally local-development-only.
 - ✅ **Verification** — unit coverage plus deterministic authenticated Playwright coverage for the briefing route and
   response interaction.
 
@@ -65,11 +65,11 @@ Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_P
 - ✅ **Determinism correction** — globally seeded neighbor-vault signals with regression coverage.
 - ✅ **Quest party-members fix** — `QuestsView` populates `questPartyMembersMap`, so party rosters render.
 - ✅ **Discovery unlock fix** — `register_discovery` links the exploring dweller so DISCOVERY markers unlock
-  immediately; backfill script repairs pre-fix rows (shipped with the next release).
+  immediately; the v2.46.1 backfill script repairs pre-fix rows. Deploy the matching worker image to activate it.
 
 **Current focus — World Map + exploration polish (no multiplayer):**
-- 🔧 **Deployment parity** — rebuild the Dramatiq worker with the discovery-unlock fix so new discoveries unlock
-  live (currently the worker container runs pre-fix code).
+- 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
+  discoveries unlock live (the currently deployed worker runs pre-fix code).
 - 🔧 **Polish candidates** — locked-marker discoverability hints (who to chat with to unlock a bio place),
   exploration detail UX, journal edge cases, and any map/exploration bugs surfaced by play.
 

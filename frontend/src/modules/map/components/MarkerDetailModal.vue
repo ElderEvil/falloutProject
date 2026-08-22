@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
+import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 
 interface Props {
@@ -48,6 +49,21 @@ const description = computed(() => {
   return ''
 })
 
+const coordinates = computed(() => {
+  const marker = props.location ?? props.vaultMarker
+  return marker ? `${marker.coord_x}, ${marker.coord_y}` : 'Unavailable'
+})
+
+const recordStatus = computed(() => {
+  if (isVaultMarker.value) return 'SIGNAL DETECTED'
+  return props.location?.is_unlocked ? 'SURVEYED' : 'UNVERIFIED'
+})
+
+const recordedAt = computed(() => {
+  if (!props.location?.created_at) return 'NO DATE LOGGED'
+  return new Date(props.location.created_at).toLocaleDateString()
+})
+
 const dwellers = computed(() => {
   if (props.location && props.location.dwellers.length > 0) {
     return props.location.dwellers
@@ -87,142 +103,52 @@ function dwellerDisplayName(first: string, last: string | null) {
 </script>
 
 <template>
-  <UModal v-model="isOpen" :title="modalTitle" size="lg" surface="base">
-    <div v-if="isLocked" class="locked-placeholder">
-      <Icon icon="mdi:lock-question" class="locked-icon" />
-      <h3 class="locked-heading">Unknown Location</h3>
-      <p class="locked-description">Chat with a dweller who has been here to uncover this place.</p>
+  <UModal v-model="isOpen" :title="modalTitle" size="md" surface="base">
+    <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
+      <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
+      <h3 class="mt-4 text-lg font-bold text-theme-primary">Unknown Location</h3>
+      <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
+        Chat with a dweller who has been here to uncover this place.
+      </p>
     </div>
-    <div v-else class="marker-detail">
-      <div class="detail-header">
-        <UBadge :variant="badgeVariant" size="md">
-          {{ placeType }}
-        </UBadge>
-      </div>
+    <div v-else class="space-y-5">
+      <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">WASTELAND FIELD REPORT</p>
+            <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
+          </div>
+          <UBadge :variant="badgeVariant" size="md">{{ placeType }}</UBadge>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <TerminalMetric icon="mdi:map-marker" label="MAP COORDINATES" :value="coordinates" compact />
+          <TerminalMetric icon="mdi:radar" label="STATUS" :value="recordStatus" compact />
+          <TerminalMetric icon="mdi:calendar-outline" label="RECORDED" :value="recordedAt" compact />
+          <TerminalMetric
+            :icon="isVaultMarker ? 'mdi:radio-tower' : 'mdi:account-group'"
+            :label="isVaultMarker ? 'MARKER TYPE' : 'KNOWN DWELLERS'"
+            :value="isVaultMarker ? 'VAULT SIGNAL' : dwellers?.length ?? 0"
+            compact
+          />
+        </div>
+      </section>
 
-      <p class="detail-description">{{ description }}</p>
+      <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
+        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
+        <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+      </section>
 
-      <div v-if="dwellers" class="detail-dwellers">
-        <h4 class="dwellers-heading">Linked Dwellers</h4>
-        <ul class="dwellers-list">
+      <section v-if="dwellers" class="border-t border-theme-primary/20 pt-4">
+        <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">Linked Dwellers</h4>
+        <ul class="space-y-1.5">
           <li v-for="d in dwellers" :key="d.dweller_id">
-            <button type="button" class="dweller-entry" @click="goToDweller(d.dweller_id)">
-              <span class="dweller-name">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
-              <span class="dweller-relation">({{ d.relation }})</span>
+            <button type="button" class="dweller-entry flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50" @click="goToDweller(d.dweller_id)">
+              <span class="text-sm text-theme-primary underline underline-offset-2">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
+              <span class="text-xs text-theme-primary/60">{{ d.relation }}</span>
             </button>
           </li>
         </ul>
-      </div>
+      </section>
     </div>
   </UModal>
 </template>
-
-<style scoped>
-.marker-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.detail-description {
-  color: var(--color-theme-primary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-  opacity: 0.85;
-}
-
-.detail-dwellers {
-  border-top: 1px solid var(--color-theme-glow);
-  padding-top: 0.75rem;
-}
-
-.dwellers-heading {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-theme-primary);
-  margin-bottom: 0.5rem;
-}
-
-.dwellers-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.dweller-entry {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.375rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: var(--border-radius-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-}
-
-.dweller-entry:hover,
-.dweller-entry:focus-visible {
-  border-color: var(--color-theme-primary);
-  box-shadow: var(--shadow-glow-sm);
-}
-
-.dweller-entry:focus-visible {
-  outline: none;
-}
-
-.dweller-name {
-  color: var(--color-theme-primary);
-  font-size: var(--font-size-sm);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.dweller-relation {
-  color: var(--color-theme-primary);
-  font-size: var(--font-size-xs);
-  opacity: 0.6;
-}
-
-.locked-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1.5rem 0;
-}
-
-.locked-icon {
-  width: 4rem;
-  height: 4rem;
-  color: var(--color-theme-primary);
-  opacity: 0.4;
-}
-
-.locked-heading {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-theme-primary);
-  margin-top: 1rem;
-}
-
-.locked-description {
-  color: var(--color-theme-primary);
-  font-size: var(--font-size-sm);
-  opacity: 0.6;
-  margin-top: 0.5rem;
-}
-</style>

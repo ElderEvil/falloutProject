@@ -7,10 +7,12 @@ interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
   selectedMarkerId?: string | null
+  docked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedMarkerId: null,
+  docked: false,
 })
 
 const emit = defineEmits<{
@@ -77,9 +79,10 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 </script>
 
 <template>
-  <div class="marker-list-wrapper" :class="{ open: isOpen }">
+  <div class="marker-list-wrapper" :class="{ docked: props.docked }">
     <!-- Toggle button -->
     <button
+      v-if="!props.docked"
       class="marker-list-toggle"
       :aria-label="isOpen ? 'Close marker list' : 'Open marker list'"
       :title="isOpen ? 'Close marker list' : 'Open marker list'"
@@ -89,7 +92,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
     </button>
 
     <!-- Panel -->
-    <aside v-show="isOpen" class="marker-list-panel" role="complementary" aria-label="Marker list">
+    <aside v-show="props.docked || isOpen" class="marker-list-panel" role="complementary" aria-label="Marker list">
       <div class="panel-header">
         <span class="panel-title">MARKERS</span>
         <span class="panel-count">{{ totalCount }}</span>
@@ -131,6 +134,20 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   flex-direction: row-reverse;
   align-items: flex-start;
   gap: 4px;
+}
+
+.marker-list-wrapper.docked {
+  position: static;
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.marker-list-wrapper.docked .marker-list-panel {
+  width: 100%;
+  max-height: none;
+  height: 100%;
+  background: var(--color-surface);
 }
 
 .marker-list-toggle {

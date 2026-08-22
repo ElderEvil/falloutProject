@@ -8,10 +8,20 @@
       >
         Relationships
       </h2>
-      <UButton @click="refreshRelationships" :disabled="isLoading" size="sm">
-        <Icon icon="mdi:refresh" class="mr-1" />
-        Refresh
-      </UButton>
+      <div class="flex items-center gap-2">
+        <div class="flex rounded border border-theme-primary/20 p-0.5">
+          <UButton variant="ghost" size="xs" :class="viewMode === 'list' ? '!bg-theme-glow/20' : ''" title="List view" @click="viewMode = 'list'">
+            <Icon icon="mdi:format-list-bulleted" />
+          </UButton>
+          <UButton variant="ghost" size="xs" :class="viewMode === 'grid' ? '!bg-theme-glow/20' : ''" title="Grid view" @click="viewMode = 'grid'">
+            <Icon icon="mdi:view-grid-outline" />
+          </UButton>
+        </div>
+        <UButton @click="refreshRelationships" :disabled="isLoading" size="sm">
+          <Icon icon="mdi:refresh" class="mr-1" />
+          Refresh
+        </UButton>
+      </div>
     </div>
 
     <div v-if="isLoading" class="text-center py-8">
@@ -33,7 +43,7 @@
       :description="emptyHint"
     />
 
-    <div v-else class="space-y-2">
+    <div v-else :class="viewMode === 'grid' ? 'grid grid-cols-1 gap-4 xl:grid-cols-2' : 'space-y-2'">
       <div
         v-for="relationship in filteredRelationships"
         :key="relationship.id"
@@ -43,6 +53,8 @@
           :relationship="relationship"
           :dweller1Name="getDwellerName(relationship.dweller_1_id)"
           :dweller2Name="getDwellerName(relationship.dweller_2_id)"
+          :view-mode="viewMode"
+          @select-dweller="emit('select-dweller', $event)"
           @initiate-romance="initiateRomance(relationship.id)"
           @make-partners="makePartners(relationship.id)"
           @marry="marry(relationship.id)"
@@ -95,6 +107,7 @@ const { filter: dwellerStore } = useDwellerStore()
 const relationships = computed(() => relationshipStore.relationships)
 const isLoading = computed(() => relationshipStore.isLoading)
 const error = ref<string | null>(null)
+const viewMode = ref<'list' | 'grid'>('list')
 
 const filteredRelationships = computed(() => {
   let filtered = [...relationships.value]

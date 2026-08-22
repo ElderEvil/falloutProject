@@ -13,6 +13,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
+import UTabs from '@/core/components/ui/UTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,6 +37,13 @@ const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
 const childrenCount = computed(
   () => dwellerStore.dwellers.filter((d) => d.age_group === 'child').length
 )
+
+const summaryMetrics = computed(() => [
+  { icon: 'mdi:heart-multiple', label: 'Total Relationships', value: totalRelationships.value },
+  { icon: 'mdi:human-male-female', label: 'Partner Couples', value: partnersCount.value },
+  { icon: 'mdi:baby-carriage', label: 'Active Pregnancies', value: pregnanciesCount.value },
+  { icon: 'mdi:human-child', label: 'Growing Children', value: childrenCount.value },
+])
 
 // Stages configuration
 const stages = computed(() => [
@@ -67,6 +75,12 @@ const stages = computed(() => [
   },
 ])
 
+const familyTabs = computed(() => stages.value.map((stage) => ({ key: stage.id, label: `${stage.label} (${stage.count})` })))
+
+function setActiveStage(stage: string) {
+  activeStage.value = stage as typeof activeStage.value
+}
+
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await Promise.all([
@@ -84,82 +98,54 @@ const navigateToDweller = (dwellerId: string) => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines"></div>
-
     <!-- Main View -->
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
 
       <!-- Main Content Area -->
-      <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <PageContentRail>
-            <!-- Header -->
-            <PageHeader
-              title="Relationships &amp; Family"
-              icon="mdi:heart-multiple"
-              subtitle="Manage relationships, pregnancies, and family growth in your vault"
+      <main class="main-content" :class="{ collapsed: isCollapsed }">
+        <PageContentRail class="flex flex-col gap-6">
+          <PageHeader
+            title="Relationships &amp; Family"
+            icon="mdi:heart-multiple"
+            subtitle="Track relationships, pregnancies, and the next generation of your vault."
+          />
+
+          <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div
+              v-for="metric in summaryMetrics"
+              :key="metric.label"
+              class="flex items-center gap-3 rounded border border-theme-primary/20 bg-transparent p-4 transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
             >
-            </PageHeader>
-
-            <!-- Stats Overview -->
-            <div class="stats-grid mb-8">
-              <div class="stat-card">
-                <Icon icon="mdi:heart-multiple" class="stat-icon" />
-                <div class="stat-content">
-                  <div class="stat-value">{{ totalRelationships }}</div>
-                  <div class="stat-label">Total Relationships</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <Icon icon="mdi:human-male-female" class="stat-icon" />
-                <div class="stat-content">
-                  <div class="stat-value">{{ partnersCount }}</div>
-                  <div class="stat-label">Partner Couples</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <Icon icon="mdi:baby-carriage" class="stat-icon" />
-                <div class="stat-content">
-                  <div class="stat-value">{{ pregnanciesCount }}</div>
-                  <div class="stat-label">Active Pregnancies</div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <Icon icon="mdi:human-child" class="stat-icon" />
-                <div class="stat-content">
-                  <div class="stat-value">{{ childrenCount }}</div>
-                  <div class="stat-label">Growing Children</div>
+              <Icon
+                :icon="metric.icon"
+                class="h-7 w-7 shrink-0 text-theme-primary/70 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+              />
+              <div class="min-w-0">
+                <div class="stat-value text-2xl font-bold leading-none text-theme-primary">{{ metric.value }}</div>
+                <div class="mt-1 truncate text-[0.65rem] font-bold tracking-[0.1em] text-theme-primary/60">
+                  {{ metric.label }}
                 </div>
               </div>
             </div>
+          </section>
 
-            <!-- Stage Tabs -->
-            <div class="stages-tabs mb-6">
-              <button
-                v-for="stage in stages"
-                :key="stage.id"
-                @click="
-                  activeStage = stage.id as 'forming' | 'partners' | 'pregnancies' | 'children'
-                "
-                :class="['stage-tab', { active: activeStage === stage.id }]"
-              >
-                <Icon :icon="stage.icon" class="mr-2" />
-                {{ stage.label }}
-                <span class="stage-count">{{ stage.count }}</span>
-              </button>
-            </div>
-
-            <!-- Stage Content -->
-            <div class="stage-content">
+          <UTabs
+            :model-value="activeStage"
+            :tabs="familyTabs"
+            @update:model-value="setActiveStage"
+          >
+            <template #default>
+              <section class="min-w-0">
               <!-- Stage 1: All Dwellers / Forming Relationships -->
-              <div v-if="activeStage === 'forming'" class="stage-panel">
-                <div class="stage-header">
-                  <h2 class="text-2xl font-bold">
-                    <Icon icon="mdi:account-group" class="inline mr-2" />
+              <div v-if="activeStage === 'forming'" class="space-y-5">
+                <div>
+                  <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                    <Icon icon="mdi:account-group" class="h-5 w-5" />
                     Forming Relationships
                   </h2>
-                  <p class="text-gray-400 mt-1">
+                  <p class="mt-1 text-sm leading-6 text-theme-primary/60">
                     Dwellers in the same room will gradually increase their affinity. Romance can
                     begin at 70+ affinity.
                   </p>
@@ -173,13 +159,13 @@ const navigateToDweller = (dwellerId: string) => {
               </div>
 
               <!-- Stage 2: Partners -->
-              <div v-if="activeStage === 'partners'" class="stage-panel">
-                <div class="stage-header">
-                  <h2 class="text-2xl font-bold">
-                    <Icon icon="mdi:human-male-female" class="inline mr-2" />
+              <div v-if="activeStage === 'partners'" class="space-y-5">
+                <div>
+                  <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                    <Icon icon="mdi:human-male-female" class="h-5 w-5" />
                     Partner Couples
                   </h2>
-                  <p class="text-gray-400 mt-1">
+                  <p class="mt-1 text-sm leading-6 text-theme-primary/60">
                     Committed partners in living quarters have a chance to conceive (configurable
                     via game settings).
                   </p>
@@ -193,13 +179,13 @@ const navigateToDweller = (dwellerId: string) => {
               </div>
 
               <!-- Stage 3: Pregnancies -->
-              <div v-if="activeStage === 'pregnancies'" class="stage-panel">
-                <div class="stage-header">
-                  <h2 class="text-2xl font-bold">
-                    <Icon icon="mdi:baby-carriage" class="inline mr-2" />
+              <div v-if="activeStage === 'pregnancies'" class="space-y-5">
+                <div>
+                  <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                    <Icon icon="mdi:baby-carriage" class="h-5 w-5" />
                     Active Pregnancies
                   </h2>
-                  <p class="text-gray-400 mt-1">
+                  <p class="mt-1 text-sm leading-6 text-theme-primary/60">
                     Pregnancies last 3 hours. Babies inherit traits from both parents.
                   </p>
                 </div>
@@ -207,22 +193,24 @@ const navigateToDweller = (dwellerId: string) => {
               </div>
 
               <!-- Stage 4: Children -->
-              <div v-if="activeStage === 'children'" class="stage-panel">
-                <div class="stage-header">
-                  <h2 class="text-2xl font-bold">
-                    <Icon icon="mdi:human-child" class="inline mr-2" />
+              <div v-if="activeStage === 'children'" class="space-y-5">
+                <div>
+                  <h2 class="flex items-center gap-2 text-lg font-bold text-theme-primary">
+                    <Icon icon="mdi:human-child" class="h-5 w-5" />
                     Growing Children
                   </h2>
-                  <p class="text-gray-400 mt-1">
+                  <p class="mt-1 text-sm leading-6 text-theme-primary/60">
                     Children grow to adults after 3 hours. They consume resources but cannot work
                     until grown.
                   </p>
                 </div>
                 <ChildrenList v-if="vaultId" :vaultId="vaultId" />
               </div>
-            </div>
+              </section>
+            </template>
+          </UTabs>
         </PageContentRail>
-      </div>
+      </main>
     </div>
   </div>
 </template>
@@ -243,159 +231,4 @@ const navigateToDweller = (dwellerId: string) => {
   margin-left: 64px;
 }
 
-.scanlines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-.flicker {
-  animation: flicker 0.15s infinite;
-}
-
-@keyframes flicker {
-  0% {
-    opacity: 0.98;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.98;
-  }
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px solid var(--color-theme-glow);
-  border-radius: 8px;
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.stat-icon {
-  font-size: 2.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 8px var(--color-theme-glow));
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-  margin-top: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Stage Tabs */
-.stages-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 2px solid var(--color-theme-glow);
-  margin-bottom: 1.5rem;
-}
-
-.stage-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.5rem;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0.6;
-}
-
-.stage-tab:hover:not(.active) {
-  opacity: 0.8;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.stage-tab.active {
-  opacity: 1;
-  border-bottom-color: var(--color-theme-primary);
-  background: var(--color-theme-glow);
-}
-
-.stage-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  padding: 0 0.5rem;
-  background: var(--color-theme-primary);
-  color: black;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-left: 0.5rem;
-}
-
-/* Stage Content */
-.stage-content {
-  padding: 1.5rem 0 2rem;
-}
-
-.stage-panel {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.stage-header {
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-theme-glow);
-}
-
-.stage-header h2 {
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-}
 </style>

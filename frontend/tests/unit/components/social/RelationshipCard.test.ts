@@ -30,6 +30,18 @@ function createWrapper(relationship: Record<string, unknown>) {
 }
 
 describe('RelationshipCard', () => {
+  it('uses the compact relationship row by default', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+    })
+
+    expect(wrapper.find('.relationship-record--list').exists()).toBe(true)
+  })
+
   describe('badge variant per relationship type', () => {
     it.each([
       { type: 'acquaintance', expectClass: 'bg-success' },
@@ -47,7 +59,7 @@ describe('RelationshipCard', () => {
         affinity: 50,
       })
 
-      const badge = wrapper.find('span.mt-1')
+      const badge = wrapper.find('.relationship-badge')
       expect(badge.exists()).toBe(true)
       expect(badge.text()).toBe(type)
       expect(badge.classes().includes(expectClass)).toBe(true)
@@ -62,7 +74,7 @@ describe('RelationshipCard', () => {
         affinity: 50,
       })
 
-      const badge = wrapper.find('span.mt-1')
+      const badge = wrapper.find('.relationship-badge')
       expect(badge.classes()).toContain('bg-success')
     })
   })
@@ -103,5 +115,20 @@ describe('RelationshipCard', () => {
 
       expect(wrapper.text()).toContain('Break Up')
     })
+  })
+
+  it('treats both dwelller identities as direct roster links', async () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+    })
+
+    await wrapper.get('button[title="View Alice"]').trigger('click')
+    await wrapper.get('button[title="View Bob"]').trigger('click')
+
+    expect(wrapper.emitted('select-dweller')).toEqual([['d1'], ['d2']])
   })
 })

@@ -73,6 +73,20 @@ describe('MarkerListPanel', () => {
 
       expect(wrapper.find('.marker-list-panel').isVisible()).toBe(true)
     })
+
+    it('should keep the index visible without a toggle when docked', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [createLocation('origin', 'Megaton')],
+          vaultMarkers: [],
+          docked: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.find('.marker-list-toggle').exists()).toBe(false)
+      expect(wrapper.find('.marker-list-panel').isVisible()).toBe(true)
+    })
   })
 
   describe('Grouping', () => {

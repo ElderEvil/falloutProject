@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.47.2](https://github.com/ElderEvil/falloutProject/compare/v2.47.1...v2.47.2) (2026-08-22)
+
+### Bug Fixes
+
+* **frontend:** address shared component review findings ([56620a6](https://github.com/ElderEvil/falloutProject/commit/56620a6ebc19fba99d2b1ad565e1f5a465613a7f))
+
+### Code Refactoring
+
+* **frontend:** align dweller surfaces ([ecc8496](https://github.com/ElderEvil/falloutProject/commit/ecc84960459b23822b11f06339f170a96d6e7075))
+* **frontend:** establish warm surface primitives ([d18fbef](https://github.com/ElderEvil/falloutProject/commit/d18fbefea5d57af5178f7f3d3f56294662d7f25f))
+* **frontend:** share dweller portraits ([97ada9f](https://github.com/ElderEvil/falloutProject/commit/97ada9fb982cd3b34fb56ad7f524d3f4a291629f))
+* **frontend:** share terminal metrics ([bb04ad3](https://github.com/ElderEvil/falloutProject/commit/bb04ad3faea5a2ffba9155953d613d7c71930d72))
+* **frontend:** warm dweller filters ([537eb38](https://github.com/ElderEvil/falloutProject/commit/537eb384a942b27f87b0eb47af6b61b136c2aefa))
+
 ## [2.47.1](https://github.com/ElderEvil/falloutProject/compare/v2.47.0...v2.47.1) (2026-08-22)
 
 ### Bug Fixes

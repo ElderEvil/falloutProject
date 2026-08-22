@@ -8,6 +8,17 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
 import axios from '@/core/plugins/axios'
 
+interface RadioStats {
+  hasRadio: boolean
+  recruitmentRate: number
+  ratePerHour: number
+  estimatedHoursPerRecruit: number
+  speedupMultiplier: number
+  manualCostCaps: number
+  radioMode: string
+  radioHappinessBonus: number
+}
+
 export function useRadioRoom(
   room: Ref<Room | null>,
   modelValue: Ref<boolean>,
@@ -21,6 +32,7 @@ export function useRadioRoom(
 
   const isRecruiting = ref(false)
   const manualRecruitCost = ref<number>(100)
+  const radioStats = ref<RadioStats | null>(null)
 
   const isRadioRoom = computed(() => {
     return room.value?.name.toLowerCase().includes('radio') || false
@@ -55,6 +67,16 @@ export function useRadioRoom(
       })
       if (response.data?.manual_cost_caps != null) {
         manualRecruitCost.value = response.data.manual_cost_caps
+      }
+      radioStats.value = {
+        hasRadio: response.data?.has_radio ?? false,
+        recruitmentRate: response.data?.recruitment_rate ?? 0,
+        ratePerHour: response.data?.rate_per_hour ?? 0,
+        estimatedHoursPerRecruit: response.data?.estimated_hours_per_recruit ?? 0,
+        speedupMultiplier: response.data?.speedup_multipliers?.[0]?.speedup ?? 1,
+        manualCostCaps: response.data?.manual_cost_caps ?? 0,
+        radioMode: response.data?.radio_mode ?? 'recruitment',
+        radioHappinessBonus: response.data?.radio_happiness_bonus ?? 0,
       }
     } catch {
       toast.error('Failed to load radio stats')
@@ -157,6 +179,7 @@ export function useRadioRoom(
     isRadioRoom,
     localRadioMode,
     manualRecruitCost,
+    radioStats,
     handleSwitchRadioMode,
     handleRecruitDweller,
   }

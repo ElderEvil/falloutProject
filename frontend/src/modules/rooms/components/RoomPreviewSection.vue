@@ -62,22 +62,29 @@ defineProps<Props>()
 .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
+  gap: 0.4rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-theme-primary);
   margin: 0;
 }
 
+.section-title :deep(svg) {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .room-preview-section {
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem;
+  background: var(--color-surface);
+  padding: 0.5rem;
   border-radius: 8px;
   border: 1px solid var(--color-theme-glow);
 }
@@ -85,12 +92,12 @@ defineProps<Props>()
 .preview-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .room-image-container {
   position: relative;
-  min-height: 150px;
+  min-height: 180px;
   border-radius: 8px;
   overflow: hidden;
   border: 2px solid var(--color-theme-glow);
@@ -103,7 +110,7 @@ defineProps<Props>()
 .room-image {
   width: 100%;
   height: auto;
-  max-height: 300px;
+  max-height: 260px;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.8);
   display: block;
@@ -119,7 +126,7 @@ defineProps<Props>()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-sunken);
   padding: 1.25rem;
 }
 
@@ -145,9 +152,9 @@ defineProps<Props>()
 
 .dweller-sprites-overlay {
   position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  right: 1rem;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
   display: flex;
   justify-content: space-evenly;
   z-index: 10;
@@ -157,16 +164,16 @@ defineProps<Props>()
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
 }
 
 .placeholder-dweller {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-sunken);
   border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
   transition: all 0.3s;
@@ -178,7 +185,7 @@ defineProps<Props>()
 }
 
 .slot-filled .placeholder-dweller {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--color-surface-raised);
   border: 2px solid var(--color-theme-primary);
   animation: glow-pulse 2s ease-in-out infinite;
 }

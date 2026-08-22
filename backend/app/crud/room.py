@@ -19,6 +19,7 @@ from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
     UniqueRoomViolationException,
+    VaultOperationException,
 )
 from app.utils.room_assets import get_room_image_url
 from app.utils.static_data import game_data_store
@@ -184,6 +185,44 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         if obj_in.coordinate_y < GRID_Y_MIN or obj_in.coordinate_y > GRID_Y_MAX:
             msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between {GRID_Y_MIN} and {GRID_Y_MAX}."
             raise ValueError(msg)
+
+        is_elevator = obj_in.name.lower() == "elevator"
+        if is_elevator:
+            # Elevators stack: a new elevator requires one directly above it
+            elevator_above = await db_session.execute(
+                select(Room).where(
+                    and_(
+                        Room.vault_id == vault.id,
+                        Room.name == "Elevator",
+                        Room.coordinate_x == obj_in.coordinate_x,
+                        Room.coordinate_y == obj_in.coordinate_y - 1,
+                    )
+                )
+            )
+            if elevator_above.scalars().first() is None:
+                msg = (
+                    f"Cannot build elevator at ({obj_in.coordinate_x}, {obj_in.coordinate_y}): "
+                    "elevators must be built directly under another elevator."
+                )
+                raise VaultOperationException(detail=msg)
+        else:
+            # A level is buildable only when it has an elevator; row 0 is anchored by the vault door
+            if obj_in.coordinate_y > 0:
+                elevator_on_level = await db_session.execute(
+                    select(Room).where(
+                        and_(
+                            Room.vault_id == vault.id,
+                            Room.name == "Elevator",
+                            Room.coordinate_y == obj_in.coordinate_y,
+                        )
+                    )
+                )
+                if elevator_on_level.scalars().first() is None:
+                    msg = (
+                        f"Cannot build {obj_in.name} at ({obj_in.coordinate_x}, {obj_in.coordinate_y}): "
+                        f"level {obj_in.coordinate_y} has no elevator. Build an elevator first."
+                    )
+                    raise VaultOperationException(detail=msg)
 
         # Prevent building multiple vault doors (case-insensitive check)
         if obj_in.name.lower() == "vault door":

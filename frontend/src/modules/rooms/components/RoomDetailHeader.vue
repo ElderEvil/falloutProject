@@ -35,38 +35,37 @@ defineProps<Props>()
 
 <style scoped>
 .modal-header {
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .header-content {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .room-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: bold;
   color: var(--color-theme-primary);
   margin: 0;
 }
 
 .room-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--color-terminal-green);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .header-metadata {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--color-gray-500);
   text-transform: uppercase;
   letter-spacing: 0.05em;

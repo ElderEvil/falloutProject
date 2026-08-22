@@ -146,6 +146,31 @@
   min-height: 80px;
 }
 
+/* Levels without an elevator are locked until one is built there */
+.empty.level-locked {
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.empty.level-locked:hover {
+  border-color: var(--color-gray-600);
+}
+
+.level-lock-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-gray-500);
+  opacity: 0.5;
+}
+
+.level-lock-indicator svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 .hover-preview {
   background-color: var(--color-theme-glow);
   z-index: 1;

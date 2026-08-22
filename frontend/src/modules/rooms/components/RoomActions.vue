@@ -44,36 +44,38 @@ const emit = defineEmits<{
       <Icon icon="mdi:cog" class="h-5 w-5" />
       Management
     </h3>
-    <div class="actions-grid">
+    <div class="actions-grid" :class="{ 'radio-layout': isRadioRoom }">
+      <!-- Radio controls slot: moved above the action buttons for radio rooms -->
+      <slot name="radio-controls" />
+
       <!-- Upgrade Button -->
       <UButton
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
         :disabled="isUpgrading"
-        variant="primary"
-        class="action-btn"
+        variant="secondary"
+        size="sm"
+        class="action-btn action-btn--upgrade"
       >
-        <Icon icon="mdi:arrow-up-circle" class="h-5 w-5" />
+        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
         <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
       </UButton>
       <div v-else class="disabled-action">
-        <Icon icon="mdi:arrow-up-circle" class="h-5 w-5 opacity-50" />
+        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4 opacity-50" />
         <span> {{ maxTierText }} </span>
       </div>
 
-      <!-- Radio controls slot -->
-      <slot name="radio-controls" />
-
-      <!-- Rush Production Button (Placeholder) -->
+      <!-- Rush Production Button -->
       <UButton
         v-if="!isRadioRoom && hasProductionInfo"
         @click="emit('rushProduction')"
         :disabled="isRushing || assignedDwellerCount === 0"
-        variant="primary"
-        class="action-btn rush-btn"
+        variant="secondary"
+        size="sm"
+        class="action-btn"
       >
-        <Icon icon="mdi:lightning-bolt" class="h-5 w-5" />
+        <Icon icon="mdi:lightning-bolt" class="h-4 w-4" />
         <span>Rush Production</span>
         <span class="feature-badge">Coming Soon</span>
       </UButton>
@@ -83,16 +85,17 @@ const emit = defineEmits<{
         @click="emit('unassignAll')"
         :disabled="assignedDwellerCount === 0"
         variant="secondary"
-        class="action-btn"
+        size="sm"
+        class="action-btn action-btn--half"
       >
-        <Icon icon="mdi:account-remove" class="h-5 w-5" />
+        <Icon icon="mdi:account-remove" class="h-4 w-4" />
         <span>Unassign All Dwellers</span>
       </UButton>
 
       <!-- Destroy Button -->
       <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
-        <UButton disabled variant="danger" class="action-btn">
-          <Icon icon="mdi:delete" class="h-5 w-5" />
+        <UButton disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn">
+          <Icon icon="mdi:delete" class="h-4 w-4" />
           <span>Destroy Room</span>
         </UButton>
       </UTooltip>
@@ -100,10 +103,11 @@ const emit = defineEmits<{
         v-else
         @click="emit('destroy')"
         :disabled="isDestroying"
-        variant="danger"
-        class="action-btn"
+        variant="secondary"
+        size="sm"
+        class="action-btn action-btn--half destroy-btn"
       >
-        <Icon icon="mdi:delete" class="h-5 w-5" />
+        <Icon icon="mdi:delete" class="h-4 w-4" />
         <span>Destroy Room</span>
       </UButton>
     </div>
@@ -114,24 +118,31 @@ const emit = defineEmits<{
 .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
+  gap: 0.4rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-theme-primary);
   margin: 0;
+}
+
+.section-title :deep(svg) {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .actions-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.25rem;
-  padding: 1rem 0;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0;
 }
 
 .action-btn {
@@ -139,69 +150,61 @@ const emit = defineEmits<{
   min-width: 200px;
 }
 
+/* Radio room layout: radio mode on top, upgrade full-width, then two half-width */
+.actions-grid.radio-layout .action-btn--upgrade {
+  flex-basis: 100%;
+  min-width: 100%;
+}
+
+.actions-grid.radio-layout .action-btn--half {
+  flex: 1 1 40%;
+  min-width: 0;
+}
+
 .action-btn :deep(button) {
   justify-content: flex-start;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+}
+
+.action-btn.destroy-btn {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.action-btn.destroy-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  box-shadow: none;
 }
 
 .cost-badge {
   margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  background: var(--color-terminal-background);
-  border: 2px solid var(--color-warning);
+  padding: 0.125rem 0.5rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-warning);
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: bold;
   color: var(--color-warning);
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
 }
 
 .feature-badge {
   margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  background: rgba(139, 92, 246, 0.3);
-  border: 2px solid var(--color-info);
+  padding: 0.125rem 0.5rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-info);
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: bold;
   color: var(--color-info);
-  text-shadow: 0 0 4px rgba(139, 92, 246, 0.5);
   font-style: italic;
-}
-
-.rush-btn {
-  position: relative;
-  overflow: hidden;
-}
-
-.rush-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
 }
 
 .disabled-action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(128, 128, 128, 0.1);
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-surface-hover);
   border-radius: 4px;
   color: var(--color-gray-500);
   font-size: 0.875rem;

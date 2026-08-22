@@ -74,6 +74,7 @@ const {
   isRadioRoom,
   localRadioMode,
   manualRecruitCost,
+  radioStats,
   handleSwitchRadioMode,
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
@@ -136,7 +137,13 @@ watch(
         @review-incidents="emit('reviewIncidents')"
       />
 
-      <ProductionStats v-if="productionInfo" :production-info="productionInfo" />
+      <ProductionStats
+        v-if="isRadioRoom && radioStats"
+        :radio-stats="radioStats"
+        :radio-mode="localRadioMode"
+      />
+
+      <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
 
       <DwellerList
         :assigned-dwellers="assignedDwellers"
@@ -178,8 +185,8 @@ watch(
 .modal-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem 0;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
 }
 
 .error-banner {

@@ -24,6 +24,7 @@ class RadioStatsRead(SQLModel):
     manual_cost_caps: int
     radio_mode: str
     speedup_multipliers: list[SpeedupMultiplier]
+    radio_happiness_bonus: float = 0.0  # +happiness per dweller per tick in happiness mode
 
 
 class ManualRecruitRequest(SQLModel):

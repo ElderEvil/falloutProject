@@ -73,7 +73,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--color-surface-canvas);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -82,10 +82,9 @@ onUnmounted(() => {
 }
 
 .modal-content {
-  background: rgba(17, 17, 17, 0.95);
-  border: 2px solid var(--color-theme-primary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-surface-hover);
   border-radius: 4px;
-  box-shadow: 0 0 20px var(--color-theme-glow);
   max-width: 1200px;
   width: 100%;
   max-height: 80vh;
@@ -99,7 +98,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--color-theme-primary);
+  border-bottom: 1px solid var(--color-surface-hover);
   flex-shrink: 0;
 }
 

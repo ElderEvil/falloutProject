@@ -3,74 +3,89 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+* **rooms:** gate level building behind elevators (elevators stack vertically; a level needs an elevator before rooms can be built there, with the vault door anchoring row 0)
+* **rooms:** show radio studio statistics (passive recruitment rate, recruit ETA, and happiness bonus) in the room detail modal
+
+### Bug Fixes
+
+* **rooms:** align training room occupancy with the 2-per-segment model
+* **frontend:** theme scrollbars and remove the green tint from the build room menu
+* **rooms:** compact the room detail modal (readable-but-tight panels, muted outlined action buttons, dweller portraits, full dweller names)
+
 ## [2.48.1](https://github.com/ElderEvil/falloutProject/compare/v2.48.0...v2.48.1) (2026-08-23)
 
 ### Bug Fixes
 
-* **dwellers:** consistent adult flag and dedupe SPECIAL stats list ([5c3a45f](https://github.com/ElderEvil/falloutProject/commit/5c3a45f77fce35433f9c66f195d0067edd638e52))
-* **infra:** single dramatiq worker process and explicit dweller-room join ([c415b1b](https://github.com/ElderEvil/falloutProject/commit/c415b1bf115997d2ff118589229798e75085afda))
+* **dwellers:** consistent adult flag and dedupe SPECIAL stats list
+* **infra:** single dramatiq worker process and explicit dweller-room join
+
 
 ## [2.48.0](https://github.com/ElderEvil/falloutProject/compare/v2.47.2...v2.48.0) (2026-08-22)
 
 ### Features
 
-* **frontend:** refine vault operations interfaces ([6cd624f](https://github.com/ElderEvil/falloutProject/commit/6cd624f93dd4c3a6937c9cb787b36b5632223ba9))
+* **frontend:** refine vault operations interfaces
 
 ### Bug Fixes
 
-* **frontend:** address profile navigation review ([a003d0d](https://github.com/ElderEvil/falloutProject/commit/a003d0d039aff75b914f0e9238669fd1203154d8))
-* **frontend:** align profile and quest card surfaces ([6d68e20](https://github.com/ElderEvil/falloutProject/commit/6d68e20ac11386913f6e00c2850e1ccb04d40c53))
-* **frontend:** align profile navigation state ([72f0e66](https://github.com/ElderEvil/falloutProject/commit/72f0e66d75d4cbaba3cd037155724991244f7f79))
-* **frontend:** keep core navigation module-independent ([f214bdf](https://github.com/ElderEvil/falloutProject/commit/f214bdf055f5aa992ae4d41514a5f62bf9572537))
-* **frontend:** preserve failed vault commissioning ([3cbddec](https://github.com/ElderEvil/falloutProject/commit/3cbddec295cd9bcaac0608e2aab15323776fab35))
-* **frontend:** preserve vault navigation on profile ([b640fa0](https://github.com/ElderEvil/falloutProject/commit/b640fa0f1d395867ea7f6a8f594398f1318d6392))
-* **frontend:** warm profile analytics surfaces ([26c01be](https://github.com/ElderEvil/falloutProject/commit/26c01bee86b1394caa5e5a2e2f95137243bfbc7c))
+* **frontend:** address profile navigation review
+* **frontend:** align profile and quest card surfaces
+* **frontend:** align profile navigation state
+* **frontend:** keep core navigation module-independent
+* **frontend:** preserve failed vault commissioning
+* **frontend:** preserve vault navigation on profile
+* **frontend:** warm profile analytics surfaces
 
 ### Code Refactoring
 
-* **frontend:** align quest and map surfaces ([1bf26a8](https://github.com/ElderEvil/falloutProject/commit/1bf26a84227d7f481f86ed28834d965d9c110e3c))
-* **profile:** redesign overseer dossier ([ec4e682](https://github.com/ElderEvil/falloutProject/commit/ec4e682ef3d3d96cb5b13aaa2b6d4d5dfc720492))
+* **frontend:** align quest and map surfaces
+* **profile:** redesign overseer dossier
+
 
 ## [2.47.2](https://github.com/ElderEvil/falloutProject/compare/v2.47.1...v2.47.2) (2026-08-22)
 
 ### Bug Fixes
 
-* **frontend:** address shared component review findings ([56620a6](https://github.com/ElderEvil/falloutProject/commit/56620a6ebc19fba99d2b1ad565e1f5a465613a7f))
+* **frontend:** address shared component review findings (56620a6)
 
 ### Code Refactoring
 
-* **frontend:** align dweller surfaces ([ecc8496](https://github.com/ElderEvil/falloutProject/commit/ecc84960459b23822b11f06339f170a96d6e7075))
-* **frontend:** establish warm surface primitives ([d18fbef](https://github.com/ElderEvil/falloutProject/commit/d18fbefea5d57af5178f7f3d3f56294662d7f25f))
-* **frontend:** share dweller portraits ([97ada9f](https://github.com/ElderEvil/falloutProject/commit/97ada9fb982cd3b34fb56ad7f524d3f4a291629f))
-* **frontend:** share terminal metrics ([bb04ad3](https://github.com/ElderEvil/falloutProject/commit/bb04ad3faea5a2ffba9155953d613d7c71930d72))
-* **frontend:** warm dweller filters ([537eb38](https://github.com/ElderEvil/falloutProject/commit/537eb384a942b27f87b0eb47af6b61b136c2aefa))
+* **frontend:** align dweller surfaces (ecc8496)
+* **frontend:** establish warm surface primitives (d18fbef)
+* **frontend:** share dweller portraits (97ada9f)
+* **frontend:** share terminal metrics (bb04ad3)
+* **frontend:** warm dweller filters (537eb38)
 
 ## [2.47.1](https://github.com/ElderEvil/falloutProject/compare/v2.47.0...v2.47.1) (2026-08-22)
 
 ### Bug Fixes
 
-* **ci:** deploy only configured API logs ([204ba61](https://github.com/ElderEvil/falloutProject/commit/204ba61fb54e4e1cf328200cb36ad8a252099b51))
+* **ci:** deploy only configured API logs (204ba61)
 
 ## [2.47.0](https://github.com/ElderEvil/falloutProject/compare/v2.46.1...v2.47.0) (2026-08-22)
 
 ### Features
 
-* **ops:** persist logs and use system Ollama ([3c4ce20](https://github.com/ElderEvil/falloutProject/commit/3c4ce20cbbb98857dcf80b45912940b7ca0e14f4))
-* **overseer:** add office command briefing ([a6b9af7](https://github.com/ElderEvil/falloutProject/commit/a6b9af7fb08d1a9fea7910bccb2a59b013f425b1))
+* **ops:** persist logs and use system Ollama (3c4ce20)
+* **overseer:** add office command briefing (a6b9af7)
 
 ### Bug Fixes
 
-* address PR review findings ([24889cb](https://github.com/ElderEvil/falloutProject/commit/24889cb4f10089a33a4bee5e9e98f1e6717cae94))
-* **ai:** stream structured chat output reliably ([5076820](https://github.com/ElderEvil/falloutProject/commit/507682030a0628adc0603e82d5fa79bfa910ec3a))
-* **dev:** make Zed tasks valid JSON ([d9a0ef4](https://github.com/ElderEvil/falloutProject/commit/d9a0ef419fa9136428d53760e75af2558cf9d9bc))
-* **exploration:** refine active explorer details ([38082d0](https://github.com/ElderEvil/falloutProject/commit/38082d0859869ec30e82294445741fce46300c7b))
-* **logging:** include dweller context in death logs ([633db94](https://github.com/ElderEvil/falloutProject/commit/633db94a428a582986d11df40bbee9977ab5d7ab))
-* **ui:** normalize management screen layouts ([d919c20](https://github.com/ElderEvil/falloutProject/commit/d919c208dc98e095795672150d67d36b9837b3dd))
+* address PR review findings (24889cb)
+* **ai:** stream structured chat output reliably (5076820)
+* **dev:** make Zed tasks valid JSON (d9a0ef4)
+* **exploration:** refine active explorer details (38082d0)
+* **logging:** include dweller context in death logs (633db94)
+* **ui:** normalize management screen layouts (d919c20)
 
 ### Documentation
 
-* detail map fixes in changelog ([3ddff68](https://github.com/ElderEvil/falloutProject/commit/3ddff6807298d78aea49929d3533a39f66bd38b0))
-* prepare overseer's toolkit release notes ([9ff755e](https://github.com/ElderEvil/falloutProject/commit/9ff755e40e1ed63b082db0a3abfa38b38662e593))
+* detail map fixes in changelog (3ddff68)
+* prepare overseer's toolkit release notes (9ff755e)
 
 ## [2.46.1](https://github.com/ElderEvil/falloutProject/compare/v2.46.0...v2.46.1) (2026-08-21)
 

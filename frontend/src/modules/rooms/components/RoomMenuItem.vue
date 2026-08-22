@@ -119,8 +119,8 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
 <style scoped>
 .room-menu-item {
   padding: 1rem;
-  background: rgba(20, 20, 20, 0.95);
-  border: 2px solid var(--color-gray-700);
+  background: var(--color-surface);
+  border: 2px solid var(--color-surface-hover);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -129,36 +129,21 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   overflow: hidden;
 }
 
-.room-menu-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(0, 255, 0, 0.05) 100%);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
 .room-menu-item.affordable {
   border-color: var(--color-theme-primary);
-  background: rgba(25, 25, 25, 0.95);
-}
-
-.room-menu-item.affordable::before {
-  opacity: 1;
+  background: var(--color-surface-raised);
 }
 
 .room-menu-item.affordable:hover {
   border-color: var(--color-theme-primary);
   transform: translateY(-3px);
-  box-shadow:
-    0 6px 16px rgba(0, 255, 0, 0.2),
-    0 0 12px var(--color-theme-glow);
-  background: rgba(30, 30, 30, 0.95);
+  box-shadow: 0 6px 16px var(--color-theme-glow);
+  background: var(--color-surface-hover);
 }
 
 .room-menu-item.expensive {
   border-color: var(--color-warning);
-  background: rgba(30, 25, 20, 0.95);
+  background: var(--color-surface);
 }
 
 .room-menu-item.expensive:hover {
@@ -171,7 +156,7 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   border-color: var(--color-gray-600);
   opacity: 0.5;
   cursor: not-allowed;
-  background: rgba(15, 15, 15, 0.95);
+  background: var(--color-surface-sunken);
 }
 
 .room-item-content {
@@ -187,7 +172,7 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   justify-content: space-between;
   align-items: center;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+  border-bottom: 1px solid var(--color-surface-hover);
 }
 
 .room-name {
@@ -195,7 +180,6 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   font-size: 0.95rem;
   font-weight: bold;
   letter-spacing: 0.025em;
-  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .lock-icon {
@@ -216,7 +200,6 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   width: 56px;
   height: 56px;
   color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 6px var(--color-theme-glow));
   transition: transform 0.25s ease;
 }
 
@@ -224,7 +207,6 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   width: 100%;
   height: 64px;
   object-fit: contain;
-  filter: drop-shadow(0 0 6px var(--color-theme-glow));
   transition: transform 0.25s ease;
 }
 

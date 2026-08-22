@@ -16,9 +16,9 @@ def test_death_service_log_has_context() -> None:
     source = svc_path.read_text()
 
     # Must contain context placeholders
-    assert (
-        '"Dweller %s (%s) died of %s in vault %s"' in source
-    ), "logger.info must use a format string with dweller name, cause, and vault_id"
+    assert '"Dweller %s (%s) died of %s in vault %s"' in source, (
+        "logger.info must use a format string with dweller name, cause, and vault_id"
+    )
     assert "dweller.first_name" in source
     assert "dweller.last_name" in source
     assert "cause.value" in source
@@ -28,6 +28,4 @@ def test_death_service_log_has_context() -> None:
     import re
 
     bare_log = re.search(r"logger\.info\s*\(\s*cause\.value\s*\)", source)
-    assert bare_log is None, (
-        "logger.info must NOT use bare cause.value — it must include dweller/vault context"
-    )
+    assert bare_log is None, "logger.info must NOT use bare cause.value — it must include dweller/vault context"

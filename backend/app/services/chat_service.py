@@ -265,8 +265,14 @@ class ChatService:
             )
 
             async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
-                async for text in result.stream_text(delta=True):
-                    yield {"type": "token", "text": text}
+                # Structured output: stream_text() only works for text-output
+                # agents, so emit text deltas from the validated outputs instead.
+                previous_text = ""
+                async for partial in result.stream_output():
+                    partial_text = partial.response_text
+                    if len(partial_text) > len(previous_text):
+                        yield {"type": "token", "text": partial_text[len(previous_text) :]}
+                    previous_text = partial_text
 
                 output: DwellerChatOutput = await result.get_output()
 

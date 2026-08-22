@@ -305,6 +305,85 @@ class TestChatServiceErrorHandling:
         assert events[0]["type"] == "error"
         assert events[0]["detail"] == "Dweller does not belong to the current user"
 
+    async def test_stream_response_streams_structured_output_deltas(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+        test_user: User,
+    ) -> None:
+        """stream_response streams response_text deltas from a structured-output agent."""
+        from app.agents.dweller_chat_agent import DwellerChatOutput
+
+        output = DwellerChatOutput(
+            response_text="Hello vault dweller!",
+            sentiment_score=2,
+            reason_text="Friendly greeting",
+            action_type="no_action",
+        )
+
+        async def fake_stream_output():
+            yield output.model_copy(update={"response_text": "Hello vault"})
+            yield output
+
+        class FakeStreamResult:
+            def __init__(self) -> None:
+                self.output = output
+
+            def stream_output(self):
+                return fake_stream_output()
+
+            def usage(self):
+                return MagicMock(input_tokens=5, output_tokens=6, total_tokens=11)
+
+            async def get_output(self):
+                return output
+
+        class FakeRunStreamCM:
+            async def __aenter__(self):
+                return FakeStreamResult()
+
+            async def __aexit__(self, *exc):
+                return False
+
+        with (
+            patch(
+                "app.services.chat_service.dweller_chat_agent.run_stream",
+                return_value=FakeRunStreamCM(),
+            ),
+            patch(
+                "app.services.chat_service.quota_service.check_quota",
+                new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
+            ),
+            patch(
+                "app.services.chat_service.chat_message_crud.create_message",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+            patch(
+                "app.services.chat_service.llm_interaction_crud.create",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+            patch("app.services.chat_service.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+            patch(
+                "app.services.chat_service.parse_action_suggestion",
+                new=AsyncMock(return_value=MagicMock(model_dump=dict)),
+            ),
+            patch.object(chat_service, "_maybe_unlock_places", new=AsyncMock()),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        tokens = [event["text"] for event in events if event["type"] == "token"]
+        assert tokens == ["Hello vault", " dweller!"]
+        assert events[-1]["type"] == "done"
+        assert events[-1]["happiness_impact"]["delta"] == 4
+
 
 @pytest.mark.asyncio
 class TestMaybeUnlockPlaces:

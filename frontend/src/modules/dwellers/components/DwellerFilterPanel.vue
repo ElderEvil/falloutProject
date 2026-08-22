@@ -199,9 +199,9 @@ const toggleSortDirection = () => {
   flex-direction: column;
   gap: 1.5rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
 }
 
 .filter-section {
@@ -233,7 +233,7 @@ const toggleSortDirection = () => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(31, 41, 55, 0.4);
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
@@ -245,13 +245,13 @@ const toggleSortDirection = () => {
 
 .filter-button:hover {
   opacity: 0.8;
-  background: rgba(31, 41, 55, 0.6);
+  background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .filter-button.active {
   opacity: 1;
-  background: rgba(31, 41, 55, 0.9);
+  background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 12px var(--color-theme-primary);
   font-weight: 600;
@@ -265,7 +265,7 @@ const toggleSortDirection = () => {
 .sort-select {
   flex: 1;
   padding: 0.5rem 1rem;
-  background: rgba(31, 41, 55, 0.6);
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
@@ -276,14 +276,14 @@ const toggleSortDirection = () => {
 
 .sort-select:hover,
 .sort-select:focus {
-  background: rgba(31, 41, 55, 0.8);
+  background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
   outline: none;
 }
 
 .sort-direction-button {
   padding: 0.5rem;
-  background: rgba(31, 41, 55, 0.6);
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
@@ -295,7 +295,7 @@ const toggleSortDirection = () => {
 }
 
 .sort-direction-button:hover {
-  background: rgba(31, 41, 55, 0.8);
+  background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
@@ -315,7 +315,7 @@ const toggleSortDirection = () => {
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 0.875rem;
-  background: rgba(31, 41, 55, 0.6);
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
@@ -329,13 +329,13 @@ const toggleSortDirection = () => {
 
 .view-toggle-btn:hover {
   opacity: 0.9;
-  background: rgba(31, 41, 55, 0.8);
+  background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .view-toggle-btn.active {
   opacity: 1;
-  background: rgba(31, 41, 55, 0.9);
+  background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 12px var(--color-theme-primary);
   font-weight: 600;

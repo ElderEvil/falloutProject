@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 defineProps<{
   dwellerName: string
@@ -25,16 +25,11 @@ defineProps<{
       <div
         class="relative flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-md border-2 border-theme-primary bg-terminal-background shadow-[0_0_15px_var(--color-theme-glow)]"
       >
-        <img
-          v-if="dwellerImageUrl"
-          :src="normalizeImageUrl(dwellerImageUrl)"
+        <DwellerPortrait
+          :image-url="dwellerImageUrl"
           :alt="`${dwellerName} portrait`"
-          class="dweller-portrait h-full w-full rounded-md object-cover"
-        />
-        <Icon
-          v-else
-          icon="mdi:account"
-          class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
+          image-class="dweller-portrait h-full w-full rounded-md object-cover"
+          fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"
         />
         <div
           class="absolute -bottom-1.5 -right-1.5 rounded-[3px] bg-theme-primary px-2 py-1 text-xs font-bold text-black shadow-[0_0_10px_var(--color-theme-glow)]"
@@ -114,8 +109,8 @@ defineProps<{
   flex: 1;
   overflow: hidden;
   border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.65);
-  background: rgb(0 0 0 / 0.7);
-  box-shadow: inset 0 0 8px rgb(0 0 0 / 0.9);
+  background: var(--color-surface-sunken);
+  box-shadow: inset 0 0 8px var(--color-surface-canvas);
 }
 
 .exploration-meter--health {

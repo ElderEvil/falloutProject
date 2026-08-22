@@ -145,7 +145,7 @@ onUnmounted(() => {
     <Transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-modal"
+        class="fixed inset-0 bg-surface-canvas/85 flex items-center justify-center z-modal"
         @click="handleBackdropClick"
       >
         <!-- Modal Content -->
@@ -155,7 +155,7 @@ onUnmounted(() => {
           aria-modal="true"
           v-bind="modalLabel"
           :class="[
-            'bg-surface border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
+            'bg-surface-raised border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
             'border-terminal-green',
             sizeClasses[size],
           ]"

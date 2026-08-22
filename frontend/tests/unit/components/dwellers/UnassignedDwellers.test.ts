@@ -158,15 +158,12 @@ describe('UnassignedDwellers', () => {
       expect(stats.html()).toContain('L') // Luck
     })
 
-    it('should use theme color for avatar placeholder', () => {
+    it('should use the shared themed avatar placeholder', () => {
       dwellerStore.dwellers = [mockDweller]
 
       const wrapper = mount(UnassignedDwellers)
 
-      const avatar = wrapper.find('.dweller-avatar')
-      const avatarHtml = avatar.html()
-      expect(avatarHtml).toContain('var(--color-theme-primary)')
-      expect(avatarHtml).toContain('opacity: 0.6')
+      expect(wrapper.find('.dweller-avatar .text-theme-primary\\/60').exists()).toBe(true)
     })
   })
 

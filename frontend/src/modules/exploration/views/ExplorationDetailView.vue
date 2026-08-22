@@ -282,7 +282,7 @@ watch(
             </span>
             <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
             <div
-              class="health-sparkline-frame ml-auto rounded border border-theme-primary/30 bg-black/30 px-2 py-1"
+              class="health-sparkline-frame ml-auto rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
             >
               <svg
                 class="h-7 w-[240px] max-w-full overflow-visible"

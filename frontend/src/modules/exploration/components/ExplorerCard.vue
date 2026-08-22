@@ -4,8 +4,9 @@ import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
-import { normalizeImageUrl } from '@/core/utils/image'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 
 interface Props {
   exploration: Exploration
@@ -47,13 +48,13 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <!-- Header -->
     <div class="card-header">
       <div class="dweller-info">
-        <img
-          v-if="dweller?.image_url || dweller?.thumbnail_url"
-          :src="normalizeImageUrl(dweller.image_url || dweller.thumbnail_url)"
+        <DwellerPortrait
+          :image-url="dweller?.image_url"
+          :thumbnail-url="dweller?.thumbnail_url"
           :alt="`${dwellerName} portrait`"
-          class="dweller-icon dweller-portrait object-cover border border-theme-primary rounded-full"
+          image-class="dweller-icon dweller-portrait rounded-full border border-theme-primary object-cover"
+          fallback-class="dweller-icon"
         />
-        <Icon v-else icon="mdi:account" class="dweller-icon" />
         <div>
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
@@ -83,54 +84,12 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <div class="stat-item">
-        <Icon icon="mdi:map-marker-distance" class="stat-icon" />
-        <div class="stat-content">
-          <div class="stat-label">Distance</div>
-          <div class="stat-value">{{ exploration.total_distance }} mi</div>
-        </div>
-      </div>
-
-      <div class="stat-item">
-        <Icon icon="mdi:treasure-chest" class="stat-icon" />
-        <div class="stat-content">
-          <div class="stat-label">Items</div>
-          <div class="stat-value">{{ exploration.loot_collected?.length || 0 }}</div>
-        </div>
-      </div>
-
-      <div class="stat-item">
-        <Icon icon="mdi:currency-usd" class="stat-icon" />
-        <div class="stat-content">
-          <div class="stat-label">Caps</div>
-          <div class="stat-value">{{ exploration.total_caps_found }}</div>
-        </div>
-      </div>
-
-      <!-- Medical Supplies -->
-      <div class="stat-item medical">
-        <Icon icon="mdi:medical-bag" class="stat-icon stimpaks" />
-        <div class="stat-content">
-          <div class="stat-label">Stimpaks</div>
-          <div class="stat-value">{{ exploration.stimpaks || 0 }}</div>
-        </div>
-      </div>
-
-      <div class="stat-item medical">
-        <Icon icon="mdi:pill" class="stat-icon radaways" />
-        <div class="stat-content">
-          <div class="stat-label">RadAway</div>
-          <div class="stat-value">{{ exploration.radaways || 0 }}</div>
-        </div>
-      </div>
-
-      <div class="stat-item">
-        <Icon icon="mdi:skull" class="stat-icon enemies" />
-        <div class="stat-content">
-          <div class="stat-label">Enemies</div>
-          <div class="stat-value">{{ exploration.enemies_encountered }}</div>
-        </div>
-      </div>
+      <TerminalMetric icon="mdi:map-marker-distance" label="Distance" :value="`${exploration.total_distance} mi`" />
+      <TerminalMetric icon="mdi:treasure-chest" label="Items" :value="exploration.loot_collected?.length || 0" />
+      <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" tone="caps" />
+      <TerminalMetric icon="mdi:medical-bag" label="Stimpaks" :value="exploration.stimpaks || 0" />
+      <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" tone="caps" />
+      <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" tone="danger" />
     </div>
 
     <!-- Equipment Slots -->
@@ -188,7 +147,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 <style scoped>
 .explorer-card {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(from var(--color-surface) r g b / 0.85);
   border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
   border-radius: 8px;
   padding: 1.25rem;
@@ -201,7 +160,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 .explorer-card:hover {
   border-color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--color-surface-raised);
   box-shadow: 0 0 20px var(--color-theme-glow);
   transform: translateY(-2px);
 }
@@ -276,7 +235,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .progress-bar-container {
   width: 100%;
   height: 12px;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-sunken);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
   border-radius: 6px;
   overflow: hidden;
@@ -314,38 +273,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   gap: 0.75rem;
 }
 
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.05);
-  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-  border-radius: 4px;
-}
-
-.stat-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-theme-primary);
-  flex-shrink: 0;
-}
-
-.stat-icon.enemies {
-  color: var(--color-danger);
-}
-
-.stat-icon.stimpaks {
-  color: var(--color-success);
-}
-
-.stat-icon.radaways {
-  color: var(--color-caps);
-}
-
-.stat-item.medical {
-  border-color: rgba(205, 133, 63, 0.4);
-}
 
 .equipment-section {
   display: grid;
@@ -359,7 +286,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgb(from var(--color-surface-sunken) r g b / 0.8);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
   border-radius: 4px;
 }
@@ -378,29 +305,10 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   text-overflow: ellipsis;
 }
 
-.stat-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.stat-label {
-  font-size: 0.625rem;
-  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-value {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
 
 .recent-events {
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-sunken);
   border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
   border-radius: 4px;
 }

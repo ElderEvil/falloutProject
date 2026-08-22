@@ -8,7 +8,7 @@ import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '../models/dweller'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from './DwellerPortrait.vue'
 
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
@@ -113,9 +113,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   }
 }
 
-const getImageUrl = (imagePath: string | null) => {
-  return normalizeImageUrl(imagePath)
-}
 </script>
 
 <template>
@@ -182,17 +179,11 @@ const getImageUrl = (imagePath: string | null) => {
           @dragend="handleDragEnd"
         >
           <div class="dweller-avatar">
-            <img
-              v-if="getImageUrl(dweller.thumbnail_url)"
-              :src="getImageUrl(dweller.thumbnail_url)!"
+            <DwellerPortrait
+              :thumbnail-url="dweller.thumbnail_url"
               :alt="`${dweller.first_name} ${dweller.last_name}`"
-              class="avatar-image"
-            />
-            <Icon
-              v-else
-              icon="mdi:account-circle"
-              class="h-12 w-12"
-              :style="{ color: 'var(--color-theme-primary)', opacity: 0.6 }"
+              image-class="avatar-image"
+              fallback-class="h-12 w-12 text-theme-primary/60"
             />
           </div>
 

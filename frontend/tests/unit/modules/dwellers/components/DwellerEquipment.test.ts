@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
 
-vi.mock('@/stores/equipment', () => ({
+vi.mock('@/modules/combat/stores/equipment', () => ({
   useEquipmentStore: () => ({
     fetchWeapons: vi.fn().mockResolvedValue([]),
     fetchOutfits: vi.fn().mockResolvedValue([]),

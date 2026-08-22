@@ -32,10 +32,10 @@ const variantClasses = {
   warning: 'bg-warning text-black border-warning',
   danger: 'bg-danger text-white border-danger',
   info: 'border-2',
-  default: 'bg-gray-700 border-gray-600',
+  default: 'bg-surface-raised border-theme-primary/20',
   primary: 'bg-success text-terminal-background border-theme-primary',
-  secondary: 'bg-gray-700 text-theme-primary border-gray-600',
-  outline: 'bg-transparent border-gray-500 text-gray-300',
+  secondary: 'bg-surface-raised text-theme-primary border-theme-primary/20',
+  outline: 'bg-transparent border-theme-primary/40 text-theme-primary/70',
 }
 
 const variantStyles = {

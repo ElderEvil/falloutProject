@@ -15,9 +15,10 @@ interface Props {
   glow?: boolean
   crt?: boolean
   bordered?: boolean
+  surface?: 'base' | 'raised' | 'sunken'
 }
 
-const { padding = 'md', glow = false, crt = false, bordered = true, title } = defineProps<Props>()
+const { padding = 'md', glow = false, crt = false, bordered = true, surface = 'base', title } = defineProps<Props>()
 const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
@@ -30,9 +31,16 @@ const paddingClasses = {
   xl: 'p-10',
 }
 
+const surfaceClasses = {
+  base: 'bg-surface',
+  raised: 'bg-surface-raised',
+  sunken: 'bg-surface-sunken',
+}
+
 const cardClasses = [
-  'bg-surface rounded-lg',
-  bordered ? 'border-2 border-gray-800' : '',
+  'rounded-lg',
+  surfaceClasses[surface],
+  bordered ? 'border-2 border-theme-primary/20' : '',
   glow ? 'shadow-glow-md' : '',
   crt ? 'crt-screen' : '',
   paddingClasses[padding],

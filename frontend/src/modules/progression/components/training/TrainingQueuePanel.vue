@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -126,11 +127,13 @@ onMounted(() => {
 
     <div class="panel-content">
       <!-- Empty State -->
-      <div v-if="activeTrainings.length === 0" class="empty-state">
-        <Icon icon="mdi:sleep" class="empty-icon" />
-        <p class="empty-text">No dwellers currently training</p>
-        <p class="empty-hint">Assign dwellers to training rooms to improve their SPECIAL stats</p>
-      </div>
+      <TerminalEmptyState
+        v-if="activeTrainings.length === 0"
+        compact
+        icon="mdi:sleep"
+        title="No dwellers currently training"
+        description="Assign dwellers to training rooms to improve their SPECIAL stats."
+      />
 
       <!-- Completing Soon Section -->
       <div v-if="completingSoon.length > 0" class="completing-soon-section">
@@ -279,39 +282,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: var(--color-theme-primary);
-  opacity: 0.3;
-}
-
-.empty-text {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-  font-family: 'Courier New', monospace;
-}
-
-.empty-hint {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-  font-family: 'Courier New', monospace;
-  max-width: 300px;
 }
 
 .completing-soon-section,

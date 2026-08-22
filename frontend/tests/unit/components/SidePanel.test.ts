@@ -33,6 +33,7 @@ describe('SidePanel', () => {
         { path: '/vault/:id/storage', component: { template: '<div>Storage</div>' } },
         { path: '/vault/:id/map', component: { template: '<div>Map</div>' } },
         { path: '/vault/:id/radio', component: { template: '<div>Radio</div>' } },
+        { path: '/profile', component: { template: '<div>Profile</div>' } },
       ],
     })
 
@@ -40,6 +41,19 @@ describe('SidePanel', () => {
   })
 
   describe('navItems', () => {
+    it('marks the global profile item active on the profile route', async () => {
+      await router.push('/profile')
+      const wrapper = mount(SidePanel, {
+        global: { plugins: [router, pinia] },
+      })
+
+      const profileItem = wrapper
+        .findAll('.nav-item')
+        .find((item) => item.find('.nav-label').text() === 'Overseer Profile')
+
+      expect(profileItem?.classes()).toContain('active')
+    })
+
     it('should not include a Happiness nav item', async () => {
       await router.isReady()
       const wrapper = mount(SidePanel, {

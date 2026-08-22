@@ -255,7 +255,7 @@ const formatDate = (dateString: string) => {
                 </div>
               </UCard>
 
-              <UCard title="VAULT RECORD" glow crt surface="sunken">
+              <UCard title="VAULT RECORD" glow crt>
                 <p class="mb-4 text-xs leading-5 text-theme-primary/60">Lifetime results associated with this overseer account.</p>
                 <div class="grid grid-cols-2 gap-3">
                   <TerminalMetric icon="mdi:account-group" label="Dwellers" :value="profileStore.profile.total_dwellers_created" compact />

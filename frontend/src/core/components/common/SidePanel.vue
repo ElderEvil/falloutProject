@@ -24,7 +24,14 @@ interface NavItem {
 }
 
 const navItems = computed((): NavItem[] => {
-  if (!vaultId.value) return []
+  const profileItem: NavItem = {
+    id: 'profile',
+    label: 'Overseer Profile',
+    icon: 'mdi:badge-account-horizontal-outline',
+    path: '/profile',
+  }
+
+  if (!vaultId.value) return [profileItem]
 
   const navItems: NavItem[] = [
     {
@@ -91,7 +98,7 @@ const navItems = computed((): NavItem[] => {
       hotkey: '9',
     },
   ]
-  return navItems
+  return [...navItems, profileItem]
 })
 
 const comingSoonItems = computed((): NavItem[] => [
@@ -116,7 +123,7 @@ const comingSoonItems = computed((): NavItem[] => [
 ])
 
 const isActive = (path: string | undefined) => {
-  return path ? route.path === path : false
+  return path ? route.path === path || route.path.startsWith(`${path}/`) : false
 }
 
 const navigate = (path: string | undefined) => {

@@ -7,8 +7,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes
 
-* **map:** honor unlock on link race, count backfill changes only ([e137e7d](https://github.com/ElderEvil/falloutProject/commit/e137e7da655b3495bfca5084be653bd25e90caab))
-* **map:** unlock discovered locations and fix exploration detail blank page ([8fb38d7](https://github.com/ElderEvil/falloutProject/commit/8fb38d7bfd477080536ce7ded87e3905c7495a35))
+- **Discovery markers unlock immediately** — registering a discovery now links it to the exploring dweller with
+  `is_unlocked=True`, so its marker is visible on that vault’s map. The race-safe link path also upgrades an
+  existing locked link when a concurrent request created it first.
+- **Existing discoveries can be repaired safely** — `backfill_unlock_discoveries.py` restores missing unlock links
+  for historic discovery rows and reports only actual changes, so re-running it is idempotent.
+- **Exploration journals load on direct navigation** — the detail view always fetches the full exploration record;
+  it no longer renders blank when the vault list supplied its shorter summary schema. Loot rendering also treats
+  missing item lists as empty.
 
 ## Unreleased — The Overseer's Toolkit
 

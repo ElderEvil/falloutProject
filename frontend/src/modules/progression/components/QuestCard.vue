@@ -420,7 +420,7 @@ const handleAction = () => {
 
     </div>
 
-    <div class="quest-action-footer">
+    <template #footer>
       <UButton
         class="quest-action-btn"
         :variant="status === 'completed' ? 'secondary' : 'primary'"
@@ -441,7 +441,7 @@ const handleAction = () => {
         />
         {{ actionButtonText }}
       </UButton>
-    </div>
+    </template>
   </UCard>
 </template>
 
@@ -457,11 +457,6 @@ const handleAction = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.quest-action-footer {
-  margin-top: auto;
-  padding-top: 12px;
 }
 
 .quest-card::before {

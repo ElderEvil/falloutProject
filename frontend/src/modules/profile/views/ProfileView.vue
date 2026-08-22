@@ -195,7 +195,7 @@ const formatDate = (dateString: string) => {
             />
 
             <div v-else class="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
-              <UCard glow crt class="profile-dossier" surface="raised">
+              <UCard glow crt class="profile-dossier">
                 <template #header>
                   <div class="flex items-center gap-3">
                     <Icon icon="mdi:folder-account-outline" class="h-6 w-6 text-theme-accent" />

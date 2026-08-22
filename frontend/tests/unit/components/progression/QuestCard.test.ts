@@ -35,7 +35,7 @@ describe('QuestCard', () => {
     })
 
     expect(wrapper.find('.quest-card-content').classes()).toContain('flex-1')
-    expect(wrapper.find('.quest-action-footer').exists()).toBe(true)
-    expect(wrapper.find('.quest-action-footer').text()).toContain('Start Quest')
+    expect(wrapper.html()).toContain('mt-4')
+    expect(wrapper.text()).toContain('Start Quest')
   })
 })

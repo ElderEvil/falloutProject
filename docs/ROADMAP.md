@@ -30,27 +30,57 @@ AI-powered dweller interactions.
 
 ## Planned
 
+### Next update target — "The Overseer's Toolkit" (Unreleased)
+
+**Focus**: turn the Overseer’s Office into a dependable command surface while tightening reliability and operations
+around it, without displacing the vault workspace. Semantic Release will choose the version when this scope is released.
+
+- ✅ **Overseer Briefing** — summarize incidents, active exploration/training/questing, resource warnings, unassigned
+  dwellers, capacity, and happiness in the Overseer’s Office; show unresolved-item count on its room-grid tile and
+  link directly to response and dweller review flows.
+- ✅ **AI reliability fixes** — stream structured chat output incrementally and share quota-cache key definitions
+  across services.
+- ✅ **UI consistency & detail polish** — standardize page rails, headers, descriptions, and compact metrics; restore
+  the Build control, repair status badge glow tokens, preserve children previews without fake progress data, and
+  refine exploration portraits, health trends, terminal meters, and long equipment labels.
+- ✅ **Production logging** — create rotating API and worker log files on persistent volumes, keep stdout enabled,
+  and use JSON output in production. Ollama is intentionally local-development-only.
+- ✅ **Verification** — unit coverage plus deterministic authenticated Playwright coverage for the briefing route and
+  response interaction.
+
+**Success criteria**: an overseer can see the vault's highest-priority state at a glance, reach the right response
+flow in one action, and rely on tested production logs and browser behavior without provider-specific setup.
+
 ### World Map — Multiplayer-First Architecture (Target: TBD)
 
 **Focus**: Evolve the wasteland map into the game's multiplayer surface — one deterministic shared world
 with per-player fog of war, over which async-PvP raiding, cross-vault encounters, and social features layer.
 Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_PLAN.md`.
 
-**Near-term release — "The Wasteland Journal" (implemented locally; pending release):**
+**Near-term release — "The Wasteland Journal" (shipped in v2.46.0):**
 - ✅ **Exploration journal polish** — mid-journey `loot_collected`, cumulative health-change trail,
   consolidated progress math, and dead-component deletion.
 - ✅ **Discovery → map integration** — discovery event coordinates/IDs, deep-links, and event-authoritative
   per-exploration routes on `WorldMap` (no migration).
 - ✅ **Determinism correction** — globally seeded neighbor-vault signals with regression coverage.
 - ✅ **Quest party-members fix** — `QuestsView` populates `questPartyMembersMap`, so party rosters render.
+- ✅ **Discovery unlock fix** — `register_discovery` links the exploring dweller so DISCOVERY markers unlock
+  immediately; backfill script repairs pre-fix rows (shipped with the next release).
+
+**Current focus — World Map + exploration polish (no multiplayer):**
+- 🔧 **Deployment parity** — rebuild the Dramatiq worker with the discovery-unlock fix so new discoveries unlock
+  live (currently the worker container runs pre-fix code).
+- 🔧 **Polish candidates** — locked-marker discoverability hints (who to chat with to unlock a bio place),
+  exploration detail UX, journal edge cases, and any map/exploration bugs surfaced by play.
 
 Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
 `docs/WORLD_MAP_PLAN.md`.
 
-**Deferred multiplayer phases** (see `docs/WORLD_MAP_PLAN.md`):
-- 🔄 **Phase B — async-PvP raiding** — `RaidTarget` snapshots + a `raid` exploration subtype.
-- 🔄 **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
-- 🔄 **Phase D — social** — friends, vault visits, leaderboards, global location registry.
+**Deferred multiplayer phases** (parked; revisit when the single-vault experience is solid, see
+`docs/WORLD_MAP_PLAN.md`):
+- ⏸️ **Phase B — async-PvP raiding** — `RaidTarget` snapshots + a `raid` exploration subtype.
+- ⏸️ **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
+- ⏸️ **Phase D — social** — friends, vault visits, leaderboards, global location registry.
 
 **Guardrails:** async only (no live shared-world simulation); names determine shared base coordinates, while
 vault-local collision resolution may temporarily offset overlapping markers; no denormalized global registry
@@ -455,5 +485,5 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-21_ (World Map feature contracts and delivery plan separated; next focus: releasing
-"The Wasteland Journal", then async-PvP raiding. Plan: `docs/WORLD_MAP_PLAN.md`.)
+_Last updated: 2026-08-22_ ("The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
+in v2.46.0, and raiding/social multiplayer phases remain parked. Plan: `docs/WORLD_MAP_PLAN.md`.)

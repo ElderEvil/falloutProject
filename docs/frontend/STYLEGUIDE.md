@@ -1,7 +1,7 @@
 # Fallout Shelter Frontend Styleguide
 
-> **Version:** 1.0.0
-> **Last Updated:** 2025-12-29
+> **Version:** 1.1.0
+> **Last Updated:** 2026-08-22
 > **Design System:** TailwindCSS v4 with custom @theme
 
 ## Table of Contents
@@ -10,10 +10,11 @@
 2. [Color System](#color-system)
 3. [Typography](#typography)
 4. [Spacing & Layout](#spacing--layout)
-5. [Components](#components)
-6. [Animations & Effects](#animations--effects)
-7. [Accessibility](#accessibility)
-8. [Best Practices](#best-practices)
+5. [UI Consistency Baseline](#ui-consistency-baseline)
+6. [Components](#components)
+7. [Animations & Effects](#animations--effects)
+8. [Accessibility](#accessibility)
+9. [Best Practices](#best-practices)
 
 ---
 
@@ -232,6 +233,36 @@ Consistent spacing using 4px base unit:
 | LG   | `--border-radius-lg`   | `0.5rem`   | Large elements          |
 | XL   | `--border-radius-xl`   | `0.75rem`  | Modals                  |
 | Full | `--border-radius-full` | `9999px`   | Pills, avatars          |
+
+---
+
+## UI Consistency Baseline
+
+This section records the current visual decisions for vault-management screens. It is a reference point for future refinement, not a claim that every screen is finished.
+
+### Page structure
+
+- Standard management pages use one shared content rail: `mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8`.
+- A page header has a clear title, icon, and a short muted-primary description. Do not use white or gray subtitles that visually detach from the terminal theme.
+- The Operations Overview (`Vault 44 // Operations Overview`) is intentionally a special layout and is not normalized with this rail without a dedicated redesign.
+- Rich detail content may use a narrower, centered inner column. Exploration details use `max-w-[1200px]` inside the shared outer rail so the reading flow stays centered.
+- Keep distinct sections visibly separate; timeline/event-log blocks need top spacing from the content above them.
+
+### Information hierarchy
+
+- Keep operational summaries compact: move a metric's trend beside its value instead of spending a separate row when space is limited.
+- Put feature-specific controls inside their own compact container. For example, explorer previous/next controls form one bordered navigation box rather than a full-width divider.
+- Avoid decorative glow outside a component's boundary. Glow supports focus and hierarchy; it must not alter the page silhouette or make a detail view appear misaligned.
+- Put room-specific operational tools in the relevant room UI. The Overseer briefing belongs with the Overseer room
+  rather than competing for space in the overview; it always exposes operational, staffing, capacity, and morale
+  context, while alerts supply the response queue.
+
+### Exploration detail language
+
+- Use the dweller portrait already shown by exploration cards, falling back to the thumbnail or account icon when needed.
+- Health history is a compact, framed trend: damage remains red; healing is theme green. The sparkline is wide enough to show the journey and sits in its own subtle frame.
+- Health and exploration progress use the same meter treatment: a dark, bordered, pill-shaped track; a pill-shaped theme-primary fill; a restrained internal glow; and evenly spaced terminal tick divisions. Do not introduce a separate rounded gradient style for these bars.
+- Prefer semantic labels and `progressbar` ARIA values for meters instead of relying on color or icon alone.
 
 ---
 

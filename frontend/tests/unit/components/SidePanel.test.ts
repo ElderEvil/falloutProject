@@ -2,14 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { ref } from 'vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-
-const activeVaultId = ref<string | null>(null)
-
-vi.mock('@/modules/vault/stores/vault', () => ({
-  useVaultStore: () => ({ activeVaultId }),
-}))
 
 vi.mock('@vueuse/core', () => ({
   useLocalStorage: <T>(_key: string, defaultValue: T) => {
@@ -25,7 +18,6 @@ describe('SidePanel', () => {
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
-    activeVaultId.value = null
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -50,9 +42,9 @@ describe('SidePanel', () => {
 
   describe('navItems', () => {
     it('keeps vault shortcuts 1–9 available on the profile route', async () => {
-      activeVaultId.value = 'vault-1'
       await router.push('/profile')
       const wrapper = mount(SidePanel, {
+        props: { vaultId: 'vault-1' },
         global: { plugins: [router, pinia] },
       })
 

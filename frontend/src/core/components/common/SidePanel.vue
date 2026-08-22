@@ -4,16 +4,14 @@ import { Icon } from '@iconify/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const route = useRoute()
 const router = useRouter()
-const vaultStore = useVaultStore()
 const { isCollapsed, toggle } = useSidePanel()
 
-const vaultId = computed(
-  () => (route.params.id as string | undefined) ?? vaultStore.activeVaultId
-)
+const props = defineProps<{ vaultId?: string | null }>()
+
+const vaultId = computed(() => (route.params.id as string | undefined) ?? props.vaultId)
 
 interface NavItem {
   id: string

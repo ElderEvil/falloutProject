@@ -152,7 +152,7 @@ const formatDate = (dateString: string) => {
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines" aria-hidden="true"></div>
     <div class="profile-layout">
-      <SidePanel />
+      <SidePanel :vault-id="vaultStore.activeVaultId" />
       <main class="main-content flicker pb-8" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
           <PageHeader

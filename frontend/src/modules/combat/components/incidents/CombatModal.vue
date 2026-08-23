@@ -128,7 +128,7 @@
             </span>
           </div>
           <div v-if="availableResponders.length" class="responder-list">
-            <div v-for="dweller in availableResponders" :key="dweller.id" class="responder-row">
+            <div v-for="dweller in availableResponders" :key="dweller.id" class="responder-card">
               <div class="responder-info">
                 <span class="responder-name">{{ dweller.first_name }}</span>
                 <span class="responder-meta">
@@ -566,16 +566,21 @@ const bestResponders = computed(() =>
 }
 
 .responder-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
 }
 
-.responder-row {
+@media (min-width: 900px) {
+  .responder-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.responder-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   background: rgba(var(--color-theme-primary-rgb), 0.05);
   border: 1px solid var(--color-theme-glow);

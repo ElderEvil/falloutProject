@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, watch, ref, toRef } from 'vue'
-import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
@@ -22,6 +21,7 @@ import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefi
 interface Props {
   room: Room | null
   modelValue: boolean
+  vaultId: string
   overseerBriefing?: OverseerBriefingData
 }
 
@@ -32,9 +32,6 @@ const emit = defineEmits<{
   roomUpdated: []
   reviewIncidents: []
 }>()
-
-const route = useRoute()
-const vaultId = computed(() => route.params.id as string)
 
 const actionError = ref<string | null>(null)
 
@@ -125,7 +122,7 @@ watch(
           :assigned-dwellers="assignedDwellers"
         />
         <ArenaModal
-          :vault-id="vaultId"
+          :vault-id="props.vaultId"
           :room-id="room.id"
           :is-destroying="isDestroying"
           @destroy="handleDestroy"

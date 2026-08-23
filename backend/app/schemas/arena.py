@@ -55,6 +55,7 @@ class ArenaRoomState(BaseModel):
     fight_started: bool
     countdown_remaining: int
     can_start: bool
+    winner_name: str | None
     events: list[ArenaMatchEventOut]
 
 

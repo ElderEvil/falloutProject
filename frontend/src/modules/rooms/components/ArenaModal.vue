@@ -5,16 +5,10 @@ import UButton from '@/core/components/ui/UButton.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
+import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
-import {
-  clearArenaEvents,
-  fetchArenaState,
-  setArenaFighters,
-  startArenaFight,
-  type ArenaFighter,
-  type ArenaRosterEntry,
-  type ArenaRoomState,
-} from '../api/arena'
+import { useArenaStore } from '../stores/arena'
+import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
   vaultId: string
@@ -30,20 +24,24 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
+const arenaStore = useArenaStore()
 
-const roomState = ref<ArenaRoomState | null>(null)
 const isLoading = ref(true)
 const damageNumbers = ref<Array<{ id: number; side: 'A' | 'B'; amount: number }>>([])
 const previousHp = ref<Record<string, number>>({})
 const openPicker = ref<'A' | 'B' | null>(null)
-let pollTimer: ReturnType<typeof setInterval> | null = null
+const isStarting = ref(false)
 let damageSeq = 0
+const pendingDamageTimers = new Set<ReturnType<typeof setTimeout>>()
 
-const winnerName = computed(() => {
-  const fighters = roomState.value?.fighters
-  if (!roomState.value?.match_done || !fighters || fighters.length < 2) return null
-  return fighters[0].health >= fighters[1].health ? fighters[0].name : fighters[1].name
+onUnmounted(() => {
+  for (const timer of pendingDamageTimers) clearTimeout(timer)
+  pendingDamageTimers.clear()
 })
+
+const roomState = computed(() => arenaStore.getRoom(props.roomId))
+
+const winnerName = computed(() => roomState.value?.winner_name ?? null)
 
 const damageFor = (side: 'A' | 'B') => damageNumbers.value.filter((d) => d.side === side)
 
@@ -53,17 +51,20 @@ const recordDamage = (side: 'A' | 'B', fighter: ArenaFighter | null) => {
   if (prev !== undefined && fighter.health < prev) {
     const entry = { id: ++damageSeq, side, amount: prev - fighter.health }
     damageNumbers.value.push(entry)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      pendingDamageTimers.delete(timer)
       damageNumbers.value = damageNumbers.value.filter((d) => d.id !== entry.id)
     }, 900)
+    pendingDamageTimers.add(timer)
   }
   previousHp.value[fighter.id] = fighter.health
 }
 
-const applyState = (room: ArenaRoomState) => {
-  recordDamage('A', room.fighters[0] ?? null)
-  recordDamage('B', room.fighters[1] ?? null)
-  const liveIds = new Set(room.fighters.map((f) => f.id))
+const applyState = () => {
+  const fighters = roomState.value?.fighters ?? []
+  recordDamage('A', fighters[0] ?? null)
+  recordDamage('B', fighters[1] ?? null)
+  const liveIds = new Set(fighters.map((f) => f.id))
   for (const id of Object.keys(previousHp.value)) {
     if (!liveIds.has(id)) delete previousHp.value[id]
   }
@@ -71,36 +72,16 @@ const applyState = (room: ArenaRoomState) => {
 
 const load = async (silent = false) => {
   if (!authStore.token) return
-  try {
-    const state = await fetchArenaState(props.vaultId, authStore.token)
-    const room = state.rooms.find((r) => r.room_id === props.roomId) ?? null
-    roomState.value = room
-    if (room) applyState(room)
-    isLoading.value = false
-  } catch {
-    if (!silent) toast.error('Failed to load arena state')
-    isLoading.value = false
-  }
-}
-
-const startPolling = () => {
-  stopPolling()
-  pollTimer = setInterval(() => void load(true), 1000)
-}
-
-const stopPolling = () => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
+  await arenaStore.fetchState(props.vaultId, authStore.token, silent)
+  applyState()
+  isLoading.value = false
 }
 
 onMounted(() => {
   void load()
-  startPolling()
 })
 
-onUnmounted(stopPolling)
+usePolling(() => load(true), { interval: 1_000, immediate: false })
 
 const fighterA = computed(() => roomState.value?.fighters[0] ?? null)
 const fighterB = computed(() => roomState.value?.fighters[1] ?? null)
@@ -110,7 +91,6 @@ const canStart = computed(() => roomState.value?.can_start ?? false)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
 const canChangeFighters = computed(() => !isFighting.value)
 const countdown = computed(() => roomState.value?.countdown_remaining ?? 0)
-const isStarting = ref(false)
 
 const isSelected = (id: string) =>
   roomState.value?.fighter_a_id === id || roomState.value?.fighter_b_id === id
@@ -134,13 +114,10 @@ const togglePicker = (slot: 'A' | 'B') => {
 
 const persistFighters = async (fighterAId: string | null, fighterBId: string | null) => {
   if (!authStore.token) return
-  try {
-    await setArenaFighters(props.vaultId, props.roomId, fighterAId, fighterBId, authStore.token)
+  const ok = await arenaStore.setFighters(props.vaultId, props.roomId, fighterAId, fighterBId, authStore.token)
+  if (ok) {
     openPicker.value = null
     previousHp.value = {}
-    await load(true)
-  } catch {
-    toast.error('Failed to update fighters')
   }
 }
 
@@ -169,23 +146,15 @@ const unassign = async (entry: ArenaRosterEntry) => {
 
 const clearJournal = async () => {
   if (!authStore.token) return
-  try {
-    await clearArenaEvents(props.vaultId, props.roomId, authStore.token)
-    await load(true)
-  } catch {
-    toast.error('Failed to clear the battle journal')
-  }
+  await arenaStore.clearEvents(props.vaultId, props.roomId, authStore.token)
 }
 
 const startFight = async () => {
   if (!authStore.token || !canStart.value || isStarting.value) return
   isStarting.value = true
   try {
-    await startArenaFight(props.vaultId, props.roomId, authStore.token)
-    previousHp.value = {}
-    await load(true)
-  } catch {
-    toast.error('Failed to start fight')
+    const ok = await arenaStore.startFight(props.vaultId, props.roomId, authStore.token)
+    if (ok) previousHp.value = {}
   } finally {
     isStarting.value = false
   }

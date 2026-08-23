@@ -22,10 +22,10 @@ export function useRoomDwellers(
     return dwellerStore.dwellers.filter((d) => d.room_id === room.value!.id)
   })
 
-const dwellerCapacity = computed(() => {
-  if (!room.value) return 0
-  return getTrainingRoomCapacity(room.value)
-})
+  const dwellerCapacity = computed(() => {
+    if (!room.value) return 0
+    return getTrainingRoomCapacity(room.value)
+  })
 
   const getAbilityLabel = (ability: string) => {
     const cfg = getAbilityConfig(ability)

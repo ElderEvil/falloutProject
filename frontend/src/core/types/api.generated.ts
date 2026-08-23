@@ -4350,6 +4350,8 @@ export interface components {
             countdown_remaining: number;
             /** Can Start */
             can_start: boolean;
+            /** Winner Name */
+            winner_name: string | null;
             /** Events */
             events: components["schemas"]["ArenaMatchEventOut"][];
         };

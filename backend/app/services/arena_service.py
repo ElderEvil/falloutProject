@@ -149,6 +149,14 @@ class ArenaService:
         )
         return list(result.scalars().all())
 
+    @staticmethod
+    def _winner_from_events(events: list[ArenaMatchEventOut]) -> str | None:
+        """Return the match winner from the newest finish event, if any."""
+        for event in reversed(events):
+            if event.kind == "finish":
+                return event.message.split(" defeated ")[0]
+        return None
+
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
         rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id, Room.category == "arena"))
@@ -182,6 +190,7 @@ class ArenaService:
                 )
                 for e in reversed(events_result.scalars().all())
             ]
+            winner_name = self._winner_from_events(events)
 
             state.append(
                 ArenaRoomState(
@@ -216,6 +225,7 @@ class ArenaService:
                     fight_started=started,
                     countdown_remaining=countdown_remaining,
                     can_start=len(fighters) == 2 and not started and not match_done,
+                    winner_name=winner_name,
                     events=events,
                 )
             )

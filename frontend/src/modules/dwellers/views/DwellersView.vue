@@ -359,6 +359,7 @@ const handleViewLowHappiness = () => {
     <RoomDetailModal
       v-if="selectedRoomForDetail"
       :room="selectedRoomForDetail"
+      :vault-id="vaultId"
       v-model="showDetailModal"
       @close="closeRoomModal"
     />

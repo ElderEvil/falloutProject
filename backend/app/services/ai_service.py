@@ -189,10 +189,11 @@ class AIService:
         if self._client is None:
             raise RuntimeError("OpenAI client not available. Use AI_PROVIDER=openai for image/audio features.")
 
-    async def generate_image(self, *, prompt: str, return_bytes: bool = False) -> str | bytes:
+    async def generate_image(self, *, prompt: str, return_bytes: bool = False, size: str = "1024x1024") -> str | bytes:
         """Generate an image using OpenAI's image model.
 
-        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1).
+        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1) and the
+        requested ``size`` (defaults to square; e.g. "1536x1024" for landscape).
         Falls back to URL-based fetching for legacy model responses, but the new
         gpt-image-* models return b64_json directly.
 
@@ -209,7 +210,7 @@ class AIService:
             self._client.images.generate,
             model=settings.AI_IMAGE_MODEL,
             prompt=prompt,
-            size="1024x1024",
+            size=size,
             quality="auto",
             n=1,
         )

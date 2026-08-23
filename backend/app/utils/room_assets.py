@@ -38,6 +38,7 @@ SPECIAL_CASE_ROOMS = {
     "Elevator": "FOS Elevator icon.png",
     "Vault Door": "Vault Door Adv.png",
     "Barbershop": "FOS Barber 1.png",  # Only has 2 tiers
+    "Arena": "arena.webp",  # AI-generated wide arena image (single tier/size variant)
 }
 
 # Workshops use different naming (no tier-segment)

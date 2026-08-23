@@ -3,6 +3,7 @@ import random
 from faker import Faker
 
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.schemas.dweller import SPECIAL_STATS
 from app.tests.utils.utils import get_name_two_words
 
 fake = Faker()
@@ -35,7 +36,7 @@ def create_fake_weapon():
         "value": random.randint(1, 1_000),
         "weapon_type": random.choice(list(WeaponTypeEnum)),
         "weapon_subtype": random.choice(list(WeaponSubtypeEnum)),
-        "stat": random.choice(["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]),
+        "stat": random.choice(SPECIAL_STATS),
         "damage_min": random.randint(1, 10),
         "damage_max": random.randint(11, 20),
     }

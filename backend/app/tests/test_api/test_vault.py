@@ -523,7 +523,7 @@ async def test_vault_initiate_boosted_creates_23_dwellers(
         (
             await async_session.execute(
                 select(Dweller)
-                .join(Room)
+                .join(Room, Dweller.room_id == Room.id)
                 .where(
                     Dweller.vault_id == vault_id,
                     Dweller.status == DwellerStatusEnum.RESTING,

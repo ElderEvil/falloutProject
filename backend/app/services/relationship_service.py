@@ -17,6 +17,7 @@ from app.schemas.common import (
     PARTNER_LINKED_STAGES,
     RelationshipTypeEnum,
 )
+from app.schemas.dweller import SPECIAL_STATS
 from app.schemas.relationship import CompatibilityScore
 from app.services.notification_service import NotificationService
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -400,7 +401,7 @@ class RelationshipService:
         dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
 
         # SPECIAL similarity score
-        special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
+        special_attrs = SPECIAL_STATS
         special_diff = sum(abs(getattr(dweller_1, attr, 0) - getattr(dweller_2, attr, 0)) for attr in special_attrs)
         max_special_diff = game_config.relationship.max_special_diff
         special_score = 1.0 - (special_diff / max_special_diff)

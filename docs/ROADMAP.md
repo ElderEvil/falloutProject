@@ -329,6 +329,37 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 - [x] ~~**Fix missing exploration rewards**~~ — ✅ **Done.** `coordinator.py:_apply_rewards` (line 411-485) delivers caps to vault, calculates/applies XP with survival + luck bonuses, transfers loot to storage, returns unused stimpaks/radaways, emits item collection events, and publishes SSE completion events with full rewards summary.
 
+### P1 — Combat Power Overhaul (all stats + weapon type)
+
+**Problem:** Combat power currently uses only three stats (S/E/A) plus a flat level bonus, and the weapon contributes only its average damage regardless of type. A minigun and a boxing glove weigh the same; a scientist's intelligence and a merchant's charisma are invisible in a fight.
+
+**Goal:** Make `combat_power` a weighted sum across **all seven SPECIAL stats**, with the weapon type choosing which stats dominate:
+
+| Weapon type | Primary stats (high weight) | Secondary stats (low weight) |
+| ----------- | --------------------------- | ----------------------------- |
+| Melee       | Strength, Agility           | Endurance, Luck               |
+| Guns        | Perception, Agility         | Luck, Strength                |
+| Energy      | Intelligence, Perception    | Endurance, Luck               |
+| Heavy       | Strength, Endurance         | Perception, Agility           |
+
+Unarmed (no weapon) uses a balanced spread with a strength lean.
+
+**Where:**
+- `backend/app/utils/combat.py` — `combat_power()` is the single source for incident + arena; the weights move from `game_config.combat.dweller_{strength,endurance,agility}_weight` to per-weapon-type weight sets (or a small lookup table), still config-driven via env
+- `backend/app/schemas/weapon.py` / weapon model — weapon type already exists (`WeaponTypeEnum`); no schema change needed
+- `frontend/src/modules/dwellers/models/dweller.ts` — `getCombatPower()` mirrors the backend; keep it in sync (single source of truth for the UI)
+- Arena + incident services consume the same `combat_power()` so displayed POW matches actual damage
+
+**Steps:**
+1. Add per-weapon-type stat-weight config to `game_config.combat` (defaults: melee S/A-lean, guns P/A-lean, energy I/P-lean, heavy S/E-lean)
+2. Rewrite `combat_power()` to `weighted_sum(all 7 SPECIAL, weapon type weights) + level bonus + weapon_damage`
+3. Mirror in frontend `getCombatPower()` (needs weapon type passed in; `DwellerShort` may need the equipped weapon's type — verify the schema exposes it or add a light field)
+4. Rebalance difficulty expectations that assume the old S/E/A formula (`expected_enemies = difficulty * 2` stays, but tuning may shift)
+5. Tests: unit test per weapon type (melee dweller out-powers a gunner in melee context and vice versa), arena/incident regression, frontend helper test
+6. Update the dwellers-list and responder-list POW displays automatically (they already call `getCombatPower`)
+
+**Effort:** medium. **Risk:** low (pure calculation change, fully unit-testable); balance tuning may need a follow-up pass.
+
 ### P2 — Chat Polish
 
 - [x] **Stream chat messages over the existing WebSocket**

@@ -37,6 +37,11 @@ export type SpecialKey =
   | 'agility'
   | 'luck'
 
+/** Dweller combat power: weighted S/E/A stats plus level bonus (matches backend formula, no weapon). */
+export function getCombatPower(dweller: Pick<DwellerShort, 'strength' | 'endurance' | 'agility' | 'level'>): number {
+  return Math.round(dweller.strength * 0.4 + dweller.endurance * 0.3 + dweller.agility * 0.3 + dweller.level * 2)
+}
+
 export interface AbilityConfig {
   icon: string
   letter: string

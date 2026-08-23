@@ -133,7 +133,7 @@
                 <span class="responder-name">{{ dweller.first_name }}</span>
                 <span class="responder-meta">
                   Lv. {{ dweller.level }} · {{ dweller.health }}/{{ dweller.max_health }} HP
-                  · POW {{ combatPowerOf(dweller) }}
+                  · POW {{ getCombatPower(dweller) }}
                 </span>
               </div>
               <UButton
@@ -165,6 +165,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
@@ -322,13 +323,10 @@ const availableResponders = computed(() =>
   )
 )
 
-const combatPowerOf = (dweller: DwellerShort) =>
-  Math.round(dweller.strength * 0.4 + dweller.endurance * 0.3 + dweller.agility * 0.3 + dweller.level * 2)
-
 const bestResponders = computed(() =>
   availableResponders.value
     .slice()
-    .sort((a, b) => combatPowerOf(b) - combatPowerOf(a))
+    .sort((a, b) => getCombatPower(b) - getCombatPower(a))
     .slice(0, 3)
 )
 </script>

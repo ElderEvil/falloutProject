@@ -116,13 +116,21 @@ watch(
     </template>
 
     <div v-if="room" class="modal-content">
-      <ArenaModal
-        v-if="isArenaRoom"
-        :vault-id="vaultId"
-        :room-id="room.id"
-        :is-destroying="isDestroying"
-        @destroy="handleDestroy"
-      />
+      <template v-if="isArenaRoom">
+        <RoomPreviewSection
+          :room-name="room.name"
+          :image-url="room.image_url ?? null"
+          :room-image-url="roomImageUrl ?? null"
+          :dweller-capacity="dwellerCapacity"
+          :assigned-dwellers="assignedDwellers"
+        />
+        <ArenaModal
+          :vault-id="vaultId"
+          :room-id="room.id"
+          :is-destroying="isDestroying"
+          @destroy="handleDestroy"
+        />
+      </template>
 
       <template v-else>
         <!-- Error display -->

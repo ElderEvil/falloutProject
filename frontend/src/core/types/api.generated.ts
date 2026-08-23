@@ -2682,12 +2682,52 @@ export interface paths {
         };
         /**
          * Get Arena State
-         * @description Return arena rooms with their assigned fighters, match state, and journal.
+         * @description Return arena rooms with their selected fighters, roster, match state, and journal.
          */
         get: operations["get_arena_state_api_v1_arena_vault__vault_id__state_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/fighters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Arena Fighters
+         * @description Pick which assigned dwellers fight. Changing the selection resets the match.
+         */
+        post: operations["set_arena_fighters_api_v1_arena_vault__vault_id__rooms__room_id__fighters_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear Arena Events
+         * @description Clear the battle journal for an arena room.
+         */
+        delete: operations["clear_arena_events_api_v1_arena_vault__vault_id__rooms__room_id__events_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2704,7 +2744,7 @@ export interface paths {
         put?: never;
         /**
          * Start Arena Fight
-         * @description Arm an arena match: two adult fighters present, not already done/started.
+         * @description Arm an arena match: both fighter slots set, not already done/started.
          */
         post: operations["start_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__start_post"];
         delete?: never;
@@ -4206,6 +4246,16 @@ export interface components {
          * @enum {string}
          */
         AgeGroupEnum: "child" | "teen" | "adult";
+        /**
+         * ArenaFightersRequest
+         * @description Fighter slot selection payload.
+         */
+        ArenaFightersRequest: {
+            /** Fighter A Id */
+            fighter_a_id?: string | null;
+            /** Fighter B Id */
+            fighter_b_id?: string | null;
+        };
         /**
          * AssignToRoomAction
          * @description Suggestion to assign dweller to a specific room.
@@ -7334,6 +7384,10 @@ export interface components {
              * @description When the armed arena match was started by the player (fight button); NULL means waiting
              */
             arena_fight_started_at?: string | null;
+            /** Arena Fighter A Id */
+            arena_fighter_a_id?: string | null;
+            /** Arena Fighter B Id */
+            arena_fighter_b_id?: string | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -7391,6 +7445,10 @@ export interface components {
              * @description When the armed arena match was started by the player (fight button); NULL means waiting
              */
             arena_fight_started_at?: string | null;
+            /** Arena Fighter A Id */
+            arena_fighter_a_id?: string | null;
+            /** Arena Fighter B Id */
+            arena_fighter_b_id?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -7897,6 +7955,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -7961,6 +8025,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
         };
         /**
          * VaultMapResponse
@@ -8061,6 +8131,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -8132,6 +8208,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
             /**
              * Id
              * Format: uuid4
@@ -8213,6 +8295,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -8259,6 +8347,11 @@ export interface components {
             population_max?: number | null;
             /** Radio Mode */
             radio_mode?: string | null;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             */
+            incidents_disabled?: boolean | null;
         };
         /**
          * WastelandLocationWithDwellers
@@ -12296,6 +12389,78 @@ export interface operations {
             header?: never;
             path: {
                 vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_arena_fighters_api_v1_arena_vault__vault_id__rooms__room_id__fighters_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArenaFightersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_arena_events_api_v1_arena_vault__vault_id__rooms__room_id__events_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
             };
             cookie?: never;
         };

@@ -92,6 +92,8 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
 
     Returns ``(next_chain_token, stats)``, or ``(None, None)`` when the chain
     lease was lost to another worker (the periodiq watchdog will re-seed it).
+    A processing failure logs the error but still returns the claimed token,
+    so the chain keeps self-scheduling instead of stalling until lease expiry.
     """
     from redis.asyncio import Redis
 
@@ -104,10 +106,14 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
         if claimed_token is None:
             return None, None
 
-        async with task_session() as session:
-            stats = await incident_service.process_all_vaults_incidents(
-                session, game_config.game_loop.incident_tick_seconds
-            )
+        try:
+            async with task_session() as session:
+                stats = await incident_service.process_all_vaults_incidents(
+                    session, game_config.game_loop.incident_tick_seconds
+                )
+        except Exception:
+            logger.exception("Incident processing failed")
+            stats = None
         return claimed_token, stats
     finally:
         await redis.close()

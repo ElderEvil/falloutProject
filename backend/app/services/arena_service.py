@@ -13,10 +13,10 @@ This is an experimental feature on branch `experiment/arena`.
 
 import logging
 import random
-import threading
 from datetime import datetime, timedelta
 
 from pydantic import UUID4
+from sqlalchemy import text
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -64,10 +64,6 @@ class ArenaService:
         # (room_id, dweller_id) -> fractional damage carried between ticks so a
         # 8.7 vs 8.0 power difference shows up instead of truncating both to 8.
         self._damage_carry: dict[tuple[str, str], float] = {}
-        # Serializes fast-tick execution: dramatiq runs the actor on several
-        # worker threads, and without this they'd fight the same room in
-        # parallel (double rewards, mangled journal round numbers).
-        self._tick_lock = threading.Lock()
 
     async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         query = select(Room).where(Room.id == room_id, Room.category == "arena")
@@ -242,8 +238,14 @@ class ArenaService:
         await db_session.commit()
         return len(events)
 
-    async def clear_fighter_slots_for_dweller(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
-        """Null any arena fighter slot that still references a dweller who left the room."""
+    async def clear_fighter_slots_for_dweller(
+        self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True
+    ) -> None:
+        """Null any arena fighter slot that still references a dweller who left the room.
+
+        ``commit`` defaults to True for standalone use; pass False when the
+        caller wants slot cleanup in the same transaction as a room move.
+        """
         result = await db_session.execute(
             select(Room).where(
                 Room.category == "arena",
@@ -270,7 +272,7 @@ class ArenaService:
                 for event in events.scalars().all():
                     await db_session.delete(event)
             db_session.add(room)
-        if changed:
+        if changed and commit:
             await db_session.commit()
 
     async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
@@ -293,6 +295,24 @@ class ArenaService:
         await db_session.commit()
         return room
 
+    async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
+        """Acquire a cross-process advisory lock so concurrent workers never
+        fight the same arena room in parallel (vault rounds + fast ticks)."""
+        if db_session.get_bind().dialect.name != "postgresql":
+            return True
+        result = await db_session.execute(
+            text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": "arena-tick"},
+        )
+        return bool(result.scalar())
+
+    async def _release_tick_lock(self, db_session: AsyncSession) -> None:
+        if db_session.get_bind().dialect.name == "postgresql":
+            await db_session.execute(
+                text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
+                {"lock_key": "arena-tick"},
+            )
+
     async def process_arena_fights(
         self,
         db_session: AsyncSession,
@@ -300,8 +320,13 @@ class ArenaService:
         seconds_passed: int,
     ) -> dict:
         """Run one fight round per Arena room in a single vault."""
-        rooms = await self._get_arena_rooms(db_session, vault_id)
-        return await self._process_rooms(db_session, rooms, seconds_passed)
+        with_tick_lock = await self._try_acquire_tick_lock(db_session)
+        try:
+            rooms = await self._get_arena_rooms(db_session, vault_id)
+            return await self._process_rooms(db_session, rooms, seconds_passed)
+        finally:
+            if with_tick_lock:
+                await self._release_tick_lock(db_session)
 
     async def process_arena_ticks(
         self,
@@ -311,13 +336,17 @@ class ArenaService:
         """Run one fight round for every fight-ready Arena room across all vaults.
 
         Called on its own fast cadence by the ``arena_tick`` dramatiq actor,
-        independent of the 60-second vault round. Serialized so worker threads
-        never fight the same room in parallel.
+        independent of the 60-second vault round. A cross-process advisory lock
+        serializes execution so concurrent workers never fight the same room.
         """
-        with self._tick_lock:
+        with_tick_lock = await self._try_acquire_tick_lock(db_session)
+        try:
             result = await db_session.execute(select(Room).where(Room.category == "arena"))
             rooms = list(result.scalars().all())
             return await self._process_rooms(db_session, rooms, seconds_passed)
+        finally:
+            if with_tick_lock:
+                await self._release_tick_lock(db_session)
 
     async def _process_rooms(
         self,

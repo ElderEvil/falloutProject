@@ -163,6 +163,8 @@ const attentionCount = computed(() =>
         :aria-label="`Fight ${incident.type.replace(/_/g, ' ')} in ${room.name}`"
         :title="`Fight ${incident.type.replace(/_/g, ' ')}`"
         @click="handleIncidentClick"
+        @keydown.enter.stop.prevent="handleIncidentClick"
+        @keydown.space.stop.prevent="handleIncidentClick"
       >
         <Icon :icon="getIncidentIcon(incident.type)" class="incident-badge-icon" />
         <span class="incident-badge-label">FIGHT</span>

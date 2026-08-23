@@ -2,7 +2,6 @@
 
 import logging
 import random
-import threading
 
 from pydantic import UUID4
 from sqlalchemy import text
@@ -42,8 +41,6 @@ class IncidentService:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        # Serializes fast-tick execution across dramatiq worker threads.
-        self._tick_lock = threading.Lock()
 
     async def should_spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
@@ -130,13 +127,20 @@ class IncidentService:
         from app.models.vault import Vault
 
         vault = await db_session.get(Vault, vault_id)
-        if vault is None or vault.incidents_disabled:
+        if vault is None:
             return None
+        if vault.incidents_disabled:
+            from app.utils.exceptions import IncidentsDisabledException
+
+            raise IncidentsDisabledException
 
         active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
         if len(active_incidents) >= game_config.incident.max_active_incidents:
-            self.logger.info("Incident cap reached for vault %s", vault_id)
-            return None
+            from app.utils.exceptions import ResourceConflictException
+
+            raise ResourceConflictException(
+                detail=f"Vault is at the active-incident cap ({game_config.incident.max_active_incidents})."
+            )
 
         active_types = {incident.type for incident in active_incidents}
 
@@ -478,25 +482,35 @@ class IncidentService:
         return stats
 
     async def process_all_vaults_incidents(self, db_session: AsyncSession, seconds_passed: int) -> dict:
-        """Process incidents for every active vault (fast-tick entry point)."""
-        with self._tick_lock:
-            if not await self._try_acquire_tick_lock(db_session):
-                return {"vaults": 0, "spawned": 0, "resolved": 0}
+        """Process incidents for every active vault (fast-tick entry point).
 
-            from app.models.vault import Vault
+        A PostgreSQL advisory lock serializes execution across workers; the
+        transaction is rolled back before releasing it so a failed tick cannot
+        leave the session in an aborted state that makes the unlock itself fail.
+        """
+        if not await self._try_acquire_tick_lock(db_session):
+            return {"vaults": 0, "spawned": 0, "resolved": 0}
 
-            try:
-                result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
-                vault_ids = [row[0] for row in result.all()]
+        from app.models.vault import Vault
 
-                totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
-                for vault_id in vault_ids:
-                    stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
-                    totals["spawned"] += stats["spawned"]
-                    totals["resolved"] += stats["resolved"]
-                return totals
-            finally:
-                await self._release_tick_lock(db_session)
+        try:
+            result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
+            vault_ids = [row[0] for row in result.all()]
+
+            totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
+            for vault_id in vault_ids:
+                stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
+                totals["spawned"] += stats["spawned"]
+                totals["resolved"] += stats["resolved"]
+        except Exception:
+            # The session is in a failed state after an error; roll back so the
+            # advisory unlock below can run on a healthy transaction.
+            await db_session.rollback()
+            raise
+        else:
+            return totals
+        finally:
+            await self._release_tick_lock(db_session)
 
     async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
         if db_session.get_bind().dialect.name != "postgresql":
@@ -509,11 +523,17 @@ class IncidentService:
         return bool(result.scalar())
 
     async def _release_tick_lock(self, db_session: AsyncSession) -> None:
-        if db_session.get_bind().dialect.name == "postgresql":
+        if db_session.get_bind().dialect.name != "postgresql":
+            return
+        try:
             await db_session.execute(
                 text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
                 {"lock_key": "incident-tick"},
             )
+        except Exception:
+            # Unlock failure must not mask the original tick error or stall the
+            # worker; the advisory lock self-releases on session close anyway.
+            self.logger.exception("Failed to release incident tick advisory lock")
 
     async def _try_acquire_spawn_lock(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
         if db_session.get_bind().dialect.name != "postgresql":

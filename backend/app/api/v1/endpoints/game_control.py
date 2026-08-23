@@ -27,7 +27,13 @@ from app.schemas.incident import (
 from app.schemas.system import GameBalanceResponse
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import (
+    AccessDeniedException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    ValidationException,
+    VaultOperationException,
+)
 
 router = APIRouter(prefix="/game", tags=["Game"])
 
@@ -275,17 +281,10 @@ async def spawn_debug_incident(
         HTTPException: 400 if incidents are disabled or no occupied rooms available.
         HTTPException: 409 if the vault is at the active-incident cap.
     """
-    if vault.incidents_disabled:
-        raise HTTPException(status_code=400, detail="Incidents are disabled for this vault.")
-
-    active_incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
-    if len(active_incidents) >= game_config.incident.max_active_incidents:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Vault is at the active-incident cap ({game_config.incident.max_active_incidents}).",
-        )
-
-    incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
+    try:
+        incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
+    except (ResourceNotFoundException, ResourceConflictException, ValidationException, VaultOperationException) as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
     if not incident:
         raise HTTPException(status_code=400, detail="Failed to spawn incident. No occupied rooms available.")

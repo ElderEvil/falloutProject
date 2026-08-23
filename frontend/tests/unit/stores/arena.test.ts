@@ -85,6 +85,22 @@ describe('Arena Store', () => {
     expect(arenaApi.clearEvents).toHaveBeenCalledWith('vault-1', 'room-1', 'token')
   })
 
+  it.each([
+    ['setFighters', (store: ReturnType<typeof useArenaStore>) => store.setFighters('vault-1', 'room-1', 'a-1', 'b-1', 'token')],
+    ['startFight', (store: ReturnType<typeof useArenaStore>) => store.startFight('vault-1', 'room-1', 'token')],
+    ['clearEvents', (store: ReturnType<typeof useArenaStore>) => store.clearEvents('vault-1', 'room-1', 'token')],
+  ] as const)('returns false when the state refresh fails after %s', async (_name, action) => {
+    vi.mocked(arenaApi.fetchState).mockResolvedValue(mockState)
+    const store = useArenaStore()
+    // The mutation succeeds but the post-mutation refresh fails: the refresh
+    // failure must propagate as false so callers know the UI is stale.
+    vi.mocked(arenaApi.fetchState).mockRejectedValueOnce(new Error('refresh boom'))
+
+    const ok = await action(store)
+
+    expect(ok).toBe(false)
+  })
+
   it('reset clears the room map', async () => {
     const store = useArenaStore()
     await store.fetchState('vault-1', 'token')

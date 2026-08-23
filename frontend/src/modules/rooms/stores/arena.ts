@@ -27,8 +27,7 @@ export const useArenaStore = defineStore('arena', () => {
   ): Promise<boolean> {
     try {
       await arenaApi.setFighters(vaultId, roomId, fighterAId, fighterBId, token)
-      await fetchState(vaultId, token, true)
-      return true
+      return await fetchState(vaultId, token, true)
     } catch (error) {
       handleStoreError(error, 'Failed to update fighters')
       return false
@@ -38,8 +37,7 @@ export const useArenaStore = defineStore('arena', () => {
   async function startFight(vaultId: string, roomId: string, token: string): Promise<boolean> {
     try {
       await arenaApi.startFight(vaultId, roomId, token)
-      await fetchState(vaultId, token, true)
-      return true
+      return await fetchState(vaultId, token, true)
     } catch (error) {
       handleStoreError(error, 'Failed to start fight')
       return false
@@ -49,8 +47,7 @@ export const useArenaStore = defineStore('arena', () => {
   async function clearEvents(vaultId: string, roomId: string, token: string): Promise<boolean> {
     try {
       await arenaApi.clearEvents(vaultId, roomId, token)
-      await fetchState(vaultId, token, true)
-      return true
+      return await fetchState(vaultId, token, true)
     } catch (error) {
       handleStoreError(error, 'Failed to clear the battle journal')
       return false

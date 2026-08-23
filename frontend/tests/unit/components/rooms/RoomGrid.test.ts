@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
+import RoomGridCell from '@/modules/rooms/components/RoomGridCell.vue'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
@@ -153,6 +154,37 @@ describe('RoomGrid', () => {
       expect(builtRoom.classes()).toContain('highlighted')
       expect(builtRoom.classes()).toContain('has-incident')
     })
+
+    it.each(['enter', 'space'] as const)(
+      'does not emit the room click when %s activates the incident badge',
+      async (key) => {
+        const mockIncident = {
+          id: 'incident-1',
+          room_id: 'room-123',
+          type: 'FIRE',
+          severity: 'medium',
+        }
+
+        const wrapper = mount(RoomGridCell, {
+          props: {
+            room: mockRoom,
+            showRoomImages: true,
+            isPowerOutage: false,
+            selected: false,
+            isDraggingOver: false,
+            highlighted: false,
+            incident: mockIncident as any,
+          },
+        })
+
+        const badge = wrapper.find('.incident-badge')
+        expect(badge.exists()).toBe(true)
+        await badge.trigger(`keydown.${key}`)
+
+        expect(wrapper.emitted('incident-click')).toBeTruthy()
+        expect(wrapper.emitted('click')).toBeFalsy()
+      }
+    )
   })
 
   describe('Elevator Gating', () => {

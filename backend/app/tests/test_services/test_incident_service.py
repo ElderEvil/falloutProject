@@ -758,6 +758,8 @@ class TestProcessVaultIncidents:
             mock_crud.get_active_by_vault = AsyncMock(return_value=[inc1, inc2])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 2
+        # The first incident raised, but processing must continue to the second.
+        assert call_count[0] == 2
 
     @pytest.mark.asyncio
     async def test_outer_exception_set_error(self, async_session: AsyncSession, vault: Vault):

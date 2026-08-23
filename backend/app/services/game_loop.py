@@ -535,10 +535,19 @@ class GameLoopService:
             return stats
 
         if event_type == "raider_scout":
-            incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
-            if incident:
-                stats["triggered"] = 1
-                stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
+            # Fail fast: the raider event can only fire when an incident can
+            # actually spawn. Check the blocking states before calling the
+            # service, which raises on them (the game-tick boundary handler
+            # would otherwise log a disabled vault as an error every tick).
+            if not vault.incidents_disabled:
+                from app.crud.incident import incident_crud
+
+                active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+                if len(active_incidents) < game_config.incident.max_active_incidents:
+                    incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
+                    if incident:
+                        stats["triggered"] = 1
+                        stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
             return stats
 
         # Positive events award caps

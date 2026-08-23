@@ -293,13 +293,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             room_obj.category if room_id else None, room_obj.name if room_id else None
         )
 
-        dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
+        dweller_obj = await self.update(
+            db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status), commit=False
+        )
 
         # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
         if old_room_id is not None:
             from app.services.arena_service import arena_service
 
-            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id)
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
+        await db_session.commit()
 
         # Emit dweller assigned event for objective tracking
         await event_bus.emit(

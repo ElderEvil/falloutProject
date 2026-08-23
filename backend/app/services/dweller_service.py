@@ -52,12 +52,13 @@ class DwellerService:
                     raise ResourceNotFoundException(model="Room", identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
-        updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data))
+        updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data), commit=False)
 
         if "room_id" in data and room_id != dweller.room_id:
             from app.services.arena_service import arena_service
 
-            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id)
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
+        await db_session.commit()
         return updated
 
 

@@ -85,8 +85,7 @@ async def test_build_room_uses_backend_template(
     # Seed the elevator infrastructure the real game creates at vault init
     elevator_template = game_data_store.get_room("Elevator")
     elevator_in = RoomCreate(
-        **elevator_template.model_dump()
-        | {"vault_id": vault.id, "coordinate_x": 0, "coordinate_y": 2}
+        **elevator_template.model_dump() | {"vault_id": vault.id, "coordinate_x": 0, "coordinate_y": 2}
     )
     await crud.room.create(db_session=async_session, obj_in=elevator_in)
 
@@ -129,8 +128,7 @@ async def test_build_room_allows_vault_owner_and_rejects_other_user(
     # Seed the elevator infrastructure the real game creates at vault init
     elevator_template = game_data_store.get_room("Elevator")
     elevator_in = RoomCreate(
-        **elevator_template.model_dump()
-        | {"vault_id": vault.id, "coordinate_x": 0, "coordinate_y": 2}
+        **elevator_template.model_dump() | {"vault_id": vault.id, "coordinate_x": 0, "coordinate_y": 2}
     )
     await crud.room.create(db_session=async_session, obj_in=elevator_in)
     payload = {

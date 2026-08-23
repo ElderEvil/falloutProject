@@ -95,9 +95,7 @@ async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Roo
 
     # D1: if this is the only elevator on its level, rooms there would be stranded.
     elevators_result = await db_session.execute(
-        select(Room).where(
-            and_(Room.vault_id == elevator_room.vault_id, Room.name == "Elevator")
-        )
+        select(Room).where(and_(Room.vault_id == elevator_room.vault_id, Room.name == "Elevator"))
     )
     all_elevators = elevators_result.scalars().all()
     elevator_level = elevator_room.coordinate_y

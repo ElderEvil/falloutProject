@@ -196,6 +196,7 @@ class RoomTypeEnum(CaseInsensitiveEnum):
     QUESTS = "quests"
     THEME = "theme"
     TRAINING = "training"
+    ARENA = "arena"
 
 
 class WeaponTypeEnum(CaseInsensitiveEnum):

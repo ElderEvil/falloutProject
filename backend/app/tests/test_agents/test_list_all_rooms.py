@@ -77,6 +77,14 @@ ROOM_CONFIGS: list[dict] = [
         "size_min": 3,
         "size_max": 9,
     },
+    {
+        "name": "Arena",
+        "category": RoomTypeEnum.ARENA,
+        "ability": SPECIALEnum.STRENGTH,
+        "size": 6,
+        "size_min": 6,
+        "size_max": 6,
+    },
 ]
 
 ROOM_DEFAULTS = {

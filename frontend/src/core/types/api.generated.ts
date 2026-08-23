@@ -7082,6 +7082,11 @@ export interface components {
             radio_mode: string;
             /** Speedup Multipliers */
             speedup_multipliers: components["schemas"]["SpeedupMultiplier"][];
+            /**
+             * Radio Happiness Bonus
+             * @default 0
+             */
+            radio_happiness_bonus: number;
         };
         /**
          * RarityEnum
@@ -7346,7 +7351,7 @@ export interface components {
          * RoomTypeEnum
          * @enum {string}
          */
-        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training";
+        RoomTypeEnum: "capacity" | "crafting" | "misc." | "production" | "quests" | "theme" | "training" | "arena";
         /**
          * SPECIALEnum
          * @enum {string}

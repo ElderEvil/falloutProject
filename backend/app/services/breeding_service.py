@@ -22,7 +22,7 @@ from app.schemas.common import (
     RarityEnum,
     RoomTypeEnum,
 )
-from app.schemas.dweller import DwellerCreate
+from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
@@ -516,6 +516,7 @@ class BreedingService:
             "gender": child_gender,
             "rarity": child_rarity,
             "age_group": AgeGroupEnum.CHILD,
+            "is_adult": False,
             "birth_date": datetime.now(UTC).replace(tzinfo=None),
             "level": 1,
             "experience": 0,
@@ -576,7 +577,7 @@ class BreedingService:
         Returns:
             Dictionary of SPECIAL stats for child
         """
-        special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
+        special_attrs = SPECIAL_STATS
 
         child_stats = {}
         for attr in special_attrs:
@@ -655,11 +656,14 @@ class BreedingService:
 
         aged_dwellers = []
         for child in children:
-            # Age to adult
+            # Age to adult: both the age group and the adult flag flip together
+            # (a CHILD with is_adult=True or an ADULT with is_adult=False would
+            # lock the dweller out of work/combat inconsistently).
             child.age_group = AgeGroupEnum.ADULT
+            child.is_adult = True
 
             # Scale up SPECIAL stats (remove child multiplier)
-            special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
+            special_attrs = SPECIAL_STATS
             for attr in special_attrs:
                 current_stat = getattr(child, attr, 1)
                 adult_stat = int(current_stat / game_config.breeding.child_special_multiplier)

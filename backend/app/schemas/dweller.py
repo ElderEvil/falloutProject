@@ -32,6 +32,9 @@ LETTER_TO_STAT = {
     "L": "luck",
 }
 
+#: Canonical SPECIAL attribute names, in S.P.E.C.I.A.L. order.
+SPECIAL_STATS: tuple[str, ...] = tuple(LETTER_TO_STAT.values())
+
 STATS_RANGE_BY_RARITY = {
     RarityEnum.COMMON: (1, 3),
     RarityEnum.RARE: (3, 6),

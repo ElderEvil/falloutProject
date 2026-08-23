@@ -20,7 +20,7 @@ from app.schemas.common import (
     RoomTypeEnum,
     SPECIALEnum,
 )
-from app.schemas.dweller import DwellerCreate
+from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.breeding_service import BreedingService
 
@@ -827,7 +827,7 @@ async def test_deliver_baby_inherits_stats(
     assert 1 <= child.charisma <= 10
 
     # All SPECIAL stats should be valid
-    special_attrs = ["strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"]
+    special_attrs = SPECIAL_STATS
     for attr in special_attrs:
         stat = getattr(child, attr)
         assert 1 <= stat <= 10
@@ -1015,6 +1015,7 @@ async def test_age_children_old_enough(
         "gender": GenderEnum.MALE,
         "rarity": RarityEnum.COMMON,
         "age_group": AgeGroupEnum.CHILD,
+        "is_adult": False,
         "birth_date": birth_date,
         "level": 1,
         "experience": 0,
@@ -1041,9 +1042,10 @@ async def test_age_children_old_enough(
     assert len(aged) == 1
     assert aged[0].id == child.id
 
-    # Child should now be adult
+    # Child should now be a working adult: age group AND adult flag flip together
     await async_session.refresh(child)
     assert child.age_group == AgeGroupEnum.ADULT
+    assert child.is_adult is True
 
     # Stats should be scaled up (3 / 0.5 = 6)
     assert child.strength == 6

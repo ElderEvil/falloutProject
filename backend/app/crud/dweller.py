@@ -22,7 +22,12 @@ from app.schemas.dweller import (
 )
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.dwellers import create_random_common_dweller
-from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    InvalidVaultTransferException,
+    ResourceConflictException,
+    ValidationException,
+)
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 
@@ -37,6 +42,8 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
         return DwellerStatusEnum.IDLE
     if room_category == RoomTypeEnum.TRAINING:
         return DwellerStatusEnum.TRAINING
+    if room_category == RoomTypeEnum.ARENA:
+        return DwellerStatusEnum.FIGHTING
     if room_category == RoomTypeEnum.CAPACITY and "living" in (room_name or "").lower():
         return DwellerStatusEnum.RESTING
     # Default to WORKING for PRODUCTION, CAPACITY, CRAFTING, MISC, QUESTS, THEME
@@ -267,11 +274,15 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if dweller_obj.room_id == room_id:
             raise ResourceConflictException(detail="Dweller is already in the room")
 
+        old_room_id = dweller_obj.room_id
         room_obj = await room_crud.get(db_session, room_id)
 
         # Validate vault transfer (can't move between vaults)
         if dweller_obj.vault_id != room_obj.vault_id:
             raise InvalidVaultTransferException
+
+        if room_obj.category == RoomTypeEnum.ARENA and not dweller_obj.is_mature:
+            raise ValidationException(detail="Only adult dwellers can fight in the Arena")
 
         if not dweller_obj.room_id and not await vault_crud.is_enough_population_space(
             db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1
@@ -282,7 +293,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             room_obj.category if room_id else None, room_obj.name if room_id else None
         )
 
-        dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
+        dweller_obj = await self.update(
+            db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status), commit=False
+        )
+
+        # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
+        if old_room_id is not None:
+            from app.services.arena_service import arena_service
+
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
+        await db_session.commit()
 
         # Emit dweller assigned event for objective tracking
         await event_bus.emit(

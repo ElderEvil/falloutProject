@@ -29,7 +29,7 @@ export function useHoverPreview() {
     return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
   })
 
-const isValidPlacement = computed(() => {
+  const isValidPlacement = computed(() => {
     if (!hoverPosition.value || !roomStore.selectedRoom) return false
     const selected = roomStore.selectedRoom
     const isElevator = selected.name.toLowerCase() === 'elevator'
@@ -39,7 +39,7 @@ const isValidPlacement = computed(() => {
       const occupied = roomStore.rooms.some(
         (room: Room) =>
           (room.coordinate_x ?? 0) <= cell.x &&
-          (room.coordinate_x ?? 0) + (room.size ?? room.size_min) > cell.x &&
+          (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
           (room.coordinate_y ?? 0) === cell.y
       )
       if (occupied) return false

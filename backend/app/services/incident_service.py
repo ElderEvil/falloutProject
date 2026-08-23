@@ -4,6 +4,8 @@ import logging
 import random
 
 from pydantic import UUID4
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -19,6 +21,7 @@ from app.schemas.incident import IncidentRoundResult
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
+from app.utils.combat import total_combat_power
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -56,6 +59,13 @@ class IncidentService:
         # Check if user is online (has recent activity) - suppress incidents when offline
         if game_state and not game_state.is_user_online(timeout_seconds=600):
             self.logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
+            return False
+
+        from app.models.vault import Vault
+
+        vault = await db_session.get(Vault, vault_id)
+        if vault is not None and vault.incidents_disabled:
+            self.logger.debug(f"Incidents are disabled for vault {vault_id}")
             return False
 
         # Need minimum population
@@ -111,8 +121,28 @@ class IncidentService:
         Returns:
             Incident or None if no suitable room found
         """
-        # Check what incident types are already active in vault
-        active_types = await incident_crud.get_active_incident_types_in_vault(db_session, vault_id)
+        if not await self._try_acquire_spawn_lock(db_session, vault_id):
+            return None
+
+        from app.models.vault import Vault
+
+        vault = await db_session.get(Vault, vault_id)
+        if vault is None:
+            return None
+        if vault.incidents_disabled:
+            from app.utils.exceptions import IncidentsDisabledException
+
+            raise IncidentsDisabledException
+
+        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        if len(active_incidents) >= game_config.incident.max_active_incidents:
+            from app.utils.exceptions import ResourceConflictException
+
+            raise ResourceConflictException(
+                detail=f"Vault is at the active-incident cap ({game_config.incident.max_active_incidents})."
+            )
+
+        active_types = {incident.type for incident in active_incidents}
 
         # If incident_type not specified, pick random or match existing type
         if not incident_type:
@@ -331,9 +361,15 @@ class IncidentService:
         # Track total damage dealt by raiders
         incident.damage_dealt += int(damage_to_dwellers)
 
-        # Track enemies defeated (simulated)
-        enemies_this_tick = int(damage_to_raiders / raider_power) if raider_power > 0 else 0
-        incident.enemies_defeated += enemies_this_tick
+        # Track enemies defeated — accumulate fractional kills so weak defenders
+        # still make progress instead of stalling at int() == 0 every tick.
+        if raider_power > 0:
+            previous_kills = incident.enemies_defeated
+            incident.combat_progress += damage_to_raiders / raider_power
+            incident.enemies_defeated = int(incident.combat_progress)
+            enemies_this_tick = incident.enemies_defeated - previous_kills
+        else:
+            enemies_this_tick = 0
 
         # Check victory condition (defeated enough raiders based on difficulty)
         expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
@@ -368,6 +404,146 @@ class IncidentService:
             enemies_defeated=enemies_this_tick,
             caps_earned=caps_earned,
         )
+
+    async def process_vault_incidents(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        seconds_passed: int,
+        game_state: GameState | None = None,
+    ) -> dict:
+        """Process one vault's incidents: spawn check, combat rounds, spreading, caps.
+
+        Runs on its own fast tick (``incident_tick`` actor), independent of the
+        60-second game loop, so combat gives live feedback.
+        """
+        stats = {"spawned": 0, "processed": 0, "resolved": 0, "active_count": 0, "caps_earned": 0}
+
+        try:
+            if game_state is None:
+                game_state = await db_session.get(GameState, vault_id)
+
+            from app.models.vault import Vault
+
+            vault = await db_session.get(Vault, vault_id)
+            if vault is not None and vault.incidents_disabled:
+                return stats
+
+            active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+            stats["active_count"] = len(active_incidents)
+
+            # Incidents do not punish players for time away from the vault.
+            if game_state and not game_state.is_user_online():
+                return stats
+
+            if await self.should_spawn_incident(db_session, vault_id, seconds_passed, game_state):
+                new_incident = await self.spawn_incident(db_session, vault_id)
+                if new_incident:
+                    stats["spawned"] = 1
+                    self.logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
+
+            total_caps_earned = 0
+
+            for incident in active_incidents:
+                try:
+                    result = await self.process_incident(
+                        db_session, incident, min(seconds_passed, game_config.game_loop.tick_interval)
+                    )
+
+                    if result.skipped:
+                        continue
+
+                    stats["processed"] += 1
+
+                    if result.caps_earned > 0:
+                        total_caps_earned += result.caps_earned
+
+                    await db_session.refresh(incident)
+                    if incident.status.value in ("resolved", "failed"):
+                        stats["resolved"] += 1
+                        self.logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
+
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
+                    self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
+
+            if total_caps_earned > 0:
+                from app.crud.vault import vault as vault_crud
+
+                vault = await vault_crud.get(db_session, vault_id)
+                if vault:
+                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
+                    stats["caps_earned"] = total_caps_earned
+                    self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
+
+        except (SQLAlchemyError, ResourceNotFoundException) as e:
+            self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
+            stats["error"] = str(e)
+
+        return stats
+
+    async def process_all_vaults_incidents(self, db_session: AsyncSession, seconds_passed: int) -> dict:
+        """Process incidents for every active vault (fast-tick entry point).
+
+        A PostgreSQL advisory lock serializes execution across workers; the
+        transaction is rolled back before releasing it so a failed tick cannot
+        leave the session in an aborted state that makes the unlock itself fail.
+        """
+        if not await self._try_acquire_tick_lock(db_session):
+            return {"vaults": 0, "spawned": 0, "resolved": 0}
+
+        from app.models.vault import Vault
+
+        try:
+            result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
+            vault_ids = [row[0] for row in result.all()]
+
+            totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
+            for vault_id in vault_ids:
+                stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
+                totals["spawned"] += stats["spawned"]
+                totals["resolved"] += stats["resolved"]
+        except Exception:
+            # The session is in a failed state after an error; roll back so the
+            # advisory unlock below can run on a healthy transaction.
+            await db_session.rollback()
+            raise
+        else:
+            return totals
+        finally:
+            await self._release_tick_lock(db_session)
+
+    async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
+        if db_session.get_bind().dialect.name != "postgresql":
+            return True
+
+        result = await db_session.execute(
+            text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": "incident-tick"},
+        )
+        return bool(result.scalar())
+
+    async def _release_tick_lock(self, db_session: AsyncSession) -> None:
+        if db_session.get_bind().dialect.name != "postgresql":
+            return
+        try:
+            await db_session.execute(
+                text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
+                {"lock_key": "incident-tick"},
+            )
+        except Exception:
+            # Unlock failure must not mask the original tick error or stall the
+            # worker; the advisory lock self-releases on session close anyway.
+            self.logger.exception("Failed to release incident tick advisory lock")
+
+    async def _try_acquire_spawn_lock(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        if db_session.get_bind().dialect.name != "postgresql":
+            return True
+
+        result = await db_session.execute(
+            text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": f"incident-spawn:{vault_id}"},
+        )
+        return bool(result.scalar())
 
     async def _notify_resolution(
         self, db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0
@@ -449,6 +625,16 @@ class IncidentService:
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
         """Spread an incident to an adjacent room and report whether it succeeded."""
+        if not await self._try_acquire_spawn_lock(db_session, incident.vault_id):
+            return False
+
+        if (
+            len(await incident_crud.get_active_by_vault(db_session, incident.vault_id))
+            >= game_config.incident.max_active_incidents
+        ):
+            self.logger.info("Incident cap reached while spreading in vault %s", incident.vault_id)
+            return False
+
         # Get the current room to find its coordinates
         current_room_query = select(Room).where(Room.id == incident.room_id)
         current_room_result = await db_session.execute(current_room_query)
@@ -491,13 +677,14 @@ class IncidentService:
             # Pick a random adjacent room
             new_room = random.choice(adjacent_rooms)
 
-            # Create a new incident in the adjacent room with the SAME type
+            # Create a new incident in the adjacent room with the SAME type, capped
+            # at the model's max difficulty so it can't snowball on repeat spreads.
             new_incident = await incident_crud.create(
                 db_session,
                 vault_id=incident.vault_id,
                 room_id=new_room.id,
                 incident_type=incident.type,  # Same type! (field is called 'type')
-                difficulty=incident.difficulty + 1,  # Slightly harder
+                difficulty=min(incident.difficulty + 1, 10),  # Slightly harder
                 duration=game_config.incident.spread_duration,
             )
 
@@ -542,26 +729,7 @@ class IncidentService:
 
     def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:
         """Calculate total combat power of dwellers."""
-        total_power = 0.0
-        for dweller in dwellers:
-            # SPECIAL contribution
-            stat_power = (
-                dweller.strength * game_config.combat.dweller_strength_weight
-                + dweller.endurance * game_config.combat.dweller_endurance_weight
-                + dweller.agility * game_config.combat.dweller_agility_weight
-            )
-
-            # Weapon damage (if equipped)
-            weapon_damage = 0
-            if dweller.weapon:
-                weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
-
-            # Level bonus
-            level_bonus = dweller.level * game_config.combat.level_bonus_multiplier
-
-            total_power += stat_power + weapon_damage + level_bonus
-
-        return total_power
+        return total_combat_power(dwellers)
 
     def _calculate_raider_power(self, difficulty: int) -> float:
         """Calculate raider power based on difficulty."""

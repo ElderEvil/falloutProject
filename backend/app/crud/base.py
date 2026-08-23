@@ -164,6 +164,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         db_session.add(db_obj)
         if commit:
             await db_session.commit()
+        else:
+            # With commit=False the caller batches more writes into one
+            # transaction; flush now so refresh() (and later commits) see the
+            # pending changes even under autoflush=False sessions.
+            await db_session.flush()
         await db_session.refresh(db_obj)
         return db_obj
 

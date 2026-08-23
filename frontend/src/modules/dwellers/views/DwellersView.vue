@@ -139,7 +139,7 @@ onMounted(async () => {
   }
   if (
     filterParam &&
-    ['idle', 'working', 'exploring', 'questing', 'training', 'resting', 'dead'].includes(filterParam)
+    ['idle', 'working', 'exploring', 'questing', 'training', 'resting', 'fighting', 'dead'].includes(filterParam)
   ) {
     dwellerStore.setFilterStatus(filterParam)
   }
@@ -359,6 +359,7 @@ const handleViewLowHappiness = () => {
     <RoomDetailModal
       v-if="selectedRoomForDetail"
       :room="selectedRoomForDetail"
+      :vault-id="vaultId"
       v-model="showDetailModal"
       @close="closeRoomModal"
     />

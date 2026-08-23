@@ -1,3 +1,4 @@
+from .arena_match_event import ArenaMatchEvent
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
 from .dweller import Dweller
 from .exploration import Exploration

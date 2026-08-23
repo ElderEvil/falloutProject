@@ -480,6 +480,31 @@ class TestGenerateImage:
         with pytest.raises(RuntimeError, match="OpenAI client not available"):
             await svc.generate_image(prompt="test")
 
+    async def test_generate_image_rejects_invalid_size_for_model(self, monkeypatch) -> None:
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
+        svc = self._make_svc_with_client()
+
+        with pytest.raises(RuntimeError, match="Invalid image size '512x512' for model gpt-image-1"):
+            await svc.generate_image(prompt="test", size="512x512")
+
+        svc._client.images.generate.assert_not_called()
+
+    async def test_generate_image_accepts_model_specific_size(self, monkeypatch) -> None:
+        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "dall-e-3")
+        svc = self._make_svc_with_client()
+
+        mock_data = MagicMock()
+        mock_data.url = "https://example.com/img.png"
+        mock_response = MagicMock()
+        mock_response.data = [mock_data]
+        svc._client.images.generate.return_value = mock_response
+
+        result = await svc.generate_image(prompt="test", size="1792x1024")
+        assert result == "https://example.com/img.png"
+        svc._client.images.generate.assert_called_once_with(
+            model="dall-e-3", prompt="test", size="1792x1024", quality="auto", n=1
+        )
+
     async def test_generate_image_through_gateway_logs_debug(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client(using_gateway=True)

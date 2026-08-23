@@ -37,6 +37,20 @@ export type SpecialKey =
   | 'agility'
   | 'luck'
 
+// Weights mirror backend game_config.combat (dweller_strength_weight etc.).
+// Weapon damage is omitted: DwellerShort does not carry weapon data.
+const COMBAT_WEIGHTS = { strength: 0.4, endurance: 0.3, agility: 0.3 } as const
+const LEVEL_POWER_BONUS = 2
+
+export function getCombatPower(dweller: Pick<DwellerShort, 'strength' | 'endurance' | 'agility' | 'level'>): number {
+  return Math.round(
+    dweller.strength * COMBAT_WEIGHTS.strength +
+      dweller.endurance * COMBAT_WEIGHTS.endurance +
+      dweller.agility * COMBAT_WEIGHTS.agility +
+      dweller.level * LEVEL_POWER_BONUS
+  )
+}
+
 export interface AbilityConfig {
   icon: string
   letter: string
@@ -139,6 +153,14 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     bgColor: 'bg-pink-900/30',
     borderColor: 'border-pink-500/50',
     glowColor: 'rgb(236 72 153 / 0.3)',
+  },
+  fighting: {
+    icon: 'mdi:boxing-glove',
+    label: 'Fighting',
+    color: 'text-red-400',
+    bgColor: 'bg-red-900/30',
+    borderColor: 'border-red-500/50',
+    glowColor: 'rgb(239 68 68 / 0.3)',
   },
   dead: {
     icon: 'mdi:skull',

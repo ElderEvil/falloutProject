@@ -32,7 +32,7 @@ describe('DwellersList', () => {
     expect(wrapper.find('.dweller-grid').exists()).toBe(true)
   })
 
-  it('shows the assigned room stat from the list API response', () => {
+  it('shows the dweller combat power', () => {
     const wrapper = shallowMount(DwellersList, {
       props: {
         dwellers: [
@@ -67,8 +67,8 @@ describe('DwellersList', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('STR')
-    expect(wrapper.text()).toContain('8')
+    expect(wrapper.text()).toContain('Power:')
+    expect(wrapper.text()).toContain('16')
   })
 
   it('keeps the status column aligned when a dweller has a long name', () => {

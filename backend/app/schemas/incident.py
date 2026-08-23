@@ -11,6 +11,7 @@ class IncidentRead(BaseModel):
     id: UUID4
     vault_id: UUID4
     room_id: UUID4
+    room_name: str | None = None
     type: IncidentType
     status: IncidentStatus
     difficulty: int
@@ -32,6 +33,7 @@ class IncidentListItem(BaseModel):
     type: IncidentType
     status: IncidentStatus
     room_id: str
+    room_name: str | None = None
     difficulty: int
     start_time: str
     elapsed_time: int

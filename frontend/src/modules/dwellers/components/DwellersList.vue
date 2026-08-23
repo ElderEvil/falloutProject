@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -31,31 +32,6 @@ const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, roo
 
 const getRoomForDweller = (roomId: string | null | undefined) =>
   roomId ? roomsById.value.get(roomId) : undefined
-
-const getRelevantStatForRoom = (
-  dweller: DwellerShort,
-  room: Room | null | undefined
-) => {
-  if (!room?.ability) return null
-
-  const abilityMap: Record<string, { value: number; label: string; icon: string; color: string }> = {
-    strength: { value: dweller.strength, label: 'STR', icon: 'mdi:arm-flex', color: 'text-red-400' },
-    perception: { value: dweller.perception, label: 'PER', icon: 'mdi:eye', color: 'text-blue-400' },
-    endurance: { value: dweller.endurance, label: 'END', icon: 'mdi:shield', color: 'text-orange-400' },
-    charisma: { value: dweller.charisma, label: 'CHA', icon: 'mdi:account-voice', color: 'text-pink-400' },
-    intelligence: { value: dweller.intelligence, label: 'INT', icon: 'mdi:brain', color: 'text-purple-400' },
-    agility: { value: dweller.agility, label: 'AGI', icon: 'mdi:run-fast', color: 'text-cyan-400' },
-    luck: { value: dweller.luck, label: 'LCK', icon: 'mdi:clover', color: 'text-green-400' },
-  }
-
-  return abilityMap[room.ability.toLowerCase()] ?? null
-}
-
-const getStatColorClass = (value: number) => {
-  if (value >= 7) return 'text-green-400'
-  if (value >= 4) return 'text-yellow-400'
-  return 'text-red-400'
-}
 </script>
 
 <template>
@@ -110,23 +86,13 @@ const getStatColorClass = (value: number) => {
         </div>
       </div>
 
-      <template v-if="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))">
+      <template v-if="getCombatPower(dweller) > 0">
         <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
         <div class="flex items-center gap-1.5">
-          <span class="text-sm text-theme-primary/60">Job Stat:</span>
+          <span class="text-sm text-theme-primary/60">Power:</span>
           <div class="flex items-center gap-1.5">
-            <Icon
-              :icon="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.icon"
-              :class="getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.color"
-              class="h-4 w-4"
-            />
-            <span class="text-sm">{{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.label }}</span>
-            <span
-              :class="getStatColorClass(getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value)"
-              class="text-sm font-bold"
-            >
-              {{ getRelevantStatForRoom(dweller, getRoomForDweller(dweller.room_id))!.value }}
-            </span>
+            <Icon icon="mdi:sword-cross" class="h-4 w-4 text-orange-400" />
+            <span class="text-sm font-bold">{{ getCombatPower(dweller) }}</span>
           </div>
         </div>
       </template>

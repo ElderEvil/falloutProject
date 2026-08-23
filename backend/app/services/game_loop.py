@@ -11,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
-from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
@@ -135,8 +134,7 @@ class GameLoopService:
             results["updates"]["resources"] = {"error": str(e)}
 
         # === PHASE 2: Incident Management ===
-        incident_update = await self._process_incidents(db_session, vault_id, seconds_passed, game_state)
-        results["updates"]["incidents"] = incident_update
+        # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
         # === PHASE 3: Wasteland Exploration ===
         exploration_update = await self._process_explorations(db_session, vault_id)
@@ -157,6 +155,9 @@ class GameLoopService:
         # === PHASE 4.7: Relationships & Breeding System ===
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
+
+        # === PHASE 4.8: Arena System ===
+        # Arena fights run on their own fast cadence (arena_tick actor), not here.
 
         # === PHASE 5: Event System ===
         event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
@@ -494,88 +495,6 @@ class GameLoopService:
         # Happiness service handles its own errors internally, no wrapper needed
         return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)
 
-    async def _process_incidents(
-        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
-    ) -> dict:
-        """Process all active incidents for a vault.
-
-        - Check if new incident should spawn
-        - Process existing active incidents (combat, damage, resolution)
-        - Handle incident spreading
-        """
-        # Import here to avoid circular import
-        from app.services.incident_service import incident_service
-
-        stats = {
-            "spawned": 0,
-            "processed": 0,
-            "resolved": 0,
-            "active_count": 0,
-            "caps_earned": 0,
-        }
-
-        try:
-            active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-            stats["active_count"] = len(active_incidents)
-
-            # Incidents do not punish players for time away from the vault.
-            if game_state and not game_state.is_user_online():
-                return stats
-
-            # Check if new incident should spawn
-            should_spawn = await incident_service.should_spawn_incident(
-                db_session, vault_id, seconds_passed, game_state
-            )
-            if should_spawn:
-                new_incident = await incident_service.spawn_incident(db_session, vault_id)
-                if new_incident:
-                    stats["spawned"] = 1
-                    self.logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
-
-            # Track total caps earned from all incidents
-            total_caps_earned = 0
-
-            # Process each active incident
-            for incident in active_incidents:
-                try:
-                    result = await incident_service.process_incident(
-                        db_session, incident, min(seconds_passed, game_config.game_loop.tick_interval)
-                    )
-
-                    if result.skipped:
-                        continue
-
-                    stats["processed"] += 1
-
-                    # Accumulate caps earned
-                    caps_earned = result.caps_earned
-                    if caps_earned > 0:
-                        total_caps_earned += caps_earned
-
-                    # Check if incident was resolved automatically
-                    await db_session.refresh(incident)
-                    if incident.status.value in ["resolved", "failed"]:
-                        stats["resolved"] += 1
-                        self.logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
-
-                except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                    # Keep broad exception for individual incident processing
-                    self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
-
-            # Batch update vault caps and emit event for objectives
-            if total_caps_earned > 0:
-                vault = await vault_crud.get(db_session, vault_id)
-                if vault:
-                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
-                    stats["caps_earned"] = total_caps_earned
-                    self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
-
-        except (SQLAlchemyError, ResourceNotFoundException) as e:
-            self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
-            stats["error"] = str(e)
-
-        return stats
-
     async def _process_events(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> dict:
@@ -616,10 +535,19 @@ class GameLoopService:
             return stats
 
         if event_type == "raider_scout":
-            incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
-            if incident:
-                stats["triggered"] = 1
-                stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
+            # Fail fast: the raider event can only fire when an incident can
+            # actually spawn. Check the blocking states before calling the
+            # service, which raises on them (the game-tick boundary handler
+            # would otherwise log a disabled vault as an error every tick).
+            if not vault.incidents_disabled:
+                from app.crud.incident import incident_crud
+
+                active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+                if len(active_incidents) < game_config.incident.max_active_incidents:
+                    incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
+                    if incident:
+                        stats["triggered"] = 1
+                        stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
             return stats
 
         # Positive events award caps
@@ -780,7 +708,7 @@ class GameLoopService:
         try:
             dwellers_query = (
                 select(Dweller)
-                .join(Room)
+                .join(Room, Dweller.room_id == Room.id)
                 .where(
                     Dweller.vault_id == vault_id,
                     Dweller.room_id.is_not(None),

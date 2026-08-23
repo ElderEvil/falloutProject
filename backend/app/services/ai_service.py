@@ -189,10 +189,11 @@ class AIService:
         if self._client is None:
             raise RuntimeError("OpenAI client not available. Use AI_PROVIDER=openai for image/audio features.")
 
-    async def generate_image(self, *, prompt: str, return_bytes: bool = False) -> str | bytes:
+    async def generate_image(self, *, prompt: str, return_bytes: bool = False, size: str = "1024x1024") -> str | bytes:
         """Generate an image using OpenAI's image model.
 
-        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1).
+        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1) and the
+        requested ``size`` (defaults to square; e.g. "1536x1024" for landscape).
         Falls back to URL-based fetching for legacy model responses, but the new
         gpt-image-* models return b64_json directly.
 
@@ -205,11 +206,14 @@ class AIService:
             raise RuntimeError("OpenAI client not available")
         if self._using_gateway:
             logger.debug("Image generation via direct OpenAI client (Gateway doesn't support image API)")
+
+        self._validate_image_size(size)
+
         response = await asyncio.to_thread(
             self._client.images.generate,
             model=settings.AI_IMAGE_MODEL,
             prompt=prompt,
-            size="1024x1024",
+            size=size,
             quality="auto",
             n=1,
         )
@@ -229,6 +233,27 @@ class AIService:
             return data.url
         msg = "Image generation did not return a URL. Use return_bytes=True to receive image data as bytes."
         raise RuntimeError(msg)
+
+    @staticmethod
+    def _validate_image_size(size: str) -> None:
+        """Reject sizes the configured model does not accept before calling OpenAI.
+
+        gpt-image-* supports the square/landscape/portrait set (plus "auto");
+        DALL-E 3 uses the 1792 variants; DALL-E 2 uses small squares.
+        """
+        model = settings.AI_IMAGE_MODEL.lower()
+        if model.startswith("gpt-image"):
+            valid = {"1024x1024", "1536x1024", "1024x1536", "auto"}
+        elif model == "dall-e-3":
+            valid = {"1024x1024", "1792x1024", "1024x1792"}
+        elif model == "dall-e-2":
+            valid = {"256x256", "512x512", "1024x1024"}
+        else:
+            valid = {"1024x1024"}
+        if size not in valid:
+            raise RuntimeError(
+                f"Invalid image size {size!r} for model {settings.AI_IMAGE_MODEL}; supported sizes: {', '.join(sorted(valid))}"
+            )
 
     def _sync_generate_audio(self, model: str, voice: str, text: str) -> bytes:
         with self._client.audio.speech.with_streaming_response.create(

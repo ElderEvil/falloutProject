@@ -29,6 +29,11 @@ class DwellerBaseWithoutStats(SQLModel):
     gender: GenderEnum = Field()
     rarity: RarityEnum = Field()
 
+    @property
+    def is_mature(self) -> bool:
+        """Adult by both flags — children and teens can't take combat assignments."""
+        return self.is_adult and self.age_group == AgeGroupEnum.ADULT
+
     # Backstory and appearance
     bio: str | None = Field(default=None, max_length=1024)
     visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
@@ -104,7 +109,10 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     vault: "Vault" = Relationship(back_populates="dwellers")
 
     room_id: UUID4 = Field(default=None, foreign_key="room.id", nullable=True, ondelete="SET NULL", index=True)
-    room: "Room" = Relationship(back_populates="dwellers")
+    room: "Room" = Relationship(
+        back_populates="dwellers",
+        sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
+    )
 
     # Relationships and Family
     partner_id: UUID4 | None = Field(

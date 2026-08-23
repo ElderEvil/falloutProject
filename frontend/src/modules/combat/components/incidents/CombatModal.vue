@@ -11,9 +11,6 @@
             </div>
           </div>
         </div>
-        <div class="status-badge" :class="`status-${incident?.status}`">
-          {{ incident?.status.toUpperCase() }}
-        </div>
       </div>
     </template>
 
@@ -28,11 +25,17 @@
         <h3 class="section-title">&gt;&gt; LOCATION</h3>
         <div class="section-content">
           <div class="info-row">
-            <span class="info-label">Room ID:</span>
-            <span class="info-value">{{ incident.room_id }}</span>
+            <span class="info-label">Room</span>
+            <span class="info-value">{{ incident.room_name ?? 'Unknown room' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="status-badge" :class="`status-${incident.status}`">
+              {{ incident.status.toUpperCase() }}
+            </span>
           </div>
           <div v-if="incident.rooms_affected.length > 1" class="info-row">
-            <span class="info-label">Spreading:</span>
+            <span class="info-label">Spreading</span>
             <span class="info-value warning">
               {{ incident.rooms_affected.length }} rooms affected (spread count:
               {{ incident.spread_count }})
@@ -55,19 +58,21 @@
               <div class="stat-value danger">{{ incident.damage_dealt }} HP</div>
             </div>
             <div class="stat">
-              <div class="stat-label">Enemies Defeated</div>
-              <div class="stat-value success">{{ incident.enemies_defeated }}</div>
+              <div class="stat-label">Enemies Down</div>
+              <div class="stat-value success">
+                {{ incident.enemies_defeated }} / {{ expectedEnemies }}
+              </div>
             </div>
           </div>
 
           <!-- Progress bars -->
           <div class="progress-section">
             <div class="progress-item">
-              <div class="progress-label">Combat Progress</div>
+              <div class="progress-label">Threat Contained</div>
               <div class="progress-bar">
                 <div class="progress-fill success" :style="{ width: `${combatProgress}%` }"></div>
               </div>
-              <div class="progress-value">{{ combatProgress }}%</div>
+              <div class="progress-value">{{ combatProgress }}% · {{ expectedEnemies - incident.enemies_defeated }} enemies left</div>
             </div>
           </div>
         </div>
@@ -108,31 +113,43 @@
       <div class="section">
         <h3 class="section-title">&gt;&gt; RESPONSE TEAM</h3>
         <div class="section-content">
-          <p class="expected-loot">Responders join this room before the next vault round.</p>
-          <div v-if="availableResponders.length" class="responder-list">
+          <p class="expected-loot">Responders join this room and fight immediately.</p>
+          <div v-if="bestResponders.length" class="responder-quick">
             <UButton
-              v-for="dweller in availableResponders"
-              :key="dweller.id"
-              variant="secondary"
+              variant="primary"
               size="sm"
-              :disabled="assigningDwellerId === dweller.id"
-              @click="assignResponder(dweller.id)"
+              :loading="isSendingBest"
+              @click="sendBestDefenders"
             >
-              {{ assigningDwellerId === dweller.id ? 'ASSIGNING...' : `SEND ${dweller.first_name}` }}
-              — Lv. {{ dweller.level }} · {{ dweller.health }}/{{ dweller.max_health }} HP
+              SEND {{ bestResponders.length }} BEST DEFENDERS
             </UButton>
+            <span class="responder-quick-note">
+              {{ bestResponders.map((d) => d.first_name).join(', ') }}
+            </span>
+          </div>
+          <div v-if="availableResponders.length" class="responder-list">
+            <div v-for="dweller in availableResponders" :key="dweller.id" class="responder-card">
+              <div class="responder-info">
+                <span class="responder-name">{{ dweller.first_name }}</span>
+                <span class="responder-meta">
+                  Lv. {{ dweller.level }} · {{ dweller.health }}/{{ dweller.max_health }} HP
+                  · POW {{ getCombatPower(dweller) }}
+                </span>
+              </div>
+              <UButton
+                variant="secondary"
+                size="sm"
+                :disabled="assigningDwellerId === dweller.id"
+                @click="assignResponder(dweller.id)"
+              >
+                {{ assigningDwellerId === dweller.id ? 'ASSIGNING...' : 'SEND' }}
+              </UButton>
+            </div>
           </div>
           <p v-else class="expected-loot">All available adults are already defending or away.</p>
         </div>
       </div>
     </div>
-
-    <template #footer>
-      <div class="modal-footer">
-        <span class="footer-note">Combat resolves automatically on the next vault round.</span>
-        <UButton @click="$emit('close')" variant="secondary">CLOSE</UButton>
-      </div>
-    </template>
 
     <!-- Scanline overlay -->
     <div class="scanline"></div>
@@ -148,6 +165,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
@@ -203,6 +221,26 @@ async function assignResponder(dwellerId: string) {
     toast.error('Failed to assign responder')
   } finally {
     assigningDwellerId.value = null
+  }
+}
+
+const isSendingBest = ref(false)
+
+async function sendBestDefenders() {
+  if (!authStore.token || isSendingBest.value || !bestResponders.value.length) return
+  isSendingBest.value = true
+  try {
+    await incidentStore.assignResponders(
+      props.vaultId,
+      props.incidentId,
+      bestResponders.value.map((dweller) => dweller.id),
+      authStore.token
+    )
+    emit('responded')
+  } catch {
+    toast.error('Failed to assign defenders')
+  } finally {
+    isSendingBest.value = false
   }
 }
 
@@ -263,6 +301,11 @@ const combatProgress = computed(() => {
   return Math.min(100, Math.floor((incident.value.enemies_defeated / expectedEnemies) * 100))
 })
 
+const expectedEnemies = computed(() => {
+  if (!incident.value) return 0
+  return incident.value.difficulty * 2
+})
+
 const estimatedCaps = computed(() => {
   if (!incident.value) return '0-0'
   const min = 50 + (incident.value.difficulty - 1) * 50
@@ -278,6 +321,13 @@ const availableResponders = computed(() =>
       dweller.room_id !== incident.value?.room_id &&
       !['exploring', 'questing', 'dead'].includes(dweller.status)
   )
+)
+
+const bestResponders = computed(() =>
+  availableResponders.value
+    .slice()
+    .sort((a, b) => getCombatPower(b) - getCombatPower(a))
+    .slice(0, 3)
 )
 </script>
 
@@ -321,14 +371,12 @@ const availableResponders = computed(() =>
 }
 
 .status-badge {
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
   font-weight: bold;
   letter-spacing: 0.1em;
-  flex-shrink: 0;
-  margin-right: 2.5rem;
 }
 
 .status-active {
@@ -497,6 +545,67 @@ const availableResponders = computed(() =>
   text-align: right;
 }
 
+.responder-quick {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--color-theme-primary) 6%, transparent);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+}
+
+.responder-quick-note {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+}
+
+.responder-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 900px) {
+  .responder-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.responder-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--color-theme-primary-rgb), 0.05);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+}
+
+.responder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.responder-name {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: var(--color-theme-primary);
+}
+
+.responder-meta {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.6;
+}
+
 .loot-items {
   display: flex;
   flex-direction: column;
@@ -537,14 +646,6 @@ const availableResponders = computed(() =>
   color: var(--color-theme-primary);
   opacity: 0.5;
   line-height: 1.6;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding: 1rem;
-  border-top: 1px solid var(--color-surface-light);
 }
 
 .scanline {

@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -11,6 +12,7 @@ from app.api.deps import CurrentSuperuser, get_user_vault_or_403
 from app.core.game_config import game_config
 from app.db.session import get_async_session
 from app.models.incident import IncidentType
+from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.incident import (
     DeleteIncidentsResponse,
@@ -25,7 +27,13 @@ from app.schemas.incident import (
 from app.schemas.system import GameBalanceResponse
 from app.services.game_loop import game_loop_service
 from app.services.incident_service import incident_service
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import (
+    AccessDeniedException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+    ValidationException,
+    VaultOperationException,
+)
 
 router = APIRouter(prefix="/game", tags=["Game"])
 
@@ -146,6 +154,10 @@ async def list_incidents(
     """
     incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
 
+    room_ids = [incident.room_id for incident in incidents]
+    rooms_result = await db_session.execute(select(Room).where(Room.id.in_(room_ids))) if room_ids else None
+    room_names = {room.id: room.name for room in rooms_result.scalars().all()} if rooms_result else {}
+
     return IncidentListResponse(
         vault_id=str(vault.id),
         incident_count=len(incidents),
@@ -155,6 +167,7 @@ async def list_incidents(
                 type=incident.type,
                 status=incident.status,
                 room_id=str(incident.room_id),
+                room_name=room_names.get(incident.room_id),
                 difficulty=incident.difficulty,
                 start_time=incident.start_time.isoformat(),
                 elapsed_time=incident.elapsed_time(),
@@ -185,10 +198,13 @@ async def get_incident(
     if not incident or incident.vault_id != vault.id:
         raise HTTPException(status_code=404, detail="Incident not found")
 
+    room = await db_session.get(Room, incident.room_id)
+
     return IncidentRead(
         id=incident.id,
         vault_id=incident.vault_id,
         room_id=incident.room_id,
+        room_name=room.name if room else None,
         type=incident.type,
         status=incident.status,
         difficulty=incident.difficulty,
@@ -262,9 +278,18 @@ async def spawn_debug_incident(
         IncidentSpawnResponse: Spawned incident details.
 
     Raises:
-        HTTPException: 400 if no occupied rooms available.
+        HTTPException: 400 if incidents are disabled or no occupied rooms available.
+        HTTPException: 409 if the vault is at the active-incident cap.
     """
-    incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
+    try:
+        incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
+    except (
+        ResourceNotFoundException,
+        ResourceConflictException,
+        ValidationException,
+        VaultOperationException,
+    ) as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
     if not incident:
         raise HTTPException(status_code=400, detail="Failed to spawn incident. No occupied rooms available.")

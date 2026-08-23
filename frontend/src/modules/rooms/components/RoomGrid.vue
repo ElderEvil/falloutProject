@@ -48,6 +48,7 @@ const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerS
 const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
+const vaultId = computed(() => (route?.params.id as string) ?? '')
 
 // Power outage logic
 const isPowerOutage = computed(() => {
@@ -254,6 +255,7 @@ const closeDetailModal = () => {
     <RoomDetailModal
       :room="selectedRoomForDetail"
       :overseer-briefing="overseerBriefing"
+      :vault-id="vaultId"
       v-model="showDetailModal"
       @close="closeDetailModal"
       @room-updated="handleRoomUpdated"

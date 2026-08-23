@@ -44,6 +44,11 @@ class IncidentBase(SQLModel):
     # Damage tracking
     damage_dealt: int = Field(default=0, ge=0, description="Total damage dealt to dwellers")
     enemies_defeated: int = Field(default=0, ge=0, description="Number of enemies defeated")
+    combat_progress: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Cumulative fractional enemies defeated (survives int truncation between ticks)",
+    )
 
     # Loot/rewards
     loot: dict | None = Field(default=None, sa_column=sa.Column(JSONB), description="Rewards from incident")

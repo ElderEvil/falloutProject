@@ -180,6 +180,24 @@ describe('DwellersView', () => {
       )
     })
 
+    it('applies the Fighting query filter', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=fighting')
+      await router.isReady()
+
+      mount(DwellersView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('status=fighting'),
+        expect.any(Object)
+      )
+    })
+
     it('should render filter panel', async () => {
       vi.mocked(axios.get)
         .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault

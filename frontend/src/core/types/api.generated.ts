@@ -1676,7 +1676,8 @@ export interface paths {
          *         IncidentSpawnResponse: Spawned incident details.
          *
          *     Raises:
-         *         HTTPException: 400 if no occupied rooms available.
+         *         HTTPException: 400 if incidents are disabled or no occupied rooms available.
+         *         HTTPException: 409 if the vault is at the active-incident cap.
          */
         post: operations["spawn_debug_incident_api_v1_game_vaults__vault_id__incidents_spawn_post"];
         delete?: never;
@@ -2667,6 +2668,86 @@ export interface paths {
         get: operations["get_eligible_dwellers_api_v1_quests__vault_id___quest_id__eligible_dwellers_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Arena State
+         * @description Return arena rooms with their selected fighters, roster, match state, and journal.
+         */
+        get: operations["get_arena_state_api_v1_arena_vault__vault_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/fighters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Arena Fighters
+         * @description Pick which assigned dwellers fight. Changing the selection resets the match.
+         */
+        post: operations["set_arena_fighters_api_v1_arena_vault__vault_id__rooms__room_id__fighters_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear Arena Events
+         * @description Clear the battle journal for an arena room.
+         */
+        delete: operations["clear_arena_events_api_v1_arena_vault__vault_id__rooms__room_id__events_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Arena Fight
+         * @description Arm an arena match: both fighter slots set, not already done/started.
+         */
+        post: operations["start_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4167,6 +4248,138 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult";
         /**
+         * ArenaEventsCleared
+         * @description Journal clear result.
+         */
+        ArenaEventsCleared: {
+            /** Room Id */
+            room_id: string;
+            /** Cleared */
+            cleared: number;
+        };
+        /**
+         * ArenaFightStarted
+         * @description Result of arming an arena match.
+         */
+        ArenaFightStarted: {
+            /** Room Id */
+            room_id: string;
+            /** Started */
+            started: boolean;
+        };
+        /**
+         * ArenaFighter
+         * @description A single selected fighter with live HP and combat power.
+         */
+        ArenaFighter: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Health */
+            health: number;
+            /** Max Health */
+            max_health: number;
+            /** Power */
+            power: number;
+        };
+        /**
+         * ArenaFightersRequest
+         * @description Fighter slot selection payload.
+         */
+        ArenaFightersRequest: {
+            /** Fighter A Id */
+            fighter_a_id?: string | null;
+            /** Fighter B Id */
+            fighter_b_id?: string | null;
+        };
+        /**
+         * ArenaFightersResponse
+         * @description Updated fighter slot selection for one arena room.
+         */
+        ArenaFightersResponse: {
+            /** Room Id */
+            room_id: string;
+            /** Fighter A Id */
+            fighter_a_id: string | null;
+            /** Fighter B Id */
+            fighter_b_id: string | null;
+        };
+        /**
+         * ArenaMatchEventOut
+         * @description One battle journal line.
+         */
+        ArenaMatchEventOut: {
+            /** Id */
+            id: string;
+            /** Round Seq */
+            round_seq: number;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+        };
+        /**
+         * ArenaRoomState
+         * @description Full arena room state: fighters, roster, match flags, and journal.
+         */
+        ArenaRoomState: {
+            /** Room Id */
+            room_id: string;
+            /** Room Name */
+            room_name: string;
+            /** Tier */
+            tier: number;
+            /** Fighter A Id */
+            fighter_a_id: string | null;
+            /** Fighter B Id */
+            fighter_b_id: string | null;
+            /** Fighters */
+            fighters: components["schemas"]["ArenaFighter"][];
+            /** Roster */
+            roster: components["schemas"]["ArenaRosterEntry"][];
+            /** Fight Ready */
+            fight_ready: boolean;
+            /** Match Done */
+            match_done: boolean;
+            /** Fight Started */
+            fight_started: boolean;
+            /** Countdown Remaining */
+            countdown_remaining: number;
+            /** Can Start */
+            can_start: boolean;
+            /** Winner Name */
+            winner_name: string | null;
+            /** Events */
+            events: components["schemas"]["ArenaMatchEventOut"][];
+        };
+        /**
+         * ArenaRosterEntry
+         * @description An adult dweller assigned to the arena room, available to pick.
+         */
+        ArenaRosterEntry: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Health */
+            health: number;
+            /** Max Health */
+            max_health: number;
+        };
+        /**
+         * ArenaState
+         * @description All arena rooms in a vault.
+         */
+        ArenaState: {
+            /** Rooms */
+            rooms: components["schemas"]["ArenaRoomState"][];
+        };
+        /**
          * AssignToRoomAction
          * @description Suggestion to assign dweller to a specific room.
          */
@@ -5404,7 +5617,7 @@ export interface components {
          * DwellerStatusEnum
          * @enum {string}
          */
-        DwellerStatusEnum: "idle" | "working" | "exploring" | "questing" | "training" | "resting" | "dead";
+        DwellerStatusEnum: "idle" | "working" | "exploring" | "questing" | "training" | "resting" | "fighting" | "dead";
         /** DwellerUpdate */
         DwellerUpdate: {
             /** S */
@@ -5950,6 +6163,8 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** Room Id */
             room_id: string;
+            /** Room Name */
+            room_name?: string | null;
             /** Difficulty */
             difficulty: number;
             /** Start Time */
@@ -5993,6 +6208,8 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+            /** Room Name */
+            room_name?: string | null;
             type: components["schemas"]["IncidentType"];
             status: components["schemas"]["IncidentStatus"];
             /** Difficulty */
@@ -7284,6 +7501,20 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
+            /**
+             * Arena Last Fight At
+             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
+             */
+            arena_last_fight_at?: string | null;
+            /**
+             * Arena Fight Started At
+             * @description When the armed arena match was started by the player (fight button); NULL means waiting
+             */
+            arena_fight_started_at?: string | null;
+            /** Arena Fighter A Id */
+            arena_fighter_a_id?: string | null;
+            /** Arena Fighter B Id */
+            arena_fighter_b_id?: string | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -7331,6 +7562,20 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
+            /**
+             * Arena Last Fight At
+             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
+             */
+            arena_last_fight_at?: string | null;
+            /**
+             * Arena Fight Started At
+             * @description When the armed arena match was started by the player (fight button); NULL means waiting
+             */
+            arena_fight_started_at?: string | null;
+            /** Arena Fighter A Id */
+            arena_fighter_a_id?: string | null;
+            /** Arena Fighter B Id */
+            arena_fighter_b_id?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -7837,6 +8082,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -7901,6 +8152,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
         };
         /**
          * VaultMapResponse
@@ -8001,6 +8258,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -8072,6 +8335,12 @@ export interface components {
              * @default recruitment
              */
             radio_mode: string;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
             /**
              * Id
              * Format: uuid4
@@ -8153,6 +8422,12 @@ export interface components {
              */
             radio_mode: string;
             /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             * @default false
+             */
+            incidents_disabled: boolean;
+            /**
              * Id
              * Format: uuid4
              */
@@ -8199,6 +8474,11 @@ export interface components {
             population_max?: number | null;
             /** Radio Mode */
             radio_mode?: string | null;
+            /**
+             * Incidents Disabled
+             * @description Suppresses incident spawns and processing
+             */
+            incidents_disabled?: boolean | null;
         };
         /**
          * WastelandLocationWithDwellers
@@ -12217,6 +12497,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EligibleDwellerRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_arena_state_api_v1_arena_vault__vault_id__state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_arena_fighters_api_v1_arena_vault__vault_id__rooms__room_id__fighters_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArenaFightersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaFightersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_arena_events_api_v1_arena_vault__vault_id__rooms__room_id__events_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaEventsCleared"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaFightStarted"];
                 };
             };
             /** @description Validation Error */

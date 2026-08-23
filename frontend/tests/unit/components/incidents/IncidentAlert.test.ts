@@ -18,6 +18,7 @@ describe('IncidentAlert', () => {
     id: 'incident-1',
     vault_id: 'vault-1',
     room_id: 'room-1',
+    room_name: 'Power Generator',
     type: IncidentType.RAIDER_ATTACK,
     status: IncidentStatus.ACTIVE,
     difficulty: 5,

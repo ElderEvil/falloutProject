@@ -54,6 +54,7 @@ class DwellerStatusEnum(CaseInsensitiveEnum):
     QUESTING = "questing"
     TRAINING = "training"
     RESTING = "resting"
+    FIGHTING = "fighting"
     DEAD = "dead"
 
 

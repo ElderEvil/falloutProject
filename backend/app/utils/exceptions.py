@@ -163,6 +163,13 @@ class VaultOperationException(HTTPException):
         super().__init__(status_code=status_code, detail=detail, headers=headers)
 
 
+class IncidentsDisabledException(VaultOperationException):
+    """Raised when an incident spawn is attempted on a vault with incidents disabled."""
+
+    def __init__(self, headers: dict[str, Any] | None = None):
+        super().__init__(detail="Incidents are disabled for this vault.", headers=headers)
+
+
 class NoSpaceAvailableException(VaultOperationException):
     """
     Exception raised when attempting to build a room in a vault with no available space.

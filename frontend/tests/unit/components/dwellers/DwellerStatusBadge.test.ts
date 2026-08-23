@@ -11,6 +11,7 @@ describe('DwellerStatusBadge', () => {
         { status: 'exploring', label: 'Exploring' },
         { status: 'questing', label: 'Questing' },
         { status: 'training', label: 'Training' },
+        { status: 'fighting', label: 'Fighting' },
         { status: 'dead', label: 'Dead' },
       ]
 

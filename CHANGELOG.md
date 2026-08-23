@@ -21,11 +21,20 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Features
 
+* **arena:** dweller-vs-dweller battle playground — assign adult dwellers to an Arena room, pick two fighters, and start a fight with a 3-2-1 countdown, live HP bars, floating damage numbers, and a battle journal; one match per assignment, then pick new fighters for a new match (winner gains happiness and XP, loser loses happiness)
+* **arena:** wide AI-generated arena room image (landscape) wired into the room assets so arena rooms always resolve it
+* **incidents:** cap active incidents at the configured maximum for both natural spawns and spread, guarded by a per-vault advisory lock so concurrent workers cannot race past the limit
+* **incidents:** run incident combat on a dedicated fast tick (2s cadence) with a Redis chain lease so the periodic watchdog cannot create duplicate processing chains; a session advisory lock serializes the all-vaults pass
+* **incidents:** room-level incident actions — compact FIGHT button per room instead of a full-room alert wash, room names in the combat modal, and a one-click "send best defenders" action ranked by combat power
 * **rooms:** gate level building behind elevators (elevators stack vertically; a level needs an elevator before rooms can be built there, with the vault door anchoring row 0)
 * **rooms:** show radio studio statistics (passive recruitment rate, recruit ETA, and happiness bonus) in the room detail modal
 
 ### Bug Fixes
 
+* **arena:** clear stale fighter slots when a dweller leaves an arena room so fighter picks are not rejected by a slot pointing at a non-resident
+* **incidents:** debug spawn endpoint returns distinct errors — 400 when incidents are disabled, 409 when the vault is at the active-incident cap, 400 only as the no-occupied-rooms fallback
+* **incidents:** tick-chain Redis lease raised to 300s with a lost-lease warning so a slow all-vault pass cannot expire mid-run and churn between owners
+* **dwellers:** consistent adult flag and dedupe SPECIAL stats list (babies born non-adult; age transition flips the flag with the age group)
 * **rooms:** align training room occupancy with the 2-per-segment model
 * **rooms:** prevent destroying an elevator that has another elevator stacked above it; elevator placement rules live in a single validator
 * **frontend:** theme scrollbars and remove the green tint from the build room menu

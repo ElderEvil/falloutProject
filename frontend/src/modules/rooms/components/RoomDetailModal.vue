@@ -14,12 +14,14 @@ import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
+import ArenaModal from './ArenaModal.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
 interface Props {
   room: Room | null
   modelValue: boolean
+  vaultId: string
   overseerBriefing?: OverseerBriefingData
 }
 
@@ -36,6 +38,7 @@ const actionError = ref<string | null>(null)
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
 const isOverseersOffice = computed(() => props.room?.name.toLowerCase() === "overseer's office")
+const isArenaRoom = computed(() => props.room?.category?.toLowerCase() === 'arena')
 
 // Composables
 const {
@@ -110,73 +113,91 @@ watch(
     </template>
 
     <div v-if="room" class="modal-content">
-      <!-- Error display -->
-      <div v-if="actionError" class="error-banner">
-        <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-        {{ actionError }}
-      </div>
+      <template v-if="isArenaRoom">
+        <RoomPreviewSection
+          :room-name="room.name"
+          :image-url="room.image_url ?? null"
+          :room-image-url="roomImageUrl ?? null"
+          :dweller-capacity="dwellerCapacity"
+          :assigned-dwellers="assignedDwellers"
+        />
+        <ArenaModal
+          :vault-id="props.vaultId"
+          :room-id="room.id"
+          :is-destroying="isDestroying"
+          @destroy="handleDestroy"
+        />
+      </template>
 
-      <RoomPreviewSection
-        :room-name="room.name"
-        :image-url="room.image_url ?? null"
-        :room-image-url="roomImageUrl ?? null"
-        :dweller-capacity="dwellerCapacity"
-        :assigned-dwellers="assignedDwellers"
-      />
+      <template v-else>
+        <!-- Error display -->
+        <div v-if="actionError" class="error-banner">
+          <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+          {{ actionError }}
+        </div>
 
-      <RoomInfoGrid
-        :room="room"
-        :assigned-dweller-count="assignedDwellers.length"
-        :dweller-capacity="dwellerCapacity"
-        :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-      />
+        <RoomPreviewSection
+          :room-name="room.name"
+          :image-url="room.image_url ?? null"
+          :room-image-url="roomImageUrl ?? null"
+          :dweller-capacity="dwellerCapacity"
+          :assigned-dwellers="assignedDwellers"
+        />
 
-      <OverseerBriefing
-        v-if="isOverseersOffice && overseerBriefing"
-        v-bind="overseerBriefing"
-        @review-incidents="emit('reviewIncidents')"
-      />
+        <RoomInfoGrid
+          :room="room"
+          :assigned-dweller-count="assignedDwellers.length"
+          :dweller-capacity="dwellerCapacity"
+          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+        />
 
-      <ProductionStats
-        v-if="isRadioRoom && radioStats"
-        :radio-stats="radioStats"
-        :radio-mode="localRadioMode"
-      />
+        <OverseerBriefing
+          v-if="isOverseersOffice && overseerBriefing"
+          v-bind="overseerBriefing"
+          @review-incidents="emit('reviewIncidents')"
+        />
 
-      <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
+        <ProductionStats
+          v-if="isRadioRoom && radioStats"
+          :radio-stats="radioStats"
+          :radio-mode="localRadioMode"
+        />
 
-      <DwellerList
-        :assigned-dwellers="assignedDwellers"
-        :ability="room.ability"
-        @dweller-click="openDwellerDetails"
-      />
+        <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
 
-      <RoomActions
-        :room="room"
-        :upgrade-info="upgradeInfo"
-        :is-upgrading="isUpgrading"
-        :is-destroying="isDestroying"
-        :is-rushing="isRushing"
-        :is-vault-door="isVaultDoor"
-        :has-production-info="!!productionInfo"
-        :is-radio-room="isRadioRoom"
-        :assigned-dweller-count="assignedDwellers.length"
-        @upgrade="handleUpgrade"
-        @destroy="handleDestroy"
-        @rush-production="handleRushProduction"
-        @unassign-all="handleUnassignAll"
-      >
-        <template v-if="isRadioRoom" #radio-controls>
-          <RadioControls
-            :local-radio-mode="localRadioMode"
-            :is-recruiting="isRecruiting"
-            :manual-recruit-cost="manualRecruitCost"
-            :assigned-dwellers="assignedDwellers"
-            @switch-mode="handleSwitchRadioMode"
-            @recruit="handleRecruitDweller"
-          />
-        </template>
-      </RoomActions>
+        <DwellerList
+          :assigned-dwellers="assignedDwellers"
+          :ability="room.ability"
+          @dweller-click="openDwellerDetails"
+        />
+
+        <RoomActions
+          :room="room"
+          :upgrade-info="upgradeInfo"
+          :is-upgrading="isUpgrading"
+          :is-destroying="isDestroying"
+          :is-rushing="isRushing"
+          :is-vault-door="isVaultDoor"
+          :has-production-info="!!productionInfo"
+          :is-radio-room="isRadioRoom"
+          :assigned-dweller-count="assignedDwellers.length"
+          @upgrade="handleUpgrade"
+          @destroy="handleDestroy"
+          @rush-production="handleRushProduction"
+          @unassign-all="handleUnassignAll"
+        >
+          <template v-if="isRadioRoom" #radio-controls>
+            <RadioControls
+              :local-radio-mode="localRadioMode"
+              :is-recruiting="isRecruiting"
+              :manual-recruit-cost="manualRecruitCost"
+              :assigned-dwellers="assignedDwellers"
+              @switch-mode="handleSwitchRadioMode"
+              @recruit="handleRecruitDweller"
+            />
+          </template>
+        </RoomActions>
+      </template>
     </div>
   </UModal>
 </template>

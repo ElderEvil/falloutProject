@@ -15,6 +15,7 @@ from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnu
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.arena_service import ArenaService
+from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
 # ---------------------------------------------------------------------------
@@ -111,7 +112,6 @@ async def fighter_b_fixture(async_session: AsyncSession, vault: Vault) -> Dwelle
 
 class TestArenaService:
     def test_combat_power_scales_with_stats_and_level(self):
-        service = ArenaService()
         dweller = Dweller(
             strength=10,
             endurance=10,
@@ -119,7 +119,7 @@ class TestArenaService:
             level=5,
             weapon=None,
         )
-        power = service._combat_power(dweller)
+        power = combat_power(dweller)
         # stat contribution (10*0.4 + 10*0.3 + 10*0.3 = 10) + level (5*2 = 10)
         assert power == 20
 

@@ -21,6 +21,7 @@ from app.schemas.incident import IncidentRoundResult
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
+from app.utils.combat import total_combat_power
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -651,26 +652,7 @@ class IncidentService:
 
     def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:
         """Calculate total combat power of dwellers."""
-        total_power = 0.0
-        for dweller in dwellers:
-            # SPECIAL contribution
-            stat_power = (
-                dweller.strength * game_config.combat.dweller_strength_weight
-                + dweller.endurance * game_config.combat.dweller_endurance_weight
-                + dweller.agility * game_config.combat.dweller_agility_weight
-            )
-
-            # Weapon damage (if equipped)
-            weapon_damage = 0
-            if dweller.weapon:
-                weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
-
-            # Level bonus
-            level_bonus = dweller.level * game_config.combat.level_bonus_multiplier
-
-            total_power += stat_power + weapon_damage + level_bonus
-
-        return total_power
+        return total_combat_power(dwellers)
 
     def _calculate_raider_power(self, difficulty: int) -> float:
         """Calculate raider power based on difficulty."""

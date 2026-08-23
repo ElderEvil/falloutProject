@@ -6,9 +6,7 @@ export interface ArenaFighter {
   level: number
   health: number
   max_health: number
-  strength: number
-  endurance: number
-  agility: number
+  power: number
 }
 
 export interface ArenaRosterEntry {

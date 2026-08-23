@@ -4247,6 +4247,44 @@ export interface components {
          */
         AgeGroupEnum: "child" | "teen" | "adult";
         /**
+         * ArenaEventsCleared
+         * @description Journal clear result.
+         */
+        ArenaEventsCleared: {
+            /** Room Id */
+            room_id: string;
+            /** Cleared */
+            cleared: number;
+        };
+        /**
+         * ArenaFightStarted
+         * @description Result of arming an arena match.
+         */
+        ArenaFightStarted: {
+            /** Room Id */
+            room_id: string;
+            /** Started */
+            started: boolean;
+        };
+        /**
+         * ArenaFighter
+         * @description A single selected fighter with live HP and combat power.
+         */
+        ArenaFighter: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Health */
+            health: number;
+            /** Max Health */
+            max_health: number;
+            /** Power */
+            power: number;
+        };
+        /**
          * ArenaFightersRequest
          * @description Fighter slot selection payload.
          */
@@ -4255,6 +4293,88 @@ export interface components {
             fighter_a_id?: string | null;
             /** Fighter B Id */
             fighter_b_id?: string | null;
+        };
+        /**
+         * ArenaFightersResponse
+         * @description Updated fighter slot selection for one arena room.
+         */
+        ArenaFightersResponse: {
+            /** Room Id */
+            room_id: string;
+            /** Fighter A Id */
+            fighter_a_id: string | null;
+            /** Fighter B Id */
+            fighter_b_id: string | null;
+        };
+        /**
+         * ArenaMatchEventOut
+         * @description One battle journal line.
+         */
+        ArenaMatchEventOut: {
+            /** Id */
+            id: string;
+            /** Round Seq */
+            round_seq: number;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+        };
+        /**
+         * ArenaRoomState
+         * @description Full arena room state: fighters, roster, match flags, and journal.
+         */
+        ArenaRoomState: {
+            /** Room Id */
+            room_id: string;
+            /** Room Name */
+            room_name: string;
+            /** Tier */
+            tier: number;
+            /** Fighter A Id */
+            fighter_a_id: string | null;
+            /** Fighter B Id */
+            fighter_b_id: string | null;
+            /** Fighters */
+            fighters: components["schemas"]["ArenaFighter"][];
+            /** Roster */
+            roster: components["schemas"]["ArenaRosterEntry"][];
+            /** Fight Ready */
+            fight_ready: boolean;
+            /** Match Done */
+            match_done: boolean;
+            /** Fight Started */
+            fight_started: boolean;
+            /** Countdown Remaining */
+            countdown_remaining: number;
+            /** Can Start */
+            can_start: boolean;
+            /** Events */
+            events: components["schemas"]["ArenaMatchEventOut"][];
+        };
+        /**
+         * ArenaRosterEntry
+         * @description An adult dweller assigned to the arena room, available to pick.
+         */
+        ArenaRosterEntry: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: number;
+            /** Health */
+            health: number;
+            /** Max Health */
+            max_health: number;
+        };
+        /**
+         * ArenaState
+         * @description All arena rooms in a vault.
+         */
+        ArenaState: {
+            /** Rooms */
+            rooms: components["schemas"]["ArenaRoomState"][];
         };
         /**
          * AssignToRoomAction
@@ -12400,9 +12520,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ArenaState"];
                 };
             };
             /** @description Validation Error */
@@ -12438,9 +12556,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ArenaFightersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12472,9 +12588,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ArenaEventsCleared"];
                 };
             };
             /** @description Validation Error */
@@ -12506,9 +12620,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ArenaFightStarted"];
                 };
             };
             /** @description Validation Error */

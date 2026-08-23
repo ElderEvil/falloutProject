@@ -26,6 +26,7 @@ from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.common import AgeGroupEnum
+from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,17 @@ logger = logging.getLogger(__name__)
 MIN_FIGHTERS = 2
 HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
+
+
+def _eligible_fighter_conditions(room_id: UUID4, *, require_alive: bool = True):
+    conditions = [
+        Dweller.room_id == room_id,
+        Dweller.is_adult,
+        Dweller.age_group == AgeGroupEnum.ADULT,
+    ]
+    if require_alive:
+        conditions.append(Dweller.health > 0)
+    return conditions
 
 
 class ArenaService:
@@ -70,12 +82,7 @@ class ArenaService:
         selected_ids = [fid for fid in (fighter_a_id, fighter_b_id) if fid is not None]
         if selected_ids:
             result = await db_session.execute(
-                select(Dweller).where(
-                    Dweller.id.in_(selected_ids),
-                    Dweller.room_id == room.id,
-                    Dweller.is_adult,
-                    Dweller.age_group == AgeGroupEnum.ADULT,
-                )
+                select(Dweller).where(Dweller.id.in_(selected_ids), *_eligible_fighter_conditions(room.id))
             )
             fighters = list(result.scalars().all())
             if len(fighters) != len(selected_ids):
@@ -111,19 +118,22 @@ class ArenaService:
         result = await db_session.execute(
             select(Dweller)
             .options(selectinload(Dweller.weapon))
-            .where(
-                Dweller.id.in_(ids),
-                Dweller.room_id == room.id,
-                Dweller.health > 0,
-                Dweller.is_adult,
-                Dweller.age_group == AgeGroupEnum.ADULT,
-            )
+            .where(Dweller.id.in_(ids), *_eligible_fighter_conditions(room.id))
         )
         by_id = {str(f.id): f for f in result.scalars().all()}
         ordered = [by_id.get(str(room.arena_fighter_a_id)), by_id.get(str(room.arena_fighter_b_id))]
         if None in ordered:
             return []
         return ordered  # type: ignore[return-value]
+
+    async def get_roster(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
+        """Return the adult dwellers assigned to the room, oldest first."""
+        result = await db_session.execute(
+            select(Dweller)
+            .where(*_eligible_fighter_conditions(room.id))
+            .order_by(Dweller.created_at)
+        )
+        return list(result.scalars().all())
 
     async def clear_journal(self, db_session: AsyncSession, room_id: UUID4) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
@@ -236,18 +246,6 @@ class ArenaService:
         )
         return list(result.scalars().all())
 
-    def _combat_power(self, dweller: Dweller) -> float:
-        stat_power = (
-            dweller.strength * game_config.combat.dweller_strength_weight
-            + dweller.endurance * game_config.combat.dweller_endurance_weight
-            + dweller.agility * game_config.combat.dweller_agility_weight
-        )
-        weapon_damage = 0
-        if dweller.weapon:
-            weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2
-        level_bonus = dweller.level * game_config.combat.level_bonus_multiplier
-        return stat_power + weapon_damage + level_bonus
-
     async def _run_round(
         self,
         db_session: AsyncSession,
@@ -256,8 +254,8 @@ class ArenaService:
         seconds_passed: int,
     ) -> dict:
         first, second = fighters[0], fighters[1]
-        power_a = self._combat_power(first)
-        power_b = self._combat_power(second)
+        power_a = combat_power(first)
+        power_b = combat_power(second)
 
         # Damage dealt by each fighter's own power (20% per second, matching incident
         # math). Fractional damage carries between ticks so near-equal powers

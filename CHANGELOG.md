@@ -3,6 +3,38 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.50.0](https://github.com/ElderEvil/falloutProject/compare/v2.49.0...v2.50.0) (2026-08-23)
+
+### Features
+
+* **arena:** dweller-vs-dweller battle playground, fast incident tick ([f382ea7](https://github.com/ElderEvil/falloutProject/commit/f382ea719b2e5710df46385deaee95789a3879f1))
+* **arena:** FIGHTING status for dwellers assigned to the arena ([953d0a8](https://github.com/ElderEvil/falloutProject/commit/953d0a8fba9cdbad6965b23f994f2ee713e10380))
+* **arena:** restore room preview in arena modal ([169eb41](https://github.com/ElderEvil/falloutProject/commit/169eb4186793900bcb379094041f54f93d0406e3))
+* **arena:** wide arena room image and configurable AI image size ([fb367f1](https://github.com/ElderEvil/falloutProject/commit/fb367f1eed9afc8afdd45b02fbc3a2e2f082963e))
+* **dwellers:** show combat power in the dwellers list ([ce4bfb6](https://github.com/ElderEvil/falloutProject/commit/ce4bfb69b5793879543f43c1e3706a5ee9995404))
+* **incidents:** compact responder grid instead of one per row ([8bb75e9](https://github.com/ElderEvil/falloutProject/commit/8bb75e92c277829ee7369f000f6796ad8446ba11))
+
+### Bug Fixes
+
+* address review findings across arena, incident, and dweller flows ([08fb35e](https://github.com/ElderEvil/falloutProject/commit/08fb35eecdf2d5b392d87f2d7e595e244f852de2))
+* **arena:** clear stale fighter slots when dwellers leave the arena ([17da79e](https://github.com/ElderEvil/falloutProject/commit/17da79eca2b8f2c04e7e1921b047a7bb6205b8ec))
+* **arena:** scope arena ops to vault, reset interrupted matches, a11y controls ([40fbdf0](https://github.com/ElderEvil/falloutProject/commit/40fbdf0030e48a63a359280b7ab6af38658238a3))
+* **frontend:** restore elevator gating, refactor arena UI to store + shared patterns ([1c27a0e](https://github.com/ElderEvil/falloutProject/commit/1c27a0ec02c2263b5a47e334970ec6fc9581ac35))
+* **incidents:** cap active incidents at spawn+spread and dedupe tick chains ([d8cf5b2](https://github.com/ElderEvil/falloutProject/commit/d8cf5b2302443b5f537f179382469e288ebba644))
+* **incidents:** lease churn visibility, distinct spawn errors, combat modal UX ([419f813](https://github.com/ElderEvil/falloutProject/commit/419f813d26917b85e087e682340c7e0772a6f8bf))
+
+### Documentation
+
+* **agents:** codify architecture-over-simplification guardrails ([000aae9](https://github.com/ElderEvil/falloutProject/commit/000aae91d95b4f8a7720b78104742e34cfb4f9fa))
+* roadmap and changelog for arena and incident combat update ([a7fd76f](https://github.com/ElderEvil/falloutProject/commit/a7fd76fbd8eecc9faf17ca2163e8550d6dcbb5a1))
+
+### Code Refactoring
+
+* **arena:** move arena state assembly into the service ([09ae8a6](https://github.com/ElderEvil/falloutProject/commit/09ae8a665a6fe0f4167fda6545f19b06bca47fd3))
+* **arena:** move schemas to dedicated module; squash branch migrations ([557969d](https://github.com/ElderEvil/falloutProject/commit/557969d7bf3fa9ece869be41658f2226aebdd9e5))
+* **arena:** single combat power source, typed endpoints, slot component ([1976992](https://github.com/ElderEvil/falloutProject/commit/1976992db8bd96a9dc3f558ffcf84fc81f0f0081))
+* **tasks:** flatten tick actors, share one session context manager ([1f24f65](https://github.com/ElderEvil/falloutProject/commit/1f24f651d32018850fdc59c8a852a4e78a0163a5))
+
 ## [2.49.0](https://github.com/ElderEvil/falloutProject/compare/v2.48.1...v2.49.0) (2026-08-23)
 
 ### Features

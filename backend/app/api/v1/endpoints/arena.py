@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,93 +12,21 @@ from app.core.game_config import game_config
 from app.db.session import get_async_session
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.room import Room
+from app.schemas.arena import (
+    ArenaEventsCleared,
+    ArenaFighter,
+    ArenaFightersRequest,
+    ArenaFightersResponse,
+    ArenaFightStarted,
+    ArenaMatchEventOut,
+    ArenaRoomState,
+    ArenaRosterEntry,
+    ArenaState,
+)
 from app.services.arena_service import arena_service
 from app.utils.combat import combat_power
 
 router = APIRouter(prefix="/arena", tags=["Arena"])
-
-
-class ArenaFightersRequest(BaseModel):
-    """Fighter slot selection payload."""
-
-    fighter_a_id: UUID4 | None = None
-    fighter_b_id: UUID4 | None = None
-
-
-class ArenaFighter(BaseModel):
-    """A single selected fighter with live HP and combat power."""
-
-    id: str
-    name: str
-    level: int
-    health: int
-    max_health: int
-    power: float
-
-
-class ArenaRosterEntry(BaseModel):
-    """An adult dweller assigned to the arena room, available to pick."""
-
-    id: str
-    name: str
-    level: int
-    health: int
-    max_health: int
-
-
-class ArenaMatchEventOut(BaseModel):
-    """One battle journal line."""
-
-    id: str
-    round_seq: int
-    kind: str
-    message: str
-
-
-class ArenaRoomState(BaseModel):
-    """Full arena room state: fighters, roster, match flags, and journal."""
-
-    room_id: str
-    room_name: str
-    tier: int
-    fighter_a_id: str | None
-    fighter_b_id: str | None
-    fighters: list[ArenaFighter]
-    roster: list[ArenaRosterEntry]
-    fight_ready: bool
-    match_done: bool
-    fight_started: bool
-    countdown_remaining: int
-    can_start: bool
-    events: list[ArenaMatchEventOut]
-
-
-class ArenaState(BaseModel):
-    """All arena rooms in a vault."""
-
-    rooms: list[ArenaRoomState]
-
-
-class ArenaFightersResponse(BaseModel):
-    """Updated fighter slot selection for one arena room."""
-
-    room_id: str
-    fighter_a_id: str | None
-    fighter_b_id: str | None
-
-
-class ArenaEventsCleared(BaseModel):
-    """Journal clear result."""
-
-    room_id: str
-    cleared: int
-
-
-class ArenaFightStarted(BaseModel):
-    """Result of arming an arena match."""
-
-    room_id: str
-    started: bool
 
 
 def _to_roster_entry(dweller) -> ArenaRosterEntry:

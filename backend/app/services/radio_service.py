@@ -327,6 +327,7 @@ class RadioService:
                 "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": "recruitment",
                 "speedup_multipliers": [],
+                "radio_happiness_bonus": 0.0,
             }
 
         # Get radio rooms
@@ -342,6 +343,7 @@ class RadioService:
                 "manual_cost_caps": game_config.radio.manual_recruitment_cost,
                 "radio_mode": vault.radio_mode,
                 "speedup_multipliers": [],
+                "radio_happiness_bonus": 0.0,
             }
 
         # Calculate rate (per minute)
@@ -354,6 +356,12 @@ class RadioService:
         # Get speedup multipliers for each radio room
         speedup_multipliers = [{"room_id": str(room.id), "speedup": room.speedup_multiplier} for room in radio_rooms]
 
+        # In happiness mode the radio adds a flat happiness bonus per tick
+        total_speedup = sum(room.speedup_multiplier for room in radio_rooms)
+        radio_happiness_bonus = (
+            game_config.radio.happiness_bonus * total_speedup if vault.radio_mode == "happiness" else 0.0
+        )
+
         return {
             "has_radio": True,
             "recruitment_rate": rate_per_minute,
@@ -363,6 +371,7 @@ class RadioService:
             "manual_cost_caps": game_config.radio.manual_recruitment_cost,
             "radio_mode": vault.radio_mode,
             "speedup_multipliers": speedup_multipliers,
+            "radio_happiness_bonus": radio_happiness_bonus,
         }
 
     @staticmethod

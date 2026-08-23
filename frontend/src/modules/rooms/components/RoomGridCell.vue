@@ -285,7 +285,7 @@ const attentionCount = computed(() =>
 .overseer-alert-badge {
   position: absolute;
   top: 0.35rem;
-  left: 0.35rem;
+  right: 0.35rem;
   min-width: 1.25rem;
   border: 1px solid rgb(250 204 21 / 0.8);
   border-radius: 9999px;
@@ -296,6 +296,11 @@ const attentionCount = computed(() =>
   line-height: 1.25rem;
   text-align: center;
   z-index: 6;
+}
+
+/* Selected rooms show the action row top-right; drop the badge below it */
+.built-room.selected .overseer-alert-badge {
+  top: 2.5rem;
 }
 
 .room-actions {

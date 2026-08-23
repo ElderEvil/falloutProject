@@ -23,6 +23,26 @@ async def test_create_vault_with_user(async_session: AsyncSession) -> None:
     assert vault.user_id == user.id
 
 
+async def _add_elevator_on_level(async_session, vault_id, y):
+    """Create an elevator row directly so a room build passes elevator gating."""
+    elevator = RoomCreate(
+        vault_id=vault_id,
+        name="Elevator",
+        category=RoomTypeEnum.MISC,
+        ability=None,
+        base_cost=100,
+        incremental_cost=25,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        size_min=1,
+        size_max=1,
+        size=1,
+        coordinate_x=0,
+        coordinate_y=y,
+    )
+    return await crud.room.create(async_session, elevator)
+
+
 @pytest.mark.asyncio
 async def test_building_living_room_updates_population_max(async_session: AsyncSession) -> None:
     """Test that building a living room updates vault.population_max."""
@@ -54,6 +74,7 @@ async def test_building_living_room_updates_population_max(async_session: AsyncS
         coordinate_y=1,
     )
 
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
     await room_crud.build(db_session=async_session, obj_in=room_data)
 
     await async_session.refresh(vault)
@@ -100,6 +121,7 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
         coordinate_y=1,
     )
 
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
     await room_crud.build(db_session=async_session, obj_in=room_data)
 
     storage_result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
@@ -143,6 +165,8 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
         coordinate_y=2,
     )
 
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
     created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
 
     await async_session.refresh(vault)
@@ -187,6 +211,8 @@ async def test_building_living_room_with_wrong_capacity_formula_backend_wins(asy
         coordinate_y=3,
     )
 
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
     created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
 
     await async_session.refresh(vault)

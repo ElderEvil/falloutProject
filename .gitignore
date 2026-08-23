@@ -284,3 +284,5 @@ frontend/test-results/
 locust/*.csv
 locust/*.html
 .omo/
+# Backend runtime logs
+backend/logs/

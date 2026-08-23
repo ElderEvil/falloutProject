@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useRoomStore } from '../stores/room'
 import type { Room } from '../models/room'
+import { hasElevatorAbove, isLevelBuildable } from '../utils/room'
 
 export function useHoverPreview() {
   const roomStore = useRoomStore()
@@ -28,19 +29,23 @@ export function useHoverPreview() {
     return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
   })
 
-  const isValidPlacement = computed(() => {
+const isValidPlacement = computed(() => {
     if (!hoverPosition.value || !roomStore.selectedRoom) return false
-    return previewCells.value.every(
-      (cell) =>
-        cell.x >= 0 &&
-        cell.x < 8 &&
-        !roomStore.rooms.some(
-          (room: Room) =>
-            (room.coordinate_x ?? 0) <= cell.x &&
-            (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
-            (room.coordinate_y ?? 0) === cell.y
-        )
-    )
+    const selected = roomStore.selectedRoom
+    const isElevator = selected.name.toLowerCase() === 'elevator'
+    return previewCells.value.every((cell) => {
+      const inBounds = cell.x >= 0 && cell.x < 8
+      if (!inBounds) return false
+      const occupied = roomStore.rooms.some(
+        (room: Room) =>
+          (room.coordinate_x ?? 0) <= cell.x &&
+          (room.coordinate_x ?? 0) + (room.size ?? room.size_min) > cell.x &&
+          (room.coordinate_y ?? 0) === cell.y
+      )
+      if (occupied) return false
+      if (isElevator) return hasElevatorAbove(roomStore.rooms, cell.x, cell.y)
+      return isLevelBuildable(roomStore.rooms, cell.y)
+    })
   })
 
   return {

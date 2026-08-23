@@ -88,7 +88,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "relationshiptypeenum": {"ACQUAINTANCE", "FRIEND", "ROMANTIC", "PARTNER", "MARRIED", "EX"},
     "requirementtype": {"LEVEL", "ITEM", "ROOM", "DWELLER_COUNT", "QUEST_COMPLETED"},
     "rewardtype": {"CAPS", "ITEM", "DWELLER", "RESOURCE", "EXPERIENCE", "STIMPAK", "RADAWAY", "LUNCHBOX"},
-    "roomtypeenum": {"CAPACITY", "CRAFTING", "MISC", "PRODUCTION", "QUESTS", "THEME", "TRAINING"},
+    "roomtypeenum": {"CAPACITY", "CRAFTING", "MISC", "PRODUCTION", "QUESTS", "THEME", "TRAINING", "ARENA"},
     "specialenum": {"STRENGTH", "PERCEPTION", "ENDURANCE", "CHARISMA", "INTELLIGENCE", "AGILITY", "LUCK"},
     "trainingstatus": {"ACTIVE", "COMPLETED", "CANCELLED"},
     "weaponsubtypeenum": {

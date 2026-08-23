@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
   assignedDwellers: DwellerShort[]
@@ -44,6 +45,12 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         @keydown.enter.prevent="emit('dwellerClick', dweller.id)"
         @keydown.space.prevent="emit('dwellerClick', dweller.id)"
       >
+        <DwellerPortrait
+          :thumbnail-url="dweller.thumbnail_url"
+          :alt="`${dweller.first_name} ${dweller.last_name ?? ''}`"
+          image-class="dweller-portrait"
+          fallback-class="h-10 w-10 icon-primary"
+        />
         <div class="dweller-info">
           <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
           <div class="dweller-level">Level {{ dweller.level }}</div>
@@ -66,22 +73,28 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.125rem;
+  gap: 0.4rem;
+  font-size: 0.9375rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-theme-primary);
   margin: 0;
 }
 
+.section-title :deep(svg) {
+  width: 1rem;
+  height: 1rem;
+}
+
 .dweller-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--color-theme-glow);
 }
 
@@ -91,9 +104,9 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 
 .dwellers-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.75rem;
-  max-height: 300px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+  max-height: 180px;
   overflow-y: auto;
 }
 
@@ -102,11 +115,40 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   transition: all 0.2s;
+}
+
+.dweller-portrait {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--color-theme-glow);
+}
+
+.dweller-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.dweller-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-theme-primary);
+  overflow-wrap: break-word;
+}
+
+.dweller-level {
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
 }
 
 .dweller-card.clickable {
@@ -114,31 +156,10 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
 }
 
 .dweller-card.clickable:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--color-theme-glow);
-}
-
-.dweller-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.dweller-name {
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dweller-level {
-  font-size: 0.75rem;
-  color: var(--color-gray-400);
 }
 
 .dweller-stat {
@@ -147,7 +168,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-sunken);
   border-radius: 4px;
   flex-shrink: 0;
   min-width: 60px;

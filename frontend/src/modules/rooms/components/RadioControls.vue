@@ -68,10 +68,11 @@ const emit = defineEmits<{
     <UButton
       @click="emit('recruit')"
       :disabled="isRecruiting || assignedDwellers.length === 0 || localRadioMode !== 'recruitment'"
-      variant="primary"
+      variant="secondary"
+      size="sm"
       class="recruit-btn"
     >
-      <Icon icon="mdi:account-plus" class="h-5 w-5" />
+      <Icon icon="mdi:account-plus" class="h-4 w-4" />
       <span>Recruit Dweller ({{ manualRecruitCost }} caps)</span>
     </UButton>
   </div>
@@ -81,12 +82,11 @@ const emit = defineEmits<{
 .radio-controls {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.3);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
-  margin-top: 0.5rem;
   width: 100%;
 }
 
@@ -97,7 +97,7 @@ const emit = defineEmits<{
 }
 
 .radio-title {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-theme-primary);
   margin: 0;
@@ -119,12 +119,10 @@ const emit = defineEmits<{
   height: 8px;
   border-radius: 50%;
   background-color: var(--color-gray-600);
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
 .status-dot.active {
-  background-color: var(--color-terminal-green);
-  box-shadow: 0 0 8px var(--color-terminal-green);
+  background-color: var(--color-theme-primary);
   animation: pulse 2s infinite;
 }
 
@@ -142,11 +140,11 @@ const emit = defineEmits<{
 
 .radio-mode-switch {
   display: flex;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface);
   border-radius: 6px;
-  padding: 4px;
-  gap: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--color-surface-hover);
 }
 
 .mode-btn {
@@ -155,8 +153,8 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.5rem;
-  border: none;
+  padding: 0.4rem;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--color-gray-500);
   cursor: pointer;
@@ -167,19 +165,17 @@ const emit = defineEmits<{
 }
 
 .mode-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-gray-400);
+  background: var(--color-surface-hover);
+  color: var(--color-gray-300);
 }
 
 .mode-btn.active {
-  background: var(--color-theme-primary);
-  color: var(--color-terminal-background);
+  border-color: var(--color-theme-primary);
+  color: var(--color-theme-primary);
   font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .recruit-btn {
   width: 100%;
-  margin-top: 0.5rem;
 }
 </style>

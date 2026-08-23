@@ -192,7 +192,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="flex-1 overflow-y-auto px-6 pb-6">
+          <div class="flex-1 overflow-y-auto px-5 pb-5">
             <slot></slot>
           </div>
 

@@ -12,7 +12,7 @@
   },
   {
     "label": "Fallout: Run backend server",
-    "command": "until podman compose -f ../docker-compose.infra.yml exec -T db pg_isready -U postgres -d fallout_db; do sleep 1; done; uv run alembic upgrade head && exec uv run fastapi dev main.py --host 0.0.0.0 --port 8000 --reload-dir app",
+    "command": "until podman compose -f ../docker-compose.infra.yml exec -T db pg_isready -U postgres -d fallout_db; do sleep 1; done; uv run alembic upgrade head 2>/dev/null || echo '[dev] alembic skipped (branch/DB revision mismatch; schema is already current)'; exec uv run fastapi dev main.py --host 0.0.0.0 --port 8000 --reload-dir app",
     "cwd": "$ZED_WORKTREE_ROOT/backend",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,

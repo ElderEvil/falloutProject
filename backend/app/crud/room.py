@@ -14,6 +14,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
+from app.services import room_rules
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import (
     InsufficientResourcesException,
@@ -185,6 +186,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between {GRID_Y_MIN} and {GRID_Y_MAX}."
             raise ValueError(msg)
 
+        await room_rules.validate_build_placement(
+            db_session,
+            vault.id,
+            obj_in.name,
+            obj_in.coordinate_x,
+            obj_in.coordinate_y,
+        )
+
         # Prevent building multiple vault doors (case-insensitive check)
         if obj_in.name.lower() == "vault door":
             existing_vault_door = await db_session.execute(
@@ -248,47 +257,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         return obj_in_db
 
-    async def check_elevator_dependencies(self, db_session: AsyncSession, elevator_room: Room) -> None:
-        """
-        Check if removing an elevator would make any level inaccessible.
-        An elevator is essential if removing it would leave a level with rooms but no elevator access.
-        """
-        if elevator_room.name.lower() != "elevator":
-            return
-
-        elevator_level = elevator_room.coordinate_y
-
-        # Get all elevators in this vault
-        elevators_result = await db_session.execute(
-            select(Room).where(and_(Room.vault_id == elevator_room.vault_id, Room.name == "Elevator"))
-        )
-        all_elevators = elevators_result.scalars().all()
-
-        # If this is the only elevator on this level, check if there are other rooms on this level
-        elevators_on_level = [e for e in all_elevators if e.coordinate_y == elevator_level and e.id != elevator_room.id]
-
-        if not elevators_on_level:
-            # Check if there are other rooms (non-elevators) on this level
-            rooms_on_level_result = await db_session.execute(
-                select(Room).where(
-                    and_(
-                        Room.vault_id == elevator_room.vault_id,
-                        Room.coordinate_y == elevator_level,
-                        Room.name != "Elevator",
-                        Room.id != elevator_room.id,
-                    )
-                )
-            )
-            other_rooms_on_level = rooms_on_level_result.scalars().all()
-
-            if other_rooms_on_level:
-                room_count = len(other_rooms_on_level)
-                msg = (
-                    f"Cannot destroy this elevator. It provides the only access to level {elevator_level} "
-                    f"which contains {room_count} other room(s)."
-                )
-                raise ValueError(msg)
-
     async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> Room:
         # Get room before deletion to check if it's a vault door
         room_to_delete = await self.get(db_session, id)
@@ -303,8 +271,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = "Cannot destroy the vault door. It is a critical structure and must remain in place."
             raise ValueError(msg)
 
-        # Check elevator dependencies
-        await self.check_elevator_dependencies(db_session, room_to_delete)
+        # Check elevator dependencies (stack + stranded-room invariants)
+        await room_rules.validate_elevator_destroy(db_session, room_to_delete)
 
         db_obj = await super().delete(db_session, id=id)
         vault = await vault_crud.get(db_session, id=db_obj.vault_id)

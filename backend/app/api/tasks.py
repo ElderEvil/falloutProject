@@ -9,7 +9,9 @@ import dramatiq
 import periodiq
 from pydantic import UUID4
 
+import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
+from app.core.game_config import game_config
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
 from app.services.event_bus import event_bus
@@ -79,6 +81,47 @@ def game_tick():
         return stats
     finally:
         event_bus.clear_locks()
+
+
+@dramatiq.actor(actor_name="incident_tick", max_retries=0)
+def incident_tick():
+    """Fast incident tick - processes combat for every vault's active incidents.
+
+    Self-reschedules every ``incident_tick_seconds`` (independent of the 60s
+    game tick) so incident combat gives live feedback. The periodiq cron below
+    acts as a low-frequency watchdog that re-seeds the loop if it ever dies.
+    """
+    try:
+        from app.services.incident_service import incident_service
+
+        async def run_incident_tick():
+            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+            from app.core.config import settings
+
+            engine = create_async_engine(
+                str(settings.ASYNC_DATABASE_URI),
+                echo=False,
+                future=True,
+                pool_pre_ping=True,
+            )
+            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            try:
+                async with session_maker() as session:
+                    return await incident_service.process_all_vaults_incidents(
+                        session, game_config.game_loop.incident_tick_seconds
+                    )
+            finally:
+                await engine.dispose()
+
+        stats = asyncio.run(run_incident_tick())
+    except Exception:
+        logger.exception("Incident tick failed")
+    else:
+        if stats["resolved"] or stats["spawned"]:
+            logger.info(f"Incident tick completed: {stats}")
+    finally:
+        incident_tick.send_with_options(delay=game_config.game_loop.incident_tick_seconds * 1000)
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)
@@ -369,6 +412,7 @@ def cleanup_old_records():
 
 # Every minute (60 seconds)
 game_tick.options["periodic"] = periodiq.cron("* * * * *")
+incident_tick.options["periodic"] = periodiq.cron("*/2 * * * *")
 
 # Daily at midnight
 check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")

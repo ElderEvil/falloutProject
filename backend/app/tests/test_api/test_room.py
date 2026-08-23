@@ -76,7 +76,6 @@ async def test_build_room_uses_backend_template(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
     vault: Vault,
-    async_session: AsyncSession,
 ):
     """The build endpoint derives every room attribute from its template."""
     from app.schemas.room import RoomCreate
@@ -121,11 +120,10 @@ async def test_build_room_allows_vault_owner_and_rejects_other_user(
     async_session: AsyncSession,
     user_with_vault: tuple,
 ):
-    from app.schemas.room import RoomCreate
-    from app.utils.static_data import game_data_store
-
     _, vault = user_with_vault
     # Seed the elevator infrastructure the real game creates at vault init
+    from app.utils.static_data import game_data_store
+
     elevator_template = game_data_store.get_room("Elevator")
     elevator_in = RoomCreate(
         **elevator_template.model_dump() | {"vault_id": vault.id, "coordinate_x": 0, "coordinate_y": 2}

@@ -2673,6 +2673,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/arena/vault/{vault_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Arena State
+         * @description Return arena rooms with their assigned fighters, match state, and journal.
+         */
+        get: operations["get_arena_state_api_v1_arena_vault__vault_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/arena/vault/{vault_id}/rooms/{room_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Arena Fight
+         * @description Arm an arena match: two adult fighters present, not already done/started.
+         */
+        post: operations["start_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/radio/vault/{vault_id}/stats": {
         parameters: {
             query?: never;
@@ -7284,6 +7324,16 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
+            /**
+             * Arena Last Fight At
+             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
+             */
+            arena_last_fight_at?: string | null;
+            /**
+             * Arena Fight Started At
+             * @description When the armed arena match was started by the player (fight button); NULL means waiting
+             */
+            arena_fight_started_at?: string | null;
             /** Capacity Formula */
             capacity_formula?: string | null;
             /** Output Formula */
@@ -7331,6 +7381,16 @@ export interface components {
              * @default 1
              */
             speedup_multiplier: number;
+            /**
+             * Arena Last Fight At
+             * @description When the last arena match finished; fights stay stopped until a dweller is reassigned
+             */
+            arena_last_fight_at?: string | null;
+            /**
+             * Arena Fight Started At
+             * @description When the armed arena match was started by the player (fight button); NULL means waiting
+             */
+            arena_fight_started_at?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -12217,6 +12277,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EligibleDwellerRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_arena_state_api_v1_arena_vault__vault_id__state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_arena_fight_api_v1_arena_vault__vault_id__rooms__room_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

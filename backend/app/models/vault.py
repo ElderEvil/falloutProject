@@ -42,6 +42,9 @@ class VaultBase(SQLModel):
     # Store as string in database to avoid enum type issues
     radio_mode: str = Field(default="recruitment", sa_column=Column(String(50)))
 
+    # Incident control (e.g. a test playground vault)
+    incidents_disabled: bool = Field(default=False, description="Suppresses incident spawns and processing")
+
     # Game state
 
     def __str__(self):

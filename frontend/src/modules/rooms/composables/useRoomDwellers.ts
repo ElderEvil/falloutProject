@@ -4,6 +4,7 @@ import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { getTrainingRoomCapacity } from '../utils/room'
 import type { Room } from '../models/room'
 
 export function useRoomDwellers(
@@ -21,13 +22,10 @@ export function useRoomDwellers(
     return dwellerStore.dwellers.filter((d) => d.room_id === room.value!.id)
   })
 
-  const dwellerCapacity = computed(() => {
-    if (!room.value) return 0
-    const r = room.value
-    const roomSize = r.size ?? r.size_min ?? 3
-    const cellsOccupied = Math.ceil(roomSize / 3)
-    return cellsOccupied * 2
-  })
+const dwellerCapacity = computed(() => {
+  if (!room.value) return 0
+  return getTrainingRoomCapacity(room.value)
+})
 
   const getAbilityLabel = (ability: string) => {
     const cfg = getAbilityConfig(ability)

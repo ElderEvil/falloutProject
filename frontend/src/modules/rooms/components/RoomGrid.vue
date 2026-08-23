@@ -15,7 +15,7 @@ import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import type { Room } from '../models/room'
-import { getTrainingRoomCapacity, isLevelBuildable } from '@/modules/rooms/utils/room'
+import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal
@@ -121,17 +121,6 @@ const gridCells = computed(() => {
   }
   return cells
 })
-
-// A level without an elevator is locked until one is built on it.
-// Row 0 is always buildable because the vault door anchors it.
-const isLevelLocked = (y: number) => !isLevelBuildable(rooms.value, y)
-
-// Elevators can still be placed on locked levels (stacked below an existing
-// shaft) because building one is exactly what unlocks the level.
-const isPlacingElevator = computed(
-  () => roomStore.selectedRoom?.name.toLowerCase() === 'elevator'
-)
-const canInteractWithLevel = (y: number) => !isLevelLocked(y) || isPlacingElevator.value
 
 // Drag and drop for dweller assignment
 const draggingOverRoomId = ref<string | null>(null)
@@ -291,7 +280,6 @@ const closeDetailModal = () => {
         }"
         class="room empty"
         :class="{
-          'level-locked': isLevelLocked(cell.y) && !isPlacingElevator,
           'hover-preview': previewCells.some(
             (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
           ),
@@ -307,18 +295,14 @@ const closeDetailModal = () => {
               (previewCell) => previewCell.x === cell.x && previewCell.y === cell.y
             ),
         }"
-        @mouseenter="canInteractWithLevel(cell.y) && handleHover(cell.x, cell.y)"
+        @mouseenter="handleHover(cell.x, cell.y)"
         @mouseleave="clearHover"
         role="button"
         tabindex="0"
-        @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
-        @keydown.enter.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
-        @keydown.space.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
-      >
-        <span v-if="isLevelLocked(cell.y) && !isPlacingElevator" class="level-lock-indicator">
-          <Icon icon="mdi:lock" />
-        </span>
-      </div>
+        @click="handleEmptyCellClick(cell.x, cell.y)"
+        @keydown.enter.prevent="handleEmptyCellClick(cell.x, cell.y)"
+        @keydown.space.prevent="handleEmptyCellClick(cell.x, cell.y)"
+      ></div>
 
       <!-- Locked rows indicator (16-25) -->
       <div

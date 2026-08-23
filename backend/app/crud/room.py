@@ -186,7 +186,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             msg = f"Invalid Y coordinate: {obj_in.coordinate_y}. Must be between {GRID_Y_MIN} and {GRID_Y_MAX}."
             raise ValueError(msg)
 
-        await room_rules.validate_build_placement(
+await room_rules.validate_build_placement(
             db_session,
             vault.id,
             obj_in.name,

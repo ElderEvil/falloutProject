@@ -22,7 +22,12 @@ from app.schemas.dweller import (
 )
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.dwellers import create_random_common_dweller
-from app.utils.exceptions import ContentNoChangeException, InvalidVaultTransferException, ResourceConflictException
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    InvalidVaultTransferException,
+    ResourceConflictException,
+    ValidationException,
+)
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 
@@ -272,6 +277,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         # Validate vault transfer (can't move between vaults)
         if dweller_obj.vault_id != room_obj.vault_id:
             raise InvalidVaultTransferException
+
+        if room_obj.category == RoomTypeEnum.ARENA and not dweller_obj.is_mature:
+            raise ValidationException(detail="Only adult dwellers can fight in the Arena")
 
         if not dweller_obj.room_id and not await vault_crud.is_enough_population_space(
             db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1

@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    arena,
     auth,
     chat,
     debug,
@@ -48,6 +49,7 @@ api_router.include_router(objective.router)
 api_router.include_router(outfit.router)
 api_router.include_router(pregnancy.router)
 api_router.include_router(quest.router)
+api_router.include_router(arena.router)
 api_router.include_router(radio.router)
 api_router.include_router(relationship.router)
 api_router.include_router(room.router)

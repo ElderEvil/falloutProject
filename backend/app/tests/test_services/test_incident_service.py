@@ -1,17 +1,20 @@
 """Tests for incident service logic."""
 
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.models.game_state import GameState
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum
 from app.schemas.dweller import DwellerCreate
+from app.schemas.incident import IncidentRoundResult
 from app.services.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
 
@@ -128,8 +131,8 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, room_w
         difficulty=1,
     )
 
-    # Manually set high enemies defeated
-    incident.enemies_defeated = 10
+    # Manually set high fractional progress (kills accumulate as a float)
+    incident.combat_progress = 10
     async_session.add(incident)
     await async_session.commit()
     await async_session.refresh(incident)
@@ -140,6 +143,42 @@ async def test_process_incident_auto_resolve(async_session: AsyncSession, room_w
     # Should auto-resolve
     await async_session.refresh(incident)
     assert incident.status == IncidentStatus.RESOLVED or result.enemies_defeated >= 2
+
+
+@pytest.mark.asyncio
+async def test_process_incident_fractional_progress_accumulates(async_session: AsyncSession, room_with_dwellers: dict):
+    """Weak defenders accumulate fractional kills across fast ticks instead of stalling at 0."""
+    room = room_with_dwellers["room"]
+    dwellers = room_with_dwellers["dwellers"]
+    for dweller in dwellers:
+        dweller.strength = 1
+        dweller.endurance = 1
+        dweller.agility = 1
+        dweller.level = 1
+        dweller.health = 100
+        dweller.max_health = 100
+        dweller.is_adult = True
+        dweller.age_group = AgeGroupEnum.ADULT
+    await async_session.commit()
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.RADROACH_INFESTATION,
+        difficulty=1,
+    )
+
+    # Each 2s tick deals power/5*2 = 1.2 damage vs 10 raider power = 0.12 kills:
+    # int() alone would stall at 0 forever; fractional accumulation must add up.
+    for _ in range(25):
+        await incident_service.process_incident(async_session, incident, 2)
+        await async_session.refresh(incident)
+        if incident.status == IncidentStatus.RESOLVED:
+            break
+
+    assert incident.status == IncidentStatus.RESOLVED
+    assert incident.enemies_defeated == int(incident.combat_progress)
 
 
 @pytest.mark.asyncio
@@ -496,3 +535,178 @@ async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, 
     if len(active_incidents) > 1:
         spread_incident = next(inc for inc in active_incidents if inc.id != incident.id)
         assert spread_incident.room_id == normal_room.id
+
+
+class TestProcessVaultIncidents:
+    """Tests for per-vault incident processing on the fast tick."""
+
+    @pytest.mark.asyncio
+    async def test_no_spawn_no_active(self, async_session: AsyncSession, vault: Vault):
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["spawned"] == 0
+        assert result["processed"] == 0
+        assert result["resolved"] == 0
+        assert result["active_count"] == 0
+        assert result["caps_earned"] == 0
+
+    @pytest.mark.asyncio
+    async def test_spawns_new_incident(self, async_session: AsyncSession, vault: Vault):
+        mock_incident = MagicMock()
+        mock_incident.type = "raider_attack"
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=True),
+            patch.object(incident_service, "spawn_incident", new_callable=AsyncMock, return_value=mock_incident),
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["spawned"] == 1
+        assert result["active_count"] == 0
+        mock_process.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_offline_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
+        game_state = GameState(vault_id=vault.id, last_activity_time=datetime.utcnow() - timedelta(minutes=11))
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
+
+        assert result["active_count"] == 1
+        mock_spawn.assert_not_called()
+        mock_process.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_spawn_returns_none(self, async_session: AsyncSession, vault: Vault):
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=True),
+            patch.object(incident_service, "spawn_incident", new_callable=AsyncMock, return_value=None),
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["spawned"] == 0
+
+    @pytest.mark.asyncio
+    async def test_processes_active(self, async_session: AsyncSession, vault: Vault):
+        mock_incident = MagicMock()
+        mock_incident.status = MagicMock()
+        mock_incident.status.value = "resolved"
+        mock_incident.id = "inc-1"
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch.object(
+                incident_service,
+                "process_incident",
+                new_callable=AsyncMock,
+                return_value=IncidentRoundResult(caps_earned=50),
+            ),
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.crud.vault.vault") as mock_vault_crud,
+            patch.object(async_session, "refresh", new_callable=AsyncMock),
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
+            mock_vault_crud.get = AsyncMock(return_value=vault)
+            mock_vault_crud.deposit_caps = AsyncMock()
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["active_count"] == 1
+        assert result["processed"] == 1
+        assert result["resolved"] == 1
+        assert result["caps_earned"] == 50
+
+    @pytest.mark.asyncio
+    async def test_skips_skipped_result(self, async_session: AsyncSession, vault: Vault):
+        mock_incident = MagicMock()
+        mock_incident.id = "inc-1"
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch.object(
+                incident_service,
+                "process_incident",
+                new_callable=AsyncMock,
+                return_value=IncidentRoundResult(skipped=True),
+            ),
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch.object(async_session, "refresh", new_callable=AsyncMock),
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["active_count"] == 1
+        assert result["processed"] == 0
+
+    @pytest.mark.asyncio
+    async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault):
+        inc1 = MagicMock()
+        inc1.id = "inc-1"
+        inc2 = MagicMock()
+        inc2.id = "inc-2"
+        inc2.status = MagicMock()
+        inc2.status.value = "active"
+
+        call_count = [0]
+
+        async def process_side_effect(db_session, incident, seconds_passed):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise RuntimeError("Simulated error")
+            return IncidentRoundResult()
+
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch.object(
+                incident_service,
+                "process_incident",
+                new_callable=AsyncMock,
+                side_effect=process_side_effect,
+            ),
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch.object(async_session, "refresh", new_callable=AsyncMock),
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[inc1, inc2])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert result["active_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_outer_exception_set_error(self, async_session: AsyncSession, vault: Vault):
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with patch.object(
+            incident_service,
+            "should_spawn_incident",
+            new_callable=AsyncMock,
+            side_effect=SQLAlchemyError("DB down"),
+        ):
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+        assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_disabled_vault_does_not_spawn_or_process(async_session: AsyncSession, vault: Vault):
+    vault.incidents_disabled = True
+    await async_session.commit()
+
+    with (
+        patch.object(incident_service, "spawn_incident", new_callable=AsyncMock) as mock_spawn,
+        patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
+    ):
+        result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+
+    assert result["active_count"] == 0
+    mock_spawn.assert_not_awaited()
+    mock_process.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_disabled_vault_should_spawn_returns_false(async_session: AsyncSession, vault: Vault):
+    vault.incidents_disabled = True
+    await async_session.commit()
+    assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False

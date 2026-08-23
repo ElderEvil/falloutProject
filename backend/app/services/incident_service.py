@@ -2,8 +2,10 @@
 
 import logging
 import random
+import threading
 
 from pydantic import UUID4
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -38,6 +40,8 @@ class IncidentService:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        # Serializes fast-tick execution across dramatiq worker threads.
+        self._tick_lock = threading.Lock()
 
     async def should_spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
@@ -56,6 +60,13 @@ class IncidentService:
         # Check if user is online (has recent activity) - suppress incidents when offline
         if game_state and not game_state.is_user_online(timeout_seconds=600):
             self.logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
+            return False
+
+        from app.models.vault import Vault
+
+        vault = await db_session.get(Vault, vault_id)
+        if vault is not None and vault.incidents_disabled:
+            self.logger.debug(f"Incidents are disabled for vault {vault_id}")
             return False
 
         # Need minimum population
@@ -331,9 +342,15 @@ class IncidentService:
         # Track total damage dealt by raiders
         incident.damage_dealt += int(damage_to_dwellers)
 
-        # Track enemies defeated (simulated)
-        enemies_this_tick = int(damage_to_raiders / raider_power) if raider_power > 0 else 0
-        incident.enemies_defeated += enemies_this_tick
+        # Track enemies defeated — accumulate fractional kills so weak defenders
+        # still make progress instead of stalling at int() == 0 every tick.
+        if raider_power > 0:
+            previous_kills = incident.enemies_defeated
+            incident.combat_progress += damage_to_raiders / raider_power
+            incident.enemies_defeated = int(incident.combat_progress)
+            enemies_this_tick = incident.enemies_defeated - previous_kills
+        else:
+            enemies_this_tick = 0
 
         # Check victory condition (defeated enough raiders based on difficulty)
         expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
@@ -368,6 +385,97 @@ class IncidentService:
             enemies_defeated=enemies_this_tick,
             caps_earned=caps_earned,
         )
+
+    async def process_vault_incidents(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        seconds_passed: int,
+        game_state: GameState | None = None,
+    ) -> dict:
+        """Process one vault's incidents: spawn check, combat rounds, spreading, caps.
+
+        Runs on its own fast tick (``incident_tick`` actor), independent of the
+        60-second game loop, so combat gives live feedback.
+        """
+        stats = {"spawned": 0, "processed": 0, "resolved": 0, "active_count": 0, "caps_earned": 0}
+
+        try:
+            if game_state is None:
+                game_state = await db_session.get(GameState, vault_id)
+
+            from app.models.vault import Vault
+
+            vault = await db_session.get(Vault, vault_id)
+            if vault is not None and vault.incidents_disabled:
+                return stats
+
+            active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+            stats["active_count"] = len(active_incidents)
+
+            # Incidents do not punish players for time away from the vault.
+            if game_state and not game_state.is_user_online():
+                return stats
+
+            if await self.should_spawn_incident(db_session, vault_id, seconds_passed, game_state):
+                new_incident = await self.spawn_incident(db_session, vault_id)
+                if new_incident:
+                    stats["spawned"] = 1
+                    self.logger.info(f"Spawned new incident {new_incident.type} in vault {vault_id}")
+
+            total_caps_earned = 0
+
+            for incident in active_incidents:
+                try:
+                    result = await self.process_incident(
+                        db_session, incident, min(seconds_passed, game_config.game_loop.tick_interval)
+                    )
+
+                    if result.skipped:
+                        continue
+
+                    stats["processed"] += 1
+
+                    if result.caps_earned > 0:
+                        total_caps_earned += result.caps_earned
+
+                    await db_session.refresh(incident)
+                    if incident.status.value in ("resolved", "failed"):
+                        stats["resolved"] += 1
+                        self.logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
+
+                except (SQLAlchemyError, ValueError, RuntimeError) as e:
+                    self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
+
+            if total_caps_earned > 0:
+                from app.crud.vault import vault as vault_crud
+
+                vault = await vault_crud.get(db_session, vault_id)
+                if vault:
+                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
+                    stats["caps_earned"] = total_caps_earned
+                    self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
+
+        except (SQLAlchemyError, ResourceNotFoundException) as e:
+            self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
+            stats["error"] = str(e)
+
+        return stats
+
+    async def process_all_vaults_incidents(self, db_session: AsyncSession, seconds_passed: int) -> dict:
+        """Process incidents for every active vault (fast-tick entry point)."""
+        with self._tick_lock:
+            from app.models.vault import Vault
+
+            result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
+            vault_ids = [row[0] for row in result.all()]
+
+            totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
+            for vault_id in vault_ids:
+                stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
+                totals["spawned"] += stats["spawned"]
+                totals["resolved"] += stats["resolved"]
+            return totals
 
     async def _notify_resolution(
         self, db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0
@@ -491,13 +599,14 @@ class IncidentService:
             # Pick a random adjacent room
             new_room = random.choice(adjacent_rooms)
 
-            # Create a new incident in the adjacent room with the SAME type
+            # Create a new incident in the adjacent room with the SAME type, capped
+            # at the model's max difficulty so it can't snowball on repeat spreads.
             new_incident = await incident_crud.create(
                 db_session,
                 vault_id=incident.vault_id,
                 room_id=new_room.id,
                 incident_type=incident.type,  # Same type! (field is called 'type')
-                difficulty=incident.difficulty + 1,  # Slightly harder
+                difficulty=min(incident.difficulty + 1, 10),  # Slightly harder
                 duration=game_config.incident.spread_duration,
             )
 

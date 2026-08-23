@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref, toRef } from 'vue'
+import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import { useRoomProduction } from '../composables/useRoomProduction'
@@ -14,6 +15,7 @@ import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
+import ArenaModal from './ArenaModal.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
@@ -31,11 +33,15 @@ const emit = defineEmits<{
   reviewIncidents: []
 }>()
 
+const route = useRoute()
+const vaultId = computed(() => route.params.id as string)
+
 const actionError = ref<string | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
 const isOverseersOffice = computed(() => props.room?.name.toLowerCase() === "overseer's office")
+const isArenaRoom = computed(() => props.room?.category?.toLowerCase() === 'arena')
 
 // Composables
 const {
@@ -110,73 +116,83 @@ watch(
     </template>
 
     <div v-if="room" class="modal-content">
-      <!-- Error display -->
-      <div v-if="actionError" class="error-banner">
-        <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-        {{ actionError }}
-      </div>
-
-      <RoomPreviewSection
-        :room-name="room.name"
-        :image-url="room.image_url ?? null"
-        :room-image-url="roomImageUrl ?? null"
-        :dweller-capacity="dwellerCapacity"
-        :assigned-dwellers="assignedDwellers"
-      />
-
-      <RoomInfoGrid
-        :room="room"
-        :assigned-dweller-count="assignedDwellers.length"
-        :dweller-capacity="dwellerCapacity"
-        :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-      />
-
-      <OverseerBriefing
-        v-if="isOverseersOffice && overseerBriefing"
-        v-bind="overseerBriefing"
-        @review-incidents="emit('reviewIncidents')"
-      />
-
-      <ProductionStats
-        v-if="isRadioRoom && radioStats"
-        :radio-stats="radioStats"
-        :radio-mode="localRadioMode"
-      />
-
-      <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
-
-      <DwellerList
-        :assigned-dwellers="assignedDwellers"
-        :ability="room.ability"
-        @dweller-click="openDwellerDetails"
-      />
-
-      <RoomActions
-        :room="room"
-        :upgrade-info="upgradeInfo"
-        :is-upgrading="isUpgrading"
+      <ArenaModal
+        v-if="isArenaRoom"
+        :vault-id="vaultId"
+        :room-id="room.id"
         :is-destroying="isDestroying"
-        :is-rushing="isRushing"
-        :is-vault-door="isVaultDoor"
-        :has-production-info="!!productionInfo"
-        :is-radio-room="isRadioRoom"
-        :assigned-dweller-count="assignedDwellers.length"
-        @upgrade="handleUpgrade"
         @destroy="handleDestroy"
-        @rush-production="handleRushProduction"
-        @unassign-all="handleUnassignAll"
-      >
-        <template v-if="isRadioRoom" #radio-controls>
-          <RadioControls
-            :local-radio-mode="localRadioMode"
-            :is-recruiting="isRecruiting"
-            :manual-recruit-cost="manualRecruitCost"
-            :assigned-dwellers="assignedDwellers"
-            @switch-mode="handleSwitchRadioMode"
-            @recruit="handleRecruitDweller"
-          />
-        </template>
-      </RoomActions>
+      />
+
+      <template v-else>
+        <!-- Error display -->
+        <div v-if="actionError" class="error-banner">
+          <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+          {{ actionError }}
+        </div>
+
+        <RoomPreviewSection
+          :room-name="room.name"
+          :image-url="room.image_url ?? null"
+          :room-image-url="roomImageUrl ?? null"
+          :dweller-capacity="dwellerCapacity"
+          :assigned-dwellers="assignedDwellers"
+        />
+
+        <RoomInfoGrid
+          :room="room"
+          :assigned-dweller-count="assignedDwellers.length"
+          :dweller-capacity="dwellerCapacity"
+          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+        />
+
+        <OverseerBriefing
+          v-if="isOverseersOffice && overseerBriefing"
+          v-bind="overseerBriefing"
+          @review-incidents="emit('reviewIncidents')"
+        />
+
+        <ProductionStats
+          v-if="isRadioRoom && radioStats"
+          :radio-stats="radioStats"
+          :radio-mode="localRadioMode"
+        />
+
+        <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
+
+        <DwellerList
+          :assigned-dwellers="assignedDwellers"
+          :ability="room.ability"
+          @dweller-click="openDwellerDetails"
+        />
+
+        <RoomActions
+          :room="room"
+          :upgrade-info="upgradeInfo"
+          :is-upgrading="isUpgrading"
+          :is-destroying="isDestroying"
+          :is-rushing="isRushing"
+          :is-vault-door="isVaultDoor"
+          :has-production-info="!!productionInfo"
+          :is-radio-room="isRadioRoom"
+          :assigned-dweller-count="assignedDwellers.length"
+          @upgrade="handleUpgrade"
+          @destroy="handleDestroy"
+          @rush-production="handleRushProduction"
+          @unassign-all="handleUnassignAll"
+        >
+          <template v-if="isRadioRoom" #radio-controls>
+            <RadioControls
+              :local-radio-mode="localRadioMode"
+              :is-recruiting="isRecruiting"
+              :manual-recruit-cost="manualRecruitCost"
+              :assigned-dwellers="assignedDwellers"
+              @switch-mode="handleSwitchRadioMode"
+              @recruit="handleRecruitDweller"
+            />
+          </template>
+        </RoomActions>
+      </template>
     </div>
   </UModal>
 </template>

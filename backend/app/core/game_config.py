@@ -43,6 +43,24 @@ class GameLoopConfig(BaseSettings):
         ge=0,
         le=86400,
     )
+    arena_tick_seconds: int = Field(
+        default=2,
+        description="Seconds between arena fight ticks (independent of the vault round)",
+        ge=1,
+        le=60,
+    )
+    incident_tick_seconds: int = Field(
+        default=2,
+        description="Seconds between incident combat ticks (independent of the vault round)",
+        ge=1,
+        le=60,
+    )
+    arena_countdown_seconds: int = Field(
+        default=3,
+        description="Countdown between pressing the arena FIGHT button and the first combat tick",
+        ge=0,
+        le=30,
+    )
 
 
 class IncidentConfig(BaseSettings):

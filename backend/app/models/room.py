@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4
@@ -30,6 +31,16 @@ class RoomBase(SQLModel):
     coordinate_y: int | None = Field(default=None, ge=0, le=25)
     image_url: str | None = Field(default=None)
     speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)
+    arena_last_fight_at: datetime | None = Field(
+        default=None,
+        description="When the last arena match finished; fights stay stopped until a dweller is reassigned",
+    )
+    arena_fight_started_at: datetime | None = Field(
+        default=None,
+        description="When the armed arena match was started by the player (fight button); NULL means waiting",
+    )
+    arena_fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True)
+    arena_fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True)
 
     @property
     def is_unique(self) -> bool:
@@ -49,7 +60,10 @@ class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)
     vault: "Vault" = Relationship(back_populates="rooms")
 
-    dwellers: list["Dweller"] = Relationship(back_populates="room")
+    dwellers: list["Dweller"] = Relationship(
+        back_populates="room",
+        sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
+    )
 
     def __str__(self):
         return f"{self.name}"

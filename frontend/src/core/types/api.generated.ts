@@ -6160,6 +6160,8 @@ export interface components {
             status: components["schemas"]["IncidentStatus"];
             /** Room Id */
             room_id: string;
+            /** Room Name */
+            room_name?: string | null;
             /** Difficulty */
             difficulty: number;
             /** Start Time */
@@ -6203,6 +6205,8 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+            /** Room Name */
+            room_name?: string | null;
             type: components["schemas"]["IncidentType"];
             status: components["schemas"]["IncidentStatus"];
             /** Difficulty */

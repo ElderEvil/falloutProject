@@ -8,11 +8,12 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum
+from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
 from app.services.incident_service import incident_service
@@ -535,6 +536,89 @@ async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, 
     if len(active_incidents) > 1:
         spread_incident = next(inc for inc in active_incidents if inc.id != incident.id)
         assert spread_incident.room_id == normal_room.id
+
+
+@pytest.mark.asyncio
+async def test_spread_respects_active_incident_cap(async_session: AsyncSession, vault: Vault):
+    from app.schemas.room import RoomCreate
+
+    current_room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Power Generator",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=6,
+            coordinate_x=1,
+            coordinate_y=1,
+            vault_id=vault.id,
+        ),
+    )
+    target_room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            name="Diner",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.AGILITY,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=6,
+            coordinate_x=2,
+            coordinate_y=1,
+            vault_id=vault.id,
+        ),
+    )
+    active_incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=current_room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=5,
+    )
+
+    for index in range(game_config.incident.max_active_incidents - 1):
+        room = await crud.room.create(
+            async_session,
+            RoomCreate(
+                name=f"Room {index}",
+                category=RoomTypeEnum.PRODUCTION,
+                ability=SPECIALEnum.STRENGTH,
+                base_cost=100,
+                incremental_cost=50,
+                t2_upgrade_cost=500,
+                t3_upgrade_cost=1500,
+                size_min=3,
+                size_max=6,
+                coordinate_x=index + 4,
+                coordinate_y=4,
+                vault_id=vault.id,
+            ),
+        )
+        await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room.id,
+            incident_type=IncidentType.FIRE,
+            difficulty=1,
+        )
+
+    assert (
+        len(await crud.incident_crud.get_active_by_vault(async_session, vault.id))
+        == game_config.incident.max_active_incidents
+    )
+    assert await incident_service._spread_incident(async_session, active_incident) is False
+    assert (
+        len(await crud.incident_crud.get_active_by_vault(async_session, vault.id))
+        == game_config.incident.max_active_incidents
+    )
 
 
 class TestProcessVaultIncidents:

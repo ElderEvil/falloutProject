@@ -5,6 +5,7 @@ import random
 import threading
 
 from pydantic import UUID4
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -123,8 +124,21 @@ class IncidentService:
         Returns:
             Incident or None if no suitable room found
         """
-        # Check what incident types are already active in vault
-        active_types = await incident_crud.get_active_incident_types_in_vault(db_session, vault_id)
+        if not await self._try_acquire_spawn_lock(db_session, vault_id):
+            return None
+
+        from app.models.vault import Vault
+
+        vault = await db_session.get(Vault, vault_id)
+        if vault is None or vault.incidents_disabled:
+            return None
+
+        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        if len(active_incidents) >= game_config.incident.max_active_incidents:
+            self.logger.info("Incident cap reached for vault %s", vault_id)
+            return None
+
+        active_types = {incident.type for incident in active_incidents}
 
         # If incident_type not specified, pick random or match existing type
         if not incident_type:
@@ -466,17 +480,50 @@ class IncidentService:
     async def process_all_vaults_incidents(self, db_session: AsyncSession, seconds_passed: int) -> dict:
         """Process incidents for every active vault (fast-tick entry point)."""
         with self._tick_lock:
+            if not await self._try_acquire_tick_lock(db_session):
+                return {"vaults": 0, "spawned": 0, "resolved": 0}
+
             from app.models.vault import Vault
 
-            result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
-            vault_ids = [row[0] for row in result.all()]
+            try:
+                result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
+                vault_ids = [row[0] for row in result.all()]
 
-            totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
-            for vault_id in vault_ids:
-                stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
-                totals["spawned"] += stats["spawned"]
-                totals["resolved"] += stats["resolved"]
-            return totals
+                totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
+                for vault_id in vault_ids:
+                    stats = await self.process_vault_incidents(db_session, vault_id, seconds_passed)
+                    totals["spawned"] += stats["spawned"]
+                    totals["resolved"] += stats["resolved"]
+                return totals
+            finally:
+                await self._release_tick_lock(db_session)
+
+    async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
+        if db_session.get_bind().dialect.name != "postgresql":
+            return True
+
+        result = await db_session.execute(
+            text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": "incident-tick"},
+        )
+        return bool(result.scalar())
+
+    async def _release_tick_lock(self, db_session: AsyncSession) -> None:
+        if db_session.get_bind().dialect.name == "postgresql":
+            await db_session.execute(
+                text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
+                {"lock_key": "incident-tick"},
+            )
+
+    async def _try_acquire_spawn_lock(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
+        if db_session.get_bind().dialect.name != "postgresql":
+            return True
+
+        result = await db_session.execute(
+            text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": f"incident-spawn:{vault_id}"},
+        )
+        return bool(result.scalar())
 
     async def _notify_resolution(
         self, db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0
@@ -558,6 +605,16 @@ class IncidentService:
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
         """Spread an incident to an adjacent room and report whether it succeeded."""
+        if not await self._try_acquire_spawn_lock(db_session, incident.vault_id):
+            return False
+
+        if (
+            len(await incident_crud.get_active_by_vault(db_session, incident.vault_id))
+            >= game_config.incident.max_active_incidents
+        ):
+            self.logger.info("Incident cap reached while spreading in vault %s", incident.vault_id)
+            return False
+
         # Get the current room to find its coordinates
         current_room_query = select(Room).where(Room.id == incident.room_id)
         current_room_result = await db_session.execute(current_room_query)

@@ -155,19 +155,18 @@ const attentionCount = computed(() =>
         <RoomDwellers :roomId="room.id" />
       </div>
 
-      <!-- Incident overlay -->
-      <div
+      <!-- Incident action -->
+      <button
         v-if="incident"
-        class="incident-overlay"
-        role="button"
-        tabindex="0"
+        type="button"
+        class="incident-badge"
+        :aria-label="`Fight ${incident.type.replace(/_/g, ' ')} in ${room.name}`"
+        :title="`Fight ${incident.type.replace(/_/g, ' ')}`"
         @click="handleIncidentClick"
-        @keydown.enter.prevent="handleIncidentClick"
-        @keydown.space.prevent="handleIncidentClick"
       >
-        <Icon :icon="getIncidentIcon(incident.type)" class="incident-icon" />
-        <div class="incident-label">ALERT</div>
-      </div>
+        <Icon :icon="getIncidentIcon(incident.type)" class="incident-badge-icon" />
+        <span class="incident-badge-label">FIGHT</span>
+      </button>
     </div>
   </div>
 </template>
@@ -350,55 +349,50 @@ const attentionCount = computed(() =>
   transform: scale(1.1);
 }
 
-.incident-overlay {
+.room.has-incident {
+  border: 1px solid var(--color-danger);
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
+}
+
+.incident-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 0, 0, 0.15);
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 8;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-danger);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface-sunken));
+  color: var(--color-danger);
   cursor: pointer;
-  z-index: 20;
-  transition: background 0.3s ease;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
 }
 
-.incident-overlay:hover {
-  background: rgba(255, 0, 0, 0.25);
+.incident-badge:hover {
+  background: color-mix(in srgb, var(--color-danger) 30%, var(--color-surface-sunken));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-danger) 60%, transparent);
 }
 
-.incident-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--color-danger);
-  filter: drop-shadow(0 0 8px rgba(255, 51, 51, 0.8));
-  animation: incident-shake 0.5s ease-in-out infinite;
+.incident-badge-icon {
+  width: 16px;
+  height: 16px;
 }
 
-@keyframes incident-shake {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(-2px, 0) rotate(-2deg);
-  }
-  75% {
-    transform: translate(2px, 0) rotate(2deg);
-  }
-}
-
-.incident-label {
+.incident-badge-label {
   font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   font-weight: bold;
-  color: var(--color-danger);
   letter-spacing: 0.1em;
-  text-shadow: 0 0 8px rgba(255, 51, 51, 0.8);
+}
+
+/* Selected rooms show the action row top-right; drop the badge below it */
+.built-room.selected .incident-badge {
+  top: 2.5rem;
 }
 
 /* Power outage child overrides */

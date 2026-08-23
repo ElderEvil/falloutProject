@@ -4,6 +4,7 @@ import asyncio
 import logging
 import sys
 import time
+from typing import Final
 
 import dramatiq
 import periodiq
@@ -16,8 +17,10 @@ from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
 from app.services.event_bus import event_bus
 from app.services.game_loop import game_loop_service
+from app.services.tick_chain import claim_tick_chain
 
 logger = logging.getLogger(__name__)
+INCIDENT_TICK_CHAIN_KEY: Final = "fallout:incident-tick:chain"
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -84,44 +87,60 @@ def game_tick():
 
 
 @dramatiq.actor(actor_name="incident_tick", max_retries=0)
-def incident_tick():
+def incident_tick(chain_token: str | None = None):
     """Fast incident tick - processes combat for every vault's active incidents.
 
     Self-reschedules every ``incident_tick_seconds`` (independent of the 60s
-    game tick) so incident combat gives live feedback. The periodiq cron below
-    acts as a low-frequency watchdog that re-seeds the loop if it ever dies.
+    game tick) so incident combat gives live feedback. A Redis lease makes the
+    periodiq cron below a low-frequency watchdog instead of a second tick chain.
     """
+    next_chain_token = None
     try:
+        from app.core.config import settings
         from app.services.incident_service import incident_service
 
-        async def run_incident_tick():
+        async def run_incident_tick() -> tuple[str | None, dict[str, int] | None]:
+            from redis.asyncio import Redis
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-            from app.core.config import settings
-
-            engine = create_async_engine(
-                str(settings.ASYNC_DATABASE_URI),
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-            )
-            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            redis = Redis.from_url(settings.redis_url, decode_responses=True)
             try:
-                async with session_maker() as session:
-                    return await incident_service.process_all_vaults_incidents(
-                        session, game_config.game_loop.incident_tick_seconds
-                    )
-            finally:
-                await engine.dispose()
+                claimed_token = await claim_tick_chain(redis, INCIDENT_TICK_CHAIN_KEY, chain_token)
+                if claimed_token is None:
+                    return None, None
 
-        stats = asyncio.run(run_incident_tick())
+                engine = create_async_engine(
+                    str(settings.ASYNC_DATABASE_URI),
+                    echo=False,
+                    future=True,
+                    pool_pre_ping=True,
+                )
+                session_maker = async_sessionmaker(engine, expire_on_commit=False)
+                try:
+                    async with session_maker() as session:
+                        stats = await incident_service.process_all_vaults_incidents(
+                            session, game_config.game_loop.incident_tick_seconds
+                        )
+                finally:
+                    await engine.dispose()
+                return claimed_token, stats
+            finally:
+                await redis.close()
+
+        next_chain_token, stats = asyncio.run(run_incident_tick())
+        if stats is None:
+            return
     except Exception:
         logger.exception("Incident tick failed")
     else:
         if stats["resolved"] or stats["spawned"]:
             logger.info(f"Incident tick completed: {stats}")
     finally:
-        incident_tick.send_with_options(delay=game_config.game_loop.incident_tick_seconds * 1000)
+        if next_chain_token is not None:
+            incident_tick.send_with_options(
+                args=(next_chain_token,),
+                delay=game_config.game_loop.incident_tick_seconds * 1000,
+            )
 
 
 @dramatiq.actor(actor_name="process_vault_tick", max_retries=3, min_backoff=30000)

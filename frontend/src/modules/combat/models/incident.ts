@@ -18,6 +18,7 @@ export interface Incident {
   id: string
   vault_id: string
   room_id: string
+  room_name: string | null
   type: IncidentType
   status: IncidentStatus
   difficulty: number
@@ -50,6 +51,7 @@ export interface IncidentListResponse {
     type: IncidentType
     status: IncidentStatus
     room_id: string
+    room_name: string | null
     difficulty: number
     start_time: string
     elapsed_time: number

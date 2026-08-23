@@ -28,8 +28,8 @@
         <h3 class="section-title">&gt;&gt; LOCATION</h3>
         <div class="section-content">
           <div class="info-row">
-            <span class="info-label">Room ID:</span>
-            <span class="info-value">{{ incident.room_id }}</span>
+            <span class="info-label">Room:</span>
+            <span class="info-value">{{ incident.room_name ?? 'Unknown room' }}</span>
           </div>
           <div v-if="incident.rooms_affected.length > 1" class="info-row">
             <span class="info-label">Spreading:</span>
@@ -108,7 +108,20 @@
       <div class="section">
         <h3 class="section-title">&gt;&gt; RESPONSE TEAM</h3>
         <div class="section-content">
-          <p class="expected-loot">Responders join this room before the next vault round.</p>
+          <p class="expected-loot">Responders join this room and fight immediately.</p>
+          <div v-if="bestResponders.length" class="responder-quick">
+            <UButton
+              variant="primary"
+              size="sm"
+              :loading="isSendingBest"
+              @click="sendBestDefenders"
+            >
+              SEND {{ bestResponders.length }} BEST DEFENDERS
+            </UButton>
+            <span class="responder-quick-note">
+              {{ bestResponders.map((d) => d.first_name).join(', ') }}
+            </span>
+          </div>
           <div v-if="availableResponders.length" class="responder-list">
             <UButton
               v-for="dweller in availableResponders"
@@ -206,6 +219,26 @@ async function assignResponder(dwellerId: string) {
   }
 }
 
+const isSendingBest = ref(false)
+
+async function sendBestDefenders() {
+  if (!authStore.token || isSendingBest.value || !bestResponders.value.length) return
+  isSendingBest.value = true
+  try {
+    await incidentStore.assignResponders(
+      props.vaultId,
+      props.incidentId,
+      bestResponders.value.map((dweller) => dweller.id),
+      authStore.token
+    )
+    emit('responded')
+  } catch {
+    toast.error('Failed to assign defenders')
+  } finally {
+    isSendingBest.value = false
+  }
+}
+
 function formatElapsedTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
@@ -278,6 +311,13 @@ const availableResponders = computed(() =>
       dweller.room_id !== incident.value?.room_id &&
       !['exploring', 'questing', 'dead'].includes(dweller.status)
   )
+)
+
+const bestResponders = computed(() =>
+  availableResponders.value
+    .slice()
+    .sort((a, b) => b.health - a.health || b.level - a.level)
+    .slice(0, 3)
 )
 </script>
 
@@ -495,6 +535,24 @@ const availableResponders = computed(() =>
   font-size: 0.875rem;
   color: var(--color-theme-primary);
   text-align: right;
+}
+
+.responder-quick {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--color-theme-primary) 6%, transparent);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+}
+
+.responder-quick-note {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
 }
 
 .loot-items {

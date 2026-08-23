@@ -96,8 +96,11 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 1. Never push to git without explicit approval.
 2. After backend API changes: `cd frontend && pnpm run types:generate`.
 3. Small, test-backed changes; follow existing patterns; commit messages `feat:`/`fix:`/`chore:`; branch prefixes `feat/`/`fix/`/`chore/`.
-4. **Net-LOC rule (v2.35+):** every update must have a negative net source-LOC change — compact/remove existing code (DRY) before adding; don't count generated files, lockfiles, or format-only changes.
-5. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
+4. **Architecture over simplification (MANDATORY):** the layered structure always wins over the LOC/file-count rules below. Backend: `models/`, `schemas/`, `crud/`, `services/`, thin routers in `api/v1/endpoints/` — **no all-in-one routers** (no business logic or schema definitions in endpoint files; endpoints parse params → call service → map exceptions). Frontend: `modules/<name>/` with `components/`, `composables/`, `stores/`, `models/`, `api/`. Never merge layers into one file to save lines; never declare schemas/models inline in a router or endpoint.
+5. **Net-LOC & file-count rule (v2.35+):** every update must have a negative net source-LOC change — compact/remove existing code (DRY) before adding; don't count generated files, lockfiles, or format-only changes. Prefer fewer files too: do not split into more modules/files unless readability genuinely suffers — but never below the architecture floor from rule 4.
+6. **DRY / KISS / YAGNI:** one source of truth per fact; the simplest thing that works; no speculative abstractions, no "we might need this later" code. A new abstraction must pay for itself by removing more than it adds.
+7. **Fail fast, minimize try-except (soft but binding):** the codebase favors fail-fast — let errors propagate to a single handler, don't wrap every call. Keep try-except blocks few and shallow: one per operation boundary at most, never nested; extract inner blocks into helpers. Prefer returning early / raising over defensive wrapping.
+8. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
 
 ## Dev Environment (Agent Quick-Start)
 
@@ -105,4 +108,4 @@ In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallo
 
 ---
 
-_Last updated: 2026-08-20_
+_Last updated: 2026-08-23_

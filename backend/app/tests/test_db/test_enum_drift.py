@@ -44,7 +44,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
-    "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "DEAD"},
+    "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},
     "explorationstatus": {"ACTIVE", "COMPLETED", "RECALLED"},
     "genderenum": {"MALE", "FEMALE"},
     "incidentstatus": {"ACTIVE", "SPREADING", "RESOLVED", "FAILED"},

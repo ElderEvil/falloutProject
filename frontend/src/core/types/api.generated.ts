@@ -1676,7 +1676,8 @@ export interface paths {
          *         IncidentSpawnResponse: Spawned incident details.
          *
          *     Raises:
-         *         HTTPException: 400 if no occupied rooms available.
+         *         HTTPException: 400 if incidents are disabled or no occupied rooms available.
+         *         HTTPException: 409 if the vault is at the active-incident cap.
          */
         post: operations["spawn_debug_incident_api_v1_game_vaults__vault_id__incidents_spawn_post"];
         delete?: never;
@@ -5614,7 +5615,7 @@ export interface components {
          * DwellerStatusEnum
          * @enum {string}
          */
-        DwellerStatusEnum: "idle" | "working" | "exploring" | "questing" | "training" | "resting" | "dead";
+        DwellerStatusEnum: "idle" | "working" | "exploring" | "questing" | "training" | "resting" | "fighting" | "dead";
         /** DwellerUpdate */
         DwellerUpdate: {
             /** S */

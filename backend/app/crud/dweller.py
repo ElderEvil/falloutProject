@@ -42,6 +42,8 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
         return DwellerStatusEnum.IDLE
     if room_category == RoomTypeEnum.TRAINING:
         return DwellerStatusEnum.TRAINING
+    if room_category == RoomTypeEnum.ARENA:
+        return DwellerStatusEnum.FIGHTING
     if room_category == RoomTypeEnum.CAPACITY and "living" in (room_name or "").lower():
         return DwellerStatusEnum.RESTING
     # Default to WORKING for PRODUCTION, CAPACITY, CRAFTING, MISC, QUESTS, THEME

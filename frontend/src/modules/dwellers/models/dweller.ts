@@ -140,6 +140,14 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
     borderColor: 'border-pink-500/50',
     glowColor: 'rgb(236 72 153 / 0.3)',
   },
+  fighting: {
+    icon: 'mdi:boxing-glove',
+    label: 'Fighting',
+    color: 'text-red-400',
+    bgColor: 'bg-red-900/30',
+    borderColor: 'border-red-500/50',
+    glowColor: 'rgb(239 68 68 / 0.3)',
+  },
   dead: {
     icon: 'mdi:skull',
     label: 'Dead',

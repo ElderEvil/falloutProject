@@ -394,6 +394,48 @@ async def test_move_adult_to_arena_allowed(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSession):
+    from app.schemas.common import DwellerStatusEnum
+
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    dweller_data = create_fake_dweller()
+    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+    dweller.is_adult = True
+    await async_session.commit()
+
+    starter_room = await crud.room.create(async_session, obj_in=RoomCreate(**create_fake_room(), vault_id=vault.id))
+    dweller.room_id = starter_room.id
+    await async_session.commit()
+
+    arena_room = await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(
+            name="Arena",
+            category=RoomTypeEnum.ARENA,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=800,
+            t2_upgrade_cost=3000,
+            t3_upgrade_cost=9000,
+            size_min=6,
+            size_max=6,
+            vault_id=vault.id,
+        ),
+    )
+
+    moved = await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
+    assert moved.room_id == arena_room.id
+    assert moved.status == DwellerStatusEnum.FIGHTING
+
+
+@pytest.mark.asyncio
 async def test_dweller_status_on_room_assignment(async_session: AsyncSession):
     """Test that dweller status changes when assigned to/removed from a room."""
     from app.schemas.common import DwellerStatusEnum

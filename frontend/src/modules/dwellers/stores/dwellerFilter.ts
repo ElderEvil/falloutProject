@@ -21,6 +21,7 @@ export type DwellerStatus =
   | 'questing'
   | 'training'
   | 'resting'
+  | 'fighting'
   | 'dead'
 export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
 

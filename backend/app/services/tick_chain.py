@@ -1,9 +1,12 @@
+import logging
 from typing import Final
 from uuid import uuid4
 
 from redis.asyncio import Redis
 
-TICK_CHAIN_LEASE_SECONDS: Final = 30
+logger = logging.getLogger(__name__)
+
+TICK_CHAIN_LEASE_SECONDS: Final = 300
 _RENEW_CHAIN_SCRIPT: Final = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('set', KEYS[1], ARGV[1], 'EX', ARGV[2])
@@ -25,4 +28,6 @@ async def claim_tick_chain(redis: Redis, key: str, token: str | None) -> str | N
             candidate,
             TICK_CHAIN_LEASE_SECONDS,
         )
+        if claimed is None:
+            logger.warning("Lost tick chain lease for %s - another owner took over", key)
     return candidate if claimed else None

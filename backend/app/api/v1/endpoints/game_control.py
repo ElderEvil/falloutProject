@@ -272,8 +272,19 @@ async def spawn_debug_incident(
         IncidentSpawnResponse: Spawned incident details.
 
     Raises:
-        HTTPException: 400 if no occupied rooms available.
+        HTTPException: 400 if incidents are disabled or no occupied rooms available.
+        HTTPException: 409 if the vault is at the active-incident cap.
     """
+    if vault.incidents_disabled:
+        raise HTTPException(status_code=400, detail="Incidents are disabled for this vault.")
+
+    active_incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
+    if len(active_incidents) >= game_config.incident.max_active_incidents:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Vault is at the active-incident cap ({game_config.incident.max_active_incidents}).",
+        )
+
     incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
 
     if not incident:

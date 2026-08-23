@@ -323,6 +323,75 @@ async def test_spawn_incident_specific_type(
 
 
 @pytest.mark.asyncio
+async def test_spawn_incident_disabled_vault_rejected(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Spawn endpoint rejects disabled vaults with a distinct message."""
+    from app.core.game_config import game_config
+
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    vault = await vault_service.initiate_vault(
+        db_session=async_session,
+        obj_in=VaultNumber(number=990),
+        user_id=user.id,
+    )
+    vault.incidents_disabled = True
+    async_session.add(vault)
+    await async_session.commit()
+
+    response = await async_client.post(
+        f"/game/vaults/{vault.id}/incidents/spawn",
+        headers=normal_user_token_headers,
+    )
+    assert response.status_code == 400
+    assert "disabled" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_spawn_incident_at_cap_rejected(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Spawn endpoint rejects vaults at the active-incident cap with a distinct message."""
+    from app.core.game_config import game_config
+    from app.models.incident import IncidentType
+    from app.schemas.room import RoomCreate
+
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    vault = await vault_service.initiate_vault(
+        db_session=async_session,
+        obj_in=VaultNumber(number=989),
+        user_id=user.id,
+    )
+
+    rooms = []
+    for index in range(game_config.incident.max_active_incidents):
+        room_data = create_fake_room()
+        room_data["coordinate_x"] = index
+        room_data["coordinate_y"] = 2
+        room_in = RoomCreate(**room_data, vault_id=vault.id)
+        room = await crud.room.create(db_session=async_session, obj_in=room_in)
+        rooms.append(room)
+        await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room.id,
+            incident_type=IncidentType.FIRE,
+            difficulty=1,
+        )
+
+    response = await async_client.post(
+        f"/game/vaults/{vault.id}/incidents/spawn",
+        headers=normal_user_token_headers,
+    )
+    assert response.status_code == 409
+    assert "cap" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_get_incident_details(
     async_client: AsyncClient,
     async_session: AsyncSession,

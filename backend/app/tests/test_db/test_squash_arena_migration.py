@@ -13,8 +13,7 @@ from pathlib import Path
 from app.tests.test_db.test_enum_drift import PG_ENUM_LABELS_SNAPSHOT
 
 MIGRATION_PATH = (
-    Path(__file__).parents[2]
-    / "alembic/versions/2026_08_23_0001-9f8e7d6c5b4a3_squash_arena_incident_combat.py"
+    Path(__file__).parents[2] / "alembic/versions/2026_08_23_0001-9f8e7d6c5b4a3_squash_arena_incident_combat.py"
 )
 MIGRATION_SPEC = importlib.util.spec_from_file_location("squash_arena_incident_combat", MIGRATION_PATH)
 assert MIGRATION_SPEC

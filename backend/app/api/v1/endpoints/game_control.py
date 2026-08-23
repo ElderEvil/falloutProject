@@ -283,7 +283,12 @@ async def spawn_debug_incident(
     """
     try:
         incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
-    except (ResourceNotFoundException, ResourceConflictException, ValidationException, VaultOperationException) as error:
+    except (
+        ResourceNotFoundException,
+        ResourceConflictException,
+        ValidationException,
+        VaultOperationException,
+    ) as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
     if not incident:

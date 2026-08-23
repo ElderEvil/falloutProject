@@ -27,12 +27,6 @@ const emit = defineEmits<{
   destroy: []
 }>()
 
-const MODES = [
-  { key: 'dvd', label: 'DWELLER VS DWELLER', icon: 'mdi:sword-cross', active: true },
-  { key: 'dvc', label: 'DWELLER VS CREATURE', icon: 'mdi:paw', active: false },
-  { key: 'tournament', label: 'TOURNAMENT', icon: 'mdi:trophy', active: false },
-]
-
 const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
@@ -111,7 +105,6 @@ onUnmounted(stopPolling)
 const fighterA = computed(() => roomState.value?.fighters[0] ?? null)
 const fighterB = computed(() => roomState.value?.fighters[1] ?? null)
 const roster = computed(() => roomState.value?.roster ?? [])
-const isReady = computed(() => roomState.value?.can_start ?? false)
 const isDone = computed(() => roomState.value?.match_done ?? false)
 const canStart = computed(() => roomState.value?.can_start ?? false)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
@@ -220,8 +213,8 @@ const journalIcon = (kind: string) => {
         <h2 class="arena-title">ARENA</h2>
         <p class="arena-subtitle">{{ roomState?.room_name ?? 'Arena' }} &middot; Tier {{ roomState?.tier ?? 1 }}</p>
       </div>
-      <span class="arena-badge" :class="{ ready: isReady, done: isDone }">
-        {{ isDone ? 'DONE' : isReady ? 'READY' : 'NEEDS 2 FIGHTERS' }}
+      <span class="arena-badge" :class="{ ready: canStart, done: isDone }">
+        {{ isDone ? 'DONE' : canStart ? 'READY' : 'NEEDS 2 FIGHTERS' }}
       </span>
     </div>
 
@@ -231,21 +224,6 @@ const journalIcon = (kind: string) => {
     </div>
 
     <div v-else class="arena-content">
-      <!-- Mode selector -->
-      <div class="mode-selector">
-        <button
-          v-for="mode in MODES"
-          :key="mode.key"
-          class="mode-option"
-          :class="{ active: mode.active, disabled: !mode.active }"
-          type="button"
-          :title="mode.active ? undefined : 'Coming soon'"
-        >
-          <Icon :icon="mode.icon" class="mode-icon" />
-          {{ mode.label }}
-        </button>
-      </div>
-
       <!-- Fighters -->
       <div class="fighters-row">
         <ArenaFighterSlot
@@ -289,7 +267,7 @@ const journalIcon = (kind: string) => {
         <div class="roster-chips">
           <div v-for="entry in roster" :key="entry.id" class="roster-chip" :class="{ fighting: isSelected(entry.id) }">
             <span class="roster-name">{{ entry.name }}</span>
-            <button class="roster-remove" type="button" title="Remove from Arena" @click="unassign(entry)">✕</button>
+            <button v-if="!isFighting" class="roster-remove" type="button" title="Remove from Arena" @click="unassign(entry)">✕</button>
           </div>
         </div>
       </div>
@@ -433,42 +411,6 @@ const journalIcon = (kind: string) => {
   flex-direction: column;
   gap: 1.25rem;
   padding: 0.5rem 0;
-}
-
-.mode-selector {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.mode-option {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  background: transparent;
-  font-size: 0.7rem;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  color: var(--color-gray-500);
-  cursor: pointer;
-}
-
-.mode-option.active {
-  border-color: var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.mode-option.disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.mode-icon {
-  width: 14px;
-  height: 14px;
 }
 
 .arena-roster {

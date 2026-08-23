@@ -241,6 +241,12 @@ class TestArenaService:
             await service.start_fight(async_session, arena_room.id)
 
     @pytest.mark.asyncio
+    async def test_start_fight_rejects_room_outside_vault(self, async_session, arena_room):
+        service = ArenaService()
+        with pytest.raises(ValidationException):
+            await service.start_fight(async_session, arena_room.id, uuid4())
+
+    @pytest.mark.asyncio
     async def test_start_fight_arms_room(self, async_session, arena_room, fighter_a, fighter_b):
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
@@ -411,10 +417,13 @@ class TestArenaService:
         fighter sends the stale id along and set_fighters rejects the whole
         request with "Both fighters must be adult dwellers assigned to the Arena".
         """
+        from datetime import datetime
+
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
         arena_room.arena_fighter_a_id = fighter_a.id
         arena_room.arena_fighter_b_id = fighter_b.id
+        arena_room.arena_fight_started_at = datetime.utcnow()
         await async_session.refresh(fighter_a, ["weapon"])
         await async_session.refresh(fighter_b, ["weapon"])
         await async_session.commit()
@@ -461,6 +470,7 @@ class TestArenaService:
         await async_session.refresh(arena_room)
         assert arena_room.arena_fighter_a_id is None
         assert arena_room.arena_fighter_b_id == fighter_b.id
+        assert arena_room.arena_fight_started_at is None
 
         service = ArenaService()
         room = await service.set_fighters(async_session, arena_room.id, replacement.id, fighter_b.id)

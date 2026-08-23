@@ -195,7 +195,7 @@ async def set_arena_fighters(
 ) -> ArenaFightersResponse:
     """Pick which assigned dwellers fight. Changing the selection resets the match."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    room = await arena_service.set_fighters(db_session, room_id, payload.fighter_a_id, payload.fighter_b_id)
+    room = await arena_service.set_fighters(db_session, room_id, payload.fighter_a_id, payload.fighter_b_id, vault_id)
     return ArenaFightersResponse(
         room_id=str(room.id),
         fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
@@ -212,7 +212,7 @@ async def clear_arena_events(
 ) -> ArenaEventsCleared:
     """Clear the battle journal for an arena room."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    cleared = await arena_service.clear_journal(db_session, room_id)
+    cleared = await arena_service.clear_journal(db_session, room_id, vault_id)
     return ArenaEventsCleared(room_id=str(room_id), cleared=cleared)
 
 
@@ -225,7 +225,7 @@ async def start_arena_fight(
 ) -> ArenaFightStarted:
     """Arm an arena match: both fighter slots set, not already done/started."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    room = await arena_service.start_fight(db_session, room_id)
+    room = await arena_service.start_fight(db_session, room_id, vault_id)
     # Wake the arena tick chain immediately so combat starts right after the
     # countdown instead of waiting for the periodiq watchdog (up to 2 min).
     from app.api.arena_tasks import arena_tick

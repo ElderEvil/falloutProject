@@ -62,12 +62,22 @@ class ArenaService:
         # parallel (double rewards, mangled journal round numbers).
         self._tick_lock = threading.Lock()
 
+    async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
+        query = select(Room).where(Room.id == room_id, Room.category == "arena")
+        if vault_id is not None:
+            query = query.where(Room.vault_id == vault_id)
+        result = await db_session.execute(query)
+        if room := result.scalars().first():
+            return room
+        raise ValidationException(detail="Arena room not found")
+
     async def set_fighters(
         self,
         db_session: AsyncSession,
         room_id: UUID4,
         fighter_a_id: UUID4 | None,
         fighter_b_id: UUID4 | None,
+        vault_id: UUID4 | None = None,
     ) -> Room:
         """Pick which assigned dwellers fight (dweller-vs-dweller mode).
 
@@ -75,9 +85,7 @@ class ArenaService:
         the selection resets any previous match: flags cleared, journal wiped,
         fighters healed.
         """
-        room = await db_session.get(Room, room_id)
-        if room is None or room.category != "arena":
-            raise ValidationException(detail="Arena room not found")
+        room = await self._get_arena_room(db_session, room_id, vault_id)
 
         selected_ids = [fid for fid in (fighter_a_id, fighter_b_id) if fid is not None]
         if selected_ids:
@@ -94,8 +102,9 @@ class ArenaService:
         room.arena_fighter_b_id = fighter_b_id
         room.arena_last_fight_at = None
         room.arena_fight_started_at = None
-        self._round_seq.clear()
-        self._damage_carry.clear()
+        room_key = str(room.id)
+        self._round_seq.pop(room_key, None)
+        self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
 
         stale_events = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
         for event in stale_events.scalars().all():
@@ -129,15 +138,14 @@ class ArenaService:
     async def get_roster(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
         """Return the adult dwellers assigned to the room, oldest first."""
         result = await db_session.execute(
-            select(Dweller)
-            .where(*_eligible_fighter_conditions(room.id))
-            .order_by(Dweller.created_at)
+            select(Dweller).where(*_eligible_fighter_conditions(room.id)).order_by(Dweller.created_at)
         )
         return list(result.scalars().all())
 
-    async def clear_journal(self, db_session: AsyncSession, room_id: UUID4) -> int:
+    async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
-        result = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room_id))
+        room = await self._get_arena_room(db_session, room_id, vault_id)
+        result = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
         events = list(result.scalars().all())
         for event in events:
             await db_session.delete(event)
@@ -154,24 +162,33 @@ class ArenaService:
         )
         changed = False
         for room in result.scalars().all():
+            room_changed = False
             if room.arena_fighter_a_id == dweller_id:
                 room.arena_fighter_a_id = None
-                changed = True
+                room_changed = True
             if room.arena_fighter_b_id == dweller_id:
                 room.arena_fighter_b_id = None
+                room_changed = True
+            if room_changed:
                 changed = True
+                room.arena_last_fight_at = None
+                room.arena_fight_started_at = None
+                room_key = str(room.id)
+                self._round_seq.pop(room_key, None)
+                self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
+                events = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
+                for event in events.scalars().all():
+                    await db_session.delete(event)
             db_session.add(room)
         if changed:
             await db_session.commit()
 
-    async def start_fight(self, db_session: AsyncSession, room_id: UUID4) -> Room:
+    async def start_fight(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
         """Arm a match for an arena room: both fighter slots set, not done.
 
         The first combat tick lands after the countdown grace period.
         """
-        room = await db_session.get(Room, room_id)
-        if room is None or room.category != "arena":
-            raise ValidationException(detail="Arena room not found")
+        room = await self._get_arena_room(db_session, room_id, vault_id)
         if room.arena_last_fight_at is not None:
             raise ValidationException(detail="Match is over - pick fighters again to start a new one")
         if room.arena_fight_started_at is not None:

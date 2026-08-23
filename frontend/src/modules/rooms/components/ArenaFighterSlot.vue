@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -29,7 +28,7 @@ const healthPercent = (f: ArenaFighter | null) =>
 <template>
   <div class="fighter-slot">
     <div v-if="fighter" class="fighter-card">
-      <button class="slot-clear" type="button" @click="emit('clear', side)">✕</button>
+      <button v-if="canChange" class="slot-clear" type="button" aria-label="Clear fighter" @click="emit('clear', side)">✕</button>
       <div class="damage-layer">
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
@@ -42,14 +41,14 @@ const healthPercent = (f: ArenaFighter | null) =>
       <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
       <button v-if="canChange" class="slot-swap" type="button" @click="emit('togglePicker', side)">SWAP</button>
     </div>
-    <div v-else class="fighter-slot-empty" role="button" @click="emit('togglePicker', side)">
+    <button v-else class="fighter-slot-empty" type="button" @click="emit('togglePicker', side)">
       <span>+ PICK FIGHTER</span>
-    </div>
-    <div v-if="pickerOpen" class="picker">
-      <div v-for="entry in options" :key="entry.id" class="picker-option" @click="emit('select', side, entry)">
+    </button>
+    <div v-if="pickerOpen && canChange" class="picker">
+      <button v-for="entry in options" :key="entry.id" class="picker-option" type="button" @click="emit('select', side, entry)">
         <span class="picker-name">{{ entry.name }}</span>
         <span class="picker-meta">Lv {{ entry.level }} &middot; {{ entry.health }} HP</span>
-      </div>
+      </button>
       <div v-if="!options.length" class="picker-empty">No available adults &mdash; assign dwellers to the Arena first.</div>
     </div>
   </div>
@@ -99,6 +98,7 @@ const healthPercent = (f: ArenaFighter | null) =>
   padding: 1rem;
   border: 1px dashed var(--color-surface-hover);
   border-radius: 8px;
+  background: transparent;
   color: var(--color-gray-500);
   font-size: 0.8rem;
   font-weight: bold;
@@ -130,6 +130,10 @@ const healthPercent = (f: ArenaFighter | null) =>
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
   padding: 0.45rem 0.6rem;
   cursor: pointer;
 }

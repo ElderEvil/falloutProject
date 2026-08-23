@@ -25,6 +25,13 @@ from app.core.game_config import game_config
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.schemas.arena import (
+    ArenaFighter,
+    ArenaMatchEventOut,
+    ArenaRoomState,
+    ArenaRosterEntry,
+    ArenaState,
+)
 from app.schemas.common import AgeGroupEnum
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
@@ -141,6 +148,79 @@ class ArenaService:
             select(Dweller).where(*_eligible_fighter_conditions(room.id)).order_by(Dweller.created_at)
         )
         return list(result.scalars().all())
+
+    async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
+        """Build the full arena state for a vault: fighters, roster, flags, journal."""
+        rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id, Room.category == "arena"))
+        rooms = list(rooms_result.scalars().all())
+
+        countdown = game_config.game_loop.arena_countdown_seconds
+        state = []
+        for room in rooms:
+            fighters = await self.get_fighters(db_session, room)
+            roster = await self.get_roster(db_session, room)
+
+            match_done = room.arena_last_fight_at is not None
+            started = room.arena_fight_started_at is not None
+            countdown_remaining = 0
+            if started and not match_done:
+                elapsed = (datetime.utcnow() - room.arena_fight_started_at).total_seconds()
+                countdown_remaining = max(0, int(countdown - elapsed))
+
+            events_result = await db_session.execute(
+                select(ArenaMatchEvent)
+                .where(ArenaMatchEvent.room_id == room.id)
+                .order_by(ArenaMatchEvent.created_at.desc())
+                .limit(40)
+            )
+            events = [
+                ArenaMatchEventOut(
+                    id=str(e.id),
+                    round_seq=e.round_seq,
+                    kind=e.kind,
+                    message=e.message,
+                )
+                for e in reversed(events_result.scalars().all())
+            ]
+
+            state.append(
+                ArenaRoomState(
+                    room_id=str(room.id),
+                    room_name=room.name,
+                    tier=room.tier,
+                    fighter_a_id=str(room.arena_fighter_a_id) if room.arena_fighter_a_id else None,
+                    fighter_b_id=str(room.arena_fighter_b_id) if room.arena_fighter_b_id else None,
+                    fighters=[
+                        ArenaFighter(
+                            id=str(f.id),
+                            name=f"{f.first_name} {f.last_name}",
+                            level=f.level,
+                            health=f.health,
+                            max_health=f.max_health,
+                            power=combat_power(f),
+                        )
+                        for f in fighters
+                    ],
+                    roster=[
+                        ArenaRosterEntry(
+                            id=str(d.id),
+                            name=f"{d.first_name} {d.last_name}",
+                            level=d.level,
+                            health=d.health,
+                            max_health=d.max_health,
+                        )
+                        for d in roster
+                    ],
+                    fight_ready=len(roster) >= 2,
+                    match_done=match_done,
+                    fight_started=started,
+                    countdown_remaining=countdown_remaining,
+                    can_start=len(fighters) == 2 and not started and not match_done,
+                    events=events,
+                )
+            )
+
+        return ArenaState(rooms=state)
 
     async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""

@@ -115,6 +115,13 @@ const isStarting = ref(false)
 const isSelected = (id: string) =>
   roomState.value?.fighter_a_id === id || roomState.value?.fighter_b_id === id
 
+const rosterIds = computed(() => new Set(roster.value.map((entry) => entry.id)))
+
+const validSlotId = (slot: 'A' | 'B') => {
+  const id = slot === 'A' ? roomState.value?.fighter_a_id : roomState.value?.fighter_b_id
+  return id && rosterIds.value.has(id) ? id : null
+}
+
 const pickerOptions = (slot: 'A' | 'B') => {
   const otherId = slot === 'A' ? roomState.value?.fighter_b_id : roomState.value?.fighter_a_id
   return roster.value.filter((entry) => entry.id !== otherId)
@@ -138,14 +145,16 @@ const persistFighters = async (fighterAId: string | null, fighterBId: string | n
 }
 
 const selectFighter = (slot: 'A' | 'B', entry: ArenaRosterEntry) => {
-  const a = slot === 'A' ? entry.id : roomState.value?.fighter_a_id ?? null
-  const b = slot === 'B' ? entry.id : roomState.value?.fighter_b_id ?? null
+  const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
+  const a = slot === 'A' ? entry.id : other
+  const b = slot === 'B' ? entry.id : other
   void persistFighters(a, b)
 }
 
 const clearFighter = (slot: 'A' | 'B') => {
-  const a = slot === 'A' ? null : roomState.value?.fighter_a_id ?? null
-  const b = slot === 'B' ? null : roomState.value?.fighter_b_id ?? null
+  const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
+  const a = slot === 'A' ? null : other
+  const b = slot === 'B' ? null : other
   void persistFighters(a, b)
 }
 

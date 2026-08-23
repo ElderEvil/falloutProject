@@ -272,6 +272,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if dweller_obj.room_id == room_id:
             raise ResourceConflictException(detail="Dweller is already in the room")
 
+        old_room_id = dweller_obj.room_id
         room_obj = await room_crud.get(db_session, room_id)
 
         # Validate vault transfer (can't move between vaults)
@@ -291,6 +292,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
 
         dweller_obj = await self.update(db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status))
+
+        # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
+        if old_room_id is not None:
+            from app.services.arena_service import arena_service
+
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id)
 
         # Emit dweller assigned event for objective tracking
         await event_bus.emit(

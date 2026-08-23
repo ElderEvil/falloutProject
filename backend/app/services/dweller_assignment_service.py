@@ -199,15 +199,28 @@ class DwellerAssignmentService:
         """Unassign all dwellers from their rooms in the specified vault."""
         dwellers = await crud.dweller.get_multi_by_vault(db_session, vault_id=vault_id, limit=10000)
         unassigned_count = 0
+        arena_leavers: list[UUID4] = []
+
+        arena_rooms_result = await db_session.execute(
+            select(Room.id).where(Room.vault_id == vault_id, Room.category == RoomTypeEnum.ARENA)
+        )
+        arena_room_ids = {row[0] for row in arena_rooms_result}
 
         for dweller in dwellers:
             if dweller.room_id is not None:
+                if dweller.room_id in arena_room_ids:
+                    arena_leavers.append(dweller.id)
                 await crud.dweller.update(
                     db_session,
                     dweller.id,
                     DwellerUpdate(room_id=None, status=DwellerStatusEnum.IDLE),
                 )
                 unassigned_count += 1
+
+        from app.services.arena_service import arena_service
+
+        for dweller_id in arena_leavers:
+            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id)
 
         return {"unassigned_count": unassigned_count}
 

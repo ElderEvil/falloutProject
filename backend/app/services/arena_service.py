@@ -134,6 +134,26 @@ class ArenaService:
         await db_session.commit()
         return len(events)
 
+    async def clear_fighter_slots_for_dweller(self, db_session: AsyncSession, dweller_id: UUID4) -> None:
+        """Null any arena fighter slot that still references a dweller who left the room."""
+        result = await db_session.execute(
+            select(Room).where(
+                Room.category == "arena",
+                (Room.arena_fighter_a_id == dweller_id) | (Room.arena_fighter_b_id == dweller_id),
+            )
+        )
+        changed = False
+        for room in result.scalars().all():
+            if room.arena_fighter_a_id == dweller_id:
+                room.arena_fighter_a_id = None
+                changed = True
+            if room.arena_fighter_b_id == dweller_id:
+                room.arena_fighter_b_id = None
+                changed = True
+            db_session.add(room)
+        if changed:
+            await db_session.commit()
+
     async def start_fight(self, db_session: AsyncSession, room_id: UUID4) -> Room:
         """Arm a match for an arena room: both fighter slots set, not done.
 

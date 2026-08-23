@@ -400,3 +400,68 @@ class TestArenaService:
             .all()
         )
         assert after == []
+
+    @pytest.mark.asyncio
+    async def test_arena_slot_cleared_when_fighter_moved_out(
+        self, async_session, arena_room, fighter_a, fighter_b, vault
+    ):
+        """A fighter leaving the arena room must not leave a stale slot behind.
+
+        Regression: slots point at dwellers who moved out, so picking a new
+        fighter sends the stale id along and set_fighters rejects the whole
+        request with "Both fighters must be adult dwellers assigned to the Arena".
+        """
+        fighter_a.room_id = arena_room.id
+        fighter_b.room_id = arena_room.id
+        arena_room.arena_fighter_a_id = fighter_a.id
+        arena_room.arena_fighter_b_id = fighter_b.id
+        await async_session.refresh(fighter_a, ["weapon"])
+        await async_session.refresh(fighter_b, ["weapon"])
+        await async_session.commit()
+
+        replacement = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(
+                first_name="Arena",
+                last_name="Replacement",
+                vault_id=vault.id,
+                gender=GenderEnum.MALE,
+                rarity=RarityEnum.COMMON,
+                age_group=AgeGroupEnum.ADULT,
+                level=3,
+                max_health=80,
+                health=80,
+                strength=5,
+                endurance=5,
+                agility=5,
+            ),
+        )
+        replacement.room_id = arena_room.id
+        await async_session.commit()
+
+        other_room = await crud.room.create(
+            async_session,
+            obj_in=RoomCreate(
+                name="Power Generator",
+                category=RoomTypeEnum.PRODUCTION,
+                ability=SPECIALEnum.STRENGTH,
+                base_cost=100,
+                incremental_cost=50,
+                t2_upgrade_cost=500,
+                t3_upgrade_cost=1500,
+                size_min=3,
+                size_max=6,
+                coordinate_x=2,
+                coordinate_y=1,
+                vault_id=vault.id,
+            ),
+        )
+        await crud.dweller.move_to_room(async_session, dweller_id=fighter_a.id, room_id=other_room.id)
+
+        await async_session.refresh(arena_room)
+        assert arena_room.arena_fighter_a_id is None
+        assert arena_room.arena_fighter_b_id == fighter_b.id
+
+        service = ArenaService()
+        room = await service.set_fighters(async_session, arena_room.id, replacement.id, fighter_b.id)
+        assert room.arena_fighter_a_id == replacement.id

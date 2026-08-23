@@ -25,6 +25,14 @@ AI-powered dweller interactions.
       re-conceive on the next tick after delivery; newborns take the father's last name by default.
 - [ ] **v2.42.0 — The Family Update** — MARRIED relationship stage, lineage API + family tree UI (Family tab),
       migration-safety CI, and Pydantic AI/Logfire verification. See "Version Milestones".
+- [ ] **Arena & Incident Combat Update (in review — `feat/arena-incidents`)** — dweller-vs-dweller battle
+      playground in the Arena room (assign adults, pick two fighters, countdown start, live HP + floating damage,
+      battle journal, one match per assignment, happiness/XP reward), plus incident fairness: active-incident cap
+      enforced at spawn and spread behind a per-vault advisory lock, a dedicated 2s incident tick with a Redis
+      chain lease (watchdog can no longer spawn duplicate processing chains), session-advisory-locked all-vault
+      pass, room-name + compact FIGHT buttons + "send best defenders" in the combat modal, and distinct debug
+      spawn errors (disabled → 400, at-cap → 409). Follows the arena prototype previously parked on
+      `experiment/arena`.
 
 ---
 
@@ -421,6 +429,7 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 | Version | Release      | Highlights                                                        |
 | ------- | ------------ | ----------------------------------------------------------------- |
+| Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI |
 | v2.42.0 | TBD          | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix               |
 | v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)               |

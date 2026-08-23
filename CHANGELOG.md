@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.48.1](https://github.com/ElderEvil/falloutProject/compare/v2.48.0...v2.48.1) (2026-08-23)
+
+### Bug Fixes
+
+* **dwellers:** consistent adult flag and dedupe SPECIAL stats list ([5c3a45f](https://github.com/ElderEvil/falloutProject/commit/5c3a45f77fce35433f9c66f195d0067edd638e52))
+* **infra:** single dramatiq worker process and explicit dweller-room join ([c415b1b](https://github.com/ElderEvil/falloutProject/commit/c415b1bf115997d2ff118589229798e75085afda))
+
 ## [2.48.0](https://github.com/ElderEvil/falloutProject/compare/v2.47.2...v2.48.0) (2026-08-22)
 
 ### Features

@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.49.0](https://github.com/ElderEvil/falloutProject/compare/v2.48.1...v2.49.0) (2026-08-23)
+
+### Features
+
+* **rooms:** elevator-gated level building and room detail polish ([f4c4f17](https://github.com/ElderEvil/falloutProject/commit/f4c4f17cdaf14725dcde7d55ea7c98850a4e443a))
+
+### Bug Fixes
+
+* exclude runtime logs; sync arena enum and generated types ([100780e](https://github.com/ElderEvil/falloutProject/commit/100780eb10e115b3325d49ea3c50ea9c51a3481f))
+
+### Code Refactoring
+
+* **rooms:** extract elevator rules into a dedicated validator ([2fed4ba](https://github.com/ElderEvil/falloutProject/commit/2fed4bad2990acab88c5cf7d8dbcbac3c56d9086))
+
 ## Unreleased
 
 ### Features

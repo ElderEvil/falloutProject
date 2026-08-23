@@ -13,6 +13,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 ### Bug Fixes
 
 * **rooms:** align training room occupancy with the 2-per-segment model
+* **rooms:** prevent destroying an elevator that has another elevator stacked above it; elevator placement rules live in a single validator
 * **frontend:** theme scrollbars and remove the green tint from the build room menu
 * **rooms:** compact the room detail modal (readable-but-tight panels, muted outlined action buttons, dweller portraits, full dweller names)
 

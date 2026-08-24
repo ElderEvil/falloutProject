@@ -50,7 +50,7 @@ containers.
 git clone https://github.com/ElderEvil/falloutProject && cd falloutProject
 cp .env.example .env  # Edit with your settings (keep localhost hostnames)
 
-# 2. Start infrastructure services (PostgreSQL, Redis, Mailpit)
+# 2. Start infrastructure services (PostgreSQL, Redis, Mailpit for local dev email)
 docker compose -f docker-compose.infra.yml up -d
 
 # 3. Setup and run backend (http://localhost:8000)
@@ -112,7 +112,7 @@ docker compose logs -f fastapi  # Watch startup (Ctrl+C to exit)
 **Access:**
 - **Frontend:** http://localhost:3000
 - **Backend API:** http://localhost:8000/docs (Swagger UI)
-- **Mailpit (email testing):** http://localhost:8025
+- **Mailpit (local dev email only; no real emails):** http://localhost:8025. For production real email (verification, password reset), see the [Mailcow-on-Hetzner setup in docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#production-email-mailcow-on-hetzner).
 
 **Notes:**
 - No need to edit hostnames in `.env` - Docker Compose automatically overrides them

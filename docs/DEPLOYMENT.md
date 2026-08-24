@@ -28,7 +28,7 @@ docker compose up -d
 **Features:**
 - Hot reload for backend and frontend
 - Volume mounts for live code changes
-- Mailpit for email testing (no real emails)
+- Mailpit for local dev email testing (no real emails are sent; see [Production Email: Mailcow on Hetzner](#production-email-mailcow-on-hetzner) for real transactional email)
 - Debug logging enabled
 - All ports exposed locally
 
@@ -48,13 +48,13 @@ docker compose down
 ```
 
 **Access Points:**
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-| Dramatiq Worker | (background tasks) |
-| Mailpit | http://localhost:8025 |
+| Service | URL | Scope |
+|---------|-----|-------|
+| Frontend | http://localhost:5173 | Local dev |
+| Backend API | http://localhost:8000 | Local dev |
+| API Docs | http://localhost:8000/docs | Local dev |
+| Dramatiq Worker | (background tasks) | Local dev |
+| Mailpit | http://localhost:8025 | Local dev only (dev SMTP sink; no real emails) |
 
 ## Hetzner Production
 
@@ -101,6 +101,219 @@ deployment manifest is added; do not provision an unused worker log volume.
 
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
+
+## Production Email: Mailcow on Hetzner
+
+Local development uses **Mailpit** as a dev-only SMTP sink (no real emails leave the machine). Production uses a
+self-hosted [Mailcow](https://docs.mailcow.email/) mail server running on a Hetzner Cloud VPS. Mailcow bundles
+Postfix (MTA), Dovecot (IMAP), Rspamd (spam filtering), SOGo (webmail), and ACME TLS in a single Docker Compose
+stack. The backend's `backend/app/core/email.py` sends via generic async SMTP (`aiosmtplib`), so switching from
+Mailpit to Mailcow is a config + infrastructure change, not a code rewrite.
+
+### Prerequisites
+
+- A Hetzner Cloud VPS (CX22 or larger recommended; Mailcow needs ~4 GB RAM).
+- A domain you control (e.g. `yourdomain.tld`). The VPS will serve mail for this domain.
+- Docker and Docker Compose installed on the VPS (Mailcow ships its own compose stack).
+- DNS access at your registrar to add MX, A, TXT, and other records.
+- The backend's SMTP env vars (see [App → Mailcow SMTP connection](#app--mailcow-smtp-connection) below).
+
+### Architecture
+
+```
+                  +---------------------------+
+   Internet       |  Hetzner Cloud VPS        |
+                  |                           |
+   MX lookup ---> |  mail.yourdomain.tld      |
+                  |    - Postfix (25/587/465) |
+   App SMTP  ---> |    - Dovecot (993, IMAP)  |
+   (587/465)      |    - Rspamd (11334, int.) |
+                  |    - SOGo   (webmail UI)  |
+                  |    - ACME   (Let's Encrypt)|
+                  +---------------------------+
+```
+
+- **Inbound mail (25):** only if you need to receive replies at `yourdomain.tld` addresses. For send-only
+  transactional email (verification, password reset), port 25 inbound can stay closed.
+- **Submission (587 STARTTLS, 465 implicit TLS):** the backend connects here to send.
+- **IMAP (993):** keep private unless you need to read mail from a client. The app does not read mail.
+
+### DNS Setup
+
+Point your domain at the VPS. All records are at your registrar (or wherever you host DNS for `yourdomain.tld`).
+
+| Type  | Name                | Value / Target                              | TTL   | Purpose |
+|-------|---------------------|---------------------------------------------|-------|---------|
+| A     | `mail.yourdomain.tld` | `<VPS-IPv4>`                              | 300   | Mailcow host |
+| MX    | `yourdomain.tld`    | `mail.yourdomain.tld` (priority 10)         | 3600  | Inbound mail routing |
+| TXT   | `yourdomain.tld`    | `v=spf1 a:mail.yourdomain.tld ~all`         | 3600  | SPF (authorize VPS to send) |
+| TXT   | `_dmarc.yourdomain.tld` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.tld; fo=1` | 3600 | DMARC policy |
+| TXT   | `default._domainkey.yourdomain.tld` | *(DKIM value from Mailcow UI; see below)* | 3600 | DKIM signature verification |
+
+**PTR / reverse DNS (critical for deliverability):** set the PTR record of the VPS IP to `mail.yourdomain.tld`.
+In the Hetzner Cloud Console: **Server → Networking → IPv4 → Edit Reverse DNS** and enter `mail.yourdomain.tld`.
+Without a matching PTR, major providers (Gmail, Outlook) will reject or spam-folder your mail.
+
+**TLS:** Mailcow's ACME component obtains and renews Let's Encrypt certificates for `mail.yourdomain.tld`
+automatically. No manual cert setup is needed.
+
+### Provisioning Mailcow
+
+1. **SSH into the VPS** and clone the Mailcow installer:
+
+   ```bash
+   ssh root@mail.yourdomain.tld
+   apt update && apt install -y git curl
+   git clone https://github.com/mailcow/mailcow-dockerized /opt/mailcow
+   cd /opt/mailcow
+   ```
+
+2. **Generate the initial config:**
+
+   ```bash
+   ./generate_config.sh
+   ```
+
+   When prompted, set the hostname to `mail.yourdomain.tld` and choose a timezone.
+
+3. **Start the stack:**
+
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
+   Mailcow takes a few minutes to initialize all containers on first run.
+
+4. **Log in to the Mailcow UI** at `https://mail.yourdomain.tld` with the default admin credentials
+   (`admin` / `moohoo`). **Change the admin password immediately.**
+
+5. **Add the mail domain:** in the Mailcow UI, go to **Configuration → Mail Setup → Add Domain** and
+   enter `yourdomain.tld`. Accept the defaults (DKIM selector `default`, key size 2048).
+
+6. **Create a mailbox for the app:** in the Mailcow UI, go to **Configuration → Mail Setup → Mailboxes**
+   and create a mailbox such as `no-reply@yourdomain.tld` with a strong password. This is the address the
+   backend will authenticate as and send from.
+
+7. **Publish the DKIM record:** in the Mailcow UI, go to **Configuration → Mail Setup → DNS**, find the
+   DKIM entry for `yourdomain.tld`, and copy the TXT record value. Add it to your DNS as described in the
+   [DNS Setup](#dns-setup) table above.
+
+8. **Verify DNS propagation** before testing the app:
+
+   ```bash
+   dig MX yourdomain.tld +short
+   dig A mail.yourdomain.tld +short
+   dig TXT yourdomain.tld +short
+   dig TXT default._domainkey.yourdomain.tld +short
+   dig -x <VPS-IPv4> +short   # should return mail.yourdomain.tld
+   ```
+
+### App → Mailcow SMTP Connection
+
+The backend reads SMTP settings from `backend/app/core/config.py`. Update the production environment
+(the `backend-env` Kubernetes Secret, or the production `.env`) with:
+
+```bash
+SMTP_HOST=mail.yourdomain.tld
+SMTP_PORT=587
+SMTP_USER=no-reply@yourdomain.tld
+SMTP_PASSWORD=<app-smtp-password>
+SMTP_TLS=false
+SMTP_SSL=true
+EMAIL_FROM_ADDRESS=no-reply@yourdomain.tld
+EMAIL_FROM_NAME=Fallout Shelter
+FRONTEND_URL=https://fallout.evillab.tech
+```
+
+**TLS flag semantics (unintuitive, read carefully):**
+
+The backend's `email.py` maps the env flags to `aiosmtplib` options in a way that is inverted from the
+conventional naming:
+
+| Env flag | aiosmtplib option | Meaning | Port |
+|----------|-------------------|---------|------|
+| `SMTP_TLS=true` | `use_tls=True` | Implicit TLS (connection starts encrypted) | **465** |
+| `SMTP_SSL=true` | `start_tls=True` | STARTTLS (upgrade plaintext to encrypted) | **587** |
+
+The names are backwards: `SMTP_TLS` means implicit TLS (port 465), `SMTP_SSL` means STARTTLS (port 587).
+Pick the flag that matches the port you choose. The recommended setup is **port 587 with STARTTLS**, which
+means `SMTP_SSL=true` and `SMTP_TLS=false` (as shown in the example above). If you prefer port 465 with
+implicit TLS, set `SMTP_TLS=true` and `SMTP_SSL=false` instead. Never set both to `true`.
+
+**`EMAIL_FROM_ADDRESS`** must be a real, existing mailbox on the Mailcow domain. Postfix will reject
+messages whose envelope sender does not match an authenticated local mailbox.
+
+**`FRONTEND_URL`** is used to build the verification and password-reset links in email bodies
+(`verify_email.html`, `reset_password.html`, `password_changed.html`). In production this must be the real
+public frontend origin (e.g. `https://fallout.evillab.tech`), not `http://localhost:5173`.
+
+### Firewall and Security
+
+Open only the ports the app and the internet need:
+
+| Port | Protocol | Direction | Purpose |
+|------|----------|-----------|---------|
+| 587  | TCP      | Inbound from the app only | Submission (STARTTLS) |
+| 465  | TCP      | Inbound from the app only | Submission (implicit TLS), if used |
+| 25   | TCP      | Inbound (optional) | Receiving inbound mail; close if send-only |
+| 443  | TCP      | Inbound | Mailcow UI + ACME |
+| 993  | TCP      | Inbound (optional) | IMAP; close unless you need a mail client |
+
+In the Hetzner Cloud Firewall, restrict 587/465 to the app's IP range (the K3s node IPs) rather than
+`0.0.0.0/0`. Keep the Mailcow admin UI behind its own strong password and, if possible, restrict access
+to known admin IPs.
+
+Do not expose Dovecot IMAP (993) publicly unless you have a specific need to read mail from a client.
+The app sends only; it never reads incoming mail.
+
+### Deliverability Checklist
+
+Before going live, verify every item:
+
+- [ ] **SPF** TXT record published and includes `mail.yourdomain.tld`.
+- [ ] **DKIM** TXT record published (value copied from the Mailcow UI).
+- [ ] **DMARC** TXT record published (at minimum `p=none` to start, then `p=quarantine` or `p=reject`).
+- [ ] **PTR / rDNS** set on the VPS IP in the Hetzner Cloud Console, matching `mail.yourdomain.tld`.
+- [ ] **TLS** certificate issued by Mailcow's ACME component (check the Mailcow UI).
+- [ ] **Test send** from the app: trigger a verification email and confirm it lands in the inbox, not spam.
+- [ ] **Health check:** hit the backend's detailed health endpoint and confirm `smtp` reports `healthy`:
+
+  ```bash
+  curl https://fallout-api.evillab.tech/healthcheck?detailed=true | jq .services.smtp
+  ```
+
+  The `check_smtp` method in `backend/app/services/health_check.py` connects, authenticates, and quits.
+
+- [ ] **Warm-up:** new IPs and domains start with low sending reputation. Keep volume low for the first
+  few days (a handful of verification emails per hour is fine). Hetzner does not block outbound 25 on
+  request, but some receiving servers will throttle unknown senders initially.
+
+### Troubleshooting
+
+**Emails land in spam or are rejected.**
+Check SPF, DKIM, DMARC, and PTR. All four must be correct. Use `dig` to verify each record, and test with
+a service like [mail-tester.com](https://www.mail-tester.com/) to get a spam-score report.
+
+**Connection refused on 587 or 465.**
+Confirm the Hetzner Cloud Firewall allows inbound TCP on the port from the app's IP. Confirm Mailcow's
+Postfix container is running (`docker compose ps` inside `/opt/mailcow`). Confirm `SMTP_HOST` resolves to
+the VPS IP.
+
+**Authentication failed.**
+Verify `SMTP_USER` is the full mailbox address (`no-reply@yourdomain.tld`, not just `no-reply`). Verify
+`SMTP_PASSWORD` matches the mailbox password set in the Mailcow UI. Check the Mailcow UI logs under
+**Monitoring → Logs** for Postfix authentication errors.
+
+**TLS mismatch / handshake failure.**
+The `SMTP_TLS` and `SMTP_SSL` flags are inverted from conventional naming. For port 587 (STARTTLS), set
+`SMTP_SSL=true` and `SMTP_TLS=false`. For port 465 (implicit TLS), set `SMTP_TLS=true` and
+`SMTP_SSL=false`. Setting both to `true` or both to `false` will fail.
+
+**Health check reports SMTP unhealthy.**
+Run the detailed health endpoint and inspect the `smtp` entry. The error message includes the host, port,
+and the underlying exception. Common causes: wrong port for the TLS mode, firewall blocking the port, or
+the Mailcow stack not fully started yet.
 
 ## Environment Configuration
 
@@ -381,4 +594,4 @@ tests
 
 ---
 
-**Last Updated:** 2026-05-19
+**Last Updated:** 2026-08-24

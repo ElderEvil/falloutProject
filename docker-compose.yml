@@ -24,7 +24,7 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
-      - SMTP_HOST=mailpit
+      # SMTP_* come from .env (Mailcow in production)
       - FALLOUT_WORKER=0
       - OLLAMA_BASE_URL=http://host.containers.internal:11434/v1
     env_file: ".env"
@@ -64,7 +64,7 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
-      - SMTP_HOST=mailpit
+      # SMTP_* come from .env (Mailcow in production)
       - FALLOUT_WORKER=1
       - OLLAMA_BASE_URL=http://host.containers.internal:11434/v1
     env_file: ".env"
@@ -98,18 +98,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: mailpit
-    restart: always
-    ports:
-      - "1025:1025"  # SMTP server
-      - "8025:8025"  # Web UI
-    environment:
-      MP_MAX_MESSAGES: 5000
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
   postgres-data:

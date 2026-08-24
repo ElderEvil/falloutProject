@@ -93,8 +93,17 @@ class Settings(BaseSettings):
         return "disabled"
 
     # Email Configuration
+    # Local dev sends via Mailpit (SMTP sink on localhost:1025). Production sends
+    # real mail through a self-hosted Mailcow server on Hetzner (see
+    # docs/DEPLOYMENT.md "Production Email: Mailcow on Hetzner"). All values are
+    # env-driven; nothing here is a real production endpoint.
+    #
+    # TLS note (naming is inverted vs. convention, matches email.py):
+    #   SMTP_TLS=true -> implicit TLS (aiosmtplib use_tls)  -> port 465
+    #   SMTP_SSL=true -> STARTTLS (aiosmtplib start_tls)    -> port 587
+    # Recommended Mailcow submission is 587 STARTTLS => SMTP_SSL=true.
     SMTP_HOST: str = "localhost"
-    SMTP_PORT: int = 1025  # Mailpit default for local dev
+    SMTP_PORT: int = 1025  # Mailpit default for local dev; Mailcow uses 587/465
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_TLS: bool = False

@@ -33,6 +33,14 @@ AI-powered dweller interactions.
       pass, room-name + compact FIGHT buttons + "send best defenders" in the combat modal, and distinct debug
       spawn errors (disabled → 400, at-cap → 409). Follows the arena prototype previously parked on
       `experiment/arena`.
+- [ ] **AI provider profile + LM Studio support (in review — `feat/ai-settings`)** — DB-backed AI provider
+      settings (profile overrides env, secrets stay in env), admin UI embedded in the Overseer profile,
+      live provider connection test, token-usage estimation for local providers (LM Studio/Ollama), profile
+      re-applied at backend startup, and a chat streaming fallback that re-runs the retry-capable structured
+      path so action suggestions survive a failed local-model validation. **Needs manual testing:** dweller
+      chat streaming + action cards (esp. wasteland exploration via LM Studio), AI Settings tab (save /
+      reset / test connection / copy), profile persistence across backend restarts, and the profile page tabs
+      (Dossier / Vault Analytics / AI Settings).
 
 ---
 

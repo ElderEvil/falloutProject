@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getCombatPower } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import { getCombatPower, getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
+import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
@@ -32,6 +33,22 @@ const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, roo
 
 const getRoomForDweller = (roomId: string | null | undefined) =>
   roomId ? roomsById.value.get(roomId) : undefined
+
+// Show a dweller's room-relevant stat (the ability their room needs). Arena
+// rooms have no stat — show combat power instead.
+const getRoomStat = (
+  dweller: DwellerShort
+): { icon: string; label: string; value: number; isPower: boolean } | null => {
+  const room = getRoomForDweller(dweller.room_id)
+  if (!room) return null
+  if (room.category === 'arena') {
+    return { icon: 'mdi:sword-cross', label: 'Power', value: getCombatPower(dweller), isPower: true }
+  }
+  const ability = getAbilityConfig(room.ability)
+  if (!ability) return null
+  const value = dweller[(room.ability ?? '').toLowerCase() as SpecialKey] ?? 0
+  return { icon: ability.icon, label: ability.label, value, isPower: false }
+}
 </script>
 
 <template>
@@ -66,7 +83,10 @@ const getRoomForDweller = (roomId: string | null | undefined) =>
         <h3 class="truncate text-base font-bold text-terminal-green">
           {{ dweller.first_name }} {{ dweller.last_name }}
         </h3>
-        <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>
+        <div class="flex items-center gap-2">
+          <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>
+          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+        </div>
       </div>
 
       <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
@@ -86,14 +106,17 @@ const getRoomForDweller = (roomId: string | null | undefined) =>
         </div>
       </div>
 
-      <template v-if="getCombatPower(dweller) > 0">
+      <template v-if="getRoomStat(dweller)">
         <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
         <div class="flex items-center gap-1.5">
-          <span class="text-sm text-theme-primary/60">Power:</span>
-          <div class="flex items-center gap-1.5">
-            <Icon icon="mdi:sword-cross" class="h-4 w-4 text-orange-400" />
-            <span class="text-sm font-bold">{{ getCombatPower(dweller) }}</span>
-          </div>
+          <Icon
+            :icon="getRoomStat(dweller)!.icon"
+            :class="getRoomStat(dweller)!.isPower ? 'text-orange-400' : 'text-theme-primary/60'"
+            class="h-4 w-4"
+          />
+          <span class="text-sm font-semibold">
+            {{ getRoomStat(dweller)!.label }}: {{ getRoomStat(dweller)!.value }}
+          </span>
         </div>
       </template>
 

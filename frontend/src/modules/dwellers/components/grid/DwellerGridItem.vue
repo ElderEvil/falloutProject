@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
+import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
@@ -98,7 +99,10 @@ const getStatColorClass = (value: number) => {
       <!-- Name & Status -->
       <div class="header">
         <h3 class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
-        <DwellerStatusBadge :status="dweller.status" :show-label="false" size="small" />
+        <div class="header-badges">
+          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+          <DwellerStatusBadge :status="dweller.status" :show-label="false" size="small" />
+        </div>
       </div>
 
       <!-- Stats -->
@@ -252,6 +256,13 @@ const getStatColorClass = (value: number) => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.5rem;
+}
+
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
 }
 
 .dweller-name {

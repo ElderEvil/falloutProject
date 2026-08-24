@@ -318,6 +318,7 @@ const handleViewLowHappiness = () => {
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-4">
             <DwellerFilterPanel
+              :show-age-filter="true"
               :show-view-toggle="true"
               :show-bulk-actions="false"
               :vault-id="vaultId"

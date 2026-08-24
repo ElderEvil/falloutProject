@@ -17,6 +17,7 @@ import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { useProfileStore } from '../stores/profile'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
+import AISettingsPanel from '@/modules/ai-settings/components/AISettingsPanel.vue'
 import type { ProfileUpdate } from '../models/profile'
 
 const router = useRouter()
@@ -269,6 +270,10 @@ const formatDate = (dateString: string) => {
             <section aria-label="Vault analytics" class="grid gap-6 xl:grid-cols-2">
               <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
               <LifeDeathStatistics :statistics="profileStore.deathStatistics" :loading="profileStore.deathStatsLoading" />
+            </section>
+
+            <section v-if="authStore.isSuperuser" aria-label="AI provider configuration" class="border-t border-theme-primary/20 pt-6">
+              <AISettingsPanel />
             </section>
           </div>
         </PageContentRail>

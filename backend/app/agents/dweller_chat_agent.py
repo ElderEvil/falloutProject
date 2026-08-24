@@ -41,6 +41,11 @@ class ModelCache:
             cls._instance = get_model()
         return cls._instance
 
+    @classmethod
+    def reset(cls) -> None:
+        """Clear the cached model so the next get_model() re-initializes."""
+        cls._instance = None
+
 
 ACTION_TYPES = Literal["assign_to_room", "start_training", "start_exploration", "recall_exploration", "no_action"]
 

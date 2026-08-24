@@ -71,7 +71,7 @@ class AIService:
     def _initialize_provider(self) -> None:
         """Initialize AI provider based on configuration priority.
 
-        Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. Disabled
+        Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled
         """
         mode = settings.ai_provider_mode
 
@@ -82,6 +82,8 @@ class AIService:
                 self._initialize_direct_provider()
             case "ollama":
                 self._initialize_ollama()
+            case "lmstudio":
+                self._initialize_lmstudio()
             case "disabled":
                 logger.warning("No AI provider configured. AI features disabled.")
 
@@ -155,6 +157,15 @@ class AIService:
             self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
             logger.info(f"AI initialized with Ollama ({settings.AI_MODEL}) at {settings.OLLAMA_BASE_URL}")
 
+    def _initialize_lmstudio(self) -> None:
+        """Initialize using local LM Studio instance (OpenAI-compatible)."""
+        if settings.LMSTUDIO_BASE_URL:
+            from pydantic_ai.providers.openai import OpenAIProvider
+
+            provider = OpenAIProvider(base_url=settings.LMSTUDIO_BASE_URL, api_key="lm-studio")
+            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
+            logger.info(f"AI initialized with LM Studio ({settings.AI_MODEL}) at {settings.LMSTUDIO_BASE_URL}")
+
     @property
     def model(self) -> Any | None:
         """Get the AI model, or None if not configured."""
@@ -177,6 +188,52 @@ class AIService:
 
     def is_available(self) -> bool:
         """Check if AI features are available."""
+        return self._model is not None
+
+    def reconfigure(
+        self,
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        gateway_route: str | None = None,
+    ) -> bool:
+        """Re-initialize from effective values (profile overrides env).
+
+        Temporarily patches the settings attributes that ``_initialize_provider``
+        and its sub-initializers read, then restores them. Returns True if the
+        model is available after reconfiguration.
+        """
+        overrides: dict[str, Any] = {}
+        if provider is not None:
+            overrides["AI_PROVIDER"] = provider
+        if model is not None:
+            overrides["AI_MODEL"] = model
+        if base_url is not None:
+            eff_provider = provider if provider is not None else settings.AI_PROVIDER
+            if eff_provider == "ollama":
+                overrides["OLLAMA_BASE_URL"] = base_url
+            elif eff_provider == "lmstudio":
+                overrides["LMSTUDIO_BASE_URL"] = base_url
+        if gateway_route is not None:
+            overrides["PYDANTIC_AI_GATEWAY_ROUTE"] = gateway_route
+
+        self._model = None
+        self._client = None
+        self._using_gateway = False
+
+        saved = {key: getattr(settings, key) for key in overrides}
+        for key, val in overrides.items():
+            setattr(settings, key, val)
+        try:
+            self._initialize_provider()
+        except Exception:
+            logger.exception("Failed to reconfigure AI service")
+            self._model = None
+        finally:
+            for key, val in saved.items():
+                setattr(settings, key, val)
+
         return self._model is not None
 
     def _ensure_model_available(self) -> None:

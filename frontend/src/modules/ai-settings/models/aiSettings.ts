@@ -38,3 +38,7 @@ export const AI_PROVIDER_OPTIONS: { value: AIProvider | ''; label: string }[] = 
   { value: 'ollama', label: 'Ollama' },
   { value: 'lmstudio', label: 'LM Studio' },
 ]
+
+export type AISettingsTestResult =
+  | { status: 'ok'; latency_ms: number; model: string }
+  | { status: 'error'; latency_ms: number | null; model: string | null; message: string }

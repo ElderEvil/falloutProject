@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useToast } from '@/core/composables/useToast'
@@ -9,6 +9,7 @@ import {
   AI_PROVIDER_OPTIONS,
   type AIProvider,
   type AISettingsRead,
+  type AISettingsTestResult,
   type AISettingsUpdate,
 } from '../models/aiSettings'
 
@@ -19,6 +20,9 @@ const formProvider = ref<AIProvider | ''>('')
 const formModel = ref('')
 const formBaseUrl = ref('')
 const formGatewayRoute = ref('')
+const testResult = ref<AISettingsTestResult | null>(null)
+const resetArmed = ref(false)
+const copiedConfig = ref(false)
 
 const { run: runLoad, isLoading: isLoadingLoad } = useAsyncAction(
   async () => {
@@ -57,7 +61,18 @@ const { run: runReset, isLoading: isLoadingReset } = useAsyncAction(
   { context: 'Failed to reset AI settings', showToast: false }
 )
 
-const isLoading = computed(() => isLoadingLoad.value || isLoadingSave.value || isLoadingReset.value)
+const { run: runTest, isLoading: isLoadingTest } = useAsyncAction(
+  async (payload: AISettingsUpdate) => {
+    const result = await aiSettingsService.test(payload)
+    testResult.value = result
+    return result
+  },
+  { context: 'Failed to test AI connection', showToast: false }
+)
+
+const isLoading = computed(
+  () => isLoadingLoad.value || isLoadingSave.value || isLoadingReset.value || isLoadingTest.value
+)
 
 function applyProfileToForm(data: AISettingsRead) {
   const profile = data.profile
@@ -65,7 +80,12 @@ function applyProfileToForm(data: AISettingsRead) {
   formModel.value = profile?.model ?? ''
   formBaseUrl.value = profile?.base_url ?? ''
   formGatewayRoute.value = profile?.gateway_route ?? ''
+  testResult.value = null
 }
+
+watch([formProvider, formModel, formBaseUrl, formGatewayRoute], () => {
+  testResult.value = null
+})
 
 const dirtyPayload = computed<AISettingsUpdate>(() => {
   const profile = settings.value?.profile
@@ -91,13 +111,76 @@ const dirtyPayload = computed<AISettingsUpdate>(() => {
 
 const hasChanges = computed(() => Object.keys(dirtyPayload.value).length > 0)
 
+const showBaseUrlField = computed(() => {
+  const provider = formProvider.value
+  return provider === '' || provider === 'ollama' || provider === 'lmstudio'
+})
+
+const baseUrlRequired = computed(() => {
+  const provider = formProvider.value
+  return provider === 'ollama' || provider === 'lmstudio'
+})
+
+const baseUrlConnected = computed(() => testResult.value?.status === 'ok')
+
+const providerHelperText = computed(() => {
+  const provider = formProvider.value
+  if (provider === '') return 'Default uses the server environment variable.'
+  if (provider === 'ollama' || provider === 'lmstudio')
+    return 'Local provider — Base URL is required.'
+  return 'Cloud provider — Base URL is not needed.'
+})
+
 async function handleSave() {
   if (!hasChanges.value) return
   await runSave(dirtyPayload.value)
 }
 
+async function handleTest() {
+  testResult.value = null
+  await runTest(dirtyPayload.value)
+}
+
 async function handleReset() {
+  if (!resetArmed.value) {
+    resetArmed.value = true
+    return
+  }
   await runReset()
+  resetArmed.value = false
+}
+
+async function handleCopyConfig() {
+  if (!settings.value) return
+  const eff = settings.value.effective
+  const text = [
+    `Provider: ${eff.provider}`,
+    `Model: ${eff.model}`,
+    `Base URL: ${eff.base_url || '—'}`,
+    `Gateway Route: ${eff.gateway_route || '—'}`,
+    `Mode: ${eff.mode}`,
+  ].join('\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedConfig.value = true
+    setTimeout(() => {
+      copiedConfig.value = false
+    }, 2000)
+  } catch {
+    toast.error('Failed to copy configuration')
+  }
+}
+
+function getProvenance(field: 'provider' | 'model' | 'base_url' | 'gateway_route'): string {
+  if (!settings.value) return 'env'
+  const profile = settings.value.profile
+  const effective = settings.value.effective
+  const profileValue = profile?.[field]
+  const effectiveValue = effective[field]
+  if (profileValue !== null && profileValue !== undefined && profileValue === effectiveValue) {
+    return 'profile'
+  }
+  return 'env'
 }
 
 onMounted(() => {
@@ -146,10 +229,11 @@ onMounted(() => {
           <div>
             <label class="block text-sm font-medium text-theme-primary/70 mb-1">
               Provider
+              <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
             </label>
             <select
               v-model="formProvider"
-              class="w-full rounded border-2 border-theme-primary/50 bg-surface-raised px-4 py-2 text-terminal-green transition-colors focus:border-theme-primary focus:outline-none"
+              class="terminal-select w-full rounded border-2 border-theme-primary/50 bg-surface-raised px-4 py-2 text-terminal-green transition-colors"
             >
               <option
                 v-for="opt in AI_PROVIDER_OPTIONS"
@@ -160,7 +244,7 @@ onMounted(() => {
               </option>
             </select>
             <p class="mt-1 text-xs text-theme-primary/50">
-              Select "Default" to use the server environment variable.
+              {{ providerHelperText }}
             </p>
           </div>
 
@@ -169,24 +253,63 @@ onMounted(() => {
             v-model="formModel"
             label="Model"
             placeholder="e.g. gpt-4o-mini, claude-3-haiku, llama3"
-            help-text="Leave empty to use the provider default model"
+            help-text="Optional — Leave empty to use the provider default model."
           />
 
           <!-- Base URL -->
-          <UInput
-            v-model="formBaseUrl"
-            label="Base URL"
-            placeholder="e.g. http://localhost:11434/v1"
-            help-text="Required for Ollama / LM Studio; leave empty for cloud providers"
-          />
+          <div v-if="showBaseUrlField">
+            <label class="block text-sm font-medium text-theme-primary/70 mb-1">
+              Base URL
+              <span
+                class="text-xs font-normal ml-1"
+                :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger' : 'text-theme-primary/50'"
+              >
+                ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : 'Optional' }})
+              </span>
+            </label>
+            <input
+              v-model="formBaseUrl"
+              type="text"
+              placeholder="e.g. http://localhost:11434/v1"
+              class="terminal-input w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
+              :class="
+                baseUrlConnected
+                  ? 'border-theme-primary/60 focus:border-theme-primary'
+                  : baseUrlRequired
+                    ? 'border-danger/50 focus:border-danger'
+                    : 'border-theme-primary/50 focus:border-theme-primary'
+              "
+            />
+            <p
+              class="mt-1 text-xs"
+              :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger/80' : 'text-theme-primary/50'"
+            >
+              {{
+                baseUrlConnected
+                  ? `Connection established — ${testResult?.model} responded via this endpoint.`
+                  : baseUrlRequired
+                    ? 'Required for Ollama / LM Studio — specify the local endpoint.'
+                    : 'Leave empty to use the environment default.'
+              }}
+            </p>
+          </div>
 
           <!-- Gateway Route -->
-          <UInput
-            v-model="formGatewayRoute"
-            label="Gateway Route"
-            placeholder="e.g. anthropic, openai"
-            help-text="Pydantic AI Gateway routing group identifier (optional)"
-          />
+          <div class="opacity-80">
+            <label class="block text-sm font-medium text-theme-primary/70 mb-1">
+              Gateway Route
+              <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
+            </label>
+            <input
+              v-model="formGatewayRoute"
+              type="text"
+              placeholder="e.g. anthropic, openai"
+              class="terminal-input w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
+            />
+            <p class="mt-1 text-xs text-theme-primary/50">
+              Pydantic AI Gateway routing group — leave empty to use the env route.
+            </p>
+          </div>
         </div>
 
         <!-- Actions -->
@@ -201,58 +324,138 @@ onMounted(() => {
             Save &amp; Apply
           </UButton>
           <UButton
-            variant="danger"
-            :loading="isLoadingReset"
+            variant="secondary"
+            :disabled="isLoading"
+            :loading="isLoadingTest"
+            @click="handleTest"
+          >
+            <Icon icon="mdi:connection" class="mr-1" />
+            Test Connection
+          </UButton>
+          <UButton
+            :variant="resetArmed ? 'danger' : 'secondary'"
+            :disabled="isLoading"
             @click="handleReset"
+            class="btn-reset"
           >
             <Icon icon="mdi:restore" class="mr-1" />
-            Reset to Env Defaults
+            {{ resetArmed ? 'Confirm Reset?' : 'Reset to Env Defaults' }}
           </UButton>
           <span v-if="!hasChanges" class="text-xs text-theme-primary/40 italic">
             No unsaved changes
           </span>
         </div>
+
+        <!-- Test Result -->
+        <div v-if="testResult" class="mt-4 rounded border-2 p-3 font-mono text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/50 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
+          <div class="flex items-start gap-2">
+            <Icon
+              :icon="testResult.status === 'ok' ? 'mdi:check-circle' : 'mdi:alert'"
+              class="mt-0.5 h-5 w-5 shrink-0"
+              :class="testResult.status === 'ok' ? 'text-theme-primary' : 'text-danger'"
+            />
+            <div class="min-w-0 flex-1">
+              <div v-if="testResult.status === 'ok'" class="text-theme-primary">
+                Connected in {{ testResult.latency_ms }} ms — model: {{ testResult.model }}
+              </div>
+              <div v-else class="text-danger">
+                {{ testResult.message }}
+                <span v-if="testResult.latency_ms" class="text-theme-primary/60 ml-2">
+                  ({{ testResult.latency_ms }} ms)
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </UCard>
 
       <!-- Effective Config Panel -->
-      <UCard glow crt surface="sunken">
+      <UCard glow crt>
         <template #header>
-          <div class="flex items-center gap-3">
-            <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
-            <h3 class="text-xl font-bold terminal-glow text-theme-primary">
-              Effective Configuration
-            </h3>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
+              <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+                Effective Configuration
+              </h3>
+            </div>
+            <button
+              class="terminal-button-copy rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary"
+              :disabled="copiedConfig"
+              @click="handleCopyConfig"
+              aria-label="Copy configuration"
+            >
+              <Icon
+                :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'"
+                class="mr-1 inline h-3.5 w-3.5"
+              />
+              {{ copiedConfig ? 'Copied' : 'Copy' }}
+            </button>
           </div>
         </template>
 
         <div class="space-y-3 text-sm font-mono">
           <div class="effective-row">
             <span class="effective-label">Provider</span>
-            <span class="effective-value">{{ settings.effective.provider }}</span>
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <span class="effective-value">{{ settings.effective.provider }}</span>
+              <span
+                v-if="getProvenance('provider') === 'profile'"
+                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+              >
+                Override
+              </span>
+            </div>
           </div>
           <div class="effective-row">
             <span class="effective-label">Model</span>
-            <span class="effective-value">{{ settings.effective.model }}</span>
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <span class="effective-value">{{ settings.effective.model }}</span>
+              <span
+                v-if="getProvenance('model') === 'profile'"
+                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+              >
+                Override
+              </span>
+            </div>
           </div>
           <div class="effective-row">
             <span class="effective-label">Base URL</span>
-            <span class="effective-value">{{ settings.effective.base_url || '—' }}</span>
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <span class="effective-value">{{ settings.effective.base_url || '—' }}</span>
+              <span
+                v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
+                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+              >
+                Override
+              </span>
+            </div>
           </div>
           <div class="effective-row">
             <span class="effective-label">Gateway Route</span>
-            <span class="effective-value">{{ settings.effective.gateway_route || '—' }}</span>
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <span class="effective-value">{{ settings.effective.gateway_route || '—' }}</span>
+              <span
+                v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
+                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+              >
+                Override
+              </span>
+            </div>
           </div>
           <div class="effective-row">
             <span class="effective-label">Mode</span>
-            <span
-              class="effective-value"
-              :class="{
-                'text-terminal-green': settings.effective.mode !== 'disabled',
-                'text-red-400': settings.effective.mode === 'disabled',
-              }"
-            >
-              {{ settings.effective.mode }}
-            </span>
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <span
+                class="effective-value"
+                :class="{
+                  'text-terminal-green': settings.effective.mode !== 'disabled',
+                  'text-red-400': settings.effective.mode === 'disabled',
+                }"
+              >
+                {{ settings.effective.mode }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -271,6 +474,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
+  min-width: 0;
 }
 
 .effective-label {
@@ -279,11 +483,57 @@ onMounted(() => {
   text-transform: uppercase;
   font-size: 0.7rem;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .effective-value {
   color: var(--color-theme-primary);
   text-align: right;
   word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.terminal-select:focus-visible {
+  outline: none;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0 2px var(--color-theme-glow);
+}
+
+.terminal-input:focus-visible {
+  outline: none;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0 2px var(--color-theme-glow);
+}
+
+.terminal-button-copy:focus-visible {
+  outline: none;
+  border-style: dashed;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.btn-reset:focus-visible {
+  outline: none;
+  border-style: dashed;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+:deep(button):focus-visible {
+  outline: none;
+  border-style: dashed;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+:deep(select):focus-visible {
+  outline: none;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0 2px var(--color-theme-glow);
+}
+
+:deep(input):focus-visible {
+  outline: none;
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0 2px var(--color-theme-glow);
 }
 </style>

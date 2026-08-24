@@ -68,12 +68,16 @@ class AIService:
         self._initialize_provider()
         self._initialized = True
 
-    def _initialize_provider(self) -> None:
+    def _initialize_provider(self, mode: str | None = None) -> None:
         """Initialize AI provider based on configuration priority.
 
         Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled
+
+        Args:
+            mode: Optional forced mode (used by ``reconfigure`` when the DB
+                profile forces a local provider). Defaults to ``settings.ai_provider_mode``.
         """
-        mode = settings.ai_provider_mode
+        mode = mode or settings.ai_provider_mode
 
         match mode:
             case "gateway":
@@ -226,7 +230,12 @@ class AIService:
         for key, val in overrides.items():
             setattr(settings, key, val)
         try:
-            self._initialize_provider()
+            forced_mode: str | None = None
+            if provider == "lmstudio" and (base_url or settings.LMSTUDIO_BASE_URL):
+                forced_mode = "lmstudio"
+            elif provider == "ollama" and (base_url or settings.OLLAMA_BASE_URL):
+                forced_mode = "ollama"
+            self._initialize_provider(mode=forced_mode)
         except Exception:
             logger.exception("Failed to reconfigure AI service")
             self._model = None
@@ -480,3 +489,48 @@ def get_model() -> Any | None:
 def is_using_gateway() -> bool:
     """Check if Pydantic AI Gateway is being used."""
     return AIService().using_gateway
+
+
+def build_test_model(
+    provider: str,
+    model: str,
+    base_url: str | None,
+    gateway_route: str | None,
+    mode: str,
+) -> Any | None:
+    try:
+        match mode:
+            case "gateway":
+                if not settings.PYDANTIC_AI_GATEWAY_API_KEY:
+                    return None
+                gateway_options = {"api_key": settings.PYDANTIC_AI_GATEWAY_API_KEY}
+                if gateway_route:
+                    gateway_options["route"] = gateway_route
+                if settings.PYDANTIC_AI_GATEWAY_BASE_URL:
+                    gateway_options["base_url"] = settings.PYDANTIC_AI_GATEWAY_BASE_URL
+                provider_obj = gateway_provider(provider, **gateway_options)
+                return OpenAIChatModel(model_name=model, provider=provider_obj)
+            case "direct":
+                if provider == "openai" and settings.OPENAI_API_KEY:
+                    from pydantic_ai.providers.openai import OpenAIProvider
+
+                    provider_obj = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+                    return OpenAIChatModel(model_name=model, provider=provider_obj)
+                return None
+            case "ollama":
+                if base_url:
+                    from pydantic_ai.providers.ollama import OllamaProvider
+
+                    provider_obj = OllamaProvider(base_url=base_url)
+                    return OpenAIChatModel(model_name=model, provider=provider_obj)
+                return None
+            case "lmstudio":
+                if base_url:
+                    from pydantic_ai.providers.openai import OpenAIProvider
+
+                    provider_obj = OpenAIProvider(base_url=base_url, api_key="lm-studio")
+                    return OpenAIChatModel(model_name=model, provider=provider_obj)
+                return None
+    except Exception:
+        logger.exception("Failed to build one-off AI model")
+    return None

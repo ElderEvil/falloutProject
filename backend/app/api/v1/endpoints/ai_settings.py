@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentSuperuser
 from app.db.session import get_async_session
-from app.schemas.ai_settings import AISettingsRead, AISettingsUpdate
+from app.schemas.ai_settings import AISettingsRead, AISettingsTestInput, AISettingsTestResult, AISettingsUpdate
 from app.services.ai_settings_service import ai_settings_service
 
 router = APIRouter(prefix="/ai-settings", tags=["AI Settings"])
@@ -32,3 +32,13 @@ async def update_ai_settings(
     result = await ai_settings_service.update_profile(db_session, update)
     await ai_settings_service.apply(db_session)
     return result
+
+
+@router.post("/test", response_model=AISettingsTestResult)
+async def test_ai_settings(
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    overrides: AISettingsTestInput,
+    _: CurrentSuperuser,
+) -> AISettingsTestResult:
+    """Test connectivity to the resolved AI provider without persisting changes."""
+    return await ai_settings_service.test_connection(db_session, overrides)

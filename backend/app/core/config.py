@@ -134,20 +134,21 @@ class Settings(BaseSettings):
         return self.PYDANTIC_AI_GATEWAY_ROUTE
 
     def effective_ai_mode(self, profile: AIProfileProtocol | None) -> str:
-        """Effective mode from env keys + profile-overridden provider.
+        """Effective mode from profile-forced provider + env keys.
 
-        Gateway/direct branches depend on env-only API keys (secrets are never in DB).
+        A profile-forced local provider (lmstudio/ollama with a base URL)
+        wins over gateway/direct env modes; otherwise env secrets decide.
         """
-        if self.PYDANTIC_AI_GATEWAY_API_KEY:
-            return "gateway"
-        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
-            return "direct"
         eff_provider = self.effective_ai_provider(profile)
         eff_base_url = self.effective_ai_base_url(profile)
         if eff_provider == "ollama" and eff_base_url:
             return "ollama"
         if eff_provider == "lmstudio" and eff_base_url:
             return "lmstudio"
+        if self.PYDANTIC_AI_GATEWAY_API_KEY:
+            return "gateway"
+        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
+            return "direct"
         return "disabled"
 
     # Email Configuration

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import UUID4, BaseModel, Field
 
@@ -32,3 +33,17 @@ class AISettingsUpdate(BaseModel):
     model: str | None = Field(default=None, max_length=200)
     base_url: str | None = Field(default=None, max_length=500)
     gateway_route: str | None = Field(default=None, max_length=200)
+
+
+class AISettingsTestInput(BaseModel):
+    provider: str | None = Field(default=None, max_length=50)
+    model: str | None = Field(default=None, max_length=200)
+    base_url: str | None = Field(default=None, max_length=500)
+    gateway_route: str | None = Field(default=None, max_length=200)
+
+
+class AISettingsTestResult(BaseModel):
+    status: Literal["ok", "error"]
+    latency_ms: int | None = None
+    model: str | None = None
+    message: str | None = None

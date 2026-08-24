@@ -388,6 +388,45 @@ class TestChatServiceErrorHandling:
         assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
 
+    async def test_stream_response_yields_provider_reason_on_model_http_error(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+        test_user: User,
+    ) -> None:
+        """stream_response yields the exact provider reason when run_stream raises ModelHTTPError."""
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        provider_error = ModelHTTPError(
+            status_code=429,
+            model_name="gpt-4o-mini",
+            body={"code": "credit_balance_exhausted", "message": "You have no credits remaining."},
+        )
+
+        with (
+            patch(
+                "app.services.chat_service.dweller_chat_agent.run_stream",
+                side_effect=provider_error,
+            ),
+            patch(
+                "app.services.chat_service.quota_service.check_quota",
+                new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
+            ),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert events[0]["detail"] == "You have no credits remaining."
+
 
 @pytest.mark.asyncio
 class TestMaybeUnlockPlaces:

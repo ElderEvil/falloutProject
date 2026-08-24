@@ -35,10 +35,10 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   const canSend = computed(() => userMessage.value.trim().length > 0)
 
-  const markUserMessageFailed = () => {
+  const markUserMessageFailed = (error?: string) => {
     const lastMsg = messages.value[messages.value.length - 1]
     if (lastMsg && lastMsg.type === 'user') {
-      lastMsg.content = '[Failed to send] ' + lastMsg.content
+      lastMsg.error = error
     }
   }
 
@@ -75,15 +75,16 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       sendResolver = null
     })
 
-    options.chatWs.on('error', (_msg: any) => {
+    options.chatWs.on('error', (msg: any) => {
+      const detail = typeof msg?.detail === 'string' ? msg.detail : undefined
       if (streamingIndex !== null) {
         const streamingMsg = messages.value[streamingIndex]
         if (streamingMsg && streamingMsg.type === 'dweller') {
-          streamingMsg.content = '[Failed to send] ' + streamingMsg.content
+          streamingMsg.error = detail
         }
         streamingIndex = null
       } else {
-        markUserMessageFailed()
+        markUserMessageFailed(detail)
       }
       isTyping.value = false
       sendResolver?.()
@@ -166,8 +167,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           actionSuggestion: response.data.action_suggestion || null,
         })
       } catch (error) {
-        handleStoreError(error, 'Error sending message')
-        markUserMessageFailed()
+        const reason = handleStoreError(error, 'Error sending message')
+        markUserMessageFailed(reason)
       } finally {
         isTyping.value = false
       }

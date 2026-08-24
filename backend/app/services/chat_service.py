@@ -351,6 +351,9 @@ class ChatService:
         except AccessDeniedException as e:
             yield {"type": "error", "detail": str(e.detail)}
             return
+        except ModelHTTPError as e:
+            logger.exception("Streaming chat response failed")
+            yield {"type": "error", "detail": self._extract_provider_reason(e)}
         except Exception as e:
             logger.exception("Streaming chat response failed")
             if isinstance(e, (ValueError, QuotaExceededException)):
@@ -464,7 +467,7 @@ class ChatService:
 
         except ModelHTTPError as error:
             if self._provider_credits_are_exhausted(error):
-                raise AIProviderCreditsExhaustedException from error
+                raise AIProviderCreditsExhaustedException(detail=self._extract_provider_reason(error)) from error
             logger.exception("Dweller chat agent failed, using fallback")
             return await self._run_fallback_chat_agent(dweller, message_text)
         except Exception:
@@ -491,7 +494,7 @@ class ChatService:
             )
         except ModelHTTPError as error:
             if self._provider_credits_are_exhausted(error):
-                raise AIProviderCreditsExhaustedException from error
+                raise AIProviderCreditsExhaustedException(detail=self._extract_provider_reason(error)) from error
             raise
 
         happiness_impact = HappinessImpact(
@@ -513,12 +516,22 @@ class ChatService:
 
     @staticmethod
     def _provider_credits_are_exhausted(error: ModelHTTPError) -> bool:
-        """Return whether a provider error specifically reports an exhausted credit balance."""
+        """Return whether a provider error specifically reports an exhausted credits balance."""
         return (
             error.status_code == 429
             and isinstance(error.body, dict)
             and error.body.get("code") == "credit_balance_exhausted"
         )
+
+    @staticmethod
+    def _extract_provider_reason(error: ModelHTTPError) -> str:
+        """Extract a human-readable reason from a ModelHTTPError without leaking secrets."""
+        body = error.body
+        if isinstance(body, dict):
+            message = body.get("message")
+            if isinstance(message, str) and message:
+                return message
+        return f"AI provider request failed (HTTP {error.status_code})"
 
     async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
         """Unlock the dweller's associated places after 3+ user messages (best-effort)."""

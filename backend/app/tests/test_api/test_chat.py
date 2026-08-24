@@ -280,7 +280,7 @@ class TestTextChat:
         )
 
         assert response.status_code == 503
-        assert response.json()["detail"] == "AI provider credits are exhausted. Please try again later."
+        assert response.json()["detail"] == "You have no credits remaining."
         mock_ai.chat_completion_with_usage.assert_not_awaited()
 
     @patch("app.services.chat_service.dweller_chat_agent")

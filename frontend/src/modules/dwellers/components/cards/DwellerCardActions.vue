@@ -24,6 +24,7 @@ const emit = defineEmits<{
   (e: 'use-stimpack'): void
   (e: 'use-radaway'): void
   (e: 'unassign'): void
+  (e: 'send-wasteland'): void
 }>()
 
 const trainingStore = useTrainingStore()
@@ -69,6 +70,18 @@ const isTraining = computed(() => {
         Unassign from Room
       </UButton>
     </div>
+
+    <UButton
+      v-if="dweller.status !== 'exploring'"
+      variant="secondary"
+      size="md"
+      block
+      @click="emit('send-wasteland')"
+      :disabled="loading"
+    >
+      <Icon icon="mdi:map-marker-radius" class="h-5 w-5 mr-2" />
+      Send to Wasteland
+    </UButton>
 
     <UButton
       v-if="dweller.status === 'exploring'"

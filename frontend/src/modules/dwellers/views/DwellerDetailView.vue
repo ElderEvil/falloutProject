@@ -12,6 +12,8 @@ import DwellerCard from '../components/cards/DwellerCard.vue'
 import DwellerPanel from '../components/DwellerPanel.vue'
 import DwellerAppearanceEditor from '../components/DwellerAppearanceEditor.vue'
 import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
+import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
+import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -168,6 +170,28 @@ const handleRecall = async () => {
   } catch (error) {
     toast.error('Failed to recall dweller')
   }
+}
+
+const sendWasteland = useSendToWasteland(() => vaultId.value)
+
+const handleSendWasteland = () => {
+  if (!dweller.value) return
+  sendWasteland.open({
+    dwellerId: dwellerId.value,
+    firstName: dweller.value.first_name,
+    lastName: dweller.value.last_name ?? undefined,
+    currentRoomId: dweller.value.room?.id ?? null,
+  })
+}
+
+const handleSendWastelandConfirm = (payload: {
+  duration: number
+  stimpaks: number
+  radaways: number
+}) => {
+  return sendWasteland.confirm(payload, async () => {
+    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+  })
 }
 
 const generateDwellerInfo = async () => {
@@ -449,6 +473,7 @@ const saveNewName = async () => {
                   @use-stimpack="handleUseStimpack"
                   @use-radaway="handleUseRadaway"
                   @train="showTrainingModal = true"
+                  @send-wasteland="handleSendWasteland"
                 />
 
                 <!-- Revival Section for Dead Dwellers -->
@@ -511,6 +536,15 @@ const saveNewName = async () => {
             v-model="showTrainingModal"
             :dweller="dweller"
             @started="handleTrainingStarted"
+          />
+          <ExplorationDurationModal
+            v-if="dweller"
+            :show="sendWasteland.showModal.value"
+            :dweller-name="`${dweller.first_name} ${dweller.last_name ?? ''}`"
+            :max-stimpaks="currentVault?.stimpack ?? 0"
+            :max-radaways="currentVault?.radaway ?? 0"
+            @confirm="handleSendWastelandConfirm"
+            @cancel="sendWasteland.cancel"
           />
         </div>
       </div>

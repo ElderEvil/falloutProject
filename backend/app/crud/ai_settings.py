@@ -20,9 +20,7 @@ class CRUDAISettings:
         self.model = model
 
     async def get_single(self, db_session: AsyncSession) -> AISettings | None:
-        result = await db_session.execute(
-            select(self.model).where(self.model.id == SINGLETON_ROW_ID)
-        )
+        result = await db_session.execute(select(self.model).where(self.model.id == SINGLETON_ROW_ID))
         row = result.scalar_one_or_none()
         if row is not None:
             return row

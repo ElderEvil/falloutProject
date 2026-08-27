@@ -68,9 +68,7 @@ class AIService:
         self._initialize_provider()
         self._initialized = True
 
-    def _initialize_provider(
-        self, mode: str | None = None, base_url: str | None = None
-    ) -> None:
+    def _initialize_provider(self, mode: str | None = None, base_url: str | None = None) -> None:
         """Initialize AI provider based on configuration priority.
 
         Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled

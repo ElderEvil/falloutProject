@@ -45,6 +45,7 @@ export function useSendToWasteland(vaultId: () => string | null) {
 
     isSending.value = true
     const { dwellerId, firstName, lastName, currentRoomId } = pendingDweller.value
+    let dispatched = false
     try {
       if (currentRoomId) {
         await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
@@ -60,14 +61,23 @@ export function useSendToWasteland(vaultId: () => string | null) {
       toast.success(`${firstName} ${lastName ?? ''} sent to the wasteland for ${payload.duration} hour(s)!`)
       showModal.value = false
       pendingDweller.value = null
-      await refresh?.()
-      return true
+      dispatched = true
     } catch {
       toast.error('Failed to send dweller to wasteland')
       return false
     } finally {
       isSending.value = false
     }
+
+    // Refresh is best-effort: a refresh failure must not mask a successful dispatch.
+    if (dispatched && refresh) {
+      try {
+        await refresh()
+      } catch {
+        // dispatch already succeeded; ignore refresh errors
+      }
+    }
+    return dispatched
   }
 
   return { showModal, pendingDweller, isSending, open, cancel, confirm }

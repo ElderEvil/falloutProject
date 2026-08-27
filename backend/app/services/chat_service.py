@@ -286,7 +286,9 @@ class ChatService:
                 # output that fails validation mid-stream. run_stream() cannot
                 # retry; re-run via run() (retries supported), which keeps the
                 # action suggestion and only degrades to plain text if it fails.
-                logger.warning("Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id)
+                logger.warning(
+                    "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
+                )
                 (
                     bundle.response_text,
                     bundle.happiness_impact,
@@ -309,8 +311,12 @@ class ChatService:
                 "type": "done",
                 "dweller_message_id": str(dweller_message_id),
                 "response_text": bundle.response_text,
-                "happiness_impact": bundle.happiness_impact.model_dump(mode="json") if bundle.happiness_impact else None,
-                "action_suggestion": bundle.action_suggestion.model_dump(mode="json") if bundle.action_suggestion else None,
+                "happiness_impact": bundle.happiness_impact.model_dump(mode="json")
+                if bundle.happiness_impact
+                else None,
+                "action_suggestion": bundle.action_suggestion.model_dump(mode="json")
+                if bundle.action_suggestion
+                else None,
             }
 
         except AccessDeniedException as e:

@@ -102,9 +102,7 @@ class TestAISettingsEndpoints:
         assert data["profile"]["model"] == "test-model"
         assert data["profile"]["base_url"] == "http://x:1234/v1"
 
-    async def test_post_ai_settings_test_requires_superuser(
-        self, async_client, normal_user_token_headers
-    ) -> None:
+    async def test_post_ai_settings_test_requires_superuser(self, async_client, normal_user_token_headers) -> None:
         response = await async_client.post(
             "/ai-settings/test",
             headers=normal_user_token_headers,
@@ -112,9 +110,7 @@ class TestAISettingsEndpoints:
         )
         assert response.status_code == 400
 
-    async def test_post_ai_settings_test_happy_path(
-        self, async_client, superuser_token_headers, monkeypatch
-    ) -> None:
+    async def test_post_ai_settings_test_happy_path(self, async_client, superuser_token_headers, monkeypatch) -> None:
         monkeypatch.setattr(settings, "OPENAI_API_KEY", "fake-key")
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(data="OK"))

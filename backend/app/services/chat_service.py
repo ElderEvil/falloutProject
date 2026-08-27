@@ -278,26 +278,8 @@ class ChatService:
             )
 
             bundle = _StreamBundle()
-            try:
-                async for event in self._stream_structured(deps, dweller, message_text, bundle):
-                    yield event
-            except UnexpectedModelBehavior:
-                # Local providers (LM Studio/Ollama) sometimes return structured
-                # output that fails validation mid-stream. run_stream() cannot
-                # retry; re-run via run() (retries supported), which keeps the
-                # action suggestion and only degrades to plain text if it fails.
-                logger.warning(
-                    "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
-                )
-                (
-                    bundle.response_text,
-                    bundle.happiness_impact,
-                    bundle.action_suggestion,
-                    bundle.prompt_tokens,
-                    bundle.completion_tokens,
-                    bundle.total_tokens,
-                ) = await self._run_chat_agent(db_session, dweller, message_text)
-                yield {"type": "token", "text": bundle.response_text, "replace": True}
+            async for event in self._stream_with_fallback(deps, dweller, message_text, bundle):
+                yield event
 
             dweller_message_id = await self._persist_chat(
                 db_session=db_session,
@@ -380,6 +362,37 @@ class ChatService:
                 bundle.total_tokens,
             ) = self._extract_usage(result)
             bundle.response_text = output.response_text
+
+    async def _stream_with_fallback(
+        self,
+        deps: DwellerChatDeps,
+        dweller: DwellerReadFull,
+        message_text: str,
+        bundle: _StreamBundle,
+    ) -> AsyncIterator[dict]:
+        """Stream structured output, falling back to a non-streaming run on validation failure.
+
+        Yields token events. On ``UnexpectedModelBehavior`` (local providers
+        returning invalid structured output mid-stream) retries via the
+        retry-capable non-streaming path so action suggestions are preserved.
+        The resolved values are written into ``bundle`` for later persistence.
+        """
+        try:
+            async for event in self._stream_structured(deps, dweller, message_text, bundle):
+                yield event
+        except UnexpectedModelBehavior:
+            logger.warning(
+                "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
+            )
+            (
+                bundle.response_text,
+                bundle.happiness_impact,
+                bundle.action_suggestion,
+                bundle.prompt_tokens,
+                bundle.completion_tokens,
+                bundle.total_tokens,
+            ) = await self._run_chat_agent(deps.db_session, dweller, message_text)
+            yield {"type": "token", "text": bundle.response_text, "replace": True}
 
     async def _persist_chat(
         self,

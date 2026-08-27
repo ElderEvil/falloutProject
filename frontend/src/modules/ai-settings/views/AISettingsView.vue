@@ -30,9 +30,12 @@ onMounted(() => {
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines" aria-hidden="true"></div>
-    <div class="vault-layout">
+    <div class="flex min-h-screen">
       <SidePanel />
-      <main class="main-content flicker" :class="{ collapsed: isCollapsed }">
+      <main
+        class="flex-1 flicker transition-[margin-left] duration-300 ease font-semibold tracking-[0.025em] leading-[1.6]"
+        :class="isCollapsed ? 'ml-16' : 'ml-60'"
+      >
         <PageContentRail>
           <PageHeader
             title="AI Provider Settings"
@@ -56,23 +59,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.vault-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-  font-weight: 600;
-  letter-spacing: 0.025em;
-  line-height: 1.6;
-}
-
-.main-content.collapsed {
-  margin-left: 64px;
-}
-</style>

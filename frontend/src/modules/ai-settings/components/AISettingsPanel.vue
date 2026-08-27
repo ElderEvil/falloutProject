@@ -233,7 +233,7 @@ onMounted(() => {
             </label>
             <select
               v-model="formProvider"
-              class="terminal-select w-full rounded border-2 border-theme-primary/50 bg-surface-raised px-4 py-2 text-terminal-green transition-colors"
+              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 border-theme-primary/50 bg-surface-raised px-4 py-2 text-terminal-green transition-colors"
             >
               <option
                 v-for="opt in AI_PROVIDER_OPTIONS"
@@ -271,7 +271,7 @@ onMounted(() => {
               v-model="formBaseUrl"
               type="text"
               placeholder="e.g. http://localhost:11434/v1"
-              class="terminal-input w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
+              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
               :class="
                 baseUrlConnected
                   ? 'border-theme-primary/60 focus:border-theme-primary'
@@ -304,7 +304,7 @@ onMounted(() => {
               v-model="formGatewayRoute"
               type="text"
               placeholder="e.g. anthropic, openai"
-              class="terminal-input w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
+              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
             />
             <p class="mt-1 text-xs text-theme-primary/50">
               Pydantic AI Gateway routing group — leave empty to use the env route.
@@ -336,7 +336,7 @@ onMounted(() => {
             :variant="resetArmed ? 'danger' : 'secondary'"
             :disabled="isLoading"
             @click="handleReset"
-            class="btn-reset"
+            class="focus-visible:outline-none focus-visible:border-dashed focus-visible:shadow-[0_0_8px_var(--color-theme-glow)]"
           >
             <Icon icon="mdi:restore" class="mr-1" />
             {{ resetArmed ? 'Confirm Reset?' : 'Reset to Env Defaults' }}
@@ -380,7 +380,7 @@ onMounted(() => {
               </h3>
             </div>
             <button
-              class="terminal-button-copy rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary"
+              class="focus-visible:outline-none focus-visible:border-dashed focus-visible:border-theme-primary focus-visible:shadow-[0_0_8px_var(--color-theme-glow)] rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary"
               :disabled="copiedConfig"
               @click="handleCopyConfig"
               aria-label="Copy configuration"
@@ -395,10 +395,10 @@ onMounted(() => {
         </template>
 
         <div class="space-y-3 text-sm font-mono">
-          <div class="effective-row">
-            <span class="effective-label">Provider</span>
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Provider</span>
             <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="effective-value">{{ settings.effective.provider }}</span>
+              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.provider }}</span>
               <span
                 v-if="getProvenance('provider') === 'profile'"
                 class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
@@ -407,10 +407,10 @@ onMounted(() => {
               </span>
             </div>
           </div>
-          <div class="effective-row">
-            <span class="effective-label">Model</span>
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Model</span>
             <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="effective-value">{{ settings.effective.model }}</span>
+              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.model }}</span>
               <span
                 v-if="getProvenance('model') === 'profile'"
                 class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
@@ -419,10 +419,10 @@ onMounted(() => {
               </span>
             </div>
           </div>
-          <div class="effective-row">
-            <span class="effective-label">Base URL</span>
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Base URL</span>
             <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="effective-value">{{ settings.effective.base_url || '—' }}</span>
+              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.base_url || '—' }}</span>
               <span
                 v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
                 class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
@@ -431,10 +431,10 @@ onMounted(() => {
               </span>
             </div>
           </div>
-          <div class="effective-row">
-            <span class="effective-label">Gateway Route</span>
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Gateway Route</span>
             <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="effective-value">{{ settings.effective.gateway_route || '—' }}</span>
+              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.gateway_route || '—' }}</span>
               <span
                 v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
                 class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
@@ -443,11 +443,11 @@ onMounted(() => {
               </span>
             </div>
           </div>
-          <div class="effective-row">
-            <span class="effective-label">Mode</span>
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Mode</span>
             <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
               <span
-                class="effective-value"
+                class="text-theme-primary text-right break-all min-w-0"
                 :class="{
                   'text-terminal-green': settings.effective.mode !== 'disabled',
                   'text-red-400': settings.effective.mode === 'disabled',
@@ -469,59 +469,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.effective-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  min-width: 0;
-}
-
-.effective-label {
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
-  flex-shrink: 0;
-}
-
-.effective-value {
-  color: var(--color-theme-primary);
-  text-align: right;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-
-.terminal-select:focus-visible {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 0 2px var(--color-theme-glow);
-}
-
-.terminal-input:focus-visible {
-  outline: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 0 2px var(--color-theme-glow);
-}
-
-.terminal-button-copy:focus-visible {
-  outline: none;
-  border-style: dashed;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.btn-reset:focus-visible {
-  outline: none;
-  border-style: dashed;
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
+/* Focus-visible rings for child-component internals (UButton/UInput/USelect).
+   These `:deep` rules cannot be expressed as Tailwind utility classes because
+   the focusable element lives inside the library component's own template. */
 :deep(button):focus-visible {
   outline: none;
   border-style: dashed;
+  border-color: var(--color-theme-primary);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 

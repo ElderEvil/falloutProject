@@ -183,10 +183,13 @@ const hasVaultRecord = computed(() => {
 
 <template>
   <div class="profile-page relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines" aria-hidden="true"></div>
-    <div class="profile-layout">
-      <SidePanel :vault-id="vaultStore.activeVaultId" />
-      <main class="main-content flicker pb-8" :class="{ collapsed: isCollapsed }">
+    <div class="scanlines opacity-40" aria-hidden="true"></div>
+    <div class="flex min-h-screen">
+      <SidePanel />
+      <main
+        class="flex-1 flicker pb-8 transition-[margin-left] duration-300 ease [animation-duration:3.5s] max-md:ml-0"
+        :class="isCollapsed ? 'ml-16' : 'ml-60'"
+      >
         <PageContentRail>
           <nav class="profile-breadcrumb mb-3 flex items-center gap-2 font-mono text-sm tracking-wider">
             <span class="text-theme-primary/70">VAULTS</span>
@@ -200,7 +203,11 @@ const hasVaultRecord = computed(() => {
             subtitle="Identity, account status, and vault record."
           >
             <template #back>
-              <BackButton label="Back to Vault" class="profile-back-button" @click="returnToVault" />
+              <BackButton
+                label="Back to Vault"
+                class="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.95rem] font-bold tracking-[0.08em] border border-theme-primary/50 rounded transition-all duration-200 hover:border-theme-primary hover:bg-theme-primary/10 hover:shadow-[0_0_12px_var(--color-theme-glow)] focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-offset-[3px] focus-visible:outline-theme-primary focus-visible:shadow-[0_0_12px_var(--color-theme-glow)]"
+                @click="returnToVault"
+              />
             </template>
           </PageHeader>
 
@@ -266,11 +273,11 @@ const hasVaultRecord = computed(() => {
                       </h3>
                       <p class="mt-2 break-all text-sm text-theme-primary/75">{{ authStore.user?.email || 'No account email on file' }}</p>
                       <div class="mt-3 flex flex-wrap gap-2">
-                        <span class="profile-status" :class="authStore.user?.email_verified ? 'profile-status--verified' : 'profile-status--unverified'">
+                        <span class="inline-flex items-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em]" :class="authStore.user?.email_verified ? 'border-theme-primary/30 bg-theme-primary/10 text-theme-primary' : 'border-red-500/40 bg-red-900/20 text-red-400'">
                           <Icon :icon="authStore.user?.email_verified ? 'mdi:check-circle' : 'mdi:alert-circle-outline'" />
                           {{ authStore.user?.email_verified ? 'VERIFIED' : 'UNVERIFIED' }}
                         </span>
-                        <span class="profile-status profile-status--clearance">
+                        <span class="inline-flex items-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em] border-theme-accent/35 bg-theme-accent/10 text-theme-accent">
                           <Icon :icon="authStore.isSuperuser ? 'mdi:shield-crown' : 'mdi:account'" />
                           {{ authStore.isSuperuser ? 'ADMIN CLEARANCE' : 'STANDARD CLEARANCE' }}
                         </span>
@@ -290,7 +297,10 @@ const hasVaultRecord = computed(() => {
                       <p>FILE CREATED: {{ formatDate(profileStore.profile.created_at) }}</p>
                       <p>LAST MODIFIED: {{ formatDate(profileStore.profile.updated_at) }}</p>
                     </div>
-                    <RouterLink to="/preferences" class="profile-preferences-link">
+                    <RouterLink
+                      to="/preferences"
+                      class="inline-flex items-center justify-center gap-1.5 border rounded px-2 py-1.5 text-xs font-bold tracking-[0.08em] border-theme-primary/30 bg-surface-raised text-theme-primary no-underline transition-colors duration-200 hover:bg-surface-hover hover:shadow-[0_0_10px_var(--color-theme-glow)]"
+                    >
                       <Icon icon="mdi:tune-variant" />
                       Manage display preferences
                     </RouterLink>
@@ -314,7 +324,7 @@ const hasVaultRecord = computed(() => {
                 <LifeDeathStatistics :statistics="profileStore.deathStatistics" :loading="profileStore.deathStatsLoading" />
               </section>
 
-              <section v-show="activeTab === 'ai-settings' && authStore.isSuperuser" aria-label="AI provider configuration">
+              <section v-if="activeTab === 'ai-settings' && authStore.isSuperuser" aria-label="AI provider configuration">
                 <AISettingsPanel />
               </section>
             </template>
@@ -326,96 +336,9 @@ const hasVaultRecord = computed(() => {
 </template>
 
 <style scoped>
-.profile-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-}
-
-.main-content.collapsed {
-  margin-left: 64px;
-}
-
-.profile-page .scanlines {
-  opacity: 0.4;
-}
-
-.profile-page .flicker {
-  animation-duration: 3.5s;
-}
-
-.profile-back-button {
-  padding: 0.625rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.5);
-  border-radius: 0.25rem;
-  transition: all 0.2s ease;
-}
-
-.profile-back-button:hover {
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 12px var(--color-theme-glow);
-  background: rgb(from var(--color-theme-primary) r g b / 0.08);
-}
-
-.profile-back-button:focus-visible {
-  outline: 2px dashed var(--color-theme-primary);
-  outline-offset: 3px;
-  box-shadow: 0 0 12px var(--color-theme-glow);
-}
-
-.profile-status,
-.profile-preferences-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border: 1px solid;
-  border-radius: 0.25rem;
-  padding: 0.375rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.profile-status--verified {
-  border-color: rgb(from var(--color-theme-primary) r g b / 0.3);
-  background: rgb(from var(--color-theme-primary) r g b / 0.1);
-  color: var(--color-theme-primary);
-}
-
-.profile-status--unverified {
-  border-color: rgb(239 68 68 / 0.4);
-  background: rgb(127 29 29 / 0.2);
-  color: rgb(248 113 113);
-}
-
-.profile-status--clearance {
-  border-color: rgb(from var(--color-theme-accent) r g b / 0.35);
-  background: rgb(from var(--color-theme-accent) r g b / 0.1);
-  color: var(--color-theme-accent);
-}
-
-.profile-preferences-link {
-  justify-content: center;
-  border-color: rgb(from var(--color-theme-primary) r g b / 0.3);
-  background: var(--color-surface-raised);
-  color: var(--color-theme-primary);
-  text-decoration: none;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.profile-preferences-link:hover {
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
+/* Accessibility-only rules that cannot be expressed as Tailwind utilities:
+   - `:deep` focus-visible rings for elements inside child components
+   - reduced-motion opt-out for the CRT scanline/flicker effects */
 .profile-page :deep(a:focus-visible),
 .profile-page :deep(button:focus-visible),
 .profile-page :deep([tabindex]:focus-visible) {
@@ -434,13 +357,6 @@ const hasVaultRecord = computed(() => {
 
   .profile-page .terminal-glow {
     text-shadow: 0 0 4px var(--color-theme-primary);
-  }
-}
-
-@media (max-width: 768px) {
-  .main-content,
-  .main-content.collapsed {
-    margin-left: 0;
   }
 }
 </style>

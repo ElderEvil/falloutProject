@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, USkeleton } from '@/core/components/ui'
+import { UCard, USkeleton, UProgressBar } from '@/core/components/ui'
 import type { DeathStatistics } from '@/core/types/death'
 
 interface Props {
@@ -163,14 +163,7 @@ const causeData = computed(() => {
                   </div>
                 </div>
 
-                <div
-                  class="h-1.5 bg-surface-sunken rounded-full overflow-hidden border border-theme-primary/20"
-                >
-                  <div
-                    class="h-full w-[var(--width)] bg-theme-primary/60 rounded-full"
-                    :style="{ '--width': `${cause.percentage}%` }"
-                  ></div>
-                </div>
+                <UProgressBar :model-value="Number(cause.percentage)" :height="6" :glow="false" />
               </div>
             </div>
           </div>

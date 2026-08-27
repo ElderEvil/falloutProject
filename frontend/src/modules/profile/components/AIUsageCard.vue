@@ -2,7 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { UCard, UAlert } from '@/core/components/ui'
+import { UCard, UAlert, UProgressBar } from '@/core/components/ui'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
 import type { AIUsageStats } from '../models/aiUsage'
 
@@ -35,11 +35,13 @@ const quotaColor = computed(() => {
   return 'text-theme-primary'
 })
 
-const quotaBarColor = computed(() => {
+const promptBarColor = 'rgb(74 222 128)'
+const completionBarColor = 'rgb(96 165 250)'
+const quotaFillColor = computed(() => {
   const pct = quotaPercentage.value
-  if (pct >= 100) return 'bg-red-500'
-  if (pct >= 80) return 'bg-amber-500'
-  return 'bg-theme-primary'
+  if (pct >= 100) return 'rgb(239 68 68)'
+  if (pct >= 80) return 'rgb(245 158 11)'
+  return 'var(--color-theme-primary)'
 })
 
 const resetDateFormatted = computed(() => {
@@ -147,17 +149,17 @@ const showWarningBanner = computed(() => {
                   formatNumber(stats.all_time.prompt_tokens)
                 }}</span>
               </div>
-              <div class="h-1 bg-theme-primary/10 rounded mt-1">
-                <div
-                  class="h-full bg-green-400/60 rounded"
-                  :style="{
-                    width:
-                      stats.all_time.total_tokens > 0
-                        ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens) * 100 + '%'
-                        : '0%',
-                  }"
-                />
-              </div>
+              <UProgressBar
+                class="mt-1"
+                :height="4"
+                :glow="false"
+                :color="promptBarColor"
+                :model-value="
+                  stats.all_time.total_tokens > 0
+                    ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens) * 100
+                    : 0
+                "
+              />
             </div>
           </div>
 
@@ -170,17 +172,17 @@ const showWarningBanner = computed(() => {
                   formatNumber(stats.all_time.completion_tokens)
                 }}</span>
               </div>
-              <div class="h-1 bg-theme-primary/10 rounded mt-1">
-                <div
-                  class="h-full bg-blue-400/60 rounded"
-                  :style="{
-                    width:
-                      stats.all_time.total_tokens > 0
-                        ? (stats.all_time.completion_tokens / stats.all_time.total_tokens) * 100 + '%'
-                        : '0%',
-                  }"
-                />
-              </div>
+              <UProgressBar
+                class="mt-1"
+                :height="4"
+                :glow="false"
+                :color="completionBarColor"
+                :model-value="
+                  stats.all_time.total_tokens > 0
+                    ? (stats.all_time.completion_tokens / stats.all_time.total_tokens) * 100
+                    : 0
+                "
+              />
             </div>
           </div>
         </div>
@@ -193,10 +195,12 @@ const showWarningBanner = computed(() => {
           <div
             class="relative h-6 bg-surface-sunken rounded border border-theme-primary/20 overflow-hidden"
           >
-            <div
-              class="h-full transition-all duration-300"
-              :class="quotaBarColor"
-              :style="{ width: Math.min(quotaPercentage, 100) + '%' }"
+            <UProgressBar
+              class="!rounded-none !border-0"
+              :height="24"
+              :glow="false"
+              :color="quotaFillColor"
+              :model-value="Math.min(quotaPercentage, 100)"
             />
             <div class="absolute inset-0 flex items-center justify-center text-sm font-bold">
               <span :class="quotaColor">

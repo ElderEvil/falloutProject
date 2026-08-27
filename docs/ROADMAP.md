@@ -434,6 +434,11 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
       serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
       not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition
       coverage and to harden `test_vault` segfaults under garbage collection.
+- [ ] Docstring coverage: AI settings / chat services sit at ~32% (ruff `D` rules) vs the 80% repo target — add
+      module and public-method docstrings to `app/services/ai_service.py`, `app/services/chat_service.py`,
+      `app/crud/ai_settings.py`.
+- [ ] `AIService.reconfigure` mutates the global `settings` object (save/restore via `setattr`) instead of building a
+      scoped override — refactor to a pure settings-builder so concurrent requests can't observe intermediate values.
 
 ### Frontend
 
@@ -442,6 +447,10 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
 - [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
       ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
       Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
+- [ ] Chat error accessibility: announce send failures through a live region (`role="alert" aria-live="polite"`) in the
+      chat UI instead of only console logging.
+- [ ] `useChatMessages.ts` error mapping: fall back to `detail ?? 'Failed to send'` so API `detail` strings surface to
+      the user instead of a generic message.
 
 ### DevOps
 

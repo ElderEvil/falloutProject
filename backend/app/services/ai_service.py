@@ -68,7 +68,9 @@ class AIService:
         self._initialize_provider()
         self._initialized = True
 
-    def _initialize_provider(self, mode: str | None = None) -> None:
+    def _initialize_provider(
+        self, mode: str | None = None, base_url: str | None = None
+    ) -> None:
         """Initialize AI provider based on configuration priority.
 
         Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled
@@ -76,14 +78,16 @@ class AIService:
         Args:
             mode: Optional forced mode (used by ``reconfigure`` when the DB
                 profile forces a local provider). Defaults to ``settings.ai_provider_mode``.
+            base_url: Optional base URL override forwarded to the gateway and
+                direct provider initializers.
         """
         mode = mode or settings.ai_provider_mode
 
         match mode:
             case "gateway":
-                self._initialize_gateway()
+                self._initialize_gateway(base_url=base_url)
             case "direct":
-                self._initialize_direct_provider()
+                self._initialize_direct_provider(base_url=base_url)
             case "ollama":
                 self._initialize_ollama()
             case "lmstudio":
@@ -91,16 +95,22 @@ class AIService:
             case "disabled":
                 logger.warning("No AI provider configured. AI features disabled.")
 
-    def _initialize_gateway(self) -> None:
-        """Initialize using Pydantic AI Gateway (recommended approach)."""
+    def _initialize_gateway(self, base_url: str | None = None) -> None:
+        """Initialize using Pydantic AI Gateway (recommended approach).
+
+        Args:
+            base_url: Optional Gateway proxy URL override (defaults to
+                ``PYDANTIC_AI_GATEWAY_BASE_URL``).
+        """
         if not settings.PYDANTIC_AI_GATEWAY_API_KEY:
             return
         try:
             gateway_options = {"api_key": settings.PYDANTIC_AI_GATEWAY_API_KEY}
             if settings.PYDANTIC_AI_GATEWAY_ROUTE:
                 gateway_options["route"] = settings.PYDANTIC_AI_GATEWAY_ROUTE
-            if settings.PYDANTIC_AI_GATEWAY_BASE_URL:
-                gateway_options["base_url"] = settings.PYDANTIC_AI_GATEWAY_BASE_URL
+            gateway_base_url = base_url or settings.PYDANTIC_AI_GATEWAY_BASE_URL
+            if gateway_base_url:
+                gateway_options["base_url"] = gateway_base_url
             provider = gateway_provider(settings.AI_PROVIDER, **gateway_options)
             self._model = OpenAIChatModel(
                 model_name=settings.AI_MODEL,
@@ -117,8 +127,12 @@ class AIService:
             self._model = None
             self._using_gateway = False
 
-    def _initialize_direct_provider(self) -> None:
-        """Initialize using direct provider API keys (deprecated)."""
+    def _initialize_direct_provider(self, base_url: str | None = None) -> None:
+        """Initialize using direct provider API keys (deprecated).
+
+        Args:
+            base_url: Optional OpenAI-compatible base URL override.
+        """
         warnings.warn(
             "Direct provider API keys are deprecated. Use PYDANTIC_AI_GATEWAY_API_KEY.",
             DeprecationWarning,
@@ -130,7 +144,7 @@ class AIService:
                     self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
                     from pydantic_ai.providers.openai import OpenAIProvider
 
-                    provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+                    provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY, base_url=base_url)
                     self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
                     logger.warning("AI initialized with direct OpenAI API (deprecated)")
             case "anthropic":
@@ -219,6 +233,9 @@ class AIService:
                 overrides["OLLAMA_BASE_URL"] = base_url
             elif eff_provider == "lmstudio":
                 overrides["LMSTUDIO_BASE_URL"] = base_url
+            else:
+                # Gateway (and direct OpenAI) honor a custom base URL.
+                overrides["PYDANTIC_AI_GATEWAY_BASE_URL"] = base_url
         if gateway_route is not None:
             overrides["PYDANTIC_AI_GATEWAY_ROUTE"] = gateway_route
 
@@ -235,7 +252,7 @@ class AIService:
                 forced_mode = "lmstudio"
             elif provider == "ollama" and (base_url or settings.OLLAMA_BASE_URL):
                 forced_mode = "ollama"
-            self._initialize_provider(mode=forced_mode)
+            self._initialize_provider(mode=forced_mode, base_url=base_url)
         except Exception:
             logger.exception("Failed to reconfigure AI service")
             self._model = None
@@ -506,15 +523,16 @@ def build_test_model(
                 gateway_options = {"api_key": settings.PYDANTIC_AI_GATEWAY_API_KEY}
                 if gateway_route:
                     gateway_options["route"] = gateway_route
-                if settings.PYDANTIC_AI_GATEWAY_BASE_URL:
-                    gateway_options["base_url"] = settings.PYDANTIC_AI_GATEWAY_BASE_URL
+                gateway_base_url = base_url or settings.PYDANTIC_AI_GATEWAY_BASE_URL
+                if gateway_base_url:
+                    gateway_options["base_url"] = gateway_base_url
                 provider_obj = gateway_provider(provider, **gateway_options)
                 return OpenAIChatModel(model_name=model, provider=provider_obj)
             case "direct":
                 if provider == "openai" and settings.OPENAI_API_KEY:
                     from pydantic_ai.providers.openai import OpenAIProvider
 
-                    provider_obj = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+                    provider_obj = OpenAIProvider(api_key=settings.OPENAI_API_KEY, base_url=base_url)
                     return OpenAIChatModel(model_name=model, provider=provider_obj)
                 return None
             case "ollama":

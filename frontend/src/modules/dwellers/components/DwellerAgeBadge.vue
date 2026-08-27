@@ -13,29 +13,25 @@ const props = withDefaults(
   { ageGroup: null, showLabel: false, size: 'md' }
 )
 
+const AGE_META: Record<AgeGroup, { color: string; icon: string; label: string }> = {
+  child: { color: '#38bdf8', icon: 'mdi:baby-face-outline', label: 'Child' },
+  teen: { color: '#818cf8', icon: 'mdi:account-school', label: 'Teen' },
+  adult: { color: '#4ade80', icon: 'mdi:account', label: 'Adult' },
+}
+
 const group = computed<AgeGroup>(() => {
   const g = String(props.ageGroup ?? '').toLowerCase()
-  return g === 'child' || g === 'teen' || g === 'adult' ? g : 'adult'
+  return (g === 'child' || g === 'teen' || g === 'adult' ? g : 'adult') as AgeGroup
 })
 
-const meta = computed(() => {
-  switch (group.value) {
-    case 'child':
-      return { color: '#38bdf8', icon: 'mdi:baby-face-outline', label: 'Child' }
-    case 'teen':
-      return { color: '#818cf8', icon: 'mdi:account-school', label: 'Teen' }
-    case 'adult':
-    default:
-      return { color: '#4ade80', icon: 'mdi:account', label: 'Adult' }
-  }
-})
+const meta = computed(() => AGE_META[group.value])
 </script>
 
 <template>
   <span
     class="dweller-age-badge"
     :class="[`size-${size}`]"
-    :style="{ borderColor: meta.color, color: meta.color }"
+    :style="{ '--age-color': meta.color }"
     :title="meta.label"
   >
     <Icon :icon="meta.icon" class="age-icon" />
@@ -48,9 +44,10 @@ const meta = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px solid;
+  border: 1px solid var(--age-color);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.4);
+  color: var(--age-color);
   white-space: nowrap;
 }
 

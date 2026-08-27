@@ -7,10 +7,17 @@ import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
 
+interface RoomStat {
+  icon: string
+  label: string
+  value: number
+  isPower: boolean
+}
+
 interface Props {
   dweller: DwellerShort
   roomName?: string | null
-  roomAbility?: string | null
+  roomStat?: RoomStat | null
   generatingAI?: boolean
 }
 
@@ -27,22 +34,8 @@ const healthPercentage = computed(() => {
   return (props.dweller.health / props.dweller.max_health) * 100
 })
 
-// Get relevant SPECIAL stat for room's required ability
-const relevantStat = computed(() => {
-  if (!props.roomAbility) return null
-
-  const abilityMap: Record<string, { value: number; label: string; icon: string }> = {
-    strength: { value: props.dweller.strength, label: 'STR', icon: '💪' },
-    perception: { value: props.dweller.perception, label: 'PER', icon: '👁️' },
-    endurance: { value: props.dweller.endurance, label: 'END', icon: '❤️' },
-    charisma: { value: props.dweller.charisma, label: 'CHA', icon: '💬' },
-    intelligence: { value: props.dweller.intelligence, label: 'INT', icon: '🧠' },
-    agility: { value: props.dweller.agility, label: 'AGI', icon: '⚡' },
-    luck: { value: props.dweller.luck, label: 'LCK', icon: '🍀' },
-  }
-
-  return abilityMap[props.roomAbility.toLowerCase()] || null
-})
+// Room stat is passed precomputed from the list view (DwellersList.getRoomStat)
+// so the grid and list render identical values (combat power for arena, else SPECIAL).
 
 // Get color class based on stat value
 const getStatColorClass = (value: number) => {
@@ -126,12 +119,12 @@ const getStatColorClass = (value: number) => {
         <div class="health-fill" :style="{ width: `${healthPercentage}%` }"></div>
       </div>
 
-      <!-- Job-relevant SPECIAL stat -->
-      <div v-if="relevantStat" class="job-stat">
-        <span class="job-stat-icon">{{ relevantStat.icon }}</span>
-        <span class="job-stat-label">{{ relevantStat.label }}:</span>
-        <span class="job-stat-value" :class="getStatColorClass(relevantStat.value)">
-          {{ relevantStat.value }}
+      <!-- Job-relevant stat (matches list view: combat power for arena, else SPECIAL) -->
+      <div v-if="roomStat" class="job-stat">
+        <Icon :icon="roomStat.icon" class="job-stat-icon" />
+        <span class="job-stat-label">{{ roomStat.label }}:</span>
+        <span class="job-stat-value" :class="roomStat.isPower ? 'text-orange-400' : getStatColorClass(roomStat.value)">
+          {{ roomStat.value }}
         </span>
       </div>
 

@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.51.0](https://github.com/ElderEvil/falloutProject/compare/v2.50.0...v2.51.0) (2026-08-27)
+
+### Features
+
+* AI settings admin UI and Overseer profile redesign ([1513024](https://github.com/ElderEvil/falloutProject/commit/15130245a71ce22e1ebc9840801dba6642d33bf5))
+* DB-backed AI provider profile with LM Studio support ([efb3802](https://github.com/ElderEvil/falloutProject/commit/efb3802e7815c44ca34c1028022eba14f71c4d06))
+* DB-backed AI provider settings profile with LM Studio support ([afaceea](https://github.com/ElderEvil/falloutProject/commit/afaceea25b5b25e8708bfc9267a8a98457995d1d))
+
+### Bug Fixes
+
+* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — scoped styles, singleton race, base_url ([3f5f9e3](https://github.com/ElderEvil/falloutProject/commit/3f5f9e302a67de752175577b1a869a168424d933))
+* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — streaming credits detail, chat error fallback, restore SidePanel vault-id ([0dda17a](https://github.com/ElderEvil/falloutProject/commit/0dda17a3708f496fe9efe3a22104924cb4870766))
+* estimate token components independently and harden singleton AI-settings upsert ([70c240c](https://github.com/ElderEvil/falloutProject/commit/70c240c2b5828819f00fe53a9b39c039b68f96f1))
+* make AI settings singleton row a valid UUID4 and update AIUsageCard progress-bar tests ([9a397bc](https://github.com/ElderEvil/falloutProject/commit/9a397bcf5b9d02af52e9304f29f553ae946bdde7))
+* preserve chat action suggestions when streaming output fails ([f9f0394](https://github.com/ElderEvil/falloutProject/commit/f9f0394e4c993dbdd05b605e79eff03150c69686))
+* surface exact AI provider error reason to chat users ([72c6f31](https://github.com/ElderEvil/falloutProject/commit/72c6f31d73d1b390524ec0e4232fad796bab8ae7))
+
+### Documentation
+
+* note manual testing for AI provider workstream ([068da94](https://github.com/ElderEvil/falloutProject/commit/068da94c2f523ee5fa7cf17388497a4d2101838f))
+
 ## [2.50.0](https://github.com/ElderEvil/falloutProject/compare/v2.49.0...v2.50.0) (2026-08-23)
 
 ### Features

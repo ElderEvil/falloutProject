@@ -413,6 +413,16 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
   - Transformation chance: ghoul, synth, super mutant
   - Cross-vault encounters with former dwellers
 
+### Apprentice System & Pets — design fragments (Issue #470)
+
+Loose fragments from the #470 discussion, recorded so the decisions aren't lost. Not a plan yet.
+
+- **Apprentice eligibility** — `child` **and** `teen` age groups (not `adult`).
+- **Apprentice rooms** — `RoomTypeEnum.PRODUCTION` + `RoomTypeEnum.CRAFTING` (covers weapon/outfit crafting and research-style production).
+- **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage; the more skilled the apprentice, the larger the room efficiency bonus.
+- **Pets** — assign to **living quarters (`CAPACITY`)** and **training rooms (`TRAINING`)**; intentionally NOT production/crafting rooms (a pet in a power plant or diner makes no sense). Pets remain a larger feature (new `Pet` model + assignment) tracked under Phase 3.
+- Full Apprentice System (SPECIAL accrual while assigned, production/crafting bonus, assignment UX) is a backend + frontend follow-up; UI groundwork (age badge + age filter) landed in `feat/dweller-ui`.
+
 ### Phase 4: Multiplayer
 
 - Social features (friends, vault visits, leaderboards)
@@ -542,5 +552,6 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-22_ ("The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
+_Last updated: 2026-08-27_ (apprentice/pet design fragments noted under Planned Features (Future), tracked in #470;
+"The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
 in v2.46.0, and raiding/social multiplayer phases remain parked. Plan: `docs/WORLD_MAP_PLAN.md`.)

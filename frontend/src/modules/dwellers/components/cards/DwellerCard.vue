@@ -7,6 +7,7 @@ import XPProgressBar from '../stats/XPProgressBar.vue'
 import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/core/utils/image'
 
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   (e: 'use-stimpack'): void
   (e: 'use-radaway'): void
   (e: 'unassign'): void
+  (e: 'send-wasteland'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -89,32 +91,6 @@ const rarityColor = computed(() => {
 const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common'
 })
-
-const ageGroupColor = computed(() => {
-  const group = props.dweller.age_group
-  switch (group) {
-    case 'child':
-      return '#38bdf8'
-    case 'teen':
-      return '#818cf8'
-    case 'adult':
-    default:
-      return '#4ade80'
-  }
-})
-
-const ageGroupIcon = computed(() => {
-  const group = props.dweller.age_group
-  switch (group) {
-    case 'child':
-      return 'mdi:baby-face-outline'
-    case 'teen':
-      return 'mdi:account-school'
-    case 'adult':
-    default:
-      return 'mdi:account'
-  }
-})
 </script>
 
 <template>
@@ -144,14 +120,7 @@ const ageGroupIcon = computed(() => {
         <Icon icon="mdi:star" class="badge-icon" :style="{ color: rarityColor }" />
         <span class="badge-text" :style="{ color: rarityColor }">{{ rarityLabel }}</span>
       </div>
-      <div
-        v-if="dweller.age_group !== 'adult'"
-        class="info-badge age-badge"
-        :style="{ borderColor: ageGroupColor }"
-      >
-        <Icon :icon="ageGroupIcon" class="badge-icon" :style="{ color: ageGroupColor }" />
-        <span class="badge-text" :style="{ color: ageGroupColor }">{{ dweller.age_group }}</span>
-      </div>
+      <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" size="md" />
     </div>
 
     <div class="stats-container">
@@ -209,6 +178,7 @@ const ageGroupIcon = computed(() => {
       @use-stimpack="emit('use-stimpack')"
       @use-radaway="emit('use-radaway')"
       @unassign="emit('unassign')"
+      @send-wasteland="emit('send-wasteland')"
     />
   </div>
 </template>

@@ -34,41 +34,44 @@ describe('DwellerGridItem', () => {
   }
 
   describe('Job Stat Display', () => {
+    const mockStat = {
+      icon: 'mdi:arm-flex',
+      label: 'STR',
+      value: 8,
+      isPower: false,
+    }
+
     it('should display relevant stat when dweller has room assignment', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
           roomName: mockRoom.name,
-          roomAbility: mockRoom.ability,
+          roomStat: mockStat,
         },
       })
 
-      // Should show strength stat (💪 STR: 8)
       expect(wrapper.text()).toContain('STR')
       expect(wrapper.text()).toContain('8')
     })
 
-    it('should display correct stat icon based on room ability', () => {
+    it('should display the stat icon for the room', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
           dweller: mockDweller,
           roomName: mockRoom.name,
-          roomAbility: 'strength',
+          roomStat: { ...mockStat, icon: 'mdi:test-tube' },
         },
       })
 
       const jobStat = wrapper.find('.job-stat')
       expect(jobStat.exists()).toBe(true)
-      expect(jobStat.text()).toContain('💪') // Strength icon
+      expect(wrapper.find('.job-stat-icon').exists()).toBe(true)
     })
 
-    it('should not display job stat when dweller has no room', () => {
-      const unassignedDweller = { ...mockDweller, room_id: null }
-
+    it('should not display job stat when roomStat is absent', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: unassignedDweller,
-          roomAbility: undefined,
+          dweller: mockDweller,
         },
       })
 
@@ -79,9 +82,9 @@ describe('DwellerGridItem', () => {
     it('should apply green color class for high stats (7-10)', () => {
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: mockDweller, // strength = 8
+          dweller: mockDweller,
           roomName: mockRoom.name,
-          roomAbility: 'strength',
+          roomStat: { ...mockStat, value: 8 },
         },
       })
 
@@ -90,13 +93,11 @@ describe('DwellerGridItem', () => {
     })
 
     it('should apply yellow color class for medium stats (4-6)', () => {
-      const mediumStatDweller = { ...mockDweller, intelligence: 5 }
-
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: mediumStatDweller,
+          dweller: mockDweller,
           roomName: 'Science Lab',
-          roomAbility: 'intelligence',
+          roomStat: { icon: 'mdi:brain', label: 'INT', value: 5, isPower: false },
         },
       })
 
@@ -105,13 +106,11 @@ describe('DwellerGridItem', () => {
     })
 
     it('should apply red color class for low stats (1-3)', () => {
-      const lowStatDweller = { ...mockDweller, charisma: 2 }
-
       const wrapper = mount(DwellerGridItem, {
         props: {
-          dweller: lowStatDweller,
+          dweller: mockDweller,
           roomName: 'Radio Station',
-          roomAbility: 'charisma',
+          roomStat: { icon: 'mdi:broadcast', label: 'CHA', value: 2, isPower: false },
         },
       })
 
@@ -119,30 +118,42 @@ describe('DwellerGridItem', () => {
       expect(statValue.classes()).toContain('text-red-400')
     })
 
-    it('should display correct stat label for each SPECIAL attribute', () => {
+    it('should apply orange color class for combat power (arena) stats', () => {
+      const wrapper = mount(DwellerGridItem, {
+        props: {
+          dweller: mockDweller,
+          roomName: 'Arena',
+          roomStat: { icon: 'mdi:sword-cross', label: 'Power', value: 18, isPower: true },
+        },
+      })
+
+      const statValue = wrapper.find('.job-stat-value')
+      expect(statValue.classes()).toContain('text-orange-400')
+    })
+
+    it('should render the provided label and value', () => {
       const testCases = [
-        { ability: 'strength', label: 'STR', value: mockDweller.strength, icon: '💪' },
-        { ability: 'perception', label: 'PER', value: mockDweller.perception, icon: '👁️' },
-        { ability: 'endurance', label: 'END', value: mockDweller.endurance, icon: '❤️' },
-        { ability: 'charisma', label: 'CHA', value: mockDweller.charisma, icon: '💬' },
-        { ability: 'intelligence', label: 'INT', value: mockDweller.intelligence, icon: '🧠' },
-        { ability: 'agility', label: 'AGI', value: mockDweller.agility, icon: '⚡' },
-        { ability: 'luck', label: 'LCK', value: mockDweller.luck, icon: '🍀' },
+        { stat: { icon: 'mdi:arm-flex', label: 'STR', value: 8, isPower: false } },
+        { stat: { icon: 'mdi:eye', label: 'PER', value: 6, isPower: false } },
+        { stat: { icon: 'mdi:heart', label: 'END', value: 7, isPower: false } },
+        { stat: { icon: 'mdi:account-voice', label: 'CHA', value: 5, isPower: false } },
+        { stat: { icon: 'mdi:brain', label: 'INT', value: 4, isPower: false } },
+        { stat: { icon: 'mdi:run', label: 'AGI', value: 6, isPower: false } },
+        { stat: { icon: 'mdi:four-leaf-clover', label: 'LCK', value: 7, isPower: false } },
       ]
 
-      testCases.forEach(({ ability, label, value, icon }) => {
+      testCases.forEach(({ stat }) => {
         const wrapper = mount(DwellerGridItem, {
           props: {
             dweller: mockDweller,
             roomName: 'Test Room',
-            roomAbility: ability,
+            roomStat: stat,
           },
         })
 
         const jobStat = wrapper.find('.job-stat')
-        expect(jobStat.text()).toContain(icon)
-        expect(jobStat.text()).toContain(label)
-        expect(jobStat.text()).toContain(value.toString())
+        expect(jobStat.text()).toContain(stat.label)
+        expect(jobStat.text()).toContain(stat.value.toString())
       })
     })
   })

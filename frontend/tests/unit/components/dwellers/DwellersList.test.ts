@@ -62,7 +62,7 @@ describe('DwellersList', () => {
         ],
         generatingAI: {},
         isLoading: false,
-        rooms: [{ id: 'room-1', name: 'Power Generator', ability: 'strength' }],
+        rooms: [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' }],
         viewMode: 'list',
       },
     })

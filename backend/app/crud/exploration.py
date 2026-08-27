@@ -68,6 +68,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             db_session,
             dweller_id,
             DwellerUpdate(status=DwellerStatusEnum.EXPLORING),
+            commit=False,
         )
 
         await db_session.commit()

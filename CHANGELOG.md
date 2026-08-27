@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.52.0](https://github.com/ElderEvil/falloutProject/compare/v2.51.0...v2.52.0) (2026-08-27)
+
+### Features
+
+* dweller age filter, age badges, and arena room-stat ([0eb8fee](https://github.com/ElderEvil/falloutProject/commit/0eb8feeec5a615204f2c2823c30d38fde6495f38))
+* send dwellers to the wasteland from the detail page ([d5e28a5](https://github.com/ElderEvil/falloutProject/commit/d5e28a54d64023b8f87ece48c1e8917194520c70))
+
+### Bug Fixes
+
+* **frontend:** add aria-label and role to DwellerAgeBadge ([eef92b4](https://github.com/ElderEvil/falloutProject/commit/eef92b4c635f120ee64166461f1b8da5c4de8b1b))
+* **frontend:** do not mask dispatch success when list refresh fails ([efb0cd0](https://github.com/ElderEvil/falloutProject/commit/efb0cd0935c51106fcc42a2fde981637a70d1817))
+* **frontend:** DwellerAgeBadge uses CSS variable instead of inline style ([44f684a](https://github.com/ElderEvil/falloutProject/commit/44f684a613ad1fde9ab32e1fc080d1e6d1f4909f))
+* **frontend:** hide Send to Wasteland action for dead dwellers ([c809f7b](https://github.com/ElderEvil/falloutProject/commit/c809f7b2cca01697e913d0e11bd0ac9bd999a745))
+* **frontend:** render consistent room stat in grid and list views ([85a24eb](https://github.com/ElderEvil/falloutProject/commit/85a24eb8410d5887232ba969799c0785ddf684f4))
+* make wasteland dispatch atomic ([c7c1892](https://github.com/ElderEvil/falloutProject/commit/c7c18923c61ed8051879e41b7fe8342985213b2d))
+* refresh wasteland dispatch state ([9ba691a](https://github.com/ElderEvil/falloutProject/commit/9ba691a11a2cb098f8c29f2d42df138be4310163))
+
+### Documentation
+
+* capture apprentice/pet design fragments for [#470](https://github.com/ElderEvil/falloutProject/issues/470) ([c5e341d](https://github.com/ElderEvil/falloutProject/commit/c5e341d6c4542cb0b4243b79e8e58d4878630a22))
+
 ## [2.51.0](https://github.com/ElderEvil/falloutProject/compare/v2.50.0...v2.51.0) (2026-08-27)
 
 ### Features

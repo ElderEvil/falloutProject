@@ -185,7 +185,7 @@ const hasVaultRecord = computed(() => {
   <div class="profile-page relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines opacity-40" aria-hidden="true"></div>
     <div class="flex min-h-screen">
-      <SidePanel />
+      <SidePanel :vault-id="vaultStore.activeVaultId" />
       <main
         class="flex-1 flicker pb-8 transition-[margin-left] duration-300 ease [animation-duration:3.5s] max-md:ml-0"
         :class="isCollapsed ? 'ml-16' : 'ml-60'"

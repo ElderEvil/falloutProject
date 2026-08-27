@@ -304,6 +304,10 @@ class ChatService:
         except AccessDeniedException as e:
             yield {"type": "error", "detail": str(e.detail)}
             return
+        except AIProviderCreditsExhaustedException as e:
+            logger.warning("Streaming chat response stopped: provider credits exhausted")
+            yield {"type": "error", "detail": str(e.detail)}
+            return
         except ModelHTTPError as e:
             logger.exception("Streaming chat response failed")
             yield {"type": "error", "detail": self._extract_provider_reason(e)}

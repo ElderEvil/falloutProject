@@ -76,7 +76,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     })
 
     options.chatWs.on('error', (msg: any) => {
-      const detail = typeof msg?.detail === 'string' ? msg.detail : undefined
+      const detail = (typeof msg?.detail === 'string' ? msg.detail : undefined) ?? 'Failed to send'
       if (streamingIndex !== null) {
         const streamingMsg = messages.value[streamingIndex]
         if (streamingMsg && streamingMsg.type === 'dweller') {

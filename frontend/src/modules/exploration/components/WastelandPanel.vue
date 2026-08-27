@@ -36,6 +36,8 @@ const vaultMedicalSupplies = computed(() => {
 
 const sendWasteland = useSendToWasteland(() => vaultId.value)
 
+watch(vaultId, () => sendWasteland.cancel())
+
 // Rewards modal state
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
@@ -148,7 +150,12 @@ const handleSendWastelandConfirm = (payload: {
   stimpaks: number
   radaways: number
 }) =>
-  sendWasteland.confirm(payload, () => vaultStore.refreshVault(vaultId.value, authStore.token as string))
+  sendWasteland.confirm(payload, () =>
+    Promise.all([
+      vaultStore.refreshVault(vaultId.value, authStore.token as string),
+      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string),
+    ]).then(() => undefined)
+  )
 
 // --- Explorer actions ---
 

@@ -153,7 +153,7 @@ describe('WastelandPanel', () => {
       expect(durationModal.props('dwellerName')).toBe('Test')
     })
 
-    it('refreshes vault supplies after sending a dweller', async () => {
+    it('refreshes vault and dweller state after sending a dweller', async () => {
       const wrapper = mount(WastelandPanel, {
         global: {
           plugins: [router],
@@ -173,6 +173,28 @@ describe('WastelandPanel', () => {
       await flushPromises()
 
       expect(useVaultStore().refreshVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
+      expect(dwellerStore.fetchDwellersByVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
+    })
+
+    it('cancels a pending dispatch when the vault changes', async () => {
+      const wrapper = mount(WastelandPanel, {
+        global: {
+          plugins: [router],
+          stubs: {
+            ActiveExplorationList: { template: '<div />' },
+            ExplorationRewardsModal: { template: '<div />' },
+          },
+        },
+      })
+      await wrapper.findComponent({ name: 'WastelandDropzone' }).vm.$emit('drop-dweller', {
+        dwellerId: 'dweller-1',
+        firstName: 'Test',
+        lastName: 'Dweller',
+      })
+      await router.push('/vault/next-vault-id')
+      await flushPromises()
+
+      expect(wrapper.findComponent({ name: 'ExplorationDurationModal' }).props('show')).toBe(false)
     })
   })
 

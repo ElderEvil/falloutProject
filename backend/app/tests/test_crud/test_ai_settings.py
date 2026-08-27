@@ -79,9 +79,7 @@ class TestAISettingsCRUD:
 
         ai_settings_crud.get_single = _miss
         try:
-            result = await ai_settings_crud.upsert(
-                async_session, {"provider": "lmstudio", "model": "qwen"}
-            )
+            result = await ai_settings_crud.upsert(async_session, {"provider": "lmstudio", "model": "qwen"})
         finally:
             ai_settings_crud.get_single = original
 

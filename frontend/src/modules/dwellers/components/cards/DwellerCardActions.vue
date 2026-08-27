@@ -72,7 +72,7 @@ const isTraining = computed(() => {
     </div>
 
     <UButton
-      v-if="dweller.status !== 'exploring'"
+      v-if="dweller.status !== 'exploring' && !dweller.is_dead"
       variant="secondary"
       size="md"
       block

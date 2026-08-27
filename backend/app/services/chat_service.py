@@ -3,11 +3,12 @@
 import json
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 from pydantic import UUID4
 from pydantic_ai.agent import AgentRunResult
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -44,6 +45,18 @@ from app.utils.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _StreamBundle:
+    """Collected structured-stream outcome shared between the streaming helper and stream_response."""
+
+    response_text: str = ""
+    happiness_impact: HappinessImpact | None = None
+    action_suggestion: ActionSuggestion | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 class ChatService:
@@ -264,99 +277,182 @@ class ChatService:
                 vault_id=dweller.vault.id,
             )
 
-            async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
-                # Structured output snapshots can revise previously emitted text.
-                # Tell clients to replace their draft when that happens.
-                previous_text = ""
-                async for partial in result.stream_output():
-                    partial_text = partial.response_text
-                    if partial_text.startswith(previous_text):
-                        yield {"type": "token", "text": partial_text[len(previous_text) :]}
-                    elif partial_text != previous_text:
-                        yield {"type": "token", "text": partial_text, "replace": True}
-                    previous_text = partial_text
+            bundle = _StreamBundle()
+            async for event in self._stream_with_fallback(deps, dweller, message_text, bundle):
+                yield event
 
-                output: DwellerChatOutput = await result.get_output()
-
-                delta = compute_happiness_delta(output.sentiment_score)
-                new_dweller_happiness, _ = await apply_chat_happiness(
-                    db_session=db_session,
-                    dweller_id=dweller.id,
-                    delta=delta,
-                )
-
-                reason_code_str = derive_reason_code(output.sentiment_score)
-                happiness_impact = HappinessImpact(
-                    delta=delta,
-                    reason_code=HappinessReasonCode(reason_code_str),
-                    reason_text=output.reason_text,
-                    happiness_after=new_dweller_happiness,
-                )
-
-                action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-                prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result)
-
-            llm_int_create = LLMInteractionCreate(
-                parameters=message_text,
-                response=output.response_text,
-                usage="chat_with_dweller",
-                user_id=user.id,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
+            dweller_message_id = await self._persist_chat(
+                db_session=db_session,
+                user=user,
+                dweller=dweller,
+                message_text=message_text,
+                bundle=bundle,
             )
-            llm_interaction = await llm_interaction_crud.create(
-                db_session,
-                obj_in=llm_int_create,
-            )
-
-            await chat_message_crud.create_message(
-                db_session,
-                obj_in=ChatMessageCreate(
-                    vault_id=dweller.vault.id,
-                    from_user_id=user.id,
-                    to_dweller_id=dweller.id,
-                    message_text=message_text,
-                ),
-            )
-
-            chat_create_data = ChatMessageCreate(
-                vault_id=dweller.vault.id,
-                from_dweller_id=dweller.id,
-                to_user_id=user.id,
-                message_text=output.response_text,
-                llm_interaction_id=llm_interaction.id,
-            )
-
-            if happiness_impact:
-                chat_create_data.happiness_delta = happiness_impact.delta
-                chat_create_data.happiness_reason = happiness_impact.reason_text
-
-            dweller_message = await chat_message_crud.create_message(
-                db_session,
-                obj_in=chat_create_data,
-            )
-
-            # Unlock the dweller's map places after 3+ user messages (best-effort)
-            await self._maybe_unlock_places(db_session, dweller)
 
             yield {
                 "type": "done",
-                "dweller_message_id": str(dweller_message.id),
-                "response_text": output.response_text,
-                "happiness_impact": happiness_impact.model_dump(mode="json") if happiness_impact else None,
-                "action_suggestion": action_suggestion.model_dump(mode="json") if action_suggestion else None,
+                "dweller_message_id": str(dweller_message_id),
+                "response_text": bundle.response_text,
+                "happiness_impact": bundle.happiness_impact.model_dump(mode="json")
+                if bundle.happiness_impact
+                else None,
+                "action_suggestion": bundle.action_suggestion.model_dump(mode="json")
+                if bundle.action_suggestion
+                else None,
             }
 
         except AccessDeniedException as e:
             yield {"type": "error", "detail": str(e.detail)}
             return
+        except AIProviderCreditsExhaustedException as e:
+            logger.warning("Streaming chat response stopped: provider credits exhausted")
+            yield {"type": "error", "detail": str(e.detail)}
+            return
+        except ModelHTTPError as e:
+            logger.exception("Streaming chat response failed")
+            yield {"type": "error", "detail": self._extract_provider_reason(e)}
         except Exception as e:
             logger.exception("Streaming chat response failed")
             if isinstance(e, (ValueError, QuotaExceededException)):
                 yield {"type": "error", "detail": str(e)}
             else:
                 yield {"type": "error", "detail": "An unexpected error occurred during chat"}
+
+    async def _stream_structured(
+        self,
+        deps: DwellerChatDeps,
+        dweller: DwellerReadFull,
+        message_text: str,
+        bundle: _StreamBundle,
+    ) -> AsyncIterator[dict]:
+        """Stream structured output tokens and collect the final output metadata into ``bundle``.
+
+        Raises:
+            UnexpectedModelBehavior: If the model's structured output fails validation.
+        """
+        async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
+            # Structured output snapshots can revise previously emitted text.
+            # Tell clients to replace their draft when that happens.
+            previous_text = ""
+            async for partial in result.stream_output():
+                partial_text = partial.response_text
+                if partial_text.startswith(previous_text):
+                    yield {"type": "token", "text": partial_text[len(previous_text) :]}
+                elif partial_text != previous_text:
+                    yield {"type": "token", "text": partial_text, "replace": True}
+                previous_text = partial_text
+
+            output: DwellerChatOutput = await result.get_output()
+
+            delta = compute_happiness_delta(output.sentiment_score)
+            new_dweller_happiness, _ = await apply_chat_happiness(
+                db_session=deps.db_session,
+                dweller_id=dweller.id,
+                delta=delta,
+            )
+
+            reason_code_str = derive_reason_code(output.sentiment_score)
+            bundle.happiness_impact = HappinessImpact(
+                delta=delta,
+                reason_code=HappinessReasonCode(reason_code_str),
+                reason_text=output.reason_text,
+                happiness_after=new_dweller_happiness,
+            )
+
+            bundle.action_suggestion = await parse_action_suggestion(output, deps.db_session, dweller)
+            (
+                bundle.prompt_tokens,
+                bundle.completion_tokens,
+                bundle.total_tokens,
+            ) = self._extract_usage(result)
+            bundle.response_text = output.response_text
+
+    async def _stream_with_fallback(
+        self,
+        deps: DwellerChatDeps,
+        dweller: DwellerReadFull,
+        message_text: str,
+        bundle: _StreamBundle,
+    ) -> AsyncIterator[dict]:
+        """Stream structured output, falling back to a non-streaming run on validation failure.
+
+        Yields token events. On ``UnexpectedModelBehavior`` (local providers
+        returning invalid structured output mid-stream) retries via the
+        retry-capable non-streaming path so action suggestions are preserved.
+        The resolved values are written into ``bundle`` for later persistence.
+        """
+        try:
+            async for event in self._stream_structured(deps, dweller, message_text, bundle):
+                yield event
+        except UnexpectedModelBehavior:
+            logger.warning(
+                "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
+            )
+            (
+                bundle.response_text,
+                bundle.happiness_impact,
+                bundle.action_suggestion,
+                bundle.prompt_tokens,
+                bundle.completion_tokens,
+                bundle.total_tokens,
+            ) = await self._run_chat_agent(deps.db_session, dweller, message_text)
+            yield {"type": "token", "text": bundle.response_text, "replace": True}
+
+    async def _persist_chat(
+        self,
+        *,
+        db_session: AsyncSession,
+        user: User,
+        dweller: DwellerReadFull,
+        message_text: str,
+        bundle: _StreamBundle,
+    ) -> UUID4:
+        """Persist the LLM interaction and chat messages for a completed response."""
+        llm_int_create = LLMInteractionCreate(
+            parameters=message_text,
+            response=bundle.response_text,
+            usage="chat_with_dweller",
+            user_id=user.id,
+            prompt_tokens=bundle.prompt_tokens,
+            completion_tokens=bundle.completion_tokens,
+            total_tokens=bundle.total_tokens,
+        )
+        llm_interaction = await llm_interaction_crud.create(
+            db_session,
+            obj_in=llm_int_create,
+        )
+
+        await chat_message_crud.create_message(
+            db_session,
+            obj_in=ChatMessageCreate(
+                vault_id=dweller.vault.id,
+                from_user_id=user.id,
+                to_dweller_id=dweller.id,
+                message_text=message_text,
+            ),
+        )
+
+        chat_create_data = ChatMessageCreate(
+            vault_id=dweller.vault.id,
+            from_dweller_id=dweller.id,
+            to_user_id=user.id,
+            message_text=bundle.response_text,
+            llm_interaction_id=llm_interaction.id,
+        )
+
+        if bundle.happiness_impact:
+            chat_create_data.happiness_delta = bundle.happiness_impact.delta
+            chat_create_data.happiness_reason = bundle.happiness_impact.reason_text
+
+        dweller_message = await chat_message_crud.create_message(
+            db_session,
+            obj_in=chat_create_data,
+        )
+
+        # Unlock the dweller's map places after 3+ user messages (best-effort)
+        await self._maybe_unlock_places(db_session, dweller)
+
+        return dweller_message.id
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
@@ -464,7 +560,7 @@ class ChatService:
 
         except ModelHTTPError as error:
             if self._provider_credits_are_exhausted(error):
-                raise AIProviderCreditsExhaustedException from error
+                raise AIProviderCreditsExhaustedException(detail=self._extract_provider_reason(error)) from error
             logger.exception("Dweller chat agent failed, using fallback")
             return await self._run_fallback_chat_agent(dweller, message_text)
         except Exception:
@@ -491,7 +587,7 @@ class ChatService:
             )
         except ModelHTTPError as error:
             if self._provider_credits_are_exhausted(error):
-                raise AIProviderCreditsExhaustedException from error
+                raise AIProviderCreditsExhaustedException(detail=self._extract_provider_reason(error)) from error
             raise
 
         happiness_impact = HappinessImpact(
@@ -513,12 +609,22 @@ class ChatService:
 
     @staticmethod
     def _provider_credits_are_exhausted(error: ModelHTTPError) -> bool:
-        """Return whether a provider error specifically reports an exhausted credit balance."""
+        """Return whether a provider error specifically reports an exhausted credits balance."""
         return (
             error.status_code == 429
             and isinstance(error.body, dict)
             and error.body.get("code") == "credit_balance_exhausted"
         )
+
+    @staticmethod
+    def _extract_provider_reason(error: ModelHTTPError) -> str:
+        """Extract a human-readable reason from a ModelHTTPError without leaking secrets."""
+        body = error.body
+        if isinstance(body, dict):
+            message = body.get("message")
+            if isinstance(message, str) and message:
+                return message
+        return f"AI provider request failed (HTTP {error.status_code})"
 
     async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
         """Unlock the dweller's associated places after 3+ user messages (best-effort)."""

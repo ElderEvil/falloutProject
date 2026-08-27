@@ -229,6 +229,22 @@
   text-shadow: 0 0 1px rgba(var(--color-theme-primary-rgb), 0.15);
 }
 
+.message-error {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  color: var(--color-danger);
+  font-size: 0.8rem;
+  text-shadow: 0 0 4px rgba(255, 68, 68, 0.3);
+}
+
+.message-error-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
 .typing-wrapper {
   display: flex;
   gap: 0.75rem;

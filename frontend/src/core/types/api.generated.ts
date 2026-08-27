@@ -301,6 +301,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ai Settings
+         * @description Get the current AI settings profile and effective (resolved) values.
+         */
+        get: operations["get_ai_settings_api_v1_ai_settings__get"];
+        /**
+         * Update Ai Settings
+         * @description Update the AI settings profile and apply it (reconfigure AIService + reset ModelCache).
+         */
+        put: operations["update_ai_settings_api_v1_ai_settings__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/{dweller_id}": {
         parameters: {
             query?: never;
@@ -4216,6 +4240,53 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AISettingsEffective */
+        AISettingsEffective: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Base Url */
+            base_url?: string | null;
+            /** Gateway Route */
+            gateway_route?: string | null;
+            /** Mode */
+            mode: string;
+        };
+        /** AISettingsProfile */
+        AISettingsProfile: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Gateway Route */
+            gateway_route?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** AISettingsRead */
+        AISettingsRead: {
+            profile?: components["schemas"]["AISettingsProfile"] | null;
+            effective: components["schemas"]["AISettingsEffective"];
+        };
+        /** AISettingsUpdate */
+        AISettingsUpdate: {
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Gateway Route */
+            gateway_route?: string | null;
+        };
         /** AIUsageResponse */
         AIUsageResponse: {
             all_time: components["schemas"]["AIUsageStats"];
@@ -8953,6 +9024,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    get_ai_settings_api_v1_ai_settings__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AISettingsRead"];
+                };
+            };
+        };
+    };
+    update_ai_settings_api_v1_ai_settings__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AISettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AISettingsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

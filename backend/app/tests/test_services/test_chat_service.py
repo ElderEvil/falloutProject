@@ -388,6 +388,121 @@ class TestChatServiceErrorHandling:
         assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
 
+    async def test_stream_response_yields_provider_reason_on_model_http_error(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+        test_user: User,
+    ) -> None:
+        """stream_response yields the exact provider reason when run_stream raises ModelHTTPError."""
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        provider_error = ModelHTTPError(
+            status_code=429,
+            model_name="gpt-4o-mini",
+            body={"code": "credit_balance_exhausted", "message": "You have no credits remaining."},
+        )
+
+        with (
+            patch(
+                "app.services.chat_service.dweller_chat_agent.run_stream",
+                side_effect=provider_error,
+            ),
+            patch(
+                "app.services.chat_service.quota_service.check_quota",
+                new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
+            ),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert events[0]["detail"] == "You have no credits remaining."
+
+    async def test_stream_response_falls_back_on_invalid_structured_output(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+        test_user: User,
+    ) -> None:
+        """stream_response re-runs via run() (retry-capable) when structured streaming output fails validation."""
+        from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+        from app.schemas.chat import NoAction
+        from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+
+        class FakeFailStreamResult:
+            def stream_output(self):
+                raise UnexpectedModelBehavior("Output validation failed during streaming")
+
+        class FakeFailRunStreamCM:
+            async def __aenter__(self):
+                return FakeFailStreamResult()
+
+            async def __aexit__(self, *exc):
+                return False
+
+        fallback_return = (
+            "Sure, let's head to the wasteland!",
+            HappinessImpact(
+                delta=0,
+                reason_code=HappinessReasonCode.CHAT_NEUTRAL,
+                reason_text="Chat processed without sentiment analysis",
+                happiness_after=chat_dweller.happiness,
+            ),
+            NoAction(reason="Unable to analyze conversation for suggestions"),
+            10,
+            5,
+            15,
+        )
+
+        with (
+            patch(
+                "app.services.chat_service.dweller_chat_agent.run_stream",
+                return_value=FakeFailRunStreamCM(),
+            ),
+            patch(
+                "app.services.chat_service.quota_service.check_quota",
+                new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
+            ),
+            patch(
+                "app.services.chat_service.chat_message_crud.create_message",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+            patch(
+                "app.services.chat_service.llm_interaction_crud.create",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+            patch.object(
+                chat_service,
+                "_run_chat_agent",
+                new=AsyncMock(return_value=fallback_return),
+            ),
+            patch.object(chat_service, "_maybe_unlock_places", new=AsyncMock()),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        assert events[0] == {"type": "token", "text": "Sure, let's head to the wasteland!", "replace": True}
+        assert events[-1]["type"] == "done"
+        assert events[-1]["response_text"] == "Sure, let's head to the wasteland!"
+        assert events[-1]["happiness_impact"]["delta"] == 0
+
 
 @pytest.mark.asyncio
 class TestMaybeUnlockPlaces:

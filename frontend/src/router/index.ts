@@ -13,6 +13,7 @@ import { progressionRoutes } from '@/modules/progression/routes'
 import { socialRoutes } from '@/modules/social/routes'
 import { dwellersRoutes } from '@/modules/dwellers/routes'
 import { storageRoutes } from '@/modules/storage/routes'
+import { aiSettingsRoutes } from '@/modules/ai-settings/routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +38,8 @@ const router = createRouter({
     ...socialRoutes,
     // Profile module routes
     ...profileRoutes,
+    // AI settings (admin)
+    ...aiSettingsRoutes,
     // Auth module routes
     ...authRoutes,
     {
@@ -52,6 +55,9 @@ router.beforeEach((to) => {
   const authStore = useAuthStore()
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return '/login'
+  }
+  if (to.meta.requiresSuperuser && !authStore.isSuperuser) {
+    return '/profile'
   }
   return true
 })

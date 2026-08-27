@@ -2083,7 +2083,7 @@ describe('DwellerChat', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
-      expect(wrapper.text()).toContain('[Failed to send]')
+      expect(wrapper.text()).toContain('AI quota exceeded')
     })
   })
 })

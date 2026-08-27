@@ -1,9 +1,18 @@
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import AliasChoices, EmailStr, Field, PostgresDsn, field_validator, model_validator
 from pydantic_core.core_schema import FieldValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AIProfileProtocol(Protocol):
+    """Minimal profile shape for effective-config resolution (DB-backed AISettings or None)."""
+
+    provider: str | None
+    model: str | None
+    base_url: str | None
+    gateway_route: str | None
 
 
 class Settings(BaseSettings):
@@ -67,22 +76,24 @@ class Settings(BaseSettings):
     PYDANTIC_AI_GATEWAY_BASE_URL: str | None = None
 
     # Legacy direct provider API keys (deprecated, use Gateway instead)
-    AI_PROVIDER: Literal["openai", "anthropic", "ollama"] = "openai"
+    AI_PROVIDER: Literal["openai", "anthropic", "ollama", "lmstudio"] = "openai"
     AI_MODEL: str = "gpt-4o"
     AI_IMAGE_MODEL: str = "gpt-image-1"
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+    LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
 
     @property
-    def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "disabled"]:
+    def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "lmstudio", "disabled"]:
         """Determine which AI provider mode to use.
 
         Priority:
         1. Pydantic AI Gateway (recommended)
         2. Direct provider API keys (deprecated)
         3. Ollama local
-        4. Disabled
+        4. LM Studio local
+        5. Disabled
         """
         if self.PYDANTIC_AI_GATEWAY_API_KEY:
             return "gateway"
@@ -90,6 +101,54 @@ class Settings(BaseSettings):
             return "direct"
         if self.AI_PROVIDER == "ollama" and self.OLLAMA_BASE_URL:
             return "ollama"
+        if self.AI_PROVIDER == "lmstudio" and self.LMSTUDIO_BASE_URL:
+            return "lmstudio"
+        return "disabled"
+
+    # Effective AI config resolution: DB profile overrides .env.
+    # Secrets (API keys) are NEVER stored in DB — they come from .env only.
+
+    def effective_ai_provider(self, profile: AIProfileProtocol | None) -> str:
+        if profile and profile.provider:
+            return profile.provider
+        return self.AI_PROVIDER
+
+    def effective_ai_model(self, profile: AIProfileProtocol | None) -> str:
+        if profile and profile.model:
+            return profile.model
+        return self.AI_MODEL
+
+    def effective_ai_base_url(self, profile: AIProfileProtocol | None) -> str | None:
+        if profile and profile.base_url:
+            return profile.base_url
+        eff_provider = self.effective_ai_provider(profile)
+        if eff_provider == "ollama":
+            return self.OLLAMA_BASE_URL
+        if eff_provider == "lmstudio":
+            return self.LMSTUDIO_BASE_URL
+        return None
+
+    def effective_ai_gateway_route(self, profile: AIProfileProtocol | None) -> str | None:
+        if profile and profile.gateway_route:
+            return profile.gateway_route
+        return self.PYDANTIC_AI_GATEWAY_ROUTE
+
+    def effective_ai_mode(self, profile: AIProfileProtocol | None) -> str:
+        """Effective mode from profile-forced provider + env keys.
+
+        A profile-forced local provider (lmstudio/ollama with a base URL)
+        wins over gateway/direct env modes; otherwise env secrets decide.
+        """
+        eff_provider = self.effective_ai_provider(profile)
+        eff_base_url = self.effective_ai_base_url(profile)
+        if eff_provider == "ollama" and eff_base_url:
+            return "ollama"
+        if eff_provider == "lmstudio" and eff_base_url:
+            return "lmstudio"
+        if self.PYDANTIC_AI_GATEWAY_API_KEY:
+            return "gateway"
+        if self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY:
+            return "direct"
         return "disabled"
 
     # Email Configuration

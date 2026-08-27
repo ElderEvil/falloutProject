@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useToast } from '@/core/composables/useToast'
 
@@ -8,17 +7,15 @@ export interface PendingExplorer {
   dwellerId: string
   firstName: string
   lastName?: string
-  currentRoomId?: string | null
 }
 
 /**
  * Shared "send a dweller to the wasteland via the duration modal" flow, used by
  * the WastelandPanel and the dweller detail page. Owns the modal open/close
- * state and the confirm action (unassign-from-room if needed, then send).
+ * state and the confirm action.
  */
 export function useSendToWasteland(vaultId: () => string | null) {
   const authStore = useAuthStore()
-  const { management: dwellerManagementStore } = useDwellerStore()
   const explorationStore = useExplorationStore()
   const toast = useToast()
 
@@ -44,12 +41,9 @@ export function useSendToWasteland(vaultId: () => string | null) {
     if (!pendingDweller.value || !vId || !authStore.token || isSending.value) return false
 
     isSending.value = true
-    const { dwellerId, firstName, lastName, currentRoomId } = pendingDweller.value
+    const { dwellerId, firstName, lastName } = pendingDweller.value
     let dispatched = false
     try {
-      if (currentRoomId) {
-        await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
-      }
       await explorationStore.sendDwellerToWasteland(
         vId,
         dwellerId,

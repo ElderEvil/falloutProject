@@ -80,7 +80,7 @@ describe('WastelandPanel', () => {
 
     router = createRouter({
       history: createMemoryHistory(),
-      routes: [],
+      routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
     })
 
     router.push('/vault/test-vault-id')
@@ -152,109 +152,27 @@ describe('WastelandPanel', () => {
       expect(durationModal.props('show')).toBe(true)
       expect(durationModal.props('dwellerName')).toBe('Test')
     })
-  })
 
-  describe('explorer actions', () => {
-    it('calls recallDweller when recall is emitted', async () => {
-      // Set up an active exploration
-      const mockExploration = {
-        id: 'exp-1',
-        dweller_id: 'dweller-1',
-        vault_id: 'test-vault-id',
-        status: 'active' as const,
-        duration: 4,
-        start_time: new Date().toISOString(),
-        end_time: null,
-        events: [],
-        loot_collected: [],
-        total_distance: 0,
-        total_caps_found: 0,
-        enemies_encountered: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        dweller_strength: 5,
-        dweller_perception: 5,
-        dweller_endurance: 5,
-        dweller_charisma: 5,
-        dweller_intelligence: 5,
-        dweller_agility: 5,
-        dweller_luck: 5,
-        stimpaks: 5,
-        radaways: 5,
-      }
-      explorationStore.activeExplorations = { 'exp-1': mockExploration }
-      dwellerStore.dwellers = [
-        { id: 'dweller-1', first_name: 'Test', last_name: 'Dweller' } as never,
-      ]
-
+    it('refreshes vault supplies after sending a dweller', async () => {
       const wrapper = mount(WastelandPanel, {
         global: {
           plugins: [router],
           stubs: {
-            ActiveExplorationList: { template: '<div class="exploration-list-mock"></div>' },
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
+            ActiveExplorationList: { template: '<div />' },
+            ExplorationRewardsModal: { template: '<div />' },
           },
         },
       })
-
-      await flushPromises()
-
-      // Simulate recall via ActiveExplorationList
-      const list = wrapper.findComponent({ name: 'ActiveExplorationList' })
-      // If stubbed: it won't exist. Use the actual component.
-      // For the stubbed case, we test via direct call.
-      expect(explorationStore.recallDweller).not.toHaveBeenCalled()
-
-      // Direct call simulation
-      await explorationStore.recallDweller('exp-1', 'mock-token')
-      expect(explorationStore.recallDweller).toHaveBeenCalledWith('exp-1', 'mock-token')
-    })
-
-    it('calls completeExploration when complete is emitted', async () => {
-      const mockExploration = {
-        id: 'exp-1',
-        dweller_id: 'dweller-1',
-        vault_id: 'test-vault-id',
-        status: 'active' as const,
+      const dropzone = wrapper.findComponent({ name: 'WastelandDropzone' })
+      await dropzone.vm.$emit('drop-dweller', { dwellerId: 'dweller-1', firstName: 'Test', lastName: 'Dweller' })
+      await wrapper.findComponent({ name: 'ExplorationDurationModal' }).vm.$emit('confirm', {
         duration: 4,
-        start_time: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), // 5 hours ago
-        end_time: null,
-        events: [],
-        loot_collected: [],
-        total_distance: 0,
-        total_caps_found: 0,
-        enemies_encountered: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        dweller_strength: 5,
-        dweller_perception: 5,
-        dweller_endurance: 5,
-        dweller_charisma: 5,
-        dweller_intelligence: 5,
-        dweller_agility: 5,
-        dweller_luck: 5,
-        stimpaks: 5,
-        radaways: 5,
-      }
-      explorationStore.activeExplorations = { 'exp-1': mockExploration }
-      dwellerStore.dwellers = [
-        { id: 'dweller-1', first_name: 'Test', last_name: 'Dweller' } as never,
-      ]
-
-      mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div class="exploration-list-mock"></div>' },
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
-          },
-        },
+        stimpaks: 1,
+        radaways: 1,
       })
-
       await flushPromises()
 
-      await explorationStore.completeExploration('exp-1', 'mock-token')
-      expect(explorationStore.completeExploration).toHaveBeenCalledWith('exp-1', 'mock-token')
+      expect(useVaultStore().refreshVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
     })
   })
 

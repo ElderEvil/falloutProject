@@ -108,9 +108,6 @@ async function loadDweller() {
 }
 
 onMounted(loadDweller)
-// Reload when navigating between dweller details where the component is reused.
-watch(dwellerId, loadDweller)
-
 // Watch for changes in dweller's dead status to fetch/clear revival cost
 watch(isDead, async (newIsDead) => {
   if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
@@ -180,7 +177,6 @@ const handleSendWasteland = () => {
     dwellerId: dwellerId.value,
     firstName: dweller.value.first_name,
     lastName: dweller.value.last_name ?? undefined,
-    currentRoomId: dweller.value.room?.id ?? null,
   })
 }
 
@@ -189,10 +185,22 @@ const handleSendWastelandConfirm = (payload: {
   stimpaks: number
   radaways: number
 }) => {
+  const pendingDwellerId = sendWasteland.pendingDweller.value?.dwellerId
+  if (!pendingDwellerId) return Promise.resolve(false)
+
   return sendWasteland.confirm(payload, async () => {
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
+    await Promise.all([
+      dwellerStore.fetchDwellerDetails(pendingDwellerId, authStore.token as string, true),
+      vaultStore.refreshVault(vaultId.value, authStore.token as string),
+    ])
   })
 }
+
+// The modal's pending dweller must never outlive the current detail route.
+watch(dwellerId, () => {
+  sendWasteland.cancel()
+  void loadDweller()
+})
 
 const generateDwellerInfo = async () => {
   generatingAI.value = true
@@ -540,7 +548,7 @@ const saveNewName = async () => {
           <ExplorationDurationModal
             v-if="dweller"
             :show="sendWasteland.showModal.value"
-            :dweller-name="`${dweller.first_name} ${dweller.last_name ?? ''}`"
+            :dweller-name="`${sendWasteland.pendingDweller.value?.firstName ?? ''} ${sendWasteland.pendingDweller.value?.lastName ?? ''}`"
             :max-stimpaks="currentVault?.stimpack ?? 0"
             :max-radaways="currentVault?.radaway ?? 0"
             @confirm="handleSendWastelandConfirm"

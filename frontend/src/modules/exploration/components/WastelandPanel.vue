@@ -143,6 +143,13 @@ const handleDropError = (message: string) => {
   toast.error(message)
 }
 
+const handleSendWastelandConfirm = (payload: {
+  duration: number
+  stimpaks: number
+  radaways: number
+}) =>
+  sendWasteland.confirm(payload, () => vaultStore.refreshVault(vaultId.value, authStore.token as string))
+
 // --- Explorer actions ---
 
 const recallDweller = async (explorationId: string) => {
@@ -266,7 +273,7 @@ const detailedDwellerMap = computed(() =>
       :dweller-name="sendWasteland.pendingDweller.value?.firstName ?? ''"
       :max-stimpaks="vaultMedicalSupplies.stimpaks"
       :max-radaways="vaultMedicalSupplies.radaways"
-      @confirm="sendWasteland.confirm"
+      @confirm="handleSendWastelandConfirm"
       @cancel="sendWasteland.cancel"
     />
 

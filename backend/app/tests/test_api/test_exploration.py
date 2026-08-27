@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
+from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
@@ -18,10 +19,15 @@ from app.schemas.exploration import ExplorationCreate
 async def test_send_dweller_to_wasteland_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
+    room: Room,
 ) -> None:
     """Test successfully sending a dweller to the wasteland."""
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
     response = await async_client.post(
         f"/explorations/send?vault_id={vault.id}",
         json={"dweller_id": str(dweller.id), "duration": 4},
@@ -50,6 +56,8 @@ async def test_send_dweller_to_wasteland_success(
     assert data["enemies_encountered"] == 0
     assert data["events"] == []
     assert data["loot_collected"] == []
+    await async_session.refresh(dweller)
+    assert dweller.room_id is None
 
 
 @pytest.mark.asyncio

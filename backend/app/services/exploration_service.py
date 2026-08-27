@@ -136,6 +136,11 @@ class ExplorationService:
             msg = f"Total available radaways: {total_radaways}"
             raise ValueError(msg)
 
+        # Departure and room removal must be committed together so a failed
+        # dispatch never leaves the dweller unexpectedly unassigned.
+        dweller.room_id = None
+        db_session.add(dweller)
+
         # Calculate how much to take from vault vs dweller
         stimpaks_from_vault = min(stimpaks, vault_stimpaks)
         stimpaks_from_dweller = stimpaks - stimpaks_from_vault

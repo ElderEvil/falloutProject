@@ -28,15 +28,17 @@ const meta = computed(() => AGE_META[group.value])
 </script>
 
 <template>
-  <span
-    class="dweller-age-badge"
-    :class="[`size-${size}`]"
-    :style="{ '--age-color': meta.color }"
-    :title="meta.label"
-  >
-    <Icon :icon="meta.icon" class="age-icon" />
-    <span v-if="showLabel" class="age-label">{{ meta.label }}</span>
-  </span>
+    <span
+      class="dweller-age-badge"
+      :class="[`size-${size}`]"
+      :style="{ '--age-color': meta.color }"
+      :title="meta.label"
+      :aria-label="meta.label"
+      role="img"
+    >
+      <Icon :icon="meta.icon" class="age-icon" />
+      <span v-if="showLabel" class="age-label">{{ meta.label }}</span>
+    </span>
 </template>
 
 <style scoped>

@@ -51,3 +51,15 @@ class TestLLMInteractionTokenEstimation:
         assert result.prompt_tokens == 10
         assert result.completion_tokens == estimate_token_count("Short reply")
         assert result.total_tokens == 10 + result.completion_tokens
+
+    async def test_reported_total_preserves_estimated_components(self, async_session) -> None:
+        obj = LLMInteractionCreate(
+            parameters="Some long prompt text for estimation",
+            response="A somewhat longer completion response here",
+            usage="chat_with_dweller",
+            total_tokens=99,
+        )
+        result = await llm_interaction_crud.create(async_session, obj)
+        assert result.prompt_tokens == estimate_token_count("Some long prompt text for estimation")
+        assert result.completion_tokens == estimate_token_count("A somewhat longer completion response here")
+        assert result.total_tokens == 99

@@ -17,11 +17,11 @@ def estimate_token_count(text: str) -> int:
 
 class CRUDLLMInteraction(CRUDBase[LLMInteraction, LLMInteractionCreate, None]):
     async def create(self, db_session: AsyncSession, obj_in: LLMInteractionCreate) -> LLMInteraction:
+        if obj_in.prompt_tokens is None:
+            obj_in.prompt_tokens = estimate_token_count(obj_in.parameters or "")
+        if obj_in.completion_tokens is None:
+            obj_in.completion_tokens = estimate_token_count(obj_in.response or "")
         if obj_in.total_tokens is None:
-            if obj_in.prompt_tokens is None:
-                obj_in.prompt_tokens = estimate_token_count(obj_in.parameters or "")
-            if obj_in.completion_tokens is None:
-                obj_in.completion_tokens = estimate_token_count(obj_in.response or "")
             obj_in.total_tokens = (obj_in.prompt_tokens or 0) + (obj_in.completion_tokens or 0)
         return await super().create(db_session, obj_in=obj_in)
 

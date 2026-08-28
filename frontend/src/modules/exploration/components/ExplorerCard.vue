@@ -6,6 +6,7 @@ import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { UCard, UProgressBar } from '@/core/components/ui'
 
@@ -45,6 +46,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
         <DwellerPortrait
           :image-url="dweller?.image_url"
           :thumbnail-url="dweller?.thumbnail_url"
+          prefer-thumbnail
           :alt="`${dwellerName} portrait`"
           image-class="dweller-icon dweller-portrait rounded-full border border-theme-primary object-cover"
           fallback-class="dweller-icon"
@@ -52,6 +54,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
         <div>
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
+          <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
         </div>
       </div>
       <button v-if="selected" class="expand-indicator" title="Event timeline open">

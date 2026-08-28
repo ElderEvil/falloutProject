@@ -768,6 +768,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/identity-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Identity Options
+         * @description Return the valid race, faction and state-of-being identity combinations.
+         */
+        get: operations["read_identity_options_api_v1_dwellers_identity_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}": {
         parameters: {
             query?: never;
@@ -5232,6 +5252,22 @@ export interface components {
             days_until_permanent?: number | null;
         };
         /**
+         * DwellerIdentityOptions
+         * @description Canonical identity choices used by dweller creation and editing clients.
+         */
+        DwellerIdentityOptions: {
+            /** Races */
+            races: string[];
+            /** Factions By Race */
+            factions_by_race: {
+                [key: string]: string[];
+            };
+            /** States By Race */
+            states_by_race: {
+                [key: string]: string[];
+            };
+        };
+        /**
          * DwellerLocationRelationEnum
          * @description How a dweller relates to a wasteland location.
          * @enum {string}
@@ -5548,6 +5584,7 @@ export interface components {
             gender: components["schemas"]["GenderEnum"];
             /** Birth Date */
             birth_date?: string | null;
+            visual_attributes?: components["schemas"]["DwellerVisualAttributes"] | null;
             /** Strength */
             strength: number;
             /** Perception */
@@ -9836,6 +9873,26 @@ export interface operations {
             };
         };
     };
+    read_identity_options_api_v1_dwellers_identity_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerIdentityOptions"];
+                };
+            };
+        };
+    };
     read_dweller_api_v1_dwellers__dweller_id__get: {
         parameters: {
             query?: never;
@@ -12745,9 +12802,7 @@ export interface operations {
     };
     start_quest_api_v1_quests__vault_id___quest_id__start_post: {
         parameters: {
-            query?: {
-                duration_minutes?: number | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 vault_id: string;

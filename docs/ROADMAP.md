@@ -67,6 +67,58 @@ around it, without displacing the vault workspace. Semantic Release will choose 
 **Success criteria**: an overseer can see the vault's highest-priority state at a glance, reach the right response
 flow in one action, and rely on tested production logs and browser behavior without provider-specific setup.
 
+### Frontend Design-System Consolidation (Target: TBD)
+
+**Focus**: Make the terminal UI coherent by having shared primitives consume the same surface, spacing, border, and
+interaction tokens instead of compensating with page-level CSS.
+
+- ⬜ Define and document the canonical canvas, panel, inset-control, hover, and overlay surface roles.
+- ⬜ Align `UButton`, `UInput`, `USelect`, `UModal`, cards, and badges to those roles, including visible focus and
+  disabled states.
+- ⬜ Replace repeated feature-local button and control styling as related screens are touched; favor smaller shared
+  variants over new one-off CSS.
+- ⬜ Add an icon affordance to form labels where it makes an identity or game concept easier to scan, while keeping
+  labels as the accessible source of meaning.
+
+**Success criteria**: new management screens can be assembled from shared primitives without custom surface fixes,
+and equivalent controls look and behave the same across the vault.
+
+### Dweller Identity & Atmosphere Update (Target: TBD)
+
+**Focus**: Turn the existing `visual_attributes` JSONB data and `backend/app/options/` lore into a legible, animated
+identity layer across the vault—without adding new gameplay rules or duplicating option definitions.
+
+- 🔄 **Typed identity metadata** — expose race, faction, state-of-being, and compatible option metadata from the
+  existing options modules; validate race/faction combinations whenever visual attributes are saved.
+- 🔄 **Identity dossiers** — add reusable race/faction insignia, lore-aware labels, and compact state descriptions to
+  dweller cards, grid items, quest parties, exploration, and the dweller detail view.
+- 🔄 **Appearance presets** — offer the existing archetypes (Vault Dweller, Brotherhood Knight, NCR Ranger, Ghoul
+  Mercenary, Institute Courser, and others) as previewable appearance-editor presets; presets only populate visual
+  attributes and never grant equipment or stats.
+- 🔄 **Terminal motion polish** — use restrained CRT signal sweeps and faction/race accents, with reduced-motion
+  support; legendary, ghoul, and synth variants should be distinctive without becoming noisy.
+
+**Delivery**: first ship backend metadata/validation with tests, then apply the shared identity-dossier component to
+existing frontend surfaces with component tests.
+
+**Success criteria**: an overseer can immediately recognize a dweller's identity wherever that dweller appears, edit
+only lore-valid combinations, and apply a preset safely—while users who prefer reduced motion see a static interface.
+
+### Dweller Domain Schema Composition (Target: TBD)
+
+**Focus**: Gradually make the dweller API domain easier to evolve by composing focused schemas—identity/visual,
+vitals, combat, and social/lineage—while retaining a single `Dweller` database aggregate and table unless a concrete
+storage lifecycle requires otherwise.
+
+- ⬜ Extract focused Pydantic read/input schemas only where an active feature benefits from them; do not split the
+  SQLModel table, CRUD ownership, or migrations speculatively.
+- ⬜ Compose compact and full API responses from those shared schemas without changing existing client contracts.
+- ⬜ Move the visual identity schema as part of the Dweller Identity & Atmosphere work when it removes duplication;
+  defer vitals, combat, and social extraction until their respective workstreams touch them.
+
+**Success criteria**: each dweller concern has one clear schema owner, API contracts remain backward-compatible, and
+the database remains simple until its shape demonstrably needs to change.
+
 ### World Map — Multiplayer-First Architecture (Target: TBD)
 
 **Focus**: Evolve the wasteland map into the game's multiplayer surface — one deterministic shared world

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
 import { computed, useId } from 'vue'
+import { Icon } from '@iconify/vue'
 
 /**
  * UInput - Terminal-themed input component
@@ -23,6 +24,7 @@ interface Props {
   disabled?: boolean
   icon?: IconComponent
   iconRight?: IconComponent
+  labelIcon?: string
   size?: 'sm' | 'md' | 'lg'
   variant?: 'default' | 'terminal'
 }
@@ -38,6 +40,7 @@ const {
   icon,
   iconRight,
   label,
+  labelIcon,
   modelValue,
   placeholder,
 } = defineProps<Props>()
@@ -91,7 +94,8 @@ const handleInput = (event: InputEvent) => {
 <template>
   <div class="w-full">
     <!-- Label -->
-    <label v-if="label" :for="inputId" class="block text-sm font-medium text-theme-primary/70 mb-1">
+    <label v-if="label" :for="inputId" class="flex items-center gap-1 text-sm font-medium text-theme-primary/70 mb-1">
+      <Icon v-if="labelIcon" :icon="labelIcon" class="h-3.5 w-3.5 text-theme-primary/60" />
       {{ label }}
       <span v-if="required" class="text-danger">*</span>
     </label>

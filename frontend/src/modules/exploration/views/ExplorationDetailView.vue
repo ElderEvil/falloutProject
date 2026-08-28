@@ -68,13 +68,12 @@ const dwellerName = computed(() => {
 
 const dwellerImageUrl = computed(() => {
   const currentDweller = dweller.value
-  if (!currentDweller) return null
-  return (
-    ('image_url' in currentDweller && typeof currentDweller.image_url === 'string'
-      ? currentDweller.image_url
-      : null) || currentDweller.thumbnail_url
-  )
+  if (!currentDweller || !('image_url' in currentDweller) || typeof currentDweller.image_url !== 'string') {
+    return null
+  }
+  return currentDweller.image_url
 })
+const dwellerThumbnailUrl = computed(() => dweller.value?.thumbnail_url ?? null)
 
 const allExplorations = computed(() => {
   return Object.values(explorationStore.activeExplorations)
@@ -255,6 +254,7 @@ watch(
           <ExplorerSummaryCard
             :dweller-name="dwellerName"
             :dweller-image-url="dwellerImageUrl"
+            :dweller-thumbnail-url="dwellerThumbnailUrl"
             :dweller-level="dweller.level"
             :health="dweller.health"
             :max-health="dweller.max_health"

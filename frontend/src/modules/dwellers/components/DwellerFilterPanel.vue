@@ -200,7 +200,7 @@ const toggleSortDirection = () => {
   flex-direction: column;
   gap: 1.5rem;
   padding: 1rem;
-  background: var(--color-surface);
+  background: var(--color-surface-sunken);
   border-radius: 8px;
   border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
 }

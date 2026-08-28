@@ -5,6 +5,7 @@ import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 defineProps<{
   dwellerName: string
   dwellerImageUrl?: string | null
+  dwellerThumbnailUrl?: string | null
   dwellerLevel: number
   health: number
   maxHealth: number
@@ -27,6 +28,8 @@ defineProps<{
       >
         <DwellerPortrait
           :image-url="dwellerImageUrl"
+          :thumbnail-url="dwellerThumbnailUrl"
+          prefer-thumbnail
           :alt="`${dwellerName} portrait`"
           image-class="dweller-portrait h-full w-full rounded-md object-cover"
           fallback-class="h-[45px] w-[45px] text-theme-primary drop-shadow-[0_0_8px_var(--color-theme-glow)]"

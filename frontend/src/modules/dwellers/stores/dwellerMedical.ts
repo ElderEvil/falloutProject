@@ -4,6 +4,10 @@ import type { DwellerShort } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
+import type { components } from '@/core/types/api.generated'
+
+type MedicalSupply = 'stimpack' | 'radaway'
+type MedicalTransferResponse = components['schemas']['MedicalTransferResponse']
 
 export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
   const toast = useToast()
@@ -97,8 +101,34 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
     }
   }
 
+  async function issueMedicalSupply(
+    vaultId: string,
+    dwellerId: string,
+    supply: MedicalSupply,
+    token: string
+  ): Promise<MedicalTransferResponse | null> {
+    try {
+      const response = await axios.post<MedicalTransferResponse>(
+        `/api/v1/storage/vault/${vaultId}/medical/transfer`,
+        {
+          dweller_id: dwellerId,
+          stimpaks: supply === 'stimpack' ? 1 : 0,
+          radaways: supply === 'radaway' ? 1 : 0,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      toast.success(`${supply === 'stimpack' ? 'Stimpack' : 'RadAway'} issued from vault storage`)
+      return response.data
+    } catch (error: unknown) {
+      handleStoreError(error, `Failed to issue ${supply} to dweller ${dwellerId}`)
+      return null
+    }
+  }
+
   return {
     useStimpack,
     useRadaway,
+    issueMedicalSupply,
   }
 })

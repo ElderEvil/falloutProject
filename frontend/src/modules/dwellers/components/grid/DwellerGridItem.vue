@@ -6,6 +6,7 @@ import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
+import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 
 interface RoomStat {
   icon: string
@@ -93,6 +94,7 @@ const getStatColorClass = (value: number) => {
       <div class="header">
         <h3 class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</h3>
         <div class="header-badges">
+          <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
           <DwellerStatusBadge :status="dweller.status" :show-label="false" size="small" />
         </div>

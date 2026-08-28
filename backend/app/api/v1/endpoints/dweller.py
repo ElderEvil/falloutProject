@@ -16,6 +16,7 @@ from app.schemas.dweller import (
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
     DwellerDeadRead,
+    DwellerIdentityOptions,
     DwellerRead,
     DwellerReadFull,
     DwellerReadLess,
@@ -67,6 +68,12 @@ async def read_dweller_list(
         list[DwellerReadLess]: List of dwellers.
     """
     return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+
+
+@router.get("/identity-options", response_model=DwellerIdentityOptions)
+async def read_identity_options(_: CurrentActiveUser) -> DwellerIdentityOptions:
+    """Return the valid race, faction and state-of-being identity combinations."""
+    return dweller_service.get_identity_options()
 
 
 @router.get("/{dweller_id}", response_model=DwellerReadFull)

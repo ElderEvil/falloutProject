@@ -86,8 +86,6 @@ class MedicalTransferRequest(BaseModel):
     stimpaks: int = Field(default=0, ge=0, le=15)
     radaways: int = Field(default=0, ge=0, le=15)
 
-    model_config = {"strict": True}
-
     @model_validator(mode="after")
     def check_at_least_one_item(self) -> Self:
         if self.stimpaks == 0 and self.radaways == 0:

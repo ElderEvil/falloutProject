@@ -47,3 +47,11 @@ class TestTestEmailEndpoint:
             )
         assert response.status_code == 502
         assert "SMTP delivery failed" in response.json()["detail"]
+
+    async def test_post_test_email_rejects_invalid_address(self, async_client, superuser_token_headers) -> None:
+        response = await async_client.post(
+            "/email/test",
+            headers=superuser_token_headers,
+            json={"email_to": "not-an-email"},
+        )
+        assert response.status_code == 422

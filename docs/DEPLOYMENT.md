@@ -239,7 +239,9 @@ conventional naming:
 The names are backwards: `SMTP_TLS` means implicit TLS (port 465), `SMTP_SSL` means STARTTLS (port 587).
 Pick the flag that matches the port you choose. The recommended setup is **port 587 with STARTTLS**, which
 means `SMTP_SSL=true` and `SMTP_TLS=false` (as shown in the example above). If you prefer port 465 with
-implicit TLS, set `SMTP_TLS=true` and `SMTP_SSL=false` instead. Never set both to `true`.
+implicit TLS, set `SMTP_TLS=true` and `SMTP_SSL=false` instead. If both are `true`, `SMTP_TLS`
+(implicit TLS) takes precedence; if both are `false`, no STARTTLS upgrade is requested and the
+connection may remain plaintext. Prefer setting exactly one.
 
 **`EMAIL_FROM_ADDRESS`** must be a real, existing mailbox on the Mailcow domain. Postfix will reject
 messages whose envelope sender does not match an authenticated local mailbox.
@@ -258,6 +260,7 @@ Open only the ports the app and the internet need:
 | 465  | TCP      | Inbound from the app only | Submission (implicit TLS), if used |
 | 25   | TCP      | Inbound (optional) | Receiving inbound mail; close if send-only |
 | 443  | TCP      | Inbound | Mailcow UI + ACME |
+| 80   | TCP      | Inbound | ACME HTTP-01 challenge (or use DNS-01 via `ACME_DNS_CHALLENGE=y` and omit this port) |
 | 993  | TCP      | Inbound (optional) | IMAP; close unless you need a mail client |
 
 In the Hetzner Cloud Firewall, restrict 587/465 to the app's IP range (the K3s node IPs) rather than
@@ -280,8 +283,10 @@ Before going live, verify every item:
 - [ ] **Health check:** hit the backend's detailed health endpoint and confirm `smtp` reports `healthy`:
 
   ```bash
-  curl https://fallout-api.evillab.tech/healthcheck?detailed=true | jq .services.smtp
+  curl https://<your-api-host>/healthcheck?detailed=true | jq .services.smtp
   ```
+
+  Replace `<your-api-host>` with your deployed backend API hostname (e.g. the value of `PRODUCTION_API_URL`).
 
   The `check_smtp` method in `backend/app/services/health_check.py` connects, authenticates, and quits.
 
@@ -308,7 +313,8 @@ Verify `SMTP_USER` is the full mailbox address (`no-reply@yourdomain.tld`, not j
 **TLS mismatch / handshake failure.**
 The `SMTP_TLS` and `SMTP_SSL` flags are inverted from conventional naming. For port 587 (STARTTLS), set
 `SMTP_SSL=true` and `SMTP_TLS=false`. For port 465 (implicit TLS), set `SMTP_TLS=true` and
-`SMTP_SSL=false`. Setting both to `true` or both to `false` will fail.
+`SMTP_SSL=false`. If both are `true`, `SMTP_TLS` (implicit TLS) wins; if both are `false`, no
+STARTTLS upgrade is requested and the connection may be plaintext. Prefer exactly one.
 
 **Health check reports SMTP unhealthy.**
 Run the detailed health endpoint and inspect the `smtp` entry. The error message includes the host, port,

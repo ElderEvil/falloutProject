@@ -67,6 +67,7 @@ const questProgress = computed(() => {
 })
 
 const displayedQuestProgress = computed(() => (status === 'ready' ? 100 : questProgress.value))
+const questProgressLabel = computed(() => `${Math.round(displayedQuestProgress.value)}% complete`)
 
 const startTimer = () => {
   if (timerInterval) {
@@ -424,10 +425,15 @@ const handleAction = () => {
 
     <!-- Quest progress stays visible until its reward is claimed -->
     <div v-if="(status === 'active' && timeRemaining) || status === 'ready'" class="quest-timer">
-      <Icon icon="mdi:clock-outline" class="timer-icon" />
-      <span class="timer-label">{{ status === 'ready' ? 'Complete:' : 'Time Remaining:' }}</span>
-      <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
-      <UProgressBar :model-value="displayedQuestProgress" :height="6" :glow="false" class="flex-1 min-w-[72px]" />
+      <div class="timer-header">
+        <div class="timer-status">
+          <Icon icon="mdi:clock-outline" class="timer-icon" />
+          <span class="timer-label">{{ status === 'ready' ? 'Complete' : 'Time Remaining' }}</span>
+        </div>
+        <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
+      </div>
+      <UProgressBar :model-value="displayedQuestProgress" :height="8" :glow="false" class="quest-progress-bar" />
+      <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
     <!-- Duration Info (for available quests) -->
@@ -675,14 +681,41 @@ const handleAction = () => {
 }
 
 .quest-timer {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 8px;
   padding: 12px;
   background: rgba(0, 217, 255, 0.1);
   border: 1px solid var(--color-theme-accent);
   border-radius: 6px;
   margin-top: 12px;
+}
+
+.timer-header,
+.timer-status {
+  display: flex;
+  align-items: center;
+}
+
+.timer-header {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timer-status {
+  gap: 8px;
+}
+
+.quest-progress-bar {
+  width: 100%;
+}
+
+.timer-progress {
+  justify-self: end;
+  color: var(--color-theme-primary);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-transform: uppercase;
 }
 
 .timer-icon {

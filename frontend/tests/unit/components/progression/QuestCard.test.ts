@@ -56,6 +56,8 @@ describe('QuestCard', () => {
     })
 
     expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
+    expect(wrapper.find('.quest-progress-bar').exists()).toBe(true)
+    expect(wrapper.find('.timer-progress').text()).toMatch(/% complete/)
   })
 
   it('keeps completed progress visible while rewards await a claim', () => {

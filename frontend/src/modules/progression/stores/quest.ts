@@ -86,10 +86,13 @@ export const useQuestStore = defineStore('quest', () => {
     const silent = options?.silent ?? false
     try {
       if (!silent) isLoading.value = true
-      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
+      const response = await axios.get<unknown>(`/api/v1/quests/${vaultId}/`, {
         headers: getAuthHeaders(),
       })
-      vaultQuests.value = response.data
+      if (!Array.isArray(response.data)) {
+        throw new TypeError('Expected a list of vault quests')
+      }
+      vaultQuests.value = response.data as VaultQuest[]
     } catch (error: unknown) {
       if (!silent) toast.error('Failed to load vault quests')
       throw error

@@ -206,7 +206,7 @@ class CRUDQuest(
                     is_completed=link.is_completed if link else False,
                     is_reward_ready=link.is_reward_ready if link else False,
                     started_at=link.started_at if link else None,
-                    duration_minutes=link.duration_minutes if link else quest.duration_minutes,
+                    duration_minutes=link.duration_minutes if link and link.duration_minutes is not None else quest.duration_minutes,
                     quest_requirements=[
                         QuestRequirementRead(
                             id=req.id,

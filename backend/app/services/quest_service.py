@@ -21,7 +21,7 @@ class QuestService:
     async def check_and_complete_quests(self, db_session: AsyncSession) -> int:
         """Mark elapsed quests ready for reward claiming and return their parties."""
         now = datetime.now()
-        duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, 60)
+        duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
             expires_at = func.datetime(
                 VaultQuestCompletionLink.started_at,
@@ -85,20 +85,23 @@ class QuestService:
         if link.started_at is not None:
             raise ResourceConflictException("Quest is already in progress")
 
+        quest = await db_session.get(Quest, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+
         party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
         if not party:
             raise ValidationException("Assign at least one dweller before starting this quest")
 
         link.started_at = datetime.now()
         link.is_reward_ready = False
-        if duration_minutes is not None:
-            link.duration_minutes = duration_minutes
+        link.duration_minutes = duration_minutes if duration_minutes is not None else quest.duration_minutes
 
         await db_session.commit()
         await db_session.refresh(link)
 
         logger.info(
-            f"Started quest {quest_id} for vault {vault_id} with duration {duration_minutes or 'default'} minutes"
+            f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes"
         )
         return link
 

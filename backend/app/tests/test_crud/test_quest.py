@@ -231,6 +231,7 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     quest_dict = {q.title: q for q in quests}
     assert "Quest 1" in quest_dict
     assert quest_dict["Quest 1"].is_visible is True
+    assert quest_dict["Quest 1"].duration_minutes == quest1.duration_minutes
     assert "Quest 2" in quest_dict
     assert quest_dict["Quest 2"].is_visible is False  # Locked but still returned for Show All
     assert quest_dict["Quest 2"].previous_quest_id == quest1.id
@@ -447,6 +448,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
         long_description="Timed quest",
         requirements="1 dweller",
         rewards="100 caps",
+        duration_minutes=45,
     )
     quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
     await crud.quest_crud.assign_to_vault(
@@ -459,10 +461,10 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     await async_session.commit()
     await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
 
-    link = await quest_service.start_quest(async_session, quest.id, vault.id, duration_minutes=30)
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
     assert link.started_at is not None
-    assert link.duration_minutes == 30
+    assert link.duration_minutes == quest.duration_minutes
     with pytest.raises(ResourceConflictException, match="already in progress"):
         await quest_service.start_quest(async_session, quest.id, vault.id)
 

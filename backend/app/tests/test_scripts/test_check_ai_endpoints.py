@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from app.cli.app.ops import _response_json_object
+from app.cli.ops import _response_json_object
 
 
 def test_response_json_object_returns_json_object() -> None:

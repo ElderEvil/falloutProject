@@ -10,7 +10,7 @@ timestamps so timing-driven behaviour (due dates, the 6h postpartum cooldown,
 The API exposes no way to set affinity directly — the romance/partner/marry
 endpoints only enforce thresholds — so scenario construction works at the
 service/DB layer, like the pregen-service dev/QA commands. CLI commands in
-``app/cli/app/family_scenario.py`` are thin wrappers over this service
+``app/cli/family_scenario.py`` is a thin wrapper over this service
 (AGENTS.md: business logic lives in services, not CLI scripts).
 
 Usage (from backend/):

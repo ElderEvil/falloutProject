@@ -55,11 +55,11 @@
 | File | Current | Missing | Reason |
 |------|---------|---------|--------|
 | `cli/main.py` | 0.0% | 54 | CLI tool |
-| `cli/app/backfills.py` | 0.0% | 48 | CLI tool |
-| `cli/app/dweller_bios.py` | 0.0% | 31 | CLI tool |
-| `cli/app/family_scenario.py` | 0.0% | 90 | CLI tool |
-| `cli/app/ops.py` | 0.0% | 65 | CLI tool |
-| `cli/app/pregen_dwellers.py` | 0.0% | 28 | CLI tool |
+| `cli/backfills.py` | 0.0% | 48 | CLI tool |
+| `cli/dweller_bios.py` | 0.0% | 31 | CLI tool |
+| `cli/family_scenario.py` | 0.0% | 90 | CLI tool |
+| `cli/ops.py` | 0.0% | 65 | CLI tool |
+| `cli/pregen_dwellers.py` | 0.0% | 28 | CLI tool |
 
 ## Optimization Recommendations
 

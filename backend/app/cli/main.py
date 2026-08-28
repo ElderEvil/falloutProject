@@ -18,16 +18,16 @@ from typing import Annotated
 import typer
 
 from app import crud
-from app.cli.app.backfills import app as backfills
-from app.cli.app.dweller_bios import dweller_bios as _dweller_bios
-from app.cli.app.family_scenario import app as family_scenario
-from app.cli.app.ops import app as ops
-from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
-from app.cli.app.simulate_exploration import simulate as simulate_exploration
-from app.cli.app.simulate_happiness import simulate as simulate_happiness
-from app.cli.app.simulate_incidents import simulate as simulate_incidents
-from app.cli.app.simulate_resources import run as simulate_resources
-from app.cli.app.wiki_images import app as wiki_images
+from app.cli.backfills import app as backfills
+from app.cli.dweller_bios import dweller_bios as _dweller_bios
+from app.cli.family_scenario import app as family_scenario
+from app.cli.ops import app as ops
+from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
+from app.cli.simulate_exploration import simulate as simulate_exploration
+from app.cli.simulate_happiness import simulate as simulate_happiness
+from app.cli.simulate_incidents import simulate as simulate_incidents
+from app.cli.simulate_resources import run as simulate_resources
+from app.cli.wiki_images import app as wiki_images
 from app.core.config import settings
 from app.db.session import async_session_maker
 from app.schemas.user import UserCreate

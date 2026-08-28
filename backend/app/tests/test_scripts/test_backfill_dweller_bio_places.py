@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from typer.testing import CliRunner
 
-from app.cli.app.backfills import app as backfills_app
+from app.cli.backfills import app as backfills_app
 from app.cli.main import cli
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
@@ -32,10 +32,10 @@ def test_command_single_vault_delegates_to_service() -> None:
     vault_id = uuid4()
 
     with (
-        patch("app.cli.app.backfills.async_session_maker", return_value=AsyncMock()),
-        patch("app.cli.app.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
+        patch("app.cli.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
         patch(
-            "app.cli.app.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
             new_callable=AsyncMock,
         ) as mock_backfill_vault,
     ):
@@ -56,13 +56,13 @@ def test_command_single_vault_delegates_to_service() -> None:
 def test_command_all_active_delegates_to_service() -> None:
     """--all-active mode delegates to BioPlaceBackfillService."""
     with (
-        patch("app.cli.app.backfills.async_session_maker", return_value=AsyncMock()),
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
         patch(
-            "app.cli.app.backfills.crud.vault.get",
+            "app.cli.backfills.crud.vault.get",
             new_callable=AsyncMock,
         ) as mock_vault_get,
         patch(
-            "app.cli.app.backfills.bio_place_backfill_service.backfill_bio_places_for_active_vaults",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_active_vaults",
             new_callable=AsyncMock,
         ) as mock_backfill_all,
     ):
@@ -83,10 +83,10 @@ def test_command_all_active_delegates_to_service() -> None:
 def test_command_vault_not_found_raises() -> None:
     """Non-existent vault UUID -> the command exits non-zero."""
     with (
-        patch("app.cli.app.backfills.async_session_maker", return_value=AsyncMock()),
-        patch("app.cli.app.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
+        patch("app.cli.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
         patch(
-            "app.cli.app.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
             new_callable=AsyncMock,
         ) as mock_backfill_vault,
     ):

@@ -18,6 +18,10 @@ interface Props {
   dweller: DwellerDetailRead
   imageUrl?: string | null
   loading?: boolean
+  generatingPortrait?: boolean
+  availableStimpaks?: number
+  availableRadaways?: number
+  issuingMedicalSupply?: boolean
 }
 
 const props = defineProps<Props>()
@@ -32,6 +36,8 @@ const emit = defineEmits<{
   (e: 'use-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
+  (e: 'generate-portrait'): void
+  (e: 'issue-medical-supply', supply: 'stimpack' | 'radaway'): void
 }>()
 
 const getImageUrl = (imagePath: string) => {
@@ -92,6 +98,9 @@ const rarityColor = computed(() => {
 const rarityLabel = computed(() => {
   return props.dweller.rarity || 'Common'
 })
+
+const canIssueStimpack = computed(() => (props.dweller.stimpack || 0) < 15 && (props.availableStimpaks ?? 0) > 0)
+const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (props.availableRadaways ?? 0) > 0)
 </script>
 
 <template>
@@ -101,14 +110,20 @@ const rarityLabel = computed(() => {
         <img :src="getImageUrl(imageUrl)" alt="Dweller Portrait" class="portrait-image" />
       </template>
       <template v-else>
-        <div class="portrait-placeholder">
+        <button
+          type="button"
+          class="portrait-placeholder"
+          :disabled="loading"
+          @click="emit('generate-portrait')"
+        >
           <Icon
-            icon="mdi:account-circle"
+            :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
             class="h-48 w-48"
+            :class="{ 'animate-spin': generatingPortrait }"
             style="color: var(--color-theme-primary); opacity: 0.3"
           />
-          <p class="placeholder-hint">Generate portrait in Appearance tab</p>
-        </div>
+          <span class="placeholder-hint">{{ generatingPortrait ? 'Generating portrait…' : 'Generate portrait' }}</span>
+        </button>
       </template>
     </div>
 
@@ -153,11 +168,35 @@ const rarityLabel = computed(() => {
       <div class="inventory-stats">
         <div class="inventory-item">
           <Icon icon="mdi:medical-bag" class="h-5 w-5 text-green-500" />
+          <UButton
+            class="inventory-action"
+            variant="ghost"
+            size="xs"
+            aria-label="Issue one Stimpack"
+            :title="canIssueStimpack ? 'Issue one Stimpack from vault storage' : 'No more Stimpaks can be issued'"
+            :disabled="!canIssueStimpack || issuingMedicalSupply"
+            :loading="issuingMedicalSupply"
+            @click="emit('issue-medical-supply', 'stimpack')"
+          >
+            <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
+          </UButton>
           <span class="inventory-value">{{ dweller.stimpack || 0 }}</span>
           <span class="inventory-label">Stimpack</span>
         </div>
         <div class="inventory-item">
           <Icon icon="mdi:radiation" class="h-5 w-5 text-yellow-500" />
+          <UButton
+            class="inventory-action"
+            variant="ghost"
+            size="xs"
+            aria-label="Issue one RadAway"
+            :title="canIssueRadaway ? 'Issue one RadAway from vault storage' : 'No more RadAway can be issued'"
+            :disabled="!canIssueRadaway || issuingMedicalSupply"
+            :loading="issuingMedicalSupply"
+            @click="emit('issue-medical-supply', 'radaway')"
+          >
+            <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
+          </UButton>
           <span class="inventory-value">{{ dweller.radaway || 0 }}</span>
           <span class="inventory-label">RadAway</span>
         </div>
@@ -223,6 +262,20 @@ const rarityLabel = computed(() => {
   background: rgba(0, 0, 0, 0.5);
   border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.portrait-placeholder:hover:not(:disabled),
+.portrait-placeholder:focus-visible {
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 15px var(--color-theme-glow);
+  outline: none;
+}
+
+.portrait-placeholder:disabled {
+  cursor: wait;
 }
 
 .placeholder-hint {
@@ -317,10 +370,25 @@ const rarityLabel = computed(() => {
 }
 
 .inventory-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+}
+
+.inventory-action {
+  position: absolute;
+  top: -0.25rem;
+  right: -1.25rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0.125rem;
+  border-color: transparent;
+}
+
+.inventory-action:hover:not(:disabled) {
+  border-color: var(--color-theme-glow);
 }
 
 .inventory-value {

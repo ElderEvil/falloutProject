@@ -17,7 +17,7 @@ const DEFAULT_DURATIONS: Record<Toast['variant'], number> = {
   success: 3000,
   info: 5000,
   warning: 7000,
-  error: 0,
+  error: 7000,
 }
 
 function getGroupKey(variant: Toast['variant'], message: string): string {
@@ -56,6 +56,10 @@ export function useToast() {
       }
 
       return existingToast.id
+    }
+
+    if (variant === 'error') {
+      toasts.value.filter((toast) => toast.variant === 'error').forEach((toast) => remove(toast.id))
     }
 
     const id = `toast-${toastId++}`

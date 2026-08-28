@@ -68,6 +68,14 @@ describe('DwellerStats', () => {
       expect(badge.text()).toBe('+1')
     })
 
+    it('restarts the badge when the highlighted stat changes', async () => {
+      const wrapper = mount(DwellerStats, { props: defaultProps })
+
+      await wrapper.setProps({ highlightStat: 'perception' })
+
+      expect(wrapper.find('.stat-badge').exists()).toBe(true)
+    })
+
     it('should not show +1 badge when highlightStat is not provided', () => {
       const wrapper = mount(DwellerStats, { props: defaultProps })
 

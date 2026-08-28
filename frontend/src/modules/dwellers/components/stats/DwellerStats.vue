@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 interface Props {
   S: number
@@ -42,14 +42,18 @@ const highlightedKey = computed<keyof Props | undefined>(() => {
 })
 
 const showBadge = ref(!!highlightedKey.value)
+let badgeTimer: ReturnType<typeof setTimeout> | undefined
 
-onMounted(() => {
-  if (showBadge.value) {
-    setTimeout(() => {
-      showBadge.value = false
-    }, 2500)
-  }
-})
+watch(
+  highlightedKey,
+  (stat) => {
+    clearTimeout(badgeTimer)
+    showBadge.value = !!stat
+    if (stat) badgeTimer = setTimeout(() => (showBadge.value = false), 2500)
+  },
+  { immediate: true }
+)
+onBeforeUnmount(() => clearTimeout(badgeTimer))
 
 const isHighlighted = (key: keyof Props) => highlightedKey.value === key
 </script>

@@ -197,8 +197,10 @@ const getNotificationRoute = (notification: Notification): string | null => {
 const enqueuePendingReport = (notification: Notification): void => {
   if (notification.notification_type !== 'exploration_complete') return
   const rewards = notification.meta_data?.rewards
-  if (!rewards || !notification.vault_id) return
+  const explorationId = notification.meta_data?.exploration_id
+  if (!rewards || !notification.vault_id || typeof explorationId !== 'string') return
   addPendingReport({
+    explorationId,
     vaultId: notification.vault_id,
     dwellerId: notification.meta_data!.dweller_id,
     dwellerName: notification.meta_data!.dweller_name,

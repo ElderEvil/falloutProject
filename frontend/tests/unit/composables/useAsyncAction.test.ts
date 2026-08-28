@@ -1,13 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 
 const toast = vi.hoisted(() => ({ error: vi.fn() }))
+const handleStoreError = vi.hoisted(() => vi.fn())
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => ({ error: toast.error }),
 }))
 
+vi.mock('@/core/utils/errorHandler', () => ({ handleStoreError }))
+
 describe('useAsyncAction', () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it('tracks loading and returns the action result', async () => {
     let resolveAction!: (value: string) => void
     const action = vi.fn(
@@ -46,5 +51,7 @@ describe('useAsyncAction', () => {
 
     await expect(run()).rejects.toThrow(failure)
     expect(error.value).toBe('required by caller')
+    expect(handleStoreError).toHaveBeenCalledWith(failure, 'Request failed', false)
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })

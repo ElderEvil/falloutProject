@@ -94,7 +94,6 @@ export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
   const { filter: dwellerFilter } = useDwellerStore()
 
-  // State
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
@@ -105,7 +104,6 @@ export const useExplorationStore = defineStore('exploration', () => {
   let sseWatchStop: (() => void) | null = null
   let currentVaultId = ''
 
-  // Getters
   function getExplorationByDwellerId(dwellerId: string) {
     return explorations.value.find((e) => e.dweller_id === dwellerId && e.status === 'active')
   }
@@ -135,21 +133,20 @@ export const useExplorationStore = defineStore('exploration', () => {
         if (!evt || evt.event !== 'exploration') return
         const data = evt.data as Record<string, unknown> | undefined
         if (!data || typeof data.type !== 'string') return
+        const explorationId = data.exploration_id as string | undefined
         if (data.type === 'exploration_complete' || data.type === 'exploration_recalled') {
           const rewards = (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary
           const dwellerId = (data.dweller_id as string) ?? ''
           pendingSseRewards.value = { rewards, dwellerId }
 
-          // Persist to durable queue for offline/elsewhere viewing
-          if (dwellerId) {
+          if (dwellerId && explorationId) {
             const dweller = dwellerFilter.dwellers.find((d) => d.id === dwellerId)
             const dwellerName = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
-            addPendingReport({ vaultId: currentVaultId, dwellerId, dwellerName, rewards })
+            addPendingReport({ explorationId, vaultId: currentVaultId, dwellerId, dwellerName, rewards })
           }
           return
         }
 
-        const explorationId = data.exploration_id as string | undefined
         const exploration = explorationId
           ? activeExplorations.value[explorationId] ?? explorations.value.find((e) => e.id === explorationId)
           : undefined

@@ -14,23 +14,23 @@ const emit = defineEmits<{
 const variantConfig = {
   success: {
     icon: 'mdi:check-circle',
-    bgClass: 'bg-surface-raised/95 border-theme-primary',
-    iconClass: 'text-theme-primary',
+    borderClass: 'border-l-success',
+    iconClass: 'text-success',
   },
   error: {
     icon: 'mdi:alert-circle',
-    bgClass: 'bg-red-900/90 border-red-500',
-    iconClass: 'text-red-400',
+    borderClass: 'border-l-danger',
+    iconClass: 'text-danger',
   },
   warning: {
     icon: 'mdi:alert',
-    bgClass: 'bg-surface-raised/95 border-theme-accent',
-    iconClass: 'text-theme-accent',
+    borderClass: 'border-l-warning',
+    iconClass: 'text-warning',
   },
   info: {
     icon: 'mdi:information',
-    bgClass: 'bg-surface-raised/95 border-theme-primary',
-    iconClass: 'text-theme-primary',
+    borderClass: 'border-l-info',
+    iconClass: 'text-info',
   },
 }
 
@@ -41,48 +41,27 @@ const config = variantConfig[props.toast.variant]
   <div
     :class="[
       'toast',
-      config.bgClass,
-      'border-2 rounded-lg shadow-lg backdrop-blur-sm',
+      config.borderClass,
+      'bg-surface-raised/95 border border-surface-hover border-l-4 rounded-md shadow-md backdrop-blur-sm',
       'flex items-center gap-3 p-4 min-w-[300px] max-w-[500px]',
-      'animate-slide-in',
     ]"
-    role="alert"
+    role="status"
+    aria-live="polite"
   >
-    <Icon :icon="config.icon" :class="['text-2xl', config.iconClass]" />
-    <p class="flex-1 text-sm text-theme-primary/90 font-medium">{{ toast.message }}</p>
+    <Icon :icon="config.icon" :class="['text-2xl', config.iconClass]" :ariaHidden="true" />
+    <p class="min-w-0 flex-1 break-words text-sm font-medium text-theme-primary/90">{{ toast.message }}</p>
     <span
       v-if="toast.count && toast.count > 1"
-      class="px-2 py-0.5 text-xs font-bold rounded-full bg-theme-primary text-black"
+      class="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-bold text-theme-primary"
     >
       ×{{ toast.count }}
     </span>
     <button
       @click="emit('close', toast.id)"
-      class="text-theme-primary/60 hover:text-theme-primary transition-colors"
+      class="text-theme-primary/60 transition-colors hover:text-theme-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary"
       aria-label="Close"
     >
       <Icon icon="mdi:close" class="text-xl" />
     </button>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-.toast {
-  box-shadow: 0 4px 12px rgb(20 18 16 / 0.5);
-}
-</style>

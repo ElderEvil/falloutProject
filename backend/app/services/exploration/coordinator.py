@@ -392,6 +392,7 @@ class ExplorationCoordinator:
                     dweller_id=dweller.id,
                     dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
                     meta_data={
+                        "exploration_id": str(exploration.id),
                         "caps_earned": rewards.caps,
                         "xp_earned": rewards.experience,
                         "items_found": len(rewards.items),

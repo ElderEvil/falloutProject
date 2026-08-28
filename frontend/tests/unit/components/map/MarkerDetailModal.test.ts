@@ -315,7 +315,24 @@ describe('MarkerDetailModal', () => {
 
       expect(wrapper.text()).toContain('Unknown Location')
       expect(wrapper.text()).toContain('Chat with a dweller who has been here to uncover this place.')
+      expect(wrapper.text()).toContain('John Doe')
+      expect(wrapper.findAll('button.dweller-contact')).toHaveLength(2)
       expect(wrapper.text()).not.toContain('origin')
+    })
+
+    it('opens a linked dweller chat from a locked location', async () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ is_unlocked: false }),
+          vaultMarker: null,
+        },
+        global: { stubs: { teleport: true } },
+      })
+
+      await wrapper.find('button.dweller-contact').trigger('click')
+
+      expect(mockPush).toHaveBeenCalledWith('/dweller/dweller-1/chat')
     })
 
     it('should NOT show locked placeholder when location is unlocked', () => {

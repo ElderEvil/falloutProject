@@ -16,7 +16,7 @@
 |----------|-------|---------------|--------------|
 | Critical (services) | 52 | 1,773 | ~65% |
 | Important (endpoints, CRUD) | 49 | 1,157 | ~60% |
-| Low Priority (CLI, scripts) | 6 | 333 | 0% |
+| Low Priority (CLI, scripts) | 6 | 316 | 0% |
 | Skip (utils, models, etc.) | 102 | 658 | ~85% |
 
 ## Top Coverage Gaps (By Impact)

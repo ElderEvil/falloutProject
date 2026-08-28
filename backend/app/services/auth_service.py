@@ -1,7 +1,7 @@
 """Service for authentication operations: login, token refresh, password management."""
 
 import logging
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 from pydantic import EmailStr
 from pydantic.types import UUID4
@@ -203,6 +203,8 @@ class AuthService:
             # Handle both timezone-aware and naive datetimes
             now = utc_now()
             expires = user.password_reset_expires
+            if expires.tzinfo is not None:
+                now = now.replace(tzinfo=UTC)
             if expires < now:
                 raise ValidationException(detail="Token has expired")
 

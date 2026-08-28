@@ -12,8 +12,8 @@ from app.utils.datetime import utc_now
 class GameStateBase(SQLModel):
     """Base model for game state tracking."""
 
-    last_tick_time: datetime = Field(default_factory=datetime.utcnow)
-    last_activity_time: datetime = Field(default_factory=datetime.utcnow, description="Last user activity timestamp")
+    last_tick_time: datetime = Field(default_factory=utc_now)
+    last_activity_time: datetime = Field(default_factory=utc_now, description="Last user activity timestamp")
     is_active: bool = Field(default=True, description="Whether the vault game loop is active")
     is_paused: bool = Field(default=False, description="Whether the vault is manually paused by player")
     total_game_time: int = Field(default=0, ge=0, description="Total seconds the vault has been active")

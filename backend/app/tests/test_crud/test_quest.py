@@ -528,13 +528,13 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
     await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
     await quest_service.start_quest(async_session, quest.id, vault.id)
 
-    with pytest.raises(ValidationException, match="still in progress"):
-        await quest_service.complete_quest_and_free_party(async_session, quest.id, vault.id)
+    with pytest.raises(ValidationException, match="not ready to claim"):
+        await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
 
 
 @pytest.mark.asyncio
 async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
-    """Test automatic quest completion after duration."""
+    """A finished quest becomes claimable without granting rewards yet."""
     from datetime import datetime, timedelta
 
     from app.models.quest_reward import QuestReward, RewardType
@@ -585,13 +585,14 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
 
     await async_session.refresh(link)
     await async_session.refresh(vault)
-    assert link.is_completed is True
-    assert vault.bottle_caps == vault_data["bottle_caps"] + 50
+    assert link.is_completed is False
+    assert link.is_reward_ready is True
+    assert vault.bottle_caps == vault_data["bottle_caps"]
 
 
 @pytest.mark.asyncio
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
-    """Simulate a quest party returning with every configured reward."""
+    """Simulate a party return followed by an atomic reward claim."""
     from datetime import datetime, timedelta
 
     from app.crud.quest_party import quest_party_crud
@@ -654,6 +655,15 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     await async_session.refresh(link)
     await async_session.refresh(vault)
     await async_session.refresh(dweller)
+    assert link.is_completed is False
+    assert link.is_reward_ready is True
+    assert vault.bottle_caps == vault_data["bottle_caps"]
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+    await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
+
+    await async_session.refresh(link)
+    await async_session.refresh(vault)
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
     assert link.is_completed is True
     assert vault.bottle_caps == vault_data["bottle_caps"] + 50
@@ -703,25 +713,18 @@ async def test_quest_completion_rolls_back_when_any_reward_fails(async_session: 
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
 
-    with pytest.raises(ResourceNotFoundException, match="Storage"):
-        await crud.quest_crud.complete(
-            db_session=async_session,
-            quest_entity_id=quest.id,
-            vault_id=vault.id,
-        )
-
-    await async_session.refresh(vault)
     link = await async_session.get(crud.quest_crud.link_model, (vault.id, quest.id))
     assert link is not None
-    link.started_at = datetime.now() - timedelta(minutes=61)
-    link.duration_minutes = 60
+    link.is_reward_ready = True
     await async_session.commit()
 
-    assert await quest_service.check_and_complete_quests(async_session) == 0
+    with pytest.raises(ResourceNotFoundException, match="Storage"):
+        await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
 
     await async_session.refresh(vault)
     await async_session.refresh(link)
     assert link.is_completed is False
+    assert link.is_reward_ready is True
     assert vault.bottle_caps == vault_data["bottle_caps"]
 
 

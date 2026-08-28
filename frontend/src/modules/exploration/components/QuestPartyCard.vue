@@ -16,7 +16,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   select: []
-  complete: [questId: string]
 }>()
 
 const route = useRoute()
@@ -124,16 +123,6 @@ const statusColor = computed(() => {
       </div>
     </div>
 
-    <div class="card-actions">
-      <button
-        v-if="progressPercentage >= 100"
-        @click.stop="emit('complete', quest.id)"
-        class="action-btn complete-btn"
-      >
-        <Icon icon="mdi:check-circle" />
-        Complete Quest
-      </button>
-    </div>
   </div>
 </template>
 

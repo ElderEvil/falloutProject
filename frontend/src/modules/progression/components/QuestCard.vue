@@ -11,7 +11,7 @@ const questStore = useQuestStore()
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'completed' | 'locked'
+  status: 'available' | 'active' | 'ready' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
   isLocked?: boolean
 }
@@ -20,6 +20,7 @@ const { partyMembers, isLocked = false, quest, status, vaultId } = defineProps<P
 
 const emit = defineEmits<{
   start: [questId: string]
+  claim: [questId: string]
   view: [questId: string]
   assignParty: [questId: string]
 }>()
@@ -141,8 +142,10 @@ const formatReward = (reward: {
   reward_type: string
   reward_data: Record<string, unknown>
   reward_chance: number
+  item_data?: Record<string, unknown>
 }) => {
   const data = reward.reward_data || {}
+  const itemData = reward.item_data || {}
   const type = reward.reward_type.toLowerCase()
 
   switch (type) {
@@ -155,12 +158,12 @@ const formatReward = (reward: {
     case 'experience':
       return `${data.amount || 0} XP`
     case 'item': {
-      const itemName = String(data.name || 'Unknown Item')
-      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
+      const itemName = String(data.item_name || itemData.name || data.name || 'Unknown Item')
+      const rarity = itemData.rarity || data.rarity ? ` (${String(itemData.rarity || data.rarity)})` : ''
       return `${itemName}${rarity}`
     }
     case 'dweller': {
-      const name = String(data.first_name || data.name || 'New Dweller')
+      const name = String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
       const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
       return `${name}${rarity}`
     }
@@ -228,6 +231,8 @@ const actionButtonText = computed(() => {
       return 'Start Quest'
     case 'active':
       return 'In Progress'
+    case 'ready':
+      return 'Claim Rewards'
     case 'completed':
       return 'View Details'
     default:
@@ -242,6 +247,8 @@ const cardBorderColor = computed(() => {
   switch (status) {
     case 'active':
       return 'var(--color-theme-accent)'
+    case 'ready':
+      return 'var(--color-rarity-legendary)'
     case 'completed':
       return 'var(--color-quest-muted)'
     default:
@@ -266,6 +273,9 @@ const handleAction = () => {
       }
       break
     case 'active':
+      break
+    case 'ready':
+      emit('claim', quest.id)
       break
     case 'completed':
       emit('view', quest.id)

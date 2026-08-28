@@ -143,21 +143,6 @@ const activeQuestsWithParty = computed(() => {
   })
 })
 
-const handleCompleteQuest = async (questId: string) => {
-  if (!vaultId.value || !authStore.token) return
-
-  try {
-    await questStore.completeQuest(vaultId.value, questId)
-    await questStore.fetchVaultQuests(vaultId.value)
-    await questStore.fetchPartiesForActiveQuests(vaultId.value)
-    if (selectedQuestPartyId.value === questId) {
-      selectedQuestPartyId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to complete quest')
-  }
-}
-
 const handleCompleteExploration = async (explorationId: string) => {
   if (!authStore.token) return
 
@@ -331,7 +316,6 @@ const closeRewardsModal = () => {
               :party-members="getPartyMembersForQuest(quest.id)"
               :selected="selectedQuestPartyId === quest.id"
               @select="selectedQuestPartyId = quest.id"
-              @complete="handleCompleteQuest"
             />
           </div>
         </div>

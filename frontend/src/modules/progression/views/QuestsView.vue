@@ -64,6 +64,7 @@ const hasOverseerOffice = computed(() => {
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
+const readyToClaimQuests = computed(() => questStore.questCategories.readyToClaim)
 const completedQuests = computed(() => questStore.questCategories.completed)
 
 const refreshActiveQuests = async () => {
@@ -163,6 +164,11 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   questPartyMembers.value = []
 }
 
+const handleClaimRewards = async (questId: string) => {
+  if (!vaultId.value) return
+  await questStore.claimQuestRewards(vaultId.value, questId)
+}
+
 // Fetch quests on mount
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -238,6 +244,23 @@ onMounted(async () => {
 
             <!-- Active & Available Quests -->
             <div v-if="activeTab === 'active'" class="tab-content">
+              <div v-if="readyToClaimQuests.length > 0" class="quest-section">
+                <h2 class="section-title">
+                  <Icon icon="mdi:treasure-chest" class="inline mr-2" />
+                  REWARDS READY TO CLAIM
+                </h2>
+                <div class="quest-grid">
+                  <QuestCard
+                    v-for="quest in readyToClaimQuests"
+                    :key="quest.id"
+                    :quest="quest"
+                    :vault-id="vaultId"
+                    status="ready"
+                    @claim="handleClaimRewards"
+                  />
+                </div>
+              </div>
+
               <!-- Active Quests Section -->
               <div v-if="activeQuests.length > 0" class="quest-section">
                 <h2 class="section-title">
@@ -286,7 +309,7 @@ onMounted(async () => {
 
               <!-- Empty State -->
               <div
-                v-if="activeQuests.length === 0 && filteredAvailableQuests.length === 0"
+                v-if="readyToClaimQuests.length === 0 && activeQuests.length === 0 && filteredAvailableQuests.length === 0"
                 class="empty-state"
               >
                 <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />

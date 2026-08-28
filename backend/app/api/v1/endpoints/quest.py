@@ -148,20 +148,20 @@ async def assign_quest_to_vault(
     )
 
 
-@router.post("/{vault_id}/{quest_id}/complete", response_model=QuestCompleteResponse, status_code=200)
-async def complete_quest(
+@router.post("/{vault_id}/{quest_id}/claim-rewards", response_model=QuestCompleteResponse, status_code=200)
+async def claim_quest_rewards(
     vault_id: UUID4,
     quest_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> QuestCompleteResponse:
-    """Mark a quest as completed for a vault.
+    """Claim rewards from a returned quest party.
 
     Returns:
         Completion response with granted rewards.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    quest, granted_rewards = await quest_service.complete_quest_and_free_party(db_session, quest_id, vault_id)
+    quest, granted_rewards = await quest_service.claim_quest_rewards(db_session, quest_id, vault_id)
     return QuestCompleteResponse(
         quest_id=quest.id,
         quest_title=quest.title,

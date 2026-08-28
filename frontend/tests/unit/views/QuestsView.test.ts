@@ -448,7 +448,7 @@ describe('QuestsView', () => {
       expect(startSpy).not.toHaveBeenCalled()
     })
 
-    it('does not wire a player-side manual completion action', async () => {
+    it('claims rewards only after a quest returns', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -461,12 +461,13 @@ describe('QuestsView', () => {
           updated_at: '2025-01-01',
           is_visible: true,
           is_completed: false,
+          is_reward_ready: true,
           started_at: '2025-01-02T00:00:00Z',
           duration_minutes: 60,
         },
       ]
 
-      const completeSpy = vi.spyOn(questStore, 'completeQuest').mockResolvedValue()
+      const claimSpy = vi.spyOn(questStore, 'claimQuestRewards').mockResolvedValue()
 
       wrapper = mount(QuestsView, {
         global: {
@@ -475,9 +476,9 @@ describe('QuestsView', () => {
             Icon: true,
             QuestCard: {
               template:
-                '<div><button class="complete-btn" @click="$emit(\'complete\', quest.id)">Complete Quest</button></div>',
+                '<div><button class="claim-btn" @click="$emit(\'claim\', quest.id)">Claim Rewards</button></div>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['start', 'complete', 'assign-party'],
+              emits: ['claim'],
             },
           },
         },
@@ -485,10 +486,10 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completeButton = wrapper.find('.complete-btn')
-      await completeButton.trigger('click')
+      const claimButton = wrapper.find('.claim-btn')
+      await claimButton.trigger('click')
 
-      expect(completeSpy).not.toHaveBeenCalled()
+      expect(claimSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
     })
   })
 

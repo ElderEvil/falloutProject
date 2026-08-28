@@ -683,10 +683,8 @@ const handleAction = () => {
 .quest-timer {
   display: grid;
   gap: 8px;
-  padding: 12px;
-  background: rgba(0, 217, 255, 0.1);
-  border: 1px solid var(--color-theme-accent);
-  border-radius: 6px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
   margin-top: 12px;
 }
 

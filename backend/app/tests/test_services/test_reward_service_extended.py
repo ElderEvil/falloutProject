@@ -766,8 +766,10 @@ async def test_process_objective_reward_outfit(async_session: AsyncSession) -> N
     async_session.add(link)
     await async_session.commit()
 
-    with pytest.raises(LookupError):
-        await reward_service.process_objective_reward(async_session, vault.id, link)
+    result = await reward_service.process_objective_reward(async_session, vault.id, link)
+
+    assert result["reward_type"] == RewardType.ITEM
+    assert result["item_type"] == "outfit"
 
 
 @pytest.mark.asyncio

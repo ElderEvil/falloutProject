@@ -12,6 +12,7 @@ from app.tests.factory.vaults import create_fake_vault
 @pytest.mark.asyncio
 async def test_start_quest_assigns_and_starts(async_client, async_session):
     """Test that starting a quest assigns it to vault and returns success."""
+    from app.crud.quest_party import quest_party_crud
     from app.tests.utils.user import user_authentication_headers
 
     user_data = create_fake_user()
@@ -37,6 +38,7 @@ async def test_start_quest_assigns_and_starts(async_client, async_session):
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
 
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
 

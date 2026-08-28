@@ -5,6 +5,7 @@ import { UBadge, UButton, UCard } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
+import { parseUtcDate } from '@/core/utils/date'
 
 const questStore = useQuestStore()
 
@@ -34,7 +35,7 @@ const updateTimer = () => {
     return
   }
 
-  const startTime = new Date(quest.started_at).getTime()
+  const startTime = parseUtcDate(quest.started_at).getTime()
   const durationMs = quest.duration_minutes * 60 * 1000
   const endTime = startTime + durationMs
   const now = Date.now()

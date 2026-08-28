@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 import type { QuestPartyMember } from '@/modules/progression/models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { parseUtcDate } from '@/core/utils/date'
 
 interface Props {
   quest: VaultQuest
@@ -46,10 +47,7 @@ const partyNames = computed(() => {
 const progressPercentage = computed(() => {
   if (!props.quest.started_at || !props.quest.duration_minutes) return 0
 
-  const startStr = props.quest.started_at.endsWith('Z')
-    ? props.quest.started_at
-    : props.quest.started_at.replace(' ', 'T') + 'Z'
-  const start = new Date(startStr).getTime()
+  const start = parseUtcDate(props.quest.started_at).getTime()
   const duration = props.quest.duration_minutes * 60 * 1000
   const elapsed = now.value - start
 

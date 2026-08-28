@@ -7,6 +7,7 @@ import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import axios from '@/core/plugins/axios'
+import { parseUtcDate } from '@/core/utils/date'
 
 interface Notification {
   id: string
@@ -242,7 +243,7 @@ const getPriorityColor = (priority: string): string => {
 }
 
 const formatTime = (timestamp: string): string => {
-  const date = new Date(timestamp + 'Z')
+  const date = parseUtcDate(timestamp)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const minutes = Math.floor(diff / 60000)

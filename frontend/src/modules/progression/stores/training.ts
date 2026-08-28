@@ -5,6 +5,7 @@ import * as trainingService from '../services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/types/utils'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { parseUtcDate } from '@/core/utils/date'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -55,7 +56,7 @@ export const useTrainingStore = defineStore('training', () => {
 
     return Array.from(activeTrainings.value.values()).filter((training) => {
       if (training.status !== 'active') return false
-      const completionTime = new Date(training.estimated_completion_at).getTime()
+      const completionTime = parseUtcDate(training.estimated_completion_at).getTime()
       return completionTime - now <= tenMinutes && completionTime > now
     })
   })

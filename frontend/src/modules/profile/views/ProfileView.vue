@@ -14,6 +14,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
+import { parseUtcDate } from '@/core/utils/date'
 import { useProfileStore } from '../stores/profile'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
@@ -160,7 +161,7 @@ watch(
 )
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return parseUtcDate(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

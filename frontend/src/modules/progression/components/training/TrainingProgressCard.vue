@@ -6,6 +6,7 @@ import UBadge from '@/core/components/ui/UBadge.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import { parseUtcDate } from '@/core/utils/date'
 
 type TrainingRead = components['schemas']['TrainingRead']
 type TrainingProgress = components['schemas']['TrainingProgress']
@@ -43,8 +44,8 @@ const progressPercentage = computed(() => {
   // Prefer the backend's persisted progress when present (it's 0.0-1.0),
   // but recompute live from timestamps so the bar fills even when the
   // game-loop worker hasn't persisted an update yet.
-  const started = new Date(props.training.started_at).getTime()
-  const end = new Date(props.training.estimated_completion_at).getTime()
+  const started = parseUtcDate(props.training.started_at).getTime()
+  const end = parseUtcDate(props.training.estimated_completion_at).getTime()
   const total = end - started
   if (total > 0 && props.training.status === 'active') {
     const elapsed = Math.min(Math.max(now.value - started, 0), total)
@@ -59,7 +60,7 @@ const timeRemaining = computed(() => {
     return props.training.status === 'completed' ? 'Completed' : 'Cancelled'
   }
 
-  const completionTime = new Date(props.training.estimated_completion_at).getTime()
+  const completionTime = parseUtcDate(props.training.estimated_completion_at).getTime()
   const remaining = completionTime - now.value
 
   if (remaining <= 0) {
@@ -81,7 +82,7 @@ const timeRemaining = computed(() => {
 
 const isReadyToComplete = computed(() => {
   if (props.training.status !== 'active') return false
-  const completionTime = new Date(props.training.estimated_completion_at).getTime()
+  const completionTime = parseUtcDate(props.training.estimated_completion_at).getTime()
   return completionTime <= now.value
 })
 

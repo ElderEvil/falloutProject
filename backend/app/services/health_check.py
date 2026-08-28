@@ -292,11 +292,17 @@ class HealthCheckService:
             HealthCheckResult with connection status
         """
         try:
-            smtp = aiosmtplib.SMTP(
-                hostname=settings.SMTP_HOST,
-                port=settings.SMTP_PORT,
-                timeout=5,  # 5 second timeout
-            )
+            smtp_kwargs = {
+                "hostname": settings.SMTP_HOST,
+                "port": settings.SMTP_PORT,
+                "timeout": 5,  # 5 second timeout
+            }
+            # Keep TLS handling in sync with app.core.email.send_email (flag naming is inverted).
+            if settings.SMTP_TLS:
+                smtp_kwargs["use_tls"] = True
+            elif settings.SMTP_SSL:
+                smtp_kwargs["start_tls"] = True
+            smtp = aiosmtplib.SMTP(**smtp_kwargs)
 
             await smtp.connect()
 

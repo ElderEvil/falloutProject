@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     chat,
     debug,
     dweller,
+    email,
     exploration,
     game_control,
     junk,
@@ -38,6 +39,7 @@ api_router.include_router(system.router)
 api_router.include_router(auth.router)
 api_router.include_router(ai_settings.router)
 api_router.include_router(chat.router)
+api_router.include_router(email.router)
 # Debug router only registered in debug/development mode
 if settings.ENVIRONMENT in ("local", "development"):
     api_router.include_router(debug.router)

@@ -587,6 +587,48 @@ async def test_check_smtp_unhealthy_connection_error() -> None:
     assert "failed" in result.message
 
 
+@pytest.mark.asyncio
+async def test_check_smtp_implicit_tls_passes_use_tls() -> None:
+    """SMTP_TLS=true maps to aiosmtplib use_tls (port 465 implicit TLS)."""
+    with patch("app.services.health_check.aiosmtplib.SMTP") as mock_smtp_class:
+        mock_smtp_class.return_value.connect = AsyncMock()
+        mock_smtp_class.return_value.quit = AsyncMock()
+        with (
+            patch.object(settings, "SMTP_TLS", new=True),
+            patch.object(settings, "SMTP_SSL", new=False),
+            patch.object(settings, "SMTP_HOST", "smtp.example.com"),
+            patch.object(settings, "SMTP_PORT", 465),
+        ):
+            result = await HealthCheckService.check_smtp()
+
+    assert result.status == ServiceStatus.HEALTHY
+    kwargs = mock_smtp_class.call_args.kwargs
+    assert kwargs["use_tls"] is True
+    assert "start_tls" not in kwargs
+    assert kwargs["port"] == 465
+
+
+@pytest.mark.asyncio
+async def test_check_smtp_starttls_passes_start_tls() -> None:
+    """SMTP_SSL=true maps to aiosmtplib start_tls (port 587 STARTTLS)."""
+    with patch("app.services.health_check.aiosmtplib.SMTP") as mock_smtp_class:
+        mock_smtp_class.return_value.connect = AsyncMock()
+        mock_smtp_class.return_value.quit = AsyncMock()
+        with (
+            patch.object(settings, "SMTP_TLS", new=False),
+            patch.object(settings, "SMTP_SSL", new=True),
+            patch.object(settings, "SMTP_HOST", "smtp.example.com"),
+            patch.object(settings, "SMTP_PORT", 587),
+        ):
+            result = await HealthCheckService.check_smtp()
+
+    assert result.status == ServiceStatus.HEALTHY
+    kwargs = mock_smtp_class.call_args.kwargs
+    assert kwargs["start_tls"] is True
+    assert "use_tls" not in kwargs
+    assert kwargs["port"] == 587
+
+
 # =============================================================================
 # check_all_services
 # =============================================================================

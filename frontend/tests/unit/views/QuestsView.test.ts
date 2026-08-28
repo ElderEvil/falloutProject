@@ -480,6 +480,10 @@ describe('QuestsView', () => {
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
               emits: ['claim'],
             },
+            UModal: {
+              template: '<div><slot /><slot name="footer" /></div>',
+              props: ['modelValue'],
+            },
           },
         },
       })
@@ -489,6 +493,8 @@ describe('QuestsView', () => {
       const claimButton = wrapper.find('.claim-btn')
       await claimButton.trigger('click')
 
+      expect(claimSpy).not.toHaveBeenCalled()
+      await wrapper.find('.confirm-claim-btn').trigger('click')
       expect(claimSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
     })
   })

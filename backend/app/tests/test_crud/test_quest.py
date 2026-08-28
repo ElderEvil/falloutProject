@@ -11,7 +11,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
 @pytest.mark.asyncio
@@ -699,6 +699,12 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     assert vault.bottle_caps == vault_data["bottle_caps"] + 50
     assert weapon.storage_id is not None
     assert dweller.status == DwellerStatusEnum.IDLE
+
+    with pytest.raises(ResourceConflictException, match="Already completed"):
+        await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == vault_data["bottle_caps"] + 50
 
 
 @pytest.mark.asyncio

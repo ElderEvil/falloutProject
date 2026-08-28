@@ -177,6 +177,39 @@ async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
+async def test_seed_quests_adds_new_rewards_to_existing_quest(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding creates a reward appended to an already-seeded quest."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_file = quest_dir / "rewards.json"
+    quest_data = [
+        {
+            "Quest name": "Expanding Reward Quest",
+            "Long description": "A quest whose reward list grows.",
+            "Short description": "Add a reward",
+            "Requirements": "Level 1",
+            "Rewards": "100 caps",
+            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
+        }
+    ]
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    await seed_quests_from_json(async_session, quest_dir=quest_dir)
+
+    quest_data[0]["quest_rewards"].append({"reward_type": "STIMPAK", "reward_data": {"quantity": 2}})
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Expanding Reward Quest"))).scalar_one()
+    rewards = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
+    assert sorted((reward.reward_type.value, reward.reward_data) for reward in rewards) == [
+        ("caps", {"amount": 100}),
+        ("stimpak", {"quantity": 2}),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_seed_quests_migrates_legacy_dweller_reward_to_template(
     async_session: AsyncSession, tmp_path: Path
 ) -> None:

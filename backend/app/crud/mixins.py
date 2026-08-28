@@ -31,9 +31,18 @@ class CompletionMixin[LinkModelType]:
     async def _mark_as_complete(
         self, *, db_session: AsyncSession, quest_entity_id: UUID4, vault_id: UUID4
     ) -> LinkModelType:
-        quest_completion_link = await self.get_link(
-            db_session=db_session, vault_id=vault_id, quest_entity_id=quest_entity_id
+        """Lock and claim a completion link before any rewards are delivered."""
+        query = (
+            select(self.link_model)
+            .where(and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_entity_id))
+            .with_for_update()
         )
+        result = await db_session.execute(query)
+        quest_completion_link = result.scalar_one_or_none()
+        if quest_completion_link is None:
+            raise ResourceNotFoundException(self.link_model, identifier=quest_entity_id)
+        if quest_completion_link.is_completed:
+            raise ResourceConflictException("Already completed")
         quest_completion_link.is_completed = True
 
         return quest_completion_link

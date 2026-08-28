@@ -86,6 +86,16 @@ async def _sync_existing_quest_rewards(
                 reward_type = RewardType(reward_json.reward_type.lower())
                 reward = next((candidate for candidate in rewards if candidate.reward_type == reward_type), None)
             if reward is None:
+                db_session.add(
+                    QuestReward(
+                        quest_id=quest.id,
+                        reward_type=RewardType(reward_json.reward_type.lower()),
+                        reward_data=reward_json.reward_data,
+                        reward_chance=reward_json.reward_chance,
+                        item_data=reward_json.item_data,
+                    )
+                )
+                updated_count += 1
                 continue
             rewards.remove(reward)
             if (

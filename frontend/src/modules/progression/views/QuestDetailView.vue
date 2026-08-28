@@ -103,7 +103,7 @@ const canStart = computed(() => {
 })
 
 const isInProgress = computed(() => {
-  return quest.value?.started_at != null && !quest.value?.is_completed
+  return quest.value?.started_at != null && !quest.value?.is_completed && !quest.value?.is_reward_ready
 })
 
 const isCompleted = computed(() => {

@@ -8,22 +8,20 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import DwellerCard from '../components/cards/DwellerCard.vue'
-import DwellerPanel from '../components/DwellerPanel.vue'
+import { UButton, UInput, UModal } from '@/core/components/ui'
+import DwellerDetailPane from '../components/DwellerDetailPane.vue'
 import DwellerAppearanceEditor from '../components/DwellerAppearanceEditor.vue'
 import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
-import DwellerStatusBadge from '../components/stats/DwellerStatusBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { RevivalSection } from '../components/death'
-import type { RevivalCostResponse } from '../models/dweller'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { getVaultMap } from '@/modules/map/services/mapService'
+import { useDwellerDetailActions } from '../composables/useDwellerDetail'
 import type { MapPlaceLink } from '../components/DwellerBio.vue'
+import type { RevivalCostResponse } from '../models/dweller'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,15 +52,6 @@ const generatingAppearance = ref(false)
 const showTrainingModal = ref(false)
 const showAppearanceEditor = ref(false)
 
-// Computed to check if any AI generation is in progress
-const isAnyGenerating = computed(
-  () =>
-    generatingAI.value ||
-    generatingBio.value ||
-    generatingPortrait.value ||
-    generatingAppearance.value
-)
-
 const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
 const revivalCost = ref<RevivalCostResponse | null>(null)
 const revivalLoading = ref(false)
@@ -73,11 +62,12 @@ const queryTab = computed(() => {
   const tab = route.query.tab
   return typeof tab === 'string' ? tab : undefined
 })
-
 const queryStat = computed(() => {
   const stat = route.query.stat
   return typeof stat === 'string' ? stat.toLowerCase() : undefined
 })
+
+const { refetch, runAction } = useDwellerDetailActions(dwellerId, vaultId)
 
 async function loadDweller() {
   if (!authStore.isAuthenticated || !dwellerId.value) return
@@ -88,12 +78,10 @@ async function loadDweller() {
   if (seq !== loadSeq) return
   loading.value = false
 
-  // Fetch revival cost if dweller is dead
   if (fetched?.is_dead && !fetched.is_permanently_dead) {
     revivalCost.value = await dwellerDeathStore.getRevivalCost(requestedId, authStore.token as string)
   }
 
-  // Fetch vault map to compute place links for bio linkification
   try {
     const mapData = await getVaultMap(authStore.token as string, vaultId.value)
     if (seq !== loadSeq) return
@@ -102,71 +90,58 @@ async function loadDweller() {
       .map((loc) => ({ name: loc.name, locationId: loc.id }))
   } catch (error) {
     if (seq !== loadSeq) return
-    // Graceful degradation: bio renders unlinked if map fetch fails
     handleStoreError(error, 'Failed to load vault map for bio place links')
   }
 }
 
 onMounted(loadDweller)
-// Watch for changes in dweller's dead status to fetch/clear revival cost
+
 watch(isDead, async (newIsDead) => {
   if (newIsDead && !dweller.value?.is_permanently_dead && authStore.isAuthenticated) {
-    revivalCost.value = await dwellerDeathStore.getRevivalCost(
-      dwellerId.value,
-      authStore.token as string
-    )
+    revivalCost.value = await dwellerDeathStore.getRevivalCost(dwellerId.value, authStore.token as string)
   } else {
     revivalCost.value = null
   }
 })
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/dwellers`)
-}
+const goBack = () => router.push(`/vault/${vaultId.value}/dwellers`)
 
-const navigateToChatPage = () => {
-  router.push(`/dweller/${dwellerId.value}/chat`)
-}
+const navigateToChatPage = () => router.push(`/dweller/${dwellerId.value}/chat`)
 
-const navigateToDweller = (id: string) => {
-  router.push(`/vault/${vaultId.value}/dwellers/${id}`)
+const navigateToDweller = (id: string) => router.push(`/vault/${vaultId.value}/dwellers/${id}`)
+
+const onHeaderNameClick = () => {
+  if (dweller.value?.first_name?.toLowerCase() === 'gary') triggerGaryMode()
 }
 
 const assigning = ref(false)
+const unassigning = ref(false)
+const usingStimpack = ref(false)
+const usingRadaway = ref(false)
+const issuingMedicalSupply = ref(false)
 
-const handleAssign = async () => {
-  if (!dweller.value || assigning.value) return
+const handleAssign = () =>
+  runAction(() => dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string), {
+    flag: assigning,
+    errorMessage: 'Failed to assign dweller automatically',
+  })
 
-  assigning.value = true
-  try {
-    await dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
-    // Refresh dweller details to show updated room assignment
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-  } catch (error) {
-    toast.error('Failed to assign dweller automatically')
-  } finally {
-    assigning.value = false
-  }
-}
+const handleUnassign = () =>
+  runAction(() => dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string), {
+    flag: unassigning,
+    errorMessage: 'Failed to unassign dweller from room',
+  })
 
 const handleRecall = async () => {
   if (!dweller.value || !authStore.token) return
-
-  // Find the active exploration for this dweller
   const exploration = explorationStore.getExplorationByDwellerId(dwellerId.value)
-
   if (!exploration) {
     toast.error('No active exploration found for this dweller')
     return
   }
-
-  try {
-    await explorationStore.recallDweller(exploration.id, authStore.token)
-    // Refresh dweller details to update status
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
-  } catch (error) {
-    toast.error('Failed to recall dweller')
-  }
+  await runAction(() => explorationStore.recallDweller(exploration.id, authStore.token as string), {
+    errorMessage: 'Failed to recall dweller',
+  })
 }
 
 const sendWasteland = useSendToWasteland(() => vaultId.value)
@@ -180,14 +155,9 @@ const handleSendWasteland = () => {
   })
 }
 
-const handleSendWastelandConfirm = (payload: {
-  duration: number
-  stimpaks: number
-  radaways: number
-}) => {
+const handleSendWastelandConfirm = (payload: { duration: number; stimpaks: number; radaways: number }) => {
   const pendingDwellerId = sendWasteland.pendingDweller.value?.dwellerId
   if (!pendingDwellerId) return Promise.resolve(false)
-
   return sendWasteland.confirm(payload, async () => {
     await Promise.all([
       dwellerStore.fetchDwellerDetails(pendingDwellerId, authStore.token as string, true),
@@ -196,84 +166,36 @@ const handleSendWastelandConfirm = (payload: {
   })
 }
 
-// The modal's pending dweller must never outlive the current detail route.
 watch(dwellerId, () => {
   sendWasteland.cancel()
   void loadDweller()
 })
 
-const generateDwellerInfo = async () => {
-  generatingAI.value = true
-  try {
-    const result = await dwellerGenerationStore.generateDwellerInfo(
-      dwellerId.value,
-      authStore.token as string
-    )
-    if (result) {
-      // Force refresh the detailed dweller data
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-    }
-  } catch (error) {
-    toast.error('Failed to generate dweller information')
-  } finally {
-    generatingAI.value = false
-  }
-}
+const generateDwellerInfo = () =>
+  runAction(() => dwellerGenerationStore.generateDwellerInfo(dwellerId.value, authStore.token as string), {
+    flag: generatingAI,
+    errorMessage: 'Failed to generate dweller information',
+  })
 
-const generateDwellerBio = async () => {
-  generatingBio.value = true
-  try {
-    const result = await dwellerGenerationStore.generateDwellerBio(
-      dwellerId.value,
-      authStore.token as string
-    )
-    if (result) {
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-    }
-  } catch (error) {
-    toast.error('Failed to generate dweller biography')
-  } finally {
-    generatingBio.value = false
-  }
-}
+const generateDwellerBio = () =>
+  runAction(() => dwellerGenerationStore.generateDwellerBio(dwellerId.value, authStore.token as string), {
+    flag: generatingBio,
+    errorMessage: 'Failed to generate dweller biography',
+  })
 
-const generateDwellerPortrait = async () => {
-  generatingPortrait.value = true
-  try {
-    const result = await dwellerGenerationStore.generateDwellerPortrait(
-      dwellerId.value,
-      authStore.token as string
-    )
-    if (result) {
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-    }
-  } catch (error) {
-    toast.error('Failed to generate dweller portrait')
-  } finally {
-    generatingPortrait.value = false
-  }
-}
+const generateDwellerPortrait = () =>
+  runAction(() => dwellerGenerationStore.generateDwellerPortrait(dwellerId.value, authStore.token as string), {
+    flag: generatingPortrait,
+    errorMessage: 'Failed to generate dweller portrait',
+  })
 
-const generateDwellerAppearance = async () => {
-  generatingAppearance.value = true
-  try {
-    const result = await dwellerGenerationStore.generateDwellerAppearance(
-      dwellerId.value,
-      authStore.token as string
-    )
-    if (result) {
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-    }
-  } catch (error) {
-    toast.error('Failed to generate dweller appearance')
-  } finally {
-    generatingAppearance.value = false
-  }
-}
+const generateDwellerAppearance = () =>
+  runAction(() => dwellerGenerationStore.generateDwellerAppearance(dwellerId.value, authStore.token as string), {
+    flag: generatingAppearance,
+    errorMessage: 'Failed to generate dweller appearance',
+  })
 
-const handleRefresh = async () => {
-  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-}
+const handleRefresh = () => refetch()
 
 const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
   if (!dweller.value) return
@@ -288,127 +210,54 @@ const handleAppearanceSaved = async (attributes: Record<string, unknown>) => {
   }
 }
 
-const handleRevive = async () => {
-  if (revivalLoading.value || !authStore.token) return
-
-  revivalLoading.value = true
-  try {
-    const result = await dwellerDeathStore.reviveDweller(dwellerId.value, authStore.token)
-    // Only clear revival cost and refresh on successful revival
-    if (result) {
+const handleRevive = () =>
+  runAction(() => dwellerDeathStore.reviveDweller(dwellerId.value, authStore.token as string), {
+    flag: revivalLoading,
+    errorMessage: 'Failed to revive dweller',
+    onSuccess: () => {
       revivalCost.value = null
-      await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true)
-    }
-  } finally {
-    revivalLoading.value = false
-  }
+    },
+  })
+
+const handleUseStimpack = () =>
+  runAction(() => dwellerMedicalStore.useStimpack(dwellerId.value, authStore.token as string), {
+    flag: usingStimpack,
+    errorMessage: 'Failed to use Stimpak',
+  })
+
+const handleUseRadaway = () =>
+  runAction(() => dwellerMedicalStore.useRadaway(dwellerId.value, authStore.token as string), {
+    flag: usingRadaway,
+    errorMessage: 'Failed to use RadAway',
+  })
+
+const handleIssueMedicalSupply = (supply: 'stimpack' | 'radaway') =>
+  runAction(
+    () => dwellerMedicalStore.issueMedicalSupply(vaultId.value, dwellerId.value, supply, authStore.token as string),
+    { flag: issuingMedicalSupply, errorMessage: 'Failed to issue medical supply', refreshVault: true }
+  )
+
+const handleRename = (name: string) =>
+  runAction(() => dwellerManagementStore.renameDweller(dwellerId.value, name, authStore.token as string), {
+    errorMessage: 'Failed to rename dweller',
+  })
+
+const showRenameDialog = ref(false)
+const renameDialogName = ref('')
+
+const openRenameDialog = () => {
+  renameDialogName.value = dweller.value?.first_name ?? ''
+  showRenameDialog.value = true
 }
 
-const usingStimpack = ref(false)
-const usingRadaway = ref(false)
-const issuingMedicalSupply = ref(false)
-const unassigning = ref(false)
-const isEditingName = ref(false)
-const editedName = ref('')
-const renamingInProgress = ref(false)
-
-const handleUseStimpack = async () => {
-  if (!dweller.value || usingStimpack.value) return
-
-  usingStimpack.value = true
-  try {
-    await dwellerMedicalStore.useStimpack(dwellerId.value, authStore.token as string)
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-  } catch (error) {
-    toast.error('Failed to use Stimpack')
-  } finally {
-    usingStimpack.value = false
-  }
+const confirmRename = () => {
+  const name = renameDialogName.value.trim()
+  if (!name) return
+  showRenameDialog.value = false
+  void handleRename(name)
 }
 
-const handleUseRadaway = async () => {
-  if (!dweller.value || usingRadaway.value) return
-
-  usingRadaway.value = true
-  try {
-    await dwellerMedicalStore.useRadaway(dwellerId.value, authStore.token as string)
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-  } catch (error) {
-    toast.error('Failed to use RadAway')
-  } finally {
-    usingRadaway.value = false
-  }
-}
-
-const handleIssueMedicalSupply = async (supply: 'stimpack' | 'radaway') => {
-  if (!dweller.value || issuingMedicalSupply.value || !authStore.token) return
-
-  issuingMedicalSupply.value = true
-  try {
-    const result = await dwellerMedicalStore.issueMedicalSupply(
-      vaultId.value,
-      dwellerId.value,
-      supply,
-      authStore.token
-    )
-    if (result) {
-      await Promise.all([
-        dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true),
-        vaultStore.refreshVault(vaultId.value, authStore.token),
-      ])
-    }
-  } finally {
-    issuingMedicalSupply.value = false
-  }
-}
-
-const handleUnassign = async () => {
-  if (!dweller.value || unassigning.value) return
-
-  unassigning.value = true
-  try {
-    await dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string)
-    await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-  } catch (error) {
-    toast.error('Failed to unassign dweller')
-  } finally {
-    unassigning.value = false
-  }
-}
-
-const handleTrainingStarted = async () => {
-  await dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token as string, true)
-}
-
-const startEditingName = () => {
-  if (!dweller.value) return
-  editedName.value = dweller.value.first_name
-  isEditingName.value = true
-}
-
-const cancelEditingName = () => {
-  isEditingName.value = false
-  editedName.value = ''
-}
-
-const saveNewName = async () => {
-  if (!editedName.value.trim() || renamingInProgress.value) return
-
-  renamingInProgress.value = true
-  try {
-    const result = await dwellerManagementStore.renameDweller(
-      dwellerId.value,
-      editedName.value.trim(),
-      authStore.token as string
-    )
-    if (result) {
-      isEditingName.value = false
-      editedName.value = ''
-    }
-  } finally {
-    renamingInProgress.value = false
-  }
-}
+const handleTrainingStarted = () => refetch()
 </script>
 
 <template>
@@ -416,150 +265,63 @@ const saveNewName = async () => {
     <div class="scanlines"></div>
 
     <div class="vault-layout">
-      <!-- Side Panel -->
       <SidePanel />
 
-      <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
-          <!-- Loading State -->
           <div v-if="loading" class="loading-container">
             <Icon icon="mdi:loading" class="loading-icon animate-spin" />
             <p class="loading-text">Loading dweller details...</p>
           </div>
 
-          <!-- Error State -->
           <div v-else-if="!dweller" class="error-container">
             <Icon icon="mdi:alert-circle" class="error-icon" />
             <p class="error-text">Dweller not found</p>
             <BackButton label="Back to Dwellers" @click="goBack" />
           </div>
 
-          <!-- Dweller Detail -->
-          <div v-else class="dweller-detail">
-            <!-- Header -->
-            <div class="detail-header">
-              <BackButton label="Back to Dwellers" @click="goBack" />
+          <DwellerDetailPane
+            v-else
+            :dweller="dweller"
+            :vault-id="vaultId"
+            :place-links="placeLinks"
+            :initial-tab="queryTab"
+            :highlight-stat="queryStat"
+            :generating-bio="generatingBio"
+            :generating-appearance="generatingAppearance"
+            :generating-portrait="generatingPortrait"
+            :generating-a-i="generatingAI"
+            :using-stimpack="usingStimpack"
+            :using-radaway="usingRadaway"
+            :issuing-medical-supply="issuingMedicalSupply"
+            :assigning="assigning"
+            :unassigning="unassigning"
+            :revival-loading="revivalLoading"
+            :revival-cost="revivalCost"
+            :available-stimpaks="currentVault?.stimpack"
+            :available-radaways="currentVault?.radaway"
+            @back="goBack"
+            @rename="openRenameDialog"
+            @chat="navigateToChatPage"
+            @assign="handleAssign"
+            @unassign="handleUnassign"
+            @recall="handleRecall"
+            @use-stimpack="handleUseStimpack"
+            @use-radaway="handleUseRadaway"
+            @train="showTrainingModal = true"
+            @send-wasteland="handleSendWasteland"
+            @generate-portrait="generateDwellerPortrait"
+            @issue-medical-supply="handleIssueMedicalSupply"
+            @refresh="handleRefresh"
+            @generate-bio="generateDwellerBio"
+            @generate-appearance="generateDwellerAppearance"
+            @generate-all="generateDwellerInfo"
+            @edit-appearance="showAppearanceEditor = true"
+            @navigate-dweller="navigateToDweller"
+            @revive="handleRevive"
+            @header-name-click="onHeaderNameClick"
+          />
 
-              <div class="header-info">
-                <div class="name-section">
-                  <h1
-                    v-if="!isEditingName"
-                    class="dweller-name cursor-pointer select-none"
-                    @click="dweller.first_name?.toLowerCase() === 'gary' && triggerGaryMode()"
-                  >
-                    {{ dweller.first_name }} {{ dweller.last_name }}
-                  </h1>
-                  <div v-else class="name-edit-section">
-                    <input
-                      v-model="editedName"
-                      type="text"
-                      class="name-input"
-                      placeholder="First name"
-                      maxlength="20"
-                      @keyup.enter="saveNewName"
-                      @keyup.esc="cancelEditingName"
-                      autofocus
-                    />
-                    <UButton
-                      @click="saveNewName"
-                      :disabled="!editedName.trim() || renamingInProgress"
-                      variant="primary"
-                      size="sm"
-                    >
-                      <Icon icon="mdi:check" class="h-4 w-4" />
-                    </UButton>
-                    <UButton @click="cancelEditingName" variant="ghost" size="sm">
-                      <Icon icon="mdi:close" class="h-4 w-4" />
-                    </UButton>
-                  </div>
-                  <UButton
-                    v-if="!isEditingName && !isDead"
-                    @click="startEditingName"
-                    variant="ghost"
-                    size="sm"
-                    class="rename-btn"
-                  >
-                    <Icon icon="mdi:pencil" class="h-4 w-4" />
-                  </UButton>
-                </div>
-                <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
-              </div>
-            </div>
-
-            <!-- Two-Column Layout -->
-            <div class="detail-layout">
-              <!-- Left Column: Dweller Card -->
-              <div class="space-y-6">
-                <DwellerCard
-                  :dweller="dweller"
-                  :image-url="dweller.image_url"
-                  :loading="
-                    generatingAI || usingStimpack || usingRadaway || issuingMedicalSupply || assigning || unassigning
-                  "
-                  :generating-portrait="generatingPortrait"
-                  :available-stimpaks="currentVault?.stimpack"
-                  :available-radaways="currentVault?.radaway"
-                  :issuing-medical-supply="issuingMedicalSupply"
-                  @chat="navigateToChatPage"
-                  @assign="handleAssign"
-                  @unassign="handleUnassign"
-                  @recall="handleRecall"
-                  @use-stimpack="handleUseStimpack"
-                  @use-radaway="handleUseRadaway"
-                  @train="showTrainingModal = true"
-                  @send-wasteland="handleSendWasteland"
-                  @generate-portrait="generateDwellerPortrait"
-                  @issue-medical-supply="handleIssueMedicalSupply"
-                />
-
-                <!-- Revival Section for Dead Dwellers -->
-                <RevivalSection
-                  v-if="isDead && !dweller.is_permanently_dead"
-                  :dweller-id="dwellerId"
-                  :revival-cost="revivalCost"
-                  :loading="revivalLoading"
-                  @revive="handleRevive"
-                />
-
-                <!-- Permanently Dead Notice -->
-                <div
-                  v-else-if="dweller.is_permanently_dead"
-                  class="bg-gray-900 border border-red-500/30 rounded-lg p-4 text-center"
-                >
-                  <Icon icon="mdi:grave-stone" class="h-12 w-12 text-gray-500 mx-auto mb-3" />
-                  <h3 class="text-lg font-bold text-red-500 mb-1">Permanently Deceased</h3>
-                  <p class="text-gray-400 text-sm">
-                    This dweller has passed beyond the revival window.
-                  </p>
-                  <p v-if="dweller.epitaph" class="text-theme-primary/60 italic mt-3 text-sm">
-                    "{{ dweller.epitaph }}"
-                  </p>
-                </div>
-              </div>
-
-              <!-- Right Column: Dweller Panel -->
-              <DwellerPanel
-                :dweller="dweller"
-                :dweller-id="dwellerId"
-                :generating-bio="generatingBio"
-                :generating-appearance="generatingAppearance"
-                :is-any-generating="isAnyGenerating"
-                :vault-id="vaultId"
-                :place-links="placeLinks"
-                :initial-tab="queryTab"
-                :highlight-stat="queryStat"
-                @refresh="handleRefresh"
-                @generate-bio="generateDwellerBio"
-                @generate-appearance="generateDwellerAppearance"
-                @generate-all="generateDwellerInfo"
-                @edit-appearance="showAppearanceEditor = true"
-                @navigate-dweller="navigateToDweller"
-              />
-            </div>
-          </div>
-
-          <!-- Modals -->
           <DwellerAppearanceEditor
             v-if="dweller"
             v-model="showAppearanceEditor"
@@ -581,6 +343,20 @@ const saveNewName = async () => {
             @confirm="handleSendWastelandConfirm"
             @cancel="sendWasteland.cancel"
           />
+
+          <UModal v-model="showRenameDialog" title="Rename Dweller" size="sm">
+            <UInput
+              v-model="renameDialogName"
+              label="First name"
+              placeholder="Dweller name"
+            />
+            <template #footer>
+              <UButton variant="secondary" @click="showRenameDialog = false">Cancel</UButton>
+              <UButton variant="primary" :disabled="!renameDialogName.trim()" @click="confirmRename">
+                Save
+              </UButton>
+            </template>
+          </UModal>
         </div>
       </div>
     </div>
@@ -647,84 +423,5 @@ const saveNewName = async () => {
   font-size: 1.25rem;
   color: var(--color-theme-primary);
   text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
-.dweller-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.detail-header {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.name-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dweller-name {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-  letter-spacing: -0.5px;
-}
-
-.name-edit-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.name-input {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 0.25rem;
-  padding: 0.5rem 1rem;
-  font-family: 'Courier New', monospace;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.name-input:focus {
-  box-shadow: 0 0 15px var(--color-theme-glow);
-  border-color: var(--color-theme-accent);
-}
-
-.rename-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.rename-btn:hover {
-  opacity: 1;
-}
-
-.detail-layout {
-  display: grid;
-  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
-  gap: 2rem;
-  align-items: start;
-}
-
-@media (max-width: 1280px) {
-  .detail-layout {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

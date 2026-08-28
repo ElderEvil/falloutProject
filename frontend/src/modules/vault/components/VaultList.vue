@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useVaultStore } from '../stores/vault'
 import { useVaultOperations } from '../composables/useVaultOperations'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import { parseUtcDate } from '@/core/utils/date'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
@@ -13,7 +12,7 @@ const selectedVaultId = ref<string | null>(null) // Initialize selectedVaultId w
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
-    (a, b) => parseUtcDate(b.updated_at).getTime() - parseUtcDate(a.updated_at).getTime()
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   )
 )
 
@@ -52,7 +51,7 @@ const handleDeleteVault = async (id: string) => {
             Vault {{ vault.number }}
           </h3>
           <p :style="{ color: 'var(--color-theme-accent)' }">
-            Last Updated: {{ parseUtcDate(vault.updated_at).toLocaleString() }}
+            Last Updated: {{ new Date(vault.updated_at).toLocaleString() }}
           </p>
           <p :style="{ color: 'var(--color-theme-accent)' }">
             Bottle Caps: {{ vault.bottle_caps }}

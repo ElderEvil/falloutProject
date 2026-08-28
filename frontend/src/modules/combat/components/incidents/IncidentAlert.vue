@@ -39,7 +39,6 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '../../models/incident'
 import { IncidentType } from '../../models/incident'
-import { parseUtcDate } from '@/core/utils/date'
 
 interface Props {
   incidents: Incident[]
@@ -109,7 +108,13 @@ const incidentSubtitle = computed(() => {
 const elapsedTime = computed(() => {
   if (!primaryIncident.value) return '00:00'
 
-  const startTime = parseUtcDate(primaryIncident.value.start_time).getTime()
+  // Parse as UTC by appending 'Z' if not present, or replace space with 'T' for ISO format
+  let startTimeStr = primaryIncident.value.start_time
+  if (!startTimeStr.endsWith('Z')) {
+    // Convert "2026-07-05 16:58:7" to "2026-07-05T16:58:07Z" (UTC)
+    startTimeStr = startTimeStr.replace(' ', 'T') + 'Z'
+  }
+  const startTime = new Date(startTimeStr).getTime()
   const elapsed = Math.floor((currentTime.value - startTime) / 1000)
 
   const minutes = Math.floor(elapsed / 60)

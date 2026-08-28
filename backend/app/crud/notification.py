@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlmodel import select
@@ -5,7 +6,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.notification import Notification, NotificationCreate, NotificationUpdate
-from app.utils.datetime import utc_now
 
 
 class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUpdate]):
@@ -46,7 +46,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_read = True
-            notification.read_at = utc_now()
+            notification.read_at = datetime.utcnow()
             db.add(notification)
             await db.commit()
             await db.refresh(notification)
@@ -62,7 +62,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         count = 0
         for notification in notifications:
             notification.is_read = True
-            notification.read_at = utc_now()
+            notification.read_at = datetime.utcnow()
             db.add(notification)
             count += 1
 

@@ -22,7 +22,6 @@ from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
 from app.utils.combat import total_combat_power
-from app.utils.datetime import utc_now
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -88,8 +87,10 @@ class IncidentService:
 
         # Check cooldown period (if there are any incidents, check the most recent one)
         if active_incidents:
+            from datetime import datetime
+
             most_recent = max(active_incidents, key=lambda i: i.start_time)
-            seconds_since_last = (utc_now() - most_recent.start_time).total_seconds()
+            seconds_since_last = (datetime.utcnow() - most_recent.start_time).total_seconds()
             if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
                 return False
 

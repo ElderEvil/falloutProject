@@ -9,7 +9,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.utils.datetime import utc_now
 
 
 class IncidentType(StrEnum):
@@ -71,7 +70,7 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
 
     def elapsed_time(self) -> int:
         """Calculate elapsed time since incident started."""
-        return int((utc_now() - self.start_time).total_seconds())
+        return int((datetime.utcnow() - self.start_time).total_seconds())
 
     def should_spread(self) -> bool:
         """Check if incident should spread to adjacent rooms."""
@@ -80,7 +79,7 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
     def resolve(self, success: bool = True) -> None:
         """Resolve the incident."""
         self.status = IncidentStatus.RESOLVED if success else IncidentStatus.FAILED
-        self.end_time = utc_now()
+        self.end_time = datetime.utcnow()
 
     def spread_to_room(self, room_id: str) -> None:
         """Mark incident as spreading to a new room."""

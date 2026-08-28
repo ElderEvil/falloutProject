@@ -9,7 +9,6 @@ import { UAlert, UButton, UProgressBar } from '@/core/components/ui'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import VaultNumberField from '../components/VaultNumberField.vue'
-import { parseUtcDate } from '@/core/utils/date'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -31,7 +30,7 @@ const vaultNumberFieldRef = ref<InstanceType<typeof VaultNumberField> | null>(nu
 
 const sortedVaults = computed(() =>
   [...vaultStore.vaults].sort(
-    (a, b) => parseUtcDate(b.updated_at).getTime() - parseUtcDate(a.updated_at).getTime()
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   )
 )
 const isCreationVisible = computed(() => !sortedVaults.value.length || showCreation.value)
@@ -182,7 +181,7 @@ onMounted(async () => {
                     <p class="text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary">VAULT RECORD</p>
                     <h3 class="mt-1 text-xl font-bold text-theme-primary">Vault {{ vault.number }}</h3>
                   </div>
-                  <p class="text-right text-xs text-theme-primary/60">Updated {{ parseUtcDate(vault.updated_at).toLocaleString() }}</p>
+                  <p class="text-right text-xs text-theme-primary/60">Updated {{ new Date(vault.updated_at).toLocaleString() }}</p>
                 </header>
 
                 <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">

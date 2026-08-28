@@ -1,10 +1,4 @@
-"""Retroactive discovery-unlock backfill service.
-
-Links each DISCOVERY-type wasteland location to the dweller who found it
-(exploration.dweller_id) with ``is_unlocked=True``. Discoveries created before
-the discovery-unlock fix never created a dweller link, so they stayed locked on
-the world map.
-"""
+"""Backfill missing discovery-unlock links."""
 
 from __future__ import annotations
 
@@ -24,8 +18,6 @@ from app.models.wasteland_location import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from pydantic import UUID4
     from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -39,45 +31,30 @@ class DiscoveryBackfillService:
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
-        *,
-        locations: Sequence[WastelandLocation] | None = None,
     ) -> int:
-        """Link every locked DISCOVERY location in a vault to its finding dweller.
-
-        Pass *locations* to avoid a second query when the caller already loaded
-        the vault's discovery rows (e.g. during an all-vault scan).
-        """
-        if locations is None:
-            result = await db_session.execute(
-                select(WastelandLocation).where(
-                    WastelandLocation.vault_id == vault_id,
-                    WastelandLocation.type == LocationTypeEnum.DISCOVERY,
-                    WastelandLocation.exploration_id.is_not(None),
-                )
+        """Link every discovery location to the dweller who found it."""
+        result = await db_session.execute(
+            select(WastelandLocation).where(
+                WastelandLocation.vault_id == vault_id,
+                WastelandLocation.type == LocationTypeEnum.DISCOVERY,
+                WastelandLocation.exploration_id.is_not(None),
             )
-            locations = result.scalars().all()
-
+        )
         fixed = 0
-        for location in locations:
+        for location in result.scalars():
             exploration = await db_session.get(Exploration, location.exploration_id)
             if exploration is None:
                 logger.warning("No exploration %s for location %s", location.exploration_id, location.name)
                 continue
 
-            existing = (
-                (
-                    await db_session.execute(
-                        select(DwellerLocation).where(
-                            DwellerLocation.dweller_id == exploration.dweller_id,
-                            DwellerLocation.location_id == location.id,
-                            DwellerLocation.relation == DwellerLocationRelationEnum.VISITED,
-                        )
-                    )
+            existing = await db_session.execute(
+                select(DwellerLocation).where(
+                    DwellerLocation.dweller_id == exploration.dweller_id,
+                    DwellerLocation.location_id == location.id,
+                    DwellerLocation.relation == DwellerLocationRelationEnum.VISITED,
                 )
-                .scalars()
-                .first()
             )
-            was_locked = existing is None or not existing.is_unlocked
+            was_locked = (link := existing.scalar_one_or_none()) is None or not link.is_unlocked
             await wl_crud.link_dweller(
                 db_session,
                 exploration.dweller_id,
@@ -96,23 +73,14 @@ class DiscoveryBackfillService:
         *,
         max_vaults: int | None = None,
     ) -> dict[UUID4, int]:
-        """Unlock discovery locations across all active (non-deleted) vaults.
-
-        Returns a mapping of ``vault_id`` → number of locations unlocked.
-        Vaults are ordered by creation date for deterministic runs.
-        """
+        """Unlock discoveries in active vaults, ordered by creation date."""
         stmt = select(Vault).where(~Vault.is_deleted).order_by(Vault.created_at)
         if max_vaults is not None:
             stmt = stmt.limit(max_vaults)
         result = await db_session.execute(stmt)
         vaults = result.scalars().all()
 
-        counts: dict[UUID4, int] = {}
-        for vault in vaults:
-            counts[vault.id] = await self.unlock_discoveries_for_vault(db_session, vault.id)
-
-        return counts
+        return {vault.id: await self.unlock_discoveries_for_vault(db_session, vault.id) for vault in vaults}
 
 
-# Module-level singleton — matches the convention used by other services.
 discovery_backfill_service = DiscoveryBackfillService()

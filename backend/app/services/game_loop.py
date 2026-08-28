@@ -2,6 +2,7 @@
 
 import logging
 import random
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,7 +23,6 @@ from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
-from app.utils.datetime import utc_now
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
@@ -49,7 +49,7 @@ class GameLoopService:
             "total_time": 0,
         }
 
-        start_time = utc_now()
+        start_time = datetime.utcnow()
 
         # Get all active vaults
         active_vaults = await self._get_active_vaults(db_session)
@@ -64,7 +64,7 @@ class GameLoopService:
                 self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
-        stats["total_time"] = (utc_now() - start_time).total_seconds()
+        stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
 
         self.logger.info(
             f"Game tick completed: {stats['vaults_processed']} processed, "

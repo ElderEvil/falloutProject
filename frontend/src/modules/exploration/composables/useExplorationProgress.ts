@@ -1,10 +1,11 @@
 import { computed, onMounted, onUnmounted, ref, toValue } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
-import { parseUtcDate } from '@/core/utils/date'
 
 export function parseStartTimeMs(startTime: string): number {
-  return parseUtcDate(startTime).getTime()
+  const normalized = startTime.includes('T') ? startTime : startTime.replace(' ', 'T')
+  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`
+  return new Date(withZone).getTime()
 }
 
 export function getProgressPercentage(exploration: Exploration, nowMs = Date.now()): number {

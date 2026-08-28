@@ -7,7 +7,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.schemas.common import PregnancyStatusEnum
-from app.utils.datetime import utc_now
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -44,7 +43,7 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
     def is_due(self) -> bool:
         """Check if the pregnancy is due for delivery."""
         due_at = self.due_at.replace(tzinfo=None) if self.due_at.tzinfo else self.due_at
-        return utc_now() >= due_at and self.status == PregnancyStatusEnum.PREGNANT
+        return datetime.utcnow() >= due_at and self.status == PregnancyStatusEnum.PREGNANT
 
     @property
     def progress_percentage(self) -> float:
@@ -53,7 +52,7 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
             return 100.0
 
         total_duration = (self.due_at - self.conceived_at).total_seconds()
-        elapsed = (utc_now() - self.conceived_at).total_seconds()
+        elapsed = (datetime.utcnow() - self.conceived_at).total_seconds()
 
         if total_duration <= 0:
             return 100.0
@@ -66,5 +65,5 @@ class Pregnancy(BaseUUIDModel, PregnancyBase, TimeStampMixin, table=True):
         if self.status != PregnancyStatusEnum.PREGNANT:
             return 0
 
-        remaining = (self.due_at - utc_now()).total_seconds()
+        remaining = (self.due_at - datetime.utcnow()).total_seconds()
         return max(0, int(remaining))

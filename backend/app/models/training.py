@@ -9,7 +9,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.schemas.common import SPECIALEnum
-from app.utils.datetime import utc_now
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
@@ -79,7 +78,7 @@ class Training(BaseUUIDModel, TrainingBase, TimeStampMixin, table=True):
         if not self.is_active():
             return 0
 
-        now = utc_now()
+        now = datetime.utcnow()
         if now >= self.estimated_completion_at:
             return 0
 
@@ -90,4 +89,4 @@ class Training(BaseUUIDModel, TrainingBase, TimeStampMixin, table=True):
         """Check if training duration has elapsed and ready to complete."""
         if not self.is_active():
             return False
-        return utc_now() >= self.estimated_completion_at
+        return datetime.utcnow() >= self.estimated_completion_at

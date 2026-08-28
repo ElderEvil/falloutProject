@@ -4,7 +4,6 @@ import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/core/utils/image'
-import { parseUtcDate } from '@/core/utils/date'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
@@ -105,7 +104,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         type: msg.from_user_id ? 'user' : 'dweller',
         content: msg.message_text,
         messageId: msg.id || undefined,
-        timestamp: parseUtcDate(msg.created_at),
+        timestamp: new Date(msg.created_at),
         avatar: msg.from_user_id ? userAvatar.value : options.dwellerAvatar,
         audioUrl: msg.audio_url || undefined,
         transcription: msg.transcription || undefined,

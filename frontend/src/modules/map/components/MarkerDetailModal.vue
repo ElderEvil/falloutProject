@@ -5,7 +5,6 @@ import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import { parseUtcDate } from '@/core/utils/date'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 
 interface Props {
@@ -62,7 +61,7 @@ const recordStatus = computed(() => {
 
 const recordedAt = computed(() => {
   if (!props.location?.created_at) return 'NO DATE LOGGED'
-  return parseUtcDate(props.location.created_at).toLocaleDateString()
+  return new Date(props.location.created_at).toLocaleDateString()
 })
 
 const dwellers = computed(() => {

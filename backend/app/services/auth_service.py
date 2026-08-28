@@ -1,7 +1,7 @@
 """Service for authentication operations: login, token refresh, password management."""
 
 import logging
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import EmailStr
 from pydantic.types import UUID4
@@ -14,7 +14,6 @@ from app.core.config import settings
 from app.core.email import send_password_changed_email, send_password_reset_email, send_verification_email
 from app.models.user import User
 from app.schemas.token import Token
-from app.utils.datetime import utc_now
 from app.utils.exceptions import (
     ResourceNotFoundException,
     ValidationException,
@@ -151,7 +150,7 @@ class AuthService:
 
         # Store token and expiry in database
         user.password_reset_token = token
-        user.password_reset_expires = utc_now() + timedelta(hours=1)
+        user.password_reset_expires = datetime.now(tz=UTC).replace(tzinfo=None) + timedelta(hours=1)
         await db_session.commit()
 
         # Send password reset email
@@ -201,10 +200,10 @@ class AuthService:
 
         if user.password_reset_expires:
             # Handle both timezone-aware and naive datetimes
-            now = utc_now()
+            now = datetime.now(tz=UTC)
             expires = user.password_reset_expires
-            if expires.tzinfo is not None:
-                now = now.replace(tzinfo=UTC)
+            if expires.tzinfo is None:
+                now = now.replace(tzinfo=None)
             if expires < now:
                 raise ValidationException(detail="Token has expired")
 

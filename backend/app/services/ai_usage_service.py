@@ -23,7 +23,6 @@ from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
 from app.schemas.ai_usage import AIUsageResponse, AIUsageStats, QuotaInfo
 from app.services.quota_service import DEFAULT_QUOTA_LIMIT
-from app.utils.datetime import utc_now
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -38,7 +37,7 @@ class AIUsageService:
         user_id: "UUID",
     ) -> AIUsageResponse:
         try:
-            now = utc_now()
+            now = datetime.utcnow()
             current_month_start = datetime(now.year, now.month, 1)
             month_str = now.strftime("%Y-%m")
 

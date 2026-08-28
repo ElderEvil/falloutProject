@@ -1,5 +1,7 @@
 """CRUD operations for explorations."""
 
+from datetime import datetime
+
 from pydantic import UUID4
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -8,7 +10,6 @@ from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
-from app.utils.datetime import utc_now
 
 
 class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate]):
@@ -51,7 +52,7 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             dweller_intelligence=dweller.intelligence,
             dweller_agility=dweller.agility,
             dweller_luck=dweller.luck,
-            start_time=utc_now(),
+            start_time=datetime.utcnow(),
             status=ExplorationStatus.ACTIVE,
         )
         db_session.add(db_obj)

@@ -148,6 +148,8 @@ const previousQuestName = computed(() => {
   return previousQuest?.title || null
 })
 
+const formatDwellerName = (name: string) => name.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
+
 // Format reward details for display
 const formatReward = (reward: {
   reward_type: string
@@ -174,7 +176,9 @@ const formatReward = (reward: {
       return `${itemName}${rarity}`
     }
     case 'dweller': {
-      const name = String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
+      const name = formatDwellerName(
+        String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
+      )
       const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
       return `${name}${rarity}`
     }

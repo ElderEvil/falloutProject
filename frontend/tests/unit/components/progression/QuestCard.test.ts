@@ -40,6 +40,30 @@ describe('QuestCard', () => {
     expect(wrapper.text()).toContain('Start Quest')
   })
 
+  it('capitalizes a dweller reward template name', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_rewards: [
+            {
+              id: 'reward-1',
+              reward_type: 'dweller',
+              reward_data: { template_id: 'lucy-maclean' },
+              reward_chance: 1,
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Lucy Maclean')
+  })
+
   it('shows elapsed progress for an active timed quest', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {

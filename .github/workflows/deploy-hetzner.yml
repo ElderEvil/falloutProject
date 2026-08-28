@@ -156,6 +156,11 @@ jobs:
             echo "Migrations completed."
           EOF
 
+      - name: Verify production environment
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            "kubectl exec deployment/backend -n fallout -- python3 -c \"from app.core.config import settings; assert settings.ENVIRONMENT == 'production', f'Expected ENVIRONMENT=production, got {settings.ENVIRONMENT!r}'\""
+
       - name: Health check
         run: |
           ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'

@@ -30,8 +30,10 @@ dependencies = [
     "aiosmtplib>=5.1.2",
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
-    "fastapi-guard>=7.4.1,<8",
+    "fastapi-guard>=7.7.0,<8",
     "beautifulsoup4>=4.15.0",
+    "cryptography>=50.0.0",
+    "guard-core>=3.12.0,<4",
 ]
 
 [dependency-groups]

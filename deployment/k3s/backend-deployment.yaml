@@ -23,6 +23,8 @@ spec:
             - secretRef:
                 name: backend-env
           env:
+            - name: ENVIRONMENT
+              value: "production"
             - name: LOG_JSON_FORMAT
               value: "true"
             - name: LOG_FILE_PATH

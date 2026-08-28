@@ -10,6 +10,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { QuestCard, PartySelectionModal } from '../components'
@@ -64,6 +65,29 @@ const hasOverseerOffice = computed(() => {
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
 const completedQuests = computed(() => questStore.questCategories.completed)
+
+const refreshActiveQuests = async () => {
+  if (!vaultId.value || activeQuests.value.length === 0) return
+  await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+  await loadPartyMembers()
+}
+
+const { pause: pauseQuestPolling, resume: resumeQuestPolling } = usePolling(refreshActiveQuests, {
+  interval: 30_000,
+  immediate: false,
+})
+
+watch(
+  activeQuests,
+  (quests) => {
+    if (quests.length > 0) {
+      resumeQuestPolling()
+    } else {
+      pauseQuestPolling()
+    }
+  },
+  { immediate: true }
+)
 
 // Get party members for a specific quest
 const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[]> => {
@@ -137,25 +161,6 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   showPartyModal.value = false
   selectedQuest.value = null
   questPartyMembers.value = []
-}
-
-// Handle starting the quest after party assignment
-const handleStartQuestAfterAssign = async () => {
-  if (!vaultId.value || !selectedQuest.value) return
-
-  await questStore.startQuest(vaultId.value, selectedQuest.value.id)
-
-  showPartyModal.value = false
-  selectedQuest.value = null
-  questPartyMembers.value = []
-}
-
-// Original handlers (for backwards compatibility)
-const handleStartQuest = async (questId: string) => {
-  if (!vaultId.value) {
-    return
-  }
-  await questStore.startQuest(vaultId.value, questId)
 }
 
 // Fetch quests on mount
@@ -274,7 +279,6 @@ onMounted(async () => {
                     :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
                     :is-locked="!isQuestUnlocked(quest)"
                     :party-members="questPartyMembersMap[quest.id] || []"
-                    @start="handleStartQuest"
                     @assign-party="handleAssignParty"
                   />
                 </div>

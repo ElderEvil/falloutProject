@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
@@ -19,6 +19,7 @@ describe('QuestsView', () => {
   let _vaultStore: ReturnType<typeof useVaultStore>
 
   beforeEach(() => {
+    vi.useFakeTimers()
     setActivePinia(createPinia())
     questStore = useQuestStore()
     roomStore = useRoomStore()
@@ -29,6 +30,11 @@ describe('QuestsView', () => {
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
+    vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   describe('Overseer Office Check', () => {
@@ -211,6 +217,34 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain('Test quest')
     })
 
+    it('refreshes active quests while a party is away', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'Active Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: { stubs: { SidePanel: true, Icon: true } },
+      })
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
+      expect(questStore.fetchPartiesForActiveQuests).toHaveBeenCalledWith('vault-123')
+    })
+
     it('should display available quests in second section', async () => {
       questStore.vaultQuests = [
         {
@@ -370,7 +404,7 @@ describe('QuestsView', () => {
       ]
     })
 
-    it('should call assignQuest when start button clicked', async () => {
+    it('opens party selection instead of starting a quest directly', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -397,9 +431,9 @@ describe('QuestsView', () => {
             Icon: true,
             QuestCard: {
               template:
-                '<div><button class="start-btn" @click="$emit(\'start\', quest.id)">Start Quest</button></div>',
+                '<div><button class="start-btn" @click="$emit(\'assign-party\', quest.id)">Start Quest</button></div>',
               props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['start', 'complete', 'assign-party'],
+              emits: ['assign-party'],
             },
           },
         },
@@ -411,10 +445,10 @@ describe('QuestsView', () => {
       const startButton = wrapper.find('.start-btn')
       await startButton.trigger('click')
 
-      expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
+      expect(startSpy).not.toHaveBeenCalled()
     })
 
-    it('should call completeQuest when complete button clicked', async () => {
+    it('does not wire a player-side manual completion action', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -454,7 +488,7 @@ describe('QuestsView', () => {
       const completeButton = wrapper.find('.complete-btn')
       await completeButton.trigger('click')
 
-      expect(completeSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
+      expect(completeSpy).not.toHaveBeenCalled()
     })
   })
 

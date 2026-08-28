@@ -33,6 +33,14 @@ AI-powered dweller interactions.
       pass, room-name + compact FIGHT buttons + "send best defenders" in the combat modal, and distinct debug
       spawn errors (disabled → 400, at-cap → 409). Follows the arena prototype previously parked on
       `experiment/arena`.
+- [ ] **AI provider profile + LM Studio support (in review — `feat/ai-settings`)** — DB-backed AI provider
+      settings (profile overrides env, secrets stay in env), admin UI embedded in the Overseer profile,
+      live provider connection test, token-usage estimation for local providers (LM Studio/Ollama), profile
+      re-applied at backend startup, and a chat streaming fallback that re-runs the retry-capable structured
+      path so action suggestions survive a failed local-model validation. **Needs manual testing:** dweller
+      chat streaming + action cards (esp. wasteland exploration via LM Studio), AI Settings tab (save /
+      reset / test connection / copy), profile persistence across backend restarts, and the profile page tabs
+      (Dossier / Vault Analytics / AI Settings).
 
 ---
 
@@ -405,6 +413,16 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
   - Transformation chance: ghoul, synth, super mutant
   - Cross-vault encounters with former dwellers
 
+### Apprentice System & Pets — design fragments (Issue #470)
+
+Loose fragments from the #470 discussion, recorded so the decisions aren't lost. Not a plan yet.
+
+- **Apprentice eligibility** — `child` **and** `teen` age groups (not `adult`).
+- **Apprentice rooms** — `RoomTypeEnum.PRODUCTION` + `RoomTypeEnum.CRAFTING` (covers weapon/outfit crafting and research-style production).
+- **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage; the more skilled the apprentice, the larger the room efficiency bonus.
+- **Pets** — assign to **living quarters (`CAPACITY`)** and **training rooms (`TRAINING`)**; intentionally NOT production/crafting rooms (a pet in a power plant or diner makes no sense). Pets remain a larger feature (new `Pet` model + assignment) tracked under Phase 3.
+- Full Apprentice System (SPECIAL accrual while assigned, production/crafting bonus, assignment UX) is a backend + frontend follow-up; UI groundwork (age badge + age filter) landed in `feat/dweller-ui`.
+
 ### Phase 4: Multiplayer
 
 - Social features (friends, vault visits, leaderboards)
@@ -426,6 +444,11 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
       serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
       not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition
       coverage and to harden `test_vault` segfaults under garbage collection.
+- [ ] Docstring coverage: AI settings / chat services sit at ~32% (ruff `D` rules) vs the 80% repo target — add
+      module and public-method docstrings to `app/services/ai_service.py`, `app/services/chat_service.py`,
+      `app/crud/ai_settings.py`.
+- [ ] `AIService.reconfigure` mutates the global `settings` object (save/restore via `setattr`) instead of building a
+      scoped override — refactor to a pure settings-builder so concurrent requests can't observe intermediate values.
 
 ### Frontend
 
@@ -434,6 +457,10 @@ Unarmed (no weapon) uses a balanced spread with a strength lean.
 - [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
       ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
       Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
+- [ ] Chat error accessibility: announce send failures through a live region (`role="alert" aria-live="polite"`) in the
+      chat UI instead of only console logging.
+- [ ] `useChatMessages.ts` error mapping: fall back to `detail ?? 'Failed to send'` so API `detail` strings surface to
+      the user instead of a generic message.
 
 ### DevOps
 
@@ -525,5 +552,6 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-22_ ("The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
+_Last updated: 2026-08-27_ (apprentice/pet design fragments noted under Planned Features (Future), tracked in #470;
+"The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
 in v2.46.0, and raiding/social multiplayer phases remain parked. Plan: `docs/WORLD_MAP_PLAN.md`.)

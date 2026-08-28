@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import AIUsageCard from '@/modules/profile/components/AIUsageCard.vue'
+import { UProgressBar } from '@/core/components/ui'
 import type { AIUsageStats } from '@/modules/profile/models/aiUsage'
 
 vi.mock('vue-router', () => ({
@@ -249,8 +250,8 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const progressBar = wrapper.find('.bg-theme-primary')
-      expect(progressBar.exists()).toBe(true)
+      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'var(--color-theme-primary)')
+      expect(quotaBars.length).toBeGreaterThan(0)
     })
 
     it('should use amber color at 80%', () => {
@@ -266,8 +267,8 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const progressBar = wrapper.find('.bg-amber-500')
-      expect(progressBar.exists()).toBe(true)
+      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(245 158 11)')
+      expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-amber-500')
       expect(percentageText.exists()).toBe(true)
@@ -286,8 +287,8 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const progressBar = wrapper.find('.bg-amber-500')
-      expect(progressBar.exists()).toBe(true)
+      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(245 158 11)')
+      expect(quotaBars.length).toBeGreaterThan(0)
     })
 
     it('should use red color at 100%', () => {
@@ -303,8 +304,8 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const progressBar = wrapper.find('.bg-red-500')
-      expect(progressBar.exists()).toBe(true)
+      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(239 68 68)')
+      expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-red-500')
       expect(percentageText.exists()).toBe(true)
@@ -323,8 +324,8 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const progressBar = wrapper.find('.bg-red-500')
-      expect(progressBar.exists()).toBe(true)
+      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(239 68 68)')
+      expect(quotaBars.length).toBeGreaterThan(0)
     })
   })
 

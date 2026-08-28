@@ -28,8 +28,17 @@ repos:
     hooks:
       - id: uv-lock
 
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: frontend lint (staged)
+        entry: sh -c 'cd frontend && pnpm exec vp staged'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
   autoupdate_schedule: weekly
-  skip: [ ]
+  skip: [frontend-lint]
   submodules: false

@@ -35,4 +35,5 @@ export interface ChatMessageDisplay {
   isPlaying?: boolean
   happinessImpact?: HappinessImpact | HappinessImpactDisplay | null
   actionSuggestion?: ActionSuggestion | null
+  error?: string
 }

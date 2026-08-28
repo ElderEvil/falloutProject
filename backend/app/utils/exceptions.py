@@ -244,10 +244,14 @@ class QuotaExceededException(HTTPException):
 class AIProviderCreditsExhaustedException(HTTPException):
     """Raised when the configured AI provider has no remaining credits."""
 
-    def __init__(self, headers: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        detail: str | None = None,
+        headers: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI provider credits are exhausted. Please try again later.",
+            detail=detail or "AI provider credits are exhausted. Please try again later.",
             headers=headers,
         )
 

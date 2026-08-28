@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai_settings,
     arena,
     auth,
     chat,
@@ -35,6 +36,7 @@ api_router = APIRouter()
 
 api_router.include_router(system.router)
 api_router.include_router(auth.router)
+api_router.include_router(ai_settings.router)
 api_router.include_router(chat.router)
 # Debug router only registered in debug/development mode
 if settings.ENVIRONMENT in ("local", "development"):

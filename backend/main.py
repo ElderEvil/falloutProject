@@ -40,6 +40,7 @@ from app.core.logfire_config import configure_logfire
 from app.core.logging import setup_logging
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
+from app.services.ai_settings_service import ai_settings_service
 from app.services.health_check import HealthCheckService
 from app.services.objective_evaluators import evaluator_manager
 from app.services.objective_notifications import register_objective_event_handlers
@@ -91,6 +92,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     async for session in get_async_session():
         quest_count = await seed_quests_from_json(session)
         objective_count = await seed_objectives_from_json(session)
+
+        # Re-apply the DB AI-provider profile so the chat agent uses the
+        # configured provider across restarts (a profile only takes effect
+        # on save otherwise, and a fresh process falls back to env defaults).
+        await ai_settings_service.apply(session)
 
         if quest_count > 0:
             logger.info("Quest seeding complete: %d quests added", quest_count)

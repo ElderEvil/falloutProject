@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.52.0](https://github.com/ElderEvil/falloutProject/compare/v2.51.0...v2.52.0) (2026-08-27)
+
+### Features
+
+* dweller age filter, age badges, and arena room-stat ([0eb8fee](https://github.com/ElderEvil/falloutProject/commit/0eb8feeec5a615204f2c2823c30d38fde6495f38))
+* send dwellers to the wasteland from the detail page ([d5e28a5](https://github.com/ElderEvil/falloutProject/commit/d5e28a54d64023b8f87ece48c1e8917194520c70))
+
+### Bug Fixes
+
+* **frontend:** add aria-label and role to DwellerAgeBadge ([eef92b4](https://github.com/ElderEvil/falloutProject/commit/eef92b4c635f120ee64166461f1b8da5c4de8b1b))
+* **frontend:** do not mask dispatch success when list refresh fails ([efb0cd0](https://github.com/ElderEvil/falloutProject/commit/efb0cd0935c51106fcc42a2fde981637a70d1817))
+* **frontend:** DwellerAgeBadge uses CSS variable instead of inline style ([44f684a](https://github.com/ElderEvil/falloutProject/commit/44f684a613ad1fde9ab32e1fc080d1e6d1f4909f))
+* **frontend:** hide Send to Wasteland action for dead dwellers ([c809f7b](https://github.com/ElderEvil/falloutProject/commit/c809f7b2cca01697e913d0e11bd0ac9bd999a745))
+* **frontend:** render consistent room stat in grid and list views ([85a24eb](https://github.com/ElderEvil/falloutProject/commit/85a24eb8410d5887232ba969799c0785ddf684f4))
+* make wasteland dispatch atomic ([c7c1892](https://github.com/ElderEvil/falloutProject/commit/c7c18923c61ed8051879e41b7fe8342985213b2d))
+* refresh wasteland dispatch state ([9ba691a](https://github.com/ElderEvil/falloutProject/commit/9ba691a11a2cb098f8c29f2d42df138be4310163))
+
+### Documentation
+
+* capture apprentice/pet design fragments for [#470](https://github.com/ElderEvil/falloutProject/issues/470) ([c5e341d](https://github.com/ElderEvil/falloutProject/commit/c5e341d6c4542cb0b4243b79e8e58d4878630a22))
+
+## [2.51.0](https://github.com/ElderEvil/falloutProject/compare/v2.50.0...v2.51.0) (2026-08-27)
+
+### Features
+
+* AI settings admin UI and Overseer profile redesign ([1513024](https://github.com/ElderEvil/falloutProject/commit/15130245a71ce22e1ebc9840801dba6642d33bf5))
+* DB-backed AI provider profile with LM Studio support ([efb3802](https://github.com/ElderEvil/falloutProject/commit/efb3802e7815c44ca34c1028022eba14f71c4d06))
+* DB-backed AI provider settings profile with LM Studio support ([afaceea](https://github.com/ElderEvil/falloutProject/commit/afaceea25b5b25e8708bfc9267a8a98457995d1d))
+
+### Bug Fixes
+
+* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — scoped styles, singleton race, base_url ([3f5f9e3](https://github.com/ElderEvil/falloutProject/commit/3f5f9e302a67de752175577b1a869a168424d933))
+* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — streaming credits detail, chat error fallback, restore SidePanel vault-id ([0dda17a](https://github.com/ElderEvil/falloutProject/commit/0dda17a3708f496fe9efe3a22104924cb4870766))
+* estimate token components independently and harden singleton AI-settings upsert ([70c240c](https://github.com/ElderEvil/falloutProject/commit/70c240c2b5828819f00fe53a9b39c039b68f96f1))
+* make AI settings singleton row a valid UUID4 and update AIUsageCard progress-bar tests ([9a397bc](https://github.com/ElderEvil/falloutProject/commit/9a397bcf5b9d02af52e9304f29f553ae946bdde7))
+* preserve chat action suggestions when streaming output fails ([f9f0394](https://github.com/ElderEvil/falloutProject/commit/f9f0394e4c993dbdd05b605e79eff03150c69686))
+* surface exact AI provider error reason to chat users ([72c6f31](https://github.com/ElderEvil/falloutProject/commit/72c6f31d73d1b390524ec0e4232fad796bab8ae7))
+
+### Documentation
+
+* note manual testing for AI provider workstream ([068da94](https://github.com/ElderEvil/falloutProject/commit/068da94c2f523ee5fa7cf17388497a4d2101838f))
+
 ## [2.50.0](https://github.com/ElderEvil/falloutProject/compare/v2.49.0...v2.50.0) (2026-08-23)
 
 ### Features

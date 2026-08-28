@@ -14,10 +14,11 @@ import WastelandDropzone from '@/modules/exploration/components/WastelandDropzon
 import ActiveExplorationList from '@/modules/exploration/components/ActiveExplorationList.vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
 import ExplorationRewardsModal from '@/modules/exploration/components/ExplorationRewardsModal.vue'
+import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 
 const route = useRoute()
 const authStore = useAuthStore()
-const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const vaultStore = useVaultStore()
 const toast = useToast()
@@ -33,13 +34,9 @@ const vaultMedicalSupplies = computed(() => {
   }
 })
 
-const showDurationModal = ref(false)
-const pendingDweller = ref<{
-  dwellerId: string
-  firstName: string
-  lastName: string
-  currentRoomId?: string
-} | null>(null)
+const sendWasteland = useSendToWasteland(() => vaultId.value)
+
+watch(vaultId, () => sendWasteland.cancel())
 
 // Rewards modal state
 const showRewardsModal = ref(false)
@@ -141,58 +138,24 @@ const handleDropDweller = (payload: {
   lastName: string
   currentRoomId?: string
 }) => {
-  pendingDweller.value = payload
-  showDurationModal.value = true
+  sendWasteland.open(payload)
 }
 
 const handleDropError = (message: string) => {
   toast.error(message)
 }
 
-// --- Duration modal handlers ---
-
-const handleDurationConfirm = async (payload: {
+const handleSendWastelandConfirm = (payload: {
   duration: number
   stimpaks: number
   radaways: number
-}) => {
-  if (!pendingDweller.value || !vaultId.value) return
-  if (!authStore.token) return
-
-  try {
-    const { dwellerId, firstName, lastName, currentRoomId } = pendingDweller.value
-
-    // If dweller is assigned to a room, unassign them first
-    if (currentRoomId) {
-      await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, authStore.token)
-    }
-
-    // Send to wasteland
-    await explorationStore.sendDwellerToWasteland(
-      vaultId.value,
-      dwellerId,
-      payload.duration,
-      authStore.token,
-      payload.stimpaks,
-      payload.radaways
-    )
-
-    toast.success(
-      `${firstName} ${lastName} sent to the wasteland for ${payload.duration} hour(s)!`
-    )
-
-    // Close modal and reset
-    showDurationModal.value = false
-    pendingDweller.value = null
-  } catch (error) {
-    toast.error('Failed to send dweller to wasteland')
-  }
-}
-
-const handleDurationCancel = () => {
-  showDurationModal.value = false
-  pendingDweller.value = null
-}
+}) =>
+  sendWasteland.confirm(payload, () =>
+    Promise.all([
+      vaultStore.refreshVault(vaultId.value, authStore.token as string),
+      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string),
+    ]).then(() => undefined)
+  )
 
 // --- Explorer actions ---
 
@@ -313,12 +276,12 @@ const detailedDwellerMap = computed(() =>
 
     <!-- Duration Selection Modal -->
     <ExplorationDurationModal
-      :show="showDurationModal"
-      :dweller-name="pendingDweller?.firstName ?? ''"
+      :show="sendWasteland.showModal.value"
+      :dweller-name="sendWasteland.pendingDweller.value?.firstName ?? ''"
       :max-stimpaks="vaultMedicalSupplies.stimpaks"
       :max-radaways="vaultMedicalSupplies.radaways"
-      @confirm="handleDurationConfirm"
-      @cancel="handleDurationCancel"
+      @confirm="handleSendWastelandConfirm"
+      @cancel="sendWasteland.cancel"
     />
 
     <!-- Rewards Modal -->

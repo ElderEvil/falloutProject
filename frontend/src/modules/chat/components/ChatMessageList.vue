@@ -88,6 +88,11 @@ const emit = defineEmits<{
       </div>
       <div class="message-content">{{ message.content }}</div>
 
+      <div v-if="message.error" class="message-error">
+        <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
+        <span>{{ message.error }}</span>
+      </div>
+
       <div
         v-if="
           message.type === 'dweller' &&

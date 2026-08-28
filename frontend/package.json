@@ -34,7 +34,7 @@
   "devDependencies": {
     "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@tsconfig/node22": "^22.0.5",
+    "@tsconfig/node22": "^22.0.6",
     "@types/jsdom": "28.0.3",
     "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.8",
@@ -47,9 +47,9 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.2",
-    "vite-plus": "0.2.7",
+    "vite-plus": "0.2.9",
     "vitest": "4.1.10",
-    "vue-tsc": "^3.3.9"
+    "vue-tsc": "^3.3.10"
   },
   "engines": {
     "node": ">=22",

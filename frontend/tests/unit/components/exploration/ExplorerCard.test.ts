@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { UProgressBar } from '@/core/components/ui'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
@@ -88,6 +89,7 @@ describe('ExplorerCard', () => {
     vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
+    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.find('.progress-percentage').text()).toBe('13%')
     expect(wrapper.find('.progress-time').text()).toBe('7h 0m remaining')
     expect(vi.getTimerCount()).toBe(1)

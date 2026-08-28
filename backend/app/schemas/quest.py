@@ -33,6 +33,7 @@ class QuestRead(QuestBase):
     next_quest_id: UUID4 | None = None
     is_visible: bool = True
     is_completed: bool = False
+    is_reward_ready: bool = False
     started_at: datetime | None = None
     duration_minutes: int | None = None
     quest_requirements: list[QuestRequirementRead] | None = None

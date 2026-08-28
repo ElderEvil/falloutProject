@@ -341,6 +341,7 @@ def cleanup_old_records():
 # Every minute (60 seconds)
 game_tick.options["periodic"] = periodiq.cron("* * * * *")
 incident_tick.options["periodic"] = periodiq.cron("*/2 * * * *")
+check_quest_completion.options["periodic"] = periodiq.cron("* * * * *")
 
 # Daily at midnight
 check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { Icon } from '@iconify/vue'
+import { UProgressBar } from '@/core/components/ui'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -37,5 +39,77 @@ describe('QuestCard', () => {
     expect(wrapper.find('.quest-card-content').classes()).toContain('flex-1')
     expect(wrapper.html()).toContain('mt-4')
     expect(wrapper.text()).toContain('Start Quest')
+  })
+
+  it('capitalizes a dweller reward template name', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_rewards: [
+            {
+              id: 'reward-1',
+              reward_type: 'dweller',
+              reward_data: { template_id: 'lucy-maclean' },
+              reward_chance: 1,
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Lucy Maclean')
+  })
+
+  it('shows elapsed progress for an active timed quest', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          duration_minutes: 60,
+        },
+        vaultId: 'vault-1',
+        status: 'active',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
+    expect(wrapper.find('.quest-progress-bar').exists()).toBe(true)
+    expect(wrapper.find('.timer-progress').text()).toMatch(/% complete/)
+  })
+
+  it('keeps completed progress visible while rewards await a claim', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          duration_minutes: 60,
+        },
+        vaultId: 'vault-1',
+        status: 'ready',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBe(100)
+    expect(wrapper.text()).toContain('Complete')
+  })
+
+  it('uses a reward icon when a quest is ready to claim', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: { quest, vaultId: 'vault-1', status: 'ready', partyMembers: [] },
+    })
+
+    expect(wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')).toBe(true)
   })
 })

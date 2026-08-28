@@ -215,6 +215,18 @@ describe('Quest Store', () => {
       await expect(store.fetchVaultQuests('vault-123')).rejects.toThrow('Vault not found')
       expect(store.isLoading).toBe(false)
     })
+
+    it('keeps the cached list intact when the API payload is not a list', async () => {
+      const store = useQuestStore()
+      store.vaultQuests = [{ id: 'cached' } as VaultQuest]
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { detail: 'Unexpected response' } })
+
+      await expect(store.fetchVaultQuests('vault-123', { silent: true })).rejects.toThrow(
+        'Expected a list of vault quests'
+      )
+
+      expect(store.vaultQuests).toEqual([{ id: 'cached' }])
+    })
   })
 
   describe('assignQuest', () => {
@@ -255,8 +267,8 @@ describe('Quest Store', () => {
     })
   })
 
-  describe('completeQuest', () => {
-    it('should complete quest and refresh vault quests', async () => {
+  describe('claimQuestRewards', () => {
+    it('should claim rewards and refresh vault quests', async () => {
       const completedQuest = {
         id: 'quest-1',
         title: 'Quest 1',
@@ -270,24 +282,26 @@ describe('Quest Store', () => {
         is_completed: true,
       }
 
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { success: true } })
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: { quest_id: 'quest-1', quest_title: 'Quest 1', is_completed: true, granted_rewards: [] },
+      })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedQuest] })
 
       const store = useQuestStore()
-      await store.completeQuest('vault-123', 'quest-1')
+      await store.claimQuestRewards('vault-123', 'quest-1')
 
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/complete')
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/claim-rewards')
       expect(axios.get).toHaveBeenCalledWith(
         '/api/v1/quests/vault-123/',
         expect.objectContaining({ headers: expect.any(Object) })
       )
     })
 
-    it('should handle complete error', async () => {
+    it('should handle reward claim error', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Quest not found'))
 
       const store = useQuestStore()
-      await expect(store.completeQuest('vault-123', 'quest-1')).rejects.toThrow('Quest not found')
+      await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow('Quest not found')
     })
   })
 

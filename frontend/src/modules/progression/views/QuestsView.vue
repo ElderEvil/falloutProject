@@ -10,8 +10,10 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
+import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
+import { UButton, UModal } from '@/core/components/ui'
 import { QuestCard, PartySelectionModal } from '../components'
 import type { VaultQuest } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -51,6 +53,8 @@ const showPartyModal = ref(false)
 const selectedQuest = ref<VaultQuest | null>(null)
 const questPartyMembers = ref<DwellerShort[]>([])
 const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
+const showClaimModal = ref(false)
+const claimQuest = ref<VaultQuest | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -63,7 +67,31 @@ const hasOverseerOffice = computed(() => {
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
+const readyToClaimQuests = computed(() => questStore.questCategories.readyToClaim)
 const completedQuests = computed(() => questStore.questCategories.completed)
+
+const refreshActiveQuests = async () => {
+  if (!vaultId.value || activeQuests.value.length === 0) return
+  await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+  await loadPartyMembers()
+}
+
+const { pause: pauseQuestPolling, resume: resumeQuestPolling } = usePolling(refreshActiveQuests, {
+  interval: 30_000,
+  immediate: false,
+})
+
+watch(
+  activeQuests,
+  (quests) => {
+    if (quests.length > 0) {
+      resumeQuestPolling()
+    } else {
+      pauseQuestPolling()
+    }
+  },
+  { immediate: true }
+)
 
 // Get party members for a specific quest
 const getPartyMembersForQuest = async (quest: VaultQuest): Promise<DwellerShort[]> => {
@@ -139,28 +167,23 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   questPartyMembers.value = []
 }
 
-// Handle starting the quest after party assignment
-const handleStartQuestAfterAssign = async () => {
-  if (!vaultId.value || !selectedQuest.value) return
-
-  await questStore.startQuest(vaultId.value, selectedQuest.value.id)
-
-  showPartyModal.value = false
-  selectedQuest.value = null
-  questPartyMembers.value = []
+const handleClaimRewards = async (questId: string) => {
+  claimQuest.value = readyToClaimQuests.value.find((quest) => quest.id === questId) ?? null
+  showClaimModal.value = claimQuest.value !== null
 }
 
-// Original handlers (for backwards compatibility)
-const handleStartQuest = async (questId: string) => {
-  if (!vaultId.value) {
-    return
-  }
-  await questStore.startQuest(vaultId.value, questId)
+const confirmClaimRewards = async () => {
+  if (!vaultId.value || !claimQuest.value) return
+  await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
+  showClaimModal.value = false
+  claimQuest.value = null
 }
 
-const handleCompleteQuest = async (questId: string) => {
-  if (!vaultId.value) return
-  await questStore.completeQuest(vaultId.value, questId)
+const rewardLabel = (reward: NonNullable<VaultQuest['quest_rewards']>[number]) => {
+  const data = reward.reward_data
+  if (reward.reward_type === 'item') return String(data.item_name || reward.item_data?.name || 'Item')
+  if (reward.reward_type === 'dweller') return String(data.template_id || data.name || 'New Dweller').replaceAll('-', ' ')
+  return String(data.amount || reward.reward_type)
 }
 
 // Fetch quests on mount
@@ -238,6 +261,23 @@ onMounted(async () => {
 
             <!-- Active & Available Quests -->
             <div v-if="activeTab === 'active'" class="tab-content">
+              <div v-if="readyToClaimQuests.length > 0" class="quest-section">
+                <h2 class="section-title">
+                  <Icon icon="mdi:treasure-chest" class="inline mr-2" />
+                  REWARDS READY TO CLAIM
+                </h2>
+                <div class="quest-grid">
+                  <QuestCard
+                    v-for="quest in readyToClaimQuests"
+                    :key="quest.id"
+                    :quest="quest"
+                    :vault-id="vaultId"
+                    status="ready"
+                    @claim="handleClaimRewards"
+                  />
+                </div>
+              </div>
+
               <!-- Active Quests Section -->
               <div v-if="activeQuests.length > 0" class="quest-section">
                 <h2 class="section-title">
@@ -252,7 +292,6 @@ onMounted(async () => {
                     :vault-id="vaultId"
                     status="active"
                     :party-members="questPartyMembersMap[quest.id] || []"
-                    @complete="handleCompleteQuest"
                     @assign-party="handleAssignParty"
                   />
                 </div>
@@ -280,7 +319,6 @@ onMounted(async () => {
                     :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
                     :is-locked="!isQuestUnlocked(quest)"
                     :party-members="questPartyMembersMap[quest.id] || []"
-                    @start="handleStartQuest"
                     @assign-party="handleAssignParty"
                   />
                 </div>
@@ -288,7 +326,7 @@ onMounted(async () => {
 
               <!-- Empty State -->
               <div
-                v-if="activeQuests.length === 0 && filteredAvailableQuests.length === 0"
+                v-if="readyToClaimQuests.length === 0 && activeQuests.length === 0 && filteredAvailableQuests.length === 0"
                 class="empty-state"
               >
                 <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
@@ -325,6 +363,28 @@ onMounted(async () => {
             :current-party="questPartyMembers"
             @assign="handleAssignAndStart"
           />
+
+          <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
+            <div v-if="claimQuest" class="space-y-4 font-mono text-terminal-green">
+              <p class="terminal-glow">{{ claimQuest.title }} has returned. Confirm delivery to your vault.</p>
+              <div class="border border-terminal-green/50 bg-surface-sunken p-3">
+                <p class="mb-2 text-xs tracking-widest text-theme-accent">MANIFEST</p>
+                <ul class="space-y-2">
+                  <li v-for="reward in claimQuest.quest_rewards || []" :key="reward.id" class="flex justify-between">
+                    <span>{{ rewardLabel(reward) }}</span>
+                    <span class="text-theme-accent">{{ reward.reward_type }}</span>
+                  </li>
+                </ul>
+              </div>
+              <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
+            </div>
+            <template #footer>
+              <div class="flex w-full justify-end gap-3 p-5 pt-0">
+                <UButton variant="secondary" @click="showClaimModal = false">Review Later</UButton>
+                <UButton class="confirm-claim-btn" variant="primary" @click="confirmClaimRewards">Confirm & Claim</UButton>
+              </div>
+            </template>
+          </UModal>
         </PageContentRail>
       </div>
     </div>

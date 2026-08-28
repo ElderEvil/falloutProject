@@ -10,7 +10,9 @@ from sqlmodel import select
 
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
+from app.models.quest_reward import QuestReward
 from app.utils.seed_quests import seed_quests_from_json
+from app.utils.static_data import game_data_store
 
 
 @pytest.mark.asyncio
@@ -51,6 +53,209 @@ async def test_seed_quests_from_json_basic(async_session: AsyncSession, tmp_path
     assert quest.long_description == "This is a test quest for seeding"
     assert quest.requirements == "Level 5 dwellers"
     assert quest.rewards == "100 caps"
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_persists_item_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Seeded item rewards retain the data needed to grant the listed item."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Rewarded Quest",
+            "Long description": "A quest with an outfit reward.",
+            "Short description": "Earn an outfit",
+            "Requirements": "Level 1",
+            "Rewards": "Vault Suit",
+            "quest_rewards": [
+                {
+                    "reward_type": "ITEM",
+                    "reward_data": {"item_name": "Vault Suit", "quantity": 1},
+                    "item_data": {
+                        "item_type": "outfit",
+                        "name": "Vault Suit",
+                        "rarity": "rare",
+                        "outfit_type": "jumpsuit",
+                    },
+                }
+            ],
+        }
+    ]
+    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Rewarded Quest"))).scalar_one()
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+    assert reward.item_data == {
+        "item_type": "outfit",
+        "name": "Vault Suit",
+        "rarity": "rare",
+        "outfit_type": "jumpsuit",
+    }
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_updates_existing_reward_payload(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding adds typed item data to an existing quest reward."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Existing Reward Quest",
+            "Long description": "A quest whose reward data was improved.",
+            "Short description": "Upgrade its reward",
+            "Requirements": "Level 1",
+            "Rewards": "Vault Suit",
+            "quest_rewards": [
+                {
+                    "reward_type": "ITEM",
+                    "reward_data": {"item_name": "Vault Suit", "quantity": 1},
+                    "item_data": {"item_type": "outfit", "name": "Vault Suit", "rarity": "rare"},
+                }
+            ],
+        }
+    ]
+    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    existing_quest = Quest(
+        title="Existing Reward Quest",
+        short_description="Upgrade its reward",
+        long_description="A quest whose reward data was improved.",
+        requirements="Level 1",
+        rewards="Vault Suit",
+    )
+    async_session.add(existing_quest)
+    await async_session.flush()
+    async_session.add(
+        QuestReward(
+            quest_id=existing_quest.id,
+            reward_type="item",
+            reward_data={"item_name": "Vault Suit", "quantity": 1},
+        )
+    )
+    await async_session.commit()
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    reward = (
+        await async_session.execute(select(QuestReward).where(QuestReward.quest_id == existing_quest.id))
+    ).scalar_one()
+    assert reward.item_data == {"item_type": "outfit", "name": "Vault Suit", "rarity": "rare"}
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding matches a changed reward to its existing reward slot."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_file = quest_dir / "rewards.json"
+    quest_data = [
+        {
+            "Quest name": "Mutable Reward Quest",
+            "Long description": "A quest with a balance adjustment.",
+            "Short description": "Update reward",
+            "Requirements": "Level 1",
+            "Rewards": "100 caps",
+            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
+        }
+    ]
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    await seed_quests_from_json(async_session, quest_dir=quest_dir)
+
+    quest_data[0]["quest_rewards"][0]["reward_data"] = {"amount": 250}
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Mutable Reward Quest"))).scalar_one()
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+    assert reward.reward_data == {"amount": 250}
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_adds_new_rewards_to_existing_quest(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding creates a reward appended to an already-seeded quest."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_file = quest_dir / "rewards.json"
+    quest_data = [
+        {
+            "Quest name": "Expanding Reward Quest",
+            "Long description": "A quest whose reward list grows.",
+            "Short description": "Add a reward",
+            "Requirements": "Level 1",
+            "Rewards": "100 caps",
+            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
+        }
+    ]
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    await seed_quests_from_json(async_session, quest_dir=quest_dir)
+
+    quest_data[0]["quest_rewards"].append({"reward_type": "STIMPAK", "reward_data": {"quantity": 2}})
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Expanding Reward Quest"))).scalar_one()
+    rewards = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
+    assert sorted((reward.reward_type.value, reward.reward_data) for reward in rewards) == [
+        ("caps", {"amount": 100}),
+        ("stimpak", {"quantity": 2}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_migrates_legacy_dweller_reward_to_template(
+    async_session: AsyncSession, tmp_path: Path
+) -> None:
+    """A former name-based dweller reward becomes a template reference."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Recruit Lucy",
+            "Long description": "Recruit a capable vault dweller.",
+            "Short description": "Find Lucy",
+            "Requirements": "Level 20",
+            "Rewards": "Lucy MacLean",
+            "quest_rewards": [{"reward_type": "DWELLER", "reward_data": {"template_id": "lucy-maclean"}}],
+        }
+    ]
+    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    quest = Quest(
+        title="Recruit Lucy",
+        short_description="Find Lucy",
+        long_description="Recruit a capable vault dweller.",
+        requirements="Level 20",
+        rewards="Lucy MacLean",
+    )
+    async_session.add(quest)
+    await async_session.flush()
+    async_session.add(QuestReward(quest_id=quest.id, reward_type="dweller", reward_data={"name": "Lucy MacLean"}))
+    await async_session.commit()
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+    assert reward.reward_data == {"template_id": "lucy-maclean"}
+
+
+def test_dweller_quest_rewards_reference_canonical_templates() -> None:
+    """Every static dweller reward must resolve to an owned template."""
+    for chain in game_data_store.quests:
+        for quest in chain.quests:
+            for reward in quest.quest_rewards:
+                if reward.reward_type.upper() == "DWELLER":
+                    template_id = reward.reward_data.get("template_id")
+                    assert template_id, f"{quest.quest_name} is missing a dweller template_id"
+                    assert game_data_store.get_dweller(template_id), f"Unknown template {template_id}"
 
 
 @pytest.mark.asyncio

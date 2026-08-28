@@ -6,7 +6,7 @@ import { useQuestStore } from '../stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { UCard, UBadge, UButton, UModal } from '@/core/components/ui'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -102,13 +102,15 @@ const canStart = computed(() => {
   return !quest.value?.is_visible && !quest.value?.is_completed && prerequisitesMet.value
 })
 
-const canComplete = computed(() => {
-  return quest.value?.is_visible && !quest.value?.is_completed
+const isInProgress = computed(() => {
+  return quest.value?.started_at != null && !quest.value?.is_completed && !quest.value?.is_reward_ready
 })
 
 const isCompleted = computed(() => {
   return quest.value?.is_completed
 })
+const isRewardReady = computed(() => quest.value?.is_reward_ready && !quest.value?.is_completed)
+const showClaimModal = ref(false)
 
 const handleStartQuest = async () => {
   if (!vaultId.value || !questId.value) return
@@ -121,15 +123,12 @@ const handleStartQuest = async () => {
   }
 }
 
-const handleCompleteQuest = async () => {
+const confirmClaimRewards = async () => {
   if (!vaultId.value || !questId.value) return
-  await questStore.completeQuest(vaultId.value, questId.value)
-  // Refresh quest data
+  await questStore.claimQuestRewards(vaultId.value, questId.value)
   await questStore.fetchVaultQuests(vaultId.value)
-  const updatedQuest = questStore.vaultQuests.find((q) => q.id === questId.value)
-  if (updatedQuest) {
-    quest.value = updatedQuest
-  }
+  quest.value = questStore.vaultQuests.find((item) => item.id === questId.value) ?? quest.value
+  showClaimModal.value = false
 }
 
 const goBack = () => {
@@ -193,7 +192,7 @@ const goBack = () => {
                 <Icon icon="mdi:check-circle" class="banner-icon" />
                 Quest Completed
               </div>
-              <div v-else-if="canComplete" class="active-banner">
+              <div v-else-if="isInProgress" class="active-banner">
                 <Icon icon="mdi:progress-check" class="banner-icon" />
                 Quest In Progress
               </div>
@@ -284,15 +283,15 @@ const goBack = () => {
                     Start Quest
                   </UButton>
 
-                  <UButton
-                    v-else-if="canComplete"
-                    variant="success"
-                    class="action-btn"
-                    @click="handleCompleteQuest"
-                  >
-                    <Icon icon="mdi:check-bold" class="btn-icon" />
-                    Complete Quest
+                  <UButton v-else-if="isRewardReady" variant="primary" class="action-btn" @click="showClaimModal = true">
+                    <Icon icon="mdi:treasure-chest" class="btn-icon" />
+                    Claim Rewards
                   </UButton>
+
+                  <div v-else-if="isInProgress" class="active-message">
+                    <Icon icon="mdi:progress-clock" class="message-icon" />
+                    <span>Quest in progress — rewards will be delivered on return</span>
+                  </div>
 
                   <div v-else-if="isCompleted" class="completed-message">
                     <Icon icon="mdi:seal" class="message-icon" />
@@ -304,6 +303,17 @@ const goBack = () => {
                     <span>Prerequisites not met</span>
                   </div>
                 </div>
+
+                <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
+                  <div class="space-y-4 font-mono text-terminal-green">
+                    <p>{{ quest.title }} has returned. Confirm delivery to your vault.</p>
+                    <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
+                    <div class="flex justify-end gap-3">
+                      <UButton variant="secondary" @click="showClaimModal = false">Cancel</UButton>
+                      <UButton variant="primary" @click="confirmClaimRewards">Claim Rewards</UButton>
+                    </div>
+                  </div>
+                </UModal>
               </div>
             </div>
           </div>
@@ -629,6 +639,7 @@ const goBack = () => {
 }
 
 .completed-message,
+.active-message,
 .locked-message {
   padding: 16px;
   border-radius: 4px;
@@ -644,6 +655,12 @@ const goBack = () => {
   background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
   border: 2px solid var(--color-theme-primary);
   color: var(--color-theme-primary);
+}
+
+.active-message {
+  background: color-mix(in srgb, var(--color-theme-accent) 10%, transparent);
+  border: 2px solid var(--color-theme-accent);
+  color: var(--color-theme-accent);
 }
 
 .locked-message {

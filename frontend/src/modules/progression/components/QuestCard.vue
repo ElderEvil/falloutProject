@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UButton, UCard } from '@/core/components/ui'
+import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
@@ -11,7 +11,7 @@ const questStore = useQuestStore()
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'completed' | 'locked'
+  status: 'available' | 'active' | 'ready' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
   isLocked?: boolean
 }
@@ -20,7 +20,7 @@ const { partyMembers, isLocked = false, quest, status, vaultId } = defineProps<P
 
 const emit = defineEmits<{
   start: [questId: string]
-  complete: [questId: string]
+  claim: [questId: string]
   view: [questId: string]
   assignParty: [questId: string]
 }>()
@@ -57,6 +57,17 @@ const updateTimer = () => {
     .toString()
     .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
+
+const questProgress = computed(() => {
+  void timeRemaining.value
+  if (!quest.started_at || !quest.duration_minutes) return 0
+
+  const elapsed = Date.now() - new Date(quest.started_at).getTime()
+  return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
+})
+
+const displayedQuestProgress = computed(() => (status === 'ready' ? 100 : questProgress.value))
+const questProgressLabel = computed(() => `${Math.round(displayedQuestProgress.value)}% complete`)
 
 const startTimer = () => {
   if (timerInterval) {
@@ -137,13 +148,17 @@ const previousQuestName = computed(() => {
   return previousQuest?.title || null
 })
 
+const formatDwellerName = (name: string) => name.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
+
 // Format reward details for display
 const formatReward = (reward: {
   reward_type: string
   reward_data: Record<string, unknown>
   reward_chance: number
+  item_data?: Record<string, unknown>
 }) => {
   const data = reward.reward_data || {}
+  const itemData = reward.item_data || {}
   const type = reward.reward_type.toLowerCase()
 
   switch (type) {
@@ -156,12 +171,14 @@ const formatReward = (reward: {
     case 'experience':
       return `${data.amount || 0} XP`
     case 'item': {
-      const itemName = String(data.name || 'Unknown Item')
-      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
+      const itemName = String(data.item_name || itemData.name || data.name || 'Unknown Item')
+      const rarity = itemData.rarity || data.rarity ? ` (${String(itemData.rarity || data.rarity)})` : ''
       return `${itemName}${rarity}`
     }
     case 'dweller': {
-      const name = String(data.first_name || data.name || 'New Dweller')
+      const name = formatDwellerName(
+        String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
+      )
       const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
       return `${name}${rarity}`
     }
@@ -228,7 +245,9 @@ const actionButtonText = computed(() => {
     case 'available':
       return 'Start Quest'
     case 'active':
-      return timeRemaining.value ? 'In Progress' : 'Complete Quest'
+      return 'In Progress'
+    case 'ready':
+      return 'Claim Rewards'
     case 'completed':
       return 'View Details'
     default:
@@ -243,6 +262,8 @@ const cardBorderColor = computed(() => {
   switch (status) {
     case 'active':
       return 'var(--color-theme-accent)'
+    case 'ready':
+      return 'var(--color-rarity-legendary)'
     case 'completed':
       return 'var(--color-quest-muted)'
     default:
@@ -251,7 +272,7 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked
+  return isLocked || status === 'active'
 })
 
 const handleAction = () => {
@@ -267,7 +288,9 @@ const handleAction = () => {
       }
       break
     case 'active':
-      emit('complete', quest.id)
+      break
+    case 'ready':
+      emit('claim', quest.id)
       break
     case 'completed':
       emit('view', quest.id)
@@ -404,11 +427,17 @@ const handleAction = () => {
       </div>
     </div>
 
-    <!-- Timer (for active quests) -->
-    <div v-if="status === 'active' && timeRemaining" class="quest-timer">
-      <Icon icon="mdi:clock-outline" class="timer-icon" />
-      <span class="timer-label">Time Remaining:</span>
-      <span class="timer-value">{{ timeRemaining }}</span>
+    <!-- Quest progress stays visible until its reward is claimed -->
+    <div v-if="(status === 'active' && timeRemaining) || status === 'ready'" class="quest-timer">
+      <div class="timer-header">
+        <div class="timer-status">
+          <Icon icon="mdi:clock-outline" class="timer-icon" />
+          <span class="timer-label">{{ status === 'ready' ? 'Complete' : 'Time Remaining' }}</span>
+        </div>
+        <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
+      </div>
+      <UProgressBar :model-value="displayedQuestProgress" :height="8" :glow="false" class="quest-progress-bar" />
+      <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
     <!-- Duration Info (for available quests) -->
@@ -431,6 +460,8 @@ const handleAction = () => {
           :icon="
             status === 'completed'
               ? 'mdi:eye'
+              : status === 'ready'
+                ? 'mdi:treasure-chest'
               : status === 'active'
                 ? 'mdi:progress-clock'
                 : hasParty
@@ -656,14 +687,39 @@ const handleAction = () => {
 }
 
 .quest-timer {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  margin-top: 12px;
+}
+
+.timer-header,
+.timer-status {
   display: flex;
   align-items: center;
+}
+
+.timer-header {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timer-status {
   gap: 8px;
-  padding: 12px;
-  background: rgba(0, 217, 255, 0.1);
-  border: 1px solid var(--color-theme-accent);
-  border-radius: 6px;
-  margin-top: 12px;
+}
+
+.quest-progress-bar {
+  width: 100%;
+}
+
+.timer-progress {
+  justify-self: end;
+  color: var(--color-theme-primary);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-transform: uppercase;
 }
 
 .timer-icon {

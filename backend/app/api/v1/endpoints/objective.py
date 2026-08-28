@@ -7,6 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.api.deps import CurrentSuperuser
 from app.db.session import get_async_session
 from app.models.objective import Objective, ObjectiveBase
 from app.models.vault import Vault
@@ -82,9 +83,12 @@ async def read_objective(
 
 @router.post("/{vault_id}/{objective_id}/complete", response_model=Objective)
 async def complete_objective(
-    vault_id: UUID4, objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    vault_id: UUID4,
+    objective_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
 ) -> Objective:
-    """Mark an objective as completed for a vault.
+    """Manually complete an objective for a vault (administrators only).
 
     Returns:
         The completed objective.

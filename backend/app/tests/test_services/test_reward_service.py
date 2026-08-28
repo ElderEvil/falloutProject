@@ -1,9 +1,13 @@
 """Tests for RewardService."""
 
+from uuid import UUID
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app import crud
+from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.vault_objective import VaultObjectiveProgressLink
@@ -185,6 +189,88 @@ async def test_process_quest_rewards_with_chance_failure(async_session: AsyncSes
     assert len(results) == 0  # Reward not granted due to 0% chance
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps
+
+
+@pytest.mark.asyncio
+async def test_process_quest_item_reward_uses_typed_item_data(async_session: AsyncSession) -> None:
+    """Quest item rewards use their stored type and template fields."""
+    from app.models.outfit import Outfit
+    from app.models.storage import Storage
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    async_session.add(Storage(vault_id=vault.id, max_space=10))
+    quest = Quest(
+        title="Typed Outfit Reward",
+        short_description="Template-backed reward",
+        long_description="A quest that grants the promised outfit.",
+        requirements="None",
+        rewards="Vault Suit",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    async_session.add(
+        QuestReward(
+            quest_id=quest.id,
+            reward_type=RewardType.ITEM,
+            reward_data={"item_name": "Vault Suit", "quantity": 1},
+            item_data={
+                "item_type": "outfit",
+                "name": "Vault Suit",
+                "rarity": "rare",
+                "outfit_type": "common_outfit",
+            },
+        )
+    )
+    await async_session.commit()
+    await async_session.refresh(quest, ["quest_rewards"])
+
+    rewards = await reward_service.process_quest_rewards(async_session, vault.id, quest)
+
+    outfit = (await async_session.execute(select(Outfit).where(Outfit.name == "Vault Suit"))).scalar_one()
+    assert rewards == [
+        {"reward_type": RewardType.ITEM, "item_type": "outfit", "name": "Vault Suit", "item_id": str(outfit.id)}
+    ]
+    assert outfit.storage_id is not None
+
+
+@pytest.mark.asyncio
+async def test_process_quest_dweller_template_reward_uses_canonical_stats(async_session: AsyncSession) -> None:
+    """A dweller reward materializes the named canonical template, not a random dweller."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = Quest(
+        title="Template Dweller Reward",
+        short_description="A known hero joins the vault.",
+        long_description="Completing this quest grants Abraham Washington.",
+        requirements="None",
+        rewards="Abraham Washington",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    async_session.add(
+        QuestReward(
+            quest_id=quest.id,
+            reward_type=RewardType.DWELLER,
+            reward_data={"template_id": "abraham-washington"},
+        )
+    )
+    await async_session.commit()
+    await async_session.refresh(quest, ["quest_rewards"])
+
+    rewards = await reward_service.process_quest_rewards(async_session, vault.id, quest)
+
+    dweller_id = rewards[0]["dweller_id"]
+    dweller = await async_session.get(Dweller, UUID(dweller_id))
+    assert dweller is not None
+    assert (dweller.first_name, dweller.last_name, dweller.rarity) == ("Abraham", "Washington", "legendary")
+    assert (dweller.strength, dweller.perception, dweller.endurance) == (2, 8, 6)
 
 
 @pytest.mark.asyncio

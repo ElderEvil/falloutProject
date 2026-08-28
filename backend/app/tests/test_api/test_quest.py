@@ -1,4 +1,4 @@
-"""Quest endpoint tests — error mapping for complete_quest."""
+"""Quest endpoint tests — error mapping for reward claims."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -9,11 +9,11 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 
 
 @pytest.mark.asyncio
-async def test_complete_quest_storage_full_returns_409(
+async def test_claim_quest_rewards_storage_full_returns_409(
     async_client,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /quests/{vault_id}/{quest_id}/complete returns 409, not 500, when storage is full."""
+    """POST /quests/{vault_id}/{quest_id}/claim-rewards returns 409 when storage is full."""
     vault_id = uuid4()
     quest_id = uuid4()
 
@@ -23,12 +23,12 @@ async def test_complete_quest_storage_full_returns_409(
             AsyncMock(return_value=None),
         ),
         patch(
-            "app.api.v1.endpoints.quest.quest_service.complete_quest_and_free_party",
+            "app.api.v1.endpoints.quest.quest_service.claim_quest_rewards",
             AsyncMock(side_effect=ResourceConflictException("Storage full for vault")),
         ),
     ):
         response = await async_client.post(
-            f"/quests/{vault_id}/{quest_id}/complete",
+            f"/quests/{vault_id}/{quest_id}/claim-rewards",
             headers=superuser_token_headers,
         )
     assert response.status_code == 409
@@ -36,11 +36,11 @@ async def test_complete_quest_storage_full_returns_409(
 
 
 @pytest.mark.asyncio
-async def test_complete_quest_no_storage_returns_404(
+async def test_claim_quest_rewards_no_storage_returns_404(
     async_client,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /quests/{vault_id}/{quest_id}/complete returns 404 when no storage exists."""
+    """POST /quests/{vault_id}/{quest_id}/claim-rewards returns 404 when no storage exists."""
     vault_id = uuid4()
     quest_id = uuid4()
     storage_model = MagicMock()
@@ -52,12 +52,12 @@ async def test_complete_quest_no_storage_returns_404(
             AsyncMock(return_value=None),
         ),
         patch(
-            "app.api.v1.endpoints.quest.quest_service.complete_quest_and_free_party",
+            "app.api.v1.endpoints.quest.quest_service.claim_quest_rewards",
             AsyncMock(side_effect=ResourceNotFoundException(storage_model, vault_id)),
         ),
     ):
         response = await async_client.post(
-            f"/quests/{vault_id}/{quest_id}/complete",
+            f"/quests/{vault_id}/{quest_id}/claim-rewards",
             headers=superuser_token_headers,
         )
     assert response.status_code == 404

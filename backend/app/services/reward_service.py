@@ -48,6 +48,7 @@ class RewardService:
         self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
     ) -> dict[str, Any]:
         from app.crud.storage import get_available_space
+        from app.schemas.common import OutfitTypeEnum
 
         storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage_obj:
@@ -83,7 +84,7 @@ class RewardService:
                 item = Outfit(
                     name=item_name,
                     rarity=item_rarity,
-                    outfit_type=item_data.get("outfit_type", "suit"),
+                    outfit_type=OutfitTypeEnum(item_data.get("outfit_type", OutfitTypeEnum.COMMON)),
                     gender=item_data.get("gender"),
                     value=item_data.get("value"),
                     image_url=get_outfit_image_url(item_name),
@@ -104,6 +105,14 @@ class RewardService:
     ) -> dict[str, Any]:
         from app.schemas.common import RarityEnum
         from app.schemas.dweller import STATS_RANGE_BY_RARITY
+        from app.utils.static_data import game_data_store
+
+        if template_id := dweller_template.get("template_id"):
+            template = game_data_store.get_dweller(template_id)
+            if template is None:
+                msg = f"Unknown dweller reward template: {template_id}"
+                raise ValueError(msg)
+            dweller_template = template.model_dump(exclude={"weapon", "outfit"})
 
         first_name = dweller_template.get("first_name", dweller_template.get("name", "Unknown"))
         last_name = dweller_template.get("last_name")
@@ -348,7 +357,8 @@ class RewardService:
                 logger.debug(f"Reward roll failed for quest '{quest.title}' (chance={reward.reward_chance:.3f})")
                 continue
 
-            result = await self._process_single_reward(db_session, vault_id, reward.reward_type, reward.reward_data)
+            reward_data = reward.reward_data | (reward.item_data or {})
+            result = await self._process_single_reward(db_session, vault_id, reward.reward_type, reward_data)
             granted_rewards.append(result)
 
         logger.info(f"Processed {len(granted_rewards)}/{len(rewards)} rewards for quest '{quest.title}'")

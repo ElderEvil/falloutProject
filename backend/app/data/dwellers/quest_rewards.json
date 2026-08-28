@@ -1,0 +1,58 @@
+[
+  {
+    "first_name": "Lucy",
+    "last_name": "MacLean",
+    "gender": "Female",
+    "rarity": "Legendary",
+    "strength": 6, "perception": 7, "endurance": 6, "charisma": 8, "intelligence": 7, "agility": 8, "luck": 7,
+    "bio": "A determined vault dweller who never stops looking for her family."
+  },
+  {
+    "first_name": "The",
+    "last_name": "Ghoul",
+    "gender": "Male",
+    "rarity": "Legendary",
+    "strength": 7, "perception": 8, "endurance": 8, "charisma": 4, "intelligence": 5, "agility": 9, "luck": 7,
+    "bio": "A hardened wasteland gunslinger with two centuries of survival behind him."
+  },
+  {
+    "first_name": "Maximus",
+    "last_name": "",
+    "gender": "Male",
+    "rarity": "Legendary",
+    "strength": 8, "perception": 5, "endurance": 8, "charisma": 5, "intelligence": 5, "agility": 6, "luck": 4,
+    "bio": "A Brotherhood knight searching for a place where he belongs."
+  },
+  {
+    "first_name": "Ma",
+    "last_name": "June",
+    "gender": "Female",
+    "rarity": "Legendary",
+    "strength": 4, "perception": 5, "endurance": 5, "charisma": 8, "intelligence": 7, "agility": 5, "luck": 6,
+    "bio": "The pragmatic leader of Filly, whose kindness is backed by resolve."
+  },
+  {
+    "first_name": "Snip",
+    "last_name": "Snip",
+    "gender": "Male",
+    "rarity": "Legendary",
+    "strength": 9, "perception": 5, "endurance": 9, "charisma": 2, "intelligence": 5, "agility": 6, "luck": 4,
+    "bio": "A brutal Mister Handy modified for the wasteland's worst work."
+  },
+  {
+    "first_name": "Snake",
+    "last_name": "Oil Salesman",
+    "gender": "Male",
+    "rarity": "Legendary",
+    "strength": 3, "perception": 5, "endurance": 4, "charisma": 8, "intelligence": 7, "agility": 5, "luck": 8,
+    "bio": "A charming traveling chem merchant with a dangerous remedy."
+  },
+  {
+    "first_name": "CX404",
+    "last_name": "",
+    "gender": "Male",
+    "rarity": "Legendary",
+    "strength": 5, "perception": 7, "endurance": 7, "charisma": 6, "intelligence": 4, "agility": 9, "luck": 6,
+    "bio": "A loyal canine companion who can sniff out danger before it arrives."
+  }
+]

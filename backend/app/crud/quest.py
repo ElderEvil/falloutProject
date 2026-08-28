@@ -108,6 +108,7 @@ class CRUDQuest(
                     updated_at=quest.updated_at,
                     is_visible=True,
                     is_completed=False,
+                    is_reward_ready=False,
                     started_at=None,
                     quest_requirements=[
                         QuestRequirementRead(
@@ -203,8 +204,11 @@ class CRUDQuest(
                     updated_at=quest.updated_at,
                     is_visible=(link.is_visible if link else False) and is_unlocked,
                     is_completed=link.is_completed if link else False,
+                    is_reward_ready=link.is_reward_ready if link else False,
                     started_at=link.started_at if link else None,
-                    duration_minutes=link.duration_minutes if link else quest.duration_minutes,
+                    duration_minutes=link.duration_minutes
+                    if link and link.duration_minutes is not None
+                    else quest.duration_minutes,
                     quest_requirements=[
                         QuestRequirementRead(
                             id=req.id,

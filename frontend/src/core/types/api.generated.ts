@@ -325,6 +325,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai-settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Ai Settings
+         * @description Test connectivity to the resolved AI provider without persisting changes.
+         */
+        post: operations["test_ai_settings_api_v1_ai_settings_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chat/{dweller_id}": {
         parameters: {
             query?: never;
@@ -411,6 +431,28 @@ export interface paths {
          *         QuotaExceededException: If AI usage quota is exceeded.
          */
         post: operations["voice_chat_with_dweller_api_v1_chat__dweller_id__voice_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Email
+         * @description Send a diagnostic email via the configured SMTP server to validate connectivity.
+         *
+         *     Requires superuser privileges. Returns 502 if the SMTP server cannot deliver the message.
+         */
+        post: operations["test_email_api_v1_email_test_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2079,7 +2121,7 @@ export interface paths {
         put?: never;
         /**
          * Complete Objective
-         * @description Mark an objective as completed for a vault.
+         * @description Manually complete an objective for a vault (administrators only).
          *
          *     Returns:
          *         The completed objective.
@@ -2576,7 +2618,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quests/{vault_id}/{quest_id}/complete": {
+    "/api/v1/quests/{vault_id}/{quest_id}/claim-rewards": {
         parameters: {
             query?: never;
             header?: never;
@@ -2586,13 +2628,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Complete Quest
-         * @description Mark a quest as completed for a vault.
+         * Claim Quest Rewards
+         * @description Claim rewards from a returned quest party.
          *
          *     Returns:
          *         Completion response with granted rewards.
          */
-        post: operations["complete_quest_api_v1_quests__vault_id___quest_id__complete_post"];
+        post: operations["claim_quest_rewards_api_v1_quests__vault_id___quest_id__claim_rewards_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4275,6 +4317,31 @@ export interface components {
         AISettingsRead: {
             profile?: components["schemas"]["AISettingsProfile"] | null;
             effective: components["schemas"]["AISettingsEffective"];
+        };
+        /** AISettingsTestInput */
+        AISettingsTestInput: {
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Gateway Route */
+            gateway_route?: string | null;
+        };
+        /** AISettingsTestResult */
+        AISettingsTestResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Latency Ms */
+            latency_ms?: number | null;
+            /** Model */
+            model?: string | null;
+            /** Message */
+            message?: string | null;
         };
         /** AISettingsUpdate */
         AISettingsUpdate: {
@@ -7206,6 +7273,11 @@ export interface components {
              * @default false
              */
             is_completed: boolean;
+            /**
+             * Is Reward Ready
+             * @default false
+             */
+            is_reward_ready: boolean;
             /** Started At */
             started_at?: string | null;
             /** Quest Requirements */
@@ -7801,6 +7873,43 @@ export interface components {
          * @enum {string}
          */
         SynthTypeEnum: "gen_1" | "gen_2" | "gen_3";
+        /**
+         * TestEmailRequest
+         * @description Payload for POST /email/test — send a diagnostic email via the configured SMTP server.
+         */
+        TestEmailRequest: {
+            /**
+             * Email To
+             * Format: email
+             * @description Recipient address to receive the test email.
+             */
+            email_to: string;
+            /**
+             * Subject
+             * @description Optional override for the subject line.
+             */
+            subject?: string | null;
+            /**
+             * Message
+             * @description Optional override for the body text of the test email.
+             */
+            message?: string | null;
+        };
+        /**
+         * TestEmailResult
+         * @description Result of a test-email attempt.
+         */
+        TestEmailResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Email To */
+            email_to: string;
+            /** Message */
+            message?: string | null;
+        };
         /** Token */
         Token: {
             /** Access Token */
@@ -9081,6 +9190,39 @@ export interface operations {
             };
         };
     };
+    test_ai_settings_api_v1_ai_settings_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AISettingsTestInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AISettingsTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chat_with_dweller_api_v1_chat__dweller_id__post: {
         parameters: {
             query?: never;
@@ -9182,6 +9324,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_email_api_v1_email_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestEmailResult"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -12468,7 +12643,7 @@ export interface operations {
             };
         };
     };
-    complete_quest_api_v1_quests__vault_id___quest_id__complete_post: {
+    claim_quest_rewards_api_v1_quests__vault_id___quest_id__claim_rewards_post: {
         parameters: {
             query?: never;
             header?: never;

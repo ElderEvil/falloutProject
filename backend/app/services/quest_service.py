@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 class QuestService:
-    async def check_and_complete_quests(self, db_session: AsyncSession) -> int:
-        """Check for quests that have exceeded their duration and auto-complete them."""
+    async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID4 | None = None) -> int:
+        """Mark elapsed quests ready for reward claiming and return their parties."""
         now = datetime.now()
-        duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, 60)
+        duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
             expires_at = func.datetime(
                 VaultQuestCompletionLink.started_at,
@@ -30,35 +30,39 @@ class QuestService:
         else:
             expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
-        query = (
-            select(VaultQuestCompletionLink)
-            .join(Quest)
-            .where(
-                ~VaultQuestCompletionLink.is_completed,
-                VaultQuestCompletionLink.started_at.isnot(None),
-                expires_at <= now,
-            )
-        )
+        conditions = [
+            ~VaultQuestCompletionLink.is_completed,
+            ~VaultQuestCompletionLink.is_reward_ready,
+            VaultQuestCompletionLink.started_at.isnot(None),
+            expires_at <= now,
+        ]
+        if vault_id is not None:
+            conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
+        query = select(VaultQuestCompletionLink).join(Quest).where(*conditions)
         result = await db_session.execute(query)
         links = [(link.quest_id, link.vault_id) for link in result.scalars().all()]
 
         completed_count = 0
-        for quest_id, vault_id in links:
+        for quest_id, link_vault_id in links:
             try:
-                await self.complete_quest_and_free_party(db_session, quest_id, vault_id)
+                await self.mark_quest_ready_to_claim(db_session, quest_id, link_vault_id)
             except Exception:
-                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {vault_id}")
+                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {link_vault_id}")
             else:
                 completed_count += 1
-                logger.info(f"Auto-completed quest {quest_id} for vault {vault_id}")
+                logger.info(f"Quest {quest_id} is ready to claim for vault {link_vault_id}")
 
         return completed_count
 
-    async def start_quest(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, duration_minutes: int | None = None
-    ) -> VaultQuestCompletionLink:
+    async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
         """Start a quest with a timer."""
-        from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+        from app.crud.quest_party import quest_party_crud
+        from app.utils.exceptions import (
+            AccessDeniedException,
+            ResourceConflictException,
+            ResourceNotFoundException,
+            ValidationException,
+        )
 
         query = select(VaultQuestCompletionLink).where(
             and_(
@@ -66,8 +70,7 @@ class QuestService:
                 VaultQuestCompletionLink.vault_id == vault_id,
             )
         )
-        result = await db_session.execute(query)
-        link = result.scalar_one_or_none()
+        link = (await db_session.exec(query)).one_or_none()
 
         if not link:
             raise ResourceNotFoundException(
@@ -76,17 +79,27 @@ class QuestService:
 
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
+        if link.started_at is not None:
+            raise ResourceConflictException("Quest is already in progress")
+
+        quest = await db_session.get(Quest, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        if quest.duration_minutes is None or quest.duration_minutes <= 0:
+            raise ValidationException("Quest duration must be a positive value")
+
+        party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
+        if not party:
+            raise ValidationException("Assign at least one dweller before starting this quest")
 
         link.started_at = datetime.now()
-        if duration_minutes is not None:
-            link.duration_minutes = duration_minutes
+        link.is_reward_ready = False
+        link.duration_minutes = quest.duration_minutes
 
         await db_session.commit()
         await db_session.refresh(link)
 
-        logger.info(
-            f"Started quest {quest_id} for vault {vault_id} with duration {duration_minutes or 'default'} minutes"
-        )
+        logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
 
     async def get_available_for_vault(
@@ -122,24 +135,67 @@ class QuestService:
 
         return available[skip : skip + limit]
 
-    async def complete_quest_and_free_party(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
-    ) -> tuple[Quest, list[Any]]:
-        """Complete a quest and set party dwellers back to idle."""
+    async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Quest:
+        """Return a finished party and make its rewards available to claim."""
         from app.crud.quest_party import quest_party_crud
+        from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-        quest, granted_rewards = await crud.quest_crud.complete(
-            db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id
-        )
+        link = (
+            await db_session.exec(
+                select(VaultQuestCompletionLink).where(
+                    VaultQuestCompletionLink.quest_id == quest_id,
+                    VaultQuestCompletionLink.vault_id == vault_id,
+                )
+            )
+        ).one_or_none()
+        if link is None:
+            raise ResourceNotFoundException(
+                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
+            )
+        if link.started_at is None:
+            raise ValidationException("Quest must be started before it can be completed")
+
+        quest = await db_session.get(Quest, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
+        if datetime.now() < link.started_at + timedelta(minutes=duration):
+            raise ValidationException("Quest is still in progress")
+        if link.is_reward_ready:
+            return quest
 
         party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
         for member in party:
             dweller = await db_session.get(Dweller, member.dweller_id)
             if dweller:
-                dweller.status = "idle"
+                dweller.status = DwellerStatusEnum.IDLE
+        link.is_reward_ready = True
         await db_session.commit()
 
-        return quest, granted_rewards
+        return quest
+
+    async def claim_quest_rewards(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+    ) -> tuple[Quest, list[Any]]:
+        """Atomically deliver rewards that a returning party has made claimable."""
+        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+
+        link = (
+            await db_session.exec(
+                select(VaultQuestCompletionLink).where(
+                    VaultQuestCompletionLink.quest_id == quest_id,
+                    VaultQuestCompletionLink.vault_id == vault_id,
+                )
+            )
+        ).one_or_none()
+        if link is None:
+            raise ResourceNotFoundException(
+                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
+            )
+        if not link.is_reward_ready:
+            raise ValidationException("Quest rewards are not ready to claim")
+
+        return await crud.quest_crud.complete(db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id)
 
     async def get_eligible_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4

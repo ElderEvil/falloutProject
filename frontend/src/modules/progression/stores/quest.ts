@@ -46,6 +46,7 @@ export const useQuestStore = defineStore('quest', () => {
   // Single pass classification of all vault quests
   const questCategories = computed(() => {
     const active: VaultQuest[] = []
+    const readyToClaim: VaultQuest[] = []
     const completed: VaultQuest[] = []
     const available: VaultQuest[] = []
     const allVisible: VaultQuest[] = []
@@ -55,6 +56,8 @@ export const useQuestStore = defineStore('quest', () => {
       allVisible.push(quest)
       if (quest.is_completed) {
         completed.push(quest)
+      } else if (quest.is_reward_ready) {
+        readyToClaim.push(quest)
       } else if (quest.started_at != null) {
         active.push(quest)
       } else {
@@ -62,7 +65,7 @@ export const useQuestStore = defineStore('quest', () => {
       }
     }
 
-    return { active, completed, available, allVisible }
+    return { active, readyToClaim, completed, available, allVisible }
   })
 
   // Actions
@@ -83,10 +86,13 @@ export const useQuestStore = defineStore('quest', () => {
     const silent = options?.silent ?? false
     try {
       if (!silent) isLoading.value = true
-      const response = await axios.get<VaultQuest[]>(`/api/v1/quests/${vaultId}/`, {
+      const response = await axios.get<unknown>(`/api/v1/quests/${vaultId}/`, {
         headers: getAuthHeaders(),
       })
-      vaultQuests.value = response.data
+      if (!Array.isArray(response.data)) {
+        throw new TypeError('Expected a list of vault quests')
+      }
+      vaultQuests.value = response.data as VaultQuest[]
     } catch (error: unknown) {
       if (!silent) toast.error('Failed to load vault quests')
       throw error
@@ -146,14 +152,14 @@ export const useQuestStore = defineStore('quest', () => {
     }
   }
 
-  async function completeQuest(
+  async function claimQuestRewards(
     vaultId: string,
     questId: string
   ): Promise<QuestCompleteResponse | null> {
     let result: QuestCompleteResponse | null = null
     try {
       const response = await axios.post<QuestCompleteResponse>(
-        `/api/v1/quests/${vaultId}/${questId}/complete`
+        `/api/v1/quests/${vaultId}/${questId}/claim-rewards`
       )
       result = response.data
 
@@ -161,14 +167,14 @@ export const useQuestStore = defineStore('quest', () => {
         const rewardsText = result.granted_rewards
           .map((r) => r.amount || r.name || r.type || '???')
           .join(', ')
-        toast.success(`Quest completed! Rewards: ${rewardsText}`)
+        toast.success(`Rewards claimed: ${rewardsText}`)
       } else {
-        toast.success('Quest completed!')
+        toast.success('Quest rewards claimed!')
       }
     } catch (error: unknown) {
       const errorMessage =
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to complete quest'
+        'Failed to claim quest rewards'
       toast.error(errorMessage)
       throw error
     }
@@ -176,7 +182,7 @@ export const useQuestStore = defineStore('quest', () => {
     try {
       await fetchVaultQuests(vaultId, { silent: true })
     } catch {
-      toast.warning('Quest was completed, but the quest list could not refresh')
+      toast.warning('Rewards were claimed, but the quest list could not refresh')
     }
     return result
   }
@@ -259,7 +265,7 @@ export const useQuestStore = defineStore('quest', () => {
     fetchPartiesForActiveQuests,
     getQuest,
     assignQuest,
-    completeQuest,
+    claimQuestRewards,
     assignParty,
     getParty,
     getEligibleDwellers,

@@ -7,6 +7,7 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
+import { UCard, UProgressBar } from '@/core/components/ui'
 
 interface Props {
   exploration: Exploration
@@ -33,18 +34,11 @@ const dwellerName = computed(() =>
 
 const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => props.exploration)
 
-const statusColor = computed(() => {
-  const progress = progressPercentage.value
-  if (progress >= 100) return 'var(--color-rarity-legendary)' // Gold for complete
-  if (progress >= 75) return 'var(--color-theme-accent)' // Accent for near complete
-  return 'var(--color-theme-primary)' // Primary for in progress
-})
-
 const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
 </script>
 
 <template>
-  <div class="explorer-card" :class="{ selected }" @click="openDetailView">
+  <UCard padding="md" surface="raised" class="explorer-card" :class="{ selected }" @click="openDetailView">
     <!-- Header -->
     <div class="card-header">
       <div class="dweller-info">
@@ -67,19 +61,12 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
     <!-- Progress Bar -->
     <div class="progress-section">
-      <div class="progress-bar-container">
-        <div
-          class="progress-bar"
-          :style="{
-            width: `${progressPercentage}%`,
-            background: statusColor,
-          }"
-        ></div>
-      </div>
       <div class="progress-info">
+        <span>Mission progress</span>
         <span class="progress-percentage">{{ Math.round(progressPercentage) }}%</span>
-        <span class="progress-time">{{ timeRemaining }}</span>
       </div>
+      <UProgressBar :model-value="progressPercentage" :height="8" :glow="false" />
+      <span class="progress-time">{{ timeRemaining }}</span>
     </div>
 
     <!-- Stats Grid -->
@@ -142,34 +129,26 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
         Recall Early
       </button>
     </div>
-  </div>
+  </UCard>
 </template>
 
 <style scoped>
 .explorer-card {
-  background: rgb(from var(--color-surface) r g b / 0.85);
-  border: 2px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 8px;
-  padding: 1.25rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  gap: 14px;
 }
 
 .explorer-card:hover {
   border-color: var(--color-theme-primary);
-  background: var(--color-surface-raised);
-  box-shadow: 0 0 20px var(--color-theme-glow);
+  box-shadow: 0 0 16px var(--color-theme-glow);
   transform: translateY(-2px);
 }
 
 .explorer-card.selected {
   border-color: var(--color-theme-primary);
-  border-width: 3px;
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.05);
-  box-shadow: 0 0 30px var(--color-theme-glow);
+  box-shadow: 0 0 16px var(--color-theme-glow);
 }
 
 .card-header {
@@ -227,27 +206,8 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 }
 
 .progress-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 12px;
-  background: var(--color-surface-sunken);
-  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  border-radius: 6px;
-  transition:
-    width 0.5s ease,
-    background 0.3s ease;
-  box-shadow: 0 0 10px currentColor;
+  display: grid;
+  gap: 6px;
 }
 
 .progress-info {
@@ -255,6 +215,10 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   justify-content: space-between;
   align-items: center;
   font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  text-transform: uppercase;
 }
 
 .progress-percentage {
@@ -265,6 +229,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
 .progress-time {
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
+  font-size: 0.75rem;
 }
 
 .stats-grid {

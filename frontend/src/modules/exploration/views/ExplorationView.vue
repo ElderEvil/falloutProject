@@ -104,8 +104,10 @@ const pollExplorations = async () => {
 
   try {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+    await questStore.fetchPartiesForActiveQuests(vaultId.value)
   } catch (error) {
-    toast.error('Failed to refresh explorations')
+    toast.error('Failed to refresh activities')
   }
 }
 
@@ -142,21 +144,6 @@ const activeQuestsWithParty = computed(() => {
     return party && party.length > 0
   })
 })
-
-const handleCompleteQuest = async (questId: string) => {
-  if (!vaultId.value || !authStore.token) return
-
-  try {
-    await questStore.completeQuest(vaultId.value, questId)
-    await questStore.fetchVaultQuests(vaultId.value)
-    await questStore.fetchPartiesForActiveQuests(vaultId.value)
-    if (selectedQuestPartyId.value === questId) {
-      selectedQuestPartyId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to complete quest')
-  }
-}
 
 const handleCompleteExploration = async (explorationId: string) => {
   if (!authStore.token) return
@@ -313,26 +300,48 @@ const closeRewardsModal = () => {
             </p>
           </div>
 
-          <div v-else class="explorers-grid">
-            <ExplorerCard
-              v-for="exploration in activeExplorationsArray"
-              :key="exploration.id"
-              :exploration="exploration"
-              :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
-              :selected="selectedExplorerId === exploration.id"
-              @select="selectedExplorerId = exploration.id"
-              @complete="handleCompleteExploration"
-              @recall="handleRecallExploration"
-            />
-            <QuestPartyCard
-              v-for="quest in activeQuestsWithParty"
-              :key="quest.id"
-              :quest="quest"
-              :party-members="getPartyMembersForQuest(quest.id)"
-              :selected="selectedQuestPartyId === quest.id"
-              @select="selectedQuestPartyId = quest.id"
-              @complete="handleCompleteQuest"
-            />
+          <div v-else class="activity-groups">
+            <section v-if="activeExplorationsArray.length > 0" class="activity-group">
+              <div class="activity-heading">
+                <div>
+                  <span class="activity-kicker">Wasteland</span>
+                  <h2>Active explorers</h2>
+                </div>
+                <span>{{ activeExplorationsArray.length }} deployed</span>
+              </div>
+              <div class="explorers-grid">
+                <ExplorerCard
+                  v-for="exploration in activeExplorationsArray"
+                  :key="exploration.id"
+                  :exploration="exploration"
+                  :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
+                  :selected="selectedExplorerId === exploration.id"
+                  @select="selectedExplorerId = exploration.id"
+                  @complete="handleCompleteExploration"
+                  @recall="handleRecallExploration"
+                />
+              </div>
+            </section>
+
+            <section v-if="activeQuestsWithParty.length > 0" class="activity-group">
+              <div class="activity-heading">
+                <div>
+                  <span class="activity-kicker">Overseer dispatch</span>
+                  <h2>Quest parties</h2>
+                </div>
+                <span>{{ activeQuestsWithParty.length }} in progress</span>
+              </div>
+              <div class="explorers-grid">
+                <QuestPartyCard
+                  v-for="quest in activeQuestsWithParty"
+                  :key="quest.id"
+                  :quest="quest"
+                  :party-members="getPartyMembersForQuest(quest.id)"
+                  :selected="selectedQuestPartyId === quest.id"
+                  @select="selectedQuestPartyId = quest.id"
+                />
+              </div>
+            </section>
           </div>
         </div>
 
@@ -428,6 +437,45 @@ const closeRewardsModal = () => {
 
 .explorers-section {
   min-height: 400px;
+}
+
+.activity-groups {
+  display: grid;
+  gap: 2rem;
+}
+
+.activity-group {
+  display: grid;
+  gap: 1rem;
+}
+
+.activity-heading {
+  align-items: end;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+}
+
+.activity-kicker {
+  color: var(--color-theme-accent);
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.activity-heading h2 {
+  color: var(--color-theme-primary);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.activity-heading > span {
+  color: var(--color-theme-primary);
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
 /* Loading State */

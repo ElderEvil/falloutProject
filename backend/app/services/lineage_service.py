@@ -176,10 +176,6 @@ class LineageService:
             ResourceNotFoundException: If the dweller does not exist.
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
-        if not dweller:
-            from app.utils.exceptions import ResourceNotFoundException
-
-            raise ResourceNotFoundException(detail="Dweller not found")
 
         generation = await cls._compute_generation(db_session, dweller_id, dweller.vault_id)
 

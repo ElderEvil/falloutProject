@@ -10,6 +10,7 @@ from sqlmodel import select
 
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
+from app.models.quest_reward import QuestReward
 from app.utils.seed_quests import seed_quests_from_json
 
 
@@ -51,6 +52,49 @@ async def test_seed_quests_from_json_basic(async_session: AsyncSession, tmp_path
     assert quest.long_description == "This is a test quest for seeding"
     assert quest.requirements == "Level 5 dwellers"
     assert quest.rewards == "100 caps"
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_persists_item_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Seeded item rewards retain the data needed to grant the listed item."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Rewarded Quest",
+            "Long description": "A quest with an outfit reward.",
+            "Short description": "Earn an outfit",
+            "Requirements": "Level 1",
+            "Rewards": "Vault Suit",
+            "quest_rewards": [
+                {
+                    "reward_type": "ITEM",
+                    "reward_data": {"item_name": "Vault Suit", "quantity": 1},
+                    "item_data": {
+                        "item_type": "outfit",
+                        "name": "Vault Suit",
+                        "rarity": "rare",
+                        "outfit_type": "jumpsuit",
+                    },
+                }
+            ],
+        }
+    ]
+    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Rewarded Quest"))).scalar_one()
+    reward = (
+        await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))
+    ).scalar_one()
+    assert reward.item_data == {
+        "item_type": "outfit",
+        "name": "Vault Suit",
+        "rarity": "rare",
+        "outfit_type": "jumpsuit",
+    }
 
 
 @pytest.mark.asyncio

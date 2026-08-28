@@ -202,6 +202,7 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                             reward_type=RewardType(reward_json.reward_type.lower()),
                             reward_data=reward_json.reward_data,
                             reward_chance=reward_json.reward_chance,
+                            item_data=reward_json.item_data,
                         )
                         db_session.add(reward)
 

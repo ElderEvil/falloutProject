@@ -9,6 +9,9 @@ from app.crud.mixins import CompletionMixin
 from app.models import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdate
+from app.services.reward_service import reward_service
+from app.utils.exceptions import ResourceConflictException
+from app.utils.reward_delivery import defer_reward_delivery
 
 
 class CRUDObjective(
@@ -94,12 +97,16 @@ class CRUDObjective(
             # Create new link if it doesn't exist
             link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=1, total=1, is_completed=True)
             db_session.add(link)
+        elif link.is_completed:
+            raise ResourceConflictException("Already completed")
         else:
             # Mark as completed
             link.is_completed = True
             link.progress = link.total
 
-        await db_session.commit()
+        async with defer_reward_delivery(db_session):
+            await reward_service.process_objective_reward(db_session, vault_id, link)
+            await db_session.commit()
         await self._handle_completion_cascade(db_session=db_session, db_obj=db_obj, vault_id=vault_id)
 
         return db_obj

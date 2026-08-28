@@ -112,6 +112,18 @@ class StaticGameData:
         """Return the canonical template matching a room name."""
         return next((room for room in self.rooms if room.name.lower() == room_name.lower()), None)
 
+    def get_dweller(self, template_id: str) -> DwellerCreateWithoutVaultID | None:
+        """Return a canonical dweller template by its stable kebab-case identifier."""
+        normalized_id = template_id.casefold().replace("-", " ")
+        return next(
+            (
+                dweller
+                for dweller in self.dwellers
+                if f"{dweller.first_name} {dweller.last_name or ''}".strip().casefold() == normalized_id
+            ),
+            None,
+        )
+
     @property
     def quests(self) -> list[QuestChainJSON]:
         """Load all quest chains from JSON files."""

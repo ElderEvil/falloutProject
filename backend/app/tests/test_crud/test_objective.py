@@ -154,6 +154,7 @@ async def test_complete_objective(async_session: AsyncSession) -> None:
     objective = await crud.objective_crud.create_for_vault(
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
+    initial_caps = vault.bottle_caps
 
     # Complete objective
     completed_objective = await crud.objective_crud.complete(
@@ -161,6 +162,8 @@ async def test_complete_objective(async_session: AsyncSession) -> None:
     )
 
     assert completed_objective.id == objective.id
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 50
 
     # Verify completion via get_multi_for_vault
     objectives = await crud.objective_crud.get_multi_for_vault(

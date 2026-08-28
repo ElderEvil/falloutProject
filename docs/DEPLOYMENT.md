@@ -2,6 +2,10 @@
 
 Complete guide for deploying Fallout Shelter in various environments.
 
+## Admin session security
+
+The embedded `/admin` interface uses an HTTPS-only production cookie with `SameSite=Strict` and a 30,008-second maximum age. Keep the admin route behind the same TLS reverse proxy as the API.
+
 ## Quick Start
 
 ```bash

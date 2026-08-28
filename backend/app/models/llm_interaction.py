@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
+from app.utils.datetime import utc_now
 
 if TYPE_CHECKING:
     from app.models.prompt import Prompt
@@ -26,7 +27,7 @@ class LLMInteractionBase(SQLModel):
 
 
 class LLMInteraction(BaseUUIDModel, LLMInteractionBase, table=True):
-    created_at: datetime | None = Field(default_factory=lambda: datetime.utcnow())
+    created_at: datetime | None = Field(default_factory=lambda: utc_now())
 
     prompt: "Prompt" = Relationship(back_populates="llm_interactions")
     user: "User" = Relationship(back_populates="llm_interactions")

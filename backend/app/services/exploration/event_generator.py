@@ -17,6 +17,7 @@ from app.schemas.exploration_event import (
 from app.services.exploration import data_loader
 from app.services.exploration.combat_calculator import combat_calculator
 from app.services.exploration.loot_calculator import loot_calculator
+from app.utils.datetime import utc_now
 
 
 class EventGenerator:
@@ -47,7 +48,7 @@ class EventGenerator:
             return exploration.elapsed_time_seconds() >= cfg.first_event_delay_seconds
 
         # Check if interval has passed since last event
-        now = datetime.utcnow()
+        now = utc_now()
         time_since_last_event = (now - last_event_time).total_seconds()
         return time_since_last_event >= cfg.event_interval_seconds
 

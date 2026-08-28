@@ -104,7 +104,7 @@ With the local API already running, use the smoke-test script instead of repeati
 
 ```bash
 cd backend
-uv run python scripts/check_ai_endpoints.py
+uv run fo-cli ops check-ai
 ```
 
 It uses the default user from `backend/.env`, selects that user's first local dweller, and sends one chat request to
@@ -115,13 +115,13 @@ content. The request creates one local chat-history entry and incurs one normal 
 For a free readiness check that stops before contacting a model, use:
 
 ```bash
-uv run python scripts/check_ai_endpoints.py --skip-chat
+uv run fo-cli ops check-ai --skip-chat
 ```
 
 Use an exact-response assertion only when testing a deterministic provider/model configuration:
 
 ```bash
-uv run python scripts/check_ai_endpoints.py --expect gateway-api-check
+uv run fo-cli ops check-ai --expect gateway-api-check
 ```
 
 ## Troubleshooting

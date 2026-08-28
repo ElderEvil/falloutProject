@@ -1,7 +1,5 @@
 """CRUD operations for relationships."""
 
-from datetime import UTC, datetime
-
 from pydantic import UUID4
 from sqlalchemy import and_
 from sqlalchemy import update as sa_update
@@ -12,6 +10,7 @@ from app.crud.base import CRUDBase
 from app.models.relationship import Relationship
 from app.schemas.common import PARTNER_LINKED_STAGES
 from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
+from app.utils.datetime import utc_now
 
 
 class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUpdate]):
@@ -51,7 +50,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         the transition (and so should apply the one-time bonus/notification),
         False if the relationship was already not PARTNER (another request won).
         """
-        values: dict = {"relationship_type": "MARRIED", "updated_at": datetime.now(UTC).replace(tzinfo=None)}
+        values: dict = {"relationship_type": "MARRIED", "updated_at": utc_now()}
         if affinity is not None:
             values["affinity"] = affinity
         query = (

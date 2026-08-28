@@ -1,7 +1,7 @@
 """Death service for handling dweller death, revival, and life/death statistics."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -15,6 +15,7 @@ from app.models.dweller import Dweller
 from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
 from app.schemas.dweller import DwellerUpdate
 from app.services.notification_service import notification_service
+from app.utils.datetime import utc_now
 from app.utils.exceptions import ContentNoChangeException, InsufficientResourcesException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class DeathService:
         # Update dweller death state
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         # This is a temporary fix - should migrate to timezone-aware in future
-        now_naive = datetime.now(UTC).replace(tzinfo=None)
+        now_naive = utc_now()
 
         updated_dweller = await dweller_crud.update(
             db_session,
@@ -205,7 +206,7 @@ class DeathService:
             return None
 
         permanent_date = dweller.death_timestamp + timedelta(days=game_config.death.permanent_death_days)
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = utc_now()
 
         if now >= permanent_date:
             return 0
@@ -222,7 +223,7 @@ class DeathService:
         :returns: Number of dwellers marked as permanently dead
         :rtype: int
         """
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=game_config.death.permanent_death_days)
+        cutoff_date = utc_now() - timedelta(days=game_config.death.permanent_death_days)
 
         # Find dead dwellers past the threshold
         query = (

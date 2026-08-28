@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.models.incident import Incident, IncidentStatus
 from app.models.notification import Notification
+from app.utils.datetime import utc_now
 
 
 class CleanupService:
@@ -18,7 +19,7 @@ class CleanupService:
         resolved_statuses = [IncidentStatus.RESOLVED, IncidentStatus.FAILED]
         retention = retention_days or settings.INCIDENT_RETENTION_DAYS
         batch = batch_size or settings.CLEANUP_BATCH_SIZE
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention)
+        cutoff_date = utc_now() - timedelta(days=retention)
 
         deleted_count = 0
 
@@ -52,7 +53,7 @@ class CleanupService:
     ) -> int:
         retention = retention_days or settings.NOTIFICATION_RETENTION_DAYS
         batch = batch_size or settings.CLEANUP_BATCH_SIZE
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=retention)
+        cutoff_date = utc_now() - timedelta(days=retention)
 
         deleted_count = 0
 

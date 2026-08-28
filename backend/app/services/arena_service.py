@@ -13,7 +13,7 @@ This is an experimental feature on branch `experiment/arena`.
 
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlalchemy import text
@@ -34,6 +34,7 @@ from app.schemas.arena import (
 )
 from app.schemas.common import AgeGroupEnum
 from app.utils.combat import combat_power
+from app.utils.datetime import utc_now
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -168,7 +169,7 @@ class ArenaService:
             started = room.arena_fight_started_at is not None
             countdown_remaining = 0
             if started and not match_done:
-                elapsed = (datetime.utcnow() - room.arena_fight_started_at).total_seconds()
+                elapsed = (utc_now() - room.arena_fight_started_at).total_seconds()
                 countdown_remaining = max(0, int(countdown - elapsed))
 
             events_result = await db_session.execute(
@@ -290,7 +291,7 @@ class ArenaService:
         if len(fighters) < MIN_FIGHTERS:
             raise ValidationException(detail="Arena needs two adult fighters selected")
 
-        room.arena_fight_started_at = datetime.utcnow()
+        room.arena_fight_started_at = utc_now()
         db_session.add(room)
         await db_session.commit()
         return room
@@ -355,7 +356,7 @@ class ArenaService:
         seconds_passed: int,
     ) -> dict:
         rounds = []
-        now = datetime.utcnow()
+        now = utc_now()
         for room in rooms:
             if room.arena_last_fight_at is not None:
                 continue
@@ -455,7 +456,7 @@ class ArenaService:
         # fighter selection changes (set_fighters clears the flag and heals).
         first.health = max(1, first.health)
         second.health = max(1, second.health)
-        room.arena_last_fight_at = datetime.utcnow()
+        room.arena_last_fight_at = utc_now()
         db_session.add(room)
         db_session.add(first)
         db_session.add(second)

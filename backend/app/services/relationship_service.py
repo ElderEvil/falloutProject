@@ -1,7 +1,6 @@
 """Service for managing dweller relationships and compatibility."""
 
 import logging
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +19,7 @@ from app.schemas.common import (
 from app.schemas.dweller import SPECIAL_STATS
 from app.schemas.relationship import CompatibilityScore
 from app.services.notification_service import NotificationService
+from app.utils.datetime import utc_now
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class RelationshipService:
             raise ValueError(msg)
 
         new_affinity = min(100, relationship.affinity + amount)
-        update_data = {"affinity": new_affinity, "updated_at": datetime.utcnow()}
+        update_data = {"affinity": new_affinity, "updated_at": utc_now()}
         old_type = relationship.relationship_type
 
         # Auto-upgrade relationship based on affinity thresholds
@@ -177,7 +177,7 @@ class RelationshipService:
             )
             raise ValueError(msg)
 
-        update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": datetime.utcnow()}
+        update_data = {"relationship_type": RelationshipTypeEnum.ROMANTIC, "updated_at": utc_now()}
 
         # Update via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
@@ -214,7 +214,7 @@ class RelationshipService:
             msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
             raise ValueError(msg)
 
-        update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
+        update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": utc_now()}
 
         # Update relationship via CRUD
         relationship = await relationship_crud.update(db_session, relationship.id, update_data)
@@ -379,7 +379,7 @@ class RelationshipService:
         update_data = {
             "relationship_type": RelationshipTypeEnum.EX,
             "affinity": max(0, relationship.affinity - 30),  # Penalty for breakup
-            "updated_at": datetime.utcnow(),
+            "updated_at": utc_now(),
         }
         await relationship_crud.update(db_session, relationship.id, update_data)
 

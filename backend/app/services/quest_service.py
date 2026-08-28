@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -13,6 +12,7 @@ from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.utils.datetime import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class QuestService:
     async def check_and_complete_quests(self, db_session: AsyncSession) -> int:
         """Check for quests that have exceeded their duration and auto-complete them."""
-        now = datetime.now()
+        now = utc_now()
         duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, 60)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
             expires_at = func.datetime(
@@ -77,7 +77,7 @@ class QuestService:
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
 
-        link.started_at = datetime.now()
+        link.started_at = utc_now()
         if duration_minutes is not None:
             link.duration_minutes = duration_minutes
 

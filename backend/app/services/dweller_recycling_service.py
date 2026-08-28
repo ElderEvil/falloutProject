@@ -5,7 +5,7 @@ AI-generated content (names, bios, visual attributes) to be reused in new vaults
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -17,6 +17,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import DwellerStatusEnum, GenderEnum, RarityEnum
+from app.utils.datetime import utc_now
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class DwellerRecyclingService:
         Returns:
             List of recyclable soft-deleted dwellers
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=min_age_days)
+        cutoff_date = utc_now() - timedelta(days=min_age_days)
 
         query = (
             select(Dweller)
@@ -216,7 +217,7 @@ class DwellerRecyclingService:
         Returns:
             Number of dwellers permanently deleted
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_threshold)
+        cutoff_date = utc_now() - timedelta(days=days_threshold)
 
         deleted_count = 0
 
@@ -259,7 +260,7 @@ class DwellerRecyclingService:
         Returns:
             Dictionary with recycling statistics
         """
-        now = datetime.utcnow()
+        now = utc_now()
 
         total_deleted_query = select(func.count()).where(col(Dweller.is_deleted).is_(True))
         total_deleted_result = await db_session.exec(total_deleted_query)

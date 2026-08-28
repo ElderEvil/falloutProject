@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from faker import Faker
@@ -9,6 +9,7 @@ from faker import Faker
 from app.core.game_config import game_config
 from app.schemas.common import AgeGroupEnum, GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
+from app.utils.datetime import utc_now
 
 fake: Faker = Faker()
 
@@ -95,7 +96,7 @@ def create_random_common_dweller(
     # enter the vault only through the breeding lifecycle.
     age_group = AgeGroupEnum.ADULT
     is_adult = True
-    now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
+    now = utc_now() if seed is None else datetime(2000, 1, 1)
     oldest_birth_date = _calendar_years_ago(now, 80)
     youngest_birth_date = _calendar_years_ago(now, 18)
     birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))

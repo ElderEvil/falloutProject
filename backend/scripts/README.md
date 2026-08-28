@@ -1,22 +1,33 @@
 # Backend Scripts
 
-Developer utilities for the Fallout Shelter backend. All Python scripts are
-[Typer](https://typer.tiangolo.com/) CLIs with a uniform interface:
-
-- Run from `backend/`: `uv run python scripts/<name>.py --help`
-- Each script has typed options with `--help` documentation
-- Scripts that touch the DB read `ASYNC_DATABASE_URI` from `backend/.env`
+Developer utilities for the Fallout Shelter backend.
 
 **Layout convention:** this directory holds *backend* (Python) scripts.
 Repo-root `scripts/` holds general shell utilities such as `backup-db.sh`.
+Interactive management commands (superuser creation, backfills, smoke tests)
+have moved into the `fo-cli` entry point defined in `pyproject.toml`.
 Development startup is provided through the project Zed tasks.
 
-## Admin & Data Migration
+## `fo-cli` management commands
 
-| Script | Purpose |
+Run from `backend/`:
+
+```bash
+uv run fo-cli --help
+```
+
+| Command | Purpose |
 |---|---|
-| `create_admin.py` | Create/upgrade a superuser (admin) account for testing |
-| `migrate_quest_data.py` | Migrate legacy quest requirement/reward strings into structured DB records |
+| `fo-cli createsuperuser` | Create/upgrade a superuser (admin) account |
+| `fo-cli seed` | Re-seed quests and objectives from JSON files |
+| `fo-cli family-scenario` | Dev/QA: build family/breeding test scenarios |
+| `fo-cli pregen-dwellers` | Dev/QA: seed dwellers with deterministic bios + map markers |
+| `fo-cli dweller-bios` | Dev/QA: fill missing bios for existing dwellers |
+| `fo-cli backfill backfill-bio-places` | Extract origin/visited places from bios and register them on the world map (`--vault`, `--all-active`, `--max-dwellers`) |
+| `fo-cli backfill backfill-unlock-discoveries` | Link DISCOVERY locations to their finding dweller and mark them unlocked (`--vault`, `--all-active`) |
+| `fo-cli ops fix-dweller-image-urls` | Convert dweller image filenames to full storage URLs |
+| `fo-cli ops set-rustfs-policies` | Set public read policies on whitelisted RustFS buckets |
+| `fo-cli ops check-ai` | HTTP smoke test against a live API server (`--api-url`, `--skip-chat`, `--expect`) |
 
 ## Game Data & Balancing
 
@@ -26,27 +37,13 @@ Development startup is provided through the project Zed tasks.
 | `simulate_incident_balance.py` | Monte-Carlo simulation of incident balance |
 | `simulate_resource_economy.py` | Deterministic resource-rate scenario using the live `ResourceManager` formulas |
 | `simulate_exploration_balance.py` | Monte-Carlo simulation of exploration balance |
-| `BALANCE_FINDINGS.md` | Findings notes from balance tuning runs |
 
-## Dweller Data
-
-| Script | Purpose |
-|---|---|
-| `backfill_dweller_bio_places.py` | Extract origin/visited places from existing dweller bios and register them on the world map (`--vault`, `--max-dwellers`) |
-| `backfill_unlock_discoveries.py` | Link DISCOVERY locations to their finding dweller and mark them unlocked (pre-fix discoveries had no dweller link) (`--vault`, `--all-active`) |
-| `fill_dweller_bios_templates.py` | Fill empty dweller bios with SPECIAL-driven template backstories that reference map places |
-
-## Infrastructure
-
-| Script | Purpose |
-|---|---|
-| `fix_dweller_image_urls.py` | Convert dweller image filenames to full storage URLs |
-| `set_rustfs_bucket_policies.py` | Set public read policies on whitelisted RustFS buckets |
+Balance findings are documented in [`docs/features/BALANCE_FINDINGS.md`](../../docs/features/BALANCE_FINDINGS.md).
 
 ## Standalone Tools
 
 | Script | Purpose |
-|---|---|---|
+|---|---|
 | `download_wiki_images.py` | Download Fallout Shelter images from The Vault wiki |
 
 `download_wiki_images.py` is a self-contained [PEP 723](https://peps.python.org/pep-0723/)
@@ -66,4 +63,4 @@ uv run scripts/download_wiki_images.py legendary-dwellers
 uv run scripts/download_wiki_images.py all
 ```
 
-All other scripts use the project environment and run with `uv run python scripts/<name>.py`.
+All other Python scripts use the project environment and run with `uv run python scripts/<name>.py`.

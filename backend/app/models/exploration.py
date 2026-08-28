@@ -10,11 +10,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils.datetime import utc_now
 
 
 def get_utc_now() -> datetime:
     """Get current UTC time."""
-    return datetime.utcnow()
+    return utc_now()
 
 
 class ExplorationStatus(StrEnum):
@@ -72,7 +73,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
 
     def elapsed_time_seconds(self) -> int:
         """Calculate elapsed time in seconds."""
-        now = datetime.utcnow()
+        now = utc_now()
         return int((now - self.start_time).total_seconds())
 
     def progress_percentage(self) -> float:
@@ -100,19 +101,19 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             # First event should happen after 5-10 minutes
             return self.elapsed_time_seconds() >= 300
 
-        now = datetime.utcnow()
+        now = utc_now()
         time_since_last_event = (now - last_event_time).total_seconds()
         return time_since_last_event >= 600  # 10 minutes
 
     def complete(self) -> None:
         """Mark exploration as completed."""
         self.status = ExplorationStatus.COMPLETED
-        self.end_time = datetime.utcnow()
+        self.end_time = utc_now()
 
     def recall(self) -> None:
         """Mark exploration as recalled (early return)."""
         self.status = ExplorationStatus.RECALLED
-        self.end_time = datetime.utcnow()
+        self.end_time = utc_now()
 
     def add_event(
         self,
@@ -133,7 +134,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         event = {
             "type": event_type,
             "description": description,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "time_elapsed_hours": round(self.elapsed_time_seconds() / 3600, 2),
         }
         if loot:
@@ -163,7 +164,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
                 "quantity": quantity,
                 "rarity": rarity,
                 "item_type": item_type,
-                "found_at": datetime.utcnow().isoformat(),
+                "found_at": utc_now().isoformat(),
             }
         )
         # Flag the field as modified so SQLAlchemy tracks the change

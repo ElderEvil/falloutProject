@@ -2,7 +2,6 @@
 
 import logging
 import random
-from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
+from app.crud import game_state_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
@@ -22,6 +22,7 @@ from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
+from app.utils.datetime import utc_now
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
@@ -48,7 +49,7 @@ class GameLoopService:
             "total_time": 0,
         }
 
-        start_time = datetime.utcnow()
+        start_time = utc_now()
 
         # Get all active vaults
         active_vaults = await self._get_active_vaults(db_session)
@@ -63,7 +64,7 @@ class GameLoopService:
                 self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
-        stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
+        stats["total_time"] = (utc_now() - start_time).total_seconds()
 
         self.logger.info(
             f"Game tick completed: {stats['vaults_processed']} processed, "
@@ -240,18 +241,7 @@ class GameLoopService:
 
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
-        query = select(GameState).where(GameState.vault_id == vault_id)
-        result = await db_session.execute(query)
-        game_state = result.scalars().first()
-
-        if not game_state:
-            game_state = GameState(vault_id=vault_id)
-            db_session.add(game_state)
-            await db_session.commit()
-            await db_session.refresh(game_state)
-            self.logger.info(f"Created new game state for vault {vault_id}")
-
-        return game_state
+        return await game_state_crud.get_or_create(db_session, vault_id)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
         """Process all active explorations for a vault.

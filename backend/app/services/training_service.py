@@ -1,7 +1,7 @@
 """Training service for managing dweller SPECIAL stat training."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -17,6 +17,7 @@ from app.models.training import Training, TrainingStatus
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.services.notification_service import notification_service
+from app.utils.datetime import utc_now
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
@@ -158,7 +159,7 @@ class TrainingService:
         duration_seconds = self.calculate_training_duration(current_stat_value, room.tier)
 
         # Create training session
-        now = datetime.utcnow()
+        now = utc_now()
         training = Training(
             dweller_id=dweller.id,
             room_id=room.id,
@@ -210,7 +211,7 @@ class TrainingService:
         if not training.is_active():
             return training
 
-        now = datetime.utcnow()
+        now = utc_now()
 
         # Check if training is complete
         if now >= training.estimated_completion_at:
@@ -272,7 +273,7 @@ class TrainingService:
 
         # Update training status
         training.status = TrainingStatus.COMPLETED
-        training.completed_at = datetime.utcnow()
+        training.completed_at = utc_now()
         training.progress = 1.0
         db_session.add(training)
 
@@ -359,7 +360,7 @@ class TrainingService:
 
         # Update training status
         training.status = TrainingStatus.CANCELLED
-        training.completed_at = datetime.utcnow()
+        training.completed_at = utc_now()
         db_session.add(training)
 
         # Update dweller status back to IDLE and remove from room

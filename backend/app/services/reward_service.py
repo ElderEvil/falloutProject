@@ -5,9 +5,9 @@ import random
 from typing import Any
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
 from app.models.quest import Quest
@@ -49,8 +49,7 @@ class RewardService:
     ) -> dict[str, Any]:
         from app.crud.storage import get_available_space
 
-        result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-        storage_obj = result.scalar_one_or_none()
+        storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage_obj:
             msg = f"No storage found for vault {vault_id}"
             logger.warning(msg)
@@ -248,7 +247,6 @@ class RewardService:
         - 1 random dweller
         """
         from app.models.outfit import Outfit
-        from app.models.storage import Storage
         from app.models.weapon import Weapon
         from app.schemas.common import GenderEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 
@@ -293,8 +291,7 @@ class RewardService:
                 )
 
             # Get storage
-            result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-            storage = result.scalar_one_or_none()
+            storage = await storage_crud.get_by_vault(db_session, vault_id)
             if storage:
                 item.storage_id = storage.id
                 db_session.add(item)

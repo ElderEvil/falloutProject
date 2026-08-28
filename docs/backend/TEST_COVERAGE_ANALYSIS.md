@@ -54,12 +54,12 @@
 
 | File | Current | Missing | Reason |
 |------|---------|---------|--------|
-| `scripts/migrate_quest_data.py` | 0.0% | 128 | One-time migration |
-| `cli/main.py` | 0.0% | 62 | CLI tool |
-| `cli/migrations/cli.py` | 0.0% | 44 | Migration CLI |
-| `cli/app/dweller_bios.py` | 0.0% | 37 | CLI tool |
-| `cli/app/pregen_dwellers.py` | 0.0% | 34 | CLI tool |
-| `cli/app/manage.py` | 0.0% | 28 | CLI tool |
+| `cli/main.py` | 0.0% | 54 | CLI tool |
+| `cli/app/backfills.py` | 0.0% | 48 | CLI tool |
+| `cli/app/dweller_bios.py` | 0.0% | 31 | CLI tool |
+| `cli/app/family_scenario.py` | 0.0% | 90 | CLI tool |
+| `cli/app/ops.py` | 0.0% | 65 | CLI tool |
+| `cli/app/pregen_dwellers.py` | 0.0% | 28 | CLI tool |
 
 ## Optimization Recommendations
 

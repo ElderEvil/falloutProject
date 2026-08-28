@@ -3,7 +3,7 @@
 import html
 import logging
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from pydantic import UUID4
 from sqlmodel import select
@@ -24,6 +24,7 @@ from app.schemas.common import (
 )
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.services.notification_service import notification_service
+from app.utils.datetime import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -153,9 +154,7 @@ class BreedingService:
         """
         from app.models.dweller import Dweller
 
-        cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-            hours=game_config.breeding.birth_cooldown_hours
-        )
+        cooldown_start = utc_now() - timedelta(hours=game_config.breeding.birth_cooldown_hours)
         query = (
             select(Pregnancy.mother_id)
             .join(Dweller, Pregnancy.mother_id == Dweller.id)
@@ -373,7 +372,7 @@ class BreedingService:
             raise ValueError("Father must be male")
 
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
-        conceived_at = datetime.now(UTC).replace(tzinfo=None)
+        conceived_at = utc_now()
         due_at = conceived_at + timedelta(hours=game_config.breeding.pregnancy_duration_hours)
 
         pregnancy = Pregnancy(
@@ -411,7 +410,7 @@ class BreedingService:
             .join(Dweller, Pregnancy.mother_id == Dweller.id)
             .where(Dweller.vault_id == vault_id)
             .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-            .where(Pregnancy.due_at <= datetime.now(UTC).replace(tzinfo=None))
+            .where(Pregnancy.due_at <= utc_now())
         )
 
         return (await db_session.execute(query)).scalars().all()
@@ -517,7 +516,7 @@ class BreedingService:
             "rarity": child_rarity,
             "age_group": AgeGroupEnum.CHILD,
             "is_adult": False,
-            "birth_date": datetime.now(UTC).replace(tzinfo=None),
+            "birth_date": utc_now(),
             "level": 1,
             "experience": 0,
             "max_health": 100,
@@ -555,7 +554,7 @@ class BreedingService:
 
         # Update pregnancy status
         pregnancy.status = PregnancyStatusEnum.DELIVERED
-        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        pregnancy.updated_at = utc_now()
         await db_session.commit()
         await db_session.refresh(pregnancy)
 
@@ -640,9 +639,7 @@ class BreedingService:
         Returns:
             List of aged dwellers
         """
-        growth_threshold = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-            hours=game_config.breeding.child_growth_duration_hours
-        )
+        growth_threshold = utc_now() - timedelta(hours=game_config.breeding.child_growth_duration_hours)
 
         query = (
             select(Dweller)
@@ -670,7 +667,7 @@ class BreedingService:
                 adult_stat = max(1, min(10, adult_stat))
                 setattr(child, attr, adult_stat)
 
-            child.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            child.updated_at = utc_now()
             aged_dwellers.append(child)
 
             logger.info(f"Child aged to adult: {child.first_name} {child.last_name} ({child.id})")
@@ -769,8 +766,8 @@ class BreedingService:
             msg = "Pregnancy is not active"
             raise ValueError(msg)
 
-        pregnancy.due_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
-        pregnancy.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        pregnancy.due_at = utc_now() - timedelta(seconds=1)
+        pregnancy.updated_at = utc_now()
 
         await db_session.commit()
         await db_session.refresh(pregnancy)

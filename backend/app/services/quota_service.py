@@ -19,6 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
+from app.utils.datetime import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,7 @@ class QuotaService:
 
         quota_limit = user.monthly_token_limit if user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
 
-        now = datetime.utcnow()
+        now = utc_now()
         current_month_start = datetime(now.year, now.month, 1)
 
         usage_query = select(func.coalesce(func.sum(col(LLMInteraction.total_tokens)), 0).label("total_used")).where(

@@ -48,11 +48,9 @@ def dweller_bios(
     """
 
     async def _run() -> None:
-        from app.cli.main import _make_async_session
+        from app.db.session import async_session_maker
 
-        session_factory = _make_async_session()
-
-        async with session_factory() as session:
+        async with async_session_maker() as session:
             try:
                 results = await pregen_service.fill_missing_bios(
                     db_session=session,

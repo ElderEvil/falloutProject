@@ -4,6 +4,8 @@ from uuid import uuid4
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
+from app.utils.datetime import utc_now
+
 
 class TimeStampMixin(SQLModel):
     """Store timestamps as naive UTC (no tzinfo).
@@ -34,7 +36,7 @@ class SoftDeleteMixin(SQLModel):
     def soft_delete(self):
         """Marks the object as deleted."""
         self.is_deleted = True
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = utc_now()
 
     def restore(self):
         """Restores the object if it was soft-deleted."""

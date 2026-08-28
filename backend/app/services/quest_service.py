@@ -100,9 +100,7 @@ class QuestService:
         await db_session.commit()
         await db_session.refresh(link)
 
-        logger.info(
-            f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes"
-        )
+        logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
 
     async def get_available_for_vault(

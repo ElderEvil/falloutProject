@@ -231,7 +231,9 @@ async def test_process_quest_item_reward_uses_typed_item_data(async_session: Asy
     rewards = await reward_service.process_quest_rewards(async_session, vault.id, quest)
 
     outfit = (await async_session.execute(select(Outfit).where(Outfit.name == "Vault Suit"))).scalar_one()
-    assert rewards == [{"reward_type": RewardType.ITEM, "item_type": "outfit", "name": "Vault Suit", "item_id": str(outfit.id)}]
+    assert rewards == [
+        {"reward_type": RewardType.ITEM, "item_type": "outfit", "name": "Vault Suit", "item_id": str(outfit.id)}
+    ]
     assert outfit.storage_id is not None
 
 

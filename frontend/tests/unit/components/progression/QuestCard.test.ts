@@ -57,4 +57,23 @@ describe('QuestCard', () => {
 
     expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
   })
+
+  it('keeps completed progress visible while rewards await a claim', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          duration_minutes: 60,
+        },
+        vaultId: 'vault-1',
+        status: 'ready',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBe(100)
+    expect(wrapper.text()).toContain('Complete')
+  })
 })

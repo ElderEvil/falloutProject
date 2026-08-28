@@ -66,6 +66,8 @@ const questProgress = computed(() => {
   return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
 })
 
+const displayedQuestProgress = computed(() => (status === 'ready' ? 100 : questProgress.value))
+
 const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
@@ -420,12 +422,12 @@ const handleAction = () => {
       </div>
     </div>
 
-    <!-- Timer (for active quests) -->
-    <div v-if="status === 'active' && timeRemaining" class="quest-timer">
+    <!-- Quest progress stays visible until its reward is claimed -->
+    <div v-if="(status === 'active' && timeRemaining) || status === 'ready'" class="quest-timer">
       <Icon icon="mdi:clock-outline" class="timer-icon" />
-      <span class="timer-label">Time Remaining:</span>
-      <span class="timer-value">{{ timeRemaining }}</span>
-      <UProgressBar :model-value="questProgress" :height="6" :glow="false" class="flex-1 min-w-[72px]" />
+      <span class="timer-label">{{ status === 'ready' ? 'Complete:' : 'Time Remaining:' }}</span>
+      <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
+      <UProgressBar :model-value="displayedQuestProgress" :height="6" :glow="false" class="flex-1 min-w-[72px]" />
     </div>
 
     <!-- Duration Info (for available quests) -->

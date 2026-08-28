@@ -1,6 +1,5 @@
 """Email diagnostics endpoints (superuser-only test email)."""
 
-
 from fastapi import APIRouter
 
 from app.api.deps import CurrentSuperuser

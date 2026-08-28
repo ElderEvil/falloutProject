@@ -35,7 +35,7 @@ const { toasts, remove } = useToast()
 .toast-list-move,
 .toast-list-enter-active,
 .toast-list-leave-active {
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .toast-list-enter-from {
@@ -50,5 +50,13 @@ const { toasts, remove } = useToast()
 
 .toast-list-leave-active {
   position: absolute;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-list-move,
+  .toast-list-enter-active,
+  .toast-list-leave-active {
+    transition-duration: 0s;
+  }
 }
 </style>

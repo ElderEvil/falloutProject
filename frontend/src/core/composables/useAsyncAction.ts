@@ -36,7 +36,7 @@ export function useAsyncAction<Args extends unknown[], Result>(
     } catch (caught: unknown) {
       const message = getErrorMessage(caught)
       error.value = message
-      handleStoreError(caught, context, !showToast)
+      handleStoreError(caught, context, false)
       if (showToast) toast.error(message)
       if (rethrow) throw caught
       return null

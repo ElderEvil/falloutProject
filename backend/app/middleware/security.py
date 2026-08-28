@@ -64,6 +64,9 @@ def create_security_config() -> SecurityConfig:
             # "BadBot/1.0",
             # "Scraper/2.0",
         ],
+        # Traefik injects its private pod address here; it is trusted routing
+        # metadata, not user-controlled request content to scan.
+        excluded_detection_headers={"x-forwarded-for"},
     )
 
     logger.info(

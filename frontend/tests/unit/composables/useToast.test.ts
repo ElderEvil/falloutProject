@@ -10,7 +10,7 @@ describe('useToast', () => {
     vi.runOnlyPendingTimers()
     vi.useRealTimers()
     const { toasts, remove } = useToast()
-    toasts.value.forEach((t) => remove(t.id))
+    while (toasts.value.length > 0) remove(toasts.value[0].id)
   })
 
   describe('basic toast creation', () => {
@@ -65,11 +65,11 @@ describe('useToast', () => {
       expect(toasts.value[0].duration).toBe(7000)
     })
 
-    it('should use default duration for error (0 - persistent)', () => {
+    it('should auto-dismiss errors after 7 seconds', () => {
       const { error, toasts } = useToast()
       error('Error message')
 
-      expect(toasts.value[0].duration).toBe(0)
+      expect(toasts.value[0].duration).toBe(7000)
     })
 
     it('should override default duration with explicit value', () => {
@@ -93,8 +93,8 @@ describe('useToast', () => {
     })
 
     it('should not auto-dismiss toast with duration 0', () => {
-      const { error, toasts } = useToast()
-      error('Persistent error')
+      const { show, toasts } = useToast()
+      show('Persistent error', 'info', 0)
 
       expect(toasts.value).toHaveLength(1)
 
@@ -140,6 +140,15 @@ describe('useToast', () => {
       show('Same message', 'error')
 
       expect(toasts.value).toHaveLength(2)
+    })
+
+    it('keeps only the latest distinct error visible', () => {
+      const { error, toasts } = useToast()
+      error('First failure')
+      error('Second failure')
+
+      expect(toasts.value).toHaveLength(1)
+      expect(toasts.value[0].message).toBe('Second failure')
     })
 
     it('should increment count on duplicate toast', () => {
@@ -277,7 +286,7 @@ describe('useToast', () => {
       error('Error!')
 
       expect(toasts.value[0].variant).toBe('error')
-      expect(toasts.value[0].duration).toBe(0)
+      expect(toasts.value[0].duration).toBe(7000)
     })
 
     it('should create warning toast', () => {

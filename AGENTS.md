@@ -95,7 +95,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 
 1. Never push to git without explicit approval.
 2. After backend API changes: `cd frontend && pnpm run types:generate`.
-3. Small, test-backed changes; follow existing patterns; commit messages `feat:`/`fix:`/`chore:`; branch prefixes `feat/`/`fix/`/`chore/`.
+3. Small, test-backed changes; follow existing patterns; commit messages `feat:`/`fix:`/`chore:`; branch prefixes `feat/`/`fix/`/`chore/`. When touching Python, use `ty` and fix clear, local diagnostics as incremental cleanup; it is not a reason to widen unrelated work.
 4. **Architecture over simplification (MANDATORY):** the layered structure always wins over the LOC/file-count rules below. Backend: `models/`, `schemas/`, `crud/`, `services/`, thin routers in `api/v1/endpoints/` — **no all-in-one routers** (no business logic or schema definitions in endpoint files; endpoints parse params → call service → map exceptions). Frontend: `modules/<name>/` with `components/`, `composables/`, `stores/`, `models/`, `api/`. Never merge layers into one file to save lines; never declare schemas/models inline in a router or endpoint.
 5. **Net-LOC & file-count rule (v2.35+):** every update must have a negative net source-LOC change — compact/remove existing code (DRY) before adding; don't count generated files, lockfiles, or format-only changes. Prefer fewer files too: do not split into more modules/files unless readability genuinely suffers — but never below the architecture floor from rule 4.
 6. **DRY / KISS / YAGNI:** one source of truth per fact; the simplest thing that works; no speculative abstractions, no "we might need this later" code. A new abstraction must pay for itself by removing more than it adds.

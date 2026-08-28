@@ -498,6 +498,7 @@ describe('Exploration Store', () => {
         event: 'exploration',
         data: {
           type: 'exploration_complete',
+          exploration_id: 'exploration-1',
           dweller_id: 'dweller-1',
           rewards: mockRewardsSummary,
         },
@@ -506,6 +507,7 @@ describe('Exploration Store', () => {
       await nextTick()
 
       expect(addPendingReport).toHaveBeenCalledWith({
+        explorationId: 'exploration-1',
         vaultId: 'vault-1',
         dwellerId: 'dweller-1',
         dwellerName: 'Amata Almodovar',
@@ -521,6 +523,7 @@ describe('Exploration Store', () => {
         event: 'exploration',
         data: {
           type: 'exploration_complete',
+          exploration_id: 'exploration-2',
           dweller_id: 'unknown-dweller',
           rewards: mockRewardsSummary,
         },
@@ -529,6 +532,7 @@ describe('Exploration Store', () => {
       await nextTick()
 
       expect(addPendingReport).toHaveBeenCalledWith({
+        explorationId: 'exploration-2',
         vaultId: 'vault-1',
         dwellerId: 'unknown-dweller',
         dwellerName: 'Dweller',

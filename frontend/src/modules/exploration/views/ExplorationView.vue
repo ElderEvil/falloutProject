@@ -36,16 +36,14 @@ const vaultId = computed(() => route.params.id as string)
 const selectedExplorerId = ref<string | null>(null)
 const selectedQuestPartyId = ref<string | null>(null)
 
-// Store refs for loading/error state
 const { isLoading: explorationLoading, error: explorationError } = storeToRefs(explorationStore)
 
-// Rewards modal state
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
 const activeQueuedReportId = ref<string | null>(null)
 
-const { pendingReports } = usePendingReports()
+const { pendingReports } = usePendingReports(vaultId)
 
 function showNextPendingReport(): void {
   const next = pendingReports.value[0]
@@ -57,7 +55,6 @@ function showNextPendingReport(): void {
   }
 }
 
-// Centralized data loading function
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
@@ -67,7 +64,6 @@ const loadData = async () => {
     await questStore.fetchVaultQuests(vaultId.value)
     await questStore.fetchPartiesForActiveQuests(vaultId.value)
 
-    // Fetch full dweller data for explorers (includes weapon/outfit)
     for (const exploration of activeExplorationsArray.value) {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
     }
@@ -76,7 +72,6 @@ const loadData = async () => {
   }
 }
 
-// Fetch explorations on mount
 onMounted(async () => {
   await loadData()
   if (vaultId.value && authStore.token) {
@@ -91,7 +86,6 @@ onUnmounted(() => {
   explorationStore.stopSseSubscription()
 })
 
-// Surface rewards when the game loop auto-completes an exploration server-side
 watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {

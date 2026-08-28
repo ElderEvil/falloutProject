@@ -321,6 +321,9 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 ### P2 — Quality of Life
 
+- [ ] **Incremental `ty` cleanup** — run `ty` on touched Python files and resolve clear, local diagnostics as part of
+  ordinary changes. Keep this non-blocking and avoid widening feature work solely to chase pre-existing type debt.
+
 - [x] ~~**Fix silent incident fetch failure**~~ — ✅ **Done.** `incident.ts` already routes errors through `handleStoreError` (line 75). The `.catch(() => {})` mentioned in the original plan no longer exists at that location.
 
 - [x] ~~**Gate or remove the Objectives debug overlay in production**~~ — ✅ **Done.** The `ObjectivesDebugOverlay.vue` component no longer exists in the codebase. The debug panel was removed in a prior cleanup.

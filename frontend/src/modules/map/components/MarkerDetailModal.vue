@@ -97,6 +97,11 @@ function goToDweller(dwellerId: string) {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
 
+function goToDwellerChat(dwellerId: string) {
+  isOpen.value = false
+  router.push(`/dweller/${dwellerId}/chat`)
+}
+
 function dwellerDisplayName(first: string, last: string | null) {
   return last ? `${first} ${last}` : first
 }
@@ -110,6 +115,19 @@ function dwellerDisplayName(first: string, last: string | null) {
       <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
         Chat with a dweller who has been here to uncover this place.
       </p>
+      <div v-if="dwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
+        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">KNOWN CONTACTS</p>
+        <button
+          v-for="d in dwellers"
+          :key="d.dweller_id"
+          type="button"
+          class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          @click="goToDwellerChat(d.dweller_id)"
+        >
+          <span class="text-sm text-theme-primary underline underline-offset-2">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
+          <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
+        </button>
+      </div>
     </div>
     <div v-else class="space-y-5">
       <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">

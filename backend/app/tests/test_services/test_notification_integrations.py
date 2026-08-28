@@ -71,6 +71,7 @@ class TestExplorationNotifications:
             assert "caps_earned" in call_args.kwargs["meta_data"]
             assert "xp_earned" in call_args.kwargs["meta_data"]
             assert "items_found" in call_args.kwargs["meta_data"]
+            assert call_args.kwargs["meta_data"]["exploration_id"] == str(exploration.id)
 
 
 class TestRadioNotifications:

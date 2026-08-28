@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
 import DwellerBio from './DwellerBio.vue'
 import type { MapPlaceLink } from './DwellerBio.vue'
@@ -34,6 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref(props.initialTab ?? 'profile')
+watch(() => props.initialTab, (tab) => (activeTab.value = tab ?? 'profile'))
 
 const tabs = [
   { key: 'profile', label: 'Profile' },

@@ -1,7 +1,6 @@
 """Tests for the deterministic resource-economy simulator."""
 
 import pytest
-
 from scripts.simulate_resource_economy import ResourceEconomyConfig, simulate
 
 

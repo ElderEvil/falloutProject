@@ -31,6 +31,7 @@ dependencies = [
     "python-json-logger>=4.0.0",
     "uvloop>=0.21.0; sys_platform != 'win32'",
     "fastapi-guard>=7.4.1,<8",
+    "beautifulsoup4>=4.15.0",
 ]
 
 [dependency-groups]
@@ -74,7 +75,7 @@ app = ["py.typed"]
 [tool.ruff]
 line-length = 120
 target-version = "py313"
-exclude = [".git", "__pycache__", ".pytest_cache", "app/alembic", "app/cli/migrations/templates"]
+exclude = [".git", "__pycache__", ".pytest_cache", "app/alembic"]
 force-exclude = true
 lint.select = [
     "FAST",

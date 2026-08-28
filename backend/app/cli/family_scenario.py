@@ -154,10 +154,9 @@ def setup(
         parsed_postpartum: list[float] | None,
         parsed_child_ages: list[float] | None,
     ) -> None:
-        from app.cli.main import _make_async_session
+        from app.db.session import async_session_maker
 
-        session_factory = _make_async_session()
-        async with session_factory() as session:
+        async with async_session_maker() as session:
             try:
                 result = await family_scenario_service.setup(
                     db_session=session,
@@ -221,10 +220,9 @@ def status(
     """Print the current family timeline (relationships, pregnancies, children)."""
 
     async def _run() -> None:
-        from app.cli.main import _make_async_session
+        from app.db.session import async_session_maker
 
-        session_factory = _make_async_session()
-        async with session_factory() as session:
+        async with async_session_maker() as session:
             rows = await family_scenario_service.get_status(session, vault_id)
             if not rows:
                 typer.echo("No family data in this vault yet. Run 'uv run fo-cli family-scenario setup' first.")
@@ -257,10 +255,9 @@ def reset(
             typer.echo("This deletes all relationships and pregnancies for the vault. Pass --yes to confirm.")
             raise typer.Exit(code=1)
 
-        from app.cli.main import _make_async_session
+        from app.db.session import async_session_maker
 
-        session_factory = _make_async_session()
-        async with session_factory() as session:
+        async with async_session_maker() as session:
             counts = await family_scenario_service.reset(session, vault_id, include_children=include_children)
             typer.echo(
                 f"Removed {counts['relationships']} relationships, {counts['pregnancies']} pregnancies, "

@@ -11,6 +11,7 @@ from app.api.game_data_deps import get_static_game_data
 from app.core.game_config import compute_medical_capacity
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
+from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Room, Storage
 from app.models.vault import Vault
@@ -353,10 +354,8 @@ class VaultService:
 
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Create initial weapons and outfits for testing."""
-        from sqlmodel import select
 
         from app.models.outfit import Outfit
-        from app.models.storage import Storage
         from app.models.weapon import Weapon
         from app.schemas.common import (
             OutfitTypeEnum,
@@ -367,8 +366,7 @@ class VaultService:
         from app.utils.outfit_assets import get_outfit_image_url
         from app.utils.weapon_assets import get_weapon_image_url
 
-        result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-        storage = result.scalar_one_or_none()
+        storage = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage:
             return
 
@@ -658,8 +656,7 @@ class VaultService:
         initial_stimpack = min(5, medical_capacity.get("stimpack", 0))
         initial_radaway = min(5, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
-            storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_db_obj.id))
-            storage_obj = storage_result.scalar_one_or_none()
+            storage_obj = await storage_crud.get_by_vault(db_session, vault_db_obj.id)
             if storage_obj:
                 storage_obj.stimpack = initial_stimpack
                 storage_obj.radaway = initial_radaway
@@ -715,8 +712,7 @@ class VaultService:
 
         Dwellers can carry max 15 stimpaks and 15 radaways each.
         """
-        storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault.id))
-        storage = storage_result.scalar_one_or_none()
+        storage = await storage_crud.get_by_vault(db_session, vault.id)
         if not storage:
             raise ResourceNotFoundException(model=Storage, identifier=vault.id)
 

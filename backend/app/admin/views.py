@@ -1,11 +1,15 @@
 from typing import ClassVar
 
-from sqladmin import ModelView
+from sqladmin import ModelView, action
+from sqlmodel import select
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
-from app.models import LLMInteraction, Objective, Storage
+from app.models import AISettings, LLMInteraction, Objective, Storage
 from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
+from app.models.game_state import GameState
 from app.models.incident import Incident
 from app.models.junk import Junk
 from app.models.notification import Notification
@@ -24,7 +28,14 @@ from app.models.weapon import Weapon
 TRUNCATE_LENGTH = 50
 
 
-class UserAdmin(ModelView, model=User):
+class AdminModelView(ModelView):
+    """Safe defaults for administrative data views."""
+
+    can_delete = False
+    page_size = 50
+
+
+class UserAdmin(AdminModelView, model=User):
     column_list: ClassVar[list] = [
         User.id,
         User.username,
@@ -34,7 +45,14 @@ class UserAdmin(ModelView, model=User):
         User.created_at,
         User.updated_at,
     ]
-    column_details_exclude_list: ClassVar[list] = [User.hashed_password]
+    column_details_exclude_list: ClassVar[list] = [
+        User.hashed_password,
+        User.email_verification_token,
+        User.password_reset_token,
+        User.password_reset_expires,
+    ]
+    column_searchable_list: ClassVar[list] = [User.username, User.email]
+    column_labels: ClassVar[dict] = {User.is_active: "Active", User.is_superuser: "Superuser"}
 
     icon = "fa-solid fa-user"
 
@@ -43,8 +61,24 @@ class UserAdmin(ModelView, model=User):
     can_export = False
     can_delete = False
 
+    @action(
+        name="verify-email",
+        label="Verify email",
+        confirmation_message="Mark the selected users' email addresses as verified?",
+    )
+    async def verify_email(self, request: Request) -> RedirectResponse:
+        """Mark selected users' email addresses as verified."""
+        user_ids = request.query_params.get("pks", "").split(",")
+        async with self.session_maker() as session:
+            users = (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars()
+            for user in users:
+                user.email_verified = True
+                user.email_verification_token = None
+            await session.commit()
+        return RedirectResponse(request.headers.get("Referer", "/admin/user/list"), status_code=303)
 
-class UserProfileAdmin(ModelView, model=UserProfile):
+
+class UserProfileAdmin(AdminModelView, model=UserProfile):
     column_list: ClassVar[list] = [
         UserProfile.id,
         UserProfile.user,
@@ -67,7 +101,7 @@ class UserProfileAdmin(ModelView, model=UserProfile):
     can_delete = False
 
 
-class VaultAdmin(ModelView, model=Vault):
+class VaultAdmin(AdminModelView, model=Vault):
     column_list: ClassVar[list] = [
         Vault.id,
         Vault.number,
@@ -85,11 +119,13 @@ class VaultAdmin(ModelView, model=Vault):
         Vault.created_at,
         Vault.updated_at,
     ]
+    column_searchable_list: ClassVar[list] = [Vault.number]
+    column_labels: ClassVar[dict] = {Vault.bottle_caps: "Caps", Vault.population_max: "Population limit"}
 
     icon = "fa-solid fa-house-lock"
 
 
-class StorageAdmin(ModelView, model=Storage):
+class StorageAdmin(AdminModelView, model=Storage):
     column_list: ClassVar[list] = [
         Storage.id,
         Storage.vault,
@@ -100,7 +136,7 @@ class StorageAdmin(ModelView, model=Storage):
     icon = "fa-solid fa-box"
 
 
-class DwellerAdmin(ModelView, model=Dweller):
+class DwellerAdmin(AdminModelView, model=Dweller):
     column_list: ClassVar[list] = [
         Dweller.id,
         Dweller.first_name,
@@ -124,6 +160,8 @@ class DwellerAdmin(ModelView, model=Dweller):
         Dweller.created_at,
         Dweller.updated_at,
     ]
+    column_searchable_list: ClassVar[list] = [Dweller.first_name, Dweller.last_name]
+    column_labels: ClassVar[dict] = {Dweller.max_health: "Max HP", Dweller.health: "HP"}
 
     column_formatters: ClassVar[dict] = {
         Dweller.bio: lambda m, _attribute: (
@@ -134,7 +172,7 @@ class DwellerAdmin(ModelView, model=Dweller):
     icon = "fa-solid fa-person"
 
 
-class JunkAdmin(ModelView, model=Junk):
+class JunkAdmin(AdminModelView, model=Junk):
     column_list: ClassVar[list] = [Junk.id, Junk.name, Junk.rarity, Junk.value, Junk.junk_type, Junk.description]
 
     name = "Junk item"
@@ -143,7 +181,7 @@ class JunkAdmin(ModelView, model=Junk):
     icon = "fa-solid fa-trash"
 
 
-class OutfitAdmin(ModelView, model=Outfit):
+class OutfitAdmin(AdminModelView, model=Outfit):
     column_list: ClassVar[list] = [
         Outfit.id,
         Outfit.name,
@@ -156,7 +194,7 @@ class OutfitAdmin(ModelView, model=Outfit):
     icon = "fa-solid fa-tshirt"
 
 
-class QuestAdmin(ModelView, model=Quest):
+class QuestAdmin(AdminModelView, model=Quest):
     column_list: ClassVar[list] = [
         Quest.id,
         Quest.title,
@@ -172,13 +210,12 @@ class QuestAdmin(ModelView, model=Quest):
 
     icon = "fa-solid fa-book-open"
 
-    can_create = True
-    can_edit = True
-    can_delete = True
+    can_create = False
+    can_edit = False
     can_export = True
 
 
-class ObjectiveAdmin(ModelView, model=Objective):
+class ObjectiveAdmin(AdminModelView, model=Objective):
     column_list: ClassVar[list] = [
         Objective.id,
         Objective.challenge,
@@ -189,13 +226,12 @@ class ObjectiveAdmin(ModelView, model=Objective):
 
     icon = "fa-solid fa-bullseye"
 
-    can_create = True
-    can_edit = True
-    can_delete = True
+    can_create = False
+    can_edit = False
     can_export = True
 
 
-class RoomAdmin(ModelView, model=Room):
+class RoomAdmin(AdminModelView, model=Room):
     column_list: ClassVar[list] = [
         Room.id,
         Room.name,
@@ -219,7 +255,7 @@ class RoomAdmin(ModelView, model=Room):
     can_delete = False
 
 
-class WeaponAdmin(ModelView, model=Weapon):
+class WeaponAdmin(AdminModelView, model=Weapon):
     column_list: ClassVar[list] = [
         Weapon.id,
         Weapon.name,
@@ -235,7 +271,7 @@ class WeaponAdmin(ModelView, model=Weapon):
     icon = "fa-solid fa-gun"
 
 
-class PromptAdmin(ModelView, model=Prompt):
+class PromptAdmin(AdminModelView, model=Prompt):
     column_list: ClassVar[list] = [
         Prompt.id,
         Prompt.prompt_name,
@@ -245,7 +281,42 @@ class PromptAdmin(ModelView, model=Prompt):
     icon = "fa-solid fa-comment-dots"
 
 
-class LLInteractionAdmin(ModelView, model=LLMInteraction):
+class AISettingsAdmin(AdminModelView, model=AISettings):
+    column_list: ClassVar[list] = [
+        AISettings.id,
+        AISettings.provider,
+        AISettings.model,
+        AISettings.base_url,
+        AISettings.gateway_route,
+        AISettings.updated_at,
+    ]
+    can_create = False
+    can_edit = False
+
+    name = "AI Setting"
+    name_plural = "AI Settings"
+    icon = "fa-solid fa-robot"
+
+
+class GameStateAdmin(AdminModelView, model=GameState):
+    column_list: ClassVar[list] = [
+        GameState.id,
+        GameState.vault_id,
+        GameState.is_active,
+        GameState.is_paused,
+        GameState.total_game_time,
+        GameState.last_tick_time,
+        GameState.last_activity_time,
+    ]
+    can_create = False
+    can_edit = False
+
+    name = "Game State"
+    name_plural = "Game States"
+    icon = "fa-solid fa-clock"
+
+
+class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
     name = "LLM Interaction"
     name_plural = "LLM Interactions"
     column_list: ClassVar[list] = [
@@ -259,7 +330,7 @@ class LLInteractionAdmin(ModelView, model=LLMInteraction):
     icon = "fa-solid fa-comment-dots"
 
 
-class RelationshipAdmin(ModelView, model=Relationship):
+class RelationshipAdmin(AdminModelView, model=Relationship):
     column_list: ClassVar[list] = [
         Relationship.id,
         Relationship.dweller_1_id,
@@ -278,7 +349,7 @@ class RelationshipAdmin(ModelView, model=Relationship):
     can_delete = False
 
 
-class PregnancyAdmin(ModelView, model=Pregnancy):
+class PregnancyAdmin(AdminModelView, model=Pregnancy):
     column_list: ClassVar[list] = [
         Pregnancy.id,
         Pregnancy.mother_id,
@@ -298,7 +369,7 @@ class PregnancyAdmin(ModelView, model=Pregnancy):
     can_delete = False
 
 
-class TrainingAdmin(ModelView, model=Training):
+class TrainingAdmin(AdminModelView, model=Training):
     column_list: ClassVar[list] = [
         Training.id,
         Training.dweller_id,
@@ -325,7 +396,7 @@ class TrainingAdmin(ModelView, model=Training):
     can_delete = False
 
 
-class IncidentAdmin(ModelView, model=Incident):
+class IncidentAdmin(AdminModelView, model=Incident):
     column_list: ClassVar[list] = [
         Incident.id,
         Incident.vault_id,
@@ -347,10 +418,9 @@ class IncidentAdmin(ModelView, model=Incident):
 
     can_create = False
     can_edit = True
-    can_delete = True
 
 
-class ExplorationAdmin(ModelView, model=Exploration):
+class ExplorationAdmin(AdminModelView, model=Exploration):
     column_list: ClassVar[list] = [
         Exploration.id,
         Exploration.vault_id,
@@ -375,7 +445,7 @@ class ExplorationAdmin(ModelView, model=Exploration):
     can_delete = False
 
 
-class ChatMessageAdmin(ModelView, model=ChatMessage):
+class ChatMessageAdmin(AdminModelView, model=ChatMessage):
     column_list: ClassVar[list] = [
         ChatMessage.id,
         ChatMessage.vault_id,
@@ -414,10 +484,9 @@ class ChatMessageAdmin(ModelView, model=ChatMessage):
 
     can_create = False
     can_edit = False
-    can_delete = True
 
 
-class NotificationAdmin(ModelView, model=Notification):
+class NotificationAdmin(AdminModelView, model=Notification):
     column_list: ClassVar[list] = [
         Notification.id,
         Notification.user_id,
@@ -452,4 +521,3 @@ class NotificationAdmin(ModelView, model=Notification):
 
     can_create = False
     can_edit = True
-    can_delete = True

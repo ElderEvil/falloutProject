@@ -134,7 +134,17 @@ class AISettingsService:
             gateway_route=eff_route,
         )
         ModelCache.reset()
-        dweller_chat_agent.model = ModelCache.get_model()
+        fresh_model = ModelCache.get_model()
+        dweller_chat_agent.model = fresh_model
+
+        from app.agents import dweller_agents
+
+        for content_agent in (
+            dweller_agents.backstory_agent,
+            dweller_agents.bio_extension_agent,
+            dweller_agents.visual_attributes_agent,
+        ):
+            content_agent.model = fresh_model
         return result
 
     @staticmethod

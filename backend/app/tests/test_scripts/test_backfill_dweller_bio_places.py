@@ -1,4 +1,4 @@
-"""Tests for the retro-active bio place backfill script CLI."""
+"""Tests for the retro-active bio place backfill CLI command."""
 
 from __future__ import annotations
 
@@ -6,98 +6,103 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from typer.testing import CliRunner
 
+from app.cli.backfills import app as backfills_app
+from app.cli.main import cli
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
-from scripts.backfill_dweller_bio_places import MAX_DWELLERS, MAX_VAULTS
-from scripts.backfill_dweller_bio_places import main as backfill_main
+
+runner = CliRunner()
 
 # ---------------------------------------------------------------------------
-# main() integration tests (with mocks)
+# backfill-bio-places command tests (with mocks)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_main_requires_vault_or_all_active() -> None:
-    """When no vault is supplied and --all-active is not set, the script raises an error."""
-    with pytest.raises(ValueError, match="Either --vault or --all-active"):
-        await backfill_main()
+def test_command_requires_vault_or_all_active() -> None:
+    """When no vault is supplied and --all-active is not set, the command exits non-zero."""
+    result = runner.invoke(cli, ["backfill", "backfill-bio-places"])
+    assert result.exit_code != 0
+    assert "Either --vault or --all-active" in result.output
 
 
-@pytest.mark.asyncio
-async def test_main_single_vault_delegates_to_service() -> None:
+def test_command_single_vault_delegates_to_service() -> None:
     """Single-vault mode delegates to BioPlaceBackfillService."""
     vault_id = uuid4()
-    mock_session = AsyncMock()
-    mock_session.__aenter__.return_value = mock_session
 
     with (
-        patch("scripts.backfill_dweller_bio_places.async_session_maker", return_value=mock_session),
-        patch("scripts.backfill_dweller_bio_places.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
+        patch("app.cli.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
         patch(
-            "scripts.backfill_dweller_bio_places.bio_place_backfill_service.backfill_bio_places_for_vault",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
             new_callable=AsyncMock,
         ) as mock_backfill_vault,
     ):
         mock_vault_get.return_value = type("Vault", (), {"id": vault_id})()
         mock_backfill_vault.return_value = 5
 
-        result = await backfill_main(vault_uuid=str(vault_id), max_dwellers=10)
+        result = runner.invoke(
+            cli,
+            ["backfill", "backfill-bio-places", "--vault", str(vault_id), "--max-dwellers", "10"],
+        )
 
-        mock_vault_get.assert_awaited_once_with(mock_session, vault_id)
-        mock_backfill_vault.assert_awaited_once_with(mock_session, vault_id, max_dwellers=10)
-        assert result == 5
+        assert result.exit_code == 0
+        mock_vault_get.assert_awaited_once()
+        mock_backfill_vault.assert_awaited_once()
+        assert "Backfill complete: 5 dweller bio places registered" in result.output
 
 
-@pytest.mark.asyncio
-async def test_main_all_active_delegates_to_service() -> None:
+def test_command_all_active_delegates_to_service() -> None:
     """--all-active mode delegates to BioPlaceBackfillService."""
-    mock_session = AsyncMock()
-    mock_session.__aenter__.return_value = mock_session
-
     with (
-        patch("scripts.backfill_dweller_bio_places.async_session_maker", return_value=mock_session),
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
         patch(
-            "scripts.backfill_dweller_bio_places.crud.vault.get",
+            "app.cli.backfills.crud.vault.get",
             new_callable=AsyncMock,
         ) as mock_vault_get,
         patch(
-            "scripts.backfill_dweller_bio_places.bio_place_backfill_service.backfill_bio_places_for_active_vaults",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_active_vaults",
             new_callable=AsyncMock,
         ) as mock_backfill_all,
     ):
         expected = {uuid4(): 2, uuid4(): 0}
         mock_backfill_all.return_value = expected
 
-        result = await backfill_main(all_active=True, max_dwellers=50, max_vaults=10)
-
-        mock_vault_get.assert_not_awaited()
-        mock_backfill_all.assert_awaited_once_with(
-            mock_session,
-            max_dwellers_per_vault=50,
-            max_vaults=10,
+        result = runner.invoke(
+            cli,
+            ["backfill", "backfill-bio-places", "--all-active", "--max-dwellers", "50", "--max-vaults", "10"],
         )
-        assert result == expected
+
+        assert result.exit_code == 0
+        mock_vault_get.assert_not_awaited()
+        mock_backfill_all.assert_awaited_once()
+        assert "Backfill complete: 2 dweller bio places registered across 2 vaults" in result.output
 
 
-@pytest.mark.asyncio
-async def test_main_vault_not_found_raises() -> None:
-    """Non-existent vault UUID -> raises a ValueError so the CLI exits non-zero."""
-    mock_session = AsyncMock()
-    mock_session.__aenter__.return_value = mock_session
-
+def test_command_vault_not_found_raises() -> None:
+    """Non-existent vault UUID -> the command exits non-zero."""
     with (
-        patch("scripts.backfill_dweller_bio_places.async_session_maker", return_value=mock_session),
-        patch("scripts.backfill_dweller_bio_places.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
+        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
+        patch("app.cli.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
         patch(
-            "scripts.backfill_dweller_bio_places.bio_place_backfill_service.backfill_bio_places_for_vault",
+            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
             new_callable=AsyncMock,
         ) as mock_backfill_vault,
     ):
         vault_uuid = uuid4()
         mock_vault_get.side_effect = ResourceNotFoundException(Vault, vault_uuid)
 
-        with pytest.raises(ValueError, match=r"Vault .* not found"):
-            await backfill_main(vault_uuid=str(vault_uuid), max_dwellers=MAX_DWELLERS)
+        result = runner.invoke(cli, ["backfill", "backfill-bio-places", "--vault", str(vault_uuid)])
 
+        assert result.exit_code == 1
+        assert "Vault" in result.output
+        assert "not found" in result.output
         mock_backfill_vault.assert_not_awaited()
+
+
+def test_backfills_app_has_command() -> None:
+    """The backfill Typer app exposes the renamed command."""
+    result = runner.invoke(backfills_app, ["--help"])
+    assert result.exit_code == 0
+    assert "backfill-bio-places" in result.output

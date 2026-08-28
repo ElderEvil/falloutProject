@@ -132,6 +132,27 @@ class TestApply:
             mock_reconfig.assert_called_once()
             mock_cache_reset.assert_called_once()
 
+    async def test_apply_rebinds_all_agent_models(self, async_session) -> None:
+        from app.agents import dweller_agents
+        from app.agents.dweller_chat_agent import dweller_chat_agent
+
+        await ai_settings_crud.upsert(async_session, {"provider": "lmstudio", "model": "test"})
+        fresh_model = MagicMock()
+        with (
+            patch.object(AIService, "reconfigure", return_value=True),
+            patch("app.agents.dweller_chat_agent.ModelCache.reset"),
+            patch("app.agents.dweller_chat_agent.ModelCache.get_model", return_value=fresh_model),
+        ):
+            await ai_settings_service.apply(async_session)
+
+        assert dweller_chat_agent.model is fresh_model
+        for content_agent in (
+            dweller_agents.backstory_agent,
+            dweller_agents.bio_extension_agent,
+            dweller_agents.visual_attributes_agent,
+        ):
+            assert content_agent.model is fresh_model, f"{content_agent!r} was not rebound"
+
 
 class TestAIServiceReconfigure:
     def _make_fresh_service(self) -> AIService:

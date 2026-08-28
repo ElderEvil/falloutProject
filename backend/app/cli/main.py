@@ -3,8 +3,12 @@
 Usage:
     uv run fo-cli --help
     uv run fo-cli createsuperuser
-    uv run fo-cli migrations upgrade head
-    uv run fo-cli startapp dweller
+    uv run fo-cli seed
+    uv run fo-cli family-scenario --help
+    uv run fo-cli backfill --help
+    uv run fo-cli ops --help
+    uv run fo-cli simulate-exploration --help
+    uv run fo-cli wiki-images --help
 """
 
 import asyncio
@@ -12,31 +16,37 @@ import logging
 from typing import Annotated
 
 import typer
-from sqlalchemy.orm import sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.cli.app.dweller_bios import dweller_bios as _dweller_bios
-from app.cli.app.family_scenario import app as family_scenario
-from app.cli.app.manage import startapp as _startapp
-from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
-from app.cli.migrations.cli import migrations
+from app.cli.backfills import app as backfills
+from app.cli.dweller_bios import dweller_bios as _dweller_bios
+from app.cli.family_scenario import app as family_scenario
+from app.cli.ops import app as ops
+from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
+from app.cli.simulate_exploration import simulate as simulate_exploration
+from app.cli.simulate_happiness import simulate as simulate_happiness
+from app.cli.simulate_incidents import simulate as simulate_incidents
+from app.cli.simulate_resources import run as simulate_resources
+from app.cli.wiki_images import app as wiki_images
 from app.core.config import settings
-from app.db.session import async_engine
+from app.db.session import async_session_maker
 from app.schemas.user import UserCreate
 
 cli = typer.Typer(
     name="fo-cli",
-    help="Fallout Shelter management CLI — user admin, migrations, scaffolding, and more.",
+    help="Fallout Shelter management CLI — user admin, seeding, backfills, and ops.",
     no_args_is_help=True,
 )
 
 # Register sub-command groups
-cli.add_typer(migrations, name="migrations", help="Alembic database migrations")
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
-
-# Re-register startapp as a flat command
-cli.command(name="startapp", help="Scaffold a new app module (model, schema, CRUD, API, service)")(_startapp)
+cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
+cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
+cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")
+cli.command(name="simulate-exploration", help="Run the multi-system balance simulator")(simulate_exploration)
+cli.command(name="simulate-happiness", help="Run the happiness balance simulator")(simulate_happiness)
+cli.command(name="simulate-incidents", help="Run the incident balance simulator")(simulate_incidents)
+cli.command(name="simulate-resources", help="Run the resource economy simulator")(simulate_resources)
 
 # Re-register pregen-dwellers as a flat command
 cli.command(name="pregen-dwellers", help="Dev/QA: seed dwellers with deterministic bios + world-map place markers")(
@@ -50,17 +60,6 @@ cli.command(
 )(_dweller_bios)
 
 logger = logging.getLogger(__name__)
-
-
-def _make_async_session() -> sessionmaker:
-    """Create a new async sessionmaker for CLI use."""
-    return sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=async_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
 
 
 @cli.command()
@@ -108,8 +107,7 @@ def createsuperuser(
             )
 
     async def _create() -> None:
-        async_session = _make_async_session()
-        async with async_session() as session:
+        async with async_session_maker() as session:
             # Check if user already exists
             existing = await crud.user.get_by_email(db_session=session, email=email)
             if existing:
@@ -140,8 +138,7 @@ def seed() -> None:
     from app.utils.seed_quests import seed_quests_from_json
 
     async def _seed() -> None:
-        async_session = _make_async_session()
-        async with async_session() as session:
+        async with async_session_maker() as session:
             quest_count = await seed_quests_from_json(session)
             objective_count = await seed_objectives_from_json(session)
             typer.echo(f"  Quests seeded: {quest_count}")

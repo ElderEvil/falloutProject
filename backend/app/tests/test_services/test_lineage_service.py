@@ -240,7 +240,7 @@ async def test_lineage_not_found_raises(
 
     from app.utils.exceptions import ResourceNotFoundException
 
-    with pytest.raises(ResourceNotFoundException):
+    with pytest.raises(ResourceNotFoundException, match="Unable to find the Dweller"):
         await lineage_service.get_lineage(async_session, uuid4())
 
 

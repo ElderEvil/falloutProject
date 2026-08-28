@@ -15,7 +15,7 @@ two obsolete exploration components, and fixes quest party-member rendering.
 **Discovery unlock fix (v2.46.1 follow-up):** released in v2.46.1. `register_discovery` now links the
 exploring dweller to the DISCOVERY marker with `is_unlocked=True`, so discovered locations unlock immediately
 instead of staying locked (previously only bio-linked places could unlock, via chat). A backfill script
-(`scripts/backfill_unlock_discoveries.py`) repairs pre-fix rows. Deploy the v2.46.1 worker image to activate the
+(`uv run fo-cli backfill backfill-unlock-discoveries`) repairs pre-fix rows. Deploy the v2.46.1 worker image to activate the
 runtime fix.
 
 ## Phase A delivery checklist

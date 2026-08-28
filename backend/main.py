@@ -13,9 +13,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin.auth import AdminAuth
 from app.admin.views import (
+    AISettingsAdmin,
     ChatMessageAdmin,
     DwellerAdmin,
     ExplorationAdmin,
+    GameStateAdmin,
     IncidentAdmin,
     JunkAdmin,
     LLInteractionAdmin,
@@ -142,8 +144,15 @@ if settings.ENABLE_RATE_LIMITING:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     logger.info("Security middleware enabled with rate limiting")
 
-# Add session middleware for admin authentication
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+# Add session middleware for admin authentication.  The admin session is short-lived,
+# restricted to HTTPS in production, and never sent to cross-site requests.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    https_only=settings.ENVIRONMENT == "production",
+    same_site="strict",
+    max_age=30_008,
+)
 
 # Create authentication backend
 authentication_backend = AdminAuth(secret_key=settings.SECRET_KEY)
@@ -215,3 +224,5 @@ admin.add_view(QuestAdmin)
 admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)
+admin.add_view(AISettingsAdmin)
+admin.add_view(GameStateAdmin)

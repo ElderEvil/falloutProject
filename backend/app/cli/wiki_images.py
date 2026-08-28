@@ -1,11 +1,3 @@
-# /// script
-# dependencies = [
-#   "beautifulsoup4",
-#   "httpx",
-#   "typer",
-# ]
-# ///
-
 """Download Fallout Shelter images from The Vault wiki (Fandom).
 
 Uses the MediaWiki API instead of HTML scraping, because Fandom now blocks
@@ -288,8 +280,8 @@ def legendary_dwellers(
         found_names = {d["name"].casefold() for d in dwellers}
         missing = SUPPORTED_LEGENDARY_NAMES - found_names
         if missing:
-            ty.echo(f"Error: supported roster names not found on wiki: {sorted(missing)}", err=True)
-            raise ty.Exit(1)
+            typer.echo(f"Error: supported roster names not found on wiki: {sorted(missing)}", err=True)
+            raise typer.Exit(1)
 
         urls = _image_info(client, [d["image_title"] for d in dwellers])
         downloaded = 0

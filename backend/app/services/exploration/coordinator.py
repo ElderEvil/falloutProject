@@ -17,7 +17,7 @@ from app.crud import outfit as crud_outfit
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
 from app.crud import weapon as crud_weapon
-from app.models import Room, Storage
+from app.models import Room
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.junk import Junk
@@ -521,8 +521,7 @@ class ExplorationCoordinator:
 
         # Return unused stimpaks and radaways to vault storage
         if exploration.stimpaks > 0 or exploration.radaways > 0:
-            storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == exploration.vault_id))
-            storage_obj = storage_result.scalar_one_or_none()
+            storage_obj = await crud_storage.get_by_vault(db_session, exploration.vault_id)
             if storage_obj:
                 room_result = await db_session.execute(select(Room).where(Room.vault_id == exploration.vault_id))
                 rooms = room_result.scalars().all()

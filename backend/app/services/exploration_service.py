@@ -5,12 +5,11 @@ the modular exploration system in services/exploration/ modules.
 """
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
 from app.crud.dweller import dweller as dweller_crud
-from app.models import Storage
+from app.crud.storage import storage as crud_storage
 from app.models.exploration import Exploration
 from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationProgress
@@ -113,8 +112,7 @@ class ExplorationService:
             raise ValueError(msg)
 
         # Check vault storage first, then fall back to dweller inventory
-        storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-        storage = storage_result.scalar_one_or_none()
+        storage = await crud_storage.get_by_vault(db_session, vault_id)
         vault_stimpaks = storage.stimpack if storage else 0
         vault_radaways = storage.radaway if storage else 0
 

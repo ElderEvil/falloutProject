@@ -6,9 +6,9 @@ Run standalone without the full backend.
 
 Usage:
     cd backend
-    uv run python scripts/simulate_incident_balance.py
-    uv run python scripts/simulate_incident_balance.py --days 3 --runs 50
-    uv run python scripts/simulate_incident_balance.py --sweep spawn_chance_per_hour
+    uv run fo-cli simulate-incidents
+    uv run fo-cli simulate-incidents --days 3 --runs 50
+    uv run fo-cli simulate-incidents --sweep spawn_chance_per_hour
 """
 
 from __future__ import annotations

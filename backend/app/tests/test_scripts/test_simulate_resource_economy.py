@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.simulate_resource_economy import ResourceEconomyConfig, simulate
+from app.cli.simulate_resources import ResourceEconomyConfig, simulate
 
 
 def test_simulate_uses_live_resource_production_and_consumption_rates() -> None:

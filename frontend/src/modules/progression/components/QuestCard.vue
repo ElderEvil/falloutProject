@@ -58,6 +58,14 @@ const updateTimer = () => {
     .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
+const questProgress = computed(() => {
+  void timeRemaining.value
+  if (!quest.started_at || !quest.duration_minutes) return 0
+
+  const elapsed = Date.now() - new Date(quest.started_at).getTime()
+  return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
+})
+
 const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
@@ -417,6 +425,9 @@ const handleAction = () => {
       <Icon icon="mdi:clock-outline" class="timer-icon" />
       <span class="timer-label">Time Remaining:</span>
       <span class="timer-value">{{ timeRemaining }}</span>
+      <div class="quest-progress-track" aria-label="Quest progress">
+        <div class="quest-progress-fill" :style="{ width: `${questProgress}%` }"></div>
+      </div>
     </div>
 
     <!-- Duration Info (for available quests) -->
@@ -672,6 +683,22 @@ const handleAction = () => {
   border: 1px solid var(--color-theme-accent);
   border-radius: 6px;
   margin-top: 12px;
+}
+
+.quest-progress-track {
+  flex: 1;
+  min-width: 72px;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
+  background: var(--color-surface-sunken);
+}
+
+.quest-progress-fill {
+  height: 100%;
+  background: var(--color-theme-accent);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+  transition: width 1s linear;
 }
 
 .timer-icon {

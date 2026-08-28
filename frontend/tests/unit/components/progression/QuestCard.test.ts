@@ -38,4 +38,22 @@ describe('QuestCard', () => {
     expect(wrapper.html()).toContain('mt-4')
     expect(wrapper.text()).toContain('Start Quest')
   })
+
+  it('shows elapsed progress for an active timed quest', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          duration_minutes: 60,
+        },
+        vaultId: 'vault-1',
+        status: 'active',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.find('.quest-progress-fill').exists()).toBe(true)
+  })
 })

@@ -11,6 +11,14 @@ import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
 
+vi.mock('@/modules/dwellers/components/DwellerDetailContainer.vue', () => ({
+  default: {
+    name: 'DwellerDetailContainer',
+    props: ['embedded'],
+    template: '<div class="mock-detail-container" />',
+  },
+}))
+
 describe('DwellersView', () => {
   let router: any
   let _authStore: any
@@ -215,6 +223,80 @@ describe('DwellersView', () => {
 
       const filterPanel = wrapper.findComponent({ name: 'DwellerFilterPanel' })
       expect(filterPanel.exists()).toBe(true)
+    })
+  })
+
+  describe('Master-detail (?selected)', () => {
+    function mockMatchMedia(matches: boolean) {
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        configurable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches,
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      })
+    }
+
+    beforeEach(() => {
+      const mockDwellers = [
+        {
+          id: 'dweller-1',
+          first_name: 'John',
+          last_name: 'Doe',
+          level: 5,
+          health: 100,
+          max_health: 100,
+          happiness: 80,
+          status: 'working',
+          room_id: null,
+          vault_id: 'vault-1',
+        },
+      ]
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
+        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
+        .mockResolvedValueOnce({ data: [] }) // fetchRooms
+        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
+    })
+
+    it('sets ?selected instead of navigating on desktop', async () => {
+      mockMatchMedia(true)
+      await router.isReady()
+      const wrapper = mount(DwellersView, {
+        global: { plugins: [router, pinia] },
+      })
+      await flushPromises()
+
+      const dwellerCard = wrapper.findAll('li')[0]
+      await dwellerCard.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).not.toBe('dwellerDetail')
+      expect(router.currentRoute.value.query.selected).toBe('dweller-1')
+      expect(wrapper.findComponent({ name: 'DwellerDetailContainer' }).exists()).toBe(true)
+    })
+
+    it('navigates to the detail route on mobile', async () => {
+      mockMatchMedia(false)
+      await router.isReady()
+      const wrapper = mount(DwellersView, {
+        global: { plugins: [router, pinia] },
+      })
+      await flushPromises()
+
+      const dwellerCard = wrapper.findAll('li')[0]
+      await dwellerCard.trigger('click')
+      await flushPromises()
+
+      expect(router.currentRoute.value.name).toBe('dwellerDetail')
+      expect(router.currentRoute.value.params.dwellerId).toBe('dweller-1')
     })
   })
 })

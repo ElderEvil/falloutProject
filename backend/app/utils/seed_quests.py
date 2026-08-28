@@ -13,6 +13,7 @@ from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward, RewardType
 from app.schemas.quest import QuestJSON, QuestRewardJSON
 from app.utils.load_quests import load_all_quest_chain_files
+from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,47 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
         return f"{qty}x {item}" if item and qty > 1 else (item or rtype.lower().replace("_", " "))
 
     return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
+
+
+def _matches_reward_json(reward: QuestReward, reward_json: QuestRewardJSON) -> bool:
+    if reward.reward_type != RewardType(reward_json.reward_type.lower()):
+        return False
+    if reward.reward_data == reward_json.reward_data:
+        return True
+
+    template_id = reward_json.reward_data.get("template_id")
+    template = game_data_store.get_dweller(template_id) if template_id else None
+    template_name = f"{template.first_name} {template.last_name or ''}".strip() if template else None
+    return bool(template_name and reward.reward_data.get("name", "").casefold() == template_name.casefold())
+
+
+async def _sync_existing_quest_rewards(
+    db_session: AsyncSession, quests_by_title: dict[str, Quest], quest_jsons: list[QuestJSON]
+) -> int:
+    """Reconcile existing rewards with the typed quest-data source of truth."""
+    updated_count = 0
+    for quest_json in quest_jsons:
+        quest = quests_by_title.get(quest_json.quest_name)
+        if quest is None:
+            continue
+        rewards = (
+            (await db_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
+        )
+        for reward_json in quest_json.quest_rewards:
+            reward = next((candidate for candidate in rewards if _matches_reward_json(candidate, reward_json)), None)
+            if reward is None:
+                continue
+            if (
+                reward.reward_data != reward_json.reward_data
+                or reward.item_data != reward_json.item_data
+                or reward.reward_chance != reward_json.reward_chance
+            ):
+                reward.reward_data = reward_json.reward_data
+                reward.item_data = reward_json.item_data
+                reward.reward_chance = reward_json.reward_chance
+                db_session.add(reward)
+                updated_count += 1
+    return updated_count
 
 
 async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
@@ -96,8 +138,9 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
         logger.info("Loaded %d quests from %d quest chains", len(all_quest_jsons), len(quest_chains))
 
         # Check which quests already exist in database
-        existing_titles_result = await db_session.execute(select(Quest.title))
-        existing_titles = set(existing_titles_result.scalars().all())
+        existing_quests = (await db_session.execute(select(Quest))).scalars().all()
+        existing_quests_by_title = {quest.title: quest for quest in existing_quests}
+        existing_titles = set(existing_quests_by_title)
 
         # Track seeded quests for requirement resolution
         quest_name_to_id: dict[str, str] = {}
@@ -228,10 +271,24 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                     except ValueError as e:
                         logger.warning(f"Failed to create reward for quest '{quest.title}': {e}")
 
+            updated_reward_count = await _sync_existing_quest_rewards(
+                db_session, existing_quests_by_title, all_quest_jsons
+            )
             await db_session.commit()
-            logger.info("Seeded %d new quests with requirements and rewards", seeded_count)
+            logger.info(
+                "Seeded %d new quests and updated %d existing quest rewards",
+                seeded_count,
+                updated_reward_count,
+            )
         else:
-            logger.info("No new quests to seed, all quests already exist in database")
+            updated_reward_count = await _sync_existing_quest_rewards(
+                db_session, existing_quests_by_title, all_quest_jsons
+            )
+            if updated_reward_count:
+                await db_session.commit()
+                logger.info("Updated %d existing quest rewards from static data", updated_reward_count)
+            else:
+                logger.info("No new quests to seed, all quests already exist in database")
     except Exception:
         logger.exception("Failed to seed quests from JSON files")
         await db_session.rollback()

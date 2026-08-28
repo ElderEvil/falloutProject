@@ -12,7 +12,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "Lucy MacLean"
+          "template_id": "lucy-maclean"
         },
         "reward_chance": 1.0
       }
@@ -50,7 +50,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "The Ghoul"
+          "template_id": "the-ghoul"
         },
         "reward_chance": 1.0
       }
@@ -73,7 +73,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "Maximus"
+          "template_id": "maximus"
         },
         "reward_chance": 1.0
       }
@@ -96,7 +96,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "Ma June"
+          "template_id": "ma-june"
         },
         "reward_chance": 1.0
       }
@@ -119,7 +119,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "Snip Snip"
+          "template_id": "snip-snip"
         },
         "reward_chance": 1.0
       }
@@ -142,7 +142,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "Snake oil salesman"
+          "template_id": "snake-oil-salesman"
         },
         "reward_chance": 1.0
       }
@@ -165,7 +165,7 @@
       {
         "reward_type": "DWELLER",
         "reward_data": {
-          "name": "CX404"
+          "template_id": "cx404"
         },
         "reward_chance": 1.0
       }

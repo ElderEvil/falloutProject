@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.54.0 (2026-08-28)
+
+### Features
+
+* verify deployment environment in cli 0719003
+
+### Bug Fixes
+
+* enforce production environment on deploy 3f846f8
+* harden deployment dependencies c0925bb
+
 ## 2.53.1 (2026-08-28)
 
 ### Bug Fixes

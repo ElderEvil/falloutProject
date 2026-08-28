@@ -275,3 +275,14 @@ class FileDownloadError(HTTPException):
 
     def __init__(self, detail: str = "File download failed.", headers: dict[str, Any] | None = None):
         super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+
+
+class EmailDeliveryException(HTTPException):
+    """Raised when an outbound email cannot be delivered via the configured SMTP server."""
+
+    def __init__(
+        self,
+        detail: str = "Failed to deliver email via the configured SMTP server.",
+        headers: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail, headers=headers)

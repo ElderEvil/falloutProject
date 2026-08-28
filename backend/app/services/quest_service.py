@@ -58,7 +58,13 @@ class QuestService:
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, duration_minutes: int | None = None
     ) -> VaultQuestCompletionLink:
         """Start a quest with a timer."""
-        from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+        from app.crud.quest_party import quest_party_crud
+        from app.utils.exceptions import (
+            AccessDeniedException,
+            ResourceConflictException,
+            ResourceNotFoundException,
+            ValidationException,
+        )
 
         query = select(VaultQuestCompletionLink).where(
             and_(
@@ -66,8 +72,7 @@ class QuestService:
                 VaultQuestCompletionLink.vault_id == vault_id,
             )
         )
-        result = await db_session.execute(query)
-        link = result.scalar_one_or_none()
+        link = (await db_session.exec(query)).one_or_none()
 
         if not link:
             raise ResourceNotFoundException(
@@ -76,6 +81,12 @@ class QuestService:
 
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
+        if link.started_at is not None:
+            raise ResourceConflictException("Quest is already in progress")
+
+        party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
+        if not party:
+            raise ValidationException("Assign at least one dweller before starting this quest")
 
         link.started_at = datetime.now()
         if duration_minutes is not None:

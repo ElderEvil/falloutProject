@@ -427,7 +427,11 @@ async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSess
 @pytest.mark.asyncio
 async def test_start_quest(async_session: AsyncSession) -> None:
     """Test starting a quest (setting the timer)."""
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
     from app.services.quest_service import quest_service
+    from app.tests.factory.dwellers import create_fake_dweller
+    from app.utils.exceptions import ResourceConflictException
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -448,17 +452,55 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     await crud.quest_crud.assign_to_vault(
         db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
     )
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
 
     link = await quest_service.start_quest(async_session, quest.id, vault.id, duration_minutes=30)
 
     assert link.started_at is not None
     assert link.duration_minutes == 30
+    with pytest.raises(ResourceConflictException, match="already in progress"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_start_quest_requires_an_assigned_party(async_session: AsyncSession) -> None:
+    """A quest cannot run without a party to send into the wasteland."""
+    from app.services.quest_service import quest_service
+    from app.utils.exceptions import ValidationException
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Party Required",
+            short_description="Send a team",
+            long_description="A quest should not start without anyone assigned.",
+            requirements="Level 1",
+            rewards="10 caps",
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    with pytest.raises(ValidationException, match="Assign at least one dweller"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
 
 
 @pytest.mark.asyncio
 async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSession) -> None:
     """Manual completion must not bypass a running quest's timer."""
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
     from app.services.quest_service import quest_service
+    from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -478,6 +520,12 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
         ),
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
     await quest_service.start_quest(async_session, quest.id, vault.id)
 
     with pytest.raises(ValidationException, match="still in progress"):

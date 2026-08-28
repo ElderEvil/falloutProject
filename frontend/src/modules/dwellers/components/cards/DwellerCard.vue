@@ -8,6 +8,7 @@ import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
+import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/core/utils/image'
 
@@ -122,6 +123,7 @@ const rarityLabel = computed(() => {
       </div>
       <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" size="md" />
     </div>
+    <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
 
     <div class="stats-container">
       <div class="stat-row">

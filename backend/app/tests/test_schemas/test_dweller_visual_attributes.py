@@ -1,6 +1,9 @@
 """Tests for the unified DwellerVisualAttributes schema."""
 
+import pytest
+
 from app.schemas.dweller import DwellerVisualAttributes, DwellerVisualAttributesInput
+from app.services.dweller_service import dweller_service
 
 
 def test_unified_schema_has_all_fields() -> None:
@@ -62,6 +65,21 @@ def test_partial_population() -> None:
     assert va.race == "human"
     assert va.faction == "vault_dweller"
     assert va.height is None
+
+
+def test_rejects_factions_incompatible_with_a_dweller_race() -> None:
+    """Visual JSONB cannot save an identity combination excluded by the options data."""
+    with pytest.raises(ValueError, match="not valid for race"):
+        DwellerVisualAttributes(race="synth", faction="ncr")
+
+
+def test_identity_options_match_the_canonical_faction_restrictions() -> None:
+    """Clients receive only the combinations the API accepts for identity editing."""
+    options = dweller_service.get_identity_options()
+
+    assert options.races == ["human", "ghoul", "super_mutant", "synth"]
+    assert options.factions_by_race["synth"] == ["the_institute", "railroad", "none"]
+    assert options.states_by_race["ghoul"] == ["sane", "partially_feral", "fully_feral"]
 
 
 def test_full_population() -> None:

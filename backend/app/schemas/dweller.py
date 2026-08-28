@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.dweller import DwellerBase
+from app.options.factions import FactionOption, faction_restrictions
+from app.options.races import RaceOption
 from app.schemas.common import (
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
@@ -102,7 +104,26 @@ class DwellerVisualAttributes(BaseModel):
     # Audio
     voice_line_text: str | None = None
 
+    @model_validator(mode="after")
+    def validate_identity_combination(self) -> "DwellerVisualAttributes":
+        """Reject race/faction pairs that the canonical options data excludes."""
+        if self.race is None or self.faction is None:
+            return self
+        race = RaceOption(self.race)
+        faction = FactionOption(self.faction)
+        if faction not in faction_restrictions[race]:
+            raise ValueError(f"Faction '{faction.value}' is not valid for race '{race.value}'")
+        return self
+
     model_config = ConfigDict(use_enum_values=True)
+
+
+class DwellerIdentityOptions(BaseModel):
+    """Canonical identity choices used by dweller creation and editing clients."""
+
+    races: list[str]
+    factions_by_race: dict[str, list[str]]
+    states_by_race: dict[str, list[str]]
 
 
 # Backward-compatible alias for migration
@@ -149,6 +170,7 @@ class DwellerReadLess(SQLModel):
     age_group: AgeGroupEnum
     gender: GenderEnum
     birth_date: datetime | None = None
+    visual_attributes: DwellerVisualAttributes | None = None
 
     # SPECIAL stats
     strength: int

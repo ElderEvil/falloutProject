@@ -9,7 +9,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
-from app.schemas.dweller import DwellerUpdate
+from app.options.factions import faction_restrictions
+from app.options.races import STATE_OF_BEING_VALUES, RaceOption
+from app.schemas.dweller import DwellerIdentityOptions, DwellerUpdate
 from app.services.training_service import training_service
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,16 @@ logger = logging.getLogger(__name__)
 
 class DwellerService:
     """Service for general dweller operations that span multiple CRUD modules."""
+
+    def get_identity_options(self) -> DwellerIdentityOptions:
+        """Return identity choices derived directly from the canonical options modules."""
+        return DwellerIdentityOptions(
+            races=[race.value for race in RaceOption],
+            factions_by_race={
+                race.value: [faction.value for faction in factions] for race, factions in faction_restrictions.items()
+            },
+            states_by_race={race.value: states for race, states in STATE_OF_BEING_VALUES.items()},
+        )
 
     async def update_dweller(
         self,

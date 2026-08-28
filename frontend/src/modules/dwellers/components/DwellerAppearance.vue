@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { VisualAttributes } from '../models/dweller'
+import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 
 interface Props {
   visualAttributes?: VisualAttributes | null
@@ -22,43 +23,12 @@ const emit = defineEmits<{
 // Helper to capitalize first letter
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 
-// Format race for display (handle hyphenated names like "super_mutant")
-const formatRace = (race: string) => {
-  return race
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-// Format faction for display (handle underscore-separated faction names)
-const formatFaction = (faction: string) => {
-  if (faction === 'none') return 'None'
-  return faction
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-// Format state_of_being for display
-const formatStateOfBeing = (state: string) => {
-  return state
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 // Format attributes for display
 const formattedAttributes = computed(() => {
   if (!props.visualAttributes) return []
 
   const attrs = props.visualAttributes
   const formatted: Array<{ label: string; value: string }> = []
-
-  // Identity section (race, faction, state_of_being)
-  if (attrs.race) formatted.push({ label: 'Race', value: formatRace(attrs.race) })
-  if (attrs.faction) formatted.push({ label: 'Faction', value: formatFaction(attrs.faction) })
-  if (attrs.state_of_being)
-    formatted.push({ label: 'State', value: formatStateOfBeing(attrs.state_of_being) })
 
   // Physical attributes
   if (attrs.height) formatted.push({ label: 'Height', value: capitalize(attrs.height) })
@@ -116,7 +86,7 @@ const canGenerateAppearance = computed(
   () => !props.visualAttributes || !hasSubstantialAttributes.value
 )
 
-const hasAttributes = computed(() => formattedAttributes.value.length > 0)
+const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.keys(props.visualAttributes).length))
 </script>
 
 <template>
@@ -167,6 +137,7 @@ const hasAttributes = computed(() => formattedAttributes.value.length > 0)
     </div>
 
     <div v-if="hasAttributes" class="appearance-content">
+      <DwellerIdentitySignal :visual-attributes="visualAttributes" />
       <div v-for="attr in formattedAttributes" :key="attr.label" class="attribute-row">
         <span class="attribute-label">{{ attr.label }}:</span>
         <span class="attribute-value">{{ attr.value }}</span>

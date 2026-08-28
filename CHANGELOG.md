@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.57.0 (2026-08-28)
+
+### Features
+
+* add dweller identity signals 137a18e
+* polish dweller identity experience ba789bd
+
+### Bug Fixes
+
+* **fe:** resolve double toast and medical-issue enablement on dweller cards eecd981
+
 ## 2.56.0 (2026-08-28)
 
 ### Features

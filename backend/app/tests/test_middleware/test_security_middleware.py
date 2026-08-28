@@ -10,3 +10,4 @@ def test_create_security_config_without_ipinfo(monkeypatch: pytest.MonkeyPatch) 
     config = create_security_config()
 
     assert config.geo_ip_handler is None
+    assert "x-forwarded-for" in config.excluded_detection_headers

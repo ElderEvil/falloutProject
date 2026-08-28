@@ -59,7 +59,7 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
 
     versions = []
     heading_pattern = re.compile(
-        r"^## \[(?P<version>\d+\.\d+\.\d+)\](?:\([^\n)]*\))?(?:\s+-\s+|\s+\()(?P<date>\d{4}-\d{2}-\d{2})\)?\s*$",
+        r"^## (?:\[)?(?P<version>\d+\.\d+\.\d+)(?:\])?(?:\([^\n)]*\))?(?:\s+-\s+|\s+\()(?P<date>\d{4}-\d{2}-\d{2})\)?\s*$",
         re.MULTILINE,
     )
     headings = list(heading_pattern.finditer(content))

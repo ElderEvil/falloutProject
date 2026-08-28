@@ -1,120 +1,119 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.53.1](https://github.com/ElderEvil/falloutProject/compare/v2.53.0...v2.53.1) (2026-08-28)
+## 2.53.1 (2026-08-28)
 
 ### Bug Fixes
 
-* normalize API timestamps as UTC ([8e965d3](https://github.com/ElderEvil/falloutProject/commit/8e965d3af651756d70e0a28f6cf3eb864ec9af1d))
-* remove dead lineage 404 branch, rebind content-agent models on AI apply ([297030e](https://github.com/ElderEvil/falloutProject/commit/297030e3d456a16152ef7c2aa92f483f9df0047f))
-* resolve consolidation review findings ([b8572d7](https://github.com/ElderEvil/falloutProject/commit/b8572d7b841c2254b9bcce7c4ae3d950040869e4))
+* normalize API timestamps as UTC (8e965d3)
+* remove dead lineage 404 branch, rebind content-agent models on AI apply (297030e)
+* resolve consolidation review findings (b8572d7)
 
 ### Code Refactoring
 
-* centralize Typer commands ([bd57bb4](https://github.com/ElderEvil/falloutProject/commit/bd57bb4892bd695903b7993ff7d2e4ee519051bd))
-* consolidate backend operations ([9ced319](https://github.com/ElderEvil/falloutProject/commit/9ced319066472e24a2363be73b9be92e594a6827))
-* flatten CLI modules ([82152bc](https://github.com/ElderEvil/falloutProject/commit/82152bc192c3006f05cc765455f2bf0a5b1adeff))
-* narrow consolidation scope ([e276fc8](https://github.com/ElderEvil/falloutProject/commit/e276fc8d335cc8fe55d90e60bd6de93f47f84630))
+* centralize Typer commands (bd57bb4)
+* consolidate backend operations (9ced319)
+* flatten CLI modules (82152bc)
+* narrow consolidation scope (e276fc8)
 
-## [2.53.0](https://github.com/ElderEvil/falloutProject/compare/v2.52.0...v2.53.0) (2026-08-28)
-
-### Features
-
-* add superuser test-email endpoint to validate Mailcow SMTP ([98bef51](https://github.com/ElderEvil/falloutProject/commit/98bef5160e69d032504309451d160cc80889c02c))
-
-### Bug Fixes
-
-* align check_smtp TLS with send_email, validate email address, correct docs ([6671c65](https://github.com/ElderEvil/falloutProject/commit/6671c65a5638a556a16520fb334e2554953983e0))
-
-## [2.52.0](https://github.com/ElderEvil/falloutProject/compare/v2.51.0...v2.52.0) (2026-08-27)
+## 2.53.0 (2026-08-28)
 
 ### Features
 
-* dweller age filter, age badges, and arena room-stat ([0eb8fee](https://github.com/ElderEvil/falloutProject/commit/0eb8feeec5a615204f2c2823c30d38fde6495f38))
-* send dwellers to the wasteland from the detail page ([d5e28a5](https://github.com/ElderEvil/falloutProject/commit/d5e28a54d64023b8f87ece48c1e8917194520c70))
+* add superuser test-email endpoint to validate Mailcow SMTP (98bef51)
 
 ### Bug Fixes
 
-* **frontend:** add aria-label and role to DwellerAgeBadge ([eef92b4](https://github.com/ElderEvil/falloutProject/commit/eef92b4c635f120ee64166461f1b8da5c4de8b1b))
-* **frontend:** do not mask dispatch success when list refresh fails ([efb0cd0](https://github.com/ElderEvil/falloutProject/commit/efb0cd0935c51106fcc42a2fde981637a70d1817))
-* **frontend:** DwellerAgeBadge uses CSS variable instead of inline style ([44f684a](https://github.com/ElderEvil/falloutProject/commit/44f684a613ad1fde9ab32e1fc080d1e6d1f4909f))
-* **frontend:** hide Send to Wasteland action for dead dwellers ([c809f7b](https://github.com/ElderEvil/falloutProject/commit/c809f7b2cca01697e913d0e11bd0ac9bd999a745))
-* **frontend:** render consistent room stat in grid and list views ([85a24eb](https://github.com/ElderEvil/falloutProject/commit/85a24eb8410d5887232ba969799c0785ddf684f4))
-* make wasteland dispatch atomic ([c7c1892](https://github.com/ElderEvil/falloutProject/commit/c7c18923c61ed8051879e41b7fe8342985213b2d))
-* refresh wasteland dispatch state ([9ba691a](https://github.com/ElderEvil/falloutProject/commit/9ba691a11a2cb098f8c29f2d42df138be4310163))
+* align check_smtp TLS with send_email, validate email address, correct docs (6671c65)
+
+## 2.52.0 (2026-08-27)
+
+### Features
+
+* dweller age filter, age badges, and arena room-stat (0eb8fee)
+* send dwellers to the wasteland from the detail page (d5e28a5)
+
+### Bug Fixes
+
+* **frontend:** add aria-label and role to DwellerAgeBadge (eef92b4)
+* **frontend:** do not mask dispatch success when list refresh fails (efb0cd0)
+* **frontend:** DwellerAgeBadge uses CSS variable instead of inline style (44f684a)
+* **frontend:** hide Send to Wasteland action for dead dwellers (c809f7b)
+* **frontend:** render consistent room stat in grid and list views (85a24eb)
+* make wasteland dispatch atomic (c7c1892)
+* refresh wasteland dispatch state (9ba691a)
 
 ### Documentation
 
-* capture apprentice/pet design fragments for [#470](https://github.com/ElderEvil/falloutProject/issues/470) ([c5e341d](https://github.com/ElderEvil/falloutProject/commit/c5e341d6c4542cb0b4243b79e8e58d4878630a22))
+* capture apprentice/pet design fragments for #470 (c5e341d)
 
-## [2.51.0](https://github.com/ElderEvil/falloutProject/compare/v2.50.0...v2.51.0) (2026-08-27)
-
-### Features
-
-* AI settings admin UI and Overseer profile redesign ([1513024](https://github.com/ElderEvil/falloutProject/commit/15130245a71ce22e1ebc9840801dba6642d33bf5))
-* DB-backed AI provider profile with LM Studio support ([efb3802](https://github.com/ElderEvil/falloutProject/commit/efb3802e7815c44ca34c1028022eba14f71c4d06))
-* DB-backed AI provider settings profile with LM Studio support ([afaceea](https://github.com/ElderEvil/falloutProject/commit/afaceea25b5b25e8708bfc9267a8a98457995d1d))
-
-### Bug Fixes
-
-* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — scoped styles, singleton race, base_url ([3f5f9e3](https://github.com/ElderEvil/falloutProject/commit/3f5f9e302a67de752175577b1a869a168424d933))
-* address PR [#471](https://github.com/ElderEvil/falloutProject/issues/471) review — streaming credits detail, chat error fallback, restore SidePanel vault-id ([0dda17a](https://github.com/ElderEvil/falloutProject/commit/0dda17a3708f496fe9efe3a22104924cb4870766))
-* estimate token components independently and harden singleton AI-settings upsert ([70c240c](https://github.com/ElderEvil/falloutProject/commit/70c240c2b5828819f00fe53a9b39c039b68f96f1))
-* make AI settings singleton row a valid UUID4 and update AIUsageCard progress-bar tests ([9a397bc](https://github.com/ElderEvil/falloutProject/commit/9a397bcf5b9d02af52e9304f29f553ae946bdde7))
-* preserve chat action suggestions when streaming output fails ([f9f0394](https://github.com/ElderEvil/falloutProject/commit/f9f0394e4c993dbdd05b605e79eff03150c69686))
-* surface exact AI provider error reason to chat users ([72c6f31](https://github.com/ElderEvil/falloutProject/commit/72c6f31d73d1b390524ec0e4232fad796bab8ae7))
-
-### Documentation
-
-* note manual testing for AI provider workstream ([068da94](https://github.com/ElderEvil/falloutProject/commit/068da94c2f523ee5fa7cf17388497a4d2101838f))
-
-## [2.50.0](https://github.com/ElderEvil/falloutProject/compare/v2.49.0...v2.50.0) (2026-08-23)
+## 2.51.0 (2026-08-27)
 
 ### Features
 
-* **arena:** dweller-vs-dweller battle playground, fast incident tick ([f382ea7](https://github.com/ElderEvil/falloutProject/commit/f382ea719b2e5710df46385deaee95789a3879f1))
-* **arena:** FIGHTING status for dwellers assigned to the arena ([953d0a8](https://github.com/ElderEvil/falloutProject/commit/953d0a8fba9cdbad6965b23f994f2ee713e10380))
-* **arena:** restore room preview in arena modal ([169eb41](https://github.com/ElderEvil/falloutProject/commit/169eb4186793900bcb379094041f54f93d0406e3))
-* **arena:** wide arena room image and configurable AI image size ([fb367f1](https://github.com/ElderEvil/falloutProject/commit/fb367f1eed9afc8afdd45b02fbc3a2e2f082963e))
-* **dwellers:** show combat power in the dwellers list ([ce4bfb6](https://github.com/ElderEvil/falloutProject/commit/ce4bfb69b5793879543f43c1e3706a5ee9995404))
-* **incidents:** compact responder grid instead of one per row ([8bb75e9](https://github.com/ElderEvil/falloutProject/commit/8bb75e92c277829ee7369f000f6796ad8446ba11))
+* AI settings admin UI and Overseer profile redesign (1513024)
+* DB-backed AI provider profile with LM Studio support (efb3802)
+* DB-backed AI provider settings profile with LM Studio support (afaceea)
 
 ### Bug Fixes
 
-* address review findings across arena, incident, and dweller flows ([08fb35e](https://github.com/ElderEvil/falloutProject/commit/08fb35eecdf2d5b392d87f2d7e595e244f852de2))
-* **arena:** clear stale fighter slots when dwellers leave the arena ([17da79e](https://github.com/ElderEvil/falloutProject/commit/17da79eca2b8f2c04e7e1921b047a7bb6205b8ec))
-* **arena:** scope arena ops to vault, reset interrupted matches, a11y controls ([40fbdf0](https://github.com/ElderEvil/falloutProject/commit/40fbdf0030e48a63a359280b7ab6af38658238a3))
-* **frontend:** restore elevator gating, refactor arena UI to store + shared patterns ([1c27a0e](https://github.com/ElderEvil/falloutProject/commit/1c27a0ec02c2263b5a47e334970ec6fc9581ac35))
-* **incidents:** cap active incidents at spawn+spread and dedupe tick chains ([d8cf5b2](https://github.com/ElderEvil/falloutProject/commit/d8cf5b2302443b5f537f179382469e288ebba644))
-* **incidents:** lease churn visibility, distinct spawn errors, combat modal UX ([419f813](https://github.com/ElderEvil/falloutProject/commit/419f813d26917b85e087e682340c7e0772a6f8bf))
+* address PR #471 review — scoped styles, singleton race, base_url (3f5f9e3)
+* address PR #471 review — streaming credits detail, chat error fallback, restore SidePanel vault-id (0dda17a)
+* estimate token components independently and harden singleton AI-settings upsert (70c240c)
+* make AI settings singleton row a valid UUID4 and update AIUsageCard progress-bar tests (9a397bc)
+* preserve chat action suggestions when streaming output fails (f9f0394)
+* surface exact AI provider error reason to chat users (72c6f31)
 
 ### Documentation
 
-* **agents:** codify architecture-over-simplification guardrails ([000aae9](https://github.com/ElderEvil/falloutProject/commit/000aae91d95b4f8a7720b78104742e34cfb4f9fa))
-* roadmap and changelog for arena and incident combat update ([a7fd76f](https://github.com/ElderEvil/falloutProject/commit/a7fd76fbd8eecc9faf17ca2163e8550d6dcbb5a1))
+* note manual testing for AI provider workstream (068da94)
+
+## 2.50.0 (2026-08-23)
+
+### Features
+
+* **arena:** dweller-vs-dweller battle playground, fast incident tick (f382ea7)
+* **arena:** FIGHTING status for dwellers assigned to the arena (953d0a8)
+* **arena:** restore room preview in arena modal (169eb41)
+* **arena:** wide arena room image and configurable AI image size (fb367f1)
+* **dwellers:** show combat power in the dwellers list (ce4bfb6)
+* **incidents:** compact responder grid instead of one per row (8bb75e9)
+
+### Bug Fixes
+
+* address review findings across arena, incident, and dweller flows (08fb35e)
+* **arena:** clear stale fighter slots when dwellers leave the arena (17da79e)
+* **arena:** scope arena ops to vault, reset interrupted matches, a11y controls (40fbdf0)
+* **frontend:** restore elevator gating, refactor arena UI to store + shared patterns (1c27a0e)
+* **incidents:** cap active incidents at spawn+spread and dedupe tick chains (d8cf5b2)
+* **incidents:** lease churn visibility, distinct spawn errors, combat modal UX (419f813)
+
+### Documentation
+
+* **agents:** codify architecture-over-simplification guardrails (000aae9)
+* roadmap and changelog for arena and incident combat update (a7fd76f)
 
 ### Code Refactoring
 
-* **arena:** move arena state assembly into the service ([09ae8a6](https://github.com/ElderEvil/falloutProject/commit/09ae8a665a6fe0f4167fda6545f19b06bca47fd3))
-* **arena:** move schemas to dedicated module; squash branch migrations ([557969d](https://github.com/ElderEvil/falloutProject/commit/557969d7bf3fa9ece869be41658f2226aebdd9e5))
-* **arena:** single combat power source, typed endpoints, slot component ([1976992](https://github.com/ElderEvil/falloutProject/commit/1976992db8bd96a9dc3f558ffcf84fc81f0f0081))
-* **tasks:** flatten tick actors, share one session context manager ([1f24f65](https://github.com/ElderEvil/falloutProject/commit/1f24f651d32018850fdc59c8a852a4e78a0163a5))
+* **arena:** move arena state assembly into the service (09ae8a6)
+* **arena:** move schemas to dedicated module; squash branch migrations (557969d)
+* **arena:** single combat power source, typed endpoints, slot component (1976992)
+* **tasks:** flatten tick actors, share one session context manager (1f24f65)
 
-## [2.49.0](https://github.com/ElderEvil/falloutProject/compare/v2.48.1...v2.49.0) (2026-08-23)
+## 2.49.0 (2026-08-23)
 
 ### Features
 
-* **rooms:** elevator-gated level building and room detail polish ([f4c4f17](https://github.com/ElderEvil/falloutProject/commit/f4c4f17cdaf14725dcde7d55ea7c98850a4e443a))
+* **rooms:** elevator-gated level building and room detail polish (f4c4f17)
 
 ### Bug Fixes
 
-* exclude runtime logs; sync arena enum and generated types ([100780e](https://github.com/ElderEvil/falloutProject/commit/100780eb10e115b3325d49ea3c50ea9c51a3481f))
+* exclude runtime logs; sync arena enum and generated types (100780e)
 
 ### Code Refactoring
 
-* **rooms:** extract elevator rules into a dedicated validator ([2fed4ba](https://github.com/ElderEvil/falloutProject/commit/2fed4bad2990acab88c5cf7d8dbcbac3c56d9086))
+* **rooms:** extract elevator rules into a dedicated validator (2fed4ba)
 
 ## Unreleased
 
@@ -139,7 +138,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **frontend:** theme scrollbars and remove the green tint from the build room menu
 * **rooms:** compact the room detail modal (readable-but-tight panels, muted outlined action buttons, dweller portraits, full dweller names)
 
-## [2.48.1](https://github.com/ElderEvil/falloutProject/compare/v2.48.0...v2.48.1) (2026-08-23)
+## 2.48.1 (2026-08-23)
 
 ### Bug Fixes
 
@@ -147,7 +146,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **infra:** single dramatiq worker process and explicit dweller-room join
 
 
-## [2.48.0](https://github.com/ElderEvil/falloutProject/compare/v2.47.2...v2.48.0) (2026-08-22)
+## 2.48.0 (2026-08-22)
 
 ### Features
 
@@ -169,7 +168,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **profile:** redesign overseer dossier
 
 
-## [2.47.2](https://github.com/ElderEvil/falloutProject/compare/v2.47.1...v2.47.2) (2026-08-22)
+## 2.47.2 (2026-08-22)
 
 ### Bug Fixes
 
@@ -183,13 +182,13 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * **frontend:** share terminal metrics (bb04ad3)
 * **frontend:** warm dweller filters (537eb38)
 
-## [2.47.1](https://github.com/ElderEvil/falloutProject/compare/v2.47.0...v2.47.1) (2026-08-22)
+## 2.47.1 (2026-08-22)
 
 ### Bug Fixes
 
 * **ci:** deploy only configured API logs (204ba61)
 
-## [2.47.0](https://github.com/ElderEvil/falloutProject/compare/v2.46.1...v2.47.0) (2026-08-22)
+## 2.47.0 (2026-08-22)
 
 ### Features
 
@@ -210,7 +209,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 * detail map fixes in changelog (3ddff68)
 * prepare overseer's toolkit release notes (9ff755e)
 
-## [2.46.1](https://github.com/ElderEvil/falloutProject/compare/v2.46.0...v2.46.1) (2026-08-21)
+## 2.46.1 (2026-08-21)
 
 ### Bug Fixes
 
@@ -252,7 +251,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Authenticated browser coverage** — the vault briefing and response flow have deterministic Playwright coverage
   that does not require production credentials or a local Ollama server.
 
-## [2.46.0](https://github.com/ElderEvil/falloutProject/compare/v2.45.1...v2.46.0) (2026-08-21)
+## 2.46.0 (2026-08-21)
 
 ### Features
 
@@ -273,7 +272,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   `DwellerDropZone` duplicates) are gone, and quest party members render on quest cards
 - **Map detail loading & review feedback** — address review feedback and fix map detail loading
 
-## [2.45.1](https://github.com/ElderEvil/falloutProject/compare/v2.45.0...v2.45.1) (2026-08-21)
+## 2.45.1 (2026-08-21)
 
 ### Bug Fixes
 
@@ -281,7 +280,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   vault UUID, so every player saw a different set of signals; they now derive from a fixed global constant so the
   wasteland is shared and viewer-independent, laying the foundation for async-PvP raiding
 
-## [2.45.0](https://github.com/ElderEvil/falloutProject/compare/v2.44.0...v2.45.0) (2026-08-21)
+## 2.45.0 (2026-08-21)
 
 ### Features
 
@@ -305,7 +304,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   uses VueUse `useStorage` instead of hand-rolled localStorage sync (unused `consumePendingReport`/
   `clearPendingReports` exports removed)
 
-## [2.44.0](https://github.com/ElderEvil/falloutProject/compare/v2.43.0...v2.44.0) (2026-08-21)
+## 2.44.0 (2026-08-21)
 
 ### Features
 
@@ -322,7 +321,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   slot can only be consumed by one new conception per game tick (regression coverage in
   `test_breeding_service.py`)
 
-## [2.43.0](https://github.com/ElderEvil/falloutProject/compare/v2.42.0...v2.43.0) (2026-08-21)
+## 2.43.0 (2026-08-21)
 
 ### Features
 
@@ -335,7 +334,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   dweller's mood, family, or relationships are answered from live status, room, family members, and relationship
   affinities instead of a static profile
 
-## [2.42.0](https://github.com/ElderEvil/falloutProject/compare/v2.41.3...v2.42.0) (2026-08-20)
+## 2.42.0 (2026-08-20)
 
 ### Features
 
@@ -370,7 +369,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Stale detail responses** — DwellerDetailView tracks the requested dweller id with a monotonic load sequence so
   out-of-order completions cannot clobber a newer dweller's state
 
-## [2.41.3](https://github.com/ElderEvil/falloutProject/compare/v2.41.2...v2.41.3) (2026-08-19)
+## 2.41.3 (2026-08-19)
 
 ### Fixed
 
@@ -383,7 +382,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Cross-vault postpartum data leak** — `_get_postpartum_mother_ids` now joins to `Dweller` and filters by
   `Dweller.vault_id` so the cooldown only applies to the current vault
 
-## [2.41.2](https://github.com/ElderEvil/falloutProject/compare/v2.41.1...v2.41.2) (2026-08-19)
+## 2.41.2 (2026-08-19)
 
 ### Fixed
 
@@ -395,7 +394,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   use a loop-local session maker (via `set_current_session_maker`) so concurrent ticks never share a single
   asyncpg connection, eliminating the `InterfaceError: another operation is in progress` (324×/24h on Hetzner)
 
-## [2.41.1](https://github.com/ElderEvil/falloutProject/compare/v2.41.0...v2.41.1) (2026-08-18)
+## 2.41.1 (2026-08-18)
 
 ### Fixed
 
@@ -404,7 +403,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   theme vars removed and remapped to the surviving semantic tokens; hardcoded hex colors migrated to design tokens
   (happiness bands, quest palette, rarity, vault shell); router monkey-patch properly typed instead of implicit `any`
 
-## [2.41.0](https://github.com/ElderEvil/falloutProject/compare/v2.40.0...v2.41.0) (2026-08-17)
+## 2.41.0 (2026-08-17)
 
 ### Features
 
@@ -441,7 +440,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Objectives debug overlay** — the floating debug button and its `console.log` patching are removed from the
   player UI
 
-## [2.40.0](https://github.com/ElderEvil/falloutProject/compare/v2.39.4...v2.40.0) (2026-08-15)
+## 2.40.0 (2026-08-15)
 
 ### Features
 
@@ -456,14 +455,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Training room capacity** — capacity is computed through a shared `getTrainingRoomCapacity` helper used by both
   the room grid drop logic and the training tab, replacing duplicated inline math
 
-## [2.39.4](https://github.com/ElderEvil/falloutProject/compare/v2.39.3...v2.39.4) (2026-08-14)
+## 2.39.4 (2026-08-14)
 
 ### Fixed
 
 - **Resource production rate** — bump `base_production_rate` from 0.01 to 0.1 (another ~10x) for a livelier resource
   economy
 
-## [2.39.3](https://github.com/ElderEvil/falloutProject/compare/v2.39.2...v2.39.3) (2026-08-14)
+## 2.39.3 (2026-08-14)
 
 ### Fixed
 
@@ -471,27 +470,27 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
   images load from the backend directly; root-relative `/static/` paths previously 404'd on deployments where the
   frontend and backend are separate origins
 
-## [2.39.2](https://github.com/ElderEvil/falloutProject/compare/v2.39.1...v2.39.2) (2026-08-14)
+## 2.39.2 (2026-08-14)
 
 ### Changed
 
 - **Release housekeeping** — changelog cleanup; no functional changes in this release
 
-## [2.39.1](https://github.com/ElderEvil/falloutProject/compare/v2.39.0...v2.39.1) (2026-08-14)
+## 2.39.1 (2026-08-14)
 
 ### Fixed
 
 - **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.01 (~33x) so vaults produce usable
   resources instead of trickling at ~0.36 units per tick
 
-## [2.39.0](https://github.com/ElderEvil/falloutProject/compare/v2.38.0...v2.39.0) (2026-08-14)
+## 2.39.0 (2026-08-14)
 
 ### Changed
 
 - **Resource production rate** — bump `base_production_rate` from 0.0003 to 0.1 (~333x) so vaults produce usable
   resources instead of trickling at ~0.36 units per tick
 
-## [2.38.0](https://github.com/ElderEvil/falloutProject/compare/v2.37.0...v2.38.0) (2026-08-14)
+## 2.38.0 (2026-08-14)
 
 ### Features
 
@@ -511,23 +510,23 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 - **Asset coverage** — new rewards, exploration finds, and starter items receive their matching artwork automatically;
   existing outfit, weapon, and legendary-dweller records are backfilled on upgrade.
 
-## [2.37.0](https://github.com/ElderEvil/falloutProject/compare/v2.36.0...v2.37.0) (2026-08-14)
+## 2.37.0 (2026-08-14)
 
-## [2.36.0](https://github.com/ElderEvil/falloutProject/compare/v2.35.1...v2.36.0) (2026-08-14)
+## 2.36.0 (2026-08-14)
 
 ### Features
 
 - **Resource economy feedback** — show per-minute resource rates and capacity forecasts, with a calibrated
   60-second-tick production baseline for play-testing
 
-## [2.35.1](https://github.com/ElderEvil/falloutProject/compare/v2.35.0...v2.35.1) (2026-08-14)
+## 2.35.1 (2026-08-14)
 
 ### Fixed
 
 - **Quest reward settlement** — reward delivery now completes atomically, rolling back deferred changes when a reward
   cannot be applied
 
-## [2.35.0](https://github.com/ElderEvil/falloutProject/compare/v2.34.3...v2.35.0) (2026-08-14)
+## 2.35.0 (2026-08-14)
 
 ### Features
 

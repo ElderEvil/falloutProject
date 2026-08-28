@@ -30,7 +30,7 @@ jobs:
           with open("frontend/package.json") as file:
               frontend_version = json.load(file)["version"]
           with open("CHANGELOG.md") as file:
-              changelog_version = re.search(r"^## \[([^]]+)\]", file.read(), re.MULTILINE)
+              changelog_version = re.search(r"^## (?:\[)?(\d+\.\d+\.\d+)(?:\])?", file.read(), re.MULTILINE)
 
           assert backend_version == frontend_version
           assert changelog_version and changelog_version.group(1) == backend_version

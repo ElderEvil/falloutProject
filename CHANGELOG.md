@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.55.0 (2026-08-28)
+
+### Features
+
+* unify exploration continuity and toast feedback cb93489
+
+### Bug Fixes
+
+* ignore proxy address during threat scanning 1a2d063
+
+### Documentation
+
+* add incremental ty cleanup guidance 7a9cec5
+
 ## 2.54.0 (2026-08-28)
 
 ### Features

@@ -67,6 +67,13 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
 `ENVIRONMENT` must be `production`: the deployment verifies this before serving traffic, and admin session cookies are
 marked Secure only in production.
 
+Verify a running release (including its reported version and environment) with:
+
+```bash
+cd backend
+uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-chat --expect-environment production
+```
+
 ### Release Preflight
 
 1. Confirm the backend/frontend manifests, backend lockfile, and changelog have the same release version.

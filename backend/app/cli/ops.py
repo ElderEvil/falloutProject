@@ -5,7 +5,7 @@ Thin wrappers over the service layer or external APIs per AGENTS.md.
 Usage (from backend/):
     uv run fo-cli fix-dweller-image-urls
     uv run fo-cli set-rustfs-policies
-    uv run fo-cli check-ai [--api-url URL] [--skip-chat] [--expect TEXT]
+    uv run fo-cli check-ai [--api-url URL] [--skip-chat] [--expect TEXT] [--expect-environment ENV]
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from app.models.dweller import Dweller
 
 app = typer.Typer(
     name="ops",
-    help="One-off operations: image URL fix, RustFS policies, live AI smoke test.",
+    help="One-off operations: image URL fix, RustFS policies, live AI/runtime checks.",
     no_args_is_help=True,
 )
 
@@ -159,6 +159,10 @@ def check_ai(
         str | None,
         typer.Option(help="Optional exact response expected from the model"),
     ] = None,
+    expect_environment: Annotated[
+        str | None,
+        typer.Option(help="Expected remote environment; fail before login if it differs"),
+    ] = None,
     skip_chat: Annotated[
         bool,
         typer.Option(help="Check health, login, and dweller access without a model call"),
@@ -192,6 +196,16 @@ def check_ai(
             if health.is_error:
                 raise _failure(health, "Health check")
             summary["health_status"] = health.status_code
+
+            info = _response_json_object(await client.get("/api/v1/system/info"), "System info")
+            environment = info.get("environment")
+            if not isinstance(environment, str):
+                raise RuntimeError(  # ruff: ignore[type-check-without-type-error] - remote response is malformed.
+                    "System info did not include an environment"
+                )
+            summary.update(app_version=info.get("app_version"), environment=environment)
+            if expect_environment is not None and environment != expect_environment:
+                raise RuntimeError(f"Expected environment {expect_environment!r}, got {environment!r}")
 
             login = await client.post(
                 "/api/v1/auth/login",

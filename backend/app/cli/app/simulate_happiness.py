@@ -6,9 +6,9 @@ Run standalone without the full backend.
 
 Usage:
     cd backend
-    uv run python scripts/simulate_happiness_balance.py
-    uv run python scripts/simulate_happiness_balance.py --days 3 --runs 50
-    uv run python scripts/simulate_happiness_balance.py --sweep base_decay
+    uv run fo-cli simulate-happiness
+    uv run fo-cli simulate-happiness --days 3 --runs 50
+    uv run fo-cli simulate-happiness --sweep base_decay
 """
 
 from __future__ import annotations

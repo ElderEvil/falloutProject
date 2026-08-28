@@ -1,11 +1,3 @@
-# /// script
-# dependencies = [
-#   "beautifulsoup4",
-#   "httpx",
-#   "typer",
-# ]
-# ///
-
 """Download Fallout Shelter images from The Vault wiki (Fandom).
 
 Uses the MediaWiki API instead of HTML scraping, because Fandom now blocks

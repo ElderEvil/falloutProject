@@ -14,7 +14,7 @@ The game as currently parameterized would present no meaningful challenge to pla
 
 ---
 
-## 1. Exploration Balance (`simulate_exploration_balance.py`)
+## 1. Exploration Balance (`fo-cli simulate-exploration`)
 
 ### Observation
 Exploration mechanics work as intended. With default parameters (10% discovery chance, 600s event interval, 2 concurrent explorations):
@@ -28,7 +28,7 @@ Exploration mechanics work as intended. With default parameters (10% discovery c
 
 ---
 
-## 2. Incident System (`simulate_incident_balance.py`)
+## 2. Incident System (`fo-cli simulate-incidents`)
 
 ### Observation
 The incident simulator uses real incident types (fire, radroach, mole rat, raider, feral ghoul, deathclaw) with weighted spawn rates and difficulty ranges.
@@ -64,7 +64,7 @@ Even sweeping `base_raider_power` from 5 → 25 changed nothing because the gap 
 
 ---
 
-## 3. Happiness System (`simulate_happiness_balance.py`)
+## 3. Happiness System (`fo-cli simulate-happiness`)
 
 ### Observation
 The happiness simulator models all gain and loss sources from the real `HappinessConfig`:
@@ -161,4 +161,4 @@ Use soft scaling (Option B) as the primary pressure, with a short per-mother coo
 
 ---
 
-*Simulators available in `backend/scripts/`; consult each command's `--help` for options.*
+*Simulators are available through `uv run fo-cli`; consult each command's `--help` for options.*

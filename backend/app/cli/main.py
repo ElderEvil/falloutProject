@@ -7,6 +7,8 @@ Usage:
     uv run fo-cli family-scenario --help
     uv run fo-cli backfill --help
     uv run fo-cli ops --help
+    uv run fo-cli simulate-exploration --help
+    uv run fo-cli wiki-images --help
 """
 
 import asyncio
@@ -21,6 +23,11 @@ from app.cli.app.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.app.family_scenario import app as family_scenario
 from app.cli.app.ops import app as ops
 from app.cli.app.pregen_dwellers import pregen_dwellers as _pregen_dwellers
+from app.cli.app.simulate_exploration import simulate as simulate_exploration
+from app.cli.app.simulate_happiness import simulate as simulate_happiness
+from app.cli.app.simulate_incidents import simulate as simulate_incidents
+from app.cli.app.simulate_resources import run as simulate_resources
+from app.cli.app.wiki_images import app as wiki_images
 from app.core.config import settings
 from app.db.session import async_session_maker
 from app.schemas.user import UserCreate
@@ -35,6 +42,11 @@ cli = typer.Typer(
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
+cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")
+cli.command(name="simulate-exploration", help="Run the multi-system balance simulator")(simulate_exploration)
+cli.command(name="simulate-happiness", help="Run the happiness balance simulator")(simulate_happiness)
+cli.command(name="simulate-incidents", help="Run the incident balance simulator")(simulate_incidents)
+cli.command(name="simulate-resources", help="Run the resource economy simulator")(simulate_resources)
 
 # Re-register pregen-dwellers as a flat command
 cli.command(name="pregen-dwellers", help="Dev/QA: seed dwellers with deterministic bios + world-map place markers")(

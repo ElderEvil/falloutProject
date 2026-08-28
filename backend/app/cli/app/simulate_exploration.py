@@ -6,9 +6,9 @@ Run standalone without the full backend.
 
 Usage:
     cd backend
-    uv run python scripts/simulate_exploration_balance.py
-    uv run python scripts/simulate_exploration_balance.py --days 7 --runs 100
-    uv run python scripts/simulate_exploration_balance.py --sweep discovery_chance
+    uv run fo-cli simulate-exploration
+    uv run fo-cli simulate-exploration --days 7 --runs 100
+    uv run fo-cli simulate-exploration --sweep discovery_chance
 
 Output:
     Prints statistics about all game systems and their interactions.

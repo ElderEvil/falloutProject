@@ -2,8 +2,8 @@
 
 Usage:
     cd backend
-    uv run python scripts/simulate_resource_economy.py
-    uv run python scripts/simulate_resource_economy.py --duration-minutes 120 --population 20
+    uv run fo-cli simulate-resources
+    uv run fo-cli simulate-resources --duration-minutes 120 --population 20
 """
 
 from __future__ import annotations

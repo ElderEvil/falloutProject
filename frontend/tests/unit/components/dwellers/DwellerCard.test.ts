@@ -82,6 +82,18 @@ describe('DwellerCard', () => {
       expect(image.exists()).toBe(true)
       expect(image.attributes('src')).toContain('example.com/image.jpg')
     })
+
+    it('marks a dead dweller portrait as deceased', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_dead: true },
+          imageUrl: 'https://example.com/image.jpg',
+        },
+      })
+
+      expect(wrapper.find('.portrait-image').classes()).toContain('grayscale')
+      expect(wrapper.find('.dead-portrait-marker').exists()).toBe(true)
+    })
   })
 
   describe('Info Badges', () => {

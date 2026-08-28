@@ -139,7 +139,7 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
         assert payload["success"] is True
         assert payload["incident_id"] == str(incident_resolve.id)
 
-    # --- Part C: Transition via spreading (no dwellers, elapsed >= duration) ---
+    # --- Part C: Undefended incidents fail without spreading ---
     # Move dweller out of room1 to room2 so room1 has no dwellers
     await crud.dweller.move_to_room(async_session, dweller.id, room2.id)
     await async_session.commit()
@@ -161,11 +161,13 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
     with patch("app.services.incident_service.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
         result = await incident_service.process_incident(async_session, incident_spread, 60)
         assert result.no_defenders is True
-        mock_publish.assert_awaited_once()
-        call_args = mock_publish.call_args
+        incident_calls = [call for call in mock_publish.call_args_list if call[0][1] == "incidents"]
+        assert len(incident_calls) == 1
+        call_args = incident_calls[0]
         assert call_args[0][1] == "incidents"
         payload = call_args[0][2]
-        assert payload["type"] == "incident_spreading"
+        assert payload["type"] == "incident_resolved"
+        assert payload["success"] is False
         assert payload["incident_id"] == str(incident_spread.id)
 
 

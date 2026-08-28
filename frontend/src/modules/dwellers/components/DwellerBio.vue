@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
 export interface MapPlaceLink {
   name: string
@@ -22,7 +23,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'generate-bio'): void
-  (e: 'generate-all'): void
 }>()
 
 const PURIFY_OPTIONS = {
@@ -105,10 +105,12 @@ const sanitizedBio = computed(() => {
     <div class="bio-header">
       <h3 class="bio-title">Biography</h3>
       <div class="header-buttons">
-        <UTooltip text="Generate biography with AI" position="top">
-          <button
+        <UTooltip text="Creates or replaces this dweller's biography" position="top">
+          <UButton
             @click="emit('generate-bio')"
             class="generate-button"
+            variant="secondary"
+            size="sm"
             :disabled="props.isAnyGenerating"
           >
             <Icon
@@ -116,23 +118,8 @@ const sanitizedBio = computed(() => {
               class="h-5 w-5"
               :class="{ 'animate-spin': generatingBio }"
             />
-            <span>{{ bio ? 'Regen' : 'Bio' }}</span>
-          </button>
-        </UTooltip>
-
-        <UTooltip text="Generate portrait & biography together" position="top">
-          <button
-            @click="emit('generate-all')"
-            class="generate-button combo-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="props.isAnyGenerating ? 'mdi:loading' : 'mdi:sparkles'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': props.isAnyGenerating }"
-            />
-            <span>All</span>
-          </button>
+            <span>{{ bio ? 'Regenerate biography' : 'Generate biography' }}</span>
+          </UButton>
         </UTooltip>
       </div>
     </div>
@@ -178,57 +165,6 @@ const sanitizedBio = computed(() => {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.generate-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(31, 41, 55, 0.8);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.generate-button.combo-button {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: var(--color-info);
-  color: var(--color-info);
-}
-
-.generate-button:hover:not(:disabled) {
-  animation: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-primary);
-  background: rgba(31, 41, 55, 1);
-}
-
-.generate-button.combo-button:hover:not(:disabled) {
-  border-color: var(--color-info);
-  box-shadow: 0 0 15px var(--color-info);
-  background: rgba(139, 92, 246, 0.25);
-}
-
-.generate-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  animation: none;
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 5px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 12px var(--color-theme-primary);
-  }
 }
 
 .bio-content {

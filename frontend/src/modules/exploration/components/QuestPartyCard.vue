@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UCard, UProgressBar } from '@/core/components/ui'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
 interface Props {
@@ -75,6 +76,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
         <div v-for="member in partyMembers" :key="member.id" class="party-member">
           <Icon icon="mdi:account" class="member-icon" />
           <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+          <DwellerIdentitySignal :visual-attributes="member.visual_attributes" compact />
           <span class="member-level">Lv.{{ member.level }}</span>
         </div>
       </div>

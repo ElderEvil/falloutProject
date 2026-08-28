@@ -36,6 +36,20 @@ describe('DwellerPortrait', () => {
     })
 
     expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
+    expect(wrapper.find('img').attributes('style')).toContain('object-position: center top')
+  })
+
+  it('prefers the thumbnail for compact previews when both sources exist', () => {
+    const wrapper = mount(DwellerPortrait, {
+      props: {
+        imageUrl: 'example.com/lucy.png',
+        thumbnailUrl: 'example.com/lucy-thumb.png',
+        preferThumbnail: true,
+        alt: 'Lucy MacLean portrait',
+      },
+    })
+
+    expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
   })
 
   it('uses the API origin for backend static portraits', () => {

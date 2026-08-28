@@ -78,14 +78,12 @@ describe('DwellerAppearanceEditor', () => {
     } as unknown as Dweller
 
     const wrapper = await createWrapper(dwellerWithAttrs)
-    const raceSelect = wrapper.find('select').element as HTMLSelectElement
-    expect(raceSelect.value).toBe('ghoul')
+    expect(wrapper.findAll('[role="combobox"]')[0].text()).toContain('Ghoul')
   })
 
   it('sets defaults when dweller has no visual_attributes', async () => {
     const wrapper = await createWrapper(baseDweller)
-    const raceSelect = wrapper.find('select').element as HTMLSelectElement
-    expect(raceSelect.value).toBe('human')
+    expect(wrapper.findAll('[role="combobox"]')[0].text()).toContain('Human')
   })
 
   it('emits saved with cleaned attributes on save', async () => {
@@ -111,21 +109,21 @@ describe('DwellerAppearanceEditor', () => {
     expect(saved.height).toBe('average')
   })
 
-  it('omits age when the age input is cleared', async () => {
+  it('saves the age selected with the range control', async () => {
     const dwellerWithAge = {
       ...baseDweller,
       visual_attributes: { age: 25 },
     } as unknown as Dweller
 
     const wrapper = await createWrapper(dwellerWithAge)
-    await wrapper.find('[data-testid="ui-input"]').setValue('')
+    await wrapper.find('input[type="range"]').setValue('36')
     await wrapper
       .findAll('button')
       .filter((b) => b.text().includes('Save Changes'))[0]!
       .trigger('click')
 
     const saved = wrapper.emitted('saved')![0][0] as Record<string, unknown>
-    expect(saved).not.toHaveProperty('age')
+    expect(saved.age).toBe(36)
   })
 
   it('shows state_of_being for non-human races', async () => {
@@ -141,6 +139,22 @@ describe('DwellerAppearanceEditor', () => {
   it('hides state_of_being for human race', async () => {
     const wrapper = await createWrapper(baseDweller)
     expect(wrapper.text()).not.toContain('State of Being')
+  })
+
+  it('shows one appearance section at a time', async () => {
+    const wrapper = await createWrapper(baseDweller)
+    const sections = wrapper.findAll('.editor-section')
+
+    expect(sections[0].attributes('style')).toBeUndefined()
+    expect(sections[1].attributes('style')).toContain('display: none')
+
+    await wrapper
+      .findAll('.section-nav-button')
+      .filter((button) => button.text().includes('Face'))[0]!
+      .trigger('click')
+
+    expect(sections[0].attributes('style')).toContain('display: none')
+    expect(sections[2].attributes('style')).not.toContain('display: none')
   })
 
   it('closes modal on cancel', async () => {
@@ -162,17 +176,16 @@ describe('DwellerAppearanceEditor', () => {
 
     const wrapper = await createWrapper(dwellerWithSuperMutant)
 
-    // Get the select elements (race is first, faction is second)
-    const selects = wrapper.findAll('select')
+    const selects = wrapper.findAll('[role="combobox"]')
     expect(selects.length).toBeGreaterThanOrEqual(2)
-
-    const factionSelect = selects[1].element as HTMLSelectElement
-    const factionOptions = Array.from(factionSelect.options).map((o) => o.value)
+    await selects[1].trigger('click')
+    const factionOptions = wrapper.findAll('[role="option"]').map((option) => option.text())
 
     // Super mutants should not have human-only factions
-    expect(factionOptions).not.toContain('vault_dweller')
-    expect(factionOptions).not.toContain('brotherhood_of_steel')
+    expect(factionOptions).not.toContain('Vault Dweller')
+    expect(factionOptions).not.toContain('Brotherhood Of Steel')
     // But should have their allowed factions
-    expect(factionOptions).toContain('super_mutant_tribe')
+    expect(factionOptions).toContain('Super Mutant Tribe')
   })
+
 })

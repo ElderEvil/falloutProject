@@ -11,6 +11,7 @@ interface Props {
   fallbackClass?: string
   fallbackIcon?: string
   urlMode?: 'normalized' | 'static'
+  preferThumbnail?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -20,12 +21,18 @@ const props = withDefaults(defineProps<Props>(), {
   fallbackClass: '',
   fallbackIcon: 'mdi:account',
   urlMode: 'normalized',
+  preferThumbnail: false,
 })
 
+const portraitSource = computed(() =>
+  props.preferThumbnail ? props.thumbnailUrl || props.imageUrl : props.imageUrl || props.thumbnailUrl
+)
 const portraitUrl = computed(() => {
-  const source = props.imageUrl || props.thumbnailUrl
-  return props.urlMode === 'static' ? (getStaticImageUrl(source) ?? '') : normalizeImageUrl(source)
+  return props.urlMode === 'static'
+    ? (getStaticImageUrl(portraitSource.value) ?? '')
+    : normalizeImageUrl(portraitSource.value)
 })
+const isThumbnailPreview = computed(() => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl))
 
 const hasImageError = ref(false)
 
@@ -40,6 +47,7 @@ watch(portraitUrl, () => {
     :src="portraitUrl"
     :alt="alt"
     :class="imageClass"
+    :style="{ objectPosition: isThumbnailPreview ? 'center top' : undefined }"
     @error="hasImageError = true"
   />
   <span v-else role="img" :aria-label="alt">

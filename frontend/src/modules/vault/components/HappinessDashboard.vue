@@ -179,10 +179,10 @@ const distributionPercentage = (count: number) => {
 </script>
 
 <template>
-  <UCard v-if="loading" padding="sm" class="happiness-dashboard">
+  <UCard v-if="loading" padding="sm" surface="raised" class="happiness-dashboard">
     <USkeleton width="100%" height="120px" rounded="lg" />
   </UCard>
-  <UCard v-else padding="sm" class="happiness-dashboard">
+  <UCard v-else padding="sm" surface="raised" class="happiness-dashboard">
     <div class="dashboard-content compact-dashboard">
       <!-- Main Happiness Gauge -->
       <div class="happiness-gauge">
@@ -375,8 +375,8 @@ const distributionPercentage = (count: number) => {
 
 <style scoped>
 .happiness-dashboard {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.3);
+  background: var(--color-surface-sunken);
+  border-color: rgb(from var(--color-theme-primary) r g b / 0.4);
 }
 
 .compact-dashboard {
@@ -403,6 +403,7 @@ const distributionPercentage = (count: number) => {
 .gauge-svg {
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
 .gauge-progress {

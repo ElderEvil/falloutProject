@@ -12802,9 +12802,7 @@ export interface operations {
     };
     start_quest_api_v1_quests__vault_id___quest_id__start_post: {
         parameters: {
-            query?: {
-                duration_minutes?: number | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 vault_id: string;

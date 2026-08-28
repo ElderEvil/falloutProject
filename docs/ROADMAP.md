@@ -67,6 +67,22 @@ around it, without displacing the vault workspace. Semantic Release will choose 
 **Success criteria**: an overseer can see the vault's highest-priority state at a glance, reach the right response
 flow in one action, and rely on tested production logs and browser behavior without provider-specific setup.
 
+### Frontend Design-System Consolidation (Target: TBD)
+
+**Focus**: Make the terminal UI coherent by having shared primitives consume the same surface, spacing, border, and
+interaction tokens instead of compensating with page-level CSS.
+
+- ⬜ Define and document the canonical canvas, panel, inset-control, hover, and overlay surface roles.
+- ⬜ Align `UButton`, `UInput`, `USelect`, `UModal`, cards, and badges to those roles, including visible focus and
+  disabled states.
+- ⬜ Replace repeated feature-local button and control styling as related screens are touched; favor smaller shared
+  variants over new one-off CSS.
+- ⬜ Add an icon affordance to form labels where it makes an identity or game concept easier to scan, while keeping
+  labels as the accessible source of meaning.
+
+**Success criteria**: new management screens can be assembled from shared primitives without custom surface fixes,
+and equivalent controls look and behave the same across the vault.
+
 ### Dweller Identity & Atmosphere Update (Target: TBD)
 
 **Focus**: Turn the existing `visual_attributes` JSONB data and `backend/app/options/` lore into a legible, animated

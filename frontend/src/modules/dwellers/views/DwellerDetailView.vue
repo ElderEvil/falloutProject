@@ -306,6 +306,7 @@ const handleRevive = async () => {
 
 const usingStimpack = ref(false)
 const usingRadaway = ref(false)
+const issuingMedicalSupply = ref(false)
 const unassigning = ref(false)
 const isEditingName = ref(false)
 const editedName = ref('')
@@ -336,6 +337,28 @@ const handleUseRadaway = async () => {
     toast.error('Failed to use RadAway')
   } finally {
     usingRadaway.value = false
+  }
+}
+
+const handleIssueMedicalSupply = async (supply: 'stimpack' | 'radaway') => {
+  if (!dweller.value || issuingMedicalSupply.value || !authStore.token) return
+
+  issuingMedicalSupply.value = true
+  try {
+    const result = await dwellerMedicalStore.issueMedicalSupply(
+      vaultId.value,
+      dwellerId.value,
+      supply,
+      authStore.token
+    )
+    if (result) {
+      await Promise.all([
+        dwellerStore.fetchDwellerDetails(dwellerId.value, authStore.token, true),
+        vaultStore.refreshVault(vaultId.value, authStore.token),
+      ])
+    }
+  } finally {
+    issuingMedicalSupply.value = false
   }
 }
 
@@ -472,8 +495,12 @@ const saveNewName = async () => {
                   :dweller="dweller"
                   :image-url="dweller.image_url"
                   :loading="
-                    generatingAI || usingStimpack || usingRadaway || assigning || unassigning
+                    generatingAI || usingStimpack || usingRadaway || issuingMedicalSupply || assigning || unassigning
                   "
+                  :generating-portrait="generatingPortrait"
+                  :available-stimpaks="currentVault?.stimpack"
+                  :available-radaways="currentVault?.radaway"
+                  :issuing-medical-supply="issuingMedicalSupply"
                   @chat="navigateToChatPage"
                   @assign="handleAssign"
                   @unassign="handleUnassign"
@@ -482,6 +509,8 @@ const saveNewName = async () => {
                   @use-radaway="handleUseRadaway"
                   @train="showTrainingModal = true"
                   @send-wasteland="handleSendWasteland"
+                  @generate-portrait="generateDwellerPortrait"
+                  @issue-medical-supply="handleIssueMedicalSupply"
                 />
 
                 <!-- Revival Section for Dead Dwellers -->
@@ -515,7 +544,6 @@ const saveNewName = async () => {
                 :dweller-id="dwellerId"
                 :generating-bio="generatingBio"
                 :generating-appearance="generatingAppearance"
-                :generating-portrait="generatingPortrait"
                 :is-any-generating="isAnyGenerating"
                 :vault-id="vaultId"
                 :place-links="placeLinks"
@@ -524,7 +552,6 @@ const saveNewName = async () => {
                 @refresh="handleRefresh"
                 @generate-bio="generateDwellerBio"
                 @generate-appearance="generateDwellerAppearance"
-                @generate-portrait="generateDwellerPortrait"
                 @generate-all="generateDwellerInfo"
                 @edit-appearance="showAppearanceEditor = true"
                 @navigate-dweller="navigateToDweller"

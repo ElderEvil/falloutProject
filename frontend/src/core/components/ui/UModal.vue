@@ -197,7 +197,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Footer -->
-          <div v-if="$slots.footer" class="flex justify-end space-x-4">
+          <div v-if="$slots.footer" class="flex justify-end space-x-4 px-5 pt-3 pb-5 flex-shrink-0">
             <slot name="footer">
               <UButton variant="secondary" @click="close">Cancel</UButton>
               <UButton variant="primary">Confirm</UButton>

@@ -2,13 +2,13 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 import type { VisualAttributes } from '../models/dweller'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 
 interface Props {
   visualAttributes?: VisualAttributes | null
   generatingAppearance?: boolean
-  generatingPortrait?: boolean
   isAnyGenerating?: boolean
 }
 
@@ -16,7 +16,6 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'generate-appearance'): void
-  (e: 'generate-portrait'): void
   (e: 'edit'): void
 }>()
 
@@ -96,12 +95,14 @@ const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.ke
       <div class="header-buttons">
         <UTooltip
           v-if="canGenerateAppearance"
-          text="Generate visual attributes with AI"
+          text="Creates or replaces visual attributes; it does not generate a portrait"
           position="top"
         >
-          <button
+          <UButton
             @click="emit('generate-appearance')"
             class="generate-button"
+            variant="secondary"
+            size="sm"
             :disabled="props.isAnyGenerating"
           >
             <Icon
@@ -109,29 +110,15 @@ const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.ke
               class="h-5 w-5"
               :class="{ 'animate-spin': generatingAppearance }"
             />
-            <span>{{ hasAttributes ? 'Generate' : 'Attributes' }}</span>
-          </button>
+            <span>{{ hasAttributes ? 'Regenerate appearance' : 'Generate appearance' }}</span>
+          </UButton>
         </UTooltip>
 
-        <UTooltip text="Generate AI portrait image" position="top">
-          <button
-            @click="emit('generate-portrait')"
-            class="generate-button"
-            :disabled="props.isAnyGenerating"
-          >
-            <Icon
-              :icon="generatingPortrait ? 'mdi:loading' : 'mdi:camera'"
-              class="h-5 w-5"
-              :class="{ 'animate-spin': generatingPortrait }"
-            />
-            <span>Portrait</span>
-          </button>
-        </UTooltip>
-        <UTooltip v-if="hasAttributes" text="Edit appearance manually" position="top">
-          <button @click="emit('edit')" class="generate-button">
+        <UTooltip v-if="hasAttributes" text="Adjust visual attributes manually" position="top">
+          <UButton @click="emit('edit')" class="generate-button" variant="secondary" size="sm">
             <Icon icon="mdi:pencil" class="h-5 w-5" />
-            <span>Edit</span>
-          </button>
+            <span>Edit appearance</span>
+          </UButton>
         </UTooltip>
       </div>
     </div>
@@ -178,45 +165,6 @@ const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.ke
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.generate-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(31, 41, 55, 0.8);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.generate-button:hover:not(:disabled) {
-  animation: none;
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-primary);
-  background: rgba(31, 41, 55, 1);
-}
-
-.generate-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  animation: none;
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 5px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 12px var(--color-theme-primary);
-  }
 }
 
 .appearance-content {

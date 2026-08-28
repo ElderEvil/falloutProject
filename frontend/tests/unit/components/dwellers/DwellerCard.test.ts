@@ -55,7 +55,7 @@ describe('DwellerCard', () => {
       expect(placeholder.exists()).toBe(true)
     })
 
-    it('should show hint text to generate portrait in Appearance tab', () => {
+    it('makes the empty portrait a direct generate action', async () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -63,9 +63,11 @@ describe('DwellerCard', () => {
         },
       })
 
-      const hint = wrapper.find('.placeholder-hint')
-      expect(hint.exists()).toBe(true)
-      expect(hint.text()).toContain('Generate portrait in Appearance tab')
+      const placeholder = wrapper.find('.portrait-placeholder')
+      expect(placeholder.text()).toContain('Generate portrait')
+
+      await placeholder.trigger('click')
+      expect(wrapper.emitted('generate-portrait')).toHaveLength(1)
     })
 
     it('should render portrait image when imageUrl is provided', () => {
@@ -162,6 +164,31 @@ describe('DwellerCard', () => {
   })
 
   describe('Inventory Display', () => {
+    it('lets the overseer issue one supply from the counter', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null,
+          availableStimpaks: 1,
+        },
+      })
+
+      await wrapper.get('[aria-label="Issue one Stimpack"]').trigger('click')
+
+      expect(wrapper.emitted('issue-medical-supply')).toEqual([['stimpack']])
+    })
+
+    it('waits for vault stock before enabling supply issue', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null,
+        },
+      })
+
+      expect(wrapper.get('[aria-label="Issue one Stimpack"]').attributes('disabled')).toBeDefined()
+    })
+
     it('should display stimpack count', () => {
       const wrapper = mount(DwellerCard, {
         props: {

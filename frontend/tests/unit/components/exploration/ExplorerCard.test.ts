@@ -45,6 +45,7 @@ const dweller = {
   first_name: 'Lucy',
   last_name: 'MacLean',
   image_url: 'example.com/lucy.png',
+  thumbnail_url: 'example.com/lucy-thumb.png',
 } as Dweller
 
 describe('ExplorerCard', () => {
@@ -55,7 +56,7 @@ describe('ExplorerCard', () => {
   it('shows the exploring dweller portrait', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/lucy.png')
+    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/lucy-thumb.png')
     expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Lucy MacLean portrait')
 
     wrapper.unmount()

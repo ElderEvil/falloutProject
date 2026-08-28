@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { UProgressBar } from '@/core/components/ui'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -54,6 +55,6 @@ describe('QuestCard', () => {
       },
     })
 
-    expect(wrapper.find('.quest-progress-fill').exists()).toBe(true)
+    expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBeGreaterThan(0)
   })
 })

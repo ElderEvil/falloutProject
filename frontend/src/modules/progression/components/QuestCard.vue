@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge, UButton, UCard } from '@/core/components/ui'
+import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
@@ -425,9 +425,7 @@ const handleAction = () => {
       <Icon icon="mdi:clock-outline" class="timer-icon" />
       <span class="timer-label">Time Remaining:</span>
       <span class="timer-value">{{ timeRemaining }}</span>
-      <div class="quest-progress-track" aria-label="Quest progress">
-        <div class="quest-progress-fill" :style="{ width: `${questProgress}%` }"></div>
-      </div>
+      <UProgressBar :model-value="questProgress" :height="6" :glow="false" class="flex-1 min-w-[72px]" />
     </div>
 
     <!-- Duration Info (for available quests) -->
@@ -683,22 +681,6 @@ const handleAction = () => {
   border: 1px solid var(--color-theme-accent);
   border-radius: 6px;
   margin-top: 12px;
-}
-
-.quest-progress-track {
-  flex: 1;
-  min-width: 72px;
-  height: 6px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
-  background: var(--color-surface-sunken);
-}
-
-.quest-progress-fill {
-  height: 100%;
-  background: var(--color-theme-accent);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transition: width 1s linear;
 }
 
 .timer-icon {

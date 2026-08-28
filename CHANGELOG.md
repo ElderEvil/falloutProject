@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.53.1](https://github.com/ElderEvil/falloutProject/compare/v2.53.0...v2.53.1) (2026-08-28)
+
+### Bug Fixes
+
+* normalize API timestamps as UTC ([8e965d3](https://github.com/ElderEvil/falloutProject/commit/8e965d3af651756d70e0a28f6cf3eb864ec9af1d))
+* remove dead lineage 404 branch, rebind content-agent models on AI apply ([297030e](https://github.com/ElderEvil/falloutProject/commit/297030e3d456a16152ef7c2aa92f483f9df0047f))
+* resolve consolidation review findings ([b8572d7](https://github.com/ElderEvil/falloutProject/commit/b8572d7b841c2254b9bcce7c4ae3d950040869e4))
+
+### Code Refactoring
+
+* centralize Typer commands ([bd57bb4](https://github.com/ElderEvil/falloutProject/commit/bd57bb4892bd695903b7993ff7d2e4ee519051bd))
+* consolidate backend operations ([9ced319](https://github.com/ElderEvil/falloutProject/commit/9ced319066472e24a2363be73b9be92e594a6827))
+* flatten CLI modules ([82152bc](https://github.com/ElderEvil/falloutProject/commit/82152bc192c3006f05cc765455f2bf0a5b1adeff))
+* narrow consolidation scope ([e276fc8](https://github.com/ElderEvil/falloutProject/commit/e276fc8d335cc8fe55d90e60bd6de93f47f84630))
+
 ## [2.53.0](https://github.com/ElderEvil/falloutProject/compare/v2.52.0...v2.53.0) (2026-08-28)
 
 ### Features

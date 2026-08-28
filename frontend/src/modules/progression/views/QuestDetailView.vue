@@ -102,8 +102,8 @@ const canStart = computed(() => {
   return !quest.value?.is_visible && !quest.value?.is_completed && prerequisitesMet.value
 })
 
-const canComplete = computed(() => {
-  return quest.value?.is_visible && !quest.value?.is_completed
+const isInProgress = computed(() => {
+  return quest.value?.started_at != null && !quest.value?.is_completed
 })
 
 const isCompleted = computed(() => {
@@ -113,17 +113,6 @@ const isCompleted = computed(() => {
 const handleStartQuest = async () => {
   if (!vaultId.value || !questId.value) return
   await questStore.assignQuest(vaultId.value, questId.value, true)
-  // Refresh quest data
-  await questStore.fetchVaultQuests(vaultId.value)
-  const updatedQuest = questStore.vaultQuests.find((q) => q.id === questId.value)
-  if (updatedQuest) {
-    quest.value = updatedQuest
-  }
-}
-
-const handleCompleteQuest = async () => {
-  if (!vaultId.value || !questId.value) return
-  await questStore.completeQuest(vaultId.value, questId.value)
   // Refresh quest data
   await questStore.fetchVaultQuests(vaultId.value)
   const updatedQuest = questStore.vaultQuests.find((q) => q.id === questId.value)
@@ -193,7 +182,7 @@ const goBack = () => {
                 <Icon icon="mdi:check-circle" class="banner-icon" />
                 Quest Completed
               </div>
-              <div v-else-if="canComplete" class="active-banner">
+              <div v-else-if="isInProgress" class="active-banner">
                 <Icon icon="mdi:progress-check" class="banner-icon" />
                 Quest In Progress
               </div>
@@ -284,15 +273,10 @@ const goBack = () => {
                     Start Quest
                   </UButton>
 
-                  <UButton
-                    v-else-if="canComplete"
-                    variant="success"
-                    class="action-btn"
-                    @click="handleCompleteQuest"
-                  >
-                    <Icon icon="mdi:check-bold" class="btn-icon" />
-                    Complete Quest
-                  </UButton>
+                  <div v-else-if="isInProgress" class="active-message">
+                    <Icon icon="mdi:progress-clock" class="message-icon" />
+                    <span>Quest in progress — rewards will be delivered on return</span>
+                  </div>
 
                   <div v-else-if="isCompleted" class="completed-message">
                     <Icon icon="mdi:seal" class="message-icon" />
@@ -629,6 +613,7 @@ const goBack = () => {
 }
 
 .completed-message,
+.active-message,
 .locked-message {
   padding: 16px;
   border-radius: 4px;
@@ -644,6 +629,12 @@ const goBack = () => {
   background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
   border: 2px solid var(--color-theme-primary);
   color: var(--color-theme-primary);
+}
+
+.active-message {
+  background: color-mix(in srgb, var(--color-theme-accent) 10%, transparent);
+  border: 2px solid var(--color-theme-accent);
+  color: var(--color-theme-accent);
 }
 
 .locked-message {

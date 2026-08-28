@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -127,6 +127,29 @@ class QuestService:
     ) -> tuple[Quest, list[Any]]:
         """Complete a quest and set party dwellers back to idle."""
         from app.crud.quest_party import quest_party_crud
+        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+
+        link = (
+            await db_session.exec(
+                select(VaultQuestCompletionLink).where(
+                    VaultQuestCompletionLink.quest_id == quest_id,
+                    VaultQuestCompletionLink.vault_id == vault_id,
+                )
+            )
+        ).one_or_none()
+        if link is None:
+            raise ResourceNotFoundException(
+                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
+            )
+        if link.started_at is None:
+            raise ValidationException("Quest must be started before it can be completed")
+
+        quest = await db_session.get(Quest, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
+        if datetime.now() < link.started_at + timedelta(minutes=duration):
+            raise ValidationException("Quest is still in progress")
 
         quest, granted_rewards = await crud.quest_crud.complete(
             db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id
@@ -136,7 +159,7 @@ class QuestService:
         for member in party:
             dweller = await db_session.get(Dweller, member.dweller_id)
             if dweller:
-                dweller.status = "idle"
+                dweller.status = DwellerStatusEnum.IDLE
         await db_session.commit()
 
         return quest, granted_rewards

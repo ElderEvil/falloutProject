@@ -158,11 +158,6 @@ const handleStartQuest = async (questId: string) => {
   await questStore.startQuest(vaultId.value, questId)
 }
 
-const handleCompleteQuest = async (questId: string) => {
-  if (!vaultId.value) return
-  await questStore.completeQuest(vaultId.value, questId)
-}
-
 // Fetch quests on mount
 onMounted(async () => {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
@@ -252,7 +247,6 @@ onMounted(async () => {
                     :vault-id="vaultId"
                     status="active"
                     :party-members="questPartyMembersMap[quest.id] || []"
-                    @complete="handleCompleteQuest"
                     @assign-party="handleAssignParty"
                   />
                 </div>

@@ -456,6 +456,35 @@ async def test_start_quest(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSession) -> None:
+    """Manual completion must not bypass a running quest's timer."""
+    from app.services.quest_service import quest_service
+    from app.utils.exceptions import ValidationException
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="No Early Return",
+            short_description="Wait for the party",
+            long_description="A quest that must run before it can settle.",
+            requirements="Level 1",
+            rewards="10 caps",
+            duration_minutes=60,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    with pytest.raises(ValidationException, match="still in progress"):
+        await quest_service.complete_quest_and_free_party(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
 async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     """Test automatic quest completion after duration."""
     from datetime import datetime, timedelta

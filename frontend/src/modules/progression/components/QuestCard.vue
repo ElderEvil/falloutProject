@@ -20,7 +20,6 @@ const { partyMembers, isLocked = false, quest, status, vaultId } = defineProps<P
 
 const emit = defineEmits<{
   start: [questId: string]
-  complete: [questId: string]
   view: [questId: string]
   assignParty: [questId: string]
 }>()
@@ -228,7 +227,7 @@ const actionButtonText = computed(() => {
     case 'available':
       return 'Start Quest'
     case 'active':
-      return timeRemaining.value ? 'In Progress' : 'Complete Quest'
+      return 'In Progress'
     case 'completed':
       return 'View Details'
     default:
@@ -251,7 +250,7 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked
+  return isLocked || status === 'active'
 })
 
 const handleAction = () => {
@@ -267,7 +266,6 @@ const handleAction = () => {
       }
       break
     case 'active':
-      emit('complete', quest.id)
       break
     case 'completed':
       emit('view', quest.id)

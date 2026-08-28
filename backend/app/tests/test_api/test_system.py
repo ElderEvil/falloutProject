@@ -1,7 +1,27 @@
 """Tests for system endpoints."""
 
+import json
+from pathlib import Path
+
 import pytest
 from httpx import AsyncClient
+
+PROJECT_ROOT = Path(__file__).parents[4]
+
+
+def test_release_artifacts_are_plain_text_and_deployment_enforces_production() -> None:
+    changelog = (PROJECT_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    release_config = json.loads((PROJECT_ROOT / ".releaserc.json").read_text(encoding="utf-8"))
+    generator = next(
+        config for config in release_config["plugins"] if config[0] == "@semantic-release/release-notes-generator"
+    )[1]
+    deployment_workflow = (PROJECT_ROOT / ".github/workflows/deploy-hetzner.yml").read_text(encoding="utf-8")
+
+    assert "](" not in changelog
+    assert not generator["linkCompare"]
+    assert not generator["linkReferences"]
+    assert "kubectl -n fallout set env deployment/backend" in deployment_workflow
+    assert "ENVIRONMENT=production" in deployment_workflow
 
 
 @pytest.mark.asyncio

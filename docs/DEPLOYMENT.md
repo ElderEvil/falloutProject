@@ -64,6 +64,15 @@ docker compose down
 
 The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load environment variables from the
 `backend-env` Kubernetes Secret. Deployment images are updated by the **Deploy to Hetzner** GitHub Actions workflow.
+`ENVIRONMENT` must be `production`: the deployment verifies this before serving traffic, and admin session cookies are
+marked Secure only in production.
+
+Verify a running release (including its reported version and environment) with:
+
+```bash
+cd backend
+uv run fo-cli ops check-ai --api-url https://fallout-api.evillab.tech --skip-chat --expect-environment production
+```
 
 ### Release Preflight
 
@@ -79,6 +88,7 @@ The `backend` and `dramatiq-worker` deployments in the `fallout` namespace load 
    OPENAI_API_KEY
    AI_PROVIDER
    AI_MODEL
+   ENVIRONMENT=production
    ```
 
 4. Leave RustFS variables unset if storage is intentionally unavailable; the backend now starts without it. Configure

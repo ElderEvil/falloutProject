@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.56.0 (2026-08-28)
+
+### Features
+
+* confirm quest reward claims a6b40f2
+* refine quest progress display a49d490
+* refine wasteland mission control d19dffd
+* require quest reward claims b621cdd
+* show quest progress bff108b
+
+### Bug Fixes
+
+* capitalize quest dweller rewards d0aad65
+* enforce quest completion timing 732191b
+* make quest and objective rewards concrete 5dbf10e
+* preserve quest duration state 3925266
+* reconcile typed quest rewards 4cc5947
+* refresh completed quests automatically 02fe353
+* require quest parties before start bbbb38d
+* resolve quest reward review findings eadce3c
+* resolve remaining quest reward review findings e9df389
+* show ready quest progress 0802068
+* simplify quest progress styling 060c3ee
+
+### Code Refactoring
+
+* align exploration mission cards 177ede7
+* reuse quest progress component 07e2712
+
 ## 2.55.0 (2026-08-28)
 
 ### Features

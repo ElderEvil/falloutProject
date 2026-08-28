@@ -343,9 +343,9 @@ const handleIncidentResponded = async () => {
 
     <!-- Error State -->
     <div v-else-if="errorMessage" class="flex min-h-screen items-center justify-center">
-      <div class="max-w-md rounded border-2 border-red-500 bg-gray-900 p-8 text-center">
+      <div class="max-w-md rounded border-2 border-danger/60 bg-surface-raised p-8 text-center">
         <div class="mb-4 text-6xl">⚠️</div>
-        <h2 class="mb-4 text-2xl font-bold text-red-500">Error Loading Vault</h2>
+        <h2 class="mb-4 text-2xl font-bold text-danger">Error Loading Vault</h2>
         <p class="mb-6 text-terminal-green">{{ errorMessage }}</p>
         <router-link
           to="/"

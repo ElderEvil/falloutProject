@@ -67,6 +67,7 @@ async def read_vault_quests(
         List of quests for the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
     return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
 
 
@@ -239,7 +240,6 @@ async def start_quest(
     quest_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    duration_minutes: int | None = None,
 ) -> QuestRead:
     """Start a quest (starts the timer).
 
@@ -267,7 +267,7 @@ async def start_quest(
         raise ValidationException(detail=f"Missing requirements: {', '.join(missing)}")
 
     try:
-        await quest_service.start_quest(db_session, quest_id, vault_id, duration_minutes)
+        await quest_service.start_quest(db_session, quest_id, vault_id)
     except ValueError as e:
         raise ValidationException(str(e)) from e
     else:

@@ -56,6 +56,7 @@ async def test_create_objective_for_vault(async_session: AsyncSession) -> None:
     objective = await crud.objective_crud.create_for_vault(
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
+    initial_caps = vault.bottle_caps
 
     assert objective.id
     assert objective.challenge == "Collect 3 stimpaks"
@@ -125,6 +126,7 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
         db_session=async_session, vault_id=vault.id, obj_in=objective_data
     )
 
+    initial_caps = vault.bottle_caps
     # Update progress to 5 (with total=1 by default, this will auto-complete since 5 >= 1)
     link = await crud.objective_crud.update_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
@@ -133,6 +135,8 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
     assert link.progress == 5
     # With total=1 by default, progress=5 should auto-complete since 5 >= 1
     assert link.is_completed is True
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 500
 
 
 @pytest.mark.asyncio
@@ -227,7 +231,8 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     )
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
-    # Update progress (should create link)
+    initial_caps = vault.bottle_caps
+    # Update progress (should create and complete the link)
     link = await crud.objective_crud.update_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=3
     )
@@ -235,4 +240,6 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     assert link.vault_id == vault.id
     assert link.objective_id == objective.id
     assert link.progress == 3
-    assert link.is_completed is False
+    assert link.is_completed is True
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 50

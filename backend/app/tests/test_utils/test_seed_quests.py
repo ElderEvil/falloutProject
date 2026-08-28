@@ -147,6 +147,36 @@ async def test_seed_quests_updates_existing_reward_payload(async_session: AsyncS
 
 
 @pytest.mark.asyncio
+async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding matches a changed reward to its existing reward slot."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_file = quest_dir / "rewards.json"
+    quest_data = [
+        {
+            "Quest name": "Mutable Reward Quest",
+            "Long description": "A quest with a balance adjustment.",
+            "Short description": "Update reward",
+            "Requirements": "Level 1",
+            "Rewards": "100 caps",
+            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
+        }
+    ]
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    await seed_quests_from_json(async_session, quest_dir=quest_dir)
+
+    quest_data[0]["quest_rewards"][0]["reward_data"] = {"amount": 250}
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Mutable Reward Quest"))).scalar_one()
+    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
+    assert reward.reward_data == {"amount": 250}
+
+
+@pytest.mark.asyncio
 async def test_seed_quests_migrates_legacy_dweller_reward_to_template(
     async_session: AsyncSession, tmp_path: Path
 ) -> None:

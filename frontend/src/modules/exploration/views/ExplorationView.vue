@@ -104,8 +104,10 @@ const pollExplorations = async () => {
 
   try {
     await explorationStore.fetchExplorationsByVault(vaultId.value, authStore.token)
+    await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+    await questStore.fetchPartiesForActiveQuests(vaultId.value)
   } catch (error) {
-    toast.error('Failed to refresh explorations')
+    toast.error('Failed to refresh activities')
   }
 }
 

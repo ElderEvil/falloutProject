@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestService:
-    async def check_and_complete_quests(self, db_session: AsyncSession) -> int:
+    async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID4 | None = None) -> int:
         """Mark elapsed quests ready for reward claiming and return their parties."""
         now = datetime.now()
         duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
@@ -30,34 +30,31 @@ class QuestService:
         else:
             expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
-        query = (
-            select(VaultQuestCompletionLink)
-            .join(Quest)
-            .where(
-                ~VaultQuestCompletionLink.is_completed,
-                ~VaultQuestCompletionLink.is_reward_ready,
-                VaultQuestCompletionLink.started_at.isnot(None),
-                expires_at <= now,
-            )
-        )
+        conditions = [
+            ~VaultQuestCompletionLink.is_completed,
+            ~VaultQuestCompletionLink.is_reward_ready,
+            VaultQuestCompletionLink.started_at.isnot(None),
+            expires_at <= now,
+        ]
+        if vault_id is not None:
+            conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
+        query = select(VaultQuestCompletionLink).join(Quest).where(*conditions)
         result = await db_session.execute(query)
         links = [(link.quest_id, link.vault_id) for link in result.scalars().all()]
 
         completed_count = 0
-        for quest_id, vault_id in links:
+        for quest_id, link_vault_id in links:
             try:
-                await self.mark_quest_ready_to_claim(db_session, quest_id, vault_id)
+                await self.mark_quest_ready_to_claim(db_session, quest_id, link_vault_id)
             except Exception:
-                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {vault_id}")
+                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {link_vault_id}")
             else:
                 completed_count += 1
-                logger.info(f"Quest {quest_id} is ready to claim for vault {vault_id}")
+                logger.info(f"Quest {quest_id} is ready to claim for vault {link_vault_id}")
 
         return completed_count
 
-    async def start_quest(
-        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, duration_minutes: int | None = None
-    ) -> VaultQuestCompletionLink:
+    async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
         """Start a quest with a timer."""
         from app.crud.quest_party import quest_party_crud
         from app.utils.exceptions import (
@@ -88,6 +85,8 @@ class QuestService:
         quest = await db_session.get(Quest, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
+        if quest.duration_minutes is None or quest.duration_minutes <= 0:
+            raise ValidationException("Quest duration must be a positive value")
 
         party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
         if not party:
@@ -95,7 +94,7 @@ class QuestService:
 
         link.started_at = datetime.now()
         link.is_reward_ready = False
-        link.duration_minutes = duration_minutes if duration_minutes is not None else quest.duration_minutes
+        link.duration_minutes = quest.duration_minutes
 
         await db_session.commit()
         await db_session.refresh(link)

@@ -497,6 +497,34 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_start_quest_requires_a_positive_template_duration(async_session: AsyncSession) -> None:
+    """Quest timers must come from a positive server-side template duration."""
+    from app.services.quest_service import quest_service
+    from app.utils.exceptions import ValidationException
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Untimed Quest",
+            short_description="No timer",
+            long_description="A quest with an invalid configured duration.",
+            requirements="Level 1",
+            rewards="10 caps",
+            duration_minutes=0,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    with pytest.raises(ValidationException, match="duration must be a positive value"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
 async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSession) -> None:
     """Manual completion must not bypass a running quest's timer."""
     from app.crud.quest_party import quest_party_crud
@@ -535,8 +563,8 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
-    """A finished quest becomes claimable without granting rewards yet."""
+async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) -> None:
+    """Refreshing a vault makes its elapsed quest claimable without granting rewards."""
     from datetime import datetime, timedelta
 
     from app.models.quest_reward import QuestReward, RewardType
@@ -581,7 +609,7 @@ async def test_check_and_complete_quests(async_session: AsyncSession) -> None:
     link.duration_minutes = 60
     await async_session.commit()
 
-    completed = await quest_service.check_and_complete_quests(async_session)
+    completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
 
     assert completed >= 1
 

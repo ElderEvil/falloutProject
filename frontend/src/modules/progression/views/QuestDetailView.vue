@@ -6,7 +6,7 @@ import { useQuestStore } from '../stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { UCard, UBadge, UButton, UModal } from '@/core/components/ui'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -109,6 +109,8 @@ const isInProgress = computed(() => {
 const isCompleted = computed(() => {
   return quest.value?.is_completed
 })
+const isRewardReady = computed(() => quest.value?.is_reward_ready && !quest.value?.is_completed)
+const showClaimModal = ref(false)
 
 const handleStartQuest = async () => {
   if (!vaultId.value || !questId.value) return
@@ -119,6 +121,14 @@ const handleStartQuest = async () => {
   if (updatedQuest) {
     quest.value = updatedQuest
   }
+}
+
+const confirmClaimRewards = async () => {
+  if (!vaultId.value || !questId.value) return
+  await questStore.claimQuestRewards(vaultId.value, questId.value)
+  await questStore.fetchVaultQuests(vaultId.value)
+  quest.value = questStore.vaultQuests.find((item) => item.id === questId.value) ?? quest.value
+  showClaimModal.value = false
 }
 
 const goBack = () => {
@@ -273,6 +283,11 @@ const goBack = () => {
                     Start Quest
                   </UButton>
 
+                  <UButton v-else-if="isRewardReady" variant="primary" class="action-btn" @click="showClaimModal = true">
+                    <Icon icon="mdi:treasure-chest" class="btn-icon" />
+                    Claim Rewards
+                  </UButton>
+
                   <div v-else-if="isInProgress" class="active-message">
                     <Icon icon="mdi:progress-clock" class="message-icon" />
                     <span>Quest in progress — rewards will be delivered on return</span>
@@ -288,6 +303,17 @@ const goBack = () => {
                     <span>Prerequisites not met</span>
                   </div>
                 </div>
+
+                <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
+                  <div class="space-y-4 font-mono text-terminal-green">
+                    <p>{{ quest.title }} has returned. Confirm delivery to your vault.</p>
+                    <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
+                    <div class="flex justify-end gap-3">
+                      <UButton variant="secondary" @click="showClaimModal = false">Cancel</UButton>
+                      <UButton variant="primary" @click="confirmClaimRewards">Claim Rewards</UButton>
+                    </div>
+                  </div>
+                </UModal>
               </div>
             </div>
           </div>

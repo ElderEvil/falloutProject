@@ -77,13 +77,17 @@ async def _sync_existing_quest_rewards(
         quest = quests_by_title.get(quest_json.quest_name)
         if quest is None:
             continue
-        rewards = (
+        rewards = list(
             (await db_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
         )
         for reward_json in quest_json.quest_rewards:
             reward = next((candidate for candidate in rewards if _matches_reward_json(candidate, reward_json)), None)
             if reward is None:
+                reward_type = RewardType(reward_json.reward_type.lower())
+                reward = next((candidate for candidate in rewards if candidate.reward_type == reward_type), None)
+            if reward is None:
                 continue
+            rewards.remove(reward)
             if (
                 reward.reward_data != reward_json.reward_data
                 or reward.item_data != reward_json.item_data

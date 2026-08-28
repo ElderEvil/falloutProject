@@ -460,6 +460,8 @@ const handleAction = () => {
           :icon="
             status === 'completed'
               ? 'mdi:eye'
+              : status === 'ready'
+                ? 'mdi:treasure-chest'
               : status === 'active'
                 ? 'mdi:progress-clock'
                 : hasParty

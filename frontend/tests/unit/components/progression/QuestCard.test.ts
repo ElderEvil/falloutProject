@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { Icon } from '@iconify/vue'
 import { UProgressBar } from '@/core/components/ui'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
@@ -101,5 +102,14 @@ describe('QuestCard', () => {
 
     expect(wrapper.findComponent(UProgressBar).props('modelValue')).toBe(100)
     expect(wrapper.text()).toContain('Complete')
+  })
+
+  it('uses a reward icon when a quest is ready to claim', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: { quest, vaultId: 'vault-1', status: 'ready', partyMembers: [] },
+    })
+
+    expect(wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')).toBe(true)
   })
 })

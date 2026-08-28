@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.53.0](https://github.com/ElderEvil/falloutProject/compare/v2.52.0...v2.53.0) (2026-08-28)
+
+### Features
+
+* add superuser test-email endpoint to validate Mailcow SMTP ([98bef51](https://github.com/ElderEvil/falloutProject/commit/98bef5160e69d032504309451d160cc80889c02c))
+
+### Bug Fixes
+
+* align check_smtp TLS with send_email, validate email address, correct docs ([6671c65](https://github.com/ElderEvil/falloutProject/commit/6671c65a5638a556a16520fb334e2554953983e0))
+
 ## [2.52.0](https://github.com/ElderEvil/falloutProject/compare/v2.51.0...v2.52.0) (2026-08-27)
 
 ### Features

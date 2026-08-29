@@ -31,6 +31,8 @@ const ITEM_META: Record<string, { icon: string; label: string }> = {
   outfit: { icon: 'mdi:tshirt-crew', label: 'Outfit' },
   junk: { icon: 'mdi:cog', label: 'Junk' },
   pet: { icon: 'mdi:paw', label: 'Pet' },
+  consumable: { icon: 'mdi:bottle-tonic', label: 'Consumable' },
+  lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
 }
 
 const RESOURCE_META: Record<string, { icon: string; label: string }> = {
@@ -38,6 +40,18 @@ const RESOURCE_META: Record<string, { icon: string; label: string }> = {
   food: { icon: 'mdi:food-apple', label: 'Food' },
   water: { icon: 'mdi:water', label: 'Water' },
 }
+
+// Name-based fallback for rewards that lack an explicit item_type.
+const ITEM_NAME_PATTERNS: [RegExp, string][] = [
+  [/lunchbox|lunch box/, 'lunchbox'],
+  [/nuka|cola|bottle|drink|quantum|food|apple|meat|steak/, 'consumable'],
+  [/stimpak|stim|medkit|medical|first aid/, 'consumable'],
+  [/radaway|rad-away|radiation|rad /, 'consumable'],
+  [/suit|armor|armour|outfit|jacket|robe|dress|uniform|shirt|pants|boots|helmet|hat/, 'outfit'],
+  [/pistol|rifle|gun|blade|sword|cue|knife|bat|launcher|cannon|weapon|shotgun|smg|laser|plasma/, 'weapon'],
+  [/scrap|junk|cog|gear|part|duct tape|wonderglue/, 'junk'],
+  [/pet|dog|cat|bird|reptile/, 'pet'],
+]
 
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
@@ -48,13 +62,26 @@ const rewardLabel = (reward: QuestReward): string => {
   return String(data.amount ?? '—')
 }
 
+const inferItemCategory = (reward: QuestReward): string => {
+  const explicit = String(reward.item_data?.item_type ?? reward.reward_data.item_type ?? '')
+  if (explicit && ITEM_META[explicit]) return explicit
+
+  const name = String(
+    reward.reward_data.item_name ?? reward.item_data?.name ?? ''
+  ).toLowerCase()
+  for (const [pattern, category] of ITEM_NAME_PATTERNS) {
+    if (pattern.test(name)) return category
+  }
+  return ''
+}
+
 const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
   const base = REWARD_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
   const data = reward.reward_data
 
   if (reward.reward_type === 'item') {
-    const itemType = String(reward.item_data?.item_type ?? data.item_type ?? '')
-    return ITEM_META[itemType] ?? base
+    const category = inferItemCategory(reward)
+    return ITEM_META[category] ?? base
   }
 
   if (reward.reward_type === 'resource') {
@@ -82,7 +109,7 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
 
         <div class="modal-body">
           <div class="quest-name">
-            <Icon icon="mdi:flag-checkered" class="mr-2" />
+            <Icon icon="mdi:flag-checkered" class="quest-name-icon" />
             {{ quest.title }} has returned. Confirm delivery to your vault.
           </div>
 
@@ -218,10 +245,19 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
 .quest-name {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
   font-size: 1.1rem;
   color: var(--color-theme-primary);
   text-shadow: 0 0 6px var(--color-theme-glow);
   margin-bottom: 1.5rem;
+}
+
+.quest-name-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  color: var(--color-theme-accent);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .rewards-grid {

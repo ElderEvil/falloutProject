@@ -7,6 +7,7 @@ import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
+import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 
 const dwellerStore = useDwellerFilterStore()
 const roomStore = useRoomStore()
@@ -66,7 +67,7 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       (TRAINING_BASE_SECONDS + currentStat * TRAINING_PER_LEVEL_SECONDS) * tierMultiplier
 
     const startedAt = dweller.apprentice_started_at
-      ? new Date(dweller.apprentice_started_at).getTime()
+      ? parseStartTimeMs(dweller.apprentice_started_at)
       : null
     const elapsed = startedAt ? now.value - startedAt : 0
     const progressPercent = startedAt

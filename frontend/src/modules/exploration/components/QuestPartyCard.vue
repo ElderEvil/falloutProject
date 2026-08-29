@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { UCard, UProgressBar } from '@/core/components/ui'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
 interface Props {
@@ -31,7 +32,7 @@ onUnmounted(() => {
 const progressPercentage = computed(() => {
   if (!props.quest.started_at || !props.quest.duration_minutes) return 0
 
-  const start = new Date(props.quest.started_at).getTime()
+  const start = parseStartTimeMs(props.quest.started_at)
   const duration = props.quest.duration_minutes * 60 * 1000
   return Math.min(100, Math.max(0, ((now.value - start) / duration) * 100))
 })

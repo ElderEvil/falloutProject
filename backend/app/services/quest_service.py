@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class QuestService:
     async def check_and_complete_quests(self, db_session: AsyncSession, vault_id: UUID4 | None = None) -> int:
         """Mark elapsed quests ready for reward claiming and return their parties."""
-        now = datetime.now()
+        now = datetime.utcnow()
         duration_minutes = func.coalesce(VaultQuestCompletionLink.duration_minutes, Quest.duration_minutes)
         if db_session.bind and db_session.bind.dialect.name == "sqlite":
             expires_at = func.datetime(
@@ -93,7 +93,7 @@ class QuestService:
         if not party:
             raise ValidationException("Assign at least one dweller before starting this quest")
 
-        link.started_at = datetime.now()
+        link.started_at = datetime.utcnow()
         link.is_reward_ready = False
         link.duration_minutes = quest.duration_minutes
 
@@ -164,7 +164,7 @@ class QuestService:
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
         duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
-        if datetime.now() < link.started_at + timedelta(minutes=duration):
+        if datetime.utcnow() < link.started_at + timedelta(minutes=duration):
             raise ValidationException("Quest is still in progress")
         if link.is_reward_ready:
             return quest

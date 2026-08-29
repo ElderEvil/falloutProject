@@ -1,6 +1,7 @@
 import { computed, ref, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Room } from '../models/room'
+import { isVaultDoor } from '../models/roomParts'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
@@ -46,9 +47,7 @@ export function useRoomUpgrade(
     }
   })
 
-  const isVaultDoor = computed(() => {
-    return room.value?.name?.toLowerCase() === 'vault door'
-  })
+  const isVaultDoorRoom = computed(() => isVaultDoor(room.value))
 
   const handleUpgrade = async () => {
     if (!room.value) return
@@ -130,7 +129,7 @@ export function useRoomUpgrade(
     isRushing,
     justUpgraded,
     upgradeInfo,
-    isVaultDoor,
+    isVaultDoor: isVaultDoorRoom,
     handleUpgrade,
     handleDestroy,
     handleRushProduction,

@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { Room } from '../models/room'
+import { producesResources } from '../models/roomParts'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
@@ -20,7 +21,7 @@ export function useRoomProduction(
   const roomImageUrl = computed(() => getRoomImageUrl(room.value?.image_url))
 
   const productionInfo = computed(() => {
-    if (!room.value || !room.value.ability || room.value.category?.toLowerCase() !== 'production') {
+    if (!room.value || !producesResources(room.value)) {
       return null
     }
 

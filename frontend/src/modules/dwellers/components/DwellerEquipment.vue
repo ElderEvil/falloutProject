@@ -1,34 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useRoute } from 'vue-router'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
-import type { Dweller } from '../models/dweller'
+import { useDwellerDetailContext } from './DwellerDetailContext'
 
-interface Props {
-  dweller: Dweller
-}
+const ctx = useDwellerDetailContext()
 
-const props = defineProps<Props>()
-const emit = defineEmits<{
-  refresh: []
-}>()
-
-const route = useRoute()
 const equipmentStore = useEquipmentStore()
 const authStore = useAuthStore()
 
-// Get vault_id from route params
-const vaultId = computed(() => (route?.params?.id as string) ?? undefined)
+const dweller = computed(() => ctx.dweller.value)
+const vaultId = computed(() => ctx.vaultId.value)
 
 const showInventoryModal = ref(false)
 const inventoryMode = ref<'weapon' | 'outfit'>('weapon')
 
 // Get equipped items from the dweller object
-const equippedWeapon = computed(() => props.dweller?.weapon ?? null)
-const equippedOutfit = computed(() => props.dweller?.outfit ?? null)
+const equippedWeapon = computed(() => dweller.value?.weapon ?? null)
+const equippedOutfit = computed(() => dweller.value?.outfit ?? null)
 
 // Get available (unequipped) items
 const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
@@ -47,29 +38,29 @@ onMounted(async () => {
 })
 
 const handleUnequipWeapon = async () => {
-  if (!equippedWeapon.value || !authStore.token || !props.dweller?.id) return
-  await equipmentStore.unequipWeapon(props.dweller.id, equippedWeapon.value.id, authStore.token)
-  emit('refresh')
+  if (!equippedWeapon.value || !authStore.token || !dweller.value?.id) return
+  await equipmentStore.unequipWeapon(dweller.value.id, equippedWeapon.value.id, authStore.token)
+  ctx.actions.refresh()
 }
 
 const handleUnequipOutfit = async () => {
-  if (!equippedOutfit.value || !authStore.token || !props.dweller?.id) return
-  await equipmentStore.unequipOutfit(props.dweller.id, equippedOutfit.value.id, authStore.token)
-  emit('refresh')
+  if (!equippedOutfit.value || !authStore.token || !dweller.value?.id) return
+  await equipmentStore.unequipOutfit(dweller.value.id, equippedOutfit.value.id, authStore.token)
+  ctx.actions.refresh()
 }
 
 const handleEquipWeapon = async (weaponId: string) => {
-  if (!authStore.token || !props.dweller?.id) return
-  await equipmentStore.equipWeapon(props.dweller.id, weaponId, authStore.token)
+  if (!authStore.token || !dweller.value?.id) return
+  await equipmentStore.equipWeapon(dweller.value.id, weaponId, authStore.token)
   showInventoryModal.value = false
-  emit('refresh')
+  ctx.actions.refresh()
 }
 
 const handleEquipOutfit = async (outfitId: string) => {
-  if (!authStore.token || !props.dweller?.id) return
-  await equipmentStore.equipOutfit(props.dweller.id, outfitId, authStore.token)
+  if (!authStore.token || !dweller.value?.id) return
+  await equipmentStore.equipOutfit(dweller.value.id, outfitId, authStore.token)
   showInventoryModal.value = false
-  emit('refresh')
+  ctx.actions.refresh()
 }
 
 const openWeaponInventory = () => {

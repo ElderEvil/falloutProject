@@ -105,9 +105,10 @@ describe('DwellerCard', () => {
         },
       })
 
-      const genderBadge = wrapper.find('.gender-badge')
-      expect(genderBadge.exists()).toBe(true)
-      expect(genderBadge.text()).toContain('male')
+      const badges = wrapper.findAll('.dweller-badge')
+      const genderBadge = badges.find((b) => b.attributes('aria-label') === 'male')
+      expect(genderBadge).toBeDefined()
+      expect(genderBadge!.text()).toContain('male')
     })
 
     it('should display rarity badge', () => {
@@ -118,9 +119,10 @@ describe('DwellerCard', () => {
         },
       })
 
-      const rarityBadge = wrapper.find('.rarity-badge')
-      expect(rarityBadge.exists()).toBe(true)
-      expect(rarityBadge.text().toLowerCase()).toContain('common')
+      const badges = wrapper.findAll('.dweller-badge')
+      const rarityBadge = badges.find((b) => b.attributes('aria-label')?.toLowerCase() === 'common')
+      expect(rarityBadge).toBeDefined()
+      expect(rarityBadge!.text().toLowerCase()).toContain('common')
     })
   })
 
@@ -185,7 +187,7 @@ describe('DwellerCard', () => {
         },
       })
 
-      await wrapper.get('[aria-label="Issue one Stimpack"]').trigger('click')
+      await wrapper.get('[aria-label="Issue Stimpack from vault"]').trigger('click')
 
       expect(wrapper.emitted('issue-medical-supply')).toEqual([['stimpack']])
     })
@@ -195,10 +197,11 @@ describe('DwellerCard', () => {
         props: {
           dweller: mockDweller,
           imageUrl: null,
+          availableStimpaks: 0,
         },
       })
 
-      expect(wrapper.get('[aria-label="Issue one Stimpack"]').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('[aria-label="Issue Stimpack from vault"]').exists()).toBe(false)
     })
 
     it('should display stimpack count', () => {
@@ -294,7 +297,7 @@ describe('DwellerCard', () => {
   })
 
   describe('Item Usage', () => {
-    it('should enable stimpack button when stimpack available and health not full', () => {
+    it('should enable stimpack use button when stimpack available and health not full', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -302,15 +305,12 @@ describe('DwellerCard', () => {
         },
       })
 
-      const stimpPackButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Use Stimpack'))
-
-      expect(stimpPackButton).toBeDefined()
-      expect(stimpPackButton!.attributes('disabled')).toBeUndefined()
+      const useStimpakBtn = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(useStimpakBtn.exists()).toBe(true)
+      expect(useStimpakBtn.attributes('disabled')).toBeUndefined()
     })
 
-    it('should disable stimpack button when no stimpacks', () => {
+    it('should disable stimpack use button when no stimpacks', () => {
       const dwellerNoStimpack = { ...mockDweller, stimpack: 0 }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -319,15 +319,12 @@ describe('DwellerCard', () => {
         },
       })
 
-      const stimpPackButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Use Stimpack'))
-
-      expect(stimpPackButton).toBeDefined()
-      expect(stimpPackButton!.attributes('disabled')).toBeDefined()
+      const useStimpakBtn = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(useStimpakBtn.exists()).toBe(true)
+      expect(useStimpakBtn.attributes('disabled')).toBeDefined()
     })
 
-    it('should disable radaway button when no radiation', () => {
+    it('should disable radaway use button when no radiation', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -335,15 +332,12 @@ describe('DwellerCard', () => {
         },
       })
 
-      const radawayButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Use RadAway'))
-
-      expect(radawayButton).toBeDefined()
-      expect(radawayButton!.attributes('disabled')).toBeDefined()
+      const useRadAwayBtn = wrapper.find('[aria-label="Use RadAway"]')
+      expect(useRadAwayBtn.exists()).toBe(true)
+      expect(useRadAwayBtn.attributes('disabled')).toBeDefined()
     })
 
-    it('should enable radaway button when radiation exists', () => {
+    it('should enable radaway use button when radiation exists', () => {
       const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -352,12 +346,34 @@ describe('DwellerCard', () => {
         },
       })
 
-      const radawayButton = wrapper
-        .findAllComponents({ name: 'UButton' })
-        .find((btn) => btn.text().includes('Use RadAway'))
+      const useRadAwayBtn = wrapper.find('[aria-label="Use RadAway"]')
+      expect(useRadAwayBtn.exists()).toBe(true)
+      expect(useRadAwayBtn.attributes('disabled')).toBeUndefined()
+    })
 
-      expect(radawayButton).toBeDefined()
-      expect(radawayButton!.attributes('disabled')).toBeUndefined()
+    it('emits use-stimpak when the Use button is clicked', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null,
+        },
+      })
+
+      await wrapper.find('[aria-label="Use Stimpack"]').trigger('click')
+      expect(wrapper.emitted('use-stimpak')).toBeTruthy()
+    })
+
+    it('emits use-radaway when the Use button is clicked', async () => {
+      const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: dwellerWithRadiation,
+          imageUrl: null,
+        },
+      })
+
+      await wrapper.find('[aria-label="Use RadAway"]').trigger('click')
+      expect(wrapper.emitted('use-radaway')).toBeTruthy()
     })
   })
 

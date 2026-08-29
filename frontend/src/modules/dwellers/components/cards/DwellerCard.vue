@@ -8,6 +8,7 @@ import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
+import DwellerBadge from '../DwellerBadge.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/core/utils/image'
@@ -22,6 +23,8 @@ interface Props {
   availableStimpaks?: number
   availableRadaways?: number
   issuingMedicalSupply?: boolean
+  usingStimpak?: boolean
+  usingRadAway?: boolean
 }
 
 const props = defineProps<Props>()
@@ -31,8 +34,7 @@ const emit = defineEmits<{
   (e: 'assign'): void
   (e: 'recall'): void
   (e: 'train'): void
-  (e: 'assign-pet'): void
-  (e: 'use-stimpack'): void
+  (e: 'use-stimpak'): void
   (e: 'use-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
@@ -72,35 +74,36 @@ const happinessColor = computed(() => {
   }
 })
 
-const genderIcon = computed(() => {
-  return props.dweller.gender === 'male' ? 'mdi:gender-male' : 'mdi:gender-female'
-})
+const GENDER_META = {
+  male: { icon: 'mdi:gender-male', color: '#60a5fa' },
+  female: { icon: 'mdi:gender-female', color: '#f472b6' },
+} as const
 
-const genderColor = computed(() => {
-  return props.dweller.gender === 'male' ? '#60a5fa' : '#f472b6'
-})
+const genderMeta = computed(() => GENDER_META[props.dweller.gender as keyof typeof GENDER_META] ?? GENDER_META.male)
 
-const rarityColor = computed(() => {
-  const rarity = props.dweller.rarity?.toLowerCase()
-  switch (rarity) {
-    case 'legendary':
-      return '#fbbf24'
-    case 'rare':
-      return '#a78bfa'
-    case 'uncommon':
-      return '#60a5fa'
-    case 'common':
-    default:
-      return '#9ca3af'
-  }
-})
+const RARITY_META: Record<string, { icon: string; color: string }> = {
+  legendary: { icon: 'mdi:star', color: '#fbbf24' },
+  rare: { icon: 'mdi:star', color: '#a78bfa' },
+  uncommon: { icon: 'mdi:star', color: '#60a5fa' },
+  common: { icon: 'mdi:star', color: '#9ca3af' },
+}
 
-const rarityLabel = computed(() => {
-  return props.dweller.rarity || 'Common'
-})
+const rarityMeta = computed(() => RARITY_META[props.dweller.rarity?.toLowerCase() ?? ''] ?? RARITY_META.common)
+const rarityLabel = computed(() => props.dweller.rarity || 'Common')
+
 
 const canIssueStimpack = computed(() => (props.dweller.stimpack || 0) < 15 && (props.availableStimpaks ?? 0) > 0)
 const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (props.availableRadaways ?? 0) > 0)
+
+const availableStimpaksCount = computed(() => props.availableStimpaks ?? 0)
+const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
+
+const canUseStimpak = computed(
+  () => (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health
+)
+const canUseRadaway = computed(
+  () => (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
+)
 </script>
 
 <template>
@@ -140,14 +143,8 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
     </div>
 
     <div class="info-badges">
-      <div class="info-badge gender-badge" :style="{ borderColor: genderColor }">
-        <Icon :icon="genderIcon" class="badge-icon" :style="{ color: genderColor }" />
-        <span class="badge-text" :style="{ color: genderColor }">{{ dweller.gender }}</span>
-      </div>
-      <div class="info-badge rarity-badge" :style="{ borderColor: rarityColor }">
-        <Icon icon="mdi:star" class="badge-icon" :style="{ color: rarityColor }" />
-        <span class="badge-text" :style="{ color: rarityColor }">{{ rarityLabel }}</span>
-      </div>
+      <DwellerBadge :icon="genderMeta.icon" :color="genderMeta.color" :label="dweller.gender" size="md" />
+      <DwellerBadge :icon="rarityMeta.icon" :color="rarityMeta.color" :label="rarityLabel" size="md" />
       <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" size="md" />
     </div>
     <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
@@ -179,38 +176,77 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 
       <div class="inventory-stats">
         <div class="inventory-item">
-          <Icon icon="mdi:medical-bag" class="h-5 w-5 text-green-500" />
-          <UButton
-            class="inventory-action"
-            variant="ghost"
-            size="xs"
-            aria-label="Issue one Stimpack"
-            :title="canIssueStimpack ? 'Issue one Stimpack from vault storage' : 'No more Stimpaks can be issued'"
-            :disabled="!canIssueStimpack || issuingMedicalSupply"
-            :loading="issuingMedicalSupply"
-            @click="emit('issue-medical-supply', 'stimpack')"
-          >
-            <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
-          </UButton>
-          <span class="inventory-value">{{ dweller.stimpack || 0 }}</span>
-          <span class="inventory-label">Stimpack</span>
+          <Icon icon="mdi:medical-bag" class="h-5 w-5 text-green-500 inventory-type-icon" />
+          <div class="inventory-count">
+            <span class="inventory-value">{{ dweller.stimpack || 0 }}</span>
+            <span class="inventory-label">Stimpack</span>
+          </div>
+          <div class="inventory-actions">
+            <UButton
+              class="inventory-use-btn"
+              variant="secondary"
+              size="sm"
+              aria-label="Use Stimpack"
+              :title="canUseStimpak ? 'Use one Stimpack (heals dweller)' : 'No Stimpaks to use'"
+              :disabled="!canUseStimpak || usingStimpak"
+              :loading="usingStimpak"
+              @click="emit('use-stimpak')"
+            >
+              <Icon icon="mdi:syringe" class="h-4 w-4" />
+              Use
+            </UButton>
+            <UButton
+              v-if="availableStimpaksCount > 0"
+              class="inventory-issue-btn"
+              variant="ghost"
+              size="xs"
+              aria-label="Issue Stimpack from vault"
+              :title="canIssueStimpack ? `Issue one Stimpack from vault (${availableStimpaksCount} available)` : 'Dweller at capacity (15)'"
+              :disabled="!canIssueStimpack || issuingMedicalSupply"
+              :loading="issuingMedicalSupply"
+              @click="emit('issue-medical-supply', 'stimpack')"
+            >
+              <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
+              <span class="issue-label">Issue ({{ availableStimpaksCount }})</span>
+            </UButton>
+          </div>
         </div>
+
         <div class="inventory-item">
-          <Icon icon="mdi:radiation" class="h-5 w-5 text-yellow-500" />
-          <UButton
-            class="inventory-action"
-            variant="ghost"
-            size="xs"
-            aria-label="Issue one RadAway"
-            :title="canIssueRadaway ? 'Issue one RadAway from vault storage' : 'No more RadAway can be issued'"
-            :disabled="!canIssueRadaway || issuingMedicalSupply"
-            :loading="issuingMedicalSupply"
-            @click="emit('issue-medical-supply', 'radaway')"
-          >
-            <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
-          </UButton>
-          <span class="inventory-value">{{ dweller.radaway || 0 }}</span>
-          <span class="inventory-label">RadAway</span>
+          <Icon icon="mdi:radiation" class="h-5 w-5 text-yellow-500 inventory-type-icon" />
+          <div class="inventory-count">
+            <span class="inventory-value">{{ dweller.radaway || 0 }}</span>
+            <span class="inventory-label">RadAway</span>
+          </div>
+          <div class="inventory-actions">
+            <UButton
+              class="inventory-use-btn"
+              variant="secondary"
+              size="sm"
+              aria-label="Use RadAway"
+              :title="canUseRadaway ? 'Use one RadAway (reduces radiation)' : 'No RadAway to use'"
+              :disabled="!canUseRadaway || usingRadAway"
+              :loading="usingRadAway"
+              @click="emit('use-radaway')"
+            >
+              <Icon icon="mdi:syringe" class="h-4 w-4" />
+              Use
+            </UButton>
+            <UButton
+              v-if="availableRadawaysCount > 0"
+              class="inventory-issue-btn"
+              variant="ghost"
+              size="xs"
+              aria-label="Issue RadAway from vault"
+              :title="canIssueRadaway ? `Issue one RadAway from vault (${availableRadawaysCount} available)` : 'Dweller at capacity (15)'"
+              :disabled="!canIssueRadaway || issuingMedicalSupply"
+              :loading="issuingMedicalSupply"
+              @click="emit('issue-medical-supply', 'radaway')"
+            >
+              <Icon icon="mdi:plus" class="h-3.5 w-3.5" />
+              <span class="issue-label">Issue ({{ availableRadawaysCount }})</span>
+            </UButton>
+          </div>
         </div>
       </div>
 
@@ -227,9 +263,6 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
       @assign="emit('assign')"
       @recall="emit('recall')"
       @train="emit('train')"
-      @assign-pet="emit('assign-pet')"
-      @use-stimpack="emit('use-stimpack')"
-      @use-radaway="emit('use-radaway')"
       @unassign="emit('unassign')"
       @send-wasteland="emit('send-wasteland')"
     />
@@ -304,37 +337,6 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
   flex-wrap: wrap;
 }
 
-.info-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid;
-  border-radius: 999px;
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-transform: capitalize;
-  box-shadow: 0 0 10px currentColor;
-  transition: all 0.2s;
-}
-
-.info-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px currentColor;
-}
-
-.badge-icon {
-  font-size: 1.25rem;
-  filter: drop-shadow(0 0 4px currentColor);
-}
-
-.badge-text {
-  font-weight: 700;
-  text-shadow: 0 0 8px currentColor;
-}
-
 .stats-container {
   display: flex;
   flex-direction: column;
@@ -372,8 +374,8 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 
 .inventory-stats {
   display: flex;
-  gap: 1rem;
-  justify-content: space-around;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--color-theme-glow);
@@ -382,25 +384,41 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 }
 
 .inventory-item {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inventory-type-icon {
+  flex-shrink: 0;
+}
+
+.inventory-count {
   display: flex;
   flex-direction: column;
+  line-height: 1.1;
+  min-width: 3.5rem;
+}
+
+.inventory-actions {
+  display: flex;
   align-items: center;
   gap: 0.25rem;
+  margin-left: auto;
 }
 
-.inventory-action {
-  position: absolute;
-  top: -0.25rem;
-  right: -1.25rem;
-  min-width: 1.5rem;
-  min-height: 1.5rem;
-  padding: 0.125rem;
-  border-color: transparent;
+.inventory-use-btn {
+  flex-shrink: 0;
 }
 
-.inventory-action:hover:not(:disabled) {
-  border-color: var(--color-theme-glow);
+.inventory-issue-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.issue-label {
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .inventory-value {
@@ -411,7 +429,7 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 }
 
 .inventory-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--color-theme-primary);
   opacity: 0.7;
   text-transform: uppercase;

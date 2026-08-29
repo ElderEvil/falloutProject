@@ -20,22 +20,11 @@ const emit = defineEmits<{
   (e: 'assign'): void
   (e: 'recall'): void
   (e: 'train'): void
-  (e: 'assign-pet'): void
-  (e: 'use-stimpack'): void
-  (e: 'use-radaway'): void
   (e: 'unassign'): void
   (e: 'send-wasteland'): void
 }>()
 
 const trainingStore = useTrainingStore()
-
-const canUseStimpack = computed(() => {
-  return (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health
-})
-
-const canUseRadaway = computed(() => {
-  return (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
-})
 
 const isTraining = computed(() => {
   return trainingStore.isDwellerTraining(props.dweller.id)
@@ -95,30 +84,6 @@ const isTraining = computed(() => {
       Recall from Wasteland
     </UButton>
 
-    <div class="item-actions">
-      <UButton
-        variant="secondary"
-        size="md"
-        @click="emit('use-stimpack')"
-        :disabled="!canUseStimpack || loading"
-        class="item-button"
-      >
-        <Icon icon="mdi:medical-bag" class="h-5 w-5 mr-2 text-green-500" />
-        Use Stimpack
-      </UButton>
-
-      <UButton
-        variant="secondary"
-        size="md"
-        @click="emit('use-radaway')"
-        :disabled="!canUseRadaway || loading"
-        class="item-button"
-      >
-        <Icon icon="mdi:radiation" class="h-5 w-5 mr-2 text-yellow-500" />
-        Use RadAway
-      </UButton>
-    </div>
-
     <div class="coming-soon-section">
       <UTooltip text="Train SPECIAL stats to improve dweller abilities">
         <UButton
@@ -156,17 +121,6 @@ const isTraining = computed(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-}
-
-.item-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.item-button {
-  font-size: 0.875rem;
 }
 
 .coming-soon-section {

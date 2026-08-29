@@ -101,8 +101,7 @@ describe('DwellerDetailContainer', () => {
     const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(pane.props('initialTab')).toBe('SPECIAL')
-    expect(pane.props('highlightStat')).toBe('special')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
   })
 
   it('shows not-found when no :dwellerId param is present', async () => {

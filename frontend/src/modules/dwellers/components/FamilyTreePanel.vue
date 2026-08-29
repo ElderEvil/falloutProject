@@ -1,19 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useLineage } from '../composables/useLineage'
 import type { LineageMember } from '../services/lineageService'
+import { useDwellerDetailContext } from './DwellerDetailContext'
 
-const props = defineProps<{
-  dwellerId?: string
-  dwellerName?: string
-  vaultId?: string
-}>()
+const ctx = useDwellerDetailContext()
 
-const emit = defineEmits<{ (e: 'select', dwellerId: string): void }>()
+const dwellerId = computed(() => ctx.dweller.value?.id ?? ctx.dwellerId.value)
+const dwellerName = computed(() => {
+  const d = ctx.dweller.value
+  return d ? `${d.first_name} ${d.last_name}` : ''
+})
 
 const { lineage, isLoading, error, load, select } = useLineage(
-  () => props.dwellerId,
-  (id) => emit('select', id)
+  () => dwellerId.value,
+  (id) => ctx.actions.navigateToDweller(id)
 )
 
 const partnerStage = (member: LineageMember) => member.relationship_type ?? 'partner'

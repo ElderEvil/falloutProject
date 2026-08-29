@@ -118,6 +118,11 @@ const loadHappinessModifiers = async () => {
 }
 
 .happiness-modifiers {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  min-width: 220px;
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;

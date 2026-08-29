@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useDwellerDetailContext } from '../DwellerDetailContext'
 
-interface Props {
-  S: number
-  P: number
-  E: number
-  C: number
-  I: number
-  A: number
-  L: number
-  highlightStat?: string
+const ctx = useDwellerDetailContext()
+
+type StatKey = 'S' | 'P' | 'E' | 'C' | 'I' | 'A' | 'L'
+
+const statValue = (key: StatKey): number => {
+  const d = ctx.dweller.value
+  if (!d) return 0
+  const raw = d[key as keyof typeof d]
+  return typeof raw === 'number' ? raw : 0
 }
 
-const props = defineProps<Props>()
-
-const statValue = (key: keyof Props): number => (props[key] as number) ?? 0
-
-const stats: Array<{ key: keyof Props; label: string; description: string }> = [
+const stats: Array<{ key: StatKey; label: string; description: string }> = [
   { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
   { key: 'P', label: 'Perception', description: 'Accuracy and awareness' },
   { key: 'E', label: 'Endurance', description: 'Health and radiation resistance' },
@@ -26,7 +23,7 @@ const stats: Array<{ key: keyof Props; label: string; description: string }> = [
   { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
 ]
 
-const statKeyByLowercase: Record<string, keyof Props> = {
+const statKeyByLowercase: Record<string, StatKey> = {
   strength: 'S',
   perception: 'P',
   endurance: 'E',
@@ -36,9 +33,11 @@ const statKeyByLowercase: Record<string, keyof Props> = {
   luck: 'L',
 }
 
-const highlightedKey = computed<keyof Props | undefined>(() => {
-  if (!props.highlightStat) return undefined
-  return statKeyByLowercase[props.highlightStat.toLowerCase()]
+const highlightStat = computed(() => ctx.highlightStat.value)
+
+const highlightedKey = computed<StatKey | undefined>(() => {
+  if (!highlightStat.value) return undefined
+  return statKeyByLowercase[highlightStat.value.toLowerCase()]
 })
 
 const showBadge = ref(!!highlightedKey.value)
@@ -55,7 +54,7 @@ watch(
 )
 onBeforeUnmount(() => clearTimeout(badgeTimer))
 
-const isHighlighted = (key: keyof Props) => highlightedKey.value === key
+const isHighlighted = (key: StatKey) => highlightedKey.value === key
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
+import DwellerBadge from './DwellerBadge.vue'
 
 type AgeGroup = 'child' | 'teen' | 'adult'
 
@@ -28,47 +28,11 @@ const meta = computed(() => AGE_META[group.value])
 </script>
 
 <template>
-    <span
-      class="dweller-age-badge"
-      :class="[`size-${size}`]"
-      :style="{ '--age-color': meta.color }"
-      :title="meta.label"
-      :aria-label="meta.label"
-      role="img"
-    >
-      <Icon :icon="meta.icon" class="age-icon" />
-      <span v-if="showLabel" class="age-label">{{ meta.label }}</span>
-    </span>
+  <DwellerBadge
+    :icon="meta.icon"
+    :color="meta.color"
+    :label="meta.label"
+    :show-label="showLabel"
+    :size="size"
+  />
 </template>
-
-<style scoped>
-.dweller-age-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 1px solid var(--age-color);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.4);
-  color: var(--age-color);
-  white-space: nowrap;
-}
-
-.size-sm {
-  padding: 0.15rem 0.4rem;
-  font-size: 0.7rem;
-}
-
-.size-md {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
-}
-
-.age-icon {
-  font-size: 0.9em;
-}
-
-.age-label {
-  font-weight: 700;
-  text-transform: capitalize;
-}
-</style>

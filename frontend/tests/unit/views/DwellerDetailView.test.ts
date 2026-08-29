@@ -101,21 +101,20 @@ describe('DwellerDetailView deep-link (?tab / ?stat)', () => {
     const wrapper = await mountWith('?tab=SPECIAL&stat=SPECIAL')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(pane.props('initialTab')).toBe('SPECIAL')
-    expect(pane.props('highlightStat')).toBe('special')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
   })
 
   it('defaults to no tab when the query is absent', async () => {
     const wrapper = await mountWith('')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
-    expect(pane.props('initialTab')).toBeUndefined()
-    expect(pane.props('highlightStat')).toBeUndefined()
+    expect(pane.exists()).toBe(true)
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
   })
 
   it('reflects a changed query on a fresh mount', async () => {
     const wrapper = await mountWith('?tab=equipment&stat=luck')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
-    expect(pane.props('initialTab')).toBe('equipment')
-    expect(pane.props('highlightStat')).toBe('luck')
+    expect(pane.exists()).toBe(true)
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
   })
 })

@@ -1,100 +1,35 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import UButton from '@/core/components/ui/UButton.vue'
-import type { components } from '@/core/types/api.generated'
-import type { MapPlaceLink } from './DwellerBio.vue'
-import type { RevivalCostResponse } from '../models/dweller'
 import DwellerCard from './cards/DwellerCard.vue'
 import DwellerPanel from './DwellerPanel.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import { RevivalSection } from './death'
+import { useDwellerDetailContext } from './DwellerDetailContext'
 
-type DwellerDetailRead = components['schemas']['DwellerReadFull']
+const ctx = useDwellerDetailContext()
 
-interface Props {
-  dweller: DwellerDetailRead
-  vaultId?: string
-  placeLinks?: MapPlaceLink[]
-  initialTab?: string
-  highlightStat?: string
-  generatingBio?: boolean
-  generatingAppearance?: boolean
-  generatingPortrait?: boolean
-  generatingAI?: boolean
-  usingStimpack?: boolean
-  usingRadaway?: boolean
-  issuingMedicalSupply?: boolean
-  assigning?: boolean
-  unassigning?: boolean
-  revivalLoading?: boolean
-  revivalCost: RevivalCostResponse | null
-  availableStimpaks?: number
-  availableRadaways?: number
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (e: 'back'): void
-  (e: 'rename'): void
-  (e: 'chat'): void
-  (e: 'assign'): void
-  (e: 'unassign'): void
-  (e: 'recall'): void
-  (e: 'use-stimpack'): void
-  (e: 'use-radaway'): void
-  (e: 'train'): void
-  (e: 'send-wasteland'): void
-  (e: 'generate-portrait'): void
-  (e: 'issue-medical-supply', supply: 'stimpack' | 'radaway'): void
-  (e: 'refresh'): void
-  (e: 'generate-bio'): void
-  (e: 'generate-appearance'): void
-  (e: 'generate-all'): void
-  (e: 'edit-appearance'): void
-  (e: 'navigate-dweller', id: string): void
-  (e: 'revive'): void
-  (e: 'header-name-click'): void
-}>()
-
-const isAnyGenerating = computed(
-  () =>
-    !!props.generatingBio ||
-    !!props.generatingAppearance ||
-    !!props.generatingAI ||
-    !!props.generatingPortrait
-)
-
-const cardLoading = computed(
-  () =>
-    !!props.generatingAI ||
-    !!props.usingStimpack ||
-    !!props.usingRadaway ||
-    !!props.issuingMedicalSupply ||
-    !!props.assigning ||
-    !!props.unassigning
-)
-
-const isDead = computed(() => props.dweller.is_dead === true)
-const isPermanentlyDead = computed(() => !!props.dweller.is_permanently_dead)
+const dweller = computed(() => ctx.dweller.value!)
+const isDead = computed(() => dweller.value.is_dead === true)
+const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
 </script>
 
 <template>
   <div class="dweller-detail">
     <!-- Header -->
     <div class="detail-header">
-      <BackButton label="Back to Dwellers" @click="emit('back')" />
+      <BackButton label="Back to Dwellers" @click="ctx.actions.onBack()" />
 
       <div class="header-info">
         <div class="name-section">
-          <h1 class="dweller-name cursor-pointer select-none" @click="emit('header-name-click')">
+          <h1 class="dweller-name cursor-pointer select-none" @click="ctx.actions.onHeaderNameClick()">
             {{ dweller.first_name }} {{ dweller.last_name }}
           </h1>
           <UButton
             v-if="!isDead"
-            @click="emit('rename')"
+            @click="ctx.actions.openRenameDialog()"
             variant="ghost"
             size="sm"
             class="rename-btn"
@@ -113,30 +48,32 @@ const isPermanentlyDead = computed(() => !!props.dweller.is_permanently_dead)
         <DwellerCard
           :dweller="dweller"
           :image-url="dweller.image_url"
-          :loading="cardLoading"
-          :generating-portrait="generatingPortrait"
-          :available-stimpaks="availableStimpaks"
-          :available-radaways="availableRadaways"
-          :issuing-medical-supply="issuingMedicalSupply"
-          @chat="emit('chat')"
-          @assign="emit('assign')"
-          @unassign="emit('unassign')"
-          @recall="emit('recall')"
-          @use-stimpack="emit('use-stimpack')"
-          @use-radaway="emit('use-radaway')"
-          @train="emit('train')"
-          @send-wasteland="emit('send-wasteland')"
-          @generate-portrait="emit('generate-portrait')"
-          @issue-medical-supply="emit('issue-medical-supply', $event)"
+          :loading="ctx.cardLoading.value"
+          :generating-portrait="ctx.generatingPortrait.value"
+          :available-stimpaks="ctx.availableStimpaks.value"
+          :available-radaways="ctx.availableRadaways.value"
+          :issuing-medical-supply="ctx.issuingMedicalSupply.value"
+          :using-stimpak="ctx.usingStimpak.value"
+          :using-rad-away="ctx.usingRadAway.value"
+          @chat="ctx.actions.navigateToChat()"
+          @assign="ctx.actions.assign()"
+          @unassign="ctx.actions.unassign()"
+          @recall="ctx.actions.recall()"
+          @use-stimpak="ctx.actions.useStimpak()"
+          @use-radaway="ctx.actions.useRadAway()"
+          @train="ctx.trainingModalOpen.value = true"
+          @send-wasteland="ctx.actions.openSendToWasteland()"
+          @generate-portrait="ctx.actions.generatePortrait()"
+          @issue-medical-supply="ctx.actions.issueMedicalSupply($event)"
         />
 
         <!-- Revival Section for Dead Dwellers -->
         <RevivalSection
           v-if="isDead && !isPermanentlyDead"
           :dweller-id="dweller.id"
-          :revival-cost="revivalCost"
-          :loading="revivalLoading"
-          @revive="emit('revive')"
+          :revival-cost="ctx.revivalCost.value"
+          :loading="ctx.revivalLoading.value"
+          @revive="ctx.actions.revive()"
         />
 
         <!-- Permanently Dead Notice -->
@@ -156,23 +93,7 @@ const isPermanentlyDead = computed(() => !!props.dweller.is_permanently_dead)
       </div>
 
       <!-- Right Column: Dweller Panel -->
-      <DwellerPanel
-        :dweller="dweller"
-        :dweller-id="dweller.id"
-        :generating-bio="generatingBio"
-        :generating-appearance="generatingAppearance"
-        :is-any-generating="isAnyGenerating"
-        :vault-id="vaultId"
-        :place-links="placeLinks"
-        :initial-tab="initialTab"
-        :highlight-stat="highlightStat"
-        @refresh="emit('refresh')"
-        @generate-bio="emit('generate-bio')"
-        @generate-appearance="emit('generate-appearance')"
-        @generate-all="emit('generate-all')"
-        @edit-appearance="emit('edit-appearance')"
-        @navigate-dweller="(id) => emit('navigate-dweller', id)"
-      />
+      <DwellerPanel />
     </div>
   </div>
 </template>

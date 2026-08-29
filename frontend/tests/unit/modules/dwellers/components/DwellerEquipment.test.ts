@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
+import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../../helpers/dwellerDetailContext'
+import type { Dweller } from '@/modules/dwellers/models/dweller'
+import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
 
 vi.mock('@/modules/combat/stores/equipment', () => ({
   useEquipmentStore: () => ({
@@ -23,12 +27,8 @@ vi.mock('@/modules/auth/stores/auth', () => ({
   }),
 }))
 
-describe('DwellerEquipment', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-  })
-
-  const mockDweller = {
+function makeDweller(overrides: Partial<Dweller> = {}): Dweller {
+  return {
     id: 'dweller-1',
     first_name: 'John',
     last_name: 'Doe',
@@ -48,56 +48,72 @@ describe('DwellerEquipment', () => {
     status: 'idle',
     weapon: null,
     outfit: null,
-  }
+    ...overrides,
+  } as unknown as Dweller
+}
 
-  it('renders equipment slots', () => {
-    const wrapper = mount(DwellerEquipment, {
-      props: { dweller: mockDweller },
-      global: {
-        stubs: {
-          Icon: true,
-          WeaponCard: true,
-          OutfitCard: true,
-          Teleport: true,
+function mountEquip(dweller: Dweller, override: Partial<DwellerDetailContext> = {}): VueWrapper {
+  const ctx = createMockDwellerDetailContext({
+    dweller: ref(dweller) as never,
+    vaultId: ref('v1') as never,
+    ...override,
+  })
+  const wrapper = mountWithDwellerContext(DwellerEquipment, {
+    context: ctx,
+    global: {
+      stubs: {
+        Icon: true,
+        Teleport: true,
+        EquipmentCard: {
+          template: '<button class="equip-slot" @click="$emit(\'unequip\')"></button>',
+          props: ['item', 'type', 'equipped', 'showActions'],
         },
       },
-    })
+    },
+  })
+  return wrapper
+}
 
+describe('DwellerEquipment', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('renders equipment slots', () => {
+    const wrapper = mountEquip(makeDweller())
     expect(wrapper.text()).toContain('Weapon')
     expect(wrapper.text()).toContain('Outfit')
   })
 
   it('shows empty slots when no equipment', () => {
-    const wrapper = mount(DwellerEquipment, {
-      props: { dweller: mockDweller },
-      global: {
-        stubs: {
-          Icon: true,
-          WeaponCard: true,
-          OutfitCard: true,
-          Teleport: true,
-        },
-      },
-    })
-
+    const wrapper = mountEquip(makeDweller())
     expect(wrapper.text()).toContain('Click to equip weapon')
     expect(wrapper.text()).toContain('Click to equip outfit')
   })
 
-  it('emits refresh event', () => {
-    const wrapper = mount(DwellerEquipment, {
-      props: { dweller: mockDweller },
+  it('calls the refresh action when a weapon is unequipped', async () => {
+    const ctx = createMockDwellerDetailContext({
+      dweller: ref(makeDweller({ weapon: { id: 'w1' } })) as never,
+      vaultId: ref('v1') as never,
+    })
+    const wrapper = mountWithDwellerContext(DwellerEquipment, {
+      context: ctx,
       global: {
         stubs: {
           Icon: true,
-          WeaponCard: true,
-          OutfitCard: true,
           Teleport: true,
+          EquipmentCard: {
+            template: '<button class="equip-slot" @click="$emit(\'unequip\')"></button>',
+            props: ['item', 'type', 'equipped', 'showActions'],
+          },
         },
       },
     })
 
-    wrapper.vm.$emit('refresh')
-    expect(wrapper.emitted('refresh')).toBeTruthy()
+    await flushPromises()
+    await wrapper.find('.equip-slot').trigger('click')
+    await flushPromises()
+
+    expect(ctx.actions.refresh).toHaveBeenCalledOnce()
   })
 })

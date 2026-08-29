@@ -73,18 +73,28 @@ watch(
 
 const canSubmit = computed(() => selectedDwellerIds.value.length > 0)
 
+// Idle dwellers first (best quest candidates), then by level — status order:
+// idle, resting, working, everything else.
+const STATUS_ORDER: Record<string, number> = { idle: 0, resting: 1, working: 2 }
+
 const availableDwellers = computed(() => {
   // FIX: Only show eligible dwellers from API - no fallback to all dwellers
   // This enforces quest requirements (level, items, etc.)
   const baseDwellers = eligibleDwellers.value.length > 0 ? eligibleDwellers.value : []
 
-  return baseDwellers.filter((dweller) => {
-    // Include if already selected for this quest
-    if (selectedDwellerIds.value.includes(dweller.id)) return true
+  return baseDwellers
+    .filter((dweller) => {
+      // Include if already selected for this quest
+      if (selectedDwellerIds.value.includes(dweller.id)) return true
 
-    // Only show idle, working, or resting dwellers (not on other quests)
-    return ['idle', 'working', 'resting'].includes(dweller.status)
-  })
+      // Only show idle, working, or resting dwellers (not on other quests)
+      return ['idle', 'working', 'resting'].includes(dweller.status)
+    })
+    .sort((a, b) => {
+      const statusDiff = (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
+      if (statusDiff !== 0) return statusDiff
+      return (b.level ?? 0) - (a.level ?? 0)
+    })
 })
 
 const selectedDwellers = computed(() => {
@@ -303,7 +313,7 @@ const handleAssignAndStart = () => {
 .party-slot.filled {
   border-style: solid;
   border-color: var(--color-theme-accent);
-  background: rgba(0, 255, 0, 0.05);
+  background: rgba(var(--color-theme-primary-rgb), 0.05);
 }
 
 .slot-empty {
@@ -389,12 +399,12 @@ const handleAssignAndStart = () => {
 }
 
 .dweller-item:hover {
-  background: rgba(0, 255, 0, 0.05);
+  background: rgba(var(--color-theme-primary-rgb), 0.05);
   border-color: var(--color-theme-glow);
 }
 
 .dweller-item.selected {
-  background: rgba(0, 255, 0, 0.1);
+  background: rgba(var(--color-theme-primary-rgb), 0.1);
   border-color: var(--color-theme-accent);
 }
 
@@ -464,7 +474,7 @@ const handleAssignAndStart = () => {
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background: rgba(0, 217, 255, 0.1);
+  background: rgba(var(--color-theme-primary-rgb), 0.08);
   border: 1px solid var(--color-theme-accent);
   border-radius: 6px;
   color: var(--color-theme-accent);

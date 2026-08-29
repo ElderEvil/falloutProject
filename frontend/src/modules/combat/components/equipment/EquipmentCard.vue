@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Weapon, Outfit } from '@/modules/combat/models/equipment'
-import { getRarityColor, getDamageRange, getOutfitBonuses } from '@/modules/combat/models/equipment'
-import { getStaticImageUrl } from '@/core/utils/image'
+import {
+  getItemIcon,
+  getOutfitStats,
+  getRarityTextClass,
+  getWeaponStats,
+  type ItemStat,
+} from '@/core/models/items'
+import { useItemImage } from '@/core/composables/useItemImage'
 
 interface Props {
   item: Weapon | Outfit
@@ -19,78 +25,20 @@ const emit = defineEmits<{
   (e: 'unequip'): void
 }>()
 
-const rarityColor = computed(() => getRarityColor(item.rarity))
+const itemIcon = computed(() => getItemIcon(type, item))
 
-const itemIcon = computed(() => {
-  if (type === 'weapon') {
-    const w = item as Weapon
-    switch (w.weapon_subtype) {
-      case 'pistol':
-        return 'mdi:pistol'
-      case 'rifle':
-        return 'mdi:rifle'
-      case 'shotgun':
-        return 'mdi:shotgun'
-      case 'automatic':
-        return 'mdi:rifle'
-      case 'explosive':
-        return 'mdi:bomb'
-      case 'flamer':
-        return 'mdi:fire'
-      case 'edged':
-        return 'mdi:sword'
-      case 'blunt':
-        return 'mdi:hammer'
-      case 'pointed':
-        return 'mdi:spear'
-      default:
-        return 'mdi:pistol'
-    }
-  }
-  const o = item as Outfit
-  switch (o.outfit_type) {
-    case 'common_outfit':
-      return 'mdi:tshirt-crew'
-    case 'rare_outfit':
-      return 'mdi:hard-hat'
-    case 'legendary_outfit':
-      return 'mdi:shield'
-    case 'power_armor':
-      return 'mdi:robot'
-    case 'tiered_outfit':
-      return 'mdi:star'
-    default:
-      return 'mdi:tshirt-crew'
-  }
+const rarityTextClass = computed(() => getRarityTextClass(item.rarity))
+
+const stats = computed<ItemStat[]>(() => {
+  const base = type === 'weapon' ? getWeaponStats(item as Weapon) : getOutfitStats(item as Outfit)
+  return item.value != null ? [...base, { label: 'Value', value: item.value, icon: 'mdi:currency-usd' }] : base
 })
-
-const damageRange = computed(() => (type === 'weapon' ? getDamageRange(item as Weapon) : ''))
-
-const bonuses = computed(() => (type === 'outfit' ? getOutfitBonuses(item as Outfit) : []))
 
 const itemTypeLabel = computed(() =>
   type === 'weapon' ? (item as Weapon).weapon_subtype : (item as Outfit).outfit_type
 )
 
-const imageError = ref(false)
-
-watch(
-  () => item.image_url,
-  () => {
-    imageError.value = false
-  },
-)
-
-const itemImageUrl = computed(() => {
-  if (imageError.value || !item.image_url) {
-    return ''
-  }
-  return getStaticImageUrl(item.image_url)
-})
-
-function onImageError() {
-  imageError.value = true
-}
+const { imageUrl, onImageError } = useItemImage(() => item.image_url)
 </script>
 
 <template>
@@ -105,15 +53,15 @@ function onImageError() {
   >
     <div class="flex items-center gap-3">
       <img
-        v-if="itemImageUrl"
-        :src="itemImageUrl"
+        v-if="imageUrl"
+        :src="imageUrl"
         :alt="item.name"
         class="h-16 w-16 object-contain"
         @error="onImageError"
       />
       <Icon v-else :icon="itemIcon" class="h-16 w-16 text-[var(--color-theme-primary)]" />
       <div class="flex-1">
-        <h4 class="text-lg font-bold text-shadow-[0_0_4px_currentColor]" :style="{ color: rarityColor }">
+        <h4 class="text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
           {{ item.name }}
         </h4>
         <p class="text-xs capitalize text-[var(--color-theme-primary)] opacity-70">
@@ -124,37 +72,14 @@ function onImageError() {
 
     <p class="text-sm leading-snug text-[var(--color-theme-primary)] opacity-80">{{ item.description }}</p>
 
-    <div v-if="type === 'weapon'" class="flex flex-col gap-2 rounded bg-black/30 p-3">
-      <div class="flex items-center gap-2 text-sm">
-        <Icon icon="mdi:sword-cross" class="h-4 w-4 text-[var(--color-theme-primary)]" />
-        <span class="text-[var(--color-theme-primary)] opacity-70">Damage:</span>
-        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ damageRange }}</span>
-      </div>
-      <div class="flex items-center gap-2 text-sm">
-        <Icon icon="mdi:alphabet-latin" class="h-4 w-4 text-[var(--color-theme-primary)]" />
-        <span class="text-[var(--color-theme-primary)] opacity-70">Uses:</span>
-        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ (item as Weapon).stat }}</span>
-      </div>
-      <div
-        v-if="(item as Weapon).accuracy !== null && (item as Weapon).accuracy !== undefined"
-        class="flex items-center gap-2 text-sm"
-      >
-        <Icon icon="mdi:target" class="h-4 w-4 text-[var(--color-theme-primary)]" />
-        <span class="text-[var(--color-theme-primary)] opacity-70">Accuracy:</span>
-        <span class="ml-auto font-bold text-[var(--color-theme-primary)]">{{ (item as Weapon).accuracy }}%</span>
-      </div>
-    </div>
-
-    <div v-else-if="bonuses.length > 0" class="rounded bg-black/30 p-3">
-      <div class="mb-2 flex items-center gap-2">
-        <Icon icon="mdi:chevron-up" class="h-4 w-4 text-[var(--color-theme-primary)]" />
-        <span class="text-sm font-semibold text-[var(--color-theme-primary)] opacity-70">SPECIAL Bonuses:</span>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <div v-for="bonus in bonuses" :key="bonus.stat" class="flex items-center gap-1 rounded border border-[var(--color-theme-glow)] bg-black/20 px-2 py-1 text-sm">
-          <span class="font-semibold text-[var(--color-theme-primary)] opacity-70">{{ bonus.stat }}</span>
-          <span class="font-bold text-[var(--color-theme-primary)]">+{{ bonus.bonus }}</span>
-        </div>
+    <div
+      v-if="stats.length > 0"
+      class="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded bg-black/30 p-3 text-sm text-[var(--color-theme-primary)]"
+    >
+      <div v-for="stat in stats" :key="stat.label" class="flex min-w-0 items-center gap-2">
+        <Icon :icon="stat.icon" class="h-4 w-4 shrink-0" />
+        <span class="truncate opacity-70">{{ stat.label }}:</span>
+        <span class="ml-auto font-bold">{{ stat.value }}</span>
       </div>
     </div>
 

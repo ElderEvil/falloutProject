@@ -66,36 +66,5 @@ export interface Outfit extends ItemBase {
   storage_id?: string | null
 }
 
-// Helper function to get rarity color
-export function getRarityColor(rarity: Rarity): string {
-  switch (rarity) {
-    case 'common':
-      return '#9CA3AF' // gray-400
-    case 'rare':
-      return '#3B82F6' // blue-500
-    case 'legendary':
-      return '#F59E0B' // amber-500
-    default:
-      return '#9CA3AF'
-  }
-}
-
-// Helper to get damage range display
-export function getDamageRange(weapon: Weapon): string {
-  return `${weapon.damage_min}-${weapon.damage_max}`
-}
-
-// Helper to get total outfit bonuses
-export function getOutfitBonuses(outfit: Outfit): { stat: string; bonus: number }[] {
-  const bonuses: { stat: string; bonus: number }[] = []
-
-  if (outfit.strength_bonus) bonuses.push({ stat: 'S', bonus: outfit.strength_bonus })
-  if (outfit.perception_bonus) bonuses.push({ stat: 'P', bonus: outfit.perception_bonus })
-  if (outfit.endurance_bonus) bonuses.push({ stat: 'E', bonus: outfit.endurance_bonus })
-  if (outfit.charisma_bonus) bonuses.push({ stat: 'C', bonus: outfit.charisma_bonus })
-  if (outfit.intelligence_bonus) bonuses.push({ stat: 'I', bonus: outfit.intelligence_bonus })
-  if (outfit.agility_bonus) bonuses.push({ stat: 'A', bonus: outfit.agility_bonus })
-  if (outfit.luck_bonus) bonuses.push({ stat: 'L', bonus: outfit.luck_bonus })
-
-  return bonuses
-}
+// Rarity color, damage range and outfit bonuses live in the shared item-display module
+export { getRarityColor, getDamageRange, getOutfitBonuses } from '@/core/models/items'

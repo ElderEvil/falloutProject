@@ -5,8 +5,6 @@ import type { Room } from '../models/room'
 
 interface Props {
   room: Room
-  assignedDwellerCount: number
-  dwellerCapacity: number
   abilityLabel: string | null
 }
 
@@ -24,10 +22,7 @@ const roomSizeText = computed(
       Room Information
     </h3>
     <div class="info-grid">
-      <div class="info-item">
-        <span class="info-label">Dwellers:</span>
-        <span class="info-value">{{ assignedDwellerCount }} / {{ dwellerCapacity }}</span>
-      </div>
+
       <div class="info-item">
         <span class="info-label">Resource Capacity:</span>
         <span class="info-value">{{ room.capacity || 0 }}</span>

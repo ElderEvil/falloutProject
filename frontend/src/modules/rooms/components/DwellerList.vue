@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
   assignedDwellers: DwellerShort[]
+  dwellerCapacity: number
   ability: string | null
 }
 
@@ -15,35 +17,27 @@ const emit = defineEmits<{
 }>()
 
 const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
-  const key = ability.toLowerCase() as
-    | 'strength'
-    | 'perception'
-    | 'endurance'
-    | 'charisma'
-    | 'intelligence'
-    | 'agility'
-    | 'luck'
-  const value = dweller[key]
+  const value = dweller[ability.toLowerCase() as SpecialKey]
   return typeof value === 'number' ? value : 0
 }
 </script>
 
 <template>
   <div class="section dweller-section">
-    <h3 class="section-title dweller-section-title">
-      <Icon icon="mdi:account-group" class="h-5 w-5" />
-      Dweller Details ({{ assignedDwellers.length }})
-    </h3>
+    <div class="staffing-header">
+      <h3 class="section-title dweller-section-title">
+        <Icon icon="mdi:account-group" class="h-5 w-5" />
+        Staffing
+      </h3>
+      <span class="staffing-summary">{{ assignedDwellers.length }} / {{ dwellerCapacity }} staffed</span>
+    </div>
     <div v-if="assignedDwellers.length > 0" class="dwellers-list">
-      <div
+      <button
         v-for="dweller in assignedDwellers"
         :key="dweller.id"
+        type="button"
         class="dweller-card clickable"
-        role="button"
-        tabindex="0"
         @click="emit('dwellerClick', dweller.id)"
-        @keydown.enter.prevent="emit('dwellerClick', dweller.id)"
-        @keydown.space.prevent="emit('dwellerClick', dweller.id)"
       >
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
@@ -53,13 +47,14 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         />
         <div class="dweller-info">
           <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
+          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
           <div class="dweller-level">Level {{ dweller.level }}</div>
         </div>
         <div v-if="ability" class="dweller-stat">
           <span class="stat-label">{{ ability.charAt(0) }}</span>
           <span class="stat-value">{{ getDwellerStatValue(dweller, ability) }}</span>
         </div>
-      </div>
+      </button>
     </div>
     <div v-else class="empty-state">
       <Icon icon="mdi:account-off" class="h-12 w-12 opacity-50" />
@@ -98,8 +93,23 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   border-top: 1px solid var(--color-theme-glow);
 }
 
+.staffing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .dweller-section-title {
   font-weight: 700;
+}
+
+.staffing-summary {
+  color: var(--color-theme-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .dwellers-list {
@@ -115,9 +125,13 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
   padding: 0.6rem 0.75rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   border-radius: 4px;
   transition: all 0.2s;
 }
@@ -155,11 +169,13 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   cursor: pointer;
 }
 
-.dweller-card.clickable:hover {
+.dweller-card.clickable:hover,
+.dweller-card.clickable:focus-visible {
   background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--color-theme-glow);
+  outline: none;
 }
 
 .dweller-stat {

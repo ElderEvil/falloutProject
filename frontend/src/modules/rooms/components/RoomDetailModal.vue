@@ -144,12 +144,7 @@ watch(
           :assigned-dwellers="assignedDwellers"
         />
 
-        <RoomInfoGrid
-          :room="room"
-          :assigned-dweller-count="assignedDwellers.length"
-          :dweller-capacity="dwellerCapacity"
-          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-        />
+        <RoomInfoGrid :room="room" :ability-label="room.ability ? getAbilityLabel(room.ability) : null" />
 
         <OverseerBriefing
           v-if="isOverseersOffice && overseerBriefing"
@@ -167,6 +162,7 @@ watch(
 
         <DwellerList
           :assigned-dwellers="assignedDwellers"
+          :dweller-capacity="dwellerCapacity"
           :ability="room.ability"
           @dweller-click="openDwellerDetails"
         />

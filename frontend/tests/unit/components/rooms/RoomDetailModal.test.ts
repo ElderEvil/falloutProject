@@ -139,6 +139,7 @@ describe('RoomDetailModal', () => {
       room_id: 'room-1',
       vault_id: 'vault-123',
       status: 'working',
+      age_group: 'child',
     },
     {
       id: 'dweller-2',
@@ -155,6 +156,7 @@ describe('RoomDetailModal', () => {
       room_id: 'room-1',
       vault_id: 'vault-123',
       status: 'working',
+      age_group: 'teen',
     },
   ]
 
@@ -231,7 +233,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Room Information', () => {
-    it('should display capacity information', () => {
+    it('summarizes staffing capacity above the assigned dwellers', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -242,8 +244,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Dwellers')
-      expect(wrapper.text()).toContain('2 / 2')
+      expect(wrapper.find('.staffing-summary').text()).toContain('2 / 2 staffed')
     })
 
     it('should display room size', () => {
@@ -421,9 +422,11 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Jane Smith')
       expect(wrapper.text()).toContain('Level 5')
       expect(wrapper.text()).toContain('Level 7')
+      expect(wrapper.findAll('[aria-label="Child"]')).toHaveLength(1)
+      expect(wrapper.findAll('[aria-label="Teen"]')).toHaveLength(1)
     })
 
-    it('should show dweller count in header', () => {
+    it('should identify the section as staffing', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -434,7 +437,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Dweller Details (2)')
+      expect(wrapper.text()).toContain('Staffing')
     })
 
     it('should show empty state when no dwellers assigned', () => {

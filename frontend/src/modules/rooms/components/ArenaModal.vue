@@ -337,9 +337,8 @@ const hpClass = (entry: ArenaRosterEntry) => {
       </div>
 
       <!-- Post-battle actions -->
-      <div v-if="isDone" class="post-battle-actions">
+      <div v-if="isDone && injuredFighters.length" class="post-battle-actions">
         <UButton
-          v-if="injuredFighters.length"
           variant="secondary"
           size="sm"
           :loading="isHealing"
@@ -347,10 +346,6 @@ const hpClass = (entry: ArenaRosterEntry) => {
         >
           <Icon icon="mdi:medication" class="action-icon" />
           HEAL INJURED ({{ injuredFighters.length }})
-        </UButton>
-        <UButton variant="secondary" size="sm" :loading="isUnassigningAll" @click="unassignAll">
-          <Icon icon="mdi:account-remove" class="action-icon" />
-          UNASSIGN ALL
         </UButton>
       </div>
 
@@ -390,10 +385,22 @@ const hpClass = (entry: ArenaRosterEntry) => {
 
     <div class="arena-footer">
       <span class="footer-note">Fights resolve automatically — watch the HP bars.</span>
-      <UButton variant="secondary" size="sm" class="arena-destroy-btn" :disabled="isDestroying" @click="emit('destroy')">
-        <Icon icon="mdi:delete" class="destroy-icon" />
-        DESTROY
-      </UButton>
+      <div class="footer-actions">
+        <UButton
+          variant="secondary"
+          size="sm"
+          :loading="isUnassigningAll"
+          :disabled="isFighting || !roster.length"
+          @click="unassignAll"
+        >
+          <Icon icon="mdi:account-remove" class="destroy-icon" />
+          UNASSIGN ALL
+        </UButton>
+        <UButton variant="secondary" size="sm" class="arena-destroy-btn" :disabled="isDestroying" @click="emit('destroy')">
+          <Icon icon="mdi:delete" class="destroy-icon" />
+          DESTROY
+        </UButton>
+      </div>
     </div>
   </div>
 </template>
@@ -797,6 +804,13 @@ const hpClass = (entry: ArenaRosterEntry) => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .footer-note {

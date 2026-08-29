@@ -8,6 +8,7 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
 import { useArenaStore } from '../stores/arena'
+import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
+const medicalStore = useDwellerMedicalStore()
 const arenaStore = useArenaStore()
 
 const isLoading = ref(true)
@@ -123,8 +125,22 @@ const persistFighters = async (fighterAId: string | null, fighterBId: string | n
 
 const selectFighter = (slot: 'A' | 'B', entry: ArenaRosterEntry) => {
   const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
-  const a = slot === 'A' ? entry.id : other
-  const b = slot === 'B' ? entry.id : other
+  let a = slot === 'A' ? entry.id : other
+  let b = slot === 'B' ? entry.id : other
+
+  // Smart pairing: when the opposite slot is empty and exactly one candidate
+  // remains, fill it — picking the first of two fighters almost always means
+  // the second belongs in the other corner.
+  const opposite = slot === 'A' ? b : a
+  if (!opposite) {
+    const taken = new Set([a, b].filter((id): id is string => !!id))
+    const remaining = roster.value.filter((e) => !taken.has(e.id))
+    if (remaining.length === 1) {
+      if (slot === 'A') b = remaining[0].id
+      else a = remaining[0].id
+    }
+  }
+
   void persistFighters(a, b)
 }
 
@@ -141,6 +157,48 @@ const unassign = async (entry: ArenaRosterEntry) => {
     await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
   } catch {
     toast.error('Failed to remove dweller from the Arena')
+  }
+}
+
+// Post-battle conveniences: patch up the loser, clear the room for the next
+// match. Fighters under 50% HP are the ones a stimpack actually helps.
+const injuredFighters = computed(() =>
+  (roomState.value?.fighters ?? []).filter(
+    (fighter: ArenaFighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
+  )
+)
+
+const isHealing = ref(false)
+const healInjured = async () => {
+  if (!authStore.token || isHealing.value) return
+  isHealing.value = true
+  try {
+    for (const fighter of injuredFighters.value) {
+      await medicalStore.useStimpack(fighter.id, authStore.token)
+    }
+    previousHp.value = {}
+    await load(true)
+  } finally {
+    isHealing.value = false
+  }
+}
+
+const isUnassigningAll = ref(false)
+const unassignAll = async () => {
+  if (!authStore.token || isUnassigningAll.value || !roster.value.length) return
+  isUnassigningAll.value = true
+  try {
+    for (const entry of roster.value) {
+      try {
+        await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
+      } catch {
+        toast.error(`Failed to remove ${entry.name} from the Arena`)
+      }
+    }
+    previousHp.value = {}
+    await load(true)
+  } finally {
+    isUnassigningAll.value = false
   }
 }
 
@@ -236,7 +294,16 @@ const journalIcon = (kind: string) => {
         <div class="roster-chips">
           <div v-for="entry in roster" :key="entry.id" class="roster-chip" :class="{ fighting: isSelected(entry.id) }">
             <span class="roster-name">{{ entry.name }}</span>
-            <button v-if="!isFighting" class="roster-remove" type="button" title="Remove from Arena" @click="unassign(entry)">✕</button>
+            <button
+              v-if="!isFighting"
+              class="roster-remove"
+              type="button"
+              :aria-label="`Remove ${entry.name} from Arena`"
+              title="Remove from Arena"
+              @click="unassign(entry)"
+            >
+              ✕
+            </button>
           </div>
         </div>
       </div>
@@ -245,6 +312,24 @@ const journalIcon = (kind: string) => {
       <div v-if="winnerName" class="result-banner finished">
         <Icon icon="mdi:trophy" class="result-icon" />
         <span>MATCH COMPLETE &mdash; {{ winnerName }} wins!</span>
+      </div>
+
+      <!-- Post-battle actions -->
+      <div v-if="isDone" class="post-battle-actions">
+        <UButton
+          v-if="injuredFighters.length"
+          variant="secondary"
+          size="sm"
+          :loading="isHealing"
+          @click="healInjured"
+        >
+          <Icon icon="mdi:medication" class="action-icon" />
+          HEAL INJURED ({{ injuredFighters.length }})
+        </UButton>
+        <UButton variant="secondary" size="sm" :loading="isUnassigningAll" @click="unassignAll">
+          <Icon icon="mdi:account-remove" class="action-icon" />
+          UNASSIGN ALL
+        </UButton>
       </div>
 
       <!-- Start fight -->
@@ -596,6 +681,19 @@ const journalIcon = (kind: string) => {
 .result-icon {
   width: 18px;
   height: 18px;
+}
+
+.post-battle-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.action-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 0.3rem;
 }
 
 .arena-note {

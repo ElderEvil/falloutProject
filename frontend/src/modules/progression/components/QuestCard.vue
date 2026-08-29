@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { QuestPartyMember, VaultQuest } from '../models/quest'
 
 const questStore = useQuestStore()
@@ -34,7 +35,7 @@ const updateTimer = () => {
     return
   }
 
-  const startTime = new Date(quest.started_at).getTime()
+  const startTime = parseStartTimeMs(quest.started_at)
   const durationMs = quest.duration_minutes * 60 * 1000
   const endTime = startTime + durationMs
   const now = Date.now()
@@ -62,7 +63,7 @@ const questProgress = computed(() => {
   void timeRemaining.value
   if (!quest.started_at || !quest.duration_minutes) return 0
 
-  const elapsed = Date.now() - new Date(quest.started_at).getTime()
+  const elapsed = Date.now() - parseStartTimeMs(quest.started_at)
   return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
 })
 

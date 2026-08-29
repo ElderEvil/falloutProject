@@ -1,5 +1,9 @@
 """Tests for quest CRUD operations."""
 
+import os
+import time
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -470,6 +474,53 @@ async def test_start_quest(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_start_quest_stores_utc_timestamp(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Quest timers must be naive UTC, not server-local time (FE/BE clock mismatch on non-UTC hosts)."""
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
+    from app.services.quest_service import quest_service
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="UTC Quest",
+            short_description="Test UTC timer",
+            long_description="Timed quest",
+            requirements="1 dweller",
+            rewards="100 caps",
+            duration_minutes=30,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(
+        db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
+    )
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+
+    old_tz = os.environ.get("TZ")
+    os.environ["TZ"] = "Europe/Berlin"
+    time.tzset()
+    try:
+        link = await quest_service.start_quest(async_session, quest.id, vault.id)
+    finally:
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+        time.tzset()
+
+    assert link.started_at is not None
+    assert abs((link.started_at - datetime.utcnow()).total_seconds()) < timedelta(minutes=1).total_seconds()
+
+
+@pytest.mark.asyncio
 async def test_start_quest_requires_an_assigned_party(async_session: AsyncSession) -> None:
     """A quest cannot run without a party to send into the wasteland."""
     from app.services.quest_service import quest_service
@@ -676,7 +727,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     await async_session.commit()
     await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
 
-    link.started_at = datetime.now() - timedelta(minutes=61)
+    link.started_at = datetime.utcnow() - timedelta(minutes=61)
     link.duration_minutes = 60
     await async_session.commit()
 

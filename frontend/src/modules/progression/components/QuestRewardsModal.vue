@@ -26,6 +26,19 @@ const REWARD_META: Record<QuestReward['reward_type'], { icon: string; label: str
   lunchbox: { icon: 'mdi:gift', label: 'Lunchbox' },
 }
 
+const ITEM_META: Record<string, { icon: string; label: string }> = {
+  weapon: { icon: 'mdi:sword-cross', label: 'Weapon' },
+  outfit: { icon: 'mdi:tshirt-crew', label: 'Outfit' },
+  junk: { icon: 'mdi:cog', label: 'Junk' },
+  pet: { icon: 'mdi:paw', label: 'Pet' },
+}
+
+const RESOURCE_META: Record<string, { icon: string; label: string }> = {
+  power: { icon: 'mdi:flash', label: 'Power' },
+  food: { icon: 'mdi:food-apple', label: 'Food' },
+  water: { icon: 'mdi:water', label: 'Water' },
+}
+
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
 const rewardLabel = (reward: QuestReward): string => {
@@ -35,7 +48,22 @@ const rewardLabel = (reward: QuestReward): string => {
   return String(data.amount ?? '—')
 }
 
-const rewardMeta = (reward: QuestReward) => REWARD_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
+const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
+  const base = REWARD_META[reward.reward_type] ?? { icon: 'mdi:gift', label: 'Reward' }
+  const data = reward.reward_data
+
+  if (reward.reward_type === 'item') {
+    const itemType = String(reward.item_data?.item_type ?? data.item_type ?? '')
+    return ITEM_META[itemType] ?? base
+  }
+
+  if (reward.reward_type === 'resource') {
+    const resourceType = String(data.resource_type ?? '')
+    return RESOURCE_META[resourceType] ?? base
+  }
+
+  return base
+}
 </script>
 
 <template>
@@ -216,8 +244,8 @@ const rewardMeta = (reward: QuestReward) => REWARD_META[reward.reward_type] ?? {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   border: 2px solid var(--color-theme-accent);
   background: color-mix(in srgb, var(--color-theme-secondary) 60%, transparent);
@@ -225,9 +253,10 @@ const rewardMeta = (reward: QuestReward) => REWARD_META[reward.reward_type] ?? {
 }
 
 .reward-icon {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.9rem;
+  height: 1.9rem;
   color: var(--color-theme-accent);
+  filter: drop-shadow(0 0 4px var(--color-theme-glow));
 }
 
 .reward-details {

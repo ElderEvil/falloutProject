@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.58.2 (2026-08-29)
+
+### Bug Fixes
+
+* **dwellers:** handle nullable surname and remove stat-key cast 03eac49
+
+### Code Refactoring
+
+* **dwellers:** streamline detail page composition 46f054f
+* **dwellers:** use full-page dweller detail route instead of master-detail sheet f05da5c
+
 ## 2.58.1 (2026-08-29)
 
 ### Bug Fixes

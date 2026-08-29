@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.61.1 (2026-08-29)
+
+### Bug Fixes
+
+* stop ExplorationDetailView tests from leaking network calls into worker teardown 8266f80
+* use UTC for quest timers and parse naive timestamps as UTC in FE 61a3e1c
+
 ## 2.61.0 (2026-08-29)
 
 ### Features

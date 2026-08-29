@@ -224,6 +224,42 @@ describe('RoomGrid', () => {
       expect(unlockedRows).toContain('4')
     })
 
+    it('allows a standard room beside a legacy-size elevator on the same level', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [
+        mockRoom,
+        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size_min: 1 },
+      ]
+      roomStore.selectedRoom = {
+        name: 'Diner',
+        category: 'production',
+        ability: 'agility',
+        base_cost: 100,
+        t2_upgrade_cost: 200,
+        t3_upgrade_cost: 400,
+        size_min: 3,
+        size_max: 9,
+        tier: 1,
+        speedup_multiplier: 1,
+      }
+      roomStore.isPlacingRoom = true
+
+      const wrapper = mount(RoomGrid, {
+        props: { incidents: [] },
+      })
+      const cell = wrapper
+        .findAll('.empty:not(.level-locked)')
+        .find((item) => {
+          const style = item.element as HTMLElement
+          return style.style.gridColumn === '2' && style.style.gridRow === '2'
+        })!
+
+      await cell.trigger('mouseenter')
+
+      expect(cell.classes()).toContain('hover-preview')
+      expect(cell.classes()).toContain('valid-placement')
+    })
+
     it('marks an elevator preview as invalid when there is no elevator above', async () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [mockRoom]

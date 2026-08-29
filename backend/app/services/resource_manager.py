@@ -143,14 +143,19 @@ class ResourceManager:
         return {k: round(v, 2) for k, v in production_totals.items()}
 
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
-        """Calculate production for a single room based on dweller stats and room tier."""
-        ability_sum = sum(getattr(dweller, room.ability.lower(), 0) for dweller in dwellers)
+        """Calculate production from workers; apprentices train in a dedicated room slot."""
+        ability = room.ability
+        if ability is None:
+            return 0.0
+
+        workers = [dweller for dweller in dwellers if dweller.apprentice_stat is None]
+        ability_sum = sum(getattr(dweller, ability.lower(), 0) for dweller in workers)
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
         production = room.output * ability_sum * game_config.resource.base_production_rate * tier_mult * seconds_passed
 
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
-            f"production={production:.2f} (tier={room.tier}, dwellers={len(dwellers)})"
+            f"production={production:.2f} (tier={room.tier}, workers={len(workers)})"
         )
 
         return production

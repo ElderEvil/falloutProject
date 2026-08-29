@@ -437,8 +437,8 @@ class BreedingConfig(BaseSettings):
         le=1.0,
     )
 
-    # Child growth
-    child_growth_duration_hours: int = Field(default=3, description="Hours to grow to adult", ge=1)
+    # Youth maturity
+    child_growth_duration_hours: int = Field(default=24, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)
     child_consumption_multiplier: float = Field(
         default=0.7,

@@ -330,10 +330,9 @@ class FamilyScenarioService:
     ) -> Dweller:
         """Create a child of the couple whose ``birth_date`` is ``age_hours`` ago.
 
-        The growth check (``age_children``) ages children whose ``birth_date``
-        is older than ``child_growth_duration_hours`` (default 3h). Backdating
-        the birth date makes growth testable immediately: e.g. 1h old = still a
-        child, 4h old = will age to adult on the next tick.
+        The growth check (``age_children``) advances children to teens halfway
+        through ``child_growth_duration_hours`` and to adults at its end (24h by
+        default). Backdating makes lifecycle states testable on the next tick.
         """
         child = await crud.dweller.create_random(
             db_session,

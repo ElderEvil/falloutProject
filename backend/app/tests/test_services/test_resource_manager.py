@@ -42,6 +42,22 @@ class TestResourceManager:
         assert "critical_power" in types
         assert "low_food" in types
 
+    def test_apprentice_does_not_contribute_to_production(self):
+        room = Room(
+            name="Power",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.STRENGTH,
+            output=10.0,
+            tier=1,
+            size=1,
+        )
+        worker = Dweller(strength=10)
+        apprentice = Dweller(strength=10, apprentice_stat=SPECIALEnum.STRENGTH)
+
+        production = ResourceManager()._calculate_room_production(room, [worker, apprentice], seconds_passed=60)
+
+        assert production == 600
+
     @pytest.mark.asyncio
     async def test_power_outage_production(self):
         manager = ResourceManager()

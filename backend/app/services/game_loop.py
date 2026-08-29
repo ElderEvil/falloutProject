@@ -145,6 +145,10 @@ class GameLoopService:
         dweller_update = await self._process_dwellers(db_session, vault_id)
         results["updates"]["dwellers"] = dweller_update
 
+        # === PHASE 4.25: Youth Apprenticeships ===
+        apprenticeship_update = await self._process_apprenticeships(db_session, vault_id)
+        results["updates"]["apprenticeships"] = apprenticeship_update
+
         # === PHASE 4.5: Training System ===
         training_update = await self._process_training(db_session, vault_id)
         results["updates"]["training"] = training_update
@@ -418,6 +422,64 @@ class GameLoopService:
         except SQLAlchemyError as e:
             self.logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)
 
+        return stats
+
+    async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+        """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
+        from app.models.base import SPECIALModel
+        from app.models.room import Room
+        from app.schemas.common import RoomTypeEnum
+        from app.services.training_service import TrainingService
+
+        stats = {"active_count": 0, "stats_awarded": 0}
+        apprentices_result = await db_session.execute(
+            select(Dweller).where(
+                Dweller.vault_id == vault_id,
+                Dweller.apprentice_stat.is_not(None),
+                Dweller.apprentice_started_at.is_not(None),
+                ~Dweller.is_deleted,
+                ~Dweller.is_dead,
+            )
+        )
+        apprentices = list(apprentices_result.scalars().all())
+        stats["active_count"] = len(apprentices)
+        if not apprentices:
+            return stats
+
+        room_ids = {apprentice.room_id for apprentice in apprentices if apprentice.room_id is not None}
+        rooms_by_id = {}
+        if room_ids:
+            rooms_result = await db_session.execute(select(Room).where(Room.id.in_(room_ids)))
+            rooms_by_id = {room.id: room for room in rooms_result.scalars().all()}
+
+        now = datetime.utcnow()
+        for apprentice in apprentices:
+            room = rooms_by_id.get(apprentice.room_id)
+            if (
+                apprentice.is_mature
+                or room is None
+                or room.category != RoomTypeEnum.PRODUCTION
+                or room.ability != apprentice.apprentice_stat
+            ):
+                continue
+
+            current_stat = SPECIALModel.get_stat(apprentice, apprentice.apprentice_stat)
+            duration = TrainingService.calculate_training_duration(current_stat, room.tier)
+            if (now - apprentice.apprentice_started_at).total_seconds() < duration:
+                continue
+
+            if current_stat < game_config.training.special_stat_max:
+                SPECIALModel.set_stat(apprentice, apprentice.apprentice_stat, current_stat + 1)
+                stat_key = apprentice.apprentice_stat.value.lower()
+                apprentice.apprentice_stat_gains = {
+                    **apprentice.apprentice_stat_gains,
+                    stat_key: apprentice.apprentice_stat_gains.get(stat_key, 0) + 1,
+                }
+                stats["stats_awarded"] += 1
+            apprentice.apprentice_started_at = now
+            db_session.add(apprentice)
+
+        await db_session.flush()
         return stats
 
     async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> dict:

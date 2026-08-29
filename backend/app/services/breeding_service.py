@@ -631,49 +631,56 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Dweller]:
-        """Age children to adults if they've reached the growth duration.
+        """Advance children to teens halfway through maturity and teens to adults at completion."""
+        now = datetime.now(UTC).replace(tzinfo=None)
+        maturity_hours = game_config.breeding.child_growth_duration_hours
+        teen_threshold = now - timedelta(hours=maturity_hours // 2)
+        adult_threshold = now - timedelta(hours=maturity_hours)
 
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to check
-
-        Returns:
-            List of aged dwellers
-        """
-        growth_threshold = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-            hours=game_config.breeding.child_growth_duration_hours
+        teens_query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(Dweller.age_group == AgeGroupEnum.TEEN)
+            .where(Dweller.birth_date.is_not(None))
+            .where(Dweller.birth_date <= adult_threshold)
         )
+        teens = list((await db_session.execute(teens_query)).scalars().all())
 
-        query = (
+        children_query = (
             select(Dweller)
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.age_group == AgeGroupEnum.CHILD)
             .where(Dweller.birth_date.is_not(None))
-            .where(Dweller.birth_date <= growth_threshold)
+            .where(Dweller.birth_date <= teen_threshold)
         )
-
-        children = (await db_session.execute(query)).scalars().all()
+        children = (await db_session.execute(children_query)).scalars().all()
 
         aged_dwellers = []
         for child in children:
-            # Age to adult: both the age group and the adult flag flip together
-            # (a CHILD with is_adult=True or an ADULT with is_adult=False would
-            # lock the dweller out of work/combat inconsistently).
-            child.age_group = AgeGroupEnum.ADULT
-            child.is_adult = True
-
-            # Scale up SPECIAL stats (remove child multiplier)
-            special_attrs = SPECIAL_STATS
-            for attr in special_attrs:
-                current_stat = getattr(child, attr, 1)
-                adult_stat = int(current_stat / game_config.breeding.child_special_multiplier)
-                adult_stat = max(1, min(10, adult_stat))
-                setattr(child, attr, adult_stat)
-
-            child.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            if child.birth_date <= adult_threshold:
+                teens.append(child)
+                continue
+            child.age_group = AgeGroupEnum.TEEN
+            child.is_adult = False
+            child.updated_at = now
             aged_dwellers.append(child)
+            logger.info(f"Child became teen: {child.first_name} {child.last_name} ({child.id})")
 
-            logger.info(f"Child aged to adult: {child.first_name} {child.last_name} ({child.id})")
+        for teen in teens:
+            teen.age_group = AgeGroupEnum.ADULT
+            teen.is_adult = True
+            teen.apprentice_stat = None
+            teen.apprentice_started_at = None
+            for attr in SPECIAL_STATS:
+                current_stat = getattr(teen, attr, 1)
+                gains = teen.apprentice_stat_gains.get(attr, 0)
+                base_child_stat = max(1, current_stat - gains)
+                adult_stat = int(base_child_stat / game_config.breeding.child_special_multiplier) + gains
+                setattr(teen, attr, max(1, min(10, adult_stat)))
+            teen.apprentice_stat_gains = {}
+            teen.updated_at = now
+            aged_dwellers.append(teen)
+            logger.info(f"Teen became adult: {teen.first_name} {teen.last_name} ({teen.id})")
 
         await db_session.commit()
 

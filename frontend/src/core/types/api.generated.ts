@@ -5584,6 +5584,9 @@ export interface components {
             gender: components["schemas"]["GenderEnum"];
             /** Birth Date */
             birth_date?: string | null;
+            apprentice_stat?: components["schemas"]["SPECIALEnum"] | null;
+            /** Apprentice Started At */
+            apprentice_started_at?: string | null;
             visual_attributes?: components["schemas"]["DwellerVisualAttributes"] | null;
             /** Strength */
             strength: number;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
@@ -10,7 +11,10 @@ interface Props {
   assignedDwellers: DwellerShort[]
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
+const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
 </script>
 
 <template>
@@ -35,14 +39,12 @@ defineProps<Props>()
               :key="`slot-${slot}`"
               class="dweller-sprite-slot"
               :class="{
-                'slot-filled': assignedDwellers[slot - 1],
+                'slot-filled': workerDwellers[slot - 1],
               }"
             >
-              <template v-if="assignedDwellers[slot - 1]">
+              <template v-if="workerDwellers[slot - 1]">
                 <div class="placeholder-dweller">
-                  <span class="dweller-initial">{{
-                    assignedDwellers[slot - 1]?.first_name[0]
-                  }}</span>
+                  <span class="dweller-initial">{{ workerDwellers[slot - 1]?.first_name[0] }}</span>
                 </div>
               </template>
               <template v-else>
@@ -50,6 +52,22 @@ defineProps<Props>()
                   <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
                 </div>
               </template>
+            </div>
+            <div class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
+              <div class="placeholder-dweller">
+                <span v-if="apprentice" class="dweller-initial">{{ apprentice.first_name[0] }}</span>
+                <Icon v-else icon="mdi:school-outline" class="h-6 w-6 opacity-30" />
+                <span
+                  class="apprentice-marker"
+                  :aria-label="
+                    apprentice?.apprentice_stat ? `Apprentice training ${apprentice.apprentice_stat}` : 'Apprentice slot'
+                  "
+                  role="img"
+                >
+                  <Icon icon="mdi:school-outline" />
+                  {{ apprentice?.apprentice_stat?.charAt(0).toUpperCase() ?? '+' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -168,6 +186,7 @@ defineProps<Props>()
 }
 
 .placeholder-dweller {
+  position: relative;
   width: 48px;
   height: 48px;
   display: flex;
@@ -188,6 +207,34 @@ defineProps<Props>()
   background: var(--color-surface-raised);
   border: 2px solid var(--color-theme-primary);
   animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.apprentice-slot .placeholder-dweller {
+  border-color: var(--color-warning);
+}
+
+
+.apprentice-marker {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.1rem 0.2rem;
+  border: 1px solid var(--color-warning);
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-warning);
+  font-size: 0.625rem;
+  font-weight: 700;
+  box-shadow: 0 0 8px var(--color-warning);
+}
+
+.apprentice-marker :deep(svg) {
+  width: 0.75rem;
+  height: 0.75rem;
+  filter: drop-shadow(0 0 3px var(--color-warning));
 }
 
 @keyframes glow-pulse {

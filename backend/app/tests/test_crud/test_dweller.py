@@ -357,6 +357,26 @@ async def test_move_teen_with_is_adult_flag_to_arena_rejected(async_session: Asy
 
 
 @pytest.mark.asyncio
+async def test_move_child_to_training_room_rejected(
+    async_session: AsyncSession,
+    user_with_vault: tuple,
+    dweller_in_vault,
+):
+    _, vault = user_with_vault
+    vault.population_max = 1
+    dweller_in_vault.age_group = AgeGroupEnum.CHILD
+    dweller_in_vault.is_adult = False
+    await async_session.commit()
+
+    room_data = create_fake_room()
+    room_data["category"] = RoomTypeEnum.TRAINING
+    training_room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
+
+    with pytest.raises(ValidationException, match="only be assigned to production rooms"):
+        await crud.dweller.move_to_room(async_session, dweller_in_vault.id, training_room.id)
+
+
+@pytest.mark.asyncio
 async def test_move_adult_to_arena_allowed(async_session: AsyncSession):
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -518,6 +538,7 @@ async def test_dweller_status_training_room(async_session: AsyncSession):
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data["is_adult"] = True
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
@@ -636,6 +657,7 @@ async def test_dweller_status_on_room_reassignment(async_session: AsyncSession):
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 

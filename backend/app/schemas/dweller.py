@@ -170,6 +170,8 @@ class DwellerReadLess(SQLModel):
     age_group: AgeGroupEnum
     gender: GenderEnum
     birth_date: datetime | None = None
+    apprentice_stat: SPECIALEnum | None = None
+    apprentice_started_at: datetime | None = None
     visual_attributes: DwellerVisualAttributes | None = None
 
     # SPECIAL stats

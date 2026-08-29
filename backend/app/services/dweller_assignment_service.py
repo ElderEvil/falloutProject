@@ -12,6 +12,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerUpdate
+from app.services.room_assignment_policy import adult_assignment_conditions
 from app.services.training_service import training_service
 
 logger = logging.getLogger(__name__)
@@ -246,6 +247,7 @@ class DwellerAssignmentService:
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.status == DwellerStatusEnum.IDLE)
             .where(Dweller.room_id.is_(None))
+            .where(*adult_assignment_conditions())
             .where(~Dweller.is_deleted)
             .where(~Dweller.is_dead)
         )
@@ -330,6 +332,7 @@ class DwellerAssignmentService:
             .where(Dweller.vault_id == vault_id)
             .where(Dweller.status == DwellerStatusEnum.IDLE)
             .where(Dweller.room_id.is_(None))
+            .where(*adult_assignment_conditions())
             .where(~Dweller.is_deleted)
             .where(~Dweller.is_dead)
         )

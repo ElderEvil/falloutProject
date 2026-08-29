@@ -25,10 +25,10 @@ export function useRoomProduction(
     }
 
     const r = room.value
-    const dwellers = assignedDwellers.value
+    const workers = assignedDwellers.value.filter((dweller) => !dweller.apprentice_stat)
 
     const abilityKey = r.ability!.toLowerCase() as SpecialKey
-    const abilitySum = dwellers.reduce((sum, dweller) => {
+    const abilitySum = workers.reduce((sum, dweller) => {
       const value = dweller[abilityKey]
       return sum + (typeof value === 'number' ? value : 0)
     }, 0)
@@ -42,7 +42,7 @@ export function useRoomProduction(
     const resourceType = getAbilityConfig(r.ability)?.resourceName ?? 'Resources'
 
     const capacity = dwellerCapacity.value || 1
-    const efficiency = Math.round((dwellers.length / capacity) * 100)
+    const efficiency = Math.round((workers.length / capacity) * 100)
 
     return {
       resourceType,
@@ -50,7 +50,7 @@ export function useRoomProduction(
       productionPerMinute: productionPerMinute.toFixed(2),
       productionPerSecond: productionPerSecond.toFixed(2),
       efficiency,
-      isFullyStaffed: dwellers.length >= capacity,
+      isFullyStaffed: workers.length >= capacity,
     }
   })
 

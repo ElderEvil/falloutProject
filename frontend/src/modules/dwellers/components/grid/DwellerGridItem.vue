@@ -209,11 +209,9 @@ const getStatColorClass = (value: number) => {
   padding: 0.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .ai-generate-button:hover:not(:disabled) {
-  animation: none;
   box-shadow: 0 0 20px var(--color-theme-primary);
   background: var(--color-surface-hover);
 }
@@ -227,16 +225,6 @@ const getStatColorClass = (value: number) => {
   width: 1.25rem;
   height: 1.25rem;
   color: var(--color-theme-primary);
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 5px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 15px var(--color-theme-primary);
-  }
 }
 
 .info-section {

@@ -63,6 +63,8 @@ const sizeClasses = computed(() => {
 </template>
 
 <style scoped lang="css">
+/* Live status (badge-live intent): the only badge tier allowed to pulse.
+   Not clickable — no hover emphasis. */
 .status-badge {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -75,11 +77,5 @@ const sizeClasses = computed(() => {
   50% {
     opacity: 0.8;
   }
-}
-
-.status-badge:hover {
-  animation: none;
-  opacity: 1 !important;
-  box-shadow: 0 0 8px var(--glow-color);
 }
 </style>

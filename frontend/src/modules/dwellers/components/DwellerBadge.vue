@@ -28,6 +28,9 @@ withDefaults(
 </template>
 
 <style scoped>
+/* Informational badge (badge-info intent): color codes the category, but a fact
+   never glows, never animates, and never responds to hover — that vocabulary is
+   reserved for actions and live status. */
 .dweller-badge {
   display: inline-flex;
   align-items: center;
@@ -37,13 +40,6 @@ withDefaults(
   background: rgba(0, 0, 0, 0.4);
   color: var(--badge-color);
   white-space: nowrap;
-  box-shadow: 0 0 10px var(--badge-color);
-  transition: all 0.2s;
-}
-
-.dweller-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px var(--badge-color);
 }
 
 .size-sm {
@@ -73,12 +69,10 @@ withDefaults(
 
 .badge-icon {
   font-size: 1.25em;
-  filter: drop-shadow(0 0 4px var(--badge-color));
 }
 
 .badge-label {
   font-weight: 700;
   text-transform: capitalize;
-  text-shadow: 0 0 8px var(--badge-color);
 }
 </style>

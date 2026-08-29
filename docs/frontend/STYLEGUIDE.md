@@ -1,20 +1,21 @@
 # Fallout Shelter Frontend Styleguide
 
-> **Version:** 1.1.0
-> **Last Updated:** 2026-08-22
+> **Version:** 1.2.0
+> **Last Updated:** 2026-08-30
 > **Design System:** TailwindCSS v4 with custom @theme
 
 ## Table of Contents
 
 1. [Design Philosophy](#design-philosophy)
 2. [Color System](#color-system)
-3. [Typography](#typography)
-4. [Spacing & Layout](#spacing--layout)
-5. [UI Consistency Baseline](#ui-consistency-baseline)
-6. [Components](#components)
-7. [Animations & Effects](#animations--effects)
-8. [Accessibility](#accessibility)
-9. [Best Practices](#best-practices)
+3. [Intent & Emphasis Semantics](#intent--emphasis-semantics)
+4. [Typography](#typography)
+5. [Spacing & Layout](#spacing--layout)
+6. [UI Consistency Baseline](#ui-consistency-baseline)
+7. [Components](#components)
+8. [Animations & Effects](#animations--effects)
+9. [Accessibility](#accessibility)
+10. [Best Practices](#best-practices)
 
 ---
 
@@ -98,13 +99,13 @@ Use these tokens in your CSS/components (mapped in `tailwind.css`):
 Every structural background uses one semantic warm-neutral role. Do not use raw black, gray, Slate, Stone, or
 neutral Tailwind backgrounds for cards, panels, tracks, or overlays.
 
-| Token                    | Value     | Use |
-| ------------------------ | --------- | --- |
-| `--color-surface-canvas` | `#141210` | Application/page canvas and modal scrim base |
-| `--color-surface-sunken` | `#0f0e0d` | Progress tracks and recessed readouts |
-| `--color-surface`        | `#1c1917` | Default card and panel surface |
+| Token                    | Value     | Use                                           |
+| ------------------------ | --------- | --------------------------------------------- |
+| `--color-surface-canvas` | `#141210` | Application/page canvas and modal scrim base  |
+| `--color-surface-sunken` | `#0f0e0d` | Progress tracks and recessed readouts         |
+| `--color-surface`        | `#1c1917` | Default card and panel surface                |
 | `--color-surface-raised` | `#28231f` | Modals, popovers, selected panels, and inputs |
-| `--color-surface-hover`  | `#302a25` | Hovered surface state |
+| `--color-surface-hover`  | `#302a25` | Hovered surface state                         |
 
 `terminal-background`, `surface-light`, `surface-dark`, and `surface-warm*` remain compatibility aliases while
 callers migrate. Legacy `gray-*` utilities now render warm neutrals but must not be selected for new backgrounds.
@@ -129,6 +130,69 @@ Special colors for game resources:
 | Food     | `--color-food`  | `#ff6b6b` | 🍰 Red     |
 | Water    | `--color-water` | `#4dabf7` | 💧 Blue    |
 | Caps     | `--color-caps`  | `#ffd43b` | 💰 Gold    |
+
+---
+
+## Intent & Emphasis Semantics
+
+**Glow is attention, and attention must be earned by intent.** Before styling any element, decide which of three
+intents it carries — the intent chooses the emphasis level, never the other way around. The tokens live in
+`tailwind.css` (`--glow-0` … `--glow-3`); never hand-roll shadow values.
+
+### The three intents
+
+| Intent            | Meaning to the user                              | Emphasis                                                             | Examples                                                                      |
+| ----------------- | ------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Actionable**    | "You can do something here, now"                 | `--glow-2` on hover/active; at most one primary CTA may glow at rest | Buttons, links, claim-reward / revive badges                                  |
+| **Live status**   | "Something is happening and may need a reaction" | `--glow-3`, animated pulse — the **only** tier allowed to animate    | Dweller status badge (training, fighting), incident alerts, resource warnings |
+| **Informational** | "This is a fact about the thing"                 | `--glow-0` — no glow, no animation, no hover response                | Gender, race, faction, rarity, age group, room ability, XP values             |
+
+### Emphasis scale
+
+| Token      | Value          | Use                                                                                                |
+| ---------- | -------------- | -------------------------------------------------------------------------------------------------- |
+| `--glow-0` | none           | Informational facts. Default for badges, stat values, labels                                       |
+| `--glow-1` | static, subtle | Ambient CRT flavor on headings and titles — theme identity, never on chips or interactive elements |
+| `--glow-2` | interactive    | Buttons and links (rest or hover); actionable badges on hover                                      |
+| `--glow-3` | live pulse     | Live-status badges only, animated                                                                  |
+
+**Hierarchy rule: a badge must never out-glow an adjacent button.** If an informational chip draws more attention
+than the primary CTA next to it, the hierarchy is broken — demote the chip, not the button.
+
+### Badge intents (`badge-info` / `badge-live` / `badge-action`)
+
+Utility classes in `tailwind.css` make the intent enforceable by construction:
+
+- `.badge-info` — quiet tinted chip: colored border/text codes the category, no shadow, no hover response. This is
+  what `DwellerBadge` (gender, rarity, age group) implements.
+- `.badge-live` — the pulsing tier; reserved for state that changes (`DwellerStatusBadge`). Not clickable, so no
+  hover emphasis either.
+- `.badge-action` — clicking the badge does something; behaves like a button (glow on hover). Use sparingly — most
+  badges are facts.
+
+### Buttons & space budget
+
+- One **primary** CTA per view (filled `theme-primary`); **secondary** is outlined; **danger** never glows
+  (destruction is not an invitation); **disabled** has no glow and no pointer.
+- Buttons own the filled background: informational chips are never filled with `theme-primary` — fill reads as
+  "clickable" just like glow does.
+- Density intentions: management actions fit in one row per view; bulk toolbars exist only in selection mode;
+  interactive chrome (buttons + inputs) stays under ~15% of a view's vertical space. If a page needs more, it gets
+  a toolbar or a modal — not more buttons.
+
+### Backgrounds & color allocation
+
+- Surfaces never glow and never respond to hover unless they are interactive. "Interactive" is a property of a
+  surface role, not a role of its own.
+- One meaning per color per context: `theme-primary` = interactivity/brand; **rarity colors = identity coding only**
+  (chip text/border, never buttons, never glow); semantic colors = state; resource colors = economy only.
+
+### Audit checklist for new UI
+
+1. List every glowing/pulsing element — for each, name its intent. No intent, no glow.
+2. Does any informational element out-emphasize an adjacent action? Demote it.
+3. Does anything respond to hover without being clickable? Remove the hover response.
+4. Is more than one primary CTA visible? Demote all but one.
 
 ---
 
@@ -288,7 +352,9 @@ This section records the current visual decisions for vault-management screens. 
 </button>
 
 <!-- Danger Button -->
-<button class="bg-danger text-white px-4 py-2 rounded hover:opacity-80 transition-opacity">
+<button
+  class="bg-danger text-white px-4 py-2 rounded hover:opacity-80 transition-opacity"
+>
   Delete
 </button>
 ```
@@ -387,15 +453,20 @@ Apply to elements for CRT monitor authenticity:
 
 ### Terminal Glow
 
-Two intensity levels:
+Text-glow utilities for the CRT aesthetic. These are **ambient emphasis (`--glow-1`)** — decorative flavor for
+headings and titles. They are not a substitute for the intent tiers: interactive elements use `--glow-2`, live
+status uses `--glow-3` (see [Intent & Emphasis Semantics](#intent--emphasis-semantics)).
 
 ```vue
-<!-- Strong glow for interactive elements -->
+<!-- Interactive element: button styling carries the emphasis, glow on hover -->
 <button class="terminal-glow">Glowing Button</button>
 
-<!-- Subtle glow for text -->
+<!-- Ambient flavor on a heading: fine, it is a title, not a chip -->
 <h1 class="terminal-glow-subtle">Vault Title</h1>
 ```
+
+> The old `.glow-pulse` / `.glow-pulse-subtle` / `.text-glow-pulse` animation utilities were removed — pulsing is
+> reserved for live status (`.badge-live`), and no usages remained.
 
 ### Scanlines
 
@@ -556,10 +627,14 @@ Mobile-first approach using breakpoints:
     <div
       class="w-full max-w-sm rounded-lg bg-surface border-2 border-gray-800 p-8 shadow-glow-lg crt-screen"
     >
-      <h2 class="mb-6 text-center text-2xl font-bold text-terminalGreen terminal-glow">Login</h2>
+      <h2 class="mb-6 text-center text-2xl font-bold text-terminalGreen terminal-glow">
+        Login
+      </h2>
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div>
-          <label for="email" class="block text-sm font-medium text-gray-300 mb-1"> Email </label>
+          <label for="email" class="block text-sm font-medium text-gray-300 mb-1">
+            Email
+          </label>
           <input
             type="email"
             id="email"

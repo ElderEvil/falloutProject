@@ -2,7 +2,7 @@
 import { computed, watch, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import { getRoomDetailParts, hasPart, type RoomPart } from '../models/roomParts'
+import { getRoomDetailParts, hasPart, producesResources, type RoomPart } from '../models/roomParts'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
@@ -139,6 +139,7 @@ watch(
           :room-image-url="roomImageUrl ?? null"
           :dweller-capacity="dwellerCapacity"
           :assigned-dwellers="assignedDwellers"
+          :show-apprentice-slot="producesResources(room)"
         />
 
         <RoomInfoGrid :room="room" :ability-label="room.ability ? getAbilityLabel(room.ability) : null" />

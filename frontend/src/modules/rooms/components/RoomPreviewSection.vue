@@ -9,9 +9,11 @@ interface Props {
   roomImageUrl: string | null
   dwellerCapacity: number
   assignedDwellers: DwellerShort[]
+  /** Only rooms whose policy allows apprentices (production) render the slot. */
+  showApprenticeSlot?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false })
 
 const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
 const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
@@ -53,7 +55,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 </div>
               </template>
             </div>
-            <div class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
+            <div v-if="showApprenticeSlot" class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
               <div class="placeholder-dweller">
                 <span v-if="apprentice" class="dweller-initial">{{ apprentice.first_name[0] }}</span>
                 <Icon v-else icon="mdi:school-outline" class="h-6 w-6 opacity-30" />

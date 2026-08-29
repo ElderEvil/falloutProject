@@ -88,6 +88,9 @@ usePolling(() => load(true), { interval: 1_000, immediate: false })
 const fighterA = computed(() => roomState.value?.fighters[0] ?? null)
 const fighterB = computed(() => roomState.value?.fighters[1] ?? null)
 const roster = computed(() => roomState.value?.roster ?? [])
+// The bench is the assigned dwellers NOT currently in a slot — every dweller
+// appears exactly once: fighters on the stage (slots), the rest here.
+const bench = computed(() => roster.value.filter((entry) => !isSelected(entry.id)))
 const isDone = computed(() => roomState.value?.match_done ?? false)
 const canStart = computed(() => roomState.value?.can_start ?? false)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
@@ -256,59 +259,62 @@ const hpClass = (entry: ArenaRosterEntry) => {
     </div>
 
     <div v-if="isLoading" class="loading">
-      <div class="spinner">⚔️</div>
+      <Icon icon="mdi:sword-cross" class="loading-icon spin" />
       <p>Loading arena...</p>
     </div>
 
     <div v-else class="arena-content">
       <!-- Fighters -->
-      <div class="fighters-row">
-        <ArenaFighterSlot
-          side="A"
-          :fighter="fighterA"
-          :can-change="canChangeFighters"
-          :damage-numbers="damageFor('A')"
-          :options="pickerOptions('A')"
-          :picker-open="openPicker === 'A'"
-          @toggle-picker="togglePicker"
-          @clear="clearFighter"
-          @select="selectFighter"
-        />
+      <div class="section">
+        <h3 class="section-title">
+          <Icon icon="mdi:sword-cross" class="section-title-icon" />
+          Fighters
+        </h3>
+        <div class="fighters-row">
+          <ArenaFighterSlot
+            side="A"
+            :fighter="fighterA"
+            :can-change="canChangeFighters"
+            :damage-numbers="damageFor('A')"
+            :options="pickerOptions('A')"
+            :picker-open="openPicker === 'A'"
+            @toggle-picker="togglePicker"
+            @clear="clearFighter"
+            @select="selectFighter"
+          />
 
-        <div class="versus">
-          <Transition name="countdown-pop" mode="out-in">
-            <span v-if="isFighting && countdown > 0" :key="countdown" class="countdown-number">
-              {{ countdown }}
-            </span>
-            <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
-          </Transition>
-          <span v-if="countdown === 0" class="versus-text">VS</span>
+          <div class="versus">
+            <Transition name="countdown-pop" mode="out-in">
+              <span v-if="isFighting && countdown > 0" :key="countdown" class="countdown-number">
+                {{ countdown }}
+              </span>
+              <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
+            </Transition>
+            <span v-if="countdown === 0" class="versus-text">VS</span>
+          </div>
+
+          <ArenaFighterSlot
+            side="B"
+            :fighter="fighterB"
+            :can-change="canChangeFighters"
+            :damage-numbers="damageFor('B')"
+            :options="pickerOptions('B')"
+            :picker-open="openPicker === 'B'"
+            @toggle-picker="togglePicker"
+            @clear="clearFighter"
+            @select="selectFighter"
+          />
         </div>
-
-        <ArenaFighterSlot
-          side="B"
-          :fighter="fighterB"
-          :can-change="canChangeFighters"
-          :damage-numbers="damageFor('B')"
-          :options="pickerOptions('B')"
-          :picker-open="openPicker === 'B'"
-          @toggle-picker="togglePicker"
-          @clear="clearFighter"
-          @select="selectFighter"
-        />
       </div>
 
-      <!-- Assigned roster -->
-      <div v-if="roster.length" class="arena-roster">
-        <span class="roster-label">ASSIGNED</span>
+      <!-- Bench: assigned dwellers not currently fighting -->
+      <div v-if="bench.length" class="section">
+        <h3 class="section-title">
+          <Icon icon="mdi:account-group-outline" class="section-title-icon" />
+          Bench
+        </h3>
         <div class="roster-chips">
-          <div
-            v-for="entry in roster"
-            :key="entry.id"
-            class="roster-chip"
-            :class="{ fighting: isSelected(entry.id) }"
-            :title="`HP ${entry.health}/${entry.max_health}`"
-          >
+          <div v-for="entry in bench" :key="entry.id" class="roster-chip" :title="`HP ${entry.health}/${entry.max_health}`">
             <div class="roster-chip-main">
               <span class="roster-name">{{ entry.name }}</span>
               <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
@@ -358,10 +364,12 @@ const hpClass = (entry: ArenaRosterEntry) => {
       </div>
 
       <!-- Battle journal -->
-      <div v-if="roomState?.events.length" class="battle-journal">
+      <div v-if="roomState?.events.length" class="section">
         <div class="journal-header">
-          <Icon icon="mdi:clipboard-text-clock-outline" class="journal-icon" />
-          <span>BATTLE JOURNAL</span>
+          <h3 class="section-title">
+            <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
+            Battle Journal
+          </h3>
           <button class="journal-clear" type="button" @click="clearJournal">CLEAR</button>
         </div>
         <div class="journal-list">
@@ -475,8 +483,12 @@ const hpClass = (entry: ArenaRosterEntry) => {
   color: var(--color-theme-primary);
 }
 
-.spinner {
-  font-size: 2.5rem;
+.loading-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.spin {
   animation: spin 2s linear infinite;
 }
 
@@ -489,24 +501,35 @@ const hpClass = (entry: ArenaRosterEntry) => {
   }
 }
 
+/* Section pattern shared with the other room-modal sections */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-theme-primary);
+  margin: 0;
+}
+
+.section-title-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .arena-content {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   padding: 0.5rem 0;
-}
-
-.arena-roster {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.roster-label {
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-500);
 }
 
 .roster-chips {
@@ -521,14 +544,9 @@ const hpClass = (entry: ArenaRosterEntry) => {
   gap: 0.5rem;
   padding: 0.3rem 0.5rem;
   border: 1px solid var(--color-surface-hover);
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 0.75rem;
   color: var(--color-gray-300);
-}
-
-.roster-chip.fighting {
-  border-color: var(--color-theme-primary);
-  color: var(--color-theme-primary);
 }
 
 .roster-chip-main {
@@ -646,37 +664,26 @@ const hpClass = (entry: ArenaRosterEntry) => {
   margin-right: 0.4rem;
 }
 
-.battle-journal {
+.journal-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.25rem;
   max-height: 180px;
   overflow-y: auto;
   padding: 0.6rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-surface-hover);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .journal-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
-  font-size: 0.7rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-400);
-  text-transform: uppercase;
-}
-
-.journal-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-theme-primary);
 }
 
 .journal-clear {
-  margin-left: auto;
   border: 1px solid var(--color-surface-hover);
   border-radius: 4px;
   padding: 0.1rem 0.5rem;

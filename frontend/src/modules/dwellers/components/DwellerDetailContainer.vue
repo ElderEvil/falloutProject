@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -9,9 +9,7 @@ import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import { UButton, UInput, UModal } from '@/core/components/ui'
 import DwellerDetailPane from '../components/DwellerDetailPane.vue'
-import DwellerAppearanceEditor from '../components/DwellerAppearanceEditor.vue'
-import TrainingStartModal from '../components/modals/TrainingStartModal.vue'
-import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useSendToWasteland } from '@/modules/exploration/composables/useSendToWasteland'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -21,7 +19,24 @@ import { useDwellerDetailActions } from '../composables/useDwellerDetail'
 import type { MapPlaceLink } from '../components/DwellerBio.vue'
 import type { RevivalCostResponse } from '../models/dweller'
 
-const props = defineProps<{ embedded?: boolean }>()
+const DwellerAppearanceEditor = defineAsyncComponent({
+  loader: () => import('../components/DwellerAppearanceEditor.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
+const TrainingStartModal = defineAsyncComponent({
+  loader: () => import('../components/modals/TrainingStartModal.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
+const ExplorationDurationModal = defineAsyncComponent({
+  loader: () => import('@/modules/exploration/components/ExplorationDurationModal.vue'),
+  loadingComponent: ComponentLoader,
+  delay: 200,
+  timeout: 10000,
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -38,14 +53,11 @@ const explorationStore = useExplorationStore()
 const toast = useToast()
 const { triggerGaryMode } = useGaryMode()
 
-// Standalone route uses :dwellerId; the desktop master-detail uses ?selected.
+// The full-page detail route carries the dweller id as :dwellerId.
 const dwellerId = computed<string>(() => {
   const fromParam = route.params.dwellerId
   if (typeof fromParam === 'string') return fromParam
   if (Array.isArray(fromParam) && typeof fromParam[0] === 'string') return fromParam[0]
-  const fromQuery = route.query.selected
-  if (typeof fromQuery === 'string') return fromQuery
-  if (Array.isArray(fromQuery) && typeof fromQuery[0] === 'string') return fromQuery[0]
   return ''
 })
 const vaultId = computed(() => route.params.id as string)
@@ -113,12 +125,7 @@ watch(isDead, async (newIsDead) => {
 })
 
 const onBack = () => {
-  if (props.embedded) {
-    // Deselect in the master-detail list instead of leaving the page
-    router.replace({ query: { ...route.query, selected: undefined } })
-  } else {
-    router.push(`/vault/${vaultId.value}/dwellers`)
-  }
+  router.push(`/vault/${vaultId.value}/dwellers`)
 }
 
 const navigateToChatPage = () => router.push(`/dweller/${dwellerId.value}/chat`)

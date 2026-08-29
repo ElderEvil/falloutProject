@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.60.0 (2026-08-29)
+
+### Features
+
+* add production room apprenticeships 8dc58d8
+
+### Bug Fixes
+
+* correct apprentice lifecycle accounting 0f2010b
+
 ## 2.59.0 (2026-08-29)
 
 ### Features

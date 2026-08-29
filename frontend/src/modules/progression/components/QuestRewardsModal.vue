@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import RewardsModalShell from '@/core/components/common/RewardsModalShell.vue'
+import RewardCard from '@/core/components/common/RewardCard.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
 
 interface Props {
@@ -94,154 +96,46 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div v-if="show && quest" class="modal-overlay" @click="emit('close')">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <div class="header-title">
-            <Icon icon="mdi:treasure-chest" class="header-icon" />
-            <h2 class="title">Quest Complete!</h2>
-          </div>
-          <button class="close-btn" aria-label="Close" @click="emit('close')">
-            <Icon icon="mdi:close" />
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div class="quest-name">
-            <Icon icon="mdi:flag-checkered" class="quest-name-icon" />
-            {{ quest.title }} has returned. Confirm delivery to your vault.
-          </div>
-
-          <div v-if="rewards.length > 0" class="rewards-grid">
-            <div v-for="reward in rewards" :key="reward.id" class="reward-card">
-              <div class="reward-icon-container">
-                <Icon :icon="rewardMeta(reward).icon" class="reward-icon" />
-              </div>
-              <div class="reward-details">
-                <div class="reward-label">{{ rewardMeta(reward).label }}</div>
-                <div class="reward-value">{{ rewardLabel(reward) }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="no-items">
-            <Icon icon="mdi:package-variant-closed" class="no-items-icon" />
-            <p>No rewards listed for this quest</p>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="cancel-btn" @click="emit('close')">Review Later</button>
-          <button class="collect-btn" @click="emit('confirm')">
-            <Icon icon="mdi:check-bold" class="mr-2" />
-            Confirm & Claim
-          </button>
-        </div>
+  <RewardsModalShell
+    :show="show && !!quest"
+    title="Quest Complete!"
+    header-icon="mdi:treasure-chest"
+    max-width="600px"
+    @close="emit('close')"
+  >
+    <template #default>
+      <div v-if="quest" class="quest-name">
+        <Icon icon="mdi:flag-checkered" class="quest-name-icon" />
+        {{ quest.title }} has returned. Confirm delivery to your vault.
       </div>
-    </div>
-  </Teleport>
+
+      <div v-if="rewards.length > 0" class="rewards-grid">
+        <RewardCard
+          v-for="reward in rewards"
+          :key="reward.id"
+          :icon="rewardMeta(reward).icon"
+          :label="rewardMeta(reward).label"
+          :value="rewardLabel(reward)"
+        />
+      </div>
+
+      <div v-else class="no-items">
+        <Icon icon="mdi:package-variant-closed" class="no-items-icon" />
+        <p>No rewards listed for this quest</p>
+      </div>
+    </template>
+
+    <template #footer>
+      <button class="cancel-btn" @click="emit('close')">Review Later</button>
+      <button class="collect-btn" @click="emit('confirm')">
+        <Icon icon="mdi:check-bold" class="mr-2" />
+        Confirm & Claim
+      </button>
+    </template>
+  </RewardsModalShell>
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  background: var(--color-surface-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 40px var(--color-theme-glow);
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 2px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-icon {
-  width: 2rem;
-  height: 2rem;
-  color: var(--color-rarity-legendary);
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
-}
-
-.title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.close-btn {
-  background: transparent;
-  border: 2px solid color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
-  color: var(--color-theme-primary);
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.close-btn:hover {
-  background: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
-  border-color: var(--color-theme-primary);
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-}
-
 .quest-name {
   display: flex;
   align-items: center;
@@ -266,54 +160,6 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
   gap: 1rem;
 }
 
-.reward-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
-}
-
-.reward-icon-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 50%;
-  border: 2px solid var(--color-theme-accent);
-  background: color-mix(in srgb, var(--color-theme-secondary) 60%, transparent);
-  flex-shrink: 0;
-}
-
-.reward-icon {
-  width: 1.9rem;
-  height: 1.9rem;
-  color: var(--color-theme-accent);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.reward-details {
-  min-width: 0;
-}
-
-.reward-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-
-.reward-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
 .no-items {
   display: flex;
   flex-direction: column;
@@ -327,14 +173,6 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
 .no-items-icon {
   width: 3rem;
   height: 3rem;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
-  border-top: 2px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
 .cancel-btn {

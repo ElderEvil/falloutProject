@@ -70,14 +70,16 @@ const emit = defineEmits<{ close: [] }>()
 }
 
 .modal-content {
-  background: var(--color-surface-dark);
+  background: linear-gradient(180deg, var(--color-surface-raised) 0%, var(--color-surface) 100%);
   border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
+  border-radius: 10px;
   width: 90%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 0 40px var(--color-theme-glow);
+  box-shadow:
+    0 0 40px var(--color-theme-glow),
+    inset 0 1px 0 color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
   animation: slideUp 0.3s ease;
 }
 
@@ -98,6 +100,8 @@ const emit = defineEmits<{ close: [] }>()
   justify-content: space-between;
   padding: 1.5rem;
   border-bottom: 2px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-theme-primary) 4%, transparent), transparent);
+  border-radius: 8px 8px 0 0;
 }
 
 .header-title {
@@ -151,5 +155,7 @@ const emit = defineEmits<{ close: [] }>()
   gap: 0.75rem;
   padding: 1.25rem 1.5rem;
   border-top: 2px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-surface-sunken) 40%, transparent);
+  border-radius: 0 0 8px 8px;
 }
 </style>

@@ -14,8 +14,8 @@ class CRUDGameState:
     async def get_by_vault_id(db_session: AsyncSession, vault_id: UUID4) -> GameState | None:
         """Get game state by vault ID."""
         query = select(GameState).where(GameState.vault_id == vault_id)
-        result = await db_session.exec(query)
-        return result.first()
+        result = await db_session.execute(query)
+        return result.scalars().first()
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, vault_id: UUID4) -> GameState:
@@ -64,8 +64,8 @@ class CRUDGameState:
     async def get_all_active(db_session: AsyncSession) -> list[GameState]:
         """Get all active (not paused) game states."""
         query = select(GameState).where(GameState.is_active & ~GameState.is_paused)
-        result = await db_session.exec(query)
-        return list(result.all())
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
 
 # Global instance

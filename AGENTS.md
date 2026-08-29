@@ -38,6 +38,17 @@ Business logic lives in **services**, never endpoints. Endpoints are thin: parse
 
 Rule of thumb: if an endpoint has >3 lines of non-trivial logic beyond a service call, move it into a service.
 
+### Background task session compatibility
+
+Dramatiq game-tick actors create raw SQLAlchemy `AsyncSession` instances via
+`sqlalchemy.ext.asyncio.async_sessionmaker`. These sessions do not provide
+SQLModel's `.exec()` method. CRUD/services used by `game_tick`,
+`process_vault_tick`, or other `task_session()` actors must use
+`.execute(...).scalars()` unless the session factory explicitly sets
+`class_=sqlmodel.ext.asyncio.session.AsyncSession`. Any session-factory or CRUD
+refactor in this path requires a regression test using the raw SQLAlchemy
+session type.
+
 Error handling:
 - Prefer custom exceptions in `backend/app/utils/exceptions.py` over ad-hoc `HTTPException`.
 - Endpoints map service exceptions: `ValidationException`→400, `ResourceNotFoundException`→404, `ResourceConflictException`→409, `VaultOperationException`→400.

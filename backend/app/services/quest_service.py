@@ -47,6 +47,7 @@ class QuestService:
             try:
                 await self.mark_quest_ready_to_claim(db_session, quest_id, link_vault_id)
             except Exception:
+                # Keep one quest failure isolated; the raw-session completion path is tested end to end.
                 logger.exception(f"Failed to auto-complete quest {quest_id} for vault {link_vault_id}")
             else:
                 completed_count += 1
@@ -70,7 +71,7 @@ class QuestService:
                 VaultQuestCompletionLink.vault_id == vault_id,
             )
         )
-        link = (await db_session.exec(query)).one_or_none()
+        link = (await db_session.execute(query)).scalars().one_or_none()
 
         if not link:
             raise ResourceNotFoundException(
@@ -141,13 +142,17 @@ class QuestService:
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
         link = (
-            await db_session.exec(
-                select(VaultQuestCompletionLink).where(
-                    VaultQuestCompletionLink.quest_id == quest_id,
-                    VaultQuestCompletionLink.vault_id == vault_id,
+            (
+                await db_session.execute(
+                    select(VaultQuestCompletionLink).where(
+                        VaultQuestCompletionLink.quest_id == quest_id,
+                        VaultQuestCompletionLink.vault_id == vault_id,
+                    )
                 )
             )
-        ).one_or_none()
+            .scalars()
+            .one_or_none()
+        )
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
@@ -181,13 +186,17 @@ class QuestService:
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
         link = (
-            await db_session.exec(
-                select(VaultQuestCompletionLink).where(
-                    VaultQuestCompletionLink.quest_id == quest_id,
-                    VaultQuestCompletionLink.vault_id == vault_id,
+            (
+                await db_session.execute(
+                    select(VaultQuestCompletionLink).where(
+                        VaultQuestCompletionLink.quest_id == quest_id,
+                        VaultQuestCompletionLink.vault_id == vault_id,
+                    )
                 )
             )
-        ).one_or_none()
+            .scalars()
+            .one_or_none()
+        )
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"

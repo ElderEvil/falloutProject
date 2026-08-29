@@ -118,7 +118,7 @@ onMounted(async () => {
               </p>
             </div>
 
-            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
               <TrainingRoomCard
                 v-for="room in trainingRooms"
                 :key="room.id"

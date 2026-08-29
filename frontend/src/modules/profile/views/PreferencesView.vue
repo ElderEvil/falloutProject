@@ -5,6 +5,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
+import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -28,6 +29,17 @@ const {
 
 const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
+const profileStore = useProfileStore()
+
+// Persist theme to the user profile so fetchProfile() does not reset the
+// local choice back to the server-side preference on the next profile load.
+const handleThemeChange = (themeName: ThemeName) => {
+  setTheme(themeName)
+  const currentPrefs = (profileStore.profile?.preferences ?? {}) as Record<string, unknown>
+  void profileStore.updateProfile({
+    preferences: { ...currentPrefs, theme: themeName },
+  })
+}
 
 // Get injected glow class from App.vue (with fallback)
 const injectedGlowClass = inject('glowClass', glowClass)
@@ -77,7 +89,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                 <button
                   v-for="theme in availableThemes"
                   :key="theme.name"
-                  @click="setTheme(theme.name)"
+                  @click="handleThemeChange(theme.name)"
                   class="theme-card"
                   :class="{ active: currentTheme.name === theme.name }"
                   :style="{

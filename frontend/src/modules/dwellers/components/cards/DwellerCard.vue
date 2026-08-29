@@ -107,7 +107,19 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
   <div class="dweller-card">
     <div class="portrait-container">
       <template v-if="imageUrl">
-        <img :src="getImageUrl(imageUrl)" alt="Dweller Portrait" class="portrait-image" />
+        <img
+          :src="getImageUrl(imageUrl)"
+          alt="Dweller Portrait"
+          :class="['portrait-image', { 'grayscale brightness-50 contrast-125': dweller.is_dead }]"
+        />
+        <span
+          v-if="dweller.is_dead"
+          class="dead-portrait-marker absolute right-3 top-3 rounded-full border border-red-400/70 bg-black/75 p-2 text-red-400 shadow-[0_0_12px_rgba(248,113,113,0.6)]"
+          role="img"
+          aria-label="Deceased"
+        >
+          <Icon icon="mdi:skull" class="h-6 w-6" :ariaHidden="true" />
+        </span>
       </template>
       <template v-else>
         <button

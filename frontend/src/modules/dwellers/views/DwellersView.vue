@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -25,6 +25,7 @@ import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
 import DwellersList from '../components/DwellersList.vue'
 import DeadDwellersPanel from '../components/DeadDwellersPanel.vue'
+import DwellerDetailContainer from '../components/DwellerDetailContainer.vue'
 
 // Lazy load room modal
 const RoomDetailModal = defineAsyncComponent({
@@ -221,6 +222,39 @@ const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
 
+// Desktop master-detail: on wide viewports, clicking a dweller sets ?selected
+// (keeps the list visible) instead of navigating to the standalone detail route.
+const isDesktop = ref(false)
+let desktopMedia: MediaQueryList | null = null
+function applyDesktopMatch(mq: MediaQueryList | MediaQueryListEvent) {
+  isDesktop.value = mq.matches
+}
+onMounted(() => {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    desktopMedia = window.matchMedia('(min-width: 1024px)')
+    applyDesktopMatch(desktopMedia)
+    desktopMedia.addEventListener('change', applyDesktopMatch)
+  } else {
+    isDesktop.value = false
+  }
+})
+onUnmounted(() => {
+  desktopMedia?.removeEventListener('change', applyDesktopMatch)
+})
+
+const selectedId = computed(() => {
+  const selected = route.query.selected
+  return Array.isArray(selected) ? selected[0] : (selected as string | undefined)
+})
+
+const handleViewDetails = (dwellerId: string) => {
+  if (isDesktop.value) {
+    router.replace({ query: { ...route.query, selected: dwellerId } })
+  } else {
+    viewDwellerDetails(dwellerId)
+  }
+}
+
 const generateDwellerInfo = async (dwellerId: string) => {
   generatingAI.value[dwellerId] = true
   try {
@@ -330,28 +364,45 @@ const handleViewLowHappiness = () => {
             <DwellerBulkActions :vault-id="vaultId" />
           </div>
 
-          <DeadDwellersPanel
-            v-if="isDeadFilter"
-            :dwellers="dwellerDeathStore.deadDwellers"
-            :is-loading="dwellerDeathStore.isDeadLoading"
-            :reviving-dwellers="revivingDwellers"
-            @revive="handleRevive"
-            @view-details="viewDwellerDetails"
-            @view-graveyard="navigateToGraveyard"
-          />
-          <DwellersList
-            v-else
-            :dwellers="dwellerStore.dwellers"
-            :generating-a-i="generatingAI"
-            :is-loading="dwellerStore.isLoading"
-            :rooms="roomStore.rooms"
-            :view-mode="dwellerStore.viewMode"
-            @view-details="viewDwellerDetails"
-            @generate-ai="generateDwellerInfo"
-            @open-room="openRoomModal"
-            @quick-unassign="handleQuickUnassign"
-            @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"
-          />
+          <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div class="min-w-0 flex-1">
+              <DeadDwellersPanel
+                v-if="isDeadFilter"
+                :dwellers="dwellerDeathStore.deadDwellers"
+                :is-loading="dwellerDeathStore.isDeadLoading"
+                :reviving-dwellers="revivingDwellers"
+                @revive="handleRevive"
+                @view-details="handleViewDetails"
+                @view-graveyard="navigateToGraveyard"
+              />
+              <DwellersList
+                v-else
+                :dwellers="dwellerStore.dwellers"
+                :generating-a-i="generatingAI"
+                :is-loading="dwellerStore.isLoading"
+                :rooms="roomStore.rooms"
+                :view-mode="dwellerStore.viewMode"
+                @view-details="handleViewDetails"
+                @generate-ai="generateDwellerInfo"
+                @open-room="openRoomModal"
+                @quick-unassign="handleQuickUnassign"
+                @room-click="(roomId) => router.push(`/vault/${vaultId}?roomId=${roomId}`)"
+              />
+            </div>
+
+            <aside
+              v-if="isDesktop"
+              class="hidden w-full shrink-0 lg:block lg:w-[460px]"
+            >
+              <DwellerDetailContainer v-if="selectedId" :embedded="true" />
+              <div
+                v-else
+                class="flex min-h-[400px] items-center justify-center rounded-lg border border-theme-primary/20 p-6 text-center text-theme-primary/60"
+              >
+                Select a dweller to view details
+              </div>
+            </aside>
+          </div>
         </PageContentRail>
       </div>
     </div>

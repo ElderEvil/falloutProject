@@ -85,8 +85,8 @@ class IncidentConfig(BaseSettings):
         ge=10,
     )
     max_spread_count: int = Field(
-        default=3,
-        description="Maximum number of times an incident can spread",
+        default=0,
+        description="Maximum incident spreads; temporarily disabled for balance",
         ge=0,
         le=10,
     )

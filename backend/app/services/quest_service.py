@@ -47,6 +47,8 @@ class QuestService:
             try:
                 await self.mark_quest_ready_to_claim(db_session, quest_id, link_vault_id)
             except Exception:
+                # Keep one quest failure isolated; session API compatibility is
+                # enforced by the raw-session regression test, not swallowed here.
                 logger.exception(f"Failed to auto-complete quest {quest_id} for vault {link_vault_id}")
             else:
                 completed_count += 1

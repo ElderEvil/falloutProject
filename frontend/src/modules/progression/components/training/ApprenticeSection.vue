@@ -125,41 +125,43 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       description="Assign youth dwellers to production rooms as apprentices to learn SPECIAL stats."
     />
 
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
       <div
         v-for="apprentice in apprenticeCards"
         :key="apprentice.id"
-        class="flex flex-col gap-3 rounded-lg border-2 border-theme-primary/30 bg-black/30 p-4 transition-colors hover:border-theme-primary/50"
+        class="flex flex-col gap-4 rounded-lg border-2 border-theme-primary/30 bg-black/30 p-5 transition-colors hover:border-theme-primary/50"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
           <DwellerPortrait
             :thumbnail-url="apprentice.thumbnailUrl"
             :alt="apprentice.name"
+            image-class="h-14 w-14 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated]"
+            fallback-class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary"
           />
           <div class="min-w-0 flex-1">
-            <p class="m-0 truncate font-mono text-sm font-bold text-theme-primary">
+            <p class="m-0 truncate font-mono text-base font-bold text-theme-primary">
               {{ apprentice.name }}
             </p>
-            <p class="m-0 truncate font-mono text-xs text-theme-primary/60">
+            <p class="m-0 truncate font-mono text-sm text-theme-primary/60">
               {{ apprentice.roomName }}
             </p>
           </div>
           <span
-            class="flex shrink-0 items-center gap-1.5 rounded border border-theme-primary/40 bg-theme-secondary/40 px-2 py-1 font-mono text-xs font-bold text-theme-primary"
+            class="flex shrink-0 items-center gap-2 rounded border border-theme-primary/40 bg-theme-secondary/40 px-2.5 py-1.5 font-mono text-sm font-bold text-theme-primary"
           >
-            <Icon :icon="apprentice.statIcon" class="text-sm" />
+            <Icon :icon="apprentice.statIcon" class="text-base" />
             {{ apprentice.statLabel }} {{ apprentice.currentStat }}→{{ apprentice.currentStat + 1 }}
           </span>
         </div>
 
-        <div class="flex flex-col gap-1.5">
-          <div class="flex items-center justify-between font-mono text-xs text-theme-primary/70">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between font-mono text-sm text-theme-primary/70">
             <span>Progress</span>
             <span class="font-bold text-theme-primary">{{ apprentice.timeRemaining }}</span>
           </div>
           <UProgressBar
             :model-value="apprentice.progressPercent"
-            :height="6"
+            :height="10"
             color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
             :glow="false"
           />

@@ -126,7 +126,7 @@ const handleComplete = () => {
 
 <template>
   <div
-    class="rounded-lg border bg-transparent px-3 py-2.5 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-all duration-300"
+    class="rounded-lg border bg-transparent px-2.5 py-2 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-all duration-300"
     :class="{
       'border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
         !isReadyToComplete && training.status === 'active',
@@ -136,27 +136,27 @@ const handleComplete = () => {
         training.status !== 'active',
     }"
   >
-    <div class="mb-2 flex items-center gap-3">
+    <div class="mb-1.5 flex items-center gap-2">
       <div class="flex shrink-0 items-center gap-1.5">
         <DwellerPortrait
           :thumbnail-url="dwellerImage"
           :alt="dwellerName ?? 'Dweller'"
-          :image-class="`h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
-          :fallback-class="`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
+          :image-class="`h-8 w-8 shrink-0 rounded border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
+          :fallback-class="`flex h-8 w-8 shrink-0 items-center justify-center rounded border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
         />
         <Icon
           :icon="getStatIcon(training.stat_being_trained)"
-          class="text-2xl text-theme-primary"
+          class="text-lg text-theme-primary"
           :class="{
             'text-theme-accent animate-[bounce_1s_ease-in-out_infinite]': isReadyToComplete,
           }"
         />
       </div>
-      <div class="flex flex-1 flex-col gap-1">
-        <span v-if="dwellerName" class="font-mono text-xs text-theme-primary">{{
+      <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span v-if="dwellerName" class="truncate font-mono text-xs text-theme-primary">{{
           dwellerName
         }}</span>
-        <span class="font-mono text-sm font-bold uppercase tracking-[0.05em] text-theme-primary"
+        <span class="truncate font-mono text-xs font-bold uppercase tracking-[0.05em] text-theme-primary"
           >Training {{ training.stat_being_trained.toUpperCase() }}</span
         >
       </div>
@@ -173,20 +173,20 @@ const handleComplete = () => {
       </UBadge>
     </div>
 
-    <div class="flex items-center gap-3">
-      <div class="flex min-w-0 flex-1 items-center gap-2">
+    <div class="flex items-center gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-1.5">
         <UProgressBar
           :model-value="progressPercentage"
-          :height="12"
+          :height="8"
           :color="fillGradient"
           :glow="false"
         />
-        <span class="w-10 shrink-0 text-right font-mono text-xs text-theme-primary"
+        <span class="w-9 shrink-0 text-right font-mono text-xs text-theme-primary"
           >{{ progressPercentage.toFixed(0) }}%</span
         >
       </div>
-      <div class="flex shrink-0 items-center gap-1.5">
-        <Icon icon="mdi:clock-outline" class="text-sm text-theme-primary" />
+      <div class="flex shrink-0 items-center gap-1">
+        <Icon icon="mdi:clock-outline" class="text-xs text-theme-primary" />
         <span
           class="whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
           :class="{
@@ -197,7 +197,7 @@ const handleComplete = () => {
           {{ timeRemaining }}
         </span>
       </div>
-      <div class="flex shrink-0 gap-1.5">
+      <div class="flex shrink-0 gap-1">
         <UButton v-if="isReadyToComplete" size="xs" variant="primary" @click="handleComplete">
           <Icon icon="mdi:check-circle" class="h-3.5 w-3.5" />
           Complete

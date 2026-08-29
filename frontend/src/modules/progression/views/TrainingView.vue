@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
+import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -146,6 +147,8 @@ onMounted(async () => {
               />
             </div>
           </section>
+
+          <ApprenticeSection />
 
           <div class="w-full">
             <TrainingQueuePanel />

@@ -153,4 +153,18 @@ withDefaults(
     transform: scale(1.05);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .reward-card {
+    transition: none;
+  }
+
+  .reward-card:hover {
+    transform: none;
+  }
+
+  .experience-value {
+    animation: none;
+  }
+}
 </style>

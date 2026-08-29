@@ -69,4 +69,20 @@ describe('RewardsModalShell', () => {
 
     expect(wrapper.get('.modal-content').attributes('style')).toContain('max-width: 600px')
   })
+
+  it('renders as a labelled dialog', () => {
+    const wrapper = mountShell({ title: 'Quest Complete!' }, { default: '<p>body</p>' })
+
+    expect(wrapper.get('.modal-content').attributes('role')).toBe('dialog')
+    expect(wrapper.get('.modal-content').attributes('aria-modal')).toBe('true')
+    expect(wrapper.get('.modal-content').attributes('aria-label')).toBe('Quest Complete!')
+  })
+
+  it('emits close on Escape keydown', async () => {
+    const wrapper = mountShell({}, { default: '<p>body</p>' })
+
+    await wrapper.get('.modal-content').trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
 })

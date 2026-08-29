@@ -7,7 +7,8 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import { UCard, UBadge, UButton, UModal } from '@/core/components/ui'
+import QuestRewardsModal from '../components/QuestRewardsModal.vue'
+import { UCard, UBadge, UButton } from '@/core/components/ui'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -310,16 +311,12 @@ const goBack = () => {
                   </div>
                 </div>
 
-                <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
-                  <div class="space-y-4 font-mono text-terminal-green">
-                    <p>{{ quest.title }} has returned. Confirm delivery to your vault.</p>
-                    <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
-                    <div class="flex justify-end gap-3">
-                      <UButton variant="secondary" @click="showClaimModal = false">Cancel</UButton>
-                      <UButton variant="primary" @click="confirmClaimRewards">Claim Rewards</UButton>
-                    </div>
-                  </div>
-                </UModal>
+                <QuestRewardsModal
+                  :quest="quest"
+                  :show="showClaimModal"
+                  @close="showClaimModal = false"
+                  @confirm="confirmClaimRewards"
+                />
               </div>
             </div>
           </div>

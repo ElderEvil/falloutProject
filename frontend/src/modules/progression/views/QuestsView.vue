@@ -13,8 +13,9 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UModal } from '@/core/components/ui'
+import { UButton } from '@/core/components/ui'
 import { QuestCard, PartySelectionModal } from '../components'
+import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
@@ -179,12 +180,7 @@ const confirmClaimRewards = async () => {
   claimQuest.value = null
 }
 
-const rewardLabel = (reward: NonNullable<VaultQuest['quest_rewards']>[number]) => {
-  const data = reward.reward_data
-  if (reward.reward_type === 'item') return String(data.item_name || reward.item_data?.name || 'Item')
-  if (reward.reward_type === 'dweller') return String(data.template_id || data.name || 'New Dweller').replaceAll('-', ' ')
-  return String(data.amount || reward.reward_type)
-}
+
 
 // Fetch quests on mount
 onMounted(async () => {
@@ -364,27 +360,12 @@ onMounted(async () => {
             @assign="handleAssignAndStart"
           />
 
-          <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
-            <div v-if="claimQuest" class="space-y-4 font-mono text-terminal-green">
-              <p class="terminal-glow">{{ claimQuest.title }} has returned. Confirm delivery to your vault.</p>
-              <div class="border border-terminal-green/50 bg-surface-sunken p-3">
-                <p class="mb-2 text-xs tracking-widest text-theme-accent">MANIFEST</p>
-                <ul class="space-y-2">
-                  <li v-for="reward in claimQuest.quest_rewards || []" :key="reward.id" class="flex justify-between">
-                    <span>{{ rewardLabel(reward) }}</span>
-                    <span class="text-theme-accent">{{ reward.reward_type }}</span>
-                  </li>
-                </ul>
-              </div>
-              <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
-            </div>
-            <template #footer>
-              <div class="flex w-full justify-end gap-3 p-5 pt-0">
-                <UButton variant="secondary" @click="showClaimModal = false">Review Later</UButton>
-                <UButton class="confirm-claim-btn" variant="primary" @click="confirmClaimRewards">Confirm & Claim</UButton>
-              </div>
-            </template>
-          </UModal>
+          <QuestRewardsModal
+            :quest="claimQuest"
+            :show="showClaimModal"
+            @close="showClaimModal = false"
+            @confirm="confirmClaimRewards"
+          />
         </PageContentRail>
       </div>
     </div>

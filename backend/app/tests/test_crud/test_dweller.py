@@ -657,6 +657,7 @@ async def test_dweller_status_on_room_reassignment(async_session: AsyncSession):
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 

@@ -6,7 +6,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -184,6 +184,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 

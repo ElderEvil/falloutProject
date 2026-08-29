@@ -437,6 +437,7 @@ class GameLoopService:
                 Dweller.vault_id == vault_id,
                 Dweller.apprentice_stat.is_not(None),
                 Dweller.apprentice_started_at.is_not(None),
+                ~Dweller.is_deleted,
                 ~Dweller.is_dead,
             )
         )
@@ -469,6 +470,11 @@ class GameLoopService:
 
             if current_stat < game_config.training.special_stat_max:
                 SPECIALModel.set_stat(apprentice, apprentice.apprentice_stat, current_stat + 1)
+                stat_key = apprentice.apprentice_stat.value.lower()
+                apprentice.apprentice_stat_gains = {
+                    **apprentice.apprentice_stat_gains,
+                    stat_key: apprentice.apprentice_stat_gains.get(stat_key, 0) + 1,
+                }
                 stats["stats_awarded"] += 1
             apprentice.apprentice_started_at = now
             db_session.add(apprentice)

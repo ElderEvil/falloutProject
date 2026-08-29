@@ -32,6 +32,7 @@ async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, r
             Dweller.room_id == room.id,
             Dweller.id != dweller.id,
             Dweller.apprentice_started_at.is_not(None),
+            ~Dweller.is_deleted,
         )
     )
     if existing_apprentice.scalars().first() is not None:

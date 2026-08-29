@@ -296,7 +296,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         apprenticeship_update = (
             {"apprentice_stat": room_obj.ability, "apprentice_started_at": datetime.utcnow()}
             if not dweller_obj.is_mature
-            else {"apprentice_stat": None, "apprentice_started_at": None}
+            else {"apprentice_stat": None, "apprentice_started_at": None, "apprentice_stat_gains": {}}
         )
         dweller_obj = await self.update(
             db_session,

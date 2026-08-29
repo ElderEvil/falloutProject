@@ -110,8 +110,8 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
             "uq_dweller_active_apprentice_room",
             "room_id",
             unique=True,
-            postgresql_where=sa.text("apprentice_started_at IS NOT NULL"),
-            sqlite_where=sa.text("apprentice_started_at IS NOT NULL"),
+            postgresql_where=sa.text("apprentice_started_at IS NOT NULL AND is_deleted = false"),
+            sqlite_where=sa.text("apprentice_started_at IS NOT NULL AND is_deleted = false"),
         ),
     )
 
@@ -127,6 +127,10 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)
     apprentice_started_at: datetime | None = Field(default=None)
+    apprentice_stat_gains: dict[str, int] = Field(
+        default_factory=dict,
+        sa_column=sa.Column(sa.JSON, nullable=False, server_default=sa.text("'{}'")),
+    )
 
     # Relationships and Family
     partner_id: UUID4 | None = Field(

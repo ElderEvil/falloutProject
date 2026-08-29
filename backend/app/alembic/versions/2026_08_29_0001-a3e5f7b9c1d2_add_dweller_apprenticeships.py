@@ -32,16 +32,22 @@ special_enum = sa.Enum(
 def upgrade() -> None:
     op.add_column("dweller", sa.Column("apprentice_stat", special_enum, nullable=True))
     op.add_column("dweller", sa.Column("apprentice_started_at", sa.DateTime(), nullable=True))
+    op.add_column(
+        "dweller",
+        sa.Column("apprentice_stat_gains", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
+    )
     op.create_index(
         "uq_dweller_active_apprentice_room",
         "dweller",
         ["room_id"],
         unique=True,
-        postgresql_where=sa.text("apprentice_started_at IS NOT NULL"),
+        postgresql_where=sa.text("apprentice_started_at IS NOT NULL AND is_deleted = false"),
+        sqlite_where=sa.text("apprentice_started_at IS NOT NULL AND is_deleted = false"),
     )
 
 
 def downgrade() -> None:
     op.drop_index("uq_dweller_active_apprentice_room", table_name="dweller")
+    op.drop_column("dweller", "apprentice_stat_gains")
     op.drop_column("dweller", "apprentice_started_at")
     op.drop_column("dweller", "apprentice_stat")

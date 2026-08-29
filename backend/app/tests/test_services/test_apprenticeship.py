@@ -85,6 +85,25 @@ async def test_only_one_youth_can_apprentice_in_a_production_room(async_session:
 
 
 @pytest.mark.asyncio
+async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session: AsyncSession, vault: Vault) -> None:
+    deleted_youth = await _create_youth(async_session, vault, "Ada")
+    replacement_youth = await _create_youth(async_session, vault, "Bea")
+    room = await _create_production_room(async_session, vault)
+    await crud.dweller.move_to_room(async_session, deleted_youth.id, room.id)
+    deleted_youth.strength = 2
+    deleted_youth.apprentice_started_at = datetime.utcnow() - timedelta(days=1)
+    deleted_youth.soft_delete()
+    await async_session.commit()
+
+    await crud.dweller.move_to_room(async_session, replacement_youth.id, room.id)
+    result = await game_loop_service._process_apprenticeships(async_session, vault.id)
+
+    await async_session.refresh(deleted_youth)
+    assert result["active_count"] == 1
+    assert deleted_youth.strength == 2
+
+
+@pytest.mark.asyncio
 async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
     async_session: AsyncSession, vault: Vault
 ) -> None:
@@ -101,6 +120,7 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
     await async_session.refresh(youth)
     assert result["stats_awarded"] == 1
     assert youth.strength == 3
+    assert youth.apprentice_stat_gains == {"strength": 1}
     assert youth.apprentice_started_at > datetime.utcnow() - timedelta(seconds=5)
 
 
@@ -164,6 +184,21 @@ async def test_apprentice_scenario_requires_existing_production_room(async_sessi
 
 
 @pytest.mark.asyncio
+async def test_adult_transition_preserves_each_apprentice_gain(async_session: AsyncSession, vault: Vault) -> None:
+    youth = await _create_youth(async_session, vault, "Ada")
+    youth.strength = 4  # Baseline child Strength 3 plus one completed apprenticeship interval.
+    youth.apprentice_stat_gains = {"strength": 1}
+    youth.apprentice_stat = SPECIALEnum.STRENGTH
+    youth.birth_date = datetime.utcnow() - timedelta(hours=10_000)
+    await async_session.commit()
+
+    await BreedingService.age_children(async_session, vault.id)
+
+    await async_session.refresh(youth)
+    assert youth.strength == 7
+
+
+@pytest.mark.asyncio
 async def test_adult_transition_clears_apprenticeship_state(async_session: AsyncSession, vault: Vault) -> None:
     youth = await _create_youth(async_session, vault, "Ada")
     room = await _create_production_room(async_session, vault)
@@ -177,3 +212,4 @@ async def test_adult_transition_clears_apprenticeship_state(async_session: Async
     assert youth.age_group == AgeGroupEnum.ADULT
     assert youth.apprentice_stat is None
     assert youth.apprentice_started_at is None
+    assert youth.apprentice_stat_gains == {}

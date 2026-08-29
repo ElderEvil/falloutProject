@@ -673,8 +673,11 @@ class BreedingService:
             teen.apprentice_started_at = None
             for attr in SPECIAL_STATS:
                 current_stat = getattr(teen, attr, 1)
-                adult_stat = int(current_stat / game_config.breeding.child_special_multiplier)
+                gains = teen.apprentice_stat_gains.get(attr, 0)
+                base_child_stat = max(1, current_stat - gains)
+                adult_stat = int(base_child_stat / game_config.breeding.child_special_multiplier) + gains
                 setattr(teen, attr, max(1, min(10, adult_stat)))
+            teen.apprentice_stat_gains = {}
             teen.updated_at = now
             aged_dwellers.append(teen)
             logger.info(f"Teen became adult: {teen.first_name} {teen.last_name} ({teen.id})")

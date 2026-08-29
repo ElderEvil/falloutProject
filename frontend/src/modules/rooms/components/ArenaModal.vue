@@ -230,6 +230,16 @@ const journalIcon = (kind: string) => {
       return 'mdi:dots-horizontal'
   }
 }
+
+const hpPercent = (entry: ArenaRosterEntry) =>
+  entry.max_health > 0 ? Math.round((entry.health / entry.max_health) * 100) : 0
+
+const hpClass = (entry: ArenaRosterEntry) => {
+  const pct = hpPercent(entry)
+  if (pct < 25) return 'hp-critical'
+  if (pct < 50) return 'hp-low'
+  return 'hp-healthy'
+}
 </script>
 
 <template>
@@ -292,8 +302,20 @@ const journalIcon = (kind: string) => {
       <div v-if="roster.length" class="arena-roster">
         <span class="roster-label">ASSIGNED</span>
         <div class="roster-chips">
-          <div v-for="entry in roster" :key="entry.id" class="roster-chip" :class="{ fighting: isSelected(entry.id) }">
-            <span class="roster-name">{{ entry.name }}</span>
+          <div
+            v-for="entry in roster"
+            :key="entry.id"
+            class="roster-chip"
+            :class="{ fighting: isSelected(entry.id) }"
+            :title="`HP ${entry.health}/${entry.max_health}`"
+          >
+            <div class="roster-chip-main">
+              <span class="roster-name">{{ entry.name }}</span>
+              <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
+            </div>
+            <div class="roster-hp-bar">
+              <div class="roster-hp-fill" :class="hpClass(entry)" :style="{ width: hpPercent(entry) + '%' }"></div>
+            </div>
             <button
               v-if="!isFighting"
               class="roster-remove"
@@ -489,10 +511,10 @@ const journalIcon = (kind: string) => {
 .roster-chip {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.5rem;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--color-surface-hover);
-  border-radius: 9999px;
+  border-radius: 6px;
   font-size: 0.75rem;
   color: var(--color-gray-300);
 }
@@ -500,6 +522,60 @@ const journalIcon = (kind: string) => {
 .roster-chip.fighting {
   border-color: var(--color-theme-primary);
   color: var(--color-theme-primary);
+}
+
+.roster-chip-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.roster-name {
+  white-space: nowrap;
+}
+
+.roster-hp {
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.roster-hp.hp-healthy {
+  color: var(--color-success);
+}
+
+.roster-hp.hp-low {
+  color: var(--color-warning);
+}
+
+.roster-hp.hp-critical {
+  color: var(--color-danger);
+}
+
+.roster-hp-bar {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(128, 128, 128, 0.25);
+  overflow: hidden;
+}
+
+.roster-hp-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.roster-hp-fill.hp-healthy {
+  background: var(--color-success);
+}
+
+.roster-hp-fill.hp-low {
+  background: var(--color-warning);
+}
+
+.roster-hp-fill.hp-critical {
+  background: var(--color-danger);
 }
 
 .roster-remove {

@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.61.0 (2026-08-29)
+
+### Features
+
+* add apprentice status section to training page b3bd6be
+* add PageNavigation with breadcrumbs and consistent back button 1769065
+* add QuestRewardsModal matching exploration rewards style 6add4ac
+* add shared component tests, AboutView navigation, and modal polish 74ddc8d
+
+### Bug Fixes
+
+* address review findings for reward modals and dropdown timing 9a06e6e
+* compact training room card layout for better space usage fe059a5
+* enlarge reward icons and add item-type specific icons 5a727af
+* give apprentice name full width and match portrait sizes 9766087
+* infer item category from name and enlarge quest-name icon cae56fb
+* persist theme selection to profile to prevent reset on navigation 87f1204
+* remove duplicate queue divider and align portrait crop to top 61bdb1c
+* shrink training queue cards and enlarge apprentice cards c8f0186
+
+### Code Refactoring
+
+* extract shared RewardsModalShell and RewardCard components 4cf6a6c
+* replace @vueuse/motion with native Vue Transition in NavBar d214065
+
 ## 2.60.0 (2026-08-29)
 
 ### Features

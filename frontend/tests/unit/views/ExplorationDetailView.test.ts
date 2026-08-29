@@ -123,11 +123,6 @@ describe('ExplorationDetailView', () => {
   }
 
   beforeEach(async () => {
-    // Stale tokens in localStorage make useAuthStore() fire a real fetchUser()
-    // on creation, whose network rejection outlives the test and crashes the
-    // vitest worker (EnvironmentTeardownError) — see CI flake on PR #488.
-    localStorage.clear()
-
     setActivePinia(createPinia())
     explorationStore = useExplorationStore()
     dwellerStore = useDwellerStore().filter

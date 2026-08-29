@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.58.0 (2026-08-29)
+
+### Features
+
+* add desktop master-detail (?selected) for dwellers list 4985017
+* extract DwellerDetailPane and slim DwellerDetailView container 1b7d4fa
+* mark dead dweller portraits 2c83446
+
 ## 2.57.0 (2026-08-28)
 
 ### Features

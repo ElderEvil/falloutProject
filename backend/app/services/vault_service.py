@@ -1,6 +1,7 @@
 """Service for vault initialization and resource management."""
 
 import logging
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +17,13 @@ from app.crud.vault import vault as vault_crud
 from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
@@ -110,6 +117,9 @@ class VaultService:
         if is_boosted:
             overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 2)
             misc_rooms.append(RoomCreate(**overseer_office_data))
+            # Arena for boosted (spawns at level 3, right of the radio/water row)
+            arena_data = self._prepare_room_data(rooms, "arena", vault_id, 6, 3)
+            misc_rooms.append(RoomCreate(**arena_data))
 
         # Training rooms (boosted only)
         training_rooms = []
@@ -294,6 +304,27 @@ class VaultService:
                         obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.RESTING),
                     )
                     self.logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
+
+            # Youth apprentices (boosted only) — one per production room, so the
+            # apprentice lifecycle is testable end-to-end. Teens at 13h birth_date
+            # stay teens ~11h before the growth loop ages them out. Apprentice
+            # fields are set on the model directly: DwellerUpdate does not carry
+            # them, and the seeded vault intentionally skips the population gate.
+            if is_boosted:
+                for room in created_production_rooms[:2]:
+                    if room.ability is None:
+                        continue
+                    youth_data = DwellerCreateCommonOverride(special_boost=room.ability)
+                    youth = await dweller_crud.create_random(db_session, vault_id, youth_data)
+                    youth.is_adult = False
+                    youth.age_group = AgeGroupEnum.TEEN
+                    youth.birth_date = datetime.utcnow() - timedelta(hours=13)
+                    youth.room_id = room.id
+                    youth.status = DwellerStatusEnum.WORKING
+                    youth.apprentice_stat = room.ability
+                    youth.apprentice_started_at = datetime.utcnow()
+                    await db_session.commit()
+                    self.logger.info("Youth %s apprenticed in %s", youth.id, room.name)
 
         except Exception:
             self.logger.exception("Failed to create dwellers")

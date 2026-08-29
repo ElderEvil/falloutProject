@@ -139,7 +139,7 @@ onMounted(async () => {
               <span class="select-none text-sm text-theme-primary">
                 <span class="font-semibold">Boosted Start</span>
                 <span class="mt-1 block text-xs leading-5 text-theme-primary/65">
-                  Creates a ready-to-run vault with 20 rooms and 23 dwellers, including medical,
+                  Creates a ready-to-run vault with 23 rooms and 25 dwellers, including medical,
                   science, overseer, and all seven training rooms with sessions underway—plus extra objectives.
                 </span>
               </span>

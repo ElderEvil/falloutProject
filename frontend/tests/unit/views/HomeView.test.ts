@@ -88,7 +88,7 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await flushPromises()
 
-      expect(wrapper.text()).toContain('20 rooms and 23 dwellers')
+      expect(wrapper.text()).toContain('23 rooms and 25 dwellers')
       expect(wrapper.text()).toContain('all seven training rooms')
       expect(wrapper.text().match(/Vaults are experimental/g)).toHaveLength(1)
     })

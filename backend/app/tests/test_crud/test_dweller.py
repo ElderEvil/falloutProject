@@ -254,9 +254,11 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
 
     # Create initial room and another room for the move
     room_data_1 = create_fake_room()
+    room_data_1["category"] = RoomTypeEnum.PRODUCTION
     room_1 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_1, vault_id=vault.id))
 
     room_data_2 = create_fake_room()
+    room_data_2["category"] = RoomTypeEnum.PRODUCTION
     room_2 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_2, vault_id=vault.id))
 
     # Initially assign the dweller to room 1

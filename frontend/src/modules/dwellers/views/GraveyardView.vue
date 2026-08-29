@@ -10,7 +10,7 @@ import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UButton, UCard } from '@/core/components/ui'
@@ -26,6 +26,11 @@ const scanlinesEnabled = inject('scanlines', ref(true))
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
+const breadcrumbs = computed(() => [
+  { label: 'Vault', to: `/vault/${vaultId.value}` },
+  { label: 'Dwellers', to: `/vault/${vaultId.value}/dwellers` },
+  { label: 'Graveyard' },
+])
 
 onMounted(async () => {
   if (authStore.isAuthenticated && vaultId.value) {
@@ -33,9 +38,6 @@ onMounted(async () => {
   }
 })
 
-const goBack = () => {
-  router.push(`/vault/${vaultId.value}/dwellers`)
-}
 
 const viewDwellerDetails = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
@@ -59,7 +61,7 @@ const viewDwellerDetails = (dwellerId: string) => {
             subtitle="Memorial for permanently deceased dwellers"
           >
             <template #back>
-              <BackButton label="Back to Dwellers" @click="goBack" />
+              <PageNavigation back-label="Back to Dwellers" :breadcrumbs="breadcrumbs" />
             </template>
           </PageHeader>
 

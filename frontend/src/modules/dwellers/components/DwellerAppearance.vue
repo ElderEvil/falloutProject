@@ -3,30 +3,24 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useDwellerDetailContext } from './DwellerDetailContext'
 import type { VisualAttributes } from '../models/dweller'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 
-interface Props {
-  visualAttributes?: VisualAttributes | null
-  generatingAppearance?: boolean
-  isAnyGenerating?: boolean
-}
+const ctx = useDwellerDetailContext()
 
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (e: 'generate-appearance'): void
-  (e: 'edit'): void
-}>()
+const visualAttributes = computed<VisualAttributes | null>(() => ctx.dweller.value?.visual_attributes ?? null)
+const generatingAppearance = computed(() => ctx.generatingAppearance.value)
+const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
 
 // Helper to capitalize first letter
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 
 // Format attributes for display
 const formattedAttributes = computed(() => {
-  if (!props.visualAttributes) return []
+  if (!visualAttributes.value) return []
 
-  const attrs = props.visualAttributes
+  const attrs = visualAttributes.value
   const formatted: Array<{ label: string; value: string }> = []
 
   // Physical attributes
@@ -74,7 +68,7 @@ const IDENTITY_FIELDS = new Set(['race', 'faction', 'age', 'state_of_being'])
 
 /** True if visual_attributes has content beyond basic identity defaults. */
 const hasSubstantialAttributes = computed(() => {
-  const va = props.visualAttributes
+  const va = visualAttributes.value
   if (!va) return false
   const keys = Object.keys(va)
   return keys.some((k) => !IDENTITY_FIELDS.has(k))
@@ -82,10 +76,10 @@ const hasSubstantialAttributes = computed(() => {
 
 /** True if AI can still generate (no substantial attributes yet). */
 const canGenerateAppearance = computed(
-  () => !props.visualAttributes || !hasSubstantialAttributes.value
+  () => !visualAttributes.value || !hasSubstantialAttributes.value
 )
 
-const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.keys(props.visualAttributes).length))
+const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.keys(visualAttributes.value).length))
 </script>
 
 <template>
@@ -99,11 +93,11 @@ const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.ke
           position="top"
         >
           <UButton
-            @click="emit('generate-appearance')"
+            @click="ctx.actions.generateAppearance()"
             class="generate-button"
             variant="secondary"
             size="sm"
-            :disabled="props.isAnyGenerating"
+            :disabled="isAnyGenerating"
           >
             <Icon
               :icon="generatingAppearance ? 'mdi:loading' : 'mdi:auto-fix'"
@@ -115,7 +109,7 @@ const hasAttributes = computed(() => Boolean(props.visualAttributes && Object.ke
         </UTooltip>
 
         <UTooltip v-if="hasAttributes" text="Adjust visual attributes manually" position="top">
-          <UButton @click="emit('edit')" class="generate-button" variant="secondary" size="sm">
+          <UButton @click="ctx.actions.editAppearance()" class="generate-button" variant="secondary" size="sm">
             <Icon icon="mdi:pencil" class="h-5 w-5" />
             <span>Edit appearance</span>
           </UButton>

@@ -52,7 +52,7 @@ const fakeDweller = {
   epitaph: null,
 } as unknown as Dweller
 
-describe('DwellerDetailContainer (?selected fallback)', () => {
+describe('DwellerDetailContainer', () => {
   let router: ReturnType<typeof createRouter>
   let dwellerStore: ReturnType<typeof useDwellerStore>['filter']
   let authStore: ReturnType<typeof useAuthStore>
@@ -74,48 +74,49 @@ describe('DwellerDetailContainer (?selected fallback)', () => {
       history: createMemoryHistory(),
       routes: [
         {
+          path: '/vault/:id/dwellers/:dwellerId',
+          name: 'dwellerDetail',
+          component: DwellerDetailContainer,
+        },
+        {
           path: '/vault/:id/dwellers',
           name: 'dwellers',
-          component: DwellerDetailContainer,
+          component: { template: '<div>Dwellers list</div>' },
         },
       ],
     })
   })
 
-  async function mountWith(query: string, embedded = false) {
-    await router.push(`/vault/vault-1/dwellers${query}`)
+  async function mountAt(path: string) {
+    await router.push(path)
     await router.isReady()
     const wrapper = mount(DwellerDetailContainer, {
-      props: { embedded },
       global: { plugins: [router] },
     })
     await flushPromises()
     return wrapper
   }
 
-  it('reads the dweller from ?selected when no :dwellerId route param', async () => {
-    const wrapper = await mountWith('?selected=dweller-1&tab=SPECIAL&stat=SPECIAL')
+  it('reads the dweller from the :dwellerId route param', async () => {
+    const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(pane.props('initialTab')).toBe('SPECIAL')
-    expect(pane.props('highlightStat')).toBe('special')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
   })
 
-  it('shows not-found when neither ?selected nor :dwellerId is present', async () => {
-    const wrapper = await mountWith('')
+  it('shows not-found when no :dwellerId param is present', async () => {
+    const wrapper = await mountAt('/vault/vault-1/dwellers')
     expect(wrapper.findComponent({ name: 'DwellerDetailPane' }).exists()).toBe(false)
     expect(wrapper.text()).toContain('Dweller not found')
   })
 
-  it('clears ?selected (deselect) when back is pressed in embedded mode', async () => {
-    const wrapper = await mountWith('?selected=dweller-1', true)
-    expect(router.currentRoute.value.query.selected).toBe('dweller-1')
-
+  it('navigates back to the dwellers list on back', async () => {
+    const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1')
     const back = wrapper.findComponent({ name: 'BackButton' })
     expect(back.exists()).toBe(true)
     await back.trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.query.selected).toBeUndefined()
+    expect(router.currentRoute.value.name).toBe('dwellers')
   })
 })

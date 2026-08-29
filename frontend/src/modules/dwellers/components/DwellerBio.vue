@@ -4,26 +4,18 @@ import DOMPurify from 'dompurify'
 import { Icon } from '@iconify/vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useDwellerDetailContext } from './DwellerDetailContext'
+import type { MapPlaceLink } from '../models/dweller'
 
-export interface MapPlaceLink {
-  name: string
-  locationId: string
-}
+const ctx = useDwellerDetailContext()
 
-interface Props {
-  bio?: string | null
-  firstName: string
-  generatingBio?: boolean
-  isAnyGenerating?: boolean
-  vaultId?: string
-  placeLinks?: MapPlaceLink[]
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (e: 'generate-bio'): void
-}>()
+const dweller = computed(() => ctx.dweller.value)
+const bio = computed(() => dweller.value?.bio ?? null)
+const firstName = computed(() => dweller.value?.first_name ?? '')
+const generatingBio = computed(() => ctx.generatingBio.value)
+const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
+const vaultId = computed(() => ctx.vaultId.value)
+const placeLinks = computed(() => ctx.placeLinks.value)
 
 const PURIFY_OPTIONS = {
   ALLOWED_TAGS: ['br', 'em', 'strong', 'a'],
@@ -39,18 +31,18 @@ function buildPlaceRegex(links: MapPlaceLink[]): RegExp | null {
 }
 
 const sanitizedBio = computed(() => {
-  if (!props.bio) return null
-  const clean = DOMPurify.sanitize(props.bio, PURIFY_OPTIONS)
+  if (!bio.value) return null
+  const clean = DOMPurify.sanitize(bio.value, PURIFY_OPTIONS)
 
   // Without placeLinks or vaultId, render as-is (backward compatible)
-  if (!props.vaultId || !props.placeLinks?.length) return clean
+  if (!vaultId.value || !placeLinks.value.length) return clean
 
-  const regex = buildPlaceRegex(props.placeLinks)
+  const regex = buildPlaceRegex(placeLinks.value)
   if (!regex) return clean
 
   // Build a lookup: lowercase place name → locationId
   const lookup = new Map<string, string>()
-  for (const link of props.placeLinks) {
+  for (const link of placeLinks.value) {
     lookup.set(link.name.toLowerCase(), link.locationId)
   }
 
@@ -81,7 +73,7 @@ const sanitizedBio = computed(() => {
       const locationId = lookup.get(match[0].toLowerCase())
       if (locationId) {
         const anchor = document.createElement('a')
-        anchor.setAttribute('href', `/vault/${props.vaultId}/map?place=${locationId}`)
+        anchor.setAttribute('href', `/vault/${vaultId.value}/map?place=${locationId}`)
         anchor.className = 'bio-place-link'
         anchor.textContent = match[0]
         fragment.appendChild(anchor)
@@ -105,13 +97,29 @@ const sanitizedBio = computed(() => {
     <div class="bio-header">
       <h3 class="bio-title">Biography</h3>
       <div class="header-buttons">
+        <UTooltip text="Creates or replaces appearance, portrait, and biography" position="top">
+          <UButton
+            class="complete-dossier-button"
+            variant="ghost"
+            size="sm"
+            :disabled="isAnyGenerating"
+            @click="ctx.actions.generateAll()"
+          >
+            <Icon
+              :icon="ctx.generatingAI.value ? 'mdi:loading' : 'mdi:sparkles'"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': ctx.generatingAI.value }"
+            />
+            <span>Complete dossier</span>
+          </UButton>
+        </UTooltip>
         <UTooltip text="Creates or replaces this dweller's biography" position="top">
           <UButton
-            @click="emit('generate-bio')"
+            @click="ctx.actions.generateBio()"
             class="generate-button"
             variant="secondary"
             size="sm"
-            :disabled="props.isAnyGenerating"
+            :disabled="isAnyGenerating"
           >
             <Icon
               :icon="generatingBio ? 'mdi:loading' : 'mdi:pencil-plus'"

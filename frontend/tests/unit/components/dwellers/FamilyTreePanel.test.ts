@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { ref } from 'vue'
 import FamilyTreePanel from '@/modules/dwellers/components/FamilyTreePanel.vue'
 import { useDwellerManagementStore } from '@/modules/dwellers/stores/dwellerManagement'
+import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
 
-vi.mock('@iconify/vue', () => ({
+vi.mock('@/iconify/vue', () => ({
   Icon: {
     name: 'Icon',
     template: '<span class="icon-mock" :data-icon="icon"></span>',
@@ -36,27 +38,29 @@ describe('FamilyTreePanel', () => {
     return management
   }
 
-  function mountPanel(props: Record<string, unknown> = {}) {
-    return mount(FamilyTreePanel, {
-      props: { dwellerId: 'self', dwellerName: 'Self Dweller', ...props },
-      global: {
-        stubs: {
-          Icon: true,
-        },
-      },
+  function mountPanel(contextOverrides: Record<string, unknown> = {}) {
+    const ctx = createMockDwellerDetailContext({
+      dweller: ref({ id: 'self', first_name: 'Self', last_name: 'Dweller' }) as never,
+      dwellerId: ref('self') as never,
+      ...contextOverrides,
     })
+    const wrapper = mountWithDwellerContext(FamilyTreePanel, {
+      context: ctx,
+      global: { stubs: { Icon: true } },
+    })
+    return { wrapper, ctx }
   }
 
   it('fetches lineage on mount with the dweller id', () => {
     const management = stubStore()
-    mount(FamilyTreePanel, { props: { dwellerId: 'self' }, global: { stubs: { Icon: true } } })
-
+    const { ctx } = mountPanel()
     expect(management.fetchLineage).toHaveBeenCalledWith('self')
+    void ctx
   })
 
   it('renders parents, siblings, partners, and children rows', () => {
     stubStore()
-    const wrapper = mountPanel()
+    const { wrapper } = mountPanel()
 
     expect(wrapper.text()).toContain('Mom')
     expect(wrapper.text()).toContain('Sib')
@@ -67,10 +71,19 @@ describe('FamilyTreePanel', () => {
 
   it('shows the partner stage badge and affinity', () => {
     stubStore()
-    const wrapper = mountPanel()
+    const { wrapper } = mountPanel()
 
     expect(wrapper.text()).toContain('MARRIED')
     expect(wrapper.text()).toContain('90')
+  })
+
+  it('renders the first name without a literal null when the surname is absent', () => {
+    stubStore()
+    const { wrapper } = mountPanel({
+      dweller: ref({ id: 'self', first_name: 'Self', last_name: null }) as never,
+    })
+
+    expect(wrapper.find('.tree-node-self').text()).toBe('Self')
   })
 
   it('applies dead styling to a dead parent', () => {
@@ -79,29 +92,27 @@ describe('FamilyTreePanel', () => {
       parents: [{ ...mockLineage.parents[0]!, is_dead: true }],
     }
     stubStore(lineage)
-    const wrapper = mountPanel()
+    const { wrapper } = mountPanel()
 
     const deadNode = wrapper.find('.tree-node-dead')
     expect(deadNode.exists()).toBe(true)
     expect(deadNode.text()).toContain('Mom')
   })
 
-  it('emits select with the clicked member id', async () => {
+  it('calls navigateToDweller with the clicked member id', async () => {
     stubStore()
-    const wrapper = mountPanel()
+    const { wrapper, ctx } = mountPanel()
 
     const nodes = wrapper.findAll('button.tree-node')
     expect(nodes.length).toBeGreaterThanOrEqual(4)
 
     await nodes[0]!.trigger('click')
-    const emitted = wrapper.emitted('select')
-    expect(emitted).toBeTruthy()
-    expect((emitted as unknown[])[0][0]).toBe('p1')
+    expect(ctx.actions.navigateToDweller).toHaveBeenCalledWith('p1')
   })
 
   it('shows an error and a retry button when the lineage fetch fails', async () => {
     stubStore(null, true)
-    const wrapper = mountPanel()
+    const { wrapper } = mountPanel()
 
     await flushPromises()
     expect(wrapper.text()).toContain('Failed to load family lineage')
@@ -112,7 +123,7 @@ describe('FamilyTreePanel', () => {
 
   it('shows a message when no lineage data is available', () => {
     stubStore(null)
-    const wrapper = mountPanel()
+    const { wrapper } = mountPanel()
 
     expect(wrapper.text()).toContain('No lineage data')
   })

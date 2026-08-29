@@ -70,7 +70,7 @@ class QuestService:
                 VaultQuestCompletionLink.vault_id == vault_id,
             )
         )
-        link = (await db_session.exec(query)).one_or_none()
+        link = (await db_session.execute(query)).scalars().one_or_none()
 
         if not link:
             raise ResourceNotFoundException(
@@ -141,13 +141,13 @@ class QuestService:
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
         link = (
-            await db_session.exec(
+            await db_session.execute(
                 select(VaultQuestCompletionLink).where(
                     VaultQuestCompletionLink.quest_id == quest_id,
                     VaultQuestCompletionLink.vault_id == vault_id,
                 )
             )
-        ).one_or_none()
+        ).scalars().one_or_none()
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
@@ -181,13 +181,13 @@ class QuestService:
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
         link = (
-            await db_session.exec(
+            await db_session.execute(
                 select(VaultQuestCompletionLink).where(
                     VaultQuestCompletionLink.quest_id == quest_id,
                     VaultQuestCompletionLink.vault_id == vault_id,
                 )
             )
-        ).one_or_none()
+        ).scalars().one_or_none()
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"

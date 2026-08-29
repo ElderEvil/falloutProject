@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.59.0 (2026-08-29)
+
+### Features
+
+* **rooms:** redesign room staffing summary 2e809fe
+
 ## 2.58.2 (2026-08-29)
 
 ### Bug Fixes

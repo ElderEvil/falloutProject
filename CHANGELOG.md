@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.58.1 (2026-08-29)
+
+### Bug Fixes
+
+* **backend:** use .execute() instead of SQLModel .exec() on raw actor sessions 5440d30
+
+### Documentation
+
+* document game-tick session incident feb664f
+
 ## 2.58.0 (2026-08-29)
 
 ### Features

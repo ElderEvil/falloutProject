@@ -97,7 +97,7 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
+  text-shadow: var(--glow-1);
   border-bottom: 2px solid var(--color-theme-glow);
   padding-bottom: 0.375rem;
 }
@@ -118,7 +118,6 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
 .stat-item:hover {
   background: rgba(0, 0, 0, 0.5);
   border-left-color: var(--color-theme-primary);
-  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .stat-header {
@@ -132,14 +131,12 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   font-weight: 600;
   font-size: 0.8125rem;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .stat-value {
   font-weight: 700;
   font-size: 0.875rem;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
   min-width: 1.5rem;
   text-align: right;
 }
@@ -161,7 +158,6 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   left: 0;
   height: 100%;
   background: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
   transition: width 0.3s ease;
 }
 
@@ -169,7 +165,6 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   font-size: 0.75rem;
   color: var(--color-theme-primary);
   opacity: 0.6;
-  text-shadow: 0 0 2px var(--color-theme-glow);
   line-height: 1.3;
 }
 
@@ -183,7 +178,6 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--color-theme-accent);
-  text-shadow: 0 0 6px var(--color-theme-glow);
   animation: badge-fade 2.5s ease-out forwards;
 }
 
@@ -228,7 +222,7 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
 @media (prefers-reduced-motion: reduce) {
   .stat-highlighted {
     animation: none;
-    box-shadow: 0 0 12px var(--color-theme-glow);
+    box-shadow: var(--glow-2);
   }
 
   .stat-badge {

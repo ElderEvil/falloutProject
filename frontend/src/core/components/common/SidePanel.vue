@@ -257,7 +257,7 @@ onUnmounted(() => {
   width: 240px;
   background: rgba(0, 0, 0, 0.95);
   border-right: 2px solid var(--color-theme-primary);
-  box-shadow: 0 0 20px var(--color-theme-glow);
+  box-shadow: var(--glow-1);
   transition:
     width 0.3s ease,
     transform 0.3s ease;
@@ -292,7 +292,7 @@ onUnmounted(() => {
 .toggle-btn:hover {
   background: var(--color-theme-primary);
   color: var(--color-terminal-background);
-  box-shadow: 0 0 15px var(--color-theme-glow);
+  box-shadow: var(--glow-2);
 }
 
 .toggle-btn:focus {
@@ -342,7 +342,6 @@ onUnmounted(() => {
 .nav-item.active {
   background: var(--color-theme-glow);
   border-left-color: var(--color-theme-primary);
-  box-shadow: 0 0 10px var(--color-theme-glow);
 }
 
 .nav-icon {
@@ -357,7 +356,6 @@ onUnmounted(() => {
   font-weight: 700;
   white-space: nowrap;
   letter-spacing: 0.025em;
-  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .hotkey-badge {
@@ -367,7 +365,6 @@ onUnmounted(() => {
   border: 1px solid var(--color-theme-primary);
   border-radius: 3px;
   font-weight: 700;
-  text-shadow: 0 0 3px var(--color-theme-glow);
 }
 
 .collapsed .nav-label,
@@ -389,7 +386,7 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--color-theme-accent);
-  text-shadow: 0 0 5px var(--color-theme-glow);
+  text-shadow: var(--glow-1);
 }
 
 /* Locked Items */

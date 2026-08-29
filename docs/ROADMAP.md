@@ -80,6 +80,18 @@ interaction tokens instead of compensating with page-level CSS.
 - ⬜ Add an icon affordance to form labels where it makes an identity or game concept easier to scan, while keeping
   labels as the accessible source of meaning.
 
+#### Intent & emphasis adoption (see STYLEGUIDE → "Intent & Emphasis Semantics")
+
+- ✅ **Semantics defined** — three intents (actionable / live status / informational), emphasis tokens `--glow-0..3`,
+  and badge utility classes `.badge-info` / `.badge-live` / `.badge-action`; informational badges (gender, rarity,
+  age group) demoted to quiet chips; dead glow utilities removed.
+- ✅ **Top offenders wired** — `DwellerStats`, `DwellerGridItem`, `SidePanel`, `QuestsView`, `ExplorerStatsGrid`:
+  informational text glows removed, headings/panels on `--glow-1`, interactive surfaces on `--glow-2`. Transient
+  one-shot feedback (stat highlight, level-up celebration) stays as a sanctioned exception.
+- ⬜ **Long tail** — ~30 files still hand-roll glow values (~150 declarations, ~15 distinct radii). Convert to the
+  token scale as each screen is touched; replace Tailwind arbitrary `text-shadow-[…]` values on sight; hover
+  responses on non-interactive surfaces get removed in the same pass.
+
 **Success criteria**: new management screens can be assembled from shared primitives without custom surface fixes,
 and equivalent controls look and behave the same across the vault.
 

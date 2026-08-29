@@ -397,12 +397,6 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-.main-content p,
-.main-content span,
-.main-content div {
-  text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
 .scanlines {
   position: absolute;
   top: 0;
@@ -423,7 +417,7 @@ onMounted(async () => {
   border: 3px solid var(--color-theme-primary);
   border-radius: 12px;
   text-align: center;
-  box-shadow: 0 0 30px var(--color-theme-glow);
+  box-shadow: var(--glow-1);
 }
 
 .locked-icon {

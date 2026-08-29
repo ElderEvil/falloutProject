@@ -27,7 +27,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.total_distance }}
         </div>
@@ -43,7 +43,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.loot_collected?.length || 0 }}
         </div>
@@ -59,7 +59,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.total_caps_found }}
         </div>
@@ -75,7 +75,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.stimpaks || 0 }}
         </div>
@@ -93,7 +93,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.radaways || 0 }}
         </div>
@@ -109,7 +109,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ exploration.enemies_encountered }}
         </div>
@@ -128,7 +128,7 @@ const vitals = computed(() => {
       />
       <div class="text-center">
         <div
-          class="text-xl font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
+          class="text-xl font-bold text-theme-primary"
         >
           {{ vital.value }}
         </div>

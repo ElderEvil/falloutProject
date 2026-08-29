@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import DwellerCard from './cards/DwellerCard.vue'
 import DwellerPanel from './DwellerPanel.vue'
@@ -14,13 +14,22 @@ const ctx = useDwellerDetailContext()
 const dweller = computed(() => ctx.dweller.value!)
 const isDead = computed(() => dweller.value.is_dead === true)
 const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
+const breadcrumbs = computed(() => [
+  { label: 'Vault', to: `/vault/${ctx.vaultId.value}` },
+  { label: 'Dwellers', to: `/vault/${ctx.vaultId.value}/dwellers` },
+  { label: `${dweller.value.first_name} ${dweller.value.last_name ?? ''}`.trim() },
+])
 </script>
 
 <template>
   <div class="dweller-detail">
     <!-- Header -->
     <div class="detail-header">
-      <BackButton label="Back to Dwellers" @click="ctx.actions.onBack()" />
+      <PageNavigation
+        back-label="Back to Dwellers"
+        :back-to="`/vault/${ctx.vaultId.value}/dwellers`"
+        :breadcrumbs="breadcrumbs"
+      />
 
       <div class="header-info">
         <div class="name-section">

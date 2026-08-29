@@ -6,7 +6,9 @@ import { useQuestStore } from '../stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { UCard, UBadge, UButton, UModal } from '@/core/components/ui'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
+import QuestRewardsModal from '../components/QuestRewardsModal.vue'
+import { UCard, UBadge, UButton } from '@/core/components/ui'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -22,6 +24,11 @@ const error = ref<string | null>(null)
 const vaultId = computed(() => route.params.id as string)
 const questId = computed(() => route.params.questId as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
+const breadcrumbs = computed(() => [
+  { label: 'Vault', to: `/vault/${vaultId.value}` },
+  { label: 'Quests', to: `/vault/${vaultId.value}/quests` },
+  { label: quest.value?.title ?? 'Quest' },
+])
 
 onMounted(async () => {
   if (!vaultId.value || !questId.value) {
@@ -147,11 +154,11 @@ const goBack = () => {
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <div class="container mx-auto px-4 py-8">
-          <!-- Back Button -->
-          <button class="back-btn" @click="goBack">
-            <Icon icon="mdi:arrow-left" class="inline mr-2" />
-            Back to Quests
-          </button>
+          <PageNavigation
+            back-label="Back to Quests"
+            :back-to="`/vault/${vaultId}/quests`"
+            :breadcrumbs="breadcrumbs"
+          />
 
           <!-- Loading State -->
           <div v-if="isLoading" class="loading-state">
@@ -304,16 +311,12 @@ const goBack = () => {
                   </div>
                 </div>
 
-                <UModal v-model="showClaimModal" title="Confirm Reward Claim" size="md">
-                  <div class="space-y-4 font-mono text-terminal-green">
-                    <p>{{ quest.title }} has returned. Confirm delivery to your vault.</p>
-                    <p class="text-sm opacity-80">Rewards are delivered immediately after confirmation.</p>
-                    <div class="flex justify-end gap-3">
-                      <UButton variant="secondary" @click="showClaimModal = false">Cancel</UButton>
-                      <UButton variant="primary" @click="confirmClaimRewards">Claim Rewards</UButton>
-                    </div>
-                  </div>
-                </UModal>
+                <QuestRewardsModal
+                  :quest="quest"
+                  :show="showClaimModal"
+                  @close="showClaimModal = false"
+                  @confirm="confirmClaimRewards"
+                />
               </div>
             </div>
           </div>
@@ -353,27 +356,6 @@ const goBack = () => {
   pointer-events: none;
 }
 
-.back-btn {
-  background: transparent;
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 24px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-}
-
-.back-btn:hover {
-  background: var(--color-theme-primary);
-  color: #000000;
-  box-shadow: 0 0 15px var(--color-theme-glow);
-}
 
 .loading-state,
 .error-state {

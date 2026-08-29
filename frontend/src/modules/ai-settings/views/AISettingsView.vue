@@ -6,6 +6,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import AISettingsPanel from '../components/AISettingsPanel.vue'
 
@@ -15,9 +16,7 @@ const { isCollapsed } = useSidePanel()
 
 const isSuperuser = computed(() => authStore.isSuperuser)
 
-function goBack() {
-  router.push('/profile')
-}
+const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'AI Provider Settings' }]
 
 onMounted(() => {
   if (!isSuperuser.value) {
@@ -43,13 +42,7 @@ onMounted(() => {
             subtitle="Configure the AI provider, model, and routing for dweller conversations. Changes apply live without restart."
           >
             <template #back>
-              <button
-                class="flex items-center gap-1 text-sm text-theme-primary/60 hover:text-theme-primary transition-colors"
-                @click="goBack"
-              >
-                <Icon icon="mdi:arrow-left" class="h-4 w-4" />
-                Back to Profile
-              </button>
+              <PageNavigation back-label="Back to Profile" back-to="/profile" :breadcrumbs="breadcrumbs" />
             </template>
           </PageHeader>
 

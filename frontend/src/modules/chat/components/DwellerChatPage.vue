@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -10,10 +10,9 @@ import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { normalizeImageUrl } from '@/core/utils/image'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
@@ -22,6 +21,15 @@ const dwellerId = ref(route.params.id as string)
 const dweller = ref<Dweller | null>(null)
 const username = ref(authStore.user?.username || 'User')
 const vaultId = computed(() => dweller.value?.vault?.id ?? null)
+const breadcrumbs = computed(() => {
+  if (!vaultId.value || !dweller.value) return []
+  return [
+    { label: 'Vault', to: `/vault/${vaultId.value}` },
+    { label: 'Dwellers', to: `/vault/${vaultId.value}/dwellers` },
+    { label: `${dweller.value.first_name} ${dweller.value.last_name ?? ''}`.trim(), to: `/vault/${vaultId.value}/dwellers/${dwellerId.value}` },
+    { label: 'Conversation' },
+  ]
+})
 const { run: runLoadDweller, isLoading } = useAsyncAction(
   async (currentDwellerId: string, token: string) => {
     const result = await dwellerStore.fetchDwellerDetails(currentDwellerId, token)
@@ -61,11 +69,11 @@ onMounted(async () => {
 
     <!-- Content -->
     <template v-else-if="dweller">
-      <BackButton
-        v-if="dweller?.vault?.id"
-        class="mb-4"
-        label="Back to Dweller"
-        @click="router.push(`/vault/${dweller.vault.id}/dwellers/${dwellerId}`)"
+      <PageNavigation
+        v-if="vaultId"
+        back-label="Back to Dweller"
+        :back-to="`/vault/${vaultId}/dwellers/${dwellerId}`"
+        :breadcrumbs="breadcrumbs"
       />
       <div class="chat-header">
         <div class="dweller-info">

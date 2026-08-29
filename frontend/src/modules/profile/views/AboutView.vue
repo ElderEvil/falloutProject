@@ -4,15 +4,14 @@
  * @component
  */
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { UCard, USkeleton, UButton } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import { systemService } from '../services/systemService'
 import type { InfoResponse } from '../types/system'
 import { useFakeCrash } from '@/core/composables/useFakeCrash'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 
-const router = useRouter()
+const breadcrumbs = [{ label: 'Home', to: '/' }, { label: 'About' }]
 
 // Frontend version from package.json
 const frontendVersion = __APP_VERSION__
@@ -36,7 +35,7 @@ onMounted(async () => {
 <template>
   <div class="flex min-h-screen flex-col items-center justify-center p-4">
     <div class="w-full max-w-2xl">
-      <BackButton class="mb-4" label="Back to Home" @click="router.push('/')" />
+      <PageNavigation class="mb-4" back-label="Back to Home" back-to="/" :breadcrumbs="breadcrumbs" />
     </div>
     <UCard title="System Information" glow crt class="w-full max-w-2xl">
       <div v-if="isLoading" class="space-y-4">

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -9,7 +8,7 @@ import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -20,7 +19,6 @@ import AIUsageCard from '../components/AIUsageCard.vue'
 import AISettingsPanel from '@/modules/ai-settings/components/AISettingsPanel.vue'
 import type { ProfileUpdate } from '../models/profile'
 
-const router = useRouter()
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
@@ -127,9 +125,6 @@ const fetchProfile = async () => {
   } catch {}
 }
 
-const returnToVault = () => {
-  void router.push(vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/')
-}
 
 const startEditing = () => {
   isEditing.value = true
@@ -169,6 +164,11 @@ const formatDate = (dateString: string) => {
   })
 }
 
+const breadcrumbs = computed(() => [
+  { label: 'Vault', to: vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/' },
+  { label: 'Overseer Profile' },
+])
+
 const hasVaultRecord = computed(() => {
   const p = profileStore.profile
   if (!p) return false
@@ -191,22 +191,16 @@ const hasVaultRecord = computed(() => {
         :class="isCollapsed ? 'ml-16' : 'ml-60'"
       >
         <PageContentRail>
-          <nav class="profile-breadcrumb mb-3 flex items-center gap-2 font-mono text-sm tracking-wider">
-            <span class="text-theme-primary/70">VAULTS</span>
-            <Icon icon="mdi:chevron-right" class="h-4 w-4 text-theme-primary/50" :ariaHidden="true" />
-            <span class="text-theme-primary">OVERSEER PROFILE</span>
-          </nav>
-
           <PageHeader
             title="Overseer Profile"
             icon="mdi:badge-account-horizontal-outline"
             subtitle="Identity, account status, and vault record."
           >
             <template #back>
-              <BackButton
-                label="Back to Vault"
-                class="inline-flex items-center gap-1.5 px-5 py-2.5 text-[0.95rem] font-bold tracking-[0.08em] border border-theme-primary/50 rounded transition-all duration-200 hover:border-theme-primary hover:bg-theme-primary/10 hover:shadow-[0_0_12px_var(--color-theme-glow)] focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-offset-[3px] focus-visible:outline-theme-primary focus-visible:shadow-[0_0_12px_var(--color-theme-glow)]"
-                @click="returnToVault"
+              <PageNavigation
+                back-label="Back to Vault"
+                :back-to="vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'"
+                :breadcrumbs="breadcrumbs"
               />
             </template>
           </PageHeader>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
-import { MotionDirective } from '@vueuse/motion'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
@@ -12,9 +11,6 @@ const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const router = useRouter()
 const route = useRoute()
-// Keep the directive local so Vue's template type checker sees the same
-// directive instance that MotionPlugin registers globally in main.ts.
-const vMotion = MotionDirective()
 const { versionBadgeVisible, showChangelog } = useVersionDetection({
   isAuthenticated: () => authStore.isAuthenticated,
 })
@@ -146,132 +142,146 @@ onUnmounted(() => {
           >
             {{ user?.username }}
           </button>
-          <div
-            v-if="isDropdownOpen"
-            v-motion
-            :initial="{ opacity: 0, y: -10, scale: 0.95 }"
-            :enter="{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              transition: { duration: 150 },
-            }"
-            :leave="{
-              opacity: 0,
-              y: -10,
-              scale: 0.95,
-              transition: { duration: 100 },
-            }"
-            class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-[var(--color-theme-primary)]"
-            role="menu"
-            aria-label="User menu"
-            style="z-index: 50"
-          >
-            <router-link
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 50 },
-              }"
-              to="/profile"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-              role="menuitem"
-              aria-label="View profile"
-              @click="isDropdownOpen = false"
+          <Transition name="dropdown">
+            <div
+              v-if="isDropdownOpen"
+              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-[var(--color-theme-primary)]"
+              role="menu"
+              aria-label="User menu"
+              style="z-index: 50"
             >
-              <Icon icon="mdi:account" class="inline h-4 w-4 mr-2" />
-              Profile
-            </router-link>
-            <router-link
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 100 },
-              }"
-              to="/preferences"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-              role="menuitem"
-              aria-label="Display preferences"
-              @click="isDropdownOpen = false"
-            >
-              <Icon icon="mdi:palette" class="inline h-4 w-4 mr-2" />
-              Preferences
-            </router-link>
-            <router-link
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 150 },
-              }"
-              to="/settings"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-              role="menuitem"
-              aria-label="Settings"
-              @click="isDropdownOpen = false"
-            >
-              <Icon icon="mdi:cog" class="inline h-4 w-4 mr-2" />
-              Settings
-            </router-link>
-            <router-link
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 200 },
-              }"
-              to="/about"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-              role="menuitem"
-              aria-label="About this application"
-              @click="isDropdownOpen = false"
-            >
-              <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
-              About
-            </router-link>
-            <router-link
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 200 },
-              }"
-              to="/changelog"
-              class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
-              role="menuitem"
-              aria-label="View changelog"
-              @click="isDropdownOpen = false"
-            >
-              <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
-              Changelog
-            </router-link>
-            <hr class="border-gray-700 my-1" />
-            <button
-              v-motion
-              :initial="{ opacity: 0, x: -10 }"
-              :enter="{
-                opacity: 1,
-                x: 0,
-                transition: { delay: 250 },
-              }"
-              @click="logout"
-              class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
-              role="menuitem"
-              aria-label="Logout"
-            >
-              <Icon icon="mdi:logout" class="inline h-4 w-4 mr-2" />
-              Logout
-            </button>
-          </div>
+              <router-link
+                to="/profile"
+                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                role="menuitem"
+                aria-label="View profile"
+                @click="isDropdownOpen = false"
+              >
+                <Icon icon="mdi:account" class="inline h-4 w-4 mr-2" />
+                Profile
+              </router-link>
+              <router-link
+                to="/preferences"
+                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                role="menuitem"
+                aria-label="Display preferences"
+                @click="isDropdownOpen = false"
+              >
+                <Icon icon="mdi:palette" class="inline h-4 w-4 mr-2" />
+                Preferences
+              </router-link>
+              <router-link
+                to="/settings"
+                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                role="menuitem"
+                aria-label="Settings"
+                @click="isDropdownOpen = false"
+              >
+                <Icon icon="mdi:cog" class="inline h-4 w-4 mr-2" />
+                Settings
+              </router-link>
+              <router-link
+                to="/about"
+                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                role="menuitem"
+                aria-label="About this application"
+                @click="isDropdownOpen = false"
+              >
+                <Icon icon="mdi:information" class="inline h-4 w-4 mr-2" />
+                About
+              </router-link>
+              <router-link
+                to="/changelog"
+                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                role="menuitem"
+                aria-label="View changelog"
+                @click="isDropdownOpen = false"
+              >
+                <Icon icon="mdi:newspaper" class="inline h-4 w-4 mr-2" />
+                Changelog
+              </router-link>
+              <hr class="border-gray-700 my-1" />
+              <button
+                @click="logout"
+                class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
+                role="menuitem"
+                aria-label="Logout"
+              >
+                <Icon icon="mdi:logout" class="inline h-4 w-4 mr-2" />
+                Logout
+              </button>
+            </div>
+          </Transition>
         </div>
       </div>
     </div>
   </nav>
 </template>
+
+<style scoped>
+.dropdown-enter-active {
+  /* Root must outlast the staggered children (last starts at 250ms + 150ms run). */
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+.dropdown-leave-active {
+  transition:
+    opacity 0.1s ease,
+    transform 0.1s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+/* Staggered item reveal */
+.dropdown-enter-active > * {
+  animation: dropdown-item-in 0.15s ease both;
+}
+
+.dropdown-enter-active > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.dropdown-enter-active > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.dropdown-enter-active > *:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.dropdown-enter-active > *:nth-child(n + 4) {
+  animation-delay: 0.2s;
+}
+
+.dropdown-enter-active > *:last-child {
+  animation-delay: 0.25s;
+}
+
+@keyframes dropdown-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-enter-active,
+  .dropdown-leave-active {
+    transition-duration: 0s;
+  }
+
+  .dropdown-enter-active > * {
+    animation: none;
+  }
+}
+</style>

@@ -8,7 +8,7 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
-import BackButton from '@/core/components/common/BackButton.vue'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useExplorationStore } from '../stores/exploration'
@@ -35,6 +35,11 @@ const { isCollapsed } = useSidePanel()
 
 const vaultId = computed(() => route.params.id as string)
 const explorationId = computed(() => route.params.explorationId as string)
+const breadcrumbs = computed(() => [
+  { label: 'Vault', to: `/vault/${vaultId.value}` },
+  { label: 'Exploration', to: `/vault/${vaultId.value}/exploration` },
+  { label: 'Expedition' },
+])
 
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
@@ -232,7 +237,11 @@ watch(
 
       <div class="main-content flicker pb-8" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
-          <BackButton label="Back to Exploration" @click="goBack" />
+          <PageNavigation
+            back-label="Back to Exploration"
+            :back-to="`/vault/${vaultId}/exploration`"
+            :breadcrumbs="breadcrumbs"
+          />
 
           <!-- Explorer paging controls -->
           <ExplorerNavbar

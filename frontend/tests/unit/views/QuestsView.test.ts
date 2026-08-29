@@ -484,6 +484,12 @@ describe('QuestsView', () => {
               template: '<div><slot /><slot name="footer" /></div>',
               props: ['modelValue'],
             },
+            QuestRewardsModal: {
+              template:
+                '<div v-if="show"><button class="confirm-claim-btn" @click="$emit(\'confirm\')">Confirm & Claim</button></div>',
+              props: ['quest', 'show'],
+              emits: ['close', 'confirm'],
+            },
           },
         },
       })

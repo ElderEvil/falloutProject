@@ -37,6 +37,8 @@ vi.mock('@/core/components/ui', () => ({
 
 // Mock vue-router
 vi.mock('vue-router', () => ({
+  RouterLink: { template: '<a><slot /></a>' },
+  useRoute: () => ({ params: {}, meta: {} }),
   useRouter: () => ({
     push: vi.fn(),
   }),

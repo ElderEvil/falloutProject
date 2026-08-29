@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
-import BackButton from '@/core/components/common/BackButton.vue'
+import { useProfileStore } from '../stores/profile'
+import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UCard, UButton } from '@/core/components/ui'
 
-const router = useRouter()
+const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'Display Preferences' }]
 
 const { isCollapsed } = useSidePanel()
 const {
@@ -29,6 +29,17 @@ const {
 
 const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
+const profileStore = useProfileStore()
+
+// Persist theme to the user profile so fetchProfile() does not reset the
+// local choice back to the server-side preference on the next profile load.
+const handleThemeChange = (themeName: ThemeName) => {
+  setTheme(themeName)
+  const currentPrefs = (profileStore.profile?.preferences ?? {}) as Record<string, unknown>
+  void profileStore.updateProfile({
+    preferences: { ...currentPrefs, theme: themeName },
+  })
+}
 
 // Get injected glow class from App.vue (with fallback)
 const injectedGlowClass = inject('glowClass', glowClass)
@@ -51,14 +62,15 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
       <div class="main-content" :class="{ collapsed: isCollapsed, flicker: flickering }">
         <div class="container mx-auto px-4 py-6 lg:px-8">
           <div class="max-w-4xl mx-auto">
-            <!-- Back Button -->
-            <BackButton class="mb-4" label="Back to Profile" @click="router.push('/profile')" />
-
             <PageHeader
               title="Display Preferences"
               icon="mdi:cog"
               subtitle="Customize the terminal visual effects and theme. All settings are saved locally."
-            />
+            >
+              <template #back>
+                <PageNavigation back-label="Back to Profile" back-to="/profile" :breadcrumbs="breadcrumbs" />
+              </template>
+            </PageHeader>
 
             <!-- Theme Selection -->
             <UCard class="mb-4">
@@ -77,7 +89,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                 <button
                   v-for="theme in availableThemes"
                   :key="theme.name"
-                  @click="setTheme(theme.name)"
+                  @click="handleThemeChange(theme.name)"
                   class="theme-card"
                   :class="{ active: currentTheme.name === theme.name }"
                   :style="{

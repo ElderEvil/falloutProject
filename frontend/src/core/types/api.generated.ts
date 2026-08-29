@@ -5602,6 +5602,7 @@ export interface components {
             agility: number;
             /** Luck */
             luck: number;
+            weapon_type?: components["schemas"]["WeaponTypeEnum"] | null;
             /** Partner Id */
             partner_id?: string | null;
             /** Parent 1 Id */

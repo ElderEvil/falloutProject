@@ -68,7 +68,7 @@ describe('DwellersList', () => {
     })
 
     expect(wrapper.text()).toContain('Power:')
-    expect(wrapper.text()).toContain('16')
+    expect(wrapper.text()).toContain('14')
   })
 
   it('keeps the status column aligned when a dweller has a long name', () => {

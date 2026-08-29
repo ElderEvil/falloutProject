@@ -186,9 +186,26 @@ class CombatConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="COMBAT_")
 
     base_raider_power: int = Field(default=10, description="Power per difficulty level", ge=1)
-    dweller_strength_weight: float = Field(default=0.4, ge=0.0, le=1.0)
-    dweller_endurance_weight: float = Field(default=0.3, ge=0.0, le=1.0)
-    dweller_agility_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+    # Per weapon-type SPECIAL weights for combat_power (keys: weapon type value or "unarmed").
+    # Primary stats ~0.3, secondary ~0.15, unused 0; unarmed is a balanced spread with a strength lean.
+    weapon_stat_weights: dict[str, dict[str, float]] = Field(
+        default={
+            "melee": {"strength": 0.3, "agility": 0.3, "endurance": 0.15, "luck": 0.15},
+            "gun": {"perception": 0.3, "agility": 0.3, "luck": 0.15, "strength": 0.15},
+            "energy": {"intelligence": 0.3, "perception": 0.3, "endurance": 0.15, "luck": 0.15},
+            "heavy": {"strength": 0.3, "endurance": 0.3, "perception": 0.15, "agility": 0.15},
+            "unarmed": {
+                "strength": 0.2,
+                "perception": 0.1,
+                "endurance": 0.1,
+                "charisma": 0.1,
+                "intelligence": 0.1,
+                "agility": 0.1,
+                "luck": 0.1,
+            },
+        },
+        description='SPECIAL weights per weapon type, e.g. COMBAT_WEAPON_STAT_WEIGHTS=\'{"melee": {"strength": 0.3}}\'',
+    )
     level_bonus_multiplier: int = Field(default=2, ge=0)
 
     # Loot

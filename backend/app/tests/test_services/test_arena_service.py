@@ -120,8 +120,8 @@ class TestArenaService:
             weapon=None,
         )
         power = combat_power(dweller)
-        # stat contribution (10*0.4 + 10*0.3 + 10*0.3 = 10) + level (5*2 = 10)
-        assert power == 20
+        # unarmed weights: STR 10*0.2 + END/AGI 10*0.1 each + PER/CHA/INT/LCK 1*0.1 each = 4.4; + level (5*2 = 10)
+        assert power == 14.4
 
     @pytest.mark.asyncio
     async def test_fight_round_ongoing_keeps_both_fighters(self, async_session, arena_room, fighter_a, fighter_b):

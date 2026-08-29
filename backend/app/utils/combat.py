@@ -3,14 +3,14 @@
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 
+UNARMED = "unarmed"
+
 
 def combat_power(dweller: Dweller) -> float:
-    """Total combat power of a single dweller: SPECIAL-weighted stats + weapon damage + level bonus."""
-    stat_power = (
-        dweller.strength * game_config.combat.dweller_strength_weight
-        + dweller.endurance * game_config.combat.dweller_endurance_weight
-        + dweller.agility * game_config.combat.dweller_agility_weight
-    )
+    """Total combat power of a single dweller: weapon-type-weighted SPECIAL + weapon damage + level bonus."""
+    weapon_type = dweller.weapon.weapon_type.value if dweller.weapon else UNARMED
+    weights = game_config.combat.weapon_stat_weights.get(weapon_type) or game_config.combat.weapon_stat_weights[UNARMED]
+    stat_power = sum(getattr(dweller, stat) * weight for stat, weight in weights.items())
     weapon_damage = 0
     if dweller.weapon:
         weapon_damage = (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2

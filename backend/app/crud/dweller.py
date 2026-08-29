@@ -77,6 +77,18 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
+    async def get_multi(
+        self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
+    ) -> Sequence[Dweller]:
+        """Override to eager load weapon (needed for weapon_type on DwellerReadLess)."""
+        query = (
+            select(self.model).offset(skip).limit(limit).order_by(self.model.id).options(selectinload(Dweller.weapon))
+        )
+        if not include_deleted:
+            query = query.where(~self.model.is_deleted)
+        response = await db_session.execute(query)
+        return response.scalars().all()
+
     async def get_multi_by_vault(
         self,
         db_session: AsyncSession,
@@ -126,7 +138,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             else:
                 query = query.order_by(sort_column.desc())
 
-        query = query.offset(skip).limit(limit)
+        query = query.offset(skip).limit(limit).options(selectinload(Dweller.weapon))
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -454,6 +466,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.vault_id == vault_id)
             .where(self.model.is_deleted)
             .order_by(self.model.deleted_at.desc())
+            .options(selectinload(Dweller.weapon))
             .offset(skip)
             .limit(limit)
         )

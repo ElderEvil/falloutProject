@@ -10,7 +10,7 @@ const ctx = useDwellerDetailContext()
 const dwellerId = computed(() => ctx.dweller.value?.id ?? ctx.dwellerId.value)
 const dwellerName = computed(() => {
   const d = ctx.dweller.value
-  return d ? `${d.first_name} ${d.last_name}` : ''
+  return d ? [d.first_name, d.last_name].filter(Boolean).join(' ') : ''
 })
 
 const { lineage, isLoading, error, load, select } = useLineage(

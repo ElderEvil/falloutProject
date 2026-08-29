@@ -77,6 +77,15 @@ describe('FamilyTreePanel', () => {
     expect(wrapper.text()).toContain('90')
   })
 
+  it('renders the first name without a literal null when the surname is absent', () => {
+    stubStore()
+    const { wrapper } = mountPanel({
+      dweller: ref({ id: 'self', first_name: 'Self', last_name: null }) as never,
+    })
+
+    expect(wrapper.find('.tree-node-self').text()).toBe('Self')
+  })
+
   it('applies dead styling to a dead parent', () => {
     const lineage = {
       ...mockLineage,

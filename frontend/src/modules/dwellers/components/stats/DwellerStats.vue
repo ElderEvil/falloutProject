@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { Dweller } from '../../models/dweller'
 import { useDwellerDetailContext } from '../DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
 
-type StatKey = 'S' | 'P' | 'E' | 'C' | 'I' | 'A' | 'L'
+type StatKey = {
+  [Key in keyof Dweller]-?: Dweller[Key] extends number ? Key : never
+}[keyof Dweller]
 
 const statValue = (key: StatKey): number => {
   const d = ctx.dweller.value
   if (!d) return 0
-  const raw = d[key as keyof typeof d]
+  const raw = d[key]
   return typeof raw === 'number' ? raw : 0
 }
 

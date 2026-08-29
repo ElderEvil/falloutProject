@@ -129,7 +129,7 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
       <div
         v-for="apprentice in apprenticeCards"
         :key="apprentice.id"
-        class="flex flex-col gap-4 rounded-lg border-2 border-theme-primary/30 bg-black/30 p-5 transition-colors hover:border-theme-primary/50"
+        class="flex flex-col gap-3 rounded-lg border-2 border-theme-primary/30 bg-black/30 p-5 transition-colors hover:border-theme-primary/50"
       >
         <div class="flex items-center gap-4">
           <DwellerPortrait
@@ -146,18 +146,19 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
               {{ apprentice.roomName }}
             </p>
           </div>
-          <span
-            class="flex shrink-0 items-center gap-2 rounded border border-theme-primary/40 bg-theme-secondary/40 px-2.5 py-1.5 font-mono text-sm font-bold text-theme-primary"
-          >
-            <Icon :icon="apprentice.statIcon" class="text-base" />
-            {{ apprentice.statLabel }} {{ apprentice.currentStat }}→{{ apprentice.currentStat + 1 }}
-          </span>
         </div>
 
         <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between font-mono text-sm text-theme-primary/70">
-            <span>Progress</span>
-            <span class="font-bold text-theme-primary">{{ apprentice.timeRemaining }}</span>
+          <div class="flex items-center justify-between gap-2">
+            <span
+              class="flex shrink-0 items-center gap-2 rounded border border-theme-primary/40 bg-theme-secondary/40 px-2.5 py-1 font-mono text-sm font-bold text-theme-primary"
+            >
+              <Icon :icon="apprentice.statIcon" class="text-base" />
+              {{ apprentice.statLabel }} {{ apprentice.currentStat }}→{{ apprentice.currentStat + 1 }}
+            </span>
+            <span class="shrink-0 font-mono text-sm font-bold text-theme-primary">{{
+              apprentice.timeRemaining
+            }}</span>
           </div>
           <UProgressBar
             :model-value="apprentice.progressPercent"

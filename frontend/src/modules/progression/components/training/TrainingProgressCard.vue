@@ -141,8 +141,8 @@ const handleComplete = () => {
         <DwellerPortrait
           :thumbnail-url="dwellerImage"
           :alt="dwellerName ?? 'Dweller'"
-          :image-class="`h-8 w-8 shrink-0 rounded border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
-          :fallback-class="`flex h-8 w-8 shrink-0 items-center justify-center rounded border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
+          :image-class="`h-12 w-12 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
+          :fallback-class="`flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"
         />
         <Icon
           :icon="getStatIcon(training.stat_being_trained)"

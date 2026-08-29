@@ -123,6 +123,11 @@ describe('ExplorationDetailView', () => {
   }
 
   beforeEach(async () => {
+    // Stale tokens in localStorage make useAuthStore() fire a real fetchUser()
+    // on creation, whose network rejection outlives the test and crashes the
+    // vitest worker (EnvironmentTeardownError) — see CI flake on PR #488.
+    localStorage.clear()
+
     setActivePinia(createPinia())
     explorationStore = useExplorationStore()
     dwellerStore = useDwellerStore().filter
@@ -135,6 +140,9 @@ describe('ExplorationDetailView', () => {
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(mockDweller)
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue([])
     vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue({} as any)
+    // The view opens a live SSE stream on mount; keep that off the network.
+    vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
+    vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
 
     // Set up mock data
     explorationStore.activeExplorations['expl-1'] = mockExploration

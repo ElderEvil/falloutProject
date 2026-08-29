@@ -139,7 +139,7 @@ const handleComplete = () => {
     <div class="mb-2 flex items-center gap-3">
       <div class="flex shrink-0 items-center gap-1.5">
         <DwellerPortrait
-          :image-url="dwellerImage"
+          :thumbnail-url="dwellerImage"
           :alt="dwellerName ?? 'Dweller'"
           :image-class="`h-10 w-10 shrink-0 rounded-md border border-theme-glow object-cover [image-rendering:pixelated] ${portraitStateClass}`"
           :fallback-class="`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-theme-glow bg-surface-sunken text-theme-primary ${portraitStateClass}`"

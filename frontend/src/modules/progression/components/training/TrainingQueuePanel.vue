@@ -284,8 +284,7 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-.completing-soon-section,
-.active-trainings-section {
+.completing-soon-section + .active-trainings-section {
   border-top: 1px solid var(--color-theme-glow);
   padding-top: 1rem;
 }

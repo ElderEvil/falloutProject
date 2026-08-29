@@ -10,10 +10,13 @@ entire game tick before any per-vault work ran.
 
 These tests exercise ``game_state_crud`` with a RAW SQLAlchemy ``AsyncSession``
 (the exact type the actors hand it) so the regression cannot silently return.
+The quest completion test also exercises the delegated
+``mark_quest_ready_to_claim()`` path through its per-quest exception boundary.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -32,6 +35,11 @@ from sqlmodel import SQLModel
 
 from app.crud.game_state import game_state_crud
 from app.models.game_state import GameState
+from app.models.quest import Quest
+from app.models.user import User
+from app.models.vault import Vault
+from app.models.vault_quest import VaultQuestCompletionLink
+from app.services.quest_service import quest_service
 
 
 # sqlite has no JSONB; rewrite to JSON before creating tables (mirrors conftest).
@@ -82,3 +90,31 @@ async def test_get_or_create_with_raw_async_session(raw_sqlalchemy_session):
     assert created is not None
     assert created.vault_id == vault_id
     assert created.id is not None  # refreshed after insert
+
+
+async def test_check_and_complete_quests_with_raw_async_session(raw_sqlalchemy_session):
+    """An elapsed quest completes through the raw-session actor contract."""
+    user = User(username="raw-session-user", email="raw-session@example.com", hashed_password="not-a-real-password")
+    vault = Vault(number=1, user_id=user.id)
+    quest = Quest(
+        title="Raw Session Quest",
+        short_description="Raw session test",
+        long_description="Ensure the completion path supports actor sessions.",
+        requirements="One dweller",
+        rewards="No rewards",
+    )
+    link = VaultQuestCompletionLink(
+        vault_id=vault.id,
+        quest_id=quest.id,
+        is_visible=True,
+        started_at=datetime.utcnow() - timedelta(hours=2),
+        duration_minutes=60,
+    )
+    raw_sqlalchemy_session.add_all([user, vault, quest, link])
+    await raw_sqlalchemy_session.commit()
+
+    completed = await quest_service.check_and_complete_quests(raw_sqlalchemy_session, vault_id=vault.id)
+
+    assert completed == 1
+    await raw_sqlalchemy_session.refresh(link)
+    assert link.is_reward_ready is True

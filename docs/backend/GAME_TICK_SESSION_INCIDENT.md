@@ -16,7 +16,9 @@ The same session mismatch affected quest completion after `1f24f651` moved
 that actor to the shared `task_session()` context manager. Its per-quest
 `except Exception` boundary in `QuestService.check_and_complete_quests()`
 logged the failure and continued, so the scheduled job could appear healthy
-while completing no quests.
+while completing no quests. The regression suite now exercises this complete
+path with a raw session, including the delegated
+`mark_quest_ready_to_claim()` call.
 
 ## Timeline
 
@@ -62,4 +64,5 @@ contract. A regression test must instantiate a raw SQLAlchemy `AsyncSession`
 and exercise the affected CRUD/service method.
 
 The regression coverage is in
-`backend/app/tests/test_crud/test_game_state.py`.
+`backend/app/tests/test_crud/test_game_state.py`: it covers both game-state
+CRUD lookup and quest completion through the raw-session contract.

@@ -140,6 +140,7 @@ describe('RoomDetailModal', () => {
       vault_id: 'vault-123',
       status: 'working',
       age_group: 'child',
+      apprentice_stat: 'strength',
     },
     {
       id: 'dweller-2',
@@ -244,7 +245,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.staffing-summary').text()).toContain('2 / 2 staffed')
+      expect(wrapper.find('.staffing-summary').text()).toContain('1 / 2 staffed · 1 apprentice')
     })
 
     it('should display room size', () => {
@@ -312,12 +313,10 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      // Production calculation: output * abilitySum * BASE_PRODUCTION_RATE * tierMultiplier
-      // output = 10, abilitySum = 8 + 9 = 17, BASE = 0.1, tier1 = 1.0
-      // perSecond = 10 * 17 * 0.1 * 1.0 = 17
-      // perMinute = 17 * 60 = 1020
+      // Apprentices learn in a dedicated slot and do not contribute to production yet.
+      // output = 10, adult Strength = 9, BASE = 0.1, tier1 = 1.0 → 9/sec, 540/min
       expect(wrapper.text()).toContain('Production Rate')
-      expect(wrapper.text()).toContain('1020.00')
+      expect(wrapper.text()).toContain('540.00')
     })
 
     it('should calculate efficiency correctly', () => {
@@ -331,14 +330,14 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      // Efficiency = (2 dwellers / 2 capacity) * 100 = 100%
+      // Efficiency counts only normal workers; the apprentice has a dedicated slot.
       expect(wrapper.text()).toContain('Efficiency')
-      expect(wrapper.text()).toContain('100%')
+      expect(wrapper.text()).toContain('50%')
     })
 
     it('should show 100% efficiency when fully staffed', () => {
       const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, apprentice_stat: null }))
 
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -424,6 +423,10 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Level 7')
       expect(wrapper.findAll('[aria-label="Child"]')).toHaveLength(1)
       expect(wrapper.findAll('[aria-label="Teen"]')).toHaveLength(1)
+      expect(wrapper.find('[aria-label="Apprentice · strength training"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Apprentice training strength"]').exists()).toBe(true)
+      expect(wrapper.find('.apprentice-slot.slot-filled').exists()).toBe(true)
+      expect(wrapper.findAll('.dweller-sprite-slot:not(.apprentice-slot)')).toHaveLength(2)
     })
 
     it('should identify the section as staffing', () => {
@@ -612,7 +615,7 @@ describe('RoomDetailModal', () => {
       }
 
       const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, apprentice_stat: null }))
 
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -632,7 +635,7 @@ describe('RoomDetailModal', () => {
       }
 
       const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, apprentice_stat: null }))
 
       const wrapper = mount(RoomDetailModal, {
         props: {

@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
-from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum
+from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum, SPECIALEnum
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
@@ -105,6 +105,16 @@ class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
 
 
 class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table=True):
+    __table_args__ = (
+        sa.Index(
+            "uq_dweller_active_apprentice_room",
+            "room_id",
+            unique=True,
+            postgresql_where=sa.text("apprentice_started_at IS NOT NULL"),
+            sqlite_where=sa.text("apprentice_started_at IS NOT NULL"),
+        ),
+    )
+
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", ondelete="CASCADE", index=True)
     vault: "Vault" = Relationship(back_populates="dwellers")
 
@@ -113,6 +123,10 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="dwellers",
         sa_relationship_kwargs={"foreign_keys": "Dweller.room_id"},
     )
+
+    # Youth apprenticeship in a production room.
+    apprentice_stat: SPECIALEnum | None = Field(default=None)
+    apprentice_started_at: datetime | None = Field(default=None)
 
     # Relationships and Family
     partner_id: UUID4 | None = Field(

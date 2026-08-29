@@ -5,6 +5,7 @@ Usage:
     uv run fo-cli createsuperuser
     uv run fo-cli seed
     uv run fo-cli family-scenario --help
+    uv run fo-cli apprentice-scenario --help
     uv run fo-cli backfill --help
     uv run fo-cli ops --help
     uv run fo-cli simulate-exploration --help
@@ -18,6 +19,7 @@ from typing import Annotated
 import typer
 
 from app import crud
+from app.cli.apprentice_scenario import app as apprentice_scenario
 from app.cli.backfills import app as backfills
 from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.family_scenario import app as family_scenario
@@ -40,6 +42,7 @@ cli = typer.Typer(
 
 # Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
+cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
 cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")

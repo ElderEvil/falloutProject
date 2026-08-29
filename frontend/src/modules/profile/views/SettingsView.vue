@@ -432,7 +432,7 @@
             unit="%"
           />
           <SettingItem
-            label="Child Growth Duration"
+            label="Time to Adulthood"
             :value="settings.breeding.child_growth_duration_hours"
             unit="hours"
           />

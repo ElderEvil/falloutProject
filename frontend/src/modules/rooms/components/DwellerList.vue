@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
@@ -20,6 +22,12 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   const value = dweller[ability.toLowerCase() as SpecialKey]
   return typeof value === 'number' ? value : 0
 }
+
+const staffingSummary = computed(() => {
+  const apprenticeCount = props.assignedDwellers.filter((dweller) => dweller.apprentice_stat).length
+  const staffedCount = props.assignedDwellers.length - apprenticeCount
+  return `${staffedCount} / ${props.dwellerCapacity} staffed${apprenticeCount ? ` · ${apprenticeCount} apprentice` : ''}`
+})
 </script>
 
 <template>
@@ -29,7 +37,7 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         <Icon icon="mdi:account-group" class="h-5 w-5" />
         Staffing
       </h3>
-      <span class="staffing-summary">{{ assignedDwellers.length }} / {{ dwellerCapacity }} staffed</span>
+      <span class="staffing-summary">{{ staffingSummary }}</span>
     </div>
     <div v-if="assignedDwellers.length > 0" class="dwellers-list">
       <button
@@ -47,7 +55,17 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
         />
         <div class="dweller-info">
           <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
-          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+          <div class="dweller-badges">
+            <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+            <DwellerBadge
+              v-if="dweller.apprentice_stat"
+              icon="mdi:school-outline"
+              color="var(--color-warning)"
+              :label="`Apprentice · ${dweller.apprentice_stat.toLowerCase()} training`"
+              :show-label="false"
+              size="sm"
+            />
+          </div>
           <div class="dweller-level">Level {{ dweller.level }}</div>
         </div>
         <div v-if="ability" class="dweller-stat">
@@ -158,6 +176,12 @@ const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
   font-size: 0.9375rem;
   color: var(--color-theme-primary);
   overflow-wrap: break-word;
+}
+
+.dweller-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .dweller-level {

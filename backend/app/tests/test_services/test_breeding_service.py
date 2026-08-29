@@ -1001,13 +1001,12 @@ async def test_age_children_not_old_enough(
 
 
 @pytest.mark.asyncio
-async def test_age_children_old_enough(
+async def test_age_children_progress_through_teen_to_adult(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test that children old enough are aged to adults."""
-    # Create child dweller with birth date in the past
-    birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours + 1)
+    """Test that children become teens halfway through the total maturity duration."""
+    birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours // 2 + 1)
 
     child_data = {
         "first_name": "Baby",
@@ -1042,12 +1041,23 @@ async def test_age_children_old_enough(
     assert len(aged) == 1
     assert aged[0].id == child.id
 
-    # Child should now be a working adult: age group AND adult flag flip together
+    await async_session.refresh(child)
+    assert child.age_group == AgeGroupEnum.TEEN
+    assert child.is_adult is False
+    assert child.strength == 3
+    assert child.charisma == 3
+
+    child.birth_date = datetime.utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours + 1)
+    await async_session.commit()
+
+    aged = await BreedingService.age_children(async_session, vault.id)
+
+    assert len(aged) == 1
     await async_session.refresh(child)
     assert child.age_group == AgeGroupEnum.ADULT
     assert child.is_adult is True
 
-    # Stats should be scaled up (3 / 0.5 = 6)
+    # Stats are restored only when the teen becomes an adult (3 / 0.5 = 6).
     assert child.strength == 6
     assert child.charisma == 6
 
@@ -1203,4 +1213,4 @@ def test_breeding_config_values():
 
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
-    assert game_config.breeding.child_growth_duration_hours > 0
+    assert game_config.breeding.child_growth_duration_hours == 24

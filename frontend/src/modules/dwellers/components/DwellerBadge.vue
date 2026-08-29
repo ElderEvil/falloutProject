@@ -16,7 +16,7 @@ withDefaults(
 <template>
   <span
     class="dweller-badge"
-    :class="[`size-${size}`]"
+    :class="[`size-${size}`, { 'icon-only': !showLabel }]"
     :style="{ '--badge-color': color }"
     :title="label"
     :aria-label="label"
@@ -49,6 +49,21 @@ withDefaults(
 .size-sm {
   padding: 0.15rem 0.4rem;
   font-size: 0.7rem;
+}
+
+.icon-only {
+  justify-content: center;
+  padding: 0;
+}
+
+.icon-only.size-sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.icon-only.size-md {
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .size-md {

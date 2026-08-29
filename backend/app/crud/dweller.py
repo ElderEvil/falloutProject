@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -21,12 +22,12 @@ from app.schemas.dweller import (
     DwellerUpdate,
 )
 from app.services.event_bus import GameEvent, event_bus
+from app.services.room_assignment_policy import validate_automatic_assignment, validate_room_assignment
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidVaultTransferException,
     ResourceConflictException,
-    ValidationException,
 )
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
@@ -281,8 +282,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if dweller_obj.vault_id != room_obj.vault_id:
             raise InvalidVaultTransferException
 
-        if room_obj.category == RoomTypeEnum.ARENA and not dweller_obj.is_mature:
-            raise ValidationException(detail="Only adult dwellers can fight in the Arena")
+        await validate_room_assignment(db_session, dweller_obj, room_obj)
 
         if not dweller_obj.room_id and not await vault_crud.is_enough_population_space(
             db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1
@@ -293,8 +293,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             room_obj.category if room_id else None, room_obj.name if room_id else None
         )
 
+        apprenticeship_update = (
+            {"apprentice_stat": room_obj.ability, "apprentice_started_at": datetime.utcnow()}
+            if not dweller_obj.is_mature
+            else {"apprentice_stat": None, "apprentice_started_at": None}
+        )
         dweller_obj = await self.update(
-            db_session, dweller_id, DwellerUpdate(room_id=room_id, status=new_status), commit=False
+            db_session,
+            dweller_id,
+            {"room_id": room_id, "status": new_status, **apprenticeship_update},
+            commit=False,
         )
 
         # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
@@ -515,6 +523,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         from app.schemas.common import SPECIALEnum
 
         dweller_obj = await self.get(db_session, dweller_id)
+        validate_automatic_assignment(dweller_obj)
 
         # Find dweller's highest SPECIAL stat
         special_stats = {

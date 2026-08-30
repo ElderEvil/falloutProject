@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
 import { getLineage, type LineageResponse } from '../services/lineageService'
+
+type AutoAssignResponse = components['schemas']['AutoAssignResponse']
+type AutoAssignAgeGroup = components['schemas']['AgeGroupEnum']
 
 export const useDwellerManagementStore = defineStore('dwellerManagement', () => {
   const toast = useToast()
@@ -248,16 +252,14 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     endpoint: 'auto-assign-production' | 'auto-assign-all',
     vaultId: string,
     token: string,
-    filters: { ageGroup?: string } | undefined,
+    filters: { ageGroup?: AutoAssignAgeGroup } | undefined,
     successSuffix: string,
     failureLabel: string
-  ): Promise<{ assigned_count: number; assignments: any[] } | null> {
+  ): Promise<AutoAssignResponse | null> {
     try {
-      const params = new URLSearchParams()
-      if (filters?.ageGroup) params.append('age_group', filters.ageGroup)
-      const queryString = params.toString()
-      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
-        `/api/v1/vaults/${vaultId}/dwellers/${endpoint}${queryString ? `?${queryString}` : ''}`,
+      const queryString = filters?.ageGroup ? `?age_group=${filters.ageGroup}` : ''
+      const response = await axios.post<AutoAssignResponse>(
+        `/api/v1/vaults/${vaultId}/dwellers/${endpoint}${queryString}`,
         null,
         {
           headers: {
@@ -267,19 +269,18 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       )
 
       // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId, token)
+      await filterStore.fetchDwellersByVault(vaultId, token, {
+        status: filterStore.filterStatus,
+        ageGroup: filterStore.filterAgeGroup,
+        sortBy: filterStore.sortBy,
+        order: filterStore.sortDirection,
+      })
 
       toast.success(`Assigned ${response.data.assigned_count} dwellers ${successSuffix}`)
       return response.data
-    } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || failureLabel
-      handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
-      toast.error(errorMessage)
+    } catch (error) {
+      const errorMessage = handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
+      toast.error(errorMessage || failureLabel)
       return null
     }
   }
@@ -287,7 +288,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   function autoAssignProductionDwellers(
     vaultId: string,
     token: string,
-    filters?: { ageGroup?: string }
+    filters?: { ageGroup?: AutoAssignAgeGroup }
   ) {
     return autoAssignDwellers(
       'auto-assign-production',
@@ -299,7 +300,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     )
   }
 
-  function autoAssignAllDwellers(vaultId: string, token: string, filters?: { ageGroup?: string }) {
+  function autoAssignAllDwellers(vaultId: string, token: string, filters?: { ageGroup?: AutoAssignAgeGroup }) {
     return autoAssignDwellers(
       'auto-assign-all',
       vaultId,

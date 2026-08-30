@@ -35,7 +35,12 @@ describe('useDwellerManagementStore', () => {
       null,
       { headers: { Authorization: 'Bearer token-1' } }
     )
-    expect(refreshSpy).toHaveBeenCalledWith('vault-1', 'token-1')
+    expect(refreshSpy).toHaveBeenCalledWith('vault-1', 'token-1', {
+      status: filterStore.filterStatus,
+      ageGroup: filterStore.filterAgeGroup,
+      sortBy: filterStore.sortBy,
+      order: filterStore.sortDirection,
+    })
     expect(result).toEqual({ assigned_count: 2, assignments: [] })
   })
 })

@@ -335,7 +335,7 @@ class GameLoopService:
         leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
         if leveled_up:
             stats["leveled_up"] = levels_gained
-            self.logger.info(f"Dweller {dweller.name} gained {levels_gained} level(s)! Now level {dweller.level}")
+            self.logger.info(f"Dweller {dweller} gained {levels_gained} level(s)! Now level {dweller.level}")
             # Emit DWELLER_LEVEL_UP event for objective tracking
             if dweller.vault_id:
                 await event_bus.emit(

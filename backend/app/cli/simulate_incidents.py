@@ -20,6 +20,8 @@ from typing import Annotated, Any
 
 import typer
 
+from app.core.game_config import game_config
+
 DEFAULT_TICK_INTERVAL = 60
 DEFAULT_SIMULATION_DAYS = 3
 DEFAULT_RUNS = 50
@@ -39,16 +41,6 @@ DEFAULT_MAX_SPREAD_COUNT = 3
 
 DEFAULT_BASE_RAIDER_POWER = 10
 DEFAULT_LEVEL_BONUS_MULTIPLIER = 2
-
-_UNARMED_WEIGHTS = {
-    "strength": 0.2,
-    "perception": 0.1,
-    "endurance": 0.1,
-    "charisma": 0.1,
-    "intelligence": 0.1,
-    "agility": 0.1,
-    "luck": 0.1,
-}
 
 DEFAULT_CAPS_REWARD_BASE = 50
 DEFAULT_CAPS_REWARD_PER_DIFFICULTY = 20
@@ -328,7 +320,8 @@ class IncidentSimulator:
     def _calculate_dweller_power(self, vault: VaultState) -> float:
         if vault.adults <= 0:
             return 0.0
-        stat_power = self.cfg.avg_special * sum(_UNARMED_WEIGHTS.values())
+        unarmed_weights = game_config.combat.weapon_stat_weights["unarmed"]
+        stat_power = self.cfg.avg_special * sum(unarmed_weights.values())
         per_dweller = stat_power + self.cfg.avg_weapon_damage + self.cfg.avg_level * self.cfg.level_bonus_multiplier
         return vault.adults * per_dweller
 

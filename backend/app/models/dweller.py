@@ -165,17 +165,9 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
 
     @property
     def combat_power(self) -> float:
-        from app.core.game_config import game_config
+        from app.utils.combat import combat_power as _combat_power
 
-        weapon = self.__dict__.get("weapon")
-        weapon_type = weapon.weapon_type.value if weapon is not None else "unarmed"
-        weights = (
-            game_config.combat.weapon_stat_weights.get(weapon_type) or game_config.combat.weapon_stat_weights["unarmed"]
-        )
-        stat_power = sum(getattr(self, stat, 0) * w for stat, w in weights.items())
-        weapon_damage = (weapon.damage_min + weapon.damage_max) / 2 if weapon is not None else 0.0
-        level_bonus = self.level * game_config.combat.level_bonus_multiplier
-        return float(stat_power + weapon_damage + level_bonus)
+        return float(_combat_power(self))
 
     # Training
     trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)

@@ -43,14 +43,6 @@ class PreparedRooms:
     training: list[RoomCreate]
     arena: list[RoomCreate]
 
-    def __iter__(self):  # type: ignore[override]
-        yield self.infrastructure
-        yield self.capacity
-        yield self.production
-        yield self.misc
-        yield self.training
-        yield self.arena
-
 
 @dataclass(slots=True)
 class CreatedRooms:
@@ -86,18 +78,7 @@ class VaultService:
     @staticmethod
     def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
         rooms_by_name = {r.name.lower(): r for r in rooms}
-        template = rooms_by_name.get(room_name.lower())
-        if template is None:
-            raise ValueError(f"Room template '{room_name}' not found")
-        data = template.model_dump()
-        size = data["size_min"]
-        tier = 1
-        if data.get("capacity_formula"):
-            data["capacity"] = room_crud.evaluate_capacity_formula(data["capacity_formula"], tier, size)
-        if data.get("output_formula"):
-            data["output"] = room_crud.evaluate_output_formula(data["output_formula"], tier, size)
-        data.update(vault_id=vault_id, size=size, tier=tier, coordinate_x=x, coordinate_y=y)
-        return data
+        return VaultService._build_room(rooms_by_name, room_name, vault_id, x, y).model_dump()
 
     def _prepare_initial_rooms(
         self,
@@ -160,27 +141,8 @@ class VaultService:
         self,
         db_session: AsyncSession,
         vault: Vault,
-        prepared_or_infra: PreparedRooms | list[RoomCreate],
-        capacity_rooms: list[RoomCreate] | None = None,
-        production_rooms: list[RoomCreate] | None = None,
-        misc_rooms: list[RoomCreate] | None = None,
-        training_rooms: list[RoomCreate] | None = None,
-        arena_rooms: list[RoomCreate] | None = None,
-    ) -> tuple[Vault, CreatedRooms] | tuple[Vault, list[Room], list[Room], list[Room], list[Room]]:
-        if isinstance(prepared_or_infra, PreparedRooms):
-            prepared = prepared_or_infra
-            old_style = False
-        else:
-            prepared = PreparedRooms(
-                infrastructure=prepared_or_infra,
-                capacity=capacity_rooms or [],
-                production=production_rooms or [],
-                misc=misc_rooms or [],
-                training=training_rooms or [],
-                arena=arena_rooms or [],
-            )
-            old_style = True
-
+        prepared: PreparedRooms,
+    ) -> tuple[Vault, CreatedRooms]:
         async def create_batch(rooms: list[RoomCreate]) -> list[Room]:
             return [await room_crud.create(db_session, r) for r in rooms]
 
@@ -221,16 +183,13 @@ class VaultService:
         for room in created_production + created_training + created_misc + created_capacity + created_arena:
             await db_session.refresh(room)
 
-        created = CreatedRooms(
+        return vault, CreatedRooms(
             production=created_production,
             training=created_training,
             misc=created_misc,
             capacity=created_capacity,
             arena=created_arena,
         )
-        if old_style:
-            return vault, created.production, created.training, created.misc, created.capacity
-        return vault, created
 
     async def _create_initial_dwellers(
         self,
@@ -668,30 +627,10 @@ class VaultService:
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        prepared_raw = self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
-        if isinstance(prepared_raw, PreparedRooms):
-            prepared = prepared_raw
-        else:
-            # mocked tuple/list in tests
-            infra, cap, prod, misc, training, *rest = prepared_raw
-            arena = rest[0] if rest else []
-            prepared = PreparedRooms(
-                infrastructure=infra,
-                capacity=cap,
-                production=prod,
-                misc=misc,
-                training=training,
-                arena=arena,
-            )
+        prepared = self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
 
         # Create rooms and get created production/training/misc rooms
-        result = await self._create_initial_rooms(db_session, vault_db_obj, prepared)
-        if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], CreatedRooms):
-            vault_db_obj, created = result
-        else:
-            # legacy mocked tuple (vault, prod, train, misc, cap)
-            vault_db_obj, prod, train, misc, cap = result  # type: ignore[misc]
-            created = CreatedRooms(production=prod, training=train, misc=misc, capacity=cap, arena=[])
+        vault_db_obj, created = await self._create_initial_rooms(db_session, vault_db_obj, prepared)
         created_production_rooms = created.production
         created_training_rooms = created.training
         created_misc_rooms = created.misc

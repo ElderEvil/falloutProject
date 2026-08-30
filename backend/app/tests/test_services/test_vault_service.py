@@ -26,7 +26,7 @@ from app.schemas.vault import (
     VaultNumber,
     VaultUpdate,
 )
-from app.services.vault_service import VaultService
+from app.services.vault_service import CreatedRooms, PreparedRooms, VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 # Valid UUIDv4 constants for use in mocked objects
@@ -193,25 +193,25 @@ class TestPrepareInitialRooms:
             _make_room_create("water treatment", ability=SPECIALEnum.PERCEPTION),
             _make_room_create("radio studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA),
         ]
-        infra, cap, prod, misc, training, arena = service._prepare_initial_rooms(rooms, vault_id, is_boosted=False)
+        prepared = service._prepare_initial_rooms(rooms, vault_id, is_boosted=False)
 
         # infrastructure: 1 door + 3 elevators
-        assert len(infra) == 4
-        assert infra[0].name == "vault door"
+        assert len(prepared.infrastructure) == 4
+        assert prepared.infrastructure[0].name == "vault door"
         # capacity: 1 living + 1 storage
-        assert len(cap) == 2
-        assert cap[0].name == "living room"
-        assert cap[1].name == "storage room"
+        assert len(prepared.capacity) == 2
+        assert prepared.capacity[0].name == "living room"
+        assert prepared.capacity[1].name == "storage room"
         # production: 3 rooms
-        assert len(prod) == 3
-        assert prod[0].name == "power generator"
-        assert prod[1].name == "diner"
-        assert prod[2].name == "water treatment"
+        assert len(prepared.production) == 3
+        assert prepared.production[0].name == "power generator"
+        assert prepared.production[1].name == "diner"
+        assert prepared.production[2].name == "water treatment"
         # misc: radio studio only
-        assert len(misc) == 1
-        assert misc[0].name == "radio studio"
-        assert len(training) == 0
-        assert len(arena) == 0
+        assert len(prepared.misc) == 1
+        assert prepared.misc[0].name == "radio studio"
+        assert len(prepared.training) == 0
+        assert len(prepared.arena) == 0
 
     def test_boosted_rooms(self) -> None:
         """Boosted vault adds medbay, science lab, overseer's office, arena, extra living rooms, and 7 training rooms."""
@@ -238,19 +238,19 @@ class TestPrepareInitialRooms:
             _make_room_create("fitness room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.AGILITY),
             _make_room_create("lounge", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.LUCK),
         ]
-        infra, cap, prod, misc, training, arena = service._prepare_initial_rooms(rooms, vault_id, is_boosted=True)
+        prepared = service._prepare_initial_rooms(rooms, vault_id, is_boosted=True)
 
-        assert len(infra) == 4
+        assert len(prepared.infrastructure) == 4
         # capacity: 1 base living + 1 storage + 3 extra living (ceil(25/8)=4 living)
-        assert len(cap) == 5
+        assert len(prepared.capacity) == 5
         # production: 3 base + medbay + science lab = 5
-        assert len(prod) == 5
+        assert len(prepared.production) == 5
         # misc: radio + overseer's office (arena is separate)
-        assert len(misc) == 2
+        assert len(prepared.misc) == 2
         # training: 7 rooms
-        assert len(training) == 7
-        assert len(arena) == 1
-        assert arena[0].name == "arena"
+        assert len(prepared.training) == 7
+        assert len(prepared.arena) == 1
+        assert prepared.arena[0].name == "arena"
 
 
 # ---------------------------------------------------------------------------
@@ -309,7 +309,18 @@ class TestCreateInitialRooms:
             service = VaultService()
             # Mock vault_crud.update_storage so it doesn't hit real DB
             with patch("app.services.vault_service.vault_crud.update_storage", new_callable=AsyncMock):
-                await service._create_initial_rooms(db_session, vault, infra, cap, prod, misc, training)
+                await service._create_initial_rooms(
+                    db_session,
+                    vault,
+                    PreparedRooms(
+                        infrastructure=infra,
+                        capacity=cap,
+                        production=prod,
+                        misc=misc,
+                        training=training,
+                        arena=[],
+                    ),
+                )
 
         assert vault.population_max == 4
 
@@ -380,7 +391,18 @@ class TestCreateInitialRooms:
             training: list[RoomCreate] = []
 
             service = VaultService()
-            await service._create_initial_rooms(db_session, vault, infra, cap, prod, misc, training)
+            await service._create_initial_rooms(
+                db_session,
+                vault,
+                PreparedRooms(
+                    infrastructure=infra,
+                    capacity=cap,
+                    production=prod,
+                    misc=misc,
+                    training=training,
+                    arena=[],
+                ),
+            )
 
         assert vault.power_max == 20
         assert vault.food_max == 15
@@ -1223,8 +1245,8 @@ class TestInitiateVault:
 
         # Mock all the sub-methods that do heavy lifting
         service._prepare_initial_rooms = MagicMock(
-            return_value=(
-                [
+            return_value=PreparedRooms(
+                infrastructure=[
                     RoomCreate(
                         name="Vault Door",
                         category=RoomTypeEnum.CAPACITY,
@@ -1237,11 +1259,11 @@ class TestInitiateVault:
                         vault_id=vault_id,
                     )
                 ],
-                [],
-                [],
-                [],
-                [],
-                [],
+                capacity=[],
+                production=[],
+                misc=[],
+                training=[],
+                arena=[],
             )
         )
 
@@ -1249,8 +1271,20 @@ class TestInitiateVault:
         train_rooms: list[Room] = []
         misc_rooms: list[Room] = []
         cap_rooms: list[Room] = []
+        arena_rooms: list[Room] = []
 
-        service._create_initial_rooms = AsyncMock(return_value=(vault, prod_rooms, train_rooms, misc_rooms, cap_rooms))
+        service._create_initial_rooms = AsyncMock(
+            return_value=(
+                vault,
+                CreatedRooms(
+                    production=prod_rooms,
+                    training=train_rooms,
+                    misc=misc_rooms,
+                    capacity=cap_rooms,
+                    arena=arena_rooms,
+                ),
+            )
+        )
         service._create_initial_dwellers = AsyncMock()
         service._start_training_sessions = AsyncMock()
         service._assign_initial_objectives = AsyncMock()
@@ -1356,8 +1390,21 @@ class TestInitiateVault:
         misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
         cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
 
-        service._prepare_initial_rooms = MagicMock(return_value=([], [], [], [], [], []))
-        service._create_initial_rooms = AsyncMock(return_value=(vault, prod_rooms, train_rooms, misc_rooms, cap_rooms))
+        service._prepare_initial_rooms = MagicMock(
+            return_value=PreparedRooms(infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[])
+        )
+        service._create_initial_rooms = AsyncMock(
+            return_value=(
+                vault,
+                CreatedRooms(
+                    production=prod_rooms,
+                    training=train_rooms,
+                    misc=misc_rooms,
+                    capacity=cap_rooms,
+                    arena=[],
+                ),
+            )
+        )
         service._create_initial_dwellers = AsyncMock()
         service._start_training_sessions = AsyncMock()
         service._assign_initial_objectives = AsyncMock()

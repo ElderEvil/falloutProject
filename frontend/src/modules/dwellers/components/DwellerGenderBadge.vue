@@ -19,16 +19,15 @@ const GENDER_META: Record<Gender, { color: string; icon: string; label: string }
   female: { color: '#f472b6', icon: 'mdi:gender-female', label: 'Female' },
 }
 
-const gender = computed<Gender>(() => {
+const meta = computed(() => {
   const g = String(props.gender ?? '').toLowerCase()
-  return g === 'male' || g === 'female' ? g : 'male'
+  return g === 'male' || g === 'female' ? GENDER_META[g] : null
 })
-
-const meta = computed(() => GENDER_META[gender.value])
 </script>
 
 <template>
   <DwellerBadge
+    v-if="meta"
     :icon="meta.icon"
     :color="meta.color"
     :label="meta.label"

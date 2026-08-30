@@ -309,7 +309,7 @@ const handleScrapItem = async (
             v-for="item in activeItems"
             :key="item.id"
             :item="item.item"
-            :item-type="activeTab"
+            :item-type="activeTab === 'weapons' ? 'weapon' : activeTab === 'outfits' ? 'outfit' : 'junk'"
             :count="item.count"
             @sell="handleSellItem(item.ids[0], activeTab)"
             @sell-all="handleSellItem(item.ids, activeTab)"

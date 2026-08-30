@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton, UCard } from '@/core/components/ui'
-import { getStaticImageUrl } from '@/core/utils/image'
-
+import {
+  getItemIcon,
+  getOutfitStats,
+  getRarityBorderClass,
+  getRarityTextClass,
+  getWeaponStats,
+} from '@/core/models/items'
+import { useItemImage } from '@/core/composables/useItemImage'
 interface Props {
   item: any
-  itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits'
+  itemType: 'weapon' | 'outfit' | 'junk'
   count?: number
 }
 
@@ -18,209 +24,29 @@ const emit = defineEmits<{
   scrap: []
 }>()
 
-// Normalize item type (handle plural forms)
-const normalizedItemType = computed(() => {
-  if (itemType === 'weapons') return 'weapon'
-  if (itemType === 'outfits') return 'outfit'
-  return itemType
-})
+const itemIcon = computed(() => getItemIcon(itemType, item as any))
 
-// Get item display name
-const itemName = computed(() => {
-  return item.name || 'Unknown Item'
-})
+const rarityBorderClass = computed(() => getRarityBorderClass((item as any).rarity))
 
-// Get item description
-const itemDescription = computed(() => {
-  return item.description || 'No description available'
-})
+const rarityTextClass = computed(() => getRarityTextClass((item as any).rarity))
 
-// Get item value
-const itemValue = computed(() => {
-  return item.value || 0
-})
+const { imageUrl, onImageError } = useItemImage(() => (item as any).image_url)
 
-// Get item rarity
-const itemRarity = computed(() => {
-  return item.rarity || 'common'
-})
-
-// Get detailed icon based on subtype
-const itemIcon = computed(() => {
-  if (normalizedItemType.value === 'weapon') {
-    const subtype = item.weapon_subtype?.toString().toLowerCase()
-    switch (subtype) {
-      case 'pistol':
-        return 'mdi:pistol'
-      case 'rifle':
-        return 'game-icons:rifle'
-      case 'shotgun':
-        return 'game-icons:shotgun'
-      case 'automatic':
-        return 'game-icons:machine-gun'
-      case 'explosive':
-        return 'mdi:bomb'
-      case 'flamer':
-        return 'mdi:fire'
-      case 'edged':
-        return 'mdi:sword'
-      case 'blunt':
-        return 'mdi:hammer'
-      case 'pointed':
-        return 'mdi:spear'
-      default:
-        return 'mdi:pistol'
-    }
-  }
-
-  if (normalizedItemType.value === 'outfit') {
-    const outfitType = item.outfit_type?.toString().toLowerCase()
-    switch (outfitType) {
-      case 'power_armor':
-        return 'mdi:robot'
-      case 'legendary_outfit':
-        return 'mdi:shield'
-      case 'rare_outfit':
-        return 'mdi:hard-hat'
-      default:
-        return 'mdi:tshirt-crew'
-    }
-  }
-
-  // Junk items
-  return 'mdi:wrench'
-})
-
-const imageError = ref(false)
-
-watch(
-  () => item.image_url,
-  () => {
-    imageError.value = false
-  },
-)
-
-const itemImageUrl = computed(() => {
-  if (imageError.value || !item.image_url) {
-    return ''
-  }
-  return getStaticImageUrl(item.image_url)
-})
-
-function onImageError() {
-  imageError.value = true
-}
-
-// Format weapon/outfit type for display
 const itemTypeDisplay = computed(() => {
-  if (normalizedItemType.value === 'weapon') {
-    return `${item.weapon_subtype || ''} • ${itemRarity.value}`
-  } else if (normalizedItemType.value === 'outfit') {
-    return `${item.outfit_type || ''} • ${itemRarity.value}`
-  }
-  return itemRarity.value
+  if (itemType === 'weapon') return `${(item as any).weapon_subtype || ''} • ${(item as any).rarity || 'common'}`
+  if (itemType === 'outfit') return `${(item as any).outfit_type || ''} • ${(item as any).rarity || 'common'}`
+  return (item as any).rarity || 'common'
 })
 
-// Get item stats in vertical format (matching WeaponCard/OutfitCard)
 const itemStats = computed(() => {
-  const stats: Array<{ label: string; value: string | number; icon: string }> = []
-
-  if (normalizedItemType.value === 'weapon') {
-    // Damage range
-    if (item.damage_min !== undefined && item.damage_max !== undefined) {
-      stats.push({
-        label: 'Damage',
-        value: `${item.damage_min}-${item.damage_max}`,
-        icon: 'mdi:sword-cross',
-      })
-    }
-    // SPECIAL stat
-    if (item.stat) {
-      stats.push({
-        label: 'Uses',
-        value: item.stat.toUpperCase(),
-        icon: 'mdi:alphabet-latin',
-      })
-    }
-    // Weapon type
-    if (item.weapon_type) {
-      stats.push({
-        label: 'Type',
-        value: item.weapon_type,
-        icon: 'mdi:tag',
-      })
-    }
-    // Optional extra stats
-    if (item.weight !== undefined) {
-      stats.push({ label: 'Weight', value: item.weight, icon: 'mdi:scale' })
-    }
-    if (item.durability !== undefined) {
-      stats.push({ label: 'Durability', value: item.durability, icon: 'mdi:shield-check' })
-    }
-  } else if (normalizedItemType.value === 'outfit') {
-    // Gender restriction
-    if (item.gender) {
-      stats.push({
-        label: 'Gender',
-        value: item.gender,
-        icon: 'mdi:human-male-female',
-      })
-    }
-    if (item.weight !== undefined) {
-      stats.push({ label: 'Weight', value: item.weight, icon: 'mdi:scale' })
-    }
-    if (item.durability !== undefined) {
-      stats.push({ label: 'Durability', value: item.durability, icon: 'mdi:shield-check' })
-    }
-  }
-
-  return stats
+  if (itemType === 'weapon') return getWeaponStats(item as any)
+  if (itemType === 'outfit') return getOutfitStats(item as any)
+  return []
 })
 
-const handleSell = () => {
-  emit('sell')
-}
+const canScrap = computed(() => itemType === 'weapon' || itemType === 'outfit')
 
-const handleSellAll = () => {
-  emit('sellAll')
-}
-
-const handleScrap = () => {
-  emit('scrap')
-}
-
-// Show scrap button only for weapons and outfits
-const canScrap = computed(() => {
-  return normalizedItemType.value === 'weapon' || normalizedItemType.value === 'outfit'
-})
-
-// Show sell all button only for junk items and when there are multiple copies
-const showSellAll = computed(() => {
-  return count > 1 && normalizedItemType.value === 'junk'
-})
-
-// Rarity-based Tailwind classes
-const rarityBorderClass = computed(() => {
-  switch (itemRarity.value) {
-    case 'rare':
-      return 'border-(--color-rarity-rare)'
-    case 'legendary':
-      return 'border-(--color-rarity-legendary)'
-    default:
-      return 'border-(--color-rarity-common)'
-  }
-})
-
-const rarityTextClass = computed(() => {
-  switch (itemRarity.value) {
-    case 'rare':
-      return 'text-(--color-rarity-rare)'
-    case 'legendary':
-      return 'text-(--color-rarity-legendary)'
-    default:
-      return 'text-(--color-rarity-common)'
-  }
-})
+const showSellAll = computed(() => count > 1 && itemType === 'junk')
 </script>
 
 <template>
@@ -235,9 +61,9 @@ const rarityTextClass = computed(() => {
       <!-- Header: icon + name + count badge -->
       <div class="flex items-start gap-3">
         <img
-          v-if="itemImageUrl"
-          :src="itemImageUrl"
-          :alt="itemName"
+          v-if="imageUrl"
+          :src="imageUrl"
+          :alt="item.name || 'Unknown Item'"
           class="h-16 w-16 shrink-0 object-contain drop-shadow-[0_0_4px_var(--color-theme-glow)]"
           @error="onImageError"
         />
@@ -254,7 +80,7 @@ const rarityTextClass = computed(() => {
                 rarityTextClass,
               ]"
             >
-              {{ itemName }}
+              {{ item.name || 'Unknown Item' }}
             </h3>
             <span
               v-if="count > 1"
@@ -272,7 +98,7 @@ const rarityTextClass = computed(() => {
       </div>
 
       <p class="min-h-8 text-xs leading-4 text-(--color-theme-primary)/70">
-        {{ itemDescription }}
+        {{ item.description || 'No description available' }}
       </p>
 
       <!-- Item stats -->
@@ -293,13 +119,13 @@ const rarityTextClass = computed(() => {
       >
         <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">
           <Icon icon="mdi:currency-usd" class="h-4 w-4 text-(--color-caps)" />
-          <span>{{ itemValue }}</span>
+          <span>{{ item.value || 0 }}</span>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
           <UButton
             variant="secondary"
             size="sm"
-            @click="handleSell"
+            @click="emit('sell')"
             :title="count > 1 ? 'Sell one' : 'Sell'"
             class="font-mono border-(--color-caps)! text-(--color-caps)! hover:bg-(--color-caps)/20!"
           >
@@ -310,7 +136,7 @@ const rarityTextClass = computed(() => {
             v-if="canScrap"
             variant="secondary"
             size="sm"
-            @click="handleScrap"
+            @click="emit('scrap')"
             title="Scrap"
             class="font-mono border-danger/60! text-danger! hover:bg-danger/15!"
           >
@@ -321,7 +147,7 @@ const rarityTextClass = computed(() => {
             v-if="showSellAll"
             variant="primary"
             size="sm"
-            @click="handleSellAll"
+            @click="emit('sellAll')"
             :title="`Sell all (${count})`"
             class="font-mono border-(--color-caps)! bg-(--color-caps)/20! text-(--color-caps)! hover:bg-(--color-caps)/30!"
           >

@@ -161,12 +161,12 @@ const getStatColorClass = (value: number) => {
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px var(--color-theme-glow);
+  box-shadow: var(--glow-2);
 }
 
 .dweller-grid-item:hover {
   border-color: var(--color-theme-primary);
-  box-shadow: 0 0 20px var(--color-theme-glow);
+  box-shadow: var(--glow-2);
   transform: translateY(-2px);
 }
 
@@ -209,12 +209,10 @@ const getStatColorClass = (value: number) => {
   padding: 0.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 .ai-generate-button:hover:not(:disabled) {
-  animation: none;
-  box-shadow: 0 0 20px var(--color-theme-primary);
+  box-shadow: var(--glow-2);
   background: var(--color-surface-hover);
 }
 
@@ -227,16 +225,6 @@ const getStatColorClass = (value: number) => {
   width: 1.25rem;
   height: 1.25rem;
   color: var(--color-theme-primary);
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 5px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 15px var(--color-theme-primary);
-  }
 }
 
 .info-section {
@@ -264,7 +252,6 @@ const getStatColorClass = (value: number) => {
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
   line-height: 1.2;
   flex: 1;
 }
@@ -286,14 +273,12 @@ const getStatColorClass = (value: number) => {
   font-size: 0.75rem;
   color: var(--color-theme-primary);
   opacity: 0.7;
-  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .stat-value {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .health-bar {
@@ -308,7 +293,6 @@ const getStatColorClass = (value: number) => {
 .health-fill {
   height: 100%;
   background: var(--color-theme-primary);
-  box-shadow: 0 0 6px var(--color-theme-glow);
   transition: width 0.3s ease;
 }
 
@@ -330,12 +314,10 @@ const getStatColorClass = (value: number) => {
 .job-stat-label {
   color: var(--color-theme-primary);
   opacity: 0.8;
-  text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
 .job-stat-value {
   font-weight: 700;
-  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
 .room-info {
@@ -353,14 +335,13 @@ const getStatColorClass = (value: number) => {
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid rgba(107, 114, 128, 0.5);
   color: rgba(209, 213, 219, 0.9);
-  text-shadow: 0 0 2px var(--color-theme-glow);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .room-badge:hover:not(.unassigned) {
   border-color: var(--color-theme-glow);
-  box-shadow: 0 0 8px var(--color-theme-glow);
+  box-shadow: var(--glow-2);
 }
 
 .room-badge.unassigned {

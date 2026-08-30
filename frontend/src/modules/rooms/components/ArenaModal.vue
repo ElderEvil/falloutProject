@@ -8,6 +8,7 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
 import { useArenaStore } from '../stores/arena'
+import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const toast = useToast()
 const { management: dwellerManagementStore } = useDwellerStore()
+const medicalStore = useDwellerMedicalStore()
 const arenaStore = useArenaStore()
 
 const isLoading = ref(true)
@@ -86,6 +88,9 @@ usePolling(() => load(true), { interval: 1_000, immediate: false })
 const fighterA = computed(() => roomState.value?.fighters[0] ?? null)
 const fighterB = computed(() => roomState.value?.fighters[1] ?? null)
 const roster = computed(() => roomState.value?.roster ?? [])
+// The bench is the assigned dwellers NOT currently in a slot — every dweller
+// appears exactly once: fighters on the stage (slots), the rest here.
+const bench = computed(() => roster.value.filter((entry) => !isSelected(entry.id)))
 const isDone = computed(() => roomState.value?.match_done ?? false)
 const canStart = computed(() => roomState.value?.can_start ?? false)
 const isFighting = computed(() => (roomState.value?.fight_started ?? false) && !isDone.value)
@@ -123,8 +128,22 @@ const persistFighters = async (fighterAId: string | null, fighterBId: string | n
 
 const selectFighter = (slot: 'A' | 'B', entry: ArenaRosterEntry) => {
   const other = slot === 'A' ? validSlotId('B') : validSlotId('A')
-  const a = slot === 'A' ? entry.id : other
-  const b = slot === 'B' ? entry.id : other
+  let a = slot === 'A' ? entry.id : other
+  let b = slot === 'B' ? entry.id : other
+
+  // Smart pairing: when the opposite slot is empty and exactly one candidate
+  // remains, fill it — picking the first of two fighters almost always means
+  // the second belongs in the other corner.
+  const opposite = slot === 'A' ? b : a
+  if (!opposite) {
+    const taken = new Set([a, b].filter((id): id is string => !!id))
+    const remaining = roster.value.filter((e) => !taken.has(e.id))
+    if (remaining.length === 1) {
+      if (slot === 'A') b = remaining[0].id
+      else a = remaining[0].id
+    }
+  }
+
   void persistFighters(a, b)
 }
 
@@ -141,6 +160,48 @@ const unassign = async (entry: ArenaRosterEntry) => {
     await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
   } catch {
     toast.error('Failed to remove dweller from the Arena')
+  }
+}
+
+// Post-battle conveniences: patch up the loser, clear the room for the next
+// match. Fighters under 50% HP are the ones a stimpack actually helps.
+const injuredFighters = computed(() =>
+  (roomState.value?.fighters ?? []).filter(
+    (fighter: ArenaFighter) => fighter.max_health > 0 && fighter.health / fighter.max_health < 0.5
+  )
+)
+
+const isHealing = ref(false)
+const healInjured = async () => {
+  if (!authStore.token || isHealing.value) return
+  isHealing.value = true
+  try {
+    for (const fighter of injuredFighters.value) {
+      await medicalStore.useStimpack(fighter.id, authStore.token)
+    }
+    previousHp.value = {}
+    await load(true)
+  } finally {
+    isHealing.value = false
+  }
+}
+
+const isUnassigningAll = ref(false)
+const unassignAll = async () => {
+  if (!authStore.token || isUnassigningAll.value || !roster.value.length) return
+  isUnassigningAll.value = true
+  try {
+    for (const entry of roster.value) {
+      try {
+        await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
+      } catch {
+        toast.error(`Failed to remove ${entry.name} from the Arena`)
+      }
+    }
+    previousHp.value = {}
+    await load(true)
+  } finally {
+    isUnassigningAll.value = false
   }
 }
 
@@ -172,6 +233,16 @@ const journalIcon = (kind: string) => {
       return 'mdi:dots-horizontal'
   }
 }
+
+const hpPercent = (entry: ArenaRosterEntry) =>
+  entry.max_health > 0 ? Math.round((entry.health / entry.max_health) * 100) : 0
+
+const hpClass = (entry: ArenaRosterEntry) => {
+  const pct = hpPercent(entry)
+  if (pct < 25) return 'hp-critical'
+  if (pct < 50) return 'hp-low'
+  return 'hp-healthy'
+}
 </script>
 
 <template>
@@ -188,55 +259,79 @@ const journalIcon = (kind: string) => {
     </div>
 
     <div v-if="isLoading" class="loading">
-      <div class="spinner">⚔️</div>
+      <Icon icon="mdi:sword-cross" class="loading-icon spin" />
       <p>Loading arena...</p>
     </div>
 
     <div v-else class="arena-content">
       <!-- Fighters -->
-      <div class="fighters-row">
-        <ArenaFighterSlot
-          side="A"
-          :fighter="fighterA"
-          :can-change="canChangeFighters"
-          :damage-numbers="damageFor('A')"
-          :options="pickerOptions('A')"
-          :picker-open="openPicker === 'A'"
-          @toggle-picker="togglePicker"
-          @clear="clearFighter"
-          @select="selectFighter"
-        />
+      <div class="section">
+        <h3 class="section-title">
+          <Icon icon="mdi:sword-cross" class="section-title-icon" />
+          Fighters
+        </h3>
+        <div class="fighters-row">
+          <ArenaFighterSlot
+            side="A"
+            :fighter="fighterA"
+            :can-change="canChangeFighters"
+            :damage-numbers="damageFor('A')"
+            :options="pickerOptions('A')"
+            :picker-open="openPicker === 'A'"
+            @toggle-picker="togglePicker"
+            @clear="clearFighter"
+            @select="selectFighter"
+          />
 
-        <div class="versus">
-          <Transition name="countdown-pop" mode="out-in">
-            <span v-if="isFighting && countdown > 0" :key="countdown" class="countdown-number">
-              {{ countdown }}
-            </span>
-            <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
-          </Transition>
-          <span v-if="countdown === 0" class="versus-text">VS</span>
+          <div class="versus">
+            <Transition name="countdown-pop" mode="out-in">
+              <span v-if="isFighting && countdown > 0" :key="countdown" class="countdown-number">
+                {{ countdown }}
+              </span>
+              <Icon v-else icon="mdi:sword-cross" class="versus-icon" />
+            </Transition>
+            <span v-if="countdown === 0" class="versus-text">VS</span>
+          </div>
+
+          <ArenaFighterSlot
+            side="B"
+            :fighter="fighterB"
+            :can-change="canChangeFighters"
+            :damage-numbers="damageFor('B')"
+            :options="pickerOptions('B')"
+            :picker-open="openPicker === 'B'"
+            @toggle-picker="togglePicker"
+            @clear="clearFighter"
+            @select="selectFighter"
+          />
         </div>
-
-        <ArenaFighterSlot
-          side="B"
-          :fighter="fighterB"
-          :can-change="canChangeFighters"
-          :damage-numbers="damageFor('B')"
-          :options="pickerOptions('B')"
-          :picker-open="openPicker === 'B'"
-          @toggle-picker="togglePicker"
-          @clear="clearFighter"
-          @select="selectFighter"
-        />
       </div>
 
-      <!-- Assigned roster -->
-      <div v-if="roster.length" class="arena-roster">
-        <span class="roster-label">ASSIGNED</span>
+      <!-- Bench: assigned dwellers not currently fighting -->
+      <div v-if="bench.length" class="section">
+        <h3 class="section-title">
+          <Icon icon="mdi:account-group-outline" class="section-title-icon" />
+          Bench
+        </h3>
         <div class="roster-chips">
-          <div v-for="entry in roster" :key="entry.id" class="roster-chip" :class="{ fighting: isSelected(entry.id) }">
-            <span class="roster-name">{{ entry.name }}</span>
-            <button v-if="!isFighting" class="roster-remove" type="button" title="Remove from Arena" @click="unassign(entry)">✕</button>
+          <div v-for="entry in bench" :key="entry.id" class="roster-chip" :title="`HP ${entry.health}/${entry.max_health}`">
+            <div class="roster-chip-main">
+              <span class="roster-name">{{ entry.name }}</span>
+              <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
+            </div>
+            <div class="roster-hp-bar">
+              <div class="roster-hp-fill" :class="hpClass(entry)" :style="{ width: hpPercent(entry) + '%' }"></div>
+            </div>
+            <button
+              v-if="!isFighting"
+              class="roster-remove"
+              type="button"
+              :aria-label="`Remove ${entry.name} from Arena`"
+              title="Remove from Arena"
+              @click="unassign(entry)"
+            >
+              ✕
+            </button>
           </div>
         </div>
       </div>
@@ -245,6 +340,19 @@ const journalIcon = (kind: string) => {
       <div v-if="winnerName" class="result-banner finished">
         <Icon icon="mdi:trophy" class="result-icon" />
         <span>MATCH COMPLETE &mdash; {{ winnerName }} wins!</span>
+      </div>
+
+      <!-- Post-battle actions -->
+      <div v-if="isDone && injuredFighters.length" class="post-battle-actions">
+        <UButton
+          variant="secondary"
+          size="sm"
+          :loading="isHealing"
+          @click="healInjured"
+        >
+          <Icon icon="mdi:medication" class="action-icon" />
+          HEAL INJURED ({{ injuredFighters.length }})
+        </UButton>
       </div>
 
       <!-- Start fight -->
@@ -256,10 +364,12 @@ const journalIcon = (kind: string) => {
       </div>
 
       <!-- Battle journal -->
-      <div v-if="roomState?.events.length" class="battle-journal">
+      <div v-if="roomState?.events.length" class="section">
         <div class="journal-header">
-          <Icon icon="mdi:clipboard-text-clock-outline" class="journal-icon" />
-          <span>BATTLE JOURNAL</span>
+          <h3 class="section-title">
+            <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
+            Battle Journal
+          </h3>
           <button class="journal-clear" type="button" @click="clearJournal">CLEAR</button>
         </div>
         <div class="journal-list">
@@ -283,10 +393,22 @@ const journalIcon = (kind: string) => {
 
     <div class="arena-footer">
       <span class="footer-note">Fights resolve automatically — watch the HP bars.</span>
-      <UButton variant="secondary" size="sm" class="arena-destroy-btn" :disabled="isDestroying" @click="emit('destroy')">
-        <Icon icon="mdi:delete" class="destroy-icon" />
-        DESTROY
-      </UButton>
+      <div class="footer-actions">
+        <UButton
+          variant="secondary"
+          size="sm"
+          :loading="isUnassigningAll"
+          :disabled="isFighting || !roster.length"
+          @click="unassignAll"
+        >
+          <Icon icon="mdi:account-remove" class="destroy-icon" />
+          UNASSIGN ALL
+        </UButton>
+        <UButton variant="secondary" size="sm" class="arena-destroy-btn" :disabled="isDestroying" @click="emit('destroy')">
+          <Icon icon="mdi:delete" class="destroy-icon" />
+          DESTROY
+        </UButton>
+      </div>
     </div>
   </div>
 </template>
@@ -361,8 +483,12 @@ const journalIcon = (kind: string) => {
   color: var(--color-theme-primary);
 }
 
-.spinner {
-  font-size: 2.5rem;
+.loading-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.spin {
   animation: spin 2s linear infinite;
 }
 
@@ -375,24 +501,35 @@ const journalIcon = (kind: string) => {
   }
 }
 
+/* Section pattern shared with the other room-modal sections */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-theme-primary);
+  margin: 0;
+}
+
+.section-title-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .arena-content {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   padding: 0.5rem 0;
-}
-
-.arena-roster {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.roster-label {
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-500);
 }
 
 .roster-chips {
@@ -404,17 +541,66 @@ const journalIcon = (kind: string) => {
 .roster-chip {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.5rem;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid var(--color-surface-hover);
-  border-radius: 9999px;
+  border-radius: 4px;
   font-size: 0.75rem;
   color: var(--color-gray-300);
 }
 
-.roster-chip.fighting {
-  border-color: var(--color-theme-primary);
-  color: var(--color-theme-primary);
+.roster-chip-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.roster-name {
+  white-space: nowrap;
+}
+
+.roster-hp {
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.roster-hp.hp-healthy {
+  color: var(--color-success);
+}
+
+.roster-hp.hp-low {
+  color: var(--color-warning);
+}
+
+.roster-hp.hp-critical {
+  color: var(--color-danger);
+}
+
+.roster-hp-bar {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(128, 128, 128, 0.25);
+  overflow: hidden;
+}
+
+.roster-hp-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.roster-hp-fill.hp-healthy {
+  background: var(--color-success);
+}
+
+.roster-hp-fill.hp-low {
+  background: var(--color-warning);
+}
+
+.roster-hp-fill.hp-critical {
+  background: var(--color-danger);
 }
 
 .roster-remove {
@@ -478,37 +664,26 @@ const journalIcon = (kind: string) => {
   margin-right: 0.4rem;
 }
 
-.battle-journal {
+.journal-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.25rem;
   max-height: 180px;
   overflow-y: auto;
   padding: 0.6rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-surface-hover);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .journal-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
-  font-size: 0.7rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  color: var(--color-gray-400);
-  text-transform: uppercase;
-}
-
-.journal-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-theme-primary);
 }
 
 .journal-clear {
-  margin-left: auto;
   border: 1px solid var(--color-surface-hover);
   border-radius: 4px;
   padding: 0.1rem 0.5rem;
@@ -598,6 +773,19 @@ const journalIcon = (kind: string) => {
   height: 18px;
 }
 
+.post-battle-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.action-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 0.3rem;
+}
+
 .arena-note {
   display: flex;
   align-items: flex-start;
@@ -623,6 +811,13 @@ const journalIcon = (kind: string) => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .footer-note {

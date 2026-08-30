@@ -1,6 +1,8 @@
 """Service for vault initialization and resource management."""
 
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +18,13 @@ from app.crud.vault import vault as vault_crud
 from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import DwellerStatusEnum, GenderEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
@@ -24,6 +32,25 @@ from app.services.resource_manager import ResourceManager
 from app.services.training_service import training_service
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+
+
+@dataclass(slots=True)
+class PreparedRooms:
+    infrastructure: list[RoomCreate]
+    capacity: list[RoomCreate]
+    production: list[RoomCreate]
+    misc: list[RoomCreate]
+    training: list[RoomCreate]
+    arena: list[RoomCreate]
+
+
+@dataclass(slots=True)
+class CreatedRooms:
+    production: list[Room]
+    training: list[Room]
+    misc: list[Room]
+    capacity: list[Room]
+    arena: list[Room]
 
 
 class VaultService:
@@ -34,176 +61,135 @@ class VaultService:
         self.resource_manager = ResourceManager()
 
     @staticmethod
+    def _build_room(rooms_by_name: dict[str, RoomCreate], name: str, vault_id: UUID4, x: int, y: int) -> RoomCreate:
+        template = rooms_by_name.get(name.lower())
+        if template is None:
+            raise ValueError(f"Room template '{name}' not found")
+        data = template.model_dump()
+        size = data["size_min"]
+        tier = 1
+        if data.get("capacity_formula"):
+            data["capacity"] = room_crud.evaluate_capacity_formula(data["capacity_formula"], tier, size)
+        if data.get("output_formula"):
+            data["output"] = room_crud.evaluate_output_formula(data["output_formula"], tier, size)
+        data.update(vault_id=vault_id, size=size, tier=tier, coordinate_x=x, coordinate_y=y)
+        return RoomCreate(**data)
+
+    @staticmethod
     def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
-        room_data = next(room for room in rooms if room.name.lower() == room_name)
-        room_data_dict = room_data.model_dump()
-
-        # Evaluate capacity and output formulas if present
-        size = room_data.size_min
-        tier = 1  # Initial tier
-
-        # Check in the dumped dict for formula fields
-        if room_data_dict.get("capacity_formula"):
-            room_data_dict["capacity"] = room_crud.evaluate_capacity_formula(
-                room_data_dict["capacity_formula"], tier, size
-            )
-        if room_data_dict.get("output_formula"):
-            room_data_dict["output"] = room_crud.evaluate_output_formula(room_data_dict["output_formula"], tier, size)
-
-        room_data_dict.update(
-            {
-                "vault_id": vault_id,
-                "size": size,
-                "tier": tier,
-                "coordinate_x": x,
-                "coordinate_y": y,
-            }
-        )
-        return room_data_dict
+        rooms_by_name = {r.name.lower(): r for r in rooms}
+        return VaultService._build_room(rooms_by_name, room_name, vault_id, x, y).model_dump()
 
     def _prepare_initial_rooms(
         self,
         rooms: list[RoomCreate],
         vault_id: UUID4,
         is_boosted: bool,
-    ) -> tuple[list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]]:
-        """Prepare all room data for vault initialization."""
-        # Infrastructure rooms
-        vault_door_data = self._prepare_room_data(rooms, "vault door", vault_id, 0, 0)
-        elevators_data = [self._prepare_room_data(rooms, "elevator", vault_id, 0, y) for y in range(1, 4)]
-        infrastructure_rooms = [RoomCreate(**vault_door_data)] + [RoomCreate(**data) for data in elevators_data]
+    ) -> PreparedRooms:
+        rooms_by_name = {r.name.lower(): r for r in rooms}
 
-        # Capacity rooms (living rooms + storage)
-        living_room_data = self._prepare_room_data(rooms, "living room", vault_id, 2, 1)
-        storage_room_data = self._prepare_room_data(rooms, "storage room", vault_id, 2, 2)
-        capacity_rooms = [RoomCreate(**living_room_data), RoomCreate(**storage_room_data)]
+        def mk(specs: list[tuple[str, int, int]]) -> list[RoomCreate]:
+            return [self._build_room(rooms_by_name, n, vault_id, x, y) for n, x, y in specs]
 
-        # Add extra living rooms for boosted
+        infrastructure = mk([("vault door", 0, 0), ("elevator", 0, 1), ("elevator", 0, 2), ("elevator", 0, 3)])
         if is_boosted:
-            extra_capacity_rooms_data = [
-                self._prepare_room_data(rooms, "living room", vault_id, 4, 3),
-                self._prepare_room_data(rooms, "living room", vault_id, 5, 3),
+            living_template = rooms_by_name.get("living room")
+            cap_per = (
+                room_crud.evaluate_capacity_formula(living_template.capacity_formula, 1, living_template.size_min)
+                if living_template and living_template.capacity_formula
+                else 8
+            )
+            expected_dwellers = 25
+            needed_living = (expected_dwellers + cap_per - 1) // cap_per
+            extra_coords = [(4, 3), (5, 3), (3, 3), (7, 3), (1, 3), (2, 3)]
+            extra_living = extra_coords[: max(0, needed_living - 1)]
+            capacity_specs = [("living room", 2, 1), ("storage room", 2, 2)] + [
+                ("living room", x, y) for x, y in extra_living
             ]
-            capacity_rooms.extend([RoomCreate(**data) for data in extra_capacity_rooms_data])
-
-        # Production rooms
-        power_generator_data = self._prepare_room_data(rooms, "power generator", vault_id, 1, 1)
-        diner_data = self._prepare_room_data(rooms, "diner", vault_id, 1, 2)
-        water_treatment_data = self._prepare_room_data(rooms, "water treatment", vault_id, 1, 3)
-        production_rooms = [
-            RoomCreate(**power_generator_data),
-            RoomCreate(**diner_data),
-            RoomCreate(**water_treatment_data),
-        ]
-
-        # Add Medbay and Science Lab for boosted (produce stimpaks/radaways)
-        if is_boosted:
-            medbay_data = self._prepare_room_data(rooms, "medbay", vault_id, 7, 1)
-            science_lab_data = self._prepare_room_data(rooms, "science lab", vault_id, 7, 2)
-            production_rooms.extend([RoomCreate(**medbay_data), RoomCreate(**science_lab_data)])
-
-        # Miscellaneous rooms
-        radio_studio_data = self._prepare_room_data(rooms, "radio studio", vault_id, 2, 3)
-        misc_rooms = [RoomCreate(**radio_studio_data)]
-
-        # Add Overseer's Office for boosted
-        if is_boosted:
-            overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 2)
-            misc_rooms.append(RoomCreate(**overseer_office_data))
-
-        # Training rooms (boosted only)
-        training_rooms = []
-        if is_boosted:
-            training_room_configs = [
-                ("weight room", 3, 1),  # Strength
-                ("armory", 3, 2),  # Perception
-                ("athletics room", 4, 1),  # Endurance
-                ("classroom", 4, 2),  # Charisma
-                ("game room", 5, 1),  # Intelligence
-                ("fitness room", 5, 2),  # Agility
-                ("lounge", 6, 1),  # Luck
+        else:
+            capacity_specs = [("living room", 2, 1), ("storage room", 2, 2)]
+        capacity = mk(capacity_specs)
+        production = mk(
+            [("power generator", 1, 1), ("diner", 1, 2), ("water treatment", 1, 3)]
+            + ([("medbay", 7, 1), ("science lab", 7, 2)] if is_boosted else [])
+        )
+        misc = mk([("radio studio", 2, 3)] + ([("overseer's office", 6, 2)] if is_boosted else []))
+        arena = mk([("arena", 6, 3)] if is_boosted else [])
+        training = mk(
+            [
+                ("weight room", 3, 1),
+                ("armory", 3, 2),
+                ("athletics room", 4, 1),
+                ("classroom", 4, 2),
+                ("game room", 5, 1),
+                ("fitness room", 5, 2),
+                ("lounge", 6, 1),
             ]
-            training_rooms_data = [
-                self._prepare_room_data(rooms, room_name, vault_id, x, y) for room_name, x, y in training_room_configs
-            ]
-            training_rooms = [RoomCreate(**data) for data in training_rooms_data]
-
-        return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
+            if is_boosted
+            else []
+        )
+        return PreparedRooms(
+            infrastructure=infrastructure,
+            capacity=capacity,
+            production=production,
+            misc=misc,
+            training=training,
+            arena=arena,
+        )
 
     async def _create_initial_rooms(
         self,
         db_session: AsyncSession,
         vault: Vault,
-        infrastructure_rooms: list[RoomCreate],
-        capacity_rooms: list[RoomCreate],
-        production_rooms: list[RoomCreate],
-        misc_rooms: list[RoomCreate],
-        training_rooms: list[RoomCreate],
-    ) -> tuple[Vault, list[Room], list[Room], list[Room], list[Room]]:
-        """Create all rooms for a new vault and return production/training rooms."""
-        # Create infrastructure rooms
-        for room_data in infrastructure_rooms:
-            await room_crud.create(db_session, room_data)
+        prepared: PreparedRooms,
+    ) -> tuple[Vault, CreatedRooms]:
+        async def create_batch(rooms: list[RoomCreate]) -> list[Room]:
+            return [await room_crud.create(db_session, r) for r in rooms]
 
-        # Create capacity rooms and update vault max capacities
-        created_capacity_rooms = []
-        for room_data in capacity_rooms:
-            created_room = await room_crud.create(db_session, room_data)
-            created_capacity_rooms.append(created_room)
-            # Update vault capacities based on new rooms
-            if created_room.category == RoomTypeEnum.CAPACITY:
-                # Living rooms: ability=Charisma
-                if created_room.ability == SPECIALEnum.CHARISMA:
-                    vault.population_max += created_room.capacity or 0
-                # Storage rooms: ability=Endurance
-                elif created_room.ability == SPECIALEnum.ENDURANCE and created_room.capacity:
-                    # Storage rooms increase Storage.max_space, not individual vault capacities
-                    # Query current storage max_space to avoid lazy load issue
-                    storage_result = await db_session.execute(
-                        select(Storage.max_space).where(Storage.vault_id == vault.id)
-                    )
-                    current_max_space = storage_result.scalar_one_or_none() or 0
-                    await vault_crud.update_storage(db_session, vault.id, current_max_space + created_room.capacity)
+        for r in prepared.infrastructure:
+            await room_crud.create(db_session, r)
+
+        created_capacity = await create_batch(prepared.capacity)
+        for room in created_capacity:
+            if room.category == RoomTypeEnum.CAPACITY:
+                if room.ability == SPECIALEnum.CHARISMA:
+                    vault.population_max += room.capacity or 0
+                elif room.ability == SPECIALEnum.ENDURANCE and room.capacity:
+                    cur = (
+                        await db_session.execute(select(Storage.max_space).where(Storage.vault_id == vault.id))
+                    ).scalar_one_or_none() or 0
+                    await vault_crud.update_storage(db_session, vault.id, cur + room.capacity)
 
         await db_session.commit()
         await db_session.refresh(vault)
 
-        # Create production rooms and update vault capacities
-        created_production_rooms = []
-        for room_data in production_rooms:
-            created_room = await room_crud.create(db_session, room_data)
-            created_production_rooms.append(created_room)
+        created_production = await create_batch(prepared.production)
+        for room in created_production:
+            if room.ability and room.capacity:
+                match room.ability.value.lower():
+                    case "strength":
+                        vault.power_max += room.capacity
+                    case "agility":
+                        vault.food_max += room.capacity
+                    case "perception":
+                        vault.water_max += room.capacity
 
-            # Update vault capacities based on room ability (strength→power, agility→food, perception→water)
-            if created_room.ability and created_room.capacity:
-                ability_lower = created_room.ability.value.lower()
-                if ability_lower == "strength":
-                    vault.power_max += created_room.capacity
-                elif ability_lower == "agility":
-                    vault.food_max += created_room.capacity
-                elif ability_lower == "perception":
-                    vault.water_max += created_room.capacity
-
-        # Create misc rooms
-        created_misc_rooms = []
-        for room_data in misc_rooms:
-            created_room = await room_crud.create(db_session, room_data)
-            created_misc_rooms.append(created_room)
-
-        # Create training rooms
-        created_training_rooms = []
-        for room_data in training_rooms:
-            created_room = await room_crud.create(db_session, room_data)
-            created_training_rooms.append(created_room)
+        created_misc = await create_batch(prepared.misc)
+        created_training = await create_batch(prepared.training)
+        created_arena = await create_batch(prepared.arena)
 
         await db_session.commit()
-
-        # Refresh vault and room objects
         await db_session.refresh(vault)
-        for room in created_production_rooms + created_training_rooms + created_misc_rooms + created_capacity_rooms:
+        for room in created_production + created_training + created_misc + created_capacity + created_arena:
             await db_session.refresh(room)
 
-        return vault, created_production_rooms, created_training_rooms, created_misc_rooms, created_capacity_rooms
+        return vault, CreatedRooms(
+            production=created_production,
+            training=created_training,
+            misc=created_misc,
+            capacity=created_capacity,
+            arena=created_arena,
+        )
 
     async def _create_initial_dwellers(
         self,
@@ -294,6 +280,27 @@ class VaultService:
                         obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.RESTING),
                     )
                     self.logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
+
+            # Youth apprentices (boosted only) — one per production room, so the
+            # apprentice lifecycle is testable end-to-end. Teens at 13h birth_date
+            # stay teens ~11h before the growth loop ages them out. Apprentice
+            # fields are set on the model directly: DwellerUpdate does not carry
+            # them, and the seeded vault intentionally skips the population gate.
+            if is_boosted:
+                for room in created_production_rooms[:2]:
+                    if room.ability is None:
+                        continue
+                    youth_data = DwellerCreateCommonOverride(special_boost=room.ability)
+                    youth = await dweller_crud.create_random(db_session, vault_id, youth_data)
+                    youth.is_adult = False
+                    youth.age_group = AgeGroupEnum.TEEN
+                    youth.birth_date = datetime.utcnow() - timedelta(hours=13)
+                    youth.room_id = room.id
+                    youth.status = DwellerStatusEnum.WORKING
+                    youth.apprentice_stat = room.ability
+                    youth.apprentice_started_at = datetime.utcnow()
+                    await db_session.commit()
+                    self.logger.info("Youth %s apprenticed in %s", youth.id, room.name)
 
         except Exception:
             self.logger.exception("Failed to create dwellers")
@@ -620,20 +627,14 @@ class VaultService:
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms = (
-            self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
-        )
+        prepared = self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
 
         # Create rooms and get created production/training/misc rooms
-        (
-            vault_db_obj,
-            created_production_rooms,
-            created_training_rooms,
-            created_misc_rooms,
-            created_capacity_rooms,
-        ) = await self._create_initial_rooms(
-            db_session, vault_db_obj, infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
-        )
+        vault_db_obj, created = await self._create_initial_rooms(db_session, vault_db_obj, prepared)
+        created_production_rooms = created.production
+        created_training_rooms = created.training
+        created_misc_rooms = created.misc
+        created_capacity_rooms = created.capacity
 
         # Set initial resources to 50% of max capacity
         initial_power = vault_db_obj.power_max // 2

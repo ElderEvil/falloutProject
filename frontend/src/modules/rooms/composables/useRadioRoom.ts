@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Room } from '../models/room'
+import { isRadioRoom } from '../models/roomParts'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -34,9 +35,7 @@ export function useRadioRoom(
   const manualRecruitCost = ref<number>(100)
   const radioStats = ref<RadioStats | null>(null)
 
-  const isRadioRoom = computed(() => {
-    return room.value?.name.toLowerCase().includes('radio') || false
-  })
+  const isRadio = computed(() => isRadioRoom(room.value))
 
   const localRadioMode = ref(vaultStore.activeVault?.radio_mode || 'recruitment')
 
@@ -53,7 +52,7 @@ export function useRadioRoom(
 
   const loadRadioStats = async () => {
     const vaultIdValue = vaultId.value
-    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadioRoom.value) return
+    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadio.value) return
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
@@ -86,7 +85,7 @@ export function useRadioRoom(
   watch(
     () => modelValue.value,
     (newValue) => {
-      if (newValue && isRadioRoom.value) {
+      if (newValue && isRadio.value) {
         void loadRadioStats()
       }
     },
@@ -95,7 +94,7 @@ export function useRadioRoom(
 
   const handleSwitchRadioMode = async (mode: 'recruitment' | 'happiness') => {
     const vaultIdValue = vaultId.value
-    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadioRoom.value) return
+    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadio.value) return
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
@@ -132,7 +131,7 @@ export function useRadioRoom(
 
   const handleRecruitDweller = async () => {
     const vaultIdValue = vaultId.value
-    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadioRoom.value) return
+    if (!vaultIdValue || typeof vaultIdValue !== 'string' || !isRadio.value) return
 
     const token = authStore.token
     if (!token || typeof token !== 'string') {
@@ -176,7 +175,7 @@ export function useRadioRoom(
 
   return {
     isRecruiting,
-    isRadioRoom,
+    isRadioRoom: isRadio,
     localRadioMode,
     manualRecruitCost,
     radioStats,

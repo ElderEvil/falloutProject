@@ -19,6 +19,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models.incident import IncidentType
+from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
     from app.models.room import Room
@@ -180,16 +181,62 @@ class VaultEventConfig(BaseSettings):
     wanderer_caps_max: int = 50
 
 
+_DEFAULT_WEAPON_STAT_WEIGHTS: dict[str, dict[str, float]] = {
+    "melee": {"strength": 0.3, "agility": 0.3, "endurance": 0.15, "luck": 0.15},
+    "gun": {"perception": 0.3, "agility": 0.3, "luck": 0.15, "strength": 0.15},
+    "energy": {"intelligence": 0.3, "perception": 0.3, "endurance": 0.15, "luck": 0.15},
+    "heavy": {"strength": 0.3, "endurance": 0.3, "perception": 0.15, "agility": 0.15},
+    "unarmed": {
+        "strength": 0.2,
+        "perception": 0.1,
+        "endurance": 0.1,
+        "charisma": 0.1,
+        "intelligence": 0.1,
+        "agility": 0.1,
+        "luck": 0.1,
+    },
+}
+
+_SPECIAL_KEYS: frozenset[str] = frozenset(e.value for e in SPECIALEnum)
+
+_REQUIRED_WEAPON_TYPES: frozenset[str] = frozenset({e.value for e in WeaponTypeEnum} | {"unarmed"})
+
+
 class CombatConfig(BaseSettings):
     """Combat and loot configuration."""
 
     model_config = SettingsConfigDict(env_prefix="COMBAT_")
 
     base_raider_power: int = Field(default=10, description="Power per difficulty level", ge=1)
-    dweller_strength_weight: float = Field(default=0.4, ge=0.0, le=1.0)
-    dweller_endurance_weight: float = Field(default=0.3, ge=0.0, le=1.0)
-    dweller_agility_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+    # Per weapon-type SPECIAL weights for combat_power (keys: weapon type value or "unarmed").
+    # Primary stats ~0.3, secondary ~0.15, unused 0; unarmed is a balanced spread with a strength lean.
+    weapon_stat_weights: dict[str, dict[str, float]] = Field(
+        default=_DEFAULT_WEAPON_STAT_WEIGHTS,
+        description='SPECIAL weights per weapon type, e.g. COMBAT_WEAPON_STAT_WEIGHTS=\'{"melee": {"strength": 0.3}}\'',
+    )
     level_bonus_multiplier: int = Field(default=2, ge=0)
+
+    @field_validator("weapon_stat_weights", mode="before")
+    @classmethod
+    def validate_weapon_stat_weights(cls, v: dict[str, dict[str, float]] | None) -> dict[str, dict[str, float]]:
+        """Deep-merge partial env overrides with defaults and validate SPECIAL keys."""
+        if v is None:
+            return _DEFAULT_WEAPON_STAT_WEIGHTS
+        if not isinstance(v, dict):
+            raise TypeError("weapon_stat_weights must be a dict")
+        merged = {k: dict(val) for k, val in _DEFAULT_WEAPON_STAT_WEIGHTS.items()}
+        for weapon_type, weights in v.items():
+            if not isinstance(weights, dict):
+                raise TypeError(f"weapon type '{weapon_type}' must map to a dict of SPECIAL weights")
+            if weapon_type not in _REQUIRED_WEAPON_TYPES:
+                raise ValueError(f"Invalid weapon type {weapon_type!r}")
+            for stat, weight in weights.items():
+                if stat not in _SPECIAL_KEYS:
+                    raise ValueError(f"Invalid SPECIAL stat '{stat}' for weapon type '{weapon_type}'")
+                if not isinstance(weight, (int, float)) or not 0 <= float(weight) <= 1:
+                    raise ValueError(f"Weight for {weapon_type}.{stat} must be a number in [0, 1]")
+            merged[weapon_type] = {**merged[weapon_type], **weights}
+        return merged
 
     # Loot
     loot_caps_min: int = Field(default=50, ge=0)

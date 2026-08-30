@@ -2,6 +2,7 @@
 import { computed, watch, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
+import { getRoomDetailParts, hasPart, producesResources, type RoomPart } from '../models/roomParts'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
@@ -14,7 +15,7 @@ import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
-import ArenaModal from './ArenaModal.vue'
+import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
@@ -37,8 +38,10 @@ const actionError = ref<string | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
-const isOverseersOffice = computed(() => props.room?.name.toLowerCase() === "overseer's office")
-const isArenaRoom = computed(() => props.room?.category?.toLowerCase() === 'arena')
+
+// Which sections this room renders — decided by the part registry, nowhere else.
+const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room))
+const has = (part: RoomPart) => hasPart(parts.value, part)
 
 // Composables
 const {
@@ -74,7 +77,6 @@ const {
 
 const {
   isRecruiting,
-  isRadioRoom,
   localRadioMode,
   manualRecruitCost,
   radioStats,
@@ -113,54 +115,51 @@ watch(
     </template>
 
     <div v-if="room" class="modal-content">
-      <template v-if="isArenaRoom">
-        <RoomPreviewSection
-          :room-name="room.name"
-          :image-url="room.image_url ?? null"
-          :room-image-url="roomImageUrl ?? null"
-          :dweller-capacity="dwellerCapacity"
-          :assigned-dwellers="assignedDwellers"
-        />
-        <ArenaModal
-          :vault-id="props.vaultId"
-          :room-id="room.id"
-          :is-destroying="isDestroying"
-          @destroy="handleDestroy"
-        />
-      </template>
+      <!-- Error display -->
+      <div v-if="actionError && !has('arena')" class="error-banner">
+        <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+        {{ actionError }}
+      </div>
+
+      <ArenaRoomDetail
+        v-if="has('arena')"
+        :room="room"
+        :vault-id="props.vaultId"
+        :assigned-dwellers="assignedDwellers"
+        :dweller-capacity="dwellerCapacity"
+        :room-image-url="roomImageUrl ?? null"
+        :is-destroying="isDestroying"
+        @destroy="handleDestroy"
+      />
 
       <template v-else>
-        <!-- Error display -->
-        <div v-if="actionError" class="error-banner">
-          <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-          {{ actionError }}
-        </div>
-
         <RoomPreviewSection
           :room-name="room.name"
           :image-url="room.image_url ?? null"
           :room-image-url="roomImageUrl ?? null"
           :dweller-capacity="dwellerCapacity"
           :assigned-dwellers="assignedDwellers"
+          :show-apprentice-slot="producesResources(room)"
         />
 
         <RoomInfoGrid :room="room" :ability-label="room.ability ? getAbilityLabel(room.ability) : null" />
 
         <OverseerBriefing
-          v-if="isOverseersOffice && overseerBriefing"
+          v-if="has('overseerBriefing') && overseerBriefing"
           v-bind="overseerBriefing"
           @review-incidents="emit('reviewIncidents')"
         />
 
         <ProductionStats
-          v-if="isRadioRoom && radioStats"
+          v-if="has('radioStats') && radioStats"
           :radio-stats="radioStats"
           :radio-mode="localRadioMode"
         />
 
-        <ProductionStats v-else-if="productionInfo" :production-info="productionInfo" />
+        <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
 
         <DwellerList
+          v-if="has('dwellerList')"
           :assigned-dwellers="assignedDwellers"
           :dweller-capacity="dwellerCapacity"
           :ability="room.ability"
@@ -168,6 +167,7 @@ watch(
         />
 
         <RoomActions
+          v-if="has('actions')"
           :room="room"
           :upgrade-info="upgradeInfo"
           :is-upgrading="isUpgrading"
@@ -175,14 +175,13 @@ watch(
           :is-rushing="isRushing"
           :is-vault-door="isVaultDoor"
           :has-production-info="!!productionInfo"
-          :is-radio-room="isRadioRoom"
           :assigned-dweller-count="assignedDwellers.length"
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
           @rush-production="handleRushProduction"
           @unassign-all="handleUnassignAll"
         >
-          <template v-if="isRadioRoom" #radio-controls>
+          <template v-if="has('radioControls')" #radio-controls>
             <RadioControls
               :local-radio-mode="localRadioMode"
               :is-recruiting="isRecruiting"

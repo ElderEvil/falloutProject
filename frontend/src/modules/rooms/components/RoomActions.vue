@@ -20,7 +20,6 @@ interface Props {
   isRushing: boolean
   isVaultDoor: boolean
   hasProductionInfo: boolean
-  isRadioRoom: boolean
   assignedDwellerCount: number
 }
 
@@ -44,8 +43,8 @@ const emit = defineEmits<{
       <Icon icon="mdi:cog" class="h-5 w-5" />
       Management
     </h3>
-    <div class="actions-grid" :class="{ 'radio-layout': isRadioRoom }">
-      <!-- Radio controls slot: moved above the action buttons for radio rooms -->
+    <div class="actions-grid">
+      <!-- Radio controls slot: rendered above the action buttons for radio rooms -->
       <slot name="radio-controls" />
 
       <!-- Upgrade Button -->
@@ -68,7 +67,7 @@ const emit = defineEmits<{
 
       <!-- Rush Production Button -->
       <UButton
-        v-if="!isRadioRoom && hasProductionInfo"
+        v-if="hasProductionInfo"
         @click="emit('rushProduction')"
         :disabled="isRushing || assignedDwellerCount === 0"
         variant="secondary"
@@ -148,17 +147,6 @@ const emit = defineEmits<{
 .action-btn {
   flex: 1 1 200px;
   min-width: 200px;
-}
-
-/* Radio room layout: radio mode on top, upgrade full-width, then two half-width */
-.actions-grid.radio-layout .action-btn--upgrade {
-  flex-basis: 100%;
-  min-width: 100%;
-}
-
-.actions-grid.radio-layout .action-btn--half {
-  flex: 1 1 40%;
-  min-width: 0;
 }
 
 .action-btn :deep(button) {

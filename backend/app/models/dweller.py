@@ -7,7 +7,15 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
-from app.schemas.common import AgeGroupEnum, DeathCauseEnum, DwellerStatusEnum, GenderEnum, RarityEnum, SPECIALEnum
+from app.schemas.common import (
+    AgeGroupEnum,
+    DeathCauseEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RarityEnum,
+    SPECIALEnum,
+    WeaponTypeEnum,
+)
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
@@ -149,6 +157,17 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
+
+    @property
+    def weapon_type(self) -> WeaponTypeEnum | None:
+        weapon = self.__dict__.get("weapon")
+        return weapon.weapon_type if weapon is not None else None
+
+    @property
+    def combat_power(self) -> float:
+        from app.utils.combat import combat_power as _combat_power
+
+        return float(_combat_power(self))
 
     # Training
     trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)

@@ -45,16 +45,5 @@ export function getEventColor(eventType: string): string {
   return EVENT_COLOR_MAP[eventType as ExplorationEventType] ?? DEFAULT_COLOR
 }
 
-const RARITY_COLOR_MAP: Record<string, string> = {
-  Common: 'var(--color-rarity-common)',
-  Rare: 'var(--color-rarity-rare)',
-  Legendary: 'var(--color-rarity-legendary)',
-}
-
-export function getRarityColor(rarity?: string): string {
-  const normalizedRarity = rarity?.trim().toLowerCase()
-  const matchingRarity = Object.keys(RARITY_COLOR_MAP).find(
-    (knownRarity) => knownRarity.toLowerCase() === normalizedRarity
-  )
-  return (matchingRarity && RARITY_COLOR_MAP[matchingRarity]) || RARITY_COLOR_MAP.Common!
-}
+// Rarity color lives in the shared item-display module
+export { getRarityColor } from '@/core/models/items'

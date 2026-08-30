@@ -80,8 +80,51 @@ interaction tokens instead of compensating with page-level CSS.
 - ⬜ Add an icon affordance to form labels where it makes an identity or game concept easier to scan, while keeping
   labels as the accessible source of meaning.
 
+#### Intent & emphasis adoption (see STYLEGUIDE → "Intent & Emphasis Semantics")
+
+- ✅ **Semantics defined** — three intents (actionable / live status / informational), emphasis tokens `--glow-0..3`,
+  and badge utility classes `.badge-info` / `.badge-live` / `.badge-action`; informational badges (gender, rarity,
+  age group) demoted to quiet chips; dead glow utilities removed.
+- ✅ **Top offenders wired** — `DwellerStats`, `DwellerGridItem`, `SidePanel`, `QuestsView`, `ExplorerStatsGrid`:
+  informational text glows removed, headings/panels on `--glow-1`, interactive surfaces on `--glow-2`. Transient
+  one-shot feedback (stat highlight, level-up celebration) stays as a sanctioned exception.
+- ⬜ **Long tail** — ~30 files still hand-roll glow values (~150 declarations, ~15 distinct radii). Convert to the
+  token scale as each screen is touched; replace Tailwind arbitrary `text-shadow-[…]` values on sight; hover
+  responses on non-interactive surfaces get removed in the same pass.
+
 **Success criteria**: new management screens can be assembled from shared primitives without custom surface fixes,
 and equivalent controls look and behave the same across the vault.
+
+### Room Detail Part Registry (Target: TBD)
+
+**Focus**: Consolidate how the room detail modal decides which sections exist. Today "does this room have part X" is
+answered by three implicit mechanisms — category checks (`isArenaRoom`), name string-matching (`isOverseersOffice`,
+vault door, radio), and derived computeds (`productionInfo`) — scattered across `RoomDetailModal`, its composables,
+and `RoomActions`. Replace them with one explicit, ordered part registry.
+
+- ✅ **Part registry** — `modules/rooms/models/roomParts.ts`: `getRoomDetailParts(room)` returns the ordered section
+  list (preview, info, production stats, radio stats/controls, dweller list, arena, overseer briefing, actions),
+  driven by room category with centralized special-room overrides.
+- ✅ **One decision point for special rooms** — `isRadioRoom`, `isVaultDoor`, and `isOverseersOffice` name-matching
+  live only in the registry; `useRadioRoom`, `useRoomUpgrade`, and `useRoomProduction` consume it.
+- ✅ **Registry-gated modal** — `RoomDetailModal` renders each section behind `has(part)`; the category/name
+  branching and the two-branch template split are gone (`ArenaRoomDetail` is the mapped `arena` part).
+- ✅ **Composition tests** — `roomParts.test.ts` asserts the part list per room type (arena, radio, overseer's
+  office, vault door, producing/non-producing, training); the existing RoomDetailModal suite guards the zero-visual-
+  change refactor.
+- ✅ **Composition change: radio management normalized** — the Radio Studio's management section now uses the same
+  action grid as every other room (the bespoke `radio-layout` variant is gone; radio controls remain as the
+  radio-specific content above the buttons).
+- ⬜ **Phase 2 (separate product decisions, think first):** whether further compositions should unify where it makes
+  sense — e.g. arena also showing info/dweller list — decided per part, not bundled into refactors. A full
+  component-map renderer (replacing the `has(part)` gates) can ride along when a second composition change lands.
+
+**Non-goals:** backend-declared parts (rooms.json describing UI layout — presentation stays a frontend concern); a
+`role`/`slug` column on built rooms (migration for zero behavioral gain; seed-data-stable names stay, centralized);
+extending the registry to `RoomGridCell` or the build menu (revisit only if the pattern proves itself).
+
+**Success criteria**: adding a room type means adding one registry entry plus its part components; part composition
+per room type is asserted by tests; no category or name checks remain outside the registry.
 
 ### Dweller Identity & Atmosphere Update (Target: TBD)
 
@@ -126,6 +169,7 @@ with per-player fog of war, over which async-PvP raiding, cross-vault encounters
 Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_PLAN.md`.
 
 **Near-term release — "The Wasteland Journal" (shipped in v2.46.0):**
+
 - ✅ **Exploration journal polish** — mid-journey `loot_collected`, cumulative health-change trail,
   consolidated progress math, and dead-component deletion.
 - ✅ **Discovery → map integration** — discovery event coordinates/IDs, deep-links, and event-authoritative
@@ -136,6 +180,7 @@ Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_P
   immediately; the v2.46.1 backfill script repairs pre-fix rows. Deploy the matching worker image to activate it.
 
 **Current focus — World Map + exploration polish (no multiplayer):**
+
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
   discoveries unlock live (the currently deployed worker runs pre-fix code).
 - 🔧 **Polish candidates** — locked-marker discoverability hints (who to chat with to unlock a bio place),
@@ -146,6 +191,7 @@ Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist an
 
 **Deferred multiplayer phases** (parked; revisit when the single-vault experience is solid, see
 `docs/WORLD_MAP_PLAN.md`):
+
 - ⏸️ **Phase B — async-PvP raiding** — `RaidTarget` snapshots + a `raid` exploration subtype.
 - ⏸️ **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
 - ⏸️ **Phase D — social** — friends, vault visits, leaderboards, global location registry.
@@ -351,6 +397,37 @@ must reject any identifier that does not match the authenticated user.
   - **Tool output limits** — cap oversized tool returns so a large export cannot eat the context window.
   - **Human approval on mutating tools** — gate write actions behind approval, distinct from read tools.
 
+### Item Card Unification — ✅ Done
+
+**Shipped:** `src/core/models/items.ts` is the single source of truth for item display — weapon-subtype/outfit-type
+icon maps, rarity color + token-based Tailwind border/text classes, and unified stat-row builders (damage, uses,
+accuracy, type, weight, durability, outfit gender, SPECIAL bonuses), plus a shared `useItemImage` composable.
+`EquipmentCard` and `StorageItemCard` consume it and now expose the full unified detail set (each previously missed
+half of it); `ExplorationLootList` uses the shared rarity tokens with no inline styles. Net source LOC negative.
+
+### Race & Faction Gameplay Mechanics (Target: TBD)
+
+**Focus**: Make race and faction matter mechanically. Today they are purely cosmetic (`visual_attributes` JSONB +
+AI appearance/backstory prompts + identity badges). The Combat Power Overhaul's per-type weight table is the hook:
+racial modifiers and faction perks slot into the same stat-weighting shape instead of ad-hoc special cases.
+
+- ⬜ **Racial stat modifiers** — small SPECIAL adjustments applied at the stat level (ghoul +Endurance with
+  radiation immunity, super mutant +Strength/+Endurance with a Perception penalty, synth stable stats), so every
+  consumer (combat, training, production) sees them without per-system branching.
+- ⬜ **Racial perks** — a few explicit, testable perks (ghoul radiation healing, synth resistances) wired into
+  incident/exploration resolution via the service layer.
+- ⬜ **Faction perks** — light bonuses aligned with lore (Brotherhood +energy weapons, Legion +melee, Minutemen
+  +incident response), reusing the weapon-type weight lookup rather than new formulas.
+- ⬜ **Identity plumbing** — build on the Dweller Identity & Atmosphere metadata so perks/modifiers are declared
+  next to the race/faction option definitions in `backend/app/options/`, validated on save, and surfaced in the UI
+  dossier ("why is my Ghoul tanky").
+
+**Guardrails:** modifiers live in one options-backed source of truth; no new DB columns unless a modifier must
+persist per dweller; balance pass after play-testing; net-LOC rule applies.
+
+**Success criteria:** race/faction choices change outcomes (combat, incidents, exploration) in legible ways, are
+visible in the dweller dossier, and are covered by per-race/per-faction unit tests.
+
 ---
 
 ## Low-Hanging Fruit — Immediate User-Facing Improvements
@@ -374,7 +451,7 @@ update reduce net source LOC (features that add code must first offset it by rem
 ### P2 — Quality of Life
 
 - [ ] **Incremental `ty` cleanup** — run `ty` on touched Python files and resolve clear, local diagnostics as part of
-  ordinary changes. Keep this non-blocking and avoid widening feature work solely to chase pre-existing type debt.
+      ordinary changes. Keep this non-blocking and avoid widening feature work solely to chase pre-existing type debt.
 
 - [x] ~~**Fix silent incident fetch failure**~~ — ✅ **Done.** `incident.ts` already routes errors through `handleStoreError` (line 75). The `.catch(() => {})` mentioned in the original plan no longer exists at that location.
 
@@ -392,36 +469,22 @@ update reduce net source LOC (features that add code must first offset it by rem
 
 - [x] ~~**Fix missing exploration rewards**~~ — ✅ **Done.** `coordinator.py:_apply_rewards` (line 411-485) delivers caps to vault, calculates/applies XP with survival + luck bonuses, transfers loot to storage, returns unused stimpaks/radaways, emits item collection events, and publishes SSE completion events with full rewards summary.
 
-### P1 — Combat Power Overhaul (all stats + weapon type)
+### P1 — Combat Power Overhaul (all stats + weapon type) — ✅ Done
 
-**Problem:** Combat power currently uses only three stats (S/E/A) plus a flat level bonus, and the weapon contributes only its average damage regardless of type. A minigun and a boxing glove weigh the same; a scientist's intelligence and a merchant's charisma are invisible in a fight.
+**Shipped:** `combat_power()` is now a weighted sum across **all seven SPECIAL stats**, with the weapon type
+choosing which stats dominate. Weights are config-driven via `COMBAT_WEAPON_STAT_WEIGHTS` (JSON dict keyed by
+weapon type + `unarmed`; replaces the removed `COMBAT_DWELLER_*_WEIGHT` vars):
 
-**Goal:** Make `combat_power` a weighted sum across **all seven SPECIAL stats**, with the weapon type choosing which stats dominate:
+| Weapon type | Primary stats (0.3)      | Secondary stats (0.15) |
+| ----------- | ------------------------ | ---------------------- |
+| Melee       | Strength, Agility        | Endurance, Luck        |
+| Guns        | Perception, Agility      | Luck, Strength         |
+| Energy      | Intelligence, Perception | Endurance, Luck        |
+| Heavy       | Strength, Endurance      | Perception, Agility    |
 
-| Weapon type | Primary stats (high weight) | Secondary stats (low weight) |
-| ----------- | --------------------------- | ----------------------------- |
-| Melee       | Strength, Agility           | Endurance, Luck               |
-| Guns        | Perception, Agility         | Luck, Strength                |
-| Energy      | Intelligence, Perception    | Endurance, Luck               |
-| Heavy       | Strength, Endurance         | Perception, Agility           |
-
-Unarmed (no weapon) uses a balanced spread with a strength lean.
-
-**Where:**
-- `backend/app/utils/combat.py` — `combat_power()` is the single source for incident + arena; the weights move from `game_config.combat.dweller_{strength,endurance,agility}_weight` to per-weapon-type weight sets (or a small lookup table), still config-driven via env
-- `backend/app/schemas/weapon.py` / weapon model — weapon type already exists (`WeaponTypeEnum`); no schema change needed
-- `frontend/src/modules/dwellers/models/dweller.ts` — `getCombatPower()` mirrors the backend; keep it in sync (single source of truth for the UI)
-- Arena + incident services consume the same `combat_power()` so displayed POW matches actual damage
-
-**Steps:**
-1. Add per-weapon-type stat-weight config to `game_config.combat` (defaults: melee S/A-lean, guns P/A-lean, energy I/P-lean, heavy S/E-lean)
-2. Rewrite `combat_power()` to `weighted_sum(all 7 SPECIAL, weapon type weights) + level bonus + weapon_damage`
-3. Mirror in frontend `getCombatPower()` (needs weapon type passed in; `DwellerShort` may need the equipped weapon's type — verify the schema exposes it or add a light field)
-4. Rebalance difficulty expectations that assume the old S/E/A formula (`expected_enemies = difficulty * 2` stays, but tuning may shift)
-5. Tests: unit test per weapon type (melee dweller out-powers a gunner in melee context and vice versa), arena/incident regression, frontend helper test
-6. Update the dwellers-list and responder-list POW displays automatically (they already call `getCombatPower`)
-
-**Effort:** medium. **Risk:** low (pure calculation change, fully unit-testable); balance tuning may need a follow-up pass.
+Unarmed uses a balanced spread with a strength lean (0.2 S, 0.1 others). `DwellerReadLess` now exposes the equipped
+`weapon_type` (eager-loaded) and the frontend `getCombatPower()` mirrors the same weight table. Arena + incidents
+consume the same `combat_power()`; per-type unit tests cover primary-beats-secondary and cross-type reversals.
 
 ### P2 — Chat Polish
 
@@ -540,44 +603,44 @@ Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 
 ### Version Milestones
 
-| Version | Release      | Highlights                                                        |
-| ------- | ------------ | ----------------------------------------------------------------- |
-| Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI |
+| Version | Release      | Highlights                                                                                                                             |
+| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
 | v2.42.0 | TBD          | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
-| v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix               |
-| v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)               |
-| v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation             |
-| v2.40.0 | Aug 15, 2026 | Training tab UX (occupancy cards, live progress)                  |
-| v2.39.x | Aug 14, 2026 | Resource production corrections, thumbnail URL fix                |
-| v2.38.0 | Aug 14, 2026 | Safe room construction, visual inventory                          |
-| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings                       |
-| v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes |
-| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck)        |
-| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish     |
-| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill        |
-| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up                         |
-| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests                      |
-| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service                  |
-| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places)                |
-| v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration                            |
-| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                                          |
-| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                                       |
-| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)                               |
-| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)                                   |
-| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring                      |
-| v2.18.0 | Jun 21, 2026 | Library skills audit                                              |
-| v2.17.0 | Jun 19, 2026 | Medical storage refactor                                          |
-| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes                              |
-| v2.15.0 | Jun 18, 2026 | Dweller visual unification                                        |
-| v2.14.4 | Jun 17, 2026 | Security dep bumps                                                |
-| v2.13.1 | May 19, 2026 | Security hardening                                                |
-| v2.13.0 | May 01, 2026 | Dramatiq migration                                                |
-| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed                                   |
-| v2.11.0 | Mar 19, 2026 | Vite+ toolchain                                                   |
-| v2.10.9 | Mar 13, 2026 | AI quota system                                                   |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system                                          |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions                                          |
-| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                     |
+| v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |
+| v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)                                                                                    |
+| v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation                                                                                  |
+| v2.40.0 | Aug 15, 2026 | Training tab UX (occupancy cards, live progress)                                                                                       |
+| v2.39.x | Aug 14, 2026 | Resource production corrections, thumbnail URL fix                                                                                     |
+| v2.38.0 | Aug 14, 2026 | Safe room construction, visual inventory                                                                                               |
+| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings                                                                                            |
+| v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes                                                                      |
+| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck)                                                                             |
+| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish                                                                          |
+| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill                                                                             |
+| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up                                                                                              |
+| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests                                                                                           |
+| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service                                                                                       |
+| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places)                                                                                     |
+| v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration                                                                                                 |
+| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                                                                                                               |
+| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                                                                                                            |
+| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)                                                                                                    |
+| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)                                                                                                        |
+| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring                                                                                           |
+| v2.18.0 | Jun 21, 2026 | Library skills audit                                                                                                                   |
+| v2.17.0 | Jun 19, 2026 | Medical storage refactor                                                                                                               |
+| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes                                                                                                   |
+| v2.15.0 | Jun 18, 2026 | Dweller visual unification                                                                                                             |
+| v2.14.4 | Jun 17, 2026 | Security dep bumps                                                                                                                     |
+| v2.13.1 | May 19, 2026 | Security hardening                                                                                                                     |
+| v2.13.0 | May 01, 2026 | Dramatiq migration                                                                                                                     |
+| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed                                                                                                        |
+| v2.11.0 | Mar 19, 2026 | Vite+ toolchain                                                                                                                        |
+| v2.10.9 | Mar 13, 2026 | AI quota system                                                                                                                        |
+| v2.10.0 | Feb 10, 2026 | Quest & Objective system                                                                                                               |
+| v2.9.0  | Feb 07, 2026 | Chat exploration actions                                                                                                               |
+| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                                                                                          |
 
 ### v2.42.0 Observability Measurement (Pydantic AI & Logfire)
 
@@ -585,12 +648,12 @@ Verified the Gateway path is live and documented (see `docs/backend/PYDANTIC_AI_
 sets `ai_provider_mode == "gateway"` and `AIService._initialize_gateway()` builds the Gateway provider; Logfire
 instruments Pydantic AI with `include_content=False`.
 
-| Metric | Value |
-| ------ | ----- |
-| Deterministic agent-contract tests | 12 (`test_agents/test_dweller_agent_contracts.py`) |
-| Output-validation retry coverage | covered via `TestModel` (`validate_dweller_chat_output`, `test_invalid_structured_output_retries_before_failing`) |
-| Logfire config tests | 3 (`test_logfire_config.py`) — config + `instrument_pydantic_ai(include_content=False)` both paths |
-| C4 verification run | `test_logfire_config.py` + `test_dweller_agent_contracts.py` → 13 passed |
+| Metric                             | Value                                                                                                             |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Deterministic agent-contract tests | 12 (`test_agents/test_dweller_agent_contracts.py`)                                                                |
+| Output-validation retry coverage   | covered via `TestModel` (`validate_dweller_chat_output`, `test_invalid_structured_output_retries_before_failing`) |
+| Logfire config tests               | 3 (`test_logfire_config.py`) — config + `instrument_pydantic_ai(include_content=False)` both paths                |
+| C4 verification run                | `test_logfire_config.py` + `test_dweller_agent_contracts.py` → 13 passed                                          |
 
 No agent code changes were required — the Gateway path and instrumentation were already correctly wired; measurement
 recorded per D8. No gaps found; no future ROADMAP items added from this workstream.

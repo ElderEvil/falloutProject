@@ -34,4 +34,53 @@ describe('StorageItemCard', () => {
 
     expect(wrapper.find('button[title="Sell all (3)"]').exists()).toBe(true)
   })
+
+  it('renders the unified weapon stats including accuracy', () => {
+    const wrapper = mount(StorageItemCard, {
+      props: {
+        item: {
+          name: '10mm Pistol',
+          rarity: 'rare',
+          value: 50,
+          weapon_subtype: 'pistol',
+          damage_min: 2,
+          damage_max: 5,
+          stat: 'agility',
+          accuracy: 70,
+          weapon_type: 'gun',
+        },
+        itemType: 'weapon',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Damage:')
+    expect(text).toContain('2-5')
+    expect(text).toContain('Accuracy:')
+    expect(text).toContain('70%')
+    expect(text).toContain('Type:')
+  })
+
+  it('renders outfit SPECIAL bonuses alongside gender', () => {
+    const wrapper = mount(StorageItemCard, {
+      props: {
+        item: {
+          name: 'Lab Coat',
+          rarity: 'rare',
+          outfit_type: 'rare_outfit',
+          intelligence_bonus: 2,
+          gender: 'female',
+        },
+        itemType: 'outfit',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('I:')
+    expect(text).toContain('+2')
+    expect(text).toContain('Gender:')
+    expect(text).toContain('female')
+  })
 })

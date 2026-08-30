@@ -65,6 +65,7 @@ const barAnimation = computed(() => {
 </template>
 
 <style scoped>
+/* Informational values (glow-0): facts about progress, not calls to action. */
 .xp-bar-container {
   display: flex;
   flex-direction: column;
@@ -80,18 +81,15 @@ const barAnimation = computed(() => {
 .stat-label {
   font-weight: 600;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 3px var(--color-theme-glow);
   opacity: 0.8;
 }
 
 .stat-value {
   font-weight: 700;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
 }
 
 .stat-value.max-level {
   color: rgb(250 204 21);
-  text-shadow: 0 0 8px rgb(250 204 21 / 0.6);
 }
 </style>

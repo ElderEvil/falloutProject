@@ -72,6 +72,21 @@ async def test_read_dweller_list(
 
 
 @pytest.mark.asyncio
+async def test_read_dweller_list_exposes_weapon_type(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    equipped_dweller: tuple[Dweller, object, object],
+) -> None:
+    """DwellerReadLess must serialize weapon_type without lazy-loading (MissingGreenlet guard)."""
+    dweller, _, weapon = equipped_dweller
+    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    by_id = {d["id"]: d for d in response.json()}
+    assert by_id[str(dweller.id)]["weapon_type"] == weapon.weapon_type.value
+
+
+@pytest.mark.asyncio
 async def test_read_dweller(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],

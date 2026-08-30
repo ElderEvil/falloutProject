@@ -60,7 +60,7 @@ class GameLoopService:
             try:
                 await self.process_vault_tick(db_session, vault.id)
                 stats["vaults_processed"] += 1
-            except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException, ValueError, RuntimeError) as e:
+            except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
                 self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
@@ -116,20 +116,15 @@ class GameLoopService:
             resource_update, resource_events = await self.resource_manager.process_vault_resources(
                 db_session, vault_id, seconds_passed
             )
-
-            # Apply resource updates
             await vault_crud.update(db_session, vault_id, resource_update)
             await db_session.commit()
-
             await self.resource_manager.emit_production_events(vault_id, resource_events)
-
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
                 "water": resource_update.water,
                 "events": resource_events.model_dump(),
             }
-
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
@@ -388,39 +383,31 @@ class GameLoopService:
 
             # Process each dweller
             for dweller in dwellers:
-                try:
-                    # Skip already dead dwellers
-                    if dweller.is_dead:
-                        continue
+                if dweller.is_dead:
+                    continue
 
-                    # Check for death conditions
-                    if dweller.health <= 0:
-                        await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
-                        stats["deaths"] += 1
-                        self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
-                        continue
+                if dweller.health <= 0:
+                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
+                    stats["deaths"] += 1
+                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
+                    continue
 
-                    if dweller.radiation >= game_config.death.radiation_death_threshold:
-                        await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
-                        stats["deaths"] += 1
-                        self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
-                        continue
+                if dweller.radiation >= game_config.death.radiation_death_threshold:
+                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
+                    stats["deaths"] += 1
+                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
+                    continue
 
-                    # Award work XP for dwellers in production rooms
-                    if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
-                        # Get room from pre-fetched map
-                        room = rooms_map.get(dweller.room_id)
-                        if room:
-                            dweller_stats = await self._award_work_xp(db_session, dweller, room)
-                            stats["xp_awarded"] += dweller_stats["xp_awarded"]
-                            stats["leveled_up"] += dweller_stats["leveled_up"]
-
-                except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                    # Keep broad exception for individual dweller processing to prevent one failure from stopping all
-                    self.logger.error(f"Error processing dweller {dweller.id}: {e}", exc_info=True)
+                if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
+                    room = rooms_map.get(dweller.room_id)
+                    if room:
+                        dweller_stats = await self._award_work_xp(db_session, dweller, room)
+                        stats["xp_awarded"] += dweller_stats["xp_awarded"]
+                        stats["leveled_up"] += dweller_stats["leveled_up"]
 
         except SQLAlchemyError as e:
             self.logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)
+            raise
 
         return stats
 

@@ -101,9 +101,11 @@ class TestProcessGameTick:
 
     @pytest.mark.asyncio
     async def test_counts_errors(self, async_session: AsyncSession, vault: Vault):
+        from app.utils.exceptions import VaultOperationException
+
         await game_loop_service.process_vault_tick(async_session, vault.id)
         with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
-            mock_tick.side_effect = RuntimeError("Simulated error")
+            mock_tick.side_effect = VaultOperationException("Simulated error")
             stats = await game_loop_service.process_game_tick(async_session)
             assert stats["errors"] >= 1
 

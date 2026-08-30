@@ -73,7 +73,9 @@ class VaultService:
         rooms: list[RoomCreate],
         vault_id: UUID4,
         is_boosted: bool,
-    ) -> tuple[list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]]:
+    ) -> tuple[
+        list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate], list[RoomCreate]
+    ]:
         """Prepare all room data for vault initialization."""
         # Infrastructure rooms
         vault_door_data = self._prepare_room_data(rooms, "vault door", vault_id, 0, 0)
@@ -117,9 +119,12 @@ class VaultService:
         if is_boosted:
             overseer_office_data = self._prepare_room_data(rooms, "overseer's office", vault_id, 6, 2)
             misc_rooms.append(RoomCreate(**overseer_office_data))
-            # Arena for boosted (spawns at level 3, right of the radio/water row)
+
+        # Arena (boosted only) — category arena, not misc
+        arena_rooms: list[RoomCreate] = []
+        if is_boosted:
             arena_data = self._prepare_room_data(rooms, "arena", vault_id, 6, 3)
-            misc_rooms.append(RoomCreate(**arena_data))
+            arena_rooms.append(RoomCreate(**arena_data))
 
         # Training rooms (boosted only)
         training_rooms = []
@@ -138,7 +143,7 @@ class VaultService:
             ]
             training_rooms = [RoomCreate(**data) for data in training_rooms_data]
 
-        return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
+        return infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms, arena_rooms
 
     async def _create_initial_rooms(
         self,
@@ -149,8 +154,10 @@ class VaultService:
         production_rooms: list[RoomCreate],
         misc_rooms: list[RoomCreate],
         training_rooms: list[RoomCreate],
+        arena_rooms: list[RoomCreate] | None = None,
     ) -> tuple[Vault, list[Room], list[Room], list[Room], list[Room]]:
         """Create all rooms for a new vault and return production/training rooms."""
+        arena_rooms = arena_rooms or []
         # Create infrastructure rooms
         for room_data in infrastructure_rooms:
             await room_crud.create(db_session, room_data)
@@ -206,11 +213,23 @@ class VaultService:
             created_room = await room_crud.create(db_session, room_data)
             created_training_rooms.append(created_room)
 
+        # Create arena rooms
+        created_arena_rooms: list[Room] = []
+        for room_data in arena_rooms:
+            created_room = await room_crud.create(db_session, room_data)
+            created_arena_rooms.append(created_room)
+
         await db_session.commit()
 
         # Refresh vault and room objects
         await db_session.refresh(vault)
-        for room in created_production_rooms + created_training_rooms + created_misc_rooms + created_capacity_rooms:
+        for room in (
+            created_production_rooms
+            + created_training_rooms
+            + created_misc_rooms
+            + created_capacity_rooms
+            + created_arena_rooms
+        ):
             await db_session.refresh(room)
 
         return vault, created_production_rooms, created_training_rooms, created_misc_rooms, created_capacity_rooms
@@ -651,7 +670,7 @@ class VaultService:
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms = (
+        infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms, arena_rooms = (
             self._prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted)
         )
 
@@ -663,7 +682,14 @@ class VaultService:
             created_misc_rooms,
             created_capacity_rooms,
         ) = await self._create_initial_rooms(
-            db_session, vault_db_obj, infrastructure_rooms, capacity_rooms, production_rooms, misc_rooms, training_rooms
+            db_session,
+            vault_db_obj,
+            infrastructure_rooms,
+            capacity_rooms,
+            production_rooms,
+            misc_rooms,
+            training_rooms,
+            arena_rooms,
         )
 
         # Set initial resources to 50% of max capacity

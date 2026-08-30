@@ -45,7 +45,7 @@ const sizeClasses = computed(() => {
 
 <template>
   <div
-    class="status-badge inline-flex items-center gap-1 rounded border transition-all"
+    class="status-badge badge-live inline-flex items-center gap-1 rounded border transition-all"
     :class="[
       statusConfig.color,
       statusConfig.bgColor,
@@ -61,21 +61,3 @@ const sizeClasses = computed(() => {
     </span>
   </div>
 </template>
-
-<style scoped lang="css">
-/* Live status (badge-live intent): the only badge tier allowed to pulse.
-   Not clickable — no hover emphasis. */
-.status-badge {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-</style>

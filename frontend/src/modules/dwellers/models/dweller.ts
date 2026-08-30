@@ -43,8 +43,6 @@ export type SpecialKey =
   | 'agility'
   | 'luck'
 
-// Weights mirror backend game_config.combat.weapon_stat_weights (env: COMBAT_WEAPON_STAT_WEIGHTS).
-// Weapon damage is omitted: DwellerShort does not carry weapon damage.
 const COMBAT_STAT_WEIGHTS: Record<string, Partial<Record<SpecialKey, number>>> = {
   melee: { strength: 0.3, agility: 0.3, endurance: 0.15, luck: 0.15 },
   gun: { perception: 0.3, agility: 0.3, luck: 0.15, strength: 0.15 },
@@ -63,8 +61,11 @@ const COMBAT_STAT_WEIGHTS: Record<string, Partial<Record<SpecialKey, number>>> =
 const LEVEL_POWER_BONUS = 2
 
 export function getCombatPower(
-  dweller: Pick<DwellerShort, 'weapon_type' | 'level'> & Partial<Record<SpecialKey, number>>
+  dweller: Pick<DwellerShort, 'weapon_type' | 'level' | 'combat_power'> &
+    Partial<Record<SpecialKey, number>>
 ): number {
+  const backendPower = (dweller as { combat_power?: number | null }).combat_power
+  if (typeof backendPower === 'number') return Math.round(backendPower)
   const weights = COMBAT_STAT_WEIGHTS[dweller.weapon_type ?? 'unarmed'] ?? COMBAT_STAT_WEIGHTS.unarmed
   const statPower = (Object.keys(weights) as SpecialKey[]).reduce(
     (sum, stat) => sum + (dweller[stat] ?? 1) * (weights[stat] ?? 0),

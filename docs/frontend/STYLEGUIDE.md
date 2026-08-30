@@ -459,7 +459,7 @@ status uses `--glow-3` (see [Intent & Emphasis Semantics](#intent--emphasis-sema
 
 ```vue
 <!-- Interactive element: button styling carries the emphasis, glow on hover -->
-<button class="terminal-glow">Glowing Button</button>
+<button class="terminal-button">Interactive Button</button>
 
 <!-- Ambient flavor on a heading: fine, it is a title, not a chip -->
 <h1 class="terminal-glow-subtle">Vault Title</h1>

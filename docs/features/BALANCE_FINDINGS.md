@@ -46,22 +46,16 @@ With defaults (20 dwellers, avg SPECIAL 4, level 5, raider power 10):
 
 ### Finding
 
-**Incidents are trivial.** Dweller combat power is calculated as:
+**Incidents are trivial.** Dweller combat power (via `total_combat_power()`) uses per-weapon-type SPECIAL weights plus weapon damage and level bonus. For the simulator's average unarmed dweller:
 
 ```text
-power = adults × ((strength×0.4 + endurance×0.3 + agility×0.3) + level×2)
-       = 18 × ((4×0.4 + 4×0.3 + 4×0.3) + 5×2)
-       = 18 × (4.0 + 10.0)
-       = 252
+per_dweller = (S×0.2 + P×0.1 + E×0.1 + C×0.1 + I×0.1 + A×0.1 + L×0.1) + avg_weapon_damage + level×2
+            = (4×0.2 + 4×0.1×6) + 10 + 5×2
+            = 3.2 + 10 + 10 = 23.2
+power = 18 × 23.2 = 417.6
 ```
 
-> **Note (post-Combat Power Overhaul):** `combat_power()` now weights **all seven SPECIAL stats** with per-weapon-type
-> weights (`COMBAT_WEAPON_STAT_WEIGHTS`; primary 0.3 / secondary 0.15, unarmed balanced with a strength lean) plus
-> weapon damage and the level bonus. The math above reflects the pre-overhaul S/E/A formula; the magnitude for an
-> average dweller is comparable, so the finding's conclusion still holds, but re-run `fo-cli simulate-incidents`
-> before acting on the exact numbers.
-
-A deathclaw at difficulty 10 has raider power = 10 × 10 = 100. The vault's 252 power outmatches the hardest incident by 2.5×.
+A deathclaw at difficulty 10 has raider power = 10 × 10 = 100. The vault's ~418 power outmatches the hardest incident by ~4×.
 
 Even sweeping `base_raider_power` from 5 → 25 changed nothing because the gap is so large. The `spread_duration` (60s) is also too short for incidents to persist — they resolve in 0–1 ticks.
 

@@ -27,8 +27,13 @@ DEFAULT_RUNS = 50
 DEFAULT_STARTING_DWELLERS = 20
 DEFAULT_STARTING_ADULTS = 18
 DEFAULT_AVG_STRENGTH = 4.0
+DEFAULT_AVG_PERCEPTION = 4.0
 DEFAULT_AVG_ENDURANCE = 4.0
+DEFAULT_AVG_CHARISMA = 4.0
+DEFAULT_AVG_INTELLIGENCE = 4.0
 DEFAULT_AVG_AGILITY = 4.0
+DEFAULT_AVG_LUCK = 4.0
+DEFAULT_AVG_WEAPON_DAMAGE = 10.0
 DEFAULT_AVG_LEVEL = 5
 
 DEFAULT_SPAWN_CHANCE_PER_HOUR = 0.05
@@ -90,6 +95,15 @@ class IncidentConfig:
     dweller_endurance_weight: float = DEFAULT_DWELLER_ENDURANCE_WEIGHT
     dweller_agility_weight: float = DEFAULT_DWELLER_AGILITY_WEIGHT
     level_bonus_multiplier: int = DEFAULT_LEVEL_BONUS_MULTIPLIER
+    avg_strength: float = DEFAULT_AVG_STRENGTH
+    avg_perception: float = DEFAULT_AVG_PERCEPTION
+    avg_endurance: float = DEFAULT_AVG_ENDURANCE
+    avg_charisma: float = DEFAULT_AVG_CHARISMA
+    avg_intelligence: float = DEFAULT_AVG_INTELLIGENCE
+    avg_agility: float = DEFAULT_AVG_AGILITY
+    avg_luck: float = DEFAULT_AVG_LUCK
+    avg_weapon_damage: float = DEFAULT_AVG_WEAPON_DAMAGE
+    avg_level: int = DEFAULT_AVG_LEVEL
 
     caps_reward_base: int = DEFAULT_CAPS_REWARD_BASE
     caps_reward_per_difficulty: int = DEFAULT_CAPS_REWARD_PER_DIFFICULTY
@@ -100,10 +114,6 @@ class IncidentConfig:
 
     starting_dwellers: int = DEFAULT_STARTING_DWELLERS
     starting_adults: int = DEFAULT_STARTING_ADULTS
-    avg_strength: float = DEFAULT_AVG_STRENGTH
-    avg_endurance: float = DEFAULT_AVG_ENDURANCE
-    avg_agility: float = DEFAULT_AVG_AGILITY
-    avg_level: int = DEFAULT_AVG_LEVEL
 
     power_max: float = 100.0
     food_max: float = 100.0
@@ -326,13 +336,20 @@ class IncidentSimulator:
     def _calculate_dweller_power(self, vault: VaultState) -> float:
         if vault.adults <= 0:
             return 0.0
-        base = (
-            self.cfg.avg_strength * self.cfg.dweller_strength_weight
-            + self.cfg.avg_endurance * self.cfg.dweller_endurance_weight
-            + self.cfg.avg_agility * self.cfg.dweller_agility_weight
+        # Mirrors app.utils.combat.total_combat_power: unarmed SPECIAL spread + weapon damage + level bonus.
+        # Uses the same default weights as game_config.CombatConfig so the simulator stays in sync with production.
+        stat_power = (
+            self.cfg.avg_strength * 0.2
+            + self.cfg.avg_perception * 0.1
+            + self.cfg.avg_endurance * 0.1
+            + self.cfg.avg_charisma * 0.1
+            + self.cfg.avg_intelligence * 0.1
+            + self.cfg.avg_agility * 0.1
+            + self.cfg.avg_luck * 0.1
         )
         level_bonus = self.cfg.avg_level * self.cfg.level_bonus_multiplier
-        return vault.adults * (base + level_bonus)
+        per_dweller = stat_power + self.cfg.avg_weapon_damage + level_bonus
+        return vault.adults * per_dweller
 
     def _apply_incident_pressure(self, vault: VaultState) -> None:
         active_count = len([i for i in vault.incidents if not i.resolved])
@@ -515,9 +532,14 @@ def _print_params(cfg: IncidentConfig) -> None:
     print(f"  max_spread          = {cfg.max_spread_count}")
     print(f"  raider_power        = {cfg.base_raider_power}")
     print(f"  starting_dwellers   = {cfg.starting_dwellers}")
-    print(f"  avg_strength        = {cfg.avg_strength:.1f}")
-    print(f"  avg_endurance       = {cfg.avg_endurance:.1f}")
-    print(f"  avg_agility         = {cfg.avg_agility:.1f}")
+    print(f"  avg_S               = {cfg.avg_strength:.1f}")
+    print(f"  avg_P               = {cfg.avg_perception:.1f}")
+    print(f"  avg_E               = {cfg.avg_endurance:.1f}")
+    print(f"  avg_C               = {cfg.avg_charisma:.1f}")
+    print(f"  avg_I               = {cfg.avg_intelligence:.1f}")
+    print(f"  avg_A               = {cfg.avg_agility:.1f}")
+    print(f"  avg_L               = {cfg.avg_luck:.1f}")
+    print(f"  avg_weapon_damage   = {cfg.avg_weapon_damage:.1f}")
     print(f"  avg_level           = {cfg.avg_level}")
     print(f"  resource_drain      = {cfg.resource_drain_per_tick:.1f}/tick")
     print(f"  happiness_penalty   = {cfg.happiness_penalty_active:.1f}/tick")
@@ -667,8 +689,13 @@ def simulate(
     raider_power: Annotated[int, typer.Option()] = DEFAULT_BASE_RAIDER_POWER,
     starting_dwellers: Annotated[int, typer.Option()] = DEFAULT_STARTING_DWELLERS,
     avg_strength: Annotated[float, typer.Option()] = DEFAULT_AVG_STRENGTH,
+    avg_perception: Annotated[float, typer.Option()] = DEFAULT_AVG_PERCEPTION,
     avg_endurance: Annotated[float, typer.Option()] = DEFAULT_AVG_ENDURANCE,
+    avg_charisma: Annotated[float, typer.Option()] = DEFAULT_AVG_CHARISMA,
+    avg_intelligence: Annotated[float, typer.Option()] = DEFAULT_AVG_INTELLIGENCE,
     avg_agility: Annotated[float, typer.Option()] = DEFAULT_AVG_AGILITY,
+    avg_luck: Annotated[float, typer.Option()] = DEFAULT_AVG_LUCK,
+    avg_weapon_damage: Annotated[float, typer.Option()] = DEFAULT_AVG_WEAPON_DAMAGE,
     avg_level: Annotated[int, typer.Option()] = DEFAULT_AVG_LEVEL,
     resource_drain: Annotated[float, typer.Option()] = DEFAULT_RESOURCE_DRAIN_PER_TICK,
     happiness_penalty: Annotated[float, typer.Option()] = DEFAULT_HAPPINESS_PENALTY_ACTIVE,
@@ -687,8 +714,13 @@ def simulate(
         starting_dwellers=starting_dwellers,
         starting_adults=max(1, int(starting_dwellers * 0.9)),
         avg_strength=avg_strength,
+        avg_perception=avg_perception,
         avg_endurance=avg_endurance,
+        avg_charisma=avg_charisma,
+        avg_intelligence=avg_intelligence,
         avg_agility=avg_agility,
+        avg_luck=avg_luck,
+        avg_weapon_damage=avg_weapon_damage,
         avg_level=avg_level,
         resource_drain_per_tick=resource_drain,
         happiness_penalty_active=happiness_penalty,

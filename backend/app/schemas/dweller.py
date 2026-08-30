@@ -186,9 +186,12 @@ class DwellerReadLess(SQLModel):
 
     # Relationships
     weapon_type: WeaponTypeEnum | None = None
+    combat_power: float | None = None
     partner_id: UUID4 | None = None
     parent_1_id: UUID4 | None = None
     parent_2_id: UUID4 | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
     # TBD
 

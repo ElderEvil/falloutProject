@@ -180,6 +180,29 @@ class VaultEventConfig(BaseSettings):
     wanderer_caps_max: int = 50
 
 
+_DEFAULT_WEAPON_STAT_WEIGHTS: dict[str, dict[str, float]] = {
+    "melee": {"strength": 0.3, "agility": 0.3, "endurance": 0.15, "luck": 0.15},
+    "gun": {"perception": 0.3, "agility": 0.3, "luck": 0.15, "strength": 0.15},
+    "energy": {"intelligence": 0.3, "perception": 0.3, "endurance": 0.15, "luck": 0.15},
+    "heavy": {"strength": 0.3, "endurance": 0.3, "perception": 0.15, "agility": 0.15},
+    "unarmed": {
+        "strength": 0.2,
+        "perception": 0.1,
+        "endurance": 0.1,
+        "charisma": 0.1,
+        "intelligence": 0.1,
+        "agility": 0.1,
+        "luck": 0.1,
+    },
+}
+
+_SPECIAL_KEYS: frozenset[str] = frozenset(
+    {"strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"}
+)
+
+_REQUIRED_WEAPON_TYPES: frozenset[str] = frozenset({"melee", "gun", "energy", "heavy", "unarmed"})
+
+
 class CombatConfig(BaseSettings):
     """Combat and loot configuration."""
 
@@ -189,24 +212,47 @@ class CombatConfig(BaseSettings):
     # Per weapon-type SPECIAL weights for combat_power (keys: weapon type value or "unarmed").
     # Primary stats ~0.3, secondary ~0.15, unused 0; unarmed is a balanced spread with a strength lean.
     weapon_stat_weights: dict[str, dict[str, float]] = Field(
-        default={
-            "melee": {"strength": 0.3, "agility": 0.3, "endurance": 0.15, "luck": 0.15},
-            "gun": {"perception": 0.3, "agility": 0.3, "luck": 0.15, "strength": 0.15},
-            "energy": {"intelligence": 0.3, "perception": 0.3, "endurance": 0.15, "luck": 0.15},
-            "heavy": {"strength": 0.3, "endurance": 0.3, "perception": 0.15, "agility": 0.15},
-            "unarmed": {
-                "strength": 0.2,
-                "perception": 0.1,
-                "endurance": 0.1,
-                "charisma": 0.1,
-                "intelligence": 0.1,
-                "agility": 0.1,
-                "luck": 0.1,
-            },
-        },
+        default=_DEFAULT_WEAPON_STAT_WEIGHTS,
         description='SPECIAL weights per weapon type, e.g. COMBAT_WEAPON_STAT_WEIGHTS=\'{"melee": {"strength": 0.3}}\'',
     )
     level_bonus_multiplier: int = Field(default=2, ge=0)
+
+    @field_validator("weapon_stat_weights", mode="before")
+    @classmethod
+    def validate_weapon_stat_weights(cls, v: dict[str, dict[str, float]] | None) -> dict[str, dict[str, float]]:
+        """Deep-merge partial env overrides with defaults and validate SPECIAL keys.
+
+        `COMBAT_WEAPON_STAT_WEIGHTS` is a JSON dict. Without this validator a partial
+        mapping like `{"melee": {"strength": 0.5}}` would delete `unarmed` and crash
+        `combat_power()` for unarmed dwellers. We preserve required weapon types and
+        validate SPECIAL stat names before combat code uses `getattr`.
+        """
+        if v is None:
+            return _DEFAULT_WEAPON_STAT_WEIGHTS
+        if not isinstance(v, dict):
+            raise TypeError("weapon_stat_weights must be a dict")
+        import copy
+
+        merged: dict[str, dict[str, float]] = copy.deepcopy(_DEFAULT_WEAPON_STAT_WEIGHTS)
+        for weapon_type, weights in v.items():
+            if not isinstance(weights, dict):
+                raise TypeError(f"weapon type '{weapon_type}' must map to a dict of SPECIAL weights")
+            for stat, weight in weights.items():
+                if stat not in _SPECIAL_KEYS:
+                    raise ValueError(f"Invalid SPECIAL stat '{stat}' for weapon type '{weapon_type}'")
+                if not isinstance(weight, (int, float)) or not 0 <= float(weight) <= 1:
+                    raise ValueError(f"Weight for {weapon_type}.{stat} must be a number in [0, 1]")
+            if weapon_type in merged:
+                merged[weapon_type] = {**merged[weapon_type], **weights}
+            else:
+                # Allow unknown weapon types only if they look valid, but keep required ones
+                if weapon_type not in _REQUIRED_WEAPON_TYPES:
+                    raise ValueError(f"Invalid weapon type '{weapon_type}'")
+                merged[weapon_type] = dict(weights)
+        for required in _REQUIRED_WEAPON_TYPES:
+            if required not in merged:
+                raise ValueError(f"Missing required weapon type '{required}'")
+        return merged
 
     # Loot
     loot_caps_min: int = Field(default=50, ge=0)

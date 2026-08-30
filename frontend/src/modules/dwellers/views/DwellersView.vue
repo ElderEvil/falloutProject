@@ -61,6 +61,7 @@ const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
 const isAllDwellersLoading = ref(false)
 const isIncidentsLoading = ref(false)
+const distributionCache = ref<ReturnType<typeof happinessService.calculateDistribution> | null>(null)
 
 const isDashboardLoading = computed(
   () =>
@@ -70,11 +71,23 @@ const isDashboardLoading = computed(
     !currentVault.value
 )
 
+/**
+ * Distribution with stable identity: the game-tick SSE replaces the vault
+ * object every tick, which would otherwise recreate this object (and re-render
+ * the dashboard) even when no dweller happiness bucket actually changed.
+ */
+const distribution = computed(() => {
+  const next = happinessService.calculateDistribution(dwellerStore.allDwellers)
+  const prev = distributionCache.value
+  if (prev && JSON.stringify(prev) === JSON.stringify(next)) return prev
+  distributionCache.value = next
+  return next
+})
+
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
 
   const population = dwellerStore.allDwellers
-  const distribution = happinessService.calculateDistribution(population)
   const activeIncidents = incidentStore.activeIncidents
 
   // Count idle dwellers
@@ -90,7 +103,7 @@ const happinessDashboardData = computed(() => {
   return {
     vaultHappiness: currentVault.value.happiness || 0,
     dwellerCount: currentVault.value.dweller_count || 0,
-    distribution,
+    distribution: distribution.value,
     idleDwellerCount: idleDwellers.length,
     activeIncidentCount: activeIncidents.length,
     lowResourceCount,
@@ -149,29 +162,23 @@ onMounted(async () => {
 
   await fetchDwellers()
 
-  // Fetch all dwellers (unfiltered) for happiness dashboard aggregates
+  // Dashboard aggregates, incidents, and rooms load concurrently: the
+  // dashboard's loading flag then flips once instead of flapping
+  // skeleton -> content -> skeleton per sequential fetch.
   if (authStore.isAuthenticated && vaultId.value) {
     isAllDwellersLoading.value = true
-    try {
-      await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
-    } finally {
-      isAllDwellersLoading.value = false
-    }
-  }
-
-  // Fetch rooms to show room assignments
-  if (authStore.isAuthenticated && vaultId.value) {
-    await roomStore.fetchRooms(vaultId.value, authStore.token as string)
-  }
-
-  // Fetch incidents for happiness dashboard
-  if (authStore.isAuthenticated && vaultId.value) {
     isIncidentsLoading.value = true
-    try {
-      await incidentStore.fetchIncidents(vaultId.value, authStore.token as string)
-    } finally {
-      isIncidentsLoading.value = false
-    }
+    await Promise.all([
+      // Also ensures the vault exists on direct navigation to this page.
+      vaultStore.loadVault(vaultId.value, authStore.token as string),
+      dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string).finally(() => {
+        isAllDwellersLoading.value = false
+      }),
+      incidentStore.fetchIncidents(vaultId.value, authStore.token as string).finally(() => {
+        isIncidentsLoading.value = false
+      }),
+      roomStore.fetchRooms(vaultId.value, authStore.token as string),
+    ])
   }
 })
 

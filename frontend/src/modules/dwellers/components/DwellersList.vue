@@ -7,6 +7,8 @@ import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
+import DwellerGenderBadge from './DwellerGenderBadge.vue'
+import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
@@ -86,6 +88,8 @@ const getRoomStat = (
         <div class="flex items-center gap-2">
           <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+          <DwellerGenderBadge :gender="dweller.gender" size="sm" />
+          <DwellerRarityBadge :rarity="dweller.rarity" size="sm" />
         </div>
       </div>
 

@@ -10,6 +10,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.vault import Vault
+from app.schemas.common import AgeGroupEnum
 from app.schemas.vault import (
     AutoAssignResponse,
     UnassignResponse,
@@ -181,6 +182,7 @@ async def unassign_all_dwellers(
 async def auto_assign_production_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
 
@@ -190,7 +192,7 @@ async def auto_assign_production_rooms(
     Returns:
         Response with count of assigned dwellers.
     """
-    result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id)
+    result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id, age_group=age_group)
     return AutoAssignResponse(**result)
 
 
@@ -198,6 +200,7 @@ async def auto_assign_production_rooms(
 async def auto_assign_all_rooms(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    age_group: AgeGroupEnum | None = None,
 ) -> AutoAssignResponse:
     """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
 
@@ -213,5 +216,5 @@ async def auto_assign_all_rooms(
     Returns:
         Response with count of assigned dwellers.
     """
-    result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id)
+    result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id, age_group=age_group)
     return AutoAssignResponse(**result)

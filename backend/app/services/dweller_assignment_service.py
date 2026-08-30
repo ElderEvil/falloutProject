@@ -10,7 +10,7 @@ from app import crud
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerUpdate
 from app.services.room_assignment_policy import adult_assignment_conditions
 from app.services.training_service import training_service
@@ -225,10 +225,32 @@ class DwellerAssignmentService:
 
         return {"unassigned_count": unassigned_count}
 
+    async def _unassigned_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        age_group: AgeGroupEnum | None = None,
+    ) -> list[Dweller]:
+        """Idle adults without a room, optionally narrowed to one age group."""
+        query = (
+            select(Dweller)
+            .where(Dweller.vault_id == vault_id)
+            .where(Dweller.status == DwellerStatusEnum.IDLE)
+            .where(Dweller.room_id.is_(None))
+            .where(*adult_assignment_conditions())
+            .where(~Dweller.is_deleted)
+            .where(~Dweller.is_dead)
+        )
+        if age_group:
+            query = query.where(Dweller.age_group == age_group)
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
     async def auto_assign_production_rooms(
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
+        age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
         Priority order: Power Plant (Strength) -> Diner (Agility) -> Water Treatment (Perception).
@@ -242,17 +264,7 @@ class DwellerAssignmentService:
         rooms_result = await db_session.execute(rooms_query)
         all_production_rooms = rooms_result.scalars().all()
 
-        unassigned_query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.status == DwellerStatusEnum.IDLE)
-            .where(Dweller.room_id.is_(None))
-            .where(*adult_assignment_conditions())
-            .where(~Dweller.is_deleted)
-            .where(~Dweller.is_dead)
-        )
-        unassigned_result = await db_session.execute(unassigned_query)
-        unassigned_dwellers = list(unassigned_result.scalars().all())
+        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -308,6 +320,7 @@ class DwellerAssignmentService:
         self,
         db_session: AsyncSession,
         vault_id: UUID4,
+        age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
         Priority: Production -> Med/Science -> Radio -> Training.
@@ -327,17 +340,7 @@ class DwellerAssignmentService:
         radio_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC and r.ability == SPECIALEnum.CHARISMA]
         training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
 
-        unassigned_query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.status == DwellerStatusEnum.IDLE)
-            .where(Dweller.room_id.is_(None))
-            .where(*adult_assignment_conditions())
-            .where(~Dweller.is_deleted)
-            .where(~Dweller.is_dead)
-        )
-        unassigned_result = await db_session.execute(unassigned_query)
-        unassigned_dwellers = list(unassigned_result.scalars().all())
+        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()

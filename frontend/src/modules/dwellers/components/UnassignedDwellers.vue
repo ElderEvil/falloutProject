@@ -4,10 +4,16 @@ import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
+import type { components } from '@/core/types/api.generated'
 import type { DwellerShort } from '../models/dweller'
-import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
+import DwellerAgeBadge from './DwellerAgeBadge.vue'
+import DwellerGenderBadge from './DwellerGenderBadge.vue'
+import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
+
+type AgeFilter = 'all' | components['schemas']['AgeGroupEnum']
+type RarityFilter = 'all' | components['schemas']['RarityEnum']
 
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
 const authStore = useAuthStore()
@@ -15,20 +21,50 @@ const toast = useToast()
 
 // Filter preferences are now automatically loaded via useLocalStorage in the store
 
-// Use filtered and sorted dwellers from store, but only show unassigned ones
+// Local (non-persisted) filters: the shared dweller filter store would leak
+// into the main Dwellers view, so this panel filters client-side only.
+const filterAge = ref<AgeFilter>('all')
+const filterRarity = ref<RarityFilter>('all')
+
+const AGE_FILTERS: { value: AgeFilter; label: string; icon: string }[] = [
+  { value: 'all', label: 'All Ages', icon: 'mdi:account-multiple' },
+  { value: 'child', label: 'Child', icon: 'mdi:baby' },
+  { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
+  { value: 'adult', label: 'Adult', icon: 'mdi:account' },
+]
+
+const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string }[] = [
+  { value: 'all', label: 'All', icon: 'mdi:star-circle-outline' },
+  { value: 'common', label: 'Common', icon: 'mdi:star-outline' },
+  { value: 'rare', label: 'Rare', icon: 'mdi:star' },
+  { value: 'legendary', label: 'Legendary', icon: 'mdi:star-four-points' },
+]
+
+const RARITY_ACCENT: Record<string, string> = {
+  common: 'var(--color-rarity-common)',
+  rare: 'var(--color-rarity-rare)',
+  legendary: 'var(--color-rarity-legendary)',
+}
+
+const rarityColor = (rarity?: string | null): string =>
+  RARITY_ACCENT[String(rarity ?? '').toLowerCase()] ?? 'var(--color-rarity-common)'
+
+// Must not have a room assignment, and must not be out of the vault
+// (exploring or on a quest) or dead.
+const isUnassignable = (dweller: DwellerShort): boolean =>
+  !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
+
+const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isUnassignable))
+
 // Use unfiltered dwellers from store, but only show unassigned ones
 // We manually apply sorting here to respect the sort preference without being affected by the global status filter
 const unassignedDwellers = computed(() => {
-  // 1. Filter for unassigned dwellers
-  const filtered = dwellerStore.dwellersWithStatus.filter((dweller) => {
-    // Must not have a room assignment
-    if (dweller.room_id) return false
-
-    // Must not be out of the vault (exploring or on a quest) or dead
-    if (['dead', 'questing', 'exploring'].includes(dweller.status)) return false
-
-    return true
-  })
+  const filtered = dwellerStore.dwellersWithStatus.filter(
+    (dweller) =>
+      isUnassignable(dweller) &&
+      (filterAge.value === 'all' || dweller.age_group === filterAge.value) &&
+      (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
+  )
 
   // 2. Sort based on store preferences (shared with filter panel)
   return filtered.sort((a, b) => {
@@ -125,6 +161,44 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         <!-- Sort controls inline with header -->
         <DwellerFilterPanel :show-status-filter="false" />
       </div>
+
+      <div class="filter-chips" role="group" aria-label="Filter unassigned dwellers">
+        <div class="chip-group" role="group" aria-label="Filter by age">
+          <div class="chip-group-label">
+            <Icon icon="mdi:account-group" class="chip-group-icon" />
+            <span>Age</span>
+          </div>
+          <button
+            v-for="option in AGE_FILTERS"
+            :key="option.value"
+            class="chip"
+            :class="{ active: filterAge === option.value }"
+            :aria-pressed="filterAge === option.value"
+            @click="filterAge = option.value"
+          >
+            <Icon :icon="option.icon" class="chip-icon" />
+            {{ option.label }}
+          </button>
+        </div>
+        <div class="chip-group" role="group" aria-label="Filter by rarity">
+          <div class="chip-group-label">
+            <Icon icon="mdi:star-four-points" class="chip-group-icon" />
+            <span>Rarity</span>
+          </div>
+          <button
+            v-for="option in RARITY_FILTERS"
+            :key="option.value"
+            class="chip"
+            :class="{ active: filterRarity === option.value }"
+            :style="option.value === 'all' ? undefined : { '--chip-accent': rarityColor(option.value) }"
+            :aria-pressed="filterRarity === option.value"
+            @click="filterRarity = option.value"
+          >
+            <Icon :icon="option.icon" class="chip-icon" />
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <div
@@ -135,20 +209,30 @@ const handleDropZoneDrop = async (event: DragEvent) => {
       @dragleave="handleDropZoneDragLeave"
       @drop="handleDropZoneDrop"
     >
-      <Icon
-        v-if="!isDraggingOver"
-        icon="mdi:check-circle"
-        class="h-12 w-12"
-        :style="{ color: 'var(--color-theme-primary)' }"
-      />
-      <Icon
-        v-else
-        icon="mdi:arrow-down-bold"
-        class="h-12 w-12 animate-bounce"
-        :style="{ color: 'var(--color-theme-primary)' }"
-      />
-      <p v-if="!isDraggingOver">All dwellers are assigned!</p>
-      <p v-else class="drop-message">Drop to unassign</p>
+      <template v-if="isDraggingOver">
+        <Icon
+          icon="mdi:arrow-down-bold"
+          class="h-12 w-12 animate-bounce"
+          :style="{ color: 'var(--color-theme-primary)' }"
+        />
+        <p class="drop-message">Drop to unassign</p>
+      </template>
+      <template v-else-if="hasAnyUnassigned">
+        <Icon
+          icon="mdi:filter-off-outline"
+          class="h-12 w-12"
+          :style="{ color: 'var(--color-theme-primary)' }"
+        />
+        <p>No dwellers match the filters</p>
+      </template>
+      <template v-else>
+        <Icon
+          icon="mdi:check-circle"
+          class="h-12 w-12"
+          :style="{ color: 'var(--color-theme-primary)' }"
+        />
+        <p>All dwellers are assigned!</p>
+      </template>
     </div>
 
     <div
@@ -172,56 +256,55 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"
         >
-          <div class="dweller-avatar">
-            <DwellerPortrait
-              :thumbnail-url="dweller.thumbnail_url"
-              :alt="`${dweller.first_name} ${dweller.last_name}`"
-              image-class="avatar-image"
-              fallback-class="h-12 w-12 text-theme-primary/60"
-            />
-          </div>
-
-          <div class="dweller-info">
-            <div class="dweller-header">
-              <div>
-                <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
-                <p class="dweller-level">Level {{ dweller.level }}</p>
-              </div>
-              <DwellerStatusBadge
-                :status="dwellerStore.getDwellerStatus(dweller.id)"
-                size="small"
+          <div class="dweller-top">
+            <div class="dweller-avatar" :style="{ '--rarity-ring': rarityColor(dweller.rarity) }">
+              <DwellerPortrait
+                :thumbnail-url="dweller.thumbnail_url"
+                :alt="`${dweller.first_name} ${dweller.last_name}`"
+                image-class="avatar-image"
+                fallback-class="h-14 w-14 text-theme-primary/60"
               />
             </div>
 
-            <div class="dweller-stats">
-              <div class="stat-item" title="Strength">
-                <span class="stat-label">S</span>
-                <span class="stat-value">{{ dweller.strength }}</span>
+            <div class="dweller-heading">
+              <p class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</p>
+              <div class="dweller-meta">
+                <span class="dweller-level">Lv {{ dweller.level }}</span>
+                <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+                <DwellerGenderBadge :gender="dweller.gender" size="sm" />
+                <DwellerRarityBadge :rarity="dweller.rarity" size="sm" />
               </div>
-              <div class="stat-item" title="Perception">
-                <span class="stat-label">P</span>
-                <span class="stat-value">{{ dweller.perception }}</span>
-              </div>
-              <div class="stat-item" title="Endurance">
-                <span class="stat-label">E</span>
-                <span class="stat-value">{{ dweller.endurance }}</span>
-              </div>
-              <div class="stat-item" title="Charisma">
-                <span class="stat-label">C</span>
-                <span class="stat-value">{{ dweller.charisma }}</span>
-              </div>
-              <div class="stat-item" title="Intelligence">
-                <span class="stat-label">I</span>
-                <span class="stat-value">{{ dweller.intelligence }}</span>
-              </div>
-              <div class="stat-item" title="Agility">
-                <span class="stat-label">A</span>
-                <span class="stat-value">{{ dweller.agility }}</span>
-              </div>
-              <div class="stat-item" title="Luck">
-                <span class="stat-label">L</span>
-                <span class="stat-value">{{ dweller.luck }}</span>
-              </div>
+            </div>
+          </div>
+
+          <div class="dweller-stats">
+            <div class="stat-item" title="Strength">
+              <span class="stat-label">S</span>
+              <span class="stat-value">{{ dweller.strength }}</span>
+            </div>
+            <div class="stat-item" title="Perception">
+              <span class="stat-label">P</span>
+              <span class="stat-value">{{ dweller.perception }}</span>
+            </div>
+            <div class="stat-item" title="Endurance">
+              <span class="stat-label">E</span>
+              <span class="stat-value">{{ dweller.endurance }}</span>
+            </div>
+            <div class="stat-item" title="Charisma">
+              <span class="stat-label">C</span>
+              <span class="stat-value">{{ dweller.charisma }}</span>
+            </div>
+            <div class="stat-item" title="Intelligence">
+              <span class="stat-label">I</span>
+              <span class="stat-value">{{ dweller.intelligence }}</span>
+            </div>
+            <div class="stat-item" title="Agility">
+              <span class="stat-label">A</span>
+              <span class="stat-value">{{ dweller.agility }}</span>
+            </div>
+            <div class="stat-item" title="Luck">
+              <span class="stat-label">L</span>
+              <span class="stat-value">{{ dweller.luck }}</span>
             </div>
           </div>
 
@@ -235,31 +318,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 </template>
 
 <style scoped>
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.notification-success {
-  background: rgba(0, 0, 0, 0.95);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.notification-error {
-  background: rgba(0, 0, 0, 0.95);
-  border: 2px solid var(--color-danger);
-  color: var(--color-danger);
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
-}
-
 .unassigned-dwellers-panel {
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid var(--color-theme-primary);
@@ -309,6 +367,74 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   color: var(--color-theme-glow);
   font-size: 0.875rem;
   margin-top: 0.25rem;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.chip-group {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.chip-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-theme-primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.chip-group-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.7rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 6px;
+  color: var(--color-theme-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  opacity: 0.8;
+  background: var(--color-surface-hover);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.chip.active {
+  opacity: 1;
+  background: var(--color-surface-hover);
+  border-color: var(--chip-accent, var(--color-theme-primary));
+  box-shadow: 0 0 12px var(--color-theme-primary);
+  font-weight: 600;
+}
+
+.chip-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .empty-state {
@@ -364,9 +490,9 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 
 .dweller-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
-  max-height: 400px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.875rem;
+  max-height: 440px;
   overflow-y: auto;
   padding-right: 0.5rem;
 }
@@ -394,12 +520,12 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
-  padding: 0.75rem;
+  padding: 1rem;
   cursor: grab;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .dweller-card:hover {
@@ -414,62 +540,75 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   opacity: 0.7;
 }
 
-.dweller-avatar {
+.dweller-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 48px;
+  gap: 0.75rem;
+}
+
+.dweller-avatar {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
 }
 
 .avatar-image {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid var(--color-theme-primary);
+  border: 2px solid var(--rarity-ring, var(--color-theme-primary));
 }
 
-.dweller-info {
+
+.dweller-heading {
   flex: 1;
-}
-
-.dweller-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  min-width: 0;
 }
 
 .dweller-name {
   color: var(--color-theme-primary);
   font-weight: bold;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   margin-bottom: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 1.25rem;
+}
+
+.dweller-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  row-gap: 0.4rem;
 }
 
 .dweller-level {
+  margin-right: 0.25rem;
   color: var(--color-theme-primary);
   opacity: 0.7;
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .dweller-stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
-  flex-wrap: wrap;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--color-theme-glow);
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.125rem;
   font-size: 0.625rem;
-  min-width: 20px;
 }
 
 .stat-label {

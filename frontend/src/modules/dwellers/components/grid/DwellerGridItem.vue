@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
+import DwellerGenderBadge from '../DwellerGenderBadge.vue'
+import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import type { DwellerShort } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
@@ -57,6 +59,9 @@ const getStatColorClass = (value: number) => {
   >
     <!-- Thumbnail / Avatar -->
     <div class="thumbnail-container">
+      <div class="status-overlay">
+        <DwellerStatusBadge :status="dweller.status" size="medium" show-label />
+      </div>
       <template v-if="dweller.thumbnail_url">
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
@@ -96,7 +101,8 @@ const getStatColorClass = (value: number) => {
         <div class="header-badges">
           <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
-          <DwellerStatusBadge :status="dweller.status" :show-label="false" size="small" />
+          <DwellerGenderBadge :gender="dweller.gender" size="sm" />
+          <DwellerRarityBadge :rarity="dweller.rarity" size="sm" />
         </div>
       </div>
 
@@ -175,6 +181,13 @@ const getStatColorClass = (value: number) => {
   width: 100%;
   aspect-ratio: 1;
   background: var(--color-surface-sunken);
+}
+
+.status-overlay {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
 }
 
 .thumbnail-image {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useDwellerStore } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -10,13 +11,49 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const { management: dwellerStore } = useDwellerStore()
+const { filter: filterStore, management: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const unassigningAll = ref(false)
 const autoAssigningProduction = ref(false)
 const autoAssigning = ref(false)
 const showConfirmDialog = ref(false)
+
+/**
+ * Idle adults without a room among the currently fetched (already filtered)
+ * dwellers — the pool the backend will actually assign from.
+ */
+const eligibleCount = computed(
+  () =>
+    filterStore.dwellersWithStatus.filter(
+      (dweller) => dweller.status === 'idle' && !dweller.room_id && dweller.age_group === 'adult'
+    ).length
+)
+
+const activeAgeFilter = computed(() =>
+  filterStore.filterAgeGroup !== 'all' ? filterStore.filterAgeGroup : undefined
+)
+
+const emptyHint = 'No idle adult dwellers match the current filters'
+
+const filterNote = computed(() => {
+  const parts = [filterStore.filterAgeGroup, filterStore.filterStatus].filter((f) => f !== 'all')
+  return parts.length ? ` matching the current filters (${parts.join(', ')})` : ''
+})
+
+const plural = computed(() => (eligibleCount.value === 1 ? '' : 's'))
+
+const productionTooltip = computed(() =>
+  eligibleCount.value === 0
+    ? emptyHint
+    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to production rooms by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
+)
+
+const allRoomsTooltip = computed(() =>
+  eligibleCount.value === 0
+    ? emptyHint
+    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} across all room types (production, med/science, radio, training) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
+)
 
 const handleUnassignAll = async () => {
   if (!authStore.token) return
@@ -35,7 +72,9 @@ const handleAutoAssignProduction = async () => {
 
   autoAssigningProduction.value = true
   try {
-    await dwellerStore.autoAssignProductionDwellers(props.vaultId, authStore.token)
+    await dwellerStore.autoAssignProductionDwellers(props.vaultId, authStore.token, {
+      ageGroup: activeAgeFilter.value,
+    })
   } finally {
     autoAssigningProduction.value = false
   }
@@ -46,7 +85,9 @@ const handleAutoAssignAll = async () => {
 
   autoAssigning.value = true
   try {
-    await dwellerStore.autoAssignAllDwellers(props.vaultId, authStore.token)
+    await dwellerStore.autoAssignAllDwellers(props.vaultId, authStore.token, {
+      ageGroup: activeAgeFilter.value,
+    })
   } finally {
     autoAssigning.value = false
   }
@@ -55,25 +96,46 @@ const handleAutoAssignAll = async () => {
 
 <template>
   <div class="bulk-actions-toolbar">
-    <UButton
-      variant="secondary"
-      size="sm"
-      @click="handleAutoAssignProduction"
-      :loading="autoAssigningProduction"
-    >
-      <Icon icon="mdi:factory" class="h-4 w-4 mr-2" />
-      Auto-Assign Production
-    </UButton>
+    <UTooltip :text="allRoomsTooltip">
+      <UButton
+        variant="primary"
+        size="sm"
+        @click="handleAutoAssignAll"
+        :loading="autoAssigning"
+        :disabled="eligibleCount === 0"
+      >
+        <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
+        Auto-Assign All Rooms
+        <span class="action-count on-primary">{{ eligibleCount }}</span>
+      </UButton>
+    </UTooltip>
 
-    <UButton variant="primary" size="sm" @click="handleAutoAssignAll" :loading="autoAssigning">
-      <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
-      Auto-Assign All Rooms
-    </UButton>
+    <UTooltip :text="productionTooltip">
+      <UButton
+        variant="secondary"
+        size="sm"
+        @click="handleAutoAssignProduction"
+        :loading="autoAssigningProduction"
+        :disabled="eligibleCount === 0"
+      >
+        <Icon icon="mdi:factory" class="h-4 w-4 mr-2" />
+        Auto-Assign Production
+        <span class="action-count on-secondary">{{ eligibleCount }}</span>
+      </UButton>
+    </UTooltip>
 
-    <UButton variant="danger" size="sm" @click="showConfirmDialog = true" :loading="unassigningAll">
-      <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
-      Unassign All Dwellers
-    </UButton>
+    <UTooltip text="Remove every dweller from their current room assignments">
+      <UButton
+        variant="secondary"
+        size="sm"
+        class="unassign-btn"
+        @click="showConfirmDialog = true"
+        :loading="unassigningAll"
+      >
+        <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
+        Unassign All Dwellers
+      </UButton>
+    </UTooltip>
 
     <!-- Confirmation Dialog -->
     <Teleport to="body">
@@ -104,6 +166,38 @@ const handleAutoAssignAll = async () => {
   border: 1px solid var(--color-theme-glow);
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
+}
+
+/* Informational count — full contrast, never out-glows its button (styleguide emphasis scale) */
+.action-count {
+  margin-left: 0.375rem;
+  padding: 0 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: bold;
+}
+
+/* Dark pill inside the solid green primary button */
+.on-primary {
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--color-theme-primary);
+}
+
+/* Tinted pill inside the outlined secondary button */
+.on-secondary {
+  background: var(--color-theme-glow);
+  color: var(--color-theme-primary);
+}
+
+/* Muted danger, same treatment as the Destroy Room button */
+.unassign-btn {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.unassign-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  box-shadow: none;
 }
 
 .confirmation-overlay {

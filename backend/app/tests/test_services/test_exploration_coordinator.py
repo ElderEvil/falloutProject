@@ -962,6 +962,7 @@ async def test_process_event_publishes_followup_events(
     dweller.health = 20
     dweller.max_health = 100
     dweller.radiation = 0
+    dweller.stimpack = 1
     async_session.add(dweller)
     await async_session.flush()
 

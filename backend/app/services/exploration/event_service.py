@@ -43,9 +43,7 @@ class EventService:
         # Resolve a discovery's world-map location before persisting so the event
         # can carry location_id + coordinates for deep-linking and route drawing.
         location_name = getattr(event, "location_name", None)
-        location_id = None
-        coord_x = None
-        coord_y = None
+        location = None
         if location_name:
             try:
                 from app.services.map_service import map_service
@@ -57,10 +55,6 @@ class EventService:
                     exploration.dweller_id,
                     location_name,
                 )
-                if location is not None:
-                    location_id = location.id
-                    coord_x = location.coord_x
-                    coord_y = location.coord_y
             except Exception:
                 logger.exception(
                     "Failed to register discovery: vault=%s exploration=%s location=%r",
@@ -68,6 +62,9 @@ class EventService:
                     exploration.id,
                     location_name,
                 )
+        location_id = location.id if location else None
+        coord_x = location.coord_x if location else None
+        coord_y = location.coord_y if location else None
 
         # Convert loot schema to dict for JSON storage
         loot_dict = None
@@ -119,18 +116,22 @@ class EventService:
         if dweller_obj is not None:
             sse_extra = {"health": dweller_obj.health, "radiation": dweller_obj.radiation}
 
+        progress_payload = {
+            "progress": exploration.progress_percentage(),
+            "stimpaks": exploration.stimpaks,
+            "radaways": exploration.radaways,
+            "total_caps_found": exploration.total_caps_found,
+            "enemies_encountered": exploration.enemies_encountered,
+            "total_distance": exploration.total_distance,
+        }
+
         for record in event_records:
             await self.publish_sse(
                 exploration,
                 event_type=record["type"],
                 description=record["description"],
                 event=record,
-                progress=exploration.progress_percentage(),
-                stimpaks=exploration.stimpaks,
-                radaways=exploration.radaways,
-                total_caps_found=exploration.total_caps_found,
-                enemies_encountered=exploration.enemies_encountered,
-                total_distance=exploration.total_distance,
+                **progress_payload,
                 **sse_extra,
             )
 
@@ -261,35 +262,25 @@ class EventService:
             None,
         )
 
-        if item_type == "weapon":
-            new_avg = (item_schema.damage_min + item_schema.damage_max) / 2
-            if flagged is not None:
-                is_better = new_avg > flagged.get("auto_equip_avg_damage", 0)
-            else:
-                item_result = await db_session.execute(
-                    select(Weapon).where(Weapon.dweller_id == exploration.dweller_id)
-                )
-                current_item = item_result.scalar_one_or_none()
-                current_avg = (current_item.damage_min + current_item.damage_max) / 2 if current_item else 0
-                is_better = new_avg > current_avg
-        else:
-            new_priority = self._rarity_priority(item_schema.rarity)
-            new_value = item_schema.value or 0
-            if flagged is not None:
-                is_better = (new_priority, new_value) > (
-                    flagged.get("auto_equip_priority", 0),
-                    flagged.get("auto_equip_value", 0),
-                )
-            else:
-                item_result = await db_session.execute(
-                    select(Outfit).where(Outfit.dweller_id == exploration.dweller_id)
-                )
-                current_item = item_result.scalar_one_or_none()
-                current_priority = self._rarity_priority(current_item.rarity) if current_item else 0
-                current_value = (current_item.value or 0) if current_item else 0
-                is_better = (new_priority, new_value) > (current_priority, current_value)
+        match item_type:
+            case "weapon":
+                new_score = ((item_schema.damage_min + item_schema.damage_max) / 2,)
+                score_fields = ("auto_equip_avg_damage",)
+                model = Weapon
+            case _:
+                new_score = (self._rarity_priority(item_schema.rarity), item_schema.value or 0)
+                score_fields = ("auto_equip_priority", "auto_equip_value")
+                model = Outfit
 
-        if not is_better:
+        if flagged is not None:
+            current_score = tuple(flagged.get(key, 0) for key in score_fields)
+        else:
+            current = (
+                await db_session.execute(select(model).where(model.dweller_id == exploration.dweller_id))
+            ).scalar_one_or_none()
+            current_score = self._item_score(current)
+
+        if new_score <= current_score:
             return None
 
         # The new item outclasses the current champion; move the flag to it.
@@ -299,11 +290,7 @@ class EventService:
         for entry in reversed(exploration.loot_collected):
             if entry.get("item_type") == item_type and entry.get("item_name") == item_schema.name:
                 entry["auto_equip"] = True
-                if item_type == "weapon":
-                    entry["auto_equip_avg_damage"] = new_avg
-                else:
-                    entry["auto_equip_priority"] = new_priority
-                    entry["auto_equip_value"] = new_value
+                entry.update(zip(score_fields, new_score, strict=True))
                 break
         orm.attributes.flag_modified(exploration, "loot_collected")
 
@@ -313,6 +300,16 @@ class EventService:
         )
         db_session.add(exploration)
         return record
+
+    def _item_score(self, item: Weapon | Outfit | None) -> tuple:
+        """Comparable strength score so weapon and outfit candidates rank uniformly."""
+        match item:
+            case Weapon():
+                return ((item.damage_min + item.damage_max) / 2,)
+            case Outfit():
+                return (self._rarity_priority(item.rarity), item.value or 0)
+            case _:
+                return ()
 
     @staticmethod
     def _rarity_priority(rarity: str | RarityEnum) -> int:

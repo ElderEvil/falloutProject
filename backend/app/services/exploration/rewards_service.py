@@ -232,48 +232,38 @@ class RewardsService:
             # Convert rarity string to enum
             rarity = self._parse_rarity_to_enum(rarity_str)
 
-            # Create and add item to storage
-            item_created = False
+            match item_type:
+                case "weapon":
+                    weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
+                    item = self._create_weapon_from_loot(weapon_data, rarity, storage_id)
+                case "outfit":
+                    outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
+                    item = self._create_outfit_from_loot(outfit_data, rarity, storage_id)
+                case _:
+                    item = self._create_junk_from_loot(item_name, rarity, storage_id)
 
-            if item_type == "weapon":
-                weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                weapon = self._create_weapon_from_loot(weapon_data, rarity, storage_id)
-                if weapon:
-                    db_session.add(weapon)
-                    item_created = True
-                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "weapon", "amount": 1})
-                    if loot_item.get("auto_equip"):
-                        await db_session.flush()
-                        auto_equip_ids.append({"item_type": "weapon", "id": weapon.id})
+            if item is None:
+                continue
 
-            elif item_type == "outfit":
-                outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                outfit = self._create_outfit_from_loot(outfit_data, rarity, storage_id)
-                if outfit:
-                    db_session.add(outfit)
-                    item_created = True
-                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": "outfit", "amount": 1})
-                    if loot_item.get("auto_equip"):
-                        await db_session.flush()
-                        auto_equip_ids.append({"item_type": "outfit", "id": outfit.id})
+            db_session.add(item)
 
-            else:
-                junk = self._create_junk_from_loot(item_name, rarity, storage_id)
-                db_session.add(junk)
-                item_created = True
+            if item_type in {"weapon", "outfit"}:
+                await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
+                if loot_item.get("auto_equip"):
+                    await db_session.flush()
+                    auto_equip_ids.append({"item_type": item_type, "id": item.id})
 
-            if item_created:
-                items_added += 1
-                transferred.append(loot_item)
-                logger.info(
-                    "Item transferred to storage",
-                    extra={
-                        "vault_id": str(vault.id),
-                        "item_name": item_name,
-                        "item_type": item_type,
-                        "rarity": rarity_str,
-                    },
-                )
+            items_added += 1
+            transferred.append(loot_item)
+            logger.info(
+                "Item transferred to storage",
+                extra={
+                    "vault_id": str(vault.id),
+                    "item_name": item_name,
+                    "item_type": item_type,
+                    "rarity": rarity_str,
+                },
+            )
 
         await db_session.flush()
 

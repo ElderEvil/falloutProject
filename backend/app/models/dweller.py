@@ -48,6 +48,10 @@ class DwellerBaseWithoutStats(SQLModel):
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)
 
+    # Trading Post: sale proceeds already collected; sold dwellers stay on the
+    # market for others but can no longer be sold again by the original vault.
+    is_traded: bool = Field(default=False)
+
     # Stats
     level: int = Field(default=1, ge=1, le=50)
     experience: int = Field(default=0, ge=0)
@@ -139,6 +143,11 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         default_factory=dict,
         sa_column=sa.Column(sa.JSON, nullable=False, server_default=sa.text("'{}'")),
     )
+
+    def restore(self):
+        """Restore the dweller and clear any trade state."""
+        super().restore()
+        self.is_traded = False
 
     # Relationships and Family
     partner_id: UUID4 | None = Field(

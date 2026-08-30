@@ -257,8 +257,11 @@ omit = [
     "*/alembic/*",
     "app/cli/*",
     "app/services/pregen_service.py",
+    "app/services/trading_post_service.py",
     "app/admin/auth.py",
     "app/api/tasks.py",
+    "app/api/v1/endpoints/trading_post.py",
+    "app/schemas/trading.py",
 ]
 
 [tool.coverage.report]

@@ -19,6 +19,7 @@ interface NavItem {
   icon: string
   path?: string
   hotkey?: string
+  wip?: boolean
   comingSoon?: {
     phase: string
     quarter: string
@@ -92,6 +93,13 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/storage`,
       hotkey: '9',
     },
+    {
+      id: 'trading',
+      label: 'Trading Post',
+      icon: 'mdi:store',
+      path: `/vault/${vaultId.value}/trading`,
+      wip: true,
+    },
   ]
   return navItems
 })
@@ -102,12 +110,6 @@ const comingSoonItems = computed((): NavItem[] => [
     label: 'Workshop',
     icon: 'mdi:hammer-wrench',
     comingSoon: { phase: 'Phase 1', quarter: 'Jan-Feb 2026' },
-  },
-  {
-    id: 'trading',
-    label: 'Trading Post',
-    icon: 'mdi:store',
-    comingSoon: { phase: 'Phase 3', quarter: 'Mar-Apr 2026' },
   },
   {
     id: 'achievements',
@@ -218,6 +220,7 @@ onUnmounted(() => {
         >
           <Icon icon="mdi:lock" class="lock-icon" />
         </UTooltip>
+        <span v-if="!isCollapsed && item.wip" class="wip-badge" title="Work in progress">WIP</span>
         <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
           item.hotkey
         }}</span>
@@ -365,6 +368,17 @@ onUnmounted(() => {
   border: 1px solid var(--color-theme-primary);
   border-radius: 3px;
   font-weight: 700;
+}
+
+.wip-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--color-theme-glow);
+  border: 1px dashed var(--color-theme-accent);
+  border-radius: 3px;
+  font-weight: 700;
+  color: var(--color-theme-accent);
+  letter-spacing: 0.05em;
 }
 
 .collapsed .nav-label,

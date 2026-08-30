@@ -48,6 +48,7 @@ const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
 const renameDialogName = ctx.renameDialogName
+const softDeleteDialogOpen = ctx.softDeleteDialogOpen
 const wastelandModalOpen = ctx.wastelandModalOpen
 </script>
 
@@ -101,10 +102,27 @@ const wastelandModalOpen = ctx.wastelandModalOpen
         </UButton>
       </template>
     </UModal>
+
+    <UModal v-model="softDeleteDialogOpen" title="Soft-delete Dweller" size="sm">
+      <p class="soft-delete-text">
+        Soft-delete <strong>{{ dweller?.first_name }} {{ dweller?.last_name }}</strong>? They will leave the vault and
+        become tradable at the Trading Post. You can restore them later while they remain listed.
+      </p>
+      <template #footer>
+        <UButton variant="secondary" @click="softDeleteDialogOpen = false">Cancel</UButton>
+        <UButton variant="danger" @click="ctx.actions.confirmSoftDelete()">Soft-delete</UButton>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <style scoped>
+.soft-delete-text {
+  color: var(--color-theme-primary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
 .loading-container,
 .error-container {
   display: flex;

@@ -53,6 +53,26 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
+  async function softDeleteDweller(dwellerId: string, token: string): Promise<Dweller> {
+    try {
+      const response = await axios.post<Dweller>(`/api/v1/dwellers/${dwellerId}/soft-delete`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      // Remove the dweller from the active list and detail cache
+      filterStore.dwellers = filterStore.dwellers.filter((d) => d.id !== dwellerId)
+      delete filterStore.detailedDwellers[dwellerId]
+
+      toast.success('Dweller moved to the Trading Post pool')
+      return response.data
+    } catch (error: unknown) {
+      handleStoreError(error, `Failed to soft-delete dweller ${dwellerId}`)
+      throw error
+    }
+  }
+
   async function unassignDwellerFromRoom(dwellerId: string, token: string): Promise<Dweller> {
     try {
       // Move dweller to null room (unassign)
@@ -336,6 +356,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   return {
     assignDwellerToRoom,
     unassignDwellerFromRoom,
+    softDeleteDweller,
     autoAssignToRoom,
     renameDweller,
     updateVisualAttributes,

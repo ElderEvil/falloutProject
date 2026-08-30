@@ -66,6 +66,7 @@ describe('DwellersList', () => {
         rooms: [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' }],
         viewMode: 'list',
       },
+      global: { stubs: { DwellerListRow: false } },
     })
 
     expect(wrapper.text()).toContain('Power:')
@@ -106,6 +107,7 @@ describe('DwellersList', () => {
         rooms: [],
         viewMode: 'list',
       },
+      global: { stubs: { DwellerListRow: false } },
     })
 
     expect(wrapper.find('.dweller-identity').classes()).toContain('w-44')

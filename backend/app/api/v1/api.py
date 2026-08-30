@@ -24,6 +24,7 @@ from app.api.v1.endpoints import (
     storage,
     stream,
     system,
+    trading_post,
     training,
     user,
     vault,
@@ -59,6 +60,7 @@ api_router.include_router(relationship.router)
 api_router.include_router(room.router)
 api_router.include_router(storage.router)
 api_router.include_router(stream.router)
+api_router.include_router(trading_post.router)
 api_router.include_router(training.router)
 api_router.include_router(user.router)
 api_router.include_router(vault.router)

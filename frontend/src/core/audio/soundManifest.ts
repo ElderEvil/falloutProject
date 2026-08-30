@@ -14,6 +14,10 @@ export const SOUND_MANIFEST = {
   tabSwitch: '/audio/ui/tab-switch.wav',
   upgrade: '/audio/ui/upgrade.wav',
   cardDrop: '/audio/ui/card-drop.wav',
+  modalOpen: '/audio/ui/modal-open.wav',
+  modalClose: '/audio/ui/modal-close.wav',
+  messageSend: '/audio/ui/message-send.wav',
+  messageReceive: '/audio/ui/message-receive.wav',
 } as const
 
 export type SoundKey = keyof typeof SOUND_MANIFEST

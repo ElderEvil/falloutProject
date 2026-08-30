@@ -60,6 +60,13 @@ class AudioManager {
       }
       window.addEventListener('pointerdown', unlock)
       window.addEventListener('keydown', unlock)
+
+      // Global click feedback: any button-like element plays the select sound.
+      // Delegated here so components need no per-button wiring.
+      document.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement | null
+        if (target?.closest('button, [role="button"], a')) this.play('select')
+      })
     }
   }
 

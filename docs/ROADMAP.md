@@ -662,9 +662,10 @@ source; curated copies land in `frontend/public/audio/`).
   missing assets; `soundManifest.ts` maps semantic keys to `/audio/...` URLs; `useSound()` composable.
 - ✅ **First wiring** — notification chime on new SSE notifications (`NotificationBell`), vault ambient music loop
   on the vault view (`playLoop('vaultAmbient')`, stopped on unmount).
-- ⬜ **UI & feedback SFX pass** — wire the remaining interface sounds to their moments: `select`/`tabSwitch` on
-  navigation, `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades, `success` on
-  completions, incident alarm on incident spawn (needs an incident event hook).
+- 🔄 **UI & feedback SFX pass** — wired: global button-click `select` (delegated listener in the audio manager),
+  room-modal `modalOpen`/`modalClose`, chat `messageSend`/`messageReceive` (WS + REST + audio paths via the shared
+  messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
+  `success` on completions, incident alarm on incident spawn (needs an incident event hook).
 - ✅ **Preferences controls** — Sound card in PreferencesView (master enable + per-bus volume sliders), bound to
   the manager's persisted settings. **Sound is disabled by default**; enabling starts any pending music loop.
 - ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it

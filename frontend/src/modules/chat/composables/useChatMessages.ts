@@ -4,6 +4,7 @@ import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/core/utils/image'
+import { useSound } from '@/core/composables/useSound'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
@@ -24,6 +25,19 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   // the resolver that settles sendMessage once the stream completes.
   let streamingIndex: number | null = null
   let sendResolver: (() => void) | null = null
+
+  // Chat feedback sounds: a single-message append is a live send/receive;
+  // bulk appends are history loads and stay silent.
+  const { playSound } = useSound()
+  watch(
+    () => messages.value.length,
+    (newLen, oldLen) => {
+      if (newLen - oldLen !== 1) return
+      const last = messages.value[newLen - 1]
+      if (last?.type === 'user') playSound('messageSend')
+      else if (last?.type === 'dweller') playSound('messageReceive')
+    }
+  )
 
   const getToken = () =>
     typeof options.token === 'string' || options.token === null

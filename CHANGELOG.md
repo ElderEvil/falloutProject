@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.64.0 (2026-08-30)
+
+### Features
+
+* soft-delete option on dweller detail page b0fec64
+* Trading Post PoC for trading soft-deleted dwellers 0f0f226
+
+### Bug Fixes
+
+* address CodeRabbit review on Trading Post PoC c65939a
+
 ## 2.63.1 (2026-08-30)
 
 ### Bug Fixes

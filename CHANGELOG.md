@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.62.0 (2026-08-30)
+
+### Features
+
+* **arena:** show HP on assigned-dweller roster chips 68fba04
+* **arena:** smart fighter pairing and post-battle actions e1c0375
+* **combat:** weight combat power by weapon type across all SPECIAL stats 55c7c88
+* **design:** add intent & emphasis semantics for glow, badges, and buttons f83cec1
+* **vault:** boosted vault seeds apprentices and an arena 436dbe4
+
+### Bug Fixes
+
+* **quests:** theme-aware party modal colors and idle-first dweller sorting 5c1cfc9
+* **review:** address coderabbit feedback on PR [#489](https://github.com/ElderEvil/falloutProject/issues/489) eb68e70
+* **rooms:** render the apprentice preview slot only where apprentices exist 2634bb8
+* **test:** stop unit tests from leaking network calls into worker teardown 38e0701
+
+### Documentation
+
+* record combat overhaul, item cards, race/faction and room registry plans 27757c2
+
+### Code Refactoring
+
+* align simulation and vault init with live config be9a415
+* **arena:** bench reframe and room-modal styling alignment 792cc65
+* **arena:** move UNASSIGN ALL to the footer next to DESTROY 3a9c8ff
+* **design:** wire glow emphasis tokens into the top glow emitters bd4a1cf
+* **items:** unify item cards behind a shared display module 27cdfce
+* **rooms:** decide room detail sections via a part registry fe5626a
+* simplify vault and combat config per review 61e4079
+
 ## 2.61.1 (2026-08-29)
 
 ### Bug Fixes

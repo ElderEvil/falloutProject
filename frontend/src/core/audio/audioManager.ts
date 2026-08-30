@@ -14,7 +14,7 @@ interface AudioSettings {
 }
 
 const DEFAULT_SETTINGS: AudioSettings = {
-  muted: false,
+  muted: true,
   volumes: { ui: 0.6, sfx: 0.8, music: 0.4 },
 }
 
@@ -73,8 +73,13 @@ class AudioManager {
 
   setMuted(muted: boolean): void {
     this.settings.muted = muted
-    if (muted) this.currentLoop?.audio.pause()
-    else if (this.currentLoop) void this.currentLoop.audio.play().catch(() => {})
+    if (muted) {
+      this.currentLoop?.audio.pause()
+    } else if (this.pendingLoop) {
+      this.playLoop(this.pendingLoop)
+    } else if (this.currentLoop) {
+      void this.currentLoop.audio.play().catch(() => {})
+    }
     this.persist()
   }
 
@@ -111,8 +116,8 @@ class AudioManager {
   playLoop(key: MusicKey): void {
     if (this.currentLoop?.key === key) return
     this.stopLoop()
-    if (this.settings.muted) return
-    if (!this.unlocked) {
+    if (this.settings.muted || !this.unlocked) {
+      // Remember the intent so unmuting/unlock starts the loop.
       this.pendingLoop = key
       return
     }
@@ -128,6 +133,7 @@ class AudioManager {
   }
 
   stopLoop(): void {
+    this.pendingLoop = null
     if (!this.currentLoop) return
     this.currentLoop.audio.pause()
     this.currentLoop.audio.currentTime = 0

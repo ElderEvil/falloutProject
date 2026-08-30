@@ -5,6 +5,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
+import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -30,6 +31,26 @@ const {
 const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
 const profileStore = useProfileStore()
+
+// Sound settings — local refs mirror the manager so Vue tracks changes.
+const soundMuted = ref(audioManager.muted)
+const soundVolumes = ref<Record<AudioBus, number>>({ ...audioManager.volumes })
+
+const soundBusOptions: { bus: AudioBus; label: string; description: string }[] = [
+  { bus: 'ui', label: 'Interface', description: 'Button clicks, tab switches, popups' },
+  { bus: 'sfx', label: 'Game Effects', description: 'Incidents, completions, rewards' },
+  { bus: 'music', label: 'Music', description: 'Vault ambient and exploration loops' },
+]
+
+const toggleSound = () => {
+  soundMuted.value = !soundMuted.value
+  audioManager.setMuted(soundMuted.value)
+}
+
+const setBusVolume = (bus: AudioBus, volume: number) => {
+  soundVolumes.value[bus] = volume
+  audioManager.setVolume(bus, volume)
+}
 
 // Persist theme to the user profile so fetchProfile() does not reset the
 // local choice back to the server-side preference on the next profile load.
@@ -255,6 +276,57 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               </div>
             </UCard>
 
+            <!-- Sound -->
+            <UCard class="mb-4">
+              <h2
+                class="text-xl font-bold mb-2 flex items-center gap-2"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
+                <Icon icon="mdi:volume-high" class="text-xl" />
+                Sound
+              </h2>
+              <p class="text-gray-400 mb-3 text-xs">
+                Sound is off by default. Enable it to add terminal feedback sounds and vault
+                ambience.
+              </p>
+
+              <!-- Master Enable -->
+              <div class="setting-row">
+                <div class="setting-info">
+                  <h3 class="setting-label">Sound Enabled</h3>
+                  <p class="setting-description">Master switch for all game audio</p>
+                </div>
+                <button
+                  @click="toggleSound"
+                  class="toggle-button"
+                  :class="{ active: soundMuted === false }"
+                  :aria-label="soundMuted ? 'Enable sound' : 'Disable sound'"
+                >
+                  <span class="toggle-slider"></span>
+                </button>
+              </div>
+
+              <!-- Volume Sliders -->
+              <template v-if="!soundMuted">
+                <div v-for="option in soundBusOptions" :key="option.bus" class="setting-row">
+                  <div class="setting-info">
+                    <h3 class="setting-label">{{ option.label }}</h3>
+                    <p class="setting-description">{{ option.description }}</p>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    :value="soundVolumes[option.bus]"
+                    @input="setBusVolume(option.bus, Number(($event.target as HTMLInputElement).value))"
+                    class="volume-slider"
+                    :aria-label="`${option.label} volume`"
+                  />
+                </div>
+              </template>
+            </UCard>
+
             <!-- Quick Actions -->
             <UCard>
               <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
@@ -455,6 +527,13 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.05em;
+}
+
+/* Volume Slider */
+.volume-slider {
+  width: 160px;
+  accent-color: var(--color-theme-primary);
+  cursor: pointer;
 }
 
 /* Action Buttons */

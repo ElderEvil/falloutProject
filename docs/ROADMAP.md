@@ -665,7 +665,8 @@ source; curated copies land in `frontend/public/audio/`).
 - ⬜ **UI & feedback SFX pass** — wire the remaining interface sounds to their moments: `select`/`tabSwitch` on
   navigation, `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades, `success` on
   completions, incident alarm on incident spawn (needs an incident event hook).
-- ⬜ **Preferences controls** — volume sliders + mute in PreferencesView, bound to the manager's persisted settings.
+- ✅ **Preferences controls** — Sound card in PreferencesView (master enable + per-bus volume sliders), bound to
+  the manager's persisted settings. **Sound is disabled by default**; enabling starts any pending music loop.
 - ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it
   instead of the view-level loop.
 - ⬜ **Ambient layers** — per-room ambience loops from `assets/audio/sounds/ambience/` (armory, cafeteria,

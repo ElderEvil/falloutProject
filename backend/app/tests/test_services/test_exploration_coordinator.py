@@ -28,6 +28,8 @@ from app.schemas.exploration_event import (
     WeaponSchema,
 )
 from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration.event_service import event_service
+from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 
 
@@ -66,7 +68,7 @@ async def test_transfer_respects_storage_limits(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Should have transferred 3 items (storage limit) and overflowed 2
     assert len(result["transferred"]) == 3
@@ -97,7 +99,7 @@ async def test_transfer_prioritizes_rare_items(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Should have transferred 2 items (capacity limit)
     assert len(result["transferred"]) == 2
@@ -139,7 +141,7 @@ async def test_transfer_logs_overflow_warning(
 
     # Transfer loot with logging
     with caplog.at_level(logging.WARNING):
-        result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+        result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify overflow occurred
     assert len(result["overflow"]) == 1
@@ -163,7 +165,7 @@ async def test_transfer_empty_loot_returns_empty(
     await async_session.refresh(exploration)
 
     # No loot added
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     assert result["transferred"] == []
     assert result["overflow"] == []
@@ -194,7 +196,7 @@ async def test_transfer_updates_storage_used_space(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify storage used_space was updated (re-query to get fresh object)
     result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
@@ -233,7 +235,7 @@ async def test_transfer_with_full_storage(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # All items should overflow since storage is full
     assert len(result["transferred"]) == 0
@@ -296,7 +298,7 @@ async def test_transfer_weapon_loot_creates_weapon_record(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify weapon was transferred
     assert len(result["transferred"]) == 1
@@ -336,7 +338,7 @@ async def test_transfer_outfit_loot_creates_outfit_record(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify outfit was transferred
     assert len(result["transferred"]) == 1
@@ -376,7 +378,7 @@ async def test_transfer_missing_weapon_data_skips_item(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify item was not transferred (missing data)
     assert len(result["transferred"]) == 0
@@ -413,7 +415,7 @@ async def test_transfer_missing_outfit_data_skips_item(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify item was not transferred (missing data)
     assert len(result["transferred"]) == 0
@@ -451,7 +453,7 @@ async def test_transfer_invalid_rarity_defaults_to_common(
     await async_session.refresh(exploration)
 
     # Transfer loot
-    result = await exploration_coordinator._transfer_loot_to_storage(async_session, exploration)
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
 
     # Verify item was transferred
     assert len(result["transferred"]) == 1
@@ -536,10 +538,10 @@ def _weapon_loot_event(name: str, rarity: str, damage_min: int, damage_max: int,
 
 async def _process_loot_event(async_session: AsyncSession, exploration, loot_event: LootEventSchema) -> None:
     with (
-        patch("app.services.exploration.coordinator.event_generator.generate_event", return_value=loot_event),
-        patch("app.services.exploration.coordinator.sse_manager.publish", new_callable=AsyncMock),
+        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=loot_event),
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock),
     ):
-        await exploration_coordinator.process_event(async_session, exploration)
+        await event_service.process_event(async_session, exploration)
 
 
 @pytest.mark.asyncio
@@ -732,7 +734,7 @@ async def test_auto_equip_failure_does_not_break_completion(
     await async_session.flush()
 
     with patch(
-        "app.services.exploration.coordinator.crud_weapon.equip",
+        "app.services.exploration.rewards_service.crud_weapon.equip",
         new_callable=AsyncMock,
         side_effect=RuntimeError("equip exploded"),
     ):
@@ -764,7 +766,7 @@ async def test_auto_equip_notifies_vault_owner(
     await async_session.flush()
 
     with patch(
-        "app.services.exploration.coordinator.notification_service.notify_exploration_update",
+        "app.services.exploration.rewards_service.notification_service.notify_exploration_update",
         new_callable=AsyncMock,
     ) as notify_mock:
         await exploration_coordinator.complete_exploration(async_session, exploration.id)
@@ -804,7 +806,7 @@ async def test_auto_equip_no_notification_when_weaker_item(
     await async_session.flush()
 
     with patch(
-        "app.services.exploration.coordinator.notification_service.notify_exploration_update",
+        "app.services.exploration.rewards_service.notification_service.notify_exploration_update",
         new_callable=AsyncMock,
     ) as notify_mock:
         await exploration_coordinator.complete_exploration(async_session, exploration.id)
@@ -853,10 +855,10 @@ async def test_process_event_sse_payload_includes_event_and_health(
     combat_event = CombatEventSchema(description="Raider attacked", health_loss=5, enemy="Raider", victory=True)
 
     with (
-        patch("app.services.exploration.coordinator.event_generator.generate_event", return_value=combat_event),
-        patch("app.services.exploration.coordinator.sse_manager.publish", new_callable=AsyncMock) as publish_mock,
+        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=combat_event),
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock) as publish_mock,
     ):
-        await exploration_coordinator.process_event(async_session, exploration)
+        await event_service.process_event(async_session, exploration)
 
     publish_mock.assert_awaited_once()
     payload = publish_mock.await_args.args[2]
@@ -972,12 +974,12 @@ async def test_process_event_publishes_followup_events(
     )
     with (
         patch(
-            "app.services.exploration.coordinator.event_generator.generate_event",
+            "app.services.exploration.event_service.event_generator.generate_event",
             return_value=_weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500),
         ),
-        patch("app.services.exploration.coordinator.sse_manager.publish", new_callable=AsyncMock) as publish_mock,
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock) as publish_mock,
     ):
-        await exploration_coordinator.process_event(async_session, exploration)
+        await event_service.process_event(async_session, exploration)
 
     published_types = [call.args[2]["type"] for call in publish_mock.await_args_list]
     assert published_types == ["loot", "equip", "item_use"]

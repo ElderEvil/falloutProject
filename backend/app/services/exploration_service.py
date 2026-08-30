@@ -19,6 +19,7 @@ from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_generator import event_generator
+from app.services.exploration.event_service import event_service
 
 
 class ExplorationService:
@@ -48,7 +49,7 @@ class ExplorationService:
         :return: Updated exploration
         :rtype: Exploration
         """
-        return await exploration_coordinator.process_event(db_session, exploration)
+        return await event_service.process_event(db_session, exploration)
 
     async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> dict:
         """Complete an exploration and return rewards summary.
@@ -274,7 +275,7 @@ class ExplorationService:
             msg = "Exploration is not active"
             raise ValueError(msg)
 
-        return await exploration_coordinator.process_event(db_session, exploration)
+        return await event_service.process_event(db_session, exploration)
 
 
 exploration_service = ExplorationService()

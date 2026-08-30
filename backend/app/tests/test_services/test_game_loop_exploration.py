@@ -10,13 +10,14 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.vault import Vault
+from app.schemas.common import AgeGroupEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEventSchema, LootSchema
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 from app.services.game_loop import game_loop_service
 from app.services.stream_manager import sse_manager
-from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
 
 @pytest.mark.asyncio
@@ -39,12 +40,7 @@ async def test_process_explorations_active_exploration(
     dweller: Dweller,
 ):
     """Test processing an active exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate time to allow event generation
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
@@ -73,10 +69,10 @@ async def test_process_explorations_auto_complete(
     dweller: Dweller,
 ):
     """Test that explorations auto-complete when time expires."""
-    exploration = await crud.exploration.create_with_dweller_stats(
+    exploration = await exploration_service.send_dweller(
         async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
+        vault.id,
+        dweller.id,
         duration=1,  # 1 hour
     )
 
@@ -126,10 +122,10 @@ async def test_process_explorations_auto_complete_publishes_sse_to_vault_channel
     so completion events (and their rewards payload) never reached the frontend.
     This pins the publish channel to the vault id so the rewards modal can appear.
     """
-    exploration = await crud.exploration.create_with_dweller_stats(
+    exploration = await exploration_service.send_dweller(
         async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
+        vault.id,
+        dweller.id,
         duration=1,  # 1 hour
     )
 
@@ -172,23 +168,14 @@ async def test_process_explorations_multiple_active(
     """Test processing multiple active explorations in one tick."""
     # Create multiple dwellers and explorations
     dweller2_data = create_fake_dweller()
+    dweller2_data = create_fake_adult_dweller()
     dweller2_data["vault_id"] = vault.id
     dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
 
     # Create explorations
-    await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
-    exploration2 = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller2.id,
-        duration=2,
-    )
+    exploration2 = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=2)
 
     # Make one ready to complete
     exploration2.start_time = datetime.utcnow() - timedelta(hours=3)
@@ -215,22 +202,13 @@ async def test_process_explorations_error_handling(
     """Test that errors in one exploration don't affect others."""
     # Create two explorations
     dweller2_data = create_fake_dweller()
+    dweller2_data = create_fake_adult_dweller()
     dweller2_data["vault_id"] = vault.id
     dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
 
-    exploration1 = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration1 = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
-    exploration2 = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller2.id,
-        duration=4,
-    )
+    exploration2 = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=4)
 
     # Make both ready for events
     exploration1.start_time = datetime.utcnow() - timedelta(minutes=10)
@@ -266,12 +244,7 @@ async def test_process_explorations_no_event_when_not_ready(
     dweller: Dweller,
 ):
     """Test that events are not generated when cooldown not met."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add an event very recently
     await crud.exploration.add_event(
@@ -296,12 +269,7 @@ async def test_vault_tick_processes_explorations(
     dweller: Dweller,
 ):
     """Test that vault tick includes exploration processing."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=1,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
 
     # Set to expire
     exploration.start_time = datetime.utcnow() - timedelta(hours=2)
@@ -323,22 +291,13 @@ async def test_process_explorations_caps_accumulate(
     """Test that caps from multiple completed explorations accumulate."""
     # Create two explorations
     dweller2_data = create_fake_dweller()
+    dweller2_data = create_fake_adult_dweller()
     dweller2_data["vault_id"] = vault.id
     dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
 
-    exploration1 = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=1,
-    )
+    exploration1 = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
 
-    exploration2 = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller2.id,
-        duration=1,
-    )
+    exploration2 = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=1)
 
     # Add caps to both
     await crud.exploration.update_stats(
@@ -377,12 +336,7 @@ async def test_process_explorations_event_with_loot_updates_stats(
     dweller: Dweller,
 ):
     """Test that loot events update exploration stats correctly."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate time for event generation
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
@@ -417,12 +371,7 @@ async def test_process_explorations_danger_event_updates_enemies(
     dweller: Dweller,
 ):
     """Test that danger events increment enemy counter."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
     await async_session.commit()

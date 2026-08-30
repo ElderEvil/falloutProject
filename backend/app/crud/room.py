@@ -61,6 +61,12 @@ def _evaluate_room_formula(formula: str, level: int, size: int) -> int:
 
 class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     @staticmethod
+    async def get_by_category(db_session: AsyncSession, vault_id: UUID4, category: RoomTypeEnum) -> list[Room]:
+        """Rooms of one category for a vault."""
+        query = select(Room).where(Room.vault_id == vault_id).where(Room.category == category)
+        return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
     async def get_multy_by_vault(*, db_session: AsyncSession, vault_id: UUID4, skip: int, limit: int):
         """Retrieve multiple rooms by vault ID."""
         response = await db_session.execute(select(Room).where(Room.vault_id == vault_id).offset(skip).limit(limit))

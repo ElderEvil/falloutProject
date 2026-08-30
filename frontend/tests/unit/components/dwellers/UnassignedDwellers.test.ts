@@ -72,7 +72,6 @@ function createDropEvent(
 describe('UnassignedDwellers', () => {
   let dwellerStore: any
   let dwellerManagementStore: any
-  let explorationStore: any
   let authStore: any
 
   const mockDweller = {
@@ -96,7 +95,6 @@ describe('UnassignedDwellers', () => {
     const stores = useDwellerStore()
     dwellerStore = stores.filter
     dwellerManagementStore = stores.management
-    explorationStore = useExplorationStore()
     authStore = useAuthStore()
 
     // Set underlying dwellers array instead of computed property
@@ -180,22 +178,18 @@ describe('UnassignedDwellers', () => {
     })
 
     it('should filter out exploring dwellers', () => {
-      const exploringDweller = { ...mockDweller, id: 'dweller-exploring' }
+      const exploringDweller = { ...mockDweller, id: 'dweller-exploring', status: 'exploring' }
       dwellerStore.dwellers = [exploringDweller]
 
-      // Add active exploration for this dweller
-      explorationStore.explorations = [
-        {
-          id: 'exploration-1',
-          dweller_id: 'dweller-exploring',
-          vault_id: 'vault-1',
-          status: 'active',
-          location: 'wasteland',
-          start_time: new Date().toISOString(),
-          duration: 3600,
-          resources_found: [],
-        } as any,
-      ]
+      const wrapper = mount(UnassignedDwellers)
+
+      expect(wrapper.find('.dweller-card').exists()).toBe(false)
+      expect(wrapper.text()).toContain('All dwellers are assigned!')
+    })
+
+    it('should filter out questing dwellers', () => {
+      const questingDweller = { ...mockDweller, id: 'dweller-questing', status: 'questing' }
+      dwellerStore.dwellers = [questingDweller]
 
       const wrapper = mount(UnassignedDwellers)
 

@@ -12,7 +12,7 @@ from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.exploration_service import exploration_service
-from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
@@ -39,6 +39,7 @@ async def test_dweller_status_exploring_on_send(async_session: AsyncSession):
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
@@ -46,12 +47,7 @@ async def test_dweller_status_exploring_on_send(async_session: AsyncSession):
     assert dweller.status == DwellerStatusEnum.IDLE
 
     # Send dweller to exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Refresh dweller and check status is now EXPLORING
     await async_session.refresh(dweller)
@@ -67,20 +63,17 @@ async def test_exploring_dweller_cannot_be_assigned_to_room(async_session: Async
         async_session,
         obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
     )
+    dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller = await crud.dweller.create(
         async_session,
-        obj_in=DwellerCreate(**create_fake_dweller(), vault_id=str(vault.id)),
+        obj_in=DwellerCreate(**dweller_data, vault_id=str(vault.id)),
     )
     room_data = create_fake_room()
     room_data["category"] = RoomTypeEnum.PRODUCTION
     room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
 
-    await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ResourceConflictException, match="exploring"):
         await crud.dweller.move_to_room(async_session, dweller.id, room.id)
@@ -98,17 +91,12 @@ async def test_dweller_status_idle_on_exploration_complete_no_room(async_session
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
-    dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
     # Send dweller to exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.EXPLORING
@@ -137,6 +125,7 @@ async def test_dweller_status_working_on_exploration_complete_with_room(async_se
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
@@ -150,12 +139,7 @@ async def test_dweller_status_working_on_exploration_complete_with_room(async_se
     assert dweller.status == DwellerStatusEnum.WORKING
 
     # Send dweller to exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.EXPLORING
@@ -164,10 +148,11 @@ async def test_dweller_status_working_on_exploration_complete_with_room(async_se
     await _finish_exploration(async_session, exploration)
     await exploration_service.complete_exploration(async_session, exploration.id)
 
-    # Refresh dweller and check status is back to WORKING
+    # Room was vacated at dispatch, so the dweller returns IDLE and must be
+    # reassigned explicitly to work again.
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.WORKING
-    assert dweller.room_id == room.id
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
 
 
 @pytest.mark.asyncio
@@ -184,7 +169,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
-    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
@@ -198,12 +183,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     assert dweller.status == DwellerStatusEnum.TRAINING
 
     # Send dweller to exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.EXPLORING
@@ -212,10 +192,11 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     await _finish_exploration(async_session, exploration)
     await exploration_service.complete_exploration(async_session, exploration.id)
 
-    # Refresh dweller and check status is back to TRAINING
+    # Room was vacated at dispatch, so the dweller returns IDLE and must be
+    # reassigned explicitly to train again.
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.TRAINING
-    assert dweller.room_id == room.id
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
 
 
 @pytest.mark.asyncio
@@ -232,6 +213,7 @@ async def test_dweller_status_on_exploration_recall(async_session: AsyncSession)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     dweller_data = create_fake_dweller()
+    dweller_data = create_fake_adult_dweller()
     dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
     dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
 
@@ -245,12 +227,7 @@ async def test_dweller_status_on_exploration_recall(async_session: AsyncSession)
     assert dweller.status == DwellerStatusEnum.WORKING
 
     # Send dweller to exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.EXPLORING
@@ -258,7 +235,8 @@ async def test_dweller_status_on_exploration_recall(async_session: AsyncSession)
     # Recall exploration early
     await exploration_service.recall_exploration(async_session, exploration.id)
 
-    # Refresh dweller and check status is back to WORKING
+    # Room was vacated at dispatch, so the dweller returns IDLE and must be
+    # reassigned explicitly to work again.
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.WORKING
-    assert dweller.room_id == room.id
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None

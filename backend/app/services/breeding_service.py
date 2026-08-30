@@ -11,9 +11,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
+from app.crud.dweller import dweller as dweller_crud
+from app.crud.pregnancy import pregnancy as pregnancy_crud
+from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
-from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import (
     AgeGroupEnum,
@@ -79,121 +81,21 @@ class BreedingService:
     """Service for managing breeding, pregnancy, and child growth."""
 
     @staticmethod
-    async def _get_living_quarters(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-    ) -> list[Room]:
-        """Find all living quarters rooms for a vault.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID to search
-        :type vault_id: UUID4
-        :returns: List of living quarters rooms
-        :rtype: list[Room]
-        """
-        query = select(Room).where(Room.vault_id == vault_id).where(Room.category == RoomTypeEnum.CAPACITY)
-        return list((await db_session.execute(query)).scalars().all())
-
-    @staticmethod
-    async def _get_eligible_dwellers(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        living_quarters_ids: list[UUID4],
-    ) -> list[Dweller]:
-        """Find all adult dwellers with partners in living quarters.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID to search
-        :type vault_id: UUID4
-        :param living_quarters_ids: List of living quarters room IDs
-        :type living_quarters_ids: list[UUID4]
-        :returns: List of eligible dwellers
-        :rtype: list[Dweller]
-        """
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.partner_id.is_not(None))
-            .where(Dweller.room_id.in_(living_quarters_ids))
-            .where(Dweller.age_group == AgeGroupEnum.ADULT)
-        )
-        return list((await db_session.execute(query)).scalars().all())
-
-    @staticmethod
-    async def _get_pregnant_mother_ids(db_session: AsyncSession) -> set[UUID4]:
-        """Get set of currently pregnant mother IDs.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :returns: Set of mother IDs with active pregnancies
-        :rtype: set[UUID4]
-        """
-        query = select(Pregnancy.mother_id).where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-        return set((await db_session.execute(query)).scalars().all())
-
-    @staticmethod
-    async def _get_postpartum_mother_ids(
-        db_session: AsyncSession,
-        vault_id: UUID4,
-    ) -> set[UUID4]:
-        """Get set of mother IDs still within the post-birth cooldown window.
-
-        Mothers who delivered within ``birth_cooldown_hours`` are excluded from
-        conceiving again, preventing a high-affinity couple from producing a baby
-        every pregnancy cycle back-to-back.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID to scope the query
-        :type vault_id: UUID4
-        :returns: Set of mother IDs in the postpartum cooldown window
-        :rtype: set[UUID4]
-        """
-        from app.models.dweller import Dweller
-
-        cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-            hours=game_config.breeding.birth_cooldown_hours
-        )
-        query = (
-            select(Pregnancy.mother_id)
-            .join(Dweller, Pregnancy.mother_id == Dweller.id)
-            .where(Dweller.vault_id == vault_id)
-            .where(Pregnancy.status == PregnancyStatusEnum.DELIVERED)
-            .where(Pregnancy.updated_at.is_not(None))
-            .where(Pregnancy.updated_at >= cooldown_start)
-        )
-        return set((await db_session.execute(query)).scalars().all())
+    def _pair_key(dweller: Dweller) -> tuple[str, str]:
+        return tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
 
     @staticmethod
     def _is_pair_eligible(
         dweller: Dweller,
-        pregnant_mother_ids: set[UUID4],
+        unavailable_mother_ids: set[UUID4],
         checked_pairs: set[tuple[str, str]],
     ) -> bool:
-        """Check if a dweller-partner pair is eligible for conception check.
-
-        :param dweller: Dweller to check
-        :type dweller: Dweller
-        :param pregnant_mother_ids: Set of currently pregnant mother IDs
-        :type pregnant_mother_ids: set[UUID4]
-        :param checked_pairs: Set of already checked pair keys
-        :type checked_pairs: set[tuple[str, str]]
-        :returns: True if pair is eligible for conception check
-        :rtype: bool
-        """
-        # Skip if dweller is female and already pregnant
-        if dweller.gender == GenderEnum.FEMALE and dweller.id in pregnant_mother_ids:
+        """Check if a dweller-partner pair is eligible for a conception roll."""
+        if dweller.gender == GenderEnum.FEMALE and dweller.id in unavailable_mother_ids:
             return False
-
-        # Skip if partner is already pregnant
-        if dweller.partner_id in pregnant_mother_ids:
+        if dweller.partner_id in unavailable_mother_ids:
             return False
-
-        # Avoid checking same pair twice
-        pair_key = tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
-        return pair_key not in checked_pairs
+        return BreedingService._pair_key(dweller) not in checked_pairs
 
     @staticmethod
     async def _get_relationship_affinity(
@@ -274,7 +176,7 @@ class BreedingService:
         :param vault_id: Vault ID to check
         :returns: List of newly created pregnancies
         """
-        living_quarters = await BreedingService._get_living_quarters(db_session, vault_id)
+        living_quarters = await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.CAPACITY)
         if not living_quarters:
             return []
 
@@ -296,10 +198,10 @@ class BreedingService:
             available_slots = None
 
         living_quarters_ids = [room.id for room in living_quarters]
-        dwellers = await BreedingService._get_eligible_dwellers(db_session, vault_id, living_quarters_ids)
-        pregnant_mother_ids = await BreedingService._get_pregnant_mother_ids(db_session)
-        postpartum_mother_ids = await BreedingService._get_postpartum_mother_ids(db_session, vault_id)
-        unavailable_mother_ids = pregnant_mother_ids | postpartum_mother_ids
+        dwellers = await dweller_crud.get_adults_with_partners_in_rooms(db_session, vault_id, living_quarters_ids)
+        unavailable_mother_ids = await pregnancy_crud.get_unavailable_mother_ids(
+            db_session, vault_id, game_config.breeding.birth_cooldown_hours
+        )
 
         new_pregnancies: list[Pregnancy] = []
         checked_pairs: set[tuple[str, str]] = set()
@@ -311,11 +213,9 @@ class BreedingService:
             if not BreedingService._is_pair_eligible(dweller, unavailable_mother_ids, checked_pairs):
                 continue
 
-            pair_key = tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
-            checked_pairs.add(pair_key)
+            checked_pairs.add(BreedingService._pair_key(dweller))
 
-            partner_query = select(Dweller).where(Dweller.id == dweller.partner_id)
-            partner = (await db_session.execute(partner_query)).scalars().first()
+            partner = await db_session.get(Dweller, dweller.partner_id)
 
             if not partner or partner.room_id not in living_quarters_ids or partner.age_group != AgeGroupEnum.ADULT:
                 continue
@@ -397,24 +297,8 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
-        """Find all pregnancies that are due for delivery.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to check
-
-        Returns:
-            List of due pregnancies
-        """
-        query = (
-            select(Pregnancy)
-            .join(Dweller, Pregnancy.mother_id == Dweller.id)
-            .where(Dweller.vault_id == vault_id)
-            .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-            .where(Pregnancy.due_at <= datetime.now(UTC).replace(tzinfo=None))
-        )
-
-        return (await db_session.execute(query)).scalars().all()
+        """Find all pregnancies that are due for delivery."""
+        return await pregnancy_crud.get_due_by_vault(db_session, vault_id)
 
     @staticmethod
     async def _link_newborn_to_home(db_session: AsyncSession, child: Dweller, vault_id: UUID4) -> None:
@@ -694,23 +578,8 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Pregnancy]:
-        """Get all active pregnancies for a vault.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-
-        Returns:
-            List of active pregnancies
-        """
-        query = (
-            select(Pregnancy)
-            .join(Dweller, Pregnancy.mother_id == Dweller.id)
-            .where(Dweller.vault_id == vault_id)
-            .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
-        )
-
-        return (await db_session.execute(query)).scalars().all()
+        """Get all active pregnancies for a vault."""
+        return await pregnancy_crud.get_active_by_vault(db_session, vault_id)
 
     @staticmethod
     async def force_conception(

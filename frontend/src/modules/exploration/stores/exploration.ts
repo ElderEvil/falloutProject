@@ -112,10 +112,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     return explorations.value.filter((e) => e.vault_id === vaultId && e.status === 'active')
   }
 
-  function isDwellerExploring(dwellerId: string) {
-    return explorations.value.some((e) => e.dweller_id === dwellerId && e.status === 'active')
-  }
-
   function startSseSubscription(vaultId: string, token: string): void {
     stopSseSubscription()
     currentVaultId = vaultId
@@ -393,7 +389,6 @@ export const useExplorationStore = defineStore('exploration', () => {
     // Getters
     getExplorationByDwellerId,
     getActiveExplorationsForVault,
-    isDwellerExploring,
     // Actions
     sendDwellerToWasteland,
     fetchExplorationsByVault,

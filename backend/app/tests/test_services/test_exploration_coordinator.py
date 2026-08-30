@@ -28,6 +28,7 @@ from app.schemas.exploration_event import (
     WeaponSchema,
 )
 from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration_service import exploration_service
 
 
 async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
@@ -50,12 +51,7 @@ async def test_transfer_respects_storage_limits(
     storage = await make_vault_storage(3)
 
     # Create exploration with 5 items
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add 5 loot items
     for i in range(5):
@@ -88,12 +84,7 @@ async def test_transfer_prioritizes_rare_items(
     storage = await make_vault_storage(2)
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add items with different rarities (in non-priority order)
     exploration.add_loot(item_name="Common Junk", quantity=1, rarity="Common", item_type="junk")
@@ -137,12 +128,7 @@ async def test_transfer_logs_overflow_warning(
     storage = await make_vault_storage(1)
 
     # Create exploration with 2 items
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.add_loot(item_name="Item A", quantity=1, rarity="Common", item_type="junk")
     exploration.add_loot(item_name="Item B", quantity=1, rarity="Common", item_type="junk")
@@ -173,12 +159,7 @@ async def test_transfer_empty_loot_returns_empty(
     """Test that empty loot returns empty result."""
     await make_vault_storage()
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
 
     # No loot added
@@ -199,12 +180,7 @@ async def test_transfer_updates_storage_used_space(
     storage = await make_vault_storage()
 
     # Create exploration with 3 items
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     for i in range(3):
         exploration.add_loot(
@@ -250,12 +226,7 @@ async def test_transfer_with_full_storage(
     await async_session.flush()
 
     # Create exploration with loot
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     exploration.add_loot(item_name="New Item", quantity=1, rarity="Common", item_type="junk")
     async_session.add(exploration)
     await async_session.flush()
@@ -280,12 +251,7 @@ async def test_complete_exploration_includes_overflow_items(
     storage = await make_vault_storage(1)
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Complete only after the configured duration has elapsed.
     exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
@@ -316,12 +282,7 @@ async def test_transfer_weapon_loot_creates_weapon_record(
     storage = await make_vault_storage()
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add weapon loot (using a real weapon name from the data)
     exploration.add_loot(
@@ -361,12 +322,7 @@ async def test_transfer_outfit_loot_creates_outfit_record(
     storage = await make_vault_storage()
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add outfit loot (using a real outfit name from the data)
     exploration.add_loot(
@@ -406,12 +362,7 @@ async def test_transfer_missing_weapon_data_skips_item(
     storage = await make_vault_storage()
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add weapon loot with non-existent weapon name
     exploration.add_loot(
@@ -448,12 +399,7 @@ async def test_transfer_missing_outfit_data_skips_item(
     storage = await make_vault_storage()
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add outfit loot with non-existent outfit name
     exploration.add_loot(
@@ -491,12 +437,7 @@ async def test_transfer_invalid_rarity_defaults_to_common(
     await async_session.flush()
 
     # Create exploration
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add junk loot with invalid rarity
     exploration.add_loot(
@@ -612,12 +553,7 @@ async def test_auto_equip_equips_better_found_weapon_on_completion(
     storage = await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -656,12 +592,7 @@ async def test_auto_equip_does_not_equip_worse_weapon(
         value=500,
     )
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(async_session, exploration, _weapon_loot_event(".32 pistol", "Common", 1, 2, 10))
 
     assert exploration.loot_collected[-1].get("auto_equip") is not True
@@ -695,12 +626,7 @@ async def test_auto_equip_equips_better_found_outfit_by_rarity(
         outfit_type=OutfitTypeEnum.COMMON,
     )
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     item = OutfitSchema(name="NCR Ranger outfit", rarity="Rare", value=100, outfit_type="rare_outfit")
     loot_event = LootEventSchema(
         description="Found a NCR Ranger outfit",
@@ -744,12 +670,7 @@ async def test_auto_equip_skipped_when_storage_full(
 
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -777,12 +698,7 @@ async def test_auto_equip_applies_on_recall(
     storage = await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -806,12 +722,7 @@ async def test_auto_equip_failure_does_not_break_completion(
     storage = await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -843,12 +754,7 @@ async def test_auto_equip_notifies_vault_owner(
     await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -890,12 +796,7 @@ async def test_auto_equip_no_notification_when_weaker_item(
         value=500,
     )
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(async_session, exploration, _weapon_loot_event(".32 pistol", "Common", 1, 2, 10))
 
     exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
@@ -924,12 +825,7 @@ async def test_medicine_loot_adds_single_log_entry(
     async_session.add(dweller)
     await async_session.flush()
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     item = ItemSchema(name="Stimpak", rarity="Common", value=20)
     loot_event = LootEventSchema(description="Found a Stimpak", loot=LootSchema(item=item, item_type="stimpak", caps=0))
     await _process_loot_event(async_session, exploration, loot_event)
@@ -953,12 +849,7 @@ async def test_process_event_sse_payload_includes_event_and_health(
     async_session.add(dweller)
     await async_session.flush()
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     combat_event = CombatEventSchema(description="Raider attacked", health_loss=5, enemy="Raider", victory=True)
 
     with (
@@ -989,12 +880,7 @@ async def test_auto_equip_keeps_strongest_found_weapon(
     await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _process_loot_event(
         async_session, exploration, _weapon_loot_event("Fire hydrant bat", "Legendary", 19, 31, 500)
     )
@@ -1031,12 +917,7 @@ async def test_auto_equip_keeps_strongest_found_outfit(
         outfit_type=OutfitTypeEnum.COMMON,
     )
 
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     ranger = OutfitSchema(name="NCR Ranger outfit", rarity="Rare", value=100, outfit_type="rare_outfit")
     await _process_loot_event(
         async_session,
@@ -1082,10 +963,10 @@ async def test_process_event_publishes_followup_events(
     async_session.add(dweller)
     await async_session.flush()
 
-    exploration = await crud.exploration.create_with_dweller_stats(
+    exploration = await exploration_service.send_dweller(
         async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
+        vault.id,
+        dweller.id,
         duration=4,
         stimpaks=1,
     )

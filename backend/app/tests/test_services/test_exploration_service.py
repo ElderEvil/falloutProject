@@ -78,12 +78,7 @@ async def test_generate_event_not_active(
     dweller: Dweller,
 ):
     """Test that no event is generated for inactive exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
     await async_session.refresh(exploration)
 
@@ -98,12 +93,7 @@ async def test_generate_event_timing(
     dweller: Dweller,
 ):
     """Test event generation respects timing constraints."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
 
     # Immediately after creation, should not generate event (needs 5 minutes)
@@ -119,12 +109,7 @@ async def test_generate_event_with_loot(
     dweller: Dweller,
 ):
     """Test event generation can produce loot."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate start time to allow event generation
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
@@ -168,12 +153,7 @@ async def test_process_event_adds_loot(
     dweller: Dweller,
 ):
     """Test processing an event adds loot to exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate to allow event generation
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
@@ -214,12 +194,7 @@ async def test_process_event_combat_increases_enemies(
     dweller: Dweller,
 ):
     """Test processing combat event increases enemy count."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
     await async_session.commit()
@@ -254,12 +229,7 @@ async def test_complete_exploration_transfers_caps(
     dweller: Dweller,
 ):
     """Test completing exploration transfers caps to vault."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot and stats
     await crud.exploration.update_stats(
@@ -320,12 +290,7 @@ async def test_complete_exploration_not_active_raises_error(
     dweller: Dweller,
 ):
     """Test completing non-active exploration raises error."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
 
     with pytest.raises(ValueError, match="not active"):
@@ -339,12 +304,7 @@ async def test_complete_exploration_before_duration_raises_error(
     dweller: Dweller,
 ) -> None:
     """Full completion is unavailable until the expedition duration has elapsed."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ValueError, match="has not finished yet"):
         await exploration_service.complete_exploration(async_session, exploration.id)
@@ -357,12 +317,7 @@ async def test_recall_exploration_reduced_rewards(
     dweller: Dweller,
 ):
     """Test recalling exploration gives reduced experience based on progress."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some stats
     await crud.exploration.update_stats(
@@ -407,12 +362,7 @@ async def test_recall_exploration_not_active_raises_error(
     dweller: Dweller,
 ):
     """Test recalling non-active exploration raises error."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.recall_exploration(async_session, exploration_id=exploration.id)
 
     with pytest.raises(ValueError, match="not active"):
@@ -426,12 +376,7 @@ async def test_process_event_no_event_returns_unchanged(
     dweller: Dweller,
 ):
     """Test processing when no event should be generated."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Mock generate_event to return None
     with patch.object(event_generator, "generate_event", return_value=None):

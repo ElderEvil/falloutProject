@@ -1,79 +1,16 @@
 """CRUD operations for explorations."""
 
-from datetime import datetime
-
 from pydantic import UUID4
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.schemas.exploration import ExplorationCreate, ExplorationUpdate
 
 
 class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate]):
     """CRUD operations for Exploration model."""
-
-    async def create_with_dweller_stats(
-        self,
-        db_session: AsyncSession,
-        *,
-        vault_id: UUID4,
-        dweller_id: UUID4,
-        duration: int,
-        stimpaks: int = 0,
-        radaways: int = 0,
-    ) -> Exploration:
-        """
-        Create an exploration with dweller's SPECIAL stats.
-        Captures the dweller's stats at the moment of departure.
-        Validation is done in exploration_service.send_dweller().
-        """
-        # Fetch the dweller to get their current stats
-        result = await db_session.execute(select(Dweller).where(Dweller.id == dweller_id))
-        dweller = result.scalar_one()
-
-        obj_in = ExplorationCreate(
-            vault_id=vault_id,
-            dweller_id=dweller_id,
-            duration=duration,
-            stimpaks=stimpaks,
-            radaways=radaways,
-        )
-
-        # Create exploration with dweller's stats
-        db_obj = Exploration(
-            **obj_in.model_dump(),
-            dweller_strength=dweller.strength,
-            dweller_perception=dweller.perception,
-            dweller_endurance=dweller.endurance,
-            dweller_charisma=dweller.charisma,
-            dweller_intelligence=dweller.intelligence,
-            dweller_agility=dweller.agility,
-            dweller_luck=dweller.luck,
-            start_time=datetime.utcnow(),
-            status=ExplorationStatus.ACTIVE,
-        )
-        db_session.add(db_obj)
-
-        # Supply deductions are handled by ExplorationService, which knows whether
-        # each item came from vault storage or the dweller's own inventory.
-        # This CRUD helper only records the departure status.
-        from app.crud.dweller import dweller as dweller_crud
-        from app.schemas.common import DwellerStatusEnum
-        from app.schemas.dweller import DwellerUpdate
-
-        await dweller_crud.update(
-            db_session,
-            dweller_id,
-            DwellerUpdate(status=DwellerStatusEnum.EXPLORING),
-            commit=False,
-        )
-
-        await db_session.commit()
-        await db_session.refresh(db_obj)
-        return db_obj
 
     async def get_by_vault(
         self,

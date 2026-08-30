@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.62.2 (2026-08-30)
+
+### Bug Fixes
+
+* **exploration:** stop creating junk from medical loot entries 86dc6a4
+
+### Documentation
+
+* **roadmap:** mark shipped apprentice items and note refactor in review 7fe705b
+
+### Code Refactoring
+
+* **breeding:** fetch via crud and standardize not-found exceptions 2af8298
+* **exploration:** match-based item scoring and leaner services 107d4b9
+* **exploration:** split coordinator into event and rewards services 2aa8385
+
 ## 2.62.1 (2026-08-30)
 
 ### Bug Fixes

@@ -11,20 +11,9 @@ AI-powered dweller interactions.
 
 **Current work:**
 
-- [x] **v2.39.0–v2.39.4 released** — Resource production rate corrections (0.0003 → 0.1) for a livelier economy,
-      dweller thumbnail URL fix, release housekeeping.
-- [x] **v2.40.0 released** — Training tab UX (occupancy cards, live progress bars), UTC training timestamps, shared
-      training-room capacity helper.
-- [x] **v2.41.0 released** — Chat WebSocket streaming, vault event system, notification navigation, visual equipment
-      consistency, resource depletion warning, exploration rewards via SSE.
-- [x] **v2.41.1 released** — Frontend audit CRITICAL/MAJOR fixes (design-token migration, dead camelCase utilities,
-      router typing).
-- [x] **v2.41.2 released** — Quest storage 500 fix (ValueError → 404/409) and EventBus cross-loop asyncpg race fix.
-- [x] **v2.41.3 released** — Postpartum breeding cooldown + last-name inheritance.
-- [x] ~~**Postpartum breeding cooldown + last-name inheritance**~~ — ✅ **Done.** Merged in v2.41.3. Mothers can no longer
-      re-conceive on the next tick after delivery; newborns take the father's last name by default.
-- [ ] **v2.42.0 — The Family Update** — MARRIED relationship stage, lineage API + family tree UI (Family tab),
-      migration-safety CI, and Pydantic AI/Logfire verification. See "Version Milestones".
+- [x] **v2.39.0–v2.42.0 released** — resource-rate corrections, training/chat/notification UX, vault event system,
+      design-token migration, quest storage fix, postpartum breeding cooldown + last-name inheritance, The Family
+      Update (married stage, lineage API + family tree, migration-safety CI, Pydantic AI/Logfire verification).
 - [ ] **Arena & Incident Combat Update (in review — `feat/arena-incidents`)** — dweller-vs-dweller battle
       playground in the Arena room (assign adults, pick two fighters, countdown start, live HP + floating damage,
       battle journal, one match per assignment, happiness/XP reward), plus incident fairness: active-incident cap
@@ -52,26 +41,13 @@ AI-powered dweller interactions.
 
 ## Planned
 
-### Next update target — "The Overseer's Toolkit" (Unreleased)
+### Next update target — "The Overseer's Toolkit" (shipped, awaiting release)
 
-**Focus**: turn the Overseer’s Office into a dependable command surface while tightening reliability and operations
-around it, without displacing the vault workspace. Semantic Release will choose the version when this scope is released.
-
-- ✅ **Overseer Briefing** — summarize incidents, active exploration/training/questing, resource warnings, unassigned
-  dwellers, capacity, and happiness in the Overseer’s Office; show unresolved-item count on its room-grid tile and
-  link directly to response and dweller review flows.
-- ✅ **AI reliability fixes** — stream structured chat output incrementally and share quota-cache key definitions
-  across services.
-- ✅ **UI consistency & detail polish** — standardize page rails, headers, descriptions, and compact metrics; restore
-  the Build control, repair status badge glow tokens, preserve children previews without fake progress data, and
-  refine exploration portraits, health trends, terminal meters, and long equipment labels.
-- ✅ **Production logging** — create a rotating API log file on a persistent volume, keep stdout enabled, and use
-  JSON output in production. Ollama is intentionally local-development-only.
-- ✅ **Verification** — unit coverage plus deterministic authenticated Playwright coverage for the briefing route and
-  response interaction.
-
-**Success criteria**: an overseer can see the vault's highest-priority state at a glance, reach the right response
-flow in one action, and rely on tested production logs and browser behavior without provider-specific setup.
+**Shipped:** Overseer Briefing (vault state summary + unresolved-item tile count + direct response links), AI
+reliability fixes (incremental structured chat streaming, shared quota-cache keys), UI consistency polish (page
+rails/headers/metrics, Build control restored, glow tokens, exploration portraits and meters), production logging
+(rotating JSON API log on a persistent volume; Ollama stays local-dev-only), and authenticated Playwright coverage
+for the briefing route. Semantic Release picks the version at release time.
 
 ### Frontend Design-System Consolidation (Target: TBD)
 
@@ -88,12 +64,10 @@ interaction tokens instead of compensating with page-level CSS.
 
 #### Intent & emphasis adoption (see STYLEGUIDE → "Intent & Emphasis Semantics")
 
-- ✅ **Semantics defined** — three intents (actionable / live status / informational), emphasis tokens `--glow-0..3`,
-  and badge utility classes `.badge-info` / `.badge-live` / `.badge-action`; informational badges (gender, rarity,
-  age group) demoted to quiet chips; dead glow utilities removed.
-- ✅ **Top offenders wired** — `DwellerStats`, `DwellerGridItem`, `SidePanel`, `QuestsView`, `ExplorerStatsGrid`:
-  informational text glows removed, headings/panels on `--glow-1`, interactive surfaces on `--glow-2`. Transient
-  one-shot feedback (stat highlight, level-up celebration) stays as a sanctioned exception.
+- ✅ **Shipped** — semantics defined (three intents, `--glow-0..3` tokens, `.badge-info/live/action` classes;
+  informational badges demoted to quiet chips) and top offenders wired (`DwellerStats`, `DwellerGridItem`,
+  `SidePanel`, `QuestsView`, `ExplorerStatsGrid`). Transient one-shot feedback (stat highlight, level-up
+  celebration) stays a sanctioned exception.
 - ⬜ **Long tail** — ~30 files still hand-roll glow values (~150 declarations, ~15 distinct radii). Convert to the
   token scale as each screen is touched; replace Tailwind arbitrary `text-shadow-[…]` values on sight; hover
   responses on non-interactive surfaces get removed in the same pass.
@@ -108,19 +82,10 @@ answered by three implicit mechanisms — category checks (`isArenaRoom`), name 
 vault door, radio), and derived computeds (`productionInfo`) — scattered across `RoomDetailModal`, its composables,
 and `RoomActions`. Replace them with one explicit, ordered part registry.
 
-- ✅ **Part registry** — `modules/rooms/models/roomParts.ts`: `getRoomDetailParts(room)` returns the ordered section
-  list (preview, info, production stats, radio stats/controls, dweller list, arena, overseer briefing, actions),
-  driven by room category with centralized special-room overrides.
-- ✅ **One decision point for special rooms** — `isRadioRoom`, `isVaultDoor`, and `isOverseersOffice` name-matching
-  live only in the registry; `useRadioRoom`, `useRoomUpgrade`, and `useRoomProduction` consume it.
-- ✅ **Registry-gated modal** — `RoomDetailModal` renders each section behind `has(part)`; the category/name
-  branching and the two-branch template split are gone (`ArenaRoomDetail` is the mapped `arena` part).
-- ✅ **Composition tests** — `roomParts.test.ts` asserts the part list per room type (arena, radio, overseer's
-  office, vault door, producing/non-producing, training); the existing RoomDetailModal suite guards the zero-visual-
-  change refactor.
-- ✅ **Composition change: radio management normalized** — the Radio Studio's management section now uses the same
-  action grid as every other room (the bespoke `radio-layout` variant is gone; radio controls remain as the
-  radio-specific content above the buttons).
+- ✅ **Shipped** — `modules/rooms/models/roomParts.ts` part registry (`getRoomDetailParts(room)`) drives the ordered
+  section list; special-room name-matching (`isRadioRoom`, `isVaultDoor`, `isOverseersOffice`) lives only in the
+  registry; `RoomDetailModal` renders each section behind `has(part)`; composition tests assert the part list per
+  room type; radio management normalized onto the shared action grid.
 - ⬜ **Phase 2 (separate product decisions, think first):** whether further compositions should unify where it makes
   sense — e.g. arena also showing info/dweller list — decided per part, not bundled into refactors. A full
   component-map renderer (replacing the `has(part)` gates) can ride along when a second composition change lands.
@@ -179,14 +144,10 @@ Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_P
 
 **Near-term release — "The Wasteland Journal" (shipped in v2.46.0):**
 
-- ✅ **Exploration journal polish** — mid-journey `loot_collected`, cumulative health-change trail,
-  consolidated progress math, and dead-component deletion.
-- ✅ **Discovery → map integration** — discovery event coordinates/IDs, deep-links, and event-authoritative
-  per-exploration routes on `WorldMap` (no migration).
-- ✅ **Determinism correction** — globally seeded neighbor-vault signals with regression coverage.
-- ✅ **Quest party-members fix** — `QuestsView` populates `questPartyMembersMap`, so party rosters render.
-- ✅ **Discovery unlock fix** — `register_discovery` links the exploring dweller so DISCOVERY markers unlock
-  immediately; the v2.46.1 backfill script repairs pre-fix rows. Deploy the matching worker image to activate it.
+- ✅ **Shipped** — exploration journal polish (loot/health trail, consolidated progress math), discovery → map
+  integration with deep-links and event-authoritative routes, globally seeded neighbor-vault signals (determinism
+  fix), quest party-roster rendering, and the discovery-unlock fix (`register_discovery` links the exploring
+  dweller; v2.46.1 backfill script repairs pre-fix rows).
 
 **Current focus — World Map + exploration polish (no multiplayer):**
 
@@ -267,32 +228,13 @@ touching incident handling; any breeding change must keep `population_max=None` 
 
 ---
 
-### v2.34.0 — Pydantic AI Reliability & Observability (Target: TBD)
+### v2.34.0 — Pydantic AI Reliability & Observability (shipped; two follow-ups open)
 
-**Focus**: Make existing dweller agents easier to debug and more reliable at the boundary between structured model
-output and gameplay actions. Keep this as one backend/AI release instead of splitting several small library adoptions.
+**Shipped:** Logfire tracing of Pydantic AI runs (`include_content=False`, no-op when unconfigured), hardened chat
+output contract (instructions migration, output validation/retry rules, deterministic `TestModel` coverage),
+optional RustFS no longer delays startup (degraded health instead), and a read-only dweller activity briefing tool
+grounding suggestions in live gameplay state.
 
-**In progress:**
-
-- ✅ **Trace Pydantic AI runs in Logfire**
-  - When Logfire is configured, instrument Pydantic AI in addition to the existing application setup so agent runs,
-    tool calls, retry counts, latency, and token usage are visible in one trace.
-  - The disabled/no-token path remains a no-op; instrumentation explicitly uses `include_content=False` so prompt
-    content is excluded from traces. Unit coverage verifies both paths without using a provider token.
-- ✅ **Harden the dweller chat output contract**
-  - Migrate agents that do not pass message history from `system_prompt` to static/dynamic `instructions`; preserve
-    `system_prompt` only where history retention is intentional.
-  - Add output validation/retry rules for action-field combinations before gameplay code consumes them (for example,
-    required room data for room assignment and no action payload for `no_action`).
-  - Added deterministic `TestModel` coverage for instructions, room-recommendation tool execution, invalid structured
-    output retries, and recorded token usage; existing chat-service coverage protects fallback behaviour.
-- ✅ **Keep optional RustFS from delaying backend startup**
-  - Skip the optional S3 probe during startup; detailed health checks still report RustFS availability.
-  - Treat unreachable Botocore endpoints as degraded storage health, with short single-attempt diagnostic probes.
-  - Allow core gameplay to run without RustFS configuration and cover the endpoint-connection path with regression tests.
-- ✅ **Ground dweller activity suggestions in live gameplay state**
-  - Add a read-only activity briefing tool that reports active training/exploration, trainable rooms and capacity,
-    available medical supplies, and a bounded exploration pack before the agent suggests a training or wasteland action.
 - 🔄 **Activate Pydantic AI Gateway for chat and agents**
   - Configure the deployment-only `PYDANTIC_AI_GATEWAY_API_KEY`; the existing gateway model path becomes active without
     changing agent code.
@@ -307,38 +249,15 @@ output and gameplay actions. Keep this as one backend/AI release instead of spli
 
 ### v2.35.0 — Release Version Integrity (Released 2026-08-14)
 
-**Focus**: Make the SemVer Git tag the single release authority. Eliminate manual, separately committed backend and
-frontend version bumps, and make release eligibility deterministic from validated Conventional Commit metadata.
+**Shipped:** Semantic Release is the single version authority — it synchronizes `pyproject.toml`/`uv.lock`/
+`package.json` in its prepare phase and commits them before tagging; Conventional Commit squash-merge titles drive
+SemVer (`feat`→minor, `fix`/`perf`/`refactor`→patch, `!`/BREAKING→major, others non-releasing); both Docker images
+build from the release tag; a CI guard fails on any tag/package/changelog version disagreement.
 
 **Engineering constraint (v2.35 onward):** Every update must reduce net source LOC. Features that require new code
 must first offset it by removing or compacting existing code, favoring DRY reusable extraction over duplication. The
 reduction excludes generated files, lockfiles, and formatting-only changes, and must retain behavior under relevant
 tests.
-
-**Completed:**
-
-- ✅ **One automated release version**
-  - Have Semantic Release calculate the next version, synchronize `backend/pyproject.toml`, `backend/uv.lock`, and
-    `frontend/package.json` in its prepare phase, then commit those generated release artifacts before creating the
-    `vX.Y.Z` tag.
-  - Reconcile the existing manual-release history by validating and tagging the current `v2.34.3` state as the
-    migration baseline; do not retroactively invent missing release versions.
-  - Remove manual version-bump commits from the normal feature workflow; agents must not choose a release number.
-- ✅ **Enforce release intent at merge time**
-  - Require Conventional Commit PR titles and squash merges; the resulting `master` commit is the sole input to
-    SemVer calculation.
-  - Map `feat` to minor, `fix`/`perf`/`refactor` to patch, and `!`/`BREAKING CHANGE` to major; keep
-    `docs`, `test`, `chore`, `ci`, and `style` non-releasing.
-  - Use human-readable, lower-kebab branch names such as `feat/ai-observability`; branch names provide context only
-    and must not encode or determine a version.
-- ✅ **Build and verify the release pair**
-  - Build and publish both backend and frontend Docker images from the release tag, using the tag's version for both
-    image families rather than independently reading manifests on ordinary `master` pushes.
-  - Add a CI guard that fails when the release tag, backend package version, frontend package version, or newest
-    changelog heading disagree.
-
-**Success criteria:** a release creates exactly one versioned commit and tag, both deployable images carry that same
-version, and CI rejects divergent metadata before publication.
 
 ---
 
@@ -437,6 +356,51 @@ persist per dweller; balance pass after play-testing; net-LOC rule applies.
 **Success criteria:** race/faction choices change outcomes (combat, incidents, exploration) in legible ways, are
 visible in the dweller dossier, and are covered by per-race/per-faction unit tests.
 
+### Bio Extension — Pre-Baked Templates + Living Biographies (Target: next updates — HIGH PRIORITY)
+
+**User request**: dwellers should feel alive. Bios today are either empty or one-shot AI-generated text that
+never changes. Two-part fix, reusing existing systems end to end.
+
+- ⬜ **Pre-baked template bios** — a library of lore-safe bio templates in `backend/app/options/` (per
+  race/faction/personality archetypes, with slot-filled name/origin variants). Applied at dweller creation
+  (vault initiation, radio recruitment, breeding) so **every** dweller has a readable bio out of the box — no
+  AI generation required, no cost, no latency.
+- ⬜ **Action-driven bio updates** — append/rewrite bio entries when life happens:
+  - **Exploration** — visited locations and notable events (the exploration event log and `DwellerLocation`
+    relations already record the raw material; the bio writer just summarizes deltas).
+  - **Marriage/breeding** — partner and children references when `partner_id`/parents are set (breeding service
+    already owns these transitions).
+  - **User dialogues** — the dweller chat agent already produces structured action cards; let it propose bio
+    addenda from memorable conversations (opt-in, size-capped).
+- ⬜ **Bio model** — keep `Dweller.bio` as the rendered text but store structured entries (timestamped,
+  source-tagged: `template` / `exploration` / `family` / `dialogue`) so updates are additive and re-renderable
+  instead of lossy string edits. Blocker: decide JSONB column vs side-table before implementation.
+- ⬜ **AI upgrade path** — template bio first, optional AI rewrite of the compiled bio via the existing
+  generation service for users who want richer text (quota rules already apply).
+
+**Reuse:** options library, generation service + quotas, exploration event log, breeding service transitions,
+chat agent action cards. **Blocker:** structured-entry storage decision (JSONB vs side-table).
+
+### Boosted Vault Rarity & Race/Faction Diversity (Target: next updates — HIGH PRIORITY)
+
+**User request**: boosted vaults should feel special, and vaults should not be 100% human.
+
+- ⬜ **Boosted vault rarity boost** — vault initiation already seeds more dwellers (and apprentices) for boosted
+  vaults; extend the seeding tables so boosted vaults get a higher rare/legendary share than the normal roll.
+- ⬜ **Race diversity targets** — non-human share in seeded/generated populations: **~15% ghouls, ~10% synths,
+  ~5% super mutants** (humans the remaining ~70%). Apply to vault initiation seeding and radio recruitment
+  rolls; breeding inherits race from parents (ghoul/synth/mutant lineages stay consistent).
+- ⬜ **Faction assignment** — seeded dwellers get lore-plausible factions from the existing faction options
+  (vault_dweller dominant, others rare), so the identity dossier and future faction perks have data to work
+  with.
+- ⬜ **Consistency** — race/faction live in `visual_attributes` today; the Race & Faction Gameplay Mechanics
+  fragment (above) is where modifiers/perks hook in. This item only diversifies **who exists**; it does not
+  change mechanics.
+
+**Reuse:** vault initiation seeding, radio recruitment rolls, `backend/app/options/` race/faction definitions,
+breeding service. **Blocker:** none hard — seeding tables and roll weights are self-contained; coordinate with
+the identity-metadata work so race is read from one source of truth.
+
 ---
 
 ## Low-Hanging Fruit — Immediate User-Facing Improvements
@@ -444,6 +408,18 @@ visible in the dweller dossier, and are covered by per-race/per-faction unit tes
 These items are small, scoped changes that deliver noticeable player value without requiring new systems or heavy
 architecture. They are ordered by a rough impact/effort ratio, and they respect the v2.35+ constraint that every
 update reduce net source LOC (features that add code must first offset it by removing or compacting existing code).
+
+### P1 — High Priority (user-requested)
+
+- [ ] **Bio extension** — pre-baked template bios for every dweller + living biographies updated on exploration,
+      marriage, and dialogues. Full design in "Bio Extension" (Planned above). Start with the storage decision
+      (JSONB vs side-table), then template application at creation — that alone is shippable.
+  - **Effort:** medium (templates first), larger for action-driven updates.
+
+- [ ] **Boosted vault rarity + race/faction diversity** — boosted vaults roll higher rare/legendary shares;
+      seeded/recruited populations target ~15% ghouls, ~10% synths, ~5% super mutants. Full design in "Boosted
+      Vault Rarity & Race/Faction Diversity" (Planned above). Self-contained seeding/roll changes.
+  - **Effort:** small–medium.
 
 ### P1 — Verification (merged without review)
 
@@ -462,64 +438,29 @@ update reduce net source LOC (features that add code must first offset it by rem
 - [ ] **Incremental `ty` cleanup** — run `ty` on touched Python files and resolve clear, local diagnostics as part of
       ordinary changes. Keep this non-blocking and avoid widening feature work solely to chase pre-existing type debt.
 
-- [x] ~~**Fix silent incident fetch failure**~~ — ✅ **Done.** `incident.ts` already routes errors through `handleStoreError` (line 75). The `.catch(() => {})` mentioned in the original plan no longer exists at that location.
-
-- [x] ~~**Gate or remove the Objectives debug overlay in production**~~ — ✅ **Done.** The `ObjectivesDebugOverlay.vue` component no longer exists in the codebase. The debug panel was removed in a prior cleanup.
-
-- [x] ~~**Add notification click-through navigation**~~ — ✅ **Done.** `NotificationBell.vue` already has `handleNotificationClick` with `getNotificationRoute()` that navigates to the relevant view based on `notification_type` (exploration, training, quests, dweller detail, etc.).
-
-### P1 — Resource Economy (aligns with current trajectory)
-
-- [x] ~~**Surface resource trend alerts from existing rate/forecast data**~~ — ✅ **Done.** `ResourceBar.vue` already has `isDrainingCritical` (persistent warning when resource is draining and critically low), trend arrows, and tooltip with rate/forecast. The `useResourceWarnings` composable already shows toast warnings from backend `resource_warnings`.
-
-### P1 — Gameplay Gaps
-
-- [x] ~~**Implement the vault-level event system stub**~~ — ✅ **Done.** `game_loop.py:_process_events` (line 576-646) fires weighted random vault events: raider scout (spawns incident), resource cache (awards caps + notification), wanderer (awards caps + notification). Configured via `VaultEventConfig` in `game_config.py`. Only fires when user is online and vault has minimum population.
-
-- [x] ~~**Fix missing exploration rewards**~~ — ✅ **Done.** `coordinator.py:_apply_rewards` (line 411-485) delivers caps to vault, calculates/applies XP with survival + luck bonuses, transfers loot to storage, returns unused stimpaks/radaways, emits item collection events, and publishes SSE completion events with full rewards summary.
+- [x] **Done:** silent incident fetch failure (already routed through `handleStoreError`), Objectives debug overlay
+      (removed), notification click-through navigation (`NotificationBell` routes by `notification_type`), resource
+      trend alerts (`ResourceBar` draining-critical warning + `useResourceWarnings` toasts), vault-level event system
+      (`game_loop._process_events`: raider scout / resource cache / wanderer), exploration rewards
+      (`coordinator._apply_rewards`: caps, XP, loot transfer, SSE summary).
 
 ### P1 — Combat Power Overhaul (all stats + weapon type) — ✅ Done
 
-**Shipped:** `combat_power()` is now a weighted sum across **all seven SPECIAL stats**, with the weapon type
-choosing which stats dominate. Weights are config-driven via `COMBAT_WEAPON_STAT_WEIGHTS` (JSON dict keyed by
-weapon type + `unarmed`; replaces the removed `COMBAT_DWELLER_*_WEIGHT` vars):
-
-| Weapon type | Primary stats (0.3)      | Secondary stats (0.15) |
-| ----------- | ------------------------ | ---------------------- |
-| Melee       | Strength, Agility        | Endurance, Luck        |
-| Guns        | Perception, Agility      | Luck, Strength         |
-| Energy      | Intelligence, Perception | Endurance, Luck        |
-| Heavy       | Strength, Endurance      | Perception, Agility    |
-
-Unarmed uses a balanced spread with a strength lean (0.2 S, 0.1 others). `DwellerReadLess` now exposes the equipped
-`weapon_type` (eager-loaded) and the frontend `getCombatPower()` mirrors the same weight table. Arena + incidents
-consume the same `combat_power()`; per-type unit tests cover primary-beats-secondary and cross-type reversals.
+**Shipped:** `combat_power()` is a weighted sum across all seven SPECIAL stats, weights config-driven via
+`COMBAT_WEAPON_STAT_WEIGHTS` (JSON keyed by weapon type + `unarmed`; melee S/A primary, guns P/A, energy I/P, heavy
+S/E; unarmed balanced with a strength lean). `DwellerReadLess` exposes the equipped `weapon_type` (eager-loaded); the
+frontend `getCombatPower()` mirrors the table. Arena + incidents consume the same `combat_power()`; per-type unit
+tests cover primary-beats-secondary and cross-type reversals.
 
 ### P2 — Chat Polish
 
-- [x] **Stream chat messages over the existing WebSocket**
-  - **Where:** `backend/app/api/v1/endpoints/websocket.py:44-51`
-  - **Issue:** The WebSocket endpoint handles `ping` and `typing`, but for `message` it only acks and tells the client
-    to use REST. `DwellerChat.vue` already uses the socket for typing indicators.
-  - **Fix:** Move the full chat round-trip to the socket so messages feel immediate and the REST fallback can be
-    removed.
-  - **Effort:** medium.
+- [x] **Chat streaming over WebSocket** — shipped in v2.41.0; regression coverage still owed (see P1 Verification).
 
 ### P3 — Consistency
 
-- [x] **Wire dweller visual equipment to actual inventory**
-  - **Where:** `backend/app/schemas/dweller.py:90-93`
-  - **Issue:** `accessory` and `object_held` are free-text fields marked `# TODO: Choose from inventory`, so generated
-    dweller visuals can show items the dweller does not own.
-  - **Fix:** Constrain visual-attribute generation to equipped or owned items.
-  - **Effort:** medium.
-- [x] **Bigger status badge in dwellers grid view**
-  - **Where:** `frontend/src/modules/dwellers/components/grid/DwellerGridItem.vue`
-  - **Issue:** the status badge is small relative to the card, hurting at-a-glance readability compared with the
-    list view.
-  - **Fix:** moved to a labeled `medium` overlay on the card thumbnail (top-left), out of the cramped header badge
-    row; keeps the styleguide's live-status intent.
-  - **Effort:** small. ✅ Done
+- [x] **Done:** dweller visual equipment wired to actual inventory (generation constrained to equipped/owned items);
+      bigger status badge in the dwellers grid view (labeled `medium` overlay on the card thumbnail, live-status
+      intent preserved).
 
 ---
 
@@ -551,17 +492,51 @@ consume the same `combat_power()`; per-type unit tests cover primary-beats-secon
 
 Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 
-- ✅ **Apprentice eligibility & accrual** — `child` **and** `teen` age groups (not `adult`). Shipped: boosted
-  vaults seed apprentices, the game tick advances the room's SPECIAL per training-duration interval
-  (`_process_apprenticeships`), per-stat gains convert into adult stats at maturity, and room-details render
-  apprentice slots.
-- ✅ **Apprentice rooms** — `RoomTypeEnum.PRODUCTION` + `RoomTypeEnum.CRAFTING` (covers weapon/outfit crafting
-  and research-style production).
-- ✅ **Large room placement near elevators** — vault grid widened to 10 tiles (`GRID_X_MAX = 9`); full-width
-  crafting rooms place at x=1 beside the elevator shaft without overlapping it.
+- ✅ **Shipped** — apprentice eligibility (`child` + `teen`), accrual via the game tick
+  (`_process_apprenticeships`), apprentice rooms (`PRODUCTION` + `CRAFTING`), large-room placement beside the
+  elevator shaft (`GRID_X_MAX = 9`), and room-detail apprentice slots.
 - ⬜ **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage;
   the more skilled the apprentice, the larger the room efficiency bonus. Remaining follow-up.
 - **Pets** — assign to **living quarters (`CAPACITY`)** and **training rooms (`TRAINING`)**; intentionally NOT production/crafting rooms (a pet in a power plant or diner makes no sense). Pets remain a larger feature (new `Pet` model + assignment) tracked under Phase 3.
+
+### Onboarding — Guided Game Mechanics (design fragment, Target: TBD)
+
+User requests for a first-session onboarding that teaches the game mechanics step by step. Written as the
+player-facing requests the feature should satisfy; sequence and copy are up to implementation.
+
+- ⬜ **Welcome & goal** — as a new Overseer, I want a short intro explaining my role and the vault goal, so I
+  understand what I am doing before my first action.
+- ⬜ **Power first** — guide me to build/assign my first power plant and explain why power gates everything else.
+- ⬜ **Production chain** — walk me through water and food production, and show me what happens when a resource
+  runs out.
+- ⬜ **Assigning dwellers** — show me how SPECIAL stats map to rooms and let me try the auto-assign tools with an
+  explanation of what they do.
+- ⬜ **Vault expansion** — point me at building/elevators/room upgrades and merging at the right moment.
+- ⬜ **Population basics** — explain living quarters capacity, breeding, and growth (radio recruitment later).
+- ⬜ **Incidents & defense** — introduce incidents, weapons, and the arena when the vault is stable enough to
+  survive a demo fight.
+- ⬜ **Wasteland** — send my first dweller exploring with an explanation of stimpaks/radaways and recall.
+- ⬜ **Progression loop** — objectives, quests, training, and where to find each system (links into the sidebar).
+- ⬜ **Soft hooks** — after onboarding, surface the Overseer Briefing attention items instead of the tutorial.
+
+Design notes: step order should follow actual dependency order (power → water/food → population → defense →
+exploration); each step needs a skippable/dismissable state so returning players are not forced through it;
+completion state should persist per user (localStorage or server-side).
+
+### Celldweller Easter Egg (idea, Target: TBD)
+
+In-game homage to the band Celldweller (fits the Fallout aesthetic — electro/industrial wasteland vibes).
+Loose ideas, none committed:
+
+- A legendary dweller named "Klayton" (or a wanderer named after band lore) with unique dialogue lines and
+  Celldweller lyric references in their bio.
+- A rare radio-station event: "Celldweller — Own Little World" plays as a special broadcast with a happiness
+  bonus for the vault.
+- A discoverable wasteland location on the world map (e.g. "Cell 23" / "End of an Empire" landmark) with a
+  one-time loot drop or unique encounter.
+- A crafting recipe or outfit skin referencing the band's visual style (chrome/black, glowing red accents).
+
+Keep it optional, non-breaking, and discoverable — easter eggs should reward curiosity, never gate progress.
 
 ### Phase 4: Multiplayer
 
@@ -628,7 +603,8 @@ Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 | Version | Release      | Highlights                                                                                                                             |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
-| v2.42.0 | TBD          | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
+| v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links, determinism fix                                         |
+| v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |
 | v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)                                                                                    |
 | v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation                                                                                  |
@@ -664,21 +640,102 @@ Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 | v2.9.0  | Feb 07, 2026 | Chat exploration actions                                                                                                               |
 | v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                                                                                          |
 
-### v2.42.0 Observability Measurement (Pydantic AI & Logfire)
+### v2.42.0 Observability Measurement (Pydantic AI & Logfire) — ✅ recorded
 
-Verified the Gateway path is live and documented (see `docs/backend/PYDANTIC_AI_GATEWAY.md`): `PYDANTIC_AI_GATEWAY_API_KEY`
-sets `ai_provider_mode == "gateway"` and `AIService._initialize_gateway()` builds the Gateway provider; Logfire
-instruments Pydantic AI with `include_content=False`.
+Gateway path verified live and documented (`docs/backend/PYDANTIC_AI_GATEWAY.md`): `PYDANTIC_AI_GATEWAY_API_KEY` sets
+`ai_provider_mode == "gateway"`; Logfire instruments Pydantic AI with `include_content=False`. Measured: 12
+deterministic agent-contract tests, output-validation retry coverage via `TestModel`, 3 Logfire config tests. No
+agent code changes required; no gaps found.
 
-| Metric                             | Value                                                                                                             |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Deterministic agent-contract tests | 12 (`test_agents/test_dweller_agent_contracts.py`)                                                                |
-| Output-validation retry coverage   | covered via `TestModel` (`validate_dweller_chat_output`, `test_invalid_structured_output_retries_before_failing`) |
-| Logfire config tests               | 3 (`test_logfire_config.py`) — config + `instrument_pydantic_ai(include_content=False)` both paths                |
-| C4 verification run                | `test_logfire_config.py` + `test_dweller_agent_contracts.py` → 13 passed                                          |
+---
 
-No agent code changes were required — the Gateway path and instrumentation were already correctly wired; measurement
-recorded per D8. No gaps found; no future ROADMAP items added from this workstream.
+Keep it optional, non-breaking, and discoverable — easter eggs should reward curiosity, never gate progress.
+
+### Sound System — Fallout-Themed Music & SFX (Target: next updates — HIGH PRIORITY)
+
+**User request**: a sound system with music and effects close to the original Fallout atmosphere (1950s radio,
+ambient hums, terminal beeps, incident alarms). **The asset blocker is resolved** — a full Fallout-Shelter-style
+library (music loops, per-room ambience, interface SFX) is available locally in `/assets/audio/` (git-ignored
+source; curated copies land in `frontend/public/audio/`).
+
+- ✅ **Audio manager foundation** — `core/audio/audioManager.ts` singleton with `ui`/`sfx`/`music` buses, persisted
+  volumes + mute, autoplay-policy unlock on first interaction (pending loops start on unlock), silent no-op for
+  missing assets; `soundManifest.ts` maps semantic keys to `/audio/...` URLs; `useSound()` composable.
+- ✅ **First wiring** — notification chime on new SSE notifications (`NotificationBell`), vault ambient music loop
+  on the vault view (`playLoop('vaultAmbient')`, stopped on unmount).
+- 🔄 **UI & feedback SFX pass** — wired: global button-click `select` (delegated listener in the audio manager),
+  room-modal `modalOpen` (close intentionally silent), chat typewriter key per keystroke in the message input
+  (`typeKey`, fires on `beforeinput`), and `messageReceive` on dweller replies (WS + REST + audio paths via the
+  shared messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
+  `success` on completions, incident alarm on incident spawn (needs an incident event hook).
+- ✅ **Preferences controls** — Sound card in PreferencesView (master enable + per-bus volume sliders), bound to
+  the manager's persisted settings. **Sound is disabled by default**; enabling starts any pending music loop.
+- ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it
+  instead of the view-level loop.
+- ⬜ **Ambient layers** — per-room ambience loops from `assets/audio/sounds/ambience/` (armory, cafeteria,
+  barbershop, ...) layered under the music loop.
+- ⬜ **Curated-copy growth** — extend `frontend/public/audio/` from the source library per feature (keep the
+  committed set small; the 295MB source library stays git-ignored).
+
+**Reuse:** `GameEvent`/SSE streams as trigger sources, Preferences persistence pattern, radio room UI.
+**Blockers:** none hard remaining — remaining work is wiring + curation.
+**Deploy:** verified end-to-end — Vite copies `public/` into `dist/`, the frontend image serves it via `serve -s`,
+and the git-ignored source library never reaches CI. No pipeline changes needed; revisit cache headers or
+object storage only if the curated set grows large.
+
+### Quests Improvements — Building Quests, Locked Chains, Puzzles (design fragment, Target: TBD)
+
+User request: richer quest handling — construction-driven quests, properly locked quest chains, and
+quiz/puzzle quests. Reuse-first: the quest model already has `chain_id`/`chain_order`, `previous_quest_id`/
+`next_quest_id` links, and `QuestRequirement`/`QuestReward` relations; the objectives system and room
+construction flow already emit state that quests can key off.
+
+- ⬜ **Locked quest chains** — chain visibility/lock state in the UI: show the next chain quest as "locked"
+  with its unlock requirement instead of hiding it. Blocker: chain unlocking today is purely linear
+  (`previous_quest_id`); requirement-based unlocking (vault level, population, resource thresholds) needs a
+  decision on whether `QuestRequirement` rows gain a condition type or a new gating model is added.
+- ⬜ **Building quests** — quests whose completion condition is a construction action ("build a Water
+  Treatment", "upgrade to tier 2"). Reuse the objectives system's condition checking if it can watch room
+  events; blocker: room construction currently emits no quest-checkable event, so the objectives/quest
+  completion path needs a hook into room create/upgrade.
+- ⬜ **Quiz / puzzle quests** — timed quest with a question/choice step instead of auto-resolve. Blocker:
+  quests are timer+party based (`duration_minutes`); there is no interactive step model, no question content
+  format, and no frontend interaction surface. Needs a small content schema (question, choices, reward
+  mapping) and a quest-detail interaction UI.
+- ⬜ **Separate handling per quest kind** — type-specific completion flows (auto-resolve vs construction vs
+  interactive) behind the existing `quest_type`/`quest_category` fields rather than new tables.
+
+**Blockers (in order):**
+
+1. Chain gating model decision (requirement conditions vs new table) — blocks locked chains.
+2. Room construction → quest event hook — blocks building quests.
+3. Interactive-step content schema + UI — blocks quiz/puzzle quests; largest of the three.
+
+---
+
+## Roadmap Direction & Blockers
+
+Standing direction for picking work, in order:
+
+1. **Low-hanging fruits first** — the P1/P2 items in "Low-Hanging Fruit" above always outrank new feature
+   fragments when effort is comparable.
+2. **Reuse & integration over new systems** — a feature that composes existing services (event bus, quest
+   chains, recycling pipeline, objectives) beats a green-field design at equal value.
+3. **Unblock before building** — when a feature is blocked, prefer work that removes the blocker over
+   workarounds.
+
+Current blocker map (what stalls what):
+
+| Blocker                               | Stalls                                                                          | Unblocking work                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ~~Audio assets & licensing~~ resolved | Sound System → **HIGH PRIORITY** (manager shipped; SFX pass + Preferences open) | Assets available locally; curated copies in `frontend/public/audio/`         |
+| Chain gating model decision           | Locked quest chains                                                             | Decide `QuestRequirement` condition types vs new gating table                |
+| Room construction events              | Building quests                                                                 | Emit quest-checkable events on room create/upgrade                           |
+| Interactive quest-step schema + UI    | Quiz/puzzle quests                                                              | Content schema + quest-detail interaction surface (largest quest item)       |
+| Trading PoC validation                | Trading Post graduation (weapons/outfits tabs, coverage re-inclusion)           | Playtest the dweller loop, then graduate per the WIP sidebar marker          |
+| Bio structured-entry storage decision | Bio extension (action-driven updates)                                           | Decide JSONB vs side-table; template bios are NOT blocked and can ship first |
+| Onboarding step persistence decision  | Onboarding feature                                                              | Choose localStorage vs server-side completion state                          |
+| World Map / multiplayer architecture  | Cross-vault encounters, Dead Dweller Reuse                                      | See World Map plan above                                                     |
 
 ---
 
@@ -692,6 +749,6 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-30_ (apprentice fragments updated: eligibility/accrual, rooms, and elevator-adjacent
-placement shipped; the SPECIAL-scaled production/crafting bonus remains open, tracked in #470. Service
-simplification & unification is in review on `refactor/breeding-exploration-debt`.)
+_Last updated: 2026-08-30_ (apprentice fragments updated; Onboarding, Celldweller easter egg, Sound System, Quests
+Improvements, Bio Extension, and Boosted Vault Rarity & Race/Faction Diversity fragments added; Roadmap Direction &
+Blockers map added; completed work compressed to shipped summaries.)

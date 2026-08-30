@@ -1,16 +1,17 @@
-import { ref, computed, watch, nextTick, type Ref } from 'vue'
+import { ref, computed, watch, nextTick, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/core/utils/image'
+import { useSound } from '@/core/composables/useSound'
 import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
   dwellerId: string
   dwellerAvatar?: string
   token: Ref<string | null> | string | null
-  userImageUrl?: string
+  userImageUrl?: MaybeRefOrGetter<string | undefined>
   chatWs?: ReturnType<typeof useChatWebSocket>
 }
 
@@ -25,12 +26,28 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   let streamingIndex: number | null = null
   let sendResolver: (() => void) | null = null
 
+  // Chat feedback sounds: a single-message append is a live receive (sends are
+  // covered by the per-keystroke typewriter); bulk appends are history loads
+  // and stay silent. The sync flush lets loadChatHistory suppress the watcher
+  // while it replaces the whole list.
+  const { playSound } = useSound()
+  let suppressMessageSound = false
+  watch(
+    () => messages.value.length,
+    (newLen, oldLen) => {
+      if (suppressMessageSound || newLen - oldLen !== 1) return
+      const last = messages.value[newLen - 1]
+      if (last?.type === 'dweller') playSound('messageReceive')
+    },
+    { flush: 'sync' }
+  )
+
   const getToken = () =>
     typeof options.token === 'string' || options.token === null
       ? options.token
       : options.token?.value
 
-  const userAvatar = computed(() => options.userImageUrl || undefined)
+  const userAvatar = computed(() => toValue(options.userImageUrl) ?? null)
   const dwellerAvatarUrl = computed(() => normalizeImageUrl(options.dwellerAvatar))
 
   const canSend = computed(() => userMessage.value.trim().length > 0)
@@ -49,7 +66,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           type: 'dweller',
           content: '',
           timestamp: new Date(),
-          avatar: options.dwellerAvatar,
         })
         streamingIndex = messages.value.length - 1
       }
@@ -105,7 +121,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         content: msg.message_text,
         messageId: msg.id || undefined,
         timestamp: new Date(msg.created_at),
-        avatar: msg.from_user_id ? userAvatar.value : options.dwellerAvatar,
         audioUrl: msg.audio_url || undefined,
         transcription: msg.transcription || undefined,
         happinessImpact:
@@ -117,7 +132,10 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             : undefined,
       }))
 
+      suppressMessageSound = true
       messages.value = history
+      // History replaced the list; re-arm the sound watcher afterwards.
+      suppressMessageSound = false
     } catch (error) {
       handleStoreError(error, 'Error loading chat history')
     }
@@ -133,7 +151,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
         type: 'user',
         content: messageToSend,
         timestamp: new Date(),
-        avatar: userAvatar.value,
       })
       isTyping.value = true
 
@@ -162,7 +179,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           content: response.data.response,
           messageId: response.data.dweller_message_id,
           timestamp: new Date(),
-          avatar: options.dwellerAvatar,
           happinessImpact: response.data.happiness_impact || null,
           actionSuggestion: response.data.action_suggestion || null,
         })

@@ -5,6 +5,7 @@ import type { RadioMode } from '@/modules/radio/models/radio'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
+import USlider from '@/core/components/ui/USlider.vue'
 
 interface Props {
   vaultId: string
@@ -156,14 +157,13 @@ onMounted(() => {
 
         <!-- Slider -->
         <div class="space-y-2">
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="0.5"
-            :value="localSpeedup"
-            @input="(e) => handleSliderChange(parseFloat((e.target as HTMLInputElement).value))"
-            class="speedup-slider"
+          <USlider
+            :model-value="localSpeedup"
+            :min="1"
+            :max="10"
+            :step="0.5"
+            aria-label="Radio speedup multiplier"
+            @update:model-value="handleSliderChange"
           />
           <div class="flex justify-between text-xs text-gray-500">
             <span>1x</span>
@@ -241,63 +241,6 @@ onMounted(() => {
   outline: none;
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 0 2px var(--color-theme-glow);
-}
-
-.speedup-slider {
-  width: 100%;
-  height: 6px;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 5px;
-  outline: none;
-}
-
-.speedup-slider::-webkit-slider-track {
-  width: 100%;
-  height: 6px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 5px;
-}
-
-.speedup-slider::-moz-range-track {
-  width: 100%;
-  height: 6px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 5px;
-}
-
-.speedup-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-theme-primary);
-  border: 2px solid var(--color-theme-accent);
-  cursor: pointer;
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transition: transform 0.2s;
-}
-
-.speedup-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-}
-
-.speedup-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-theme-primary);
-  border: 2px solid var(--color-theme-accent);
-  cursor: pointer;
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  transition: transform 0.2s;
-}
-
-.speedup-slider::-moz-range-thumb:hover {
-  transform: scale(1.2);
 }
 
 .divider {

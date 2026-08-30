@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { USlider } from '@/core/components/ui'
 
 interface Props {
   show: boolean
@@ -85,12 +86,12 @@ const handleConfirm = () => {
                 >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
               >
             </div>
-            <input
-              type="range"
-              v-model.number="selectedStimpaks"
-              min="0"
+            <USlider
+              v-model="selectedStimpaks"
+              :min="0"
               :max="Math.min(maxStimpaks, 15)"
-              class="supply-slider stimpak-slider"
+              accent="success"
+              aria-label="Stimpaks to carry"
             />
           </div>
           <div class="flex flex-col">
@@ -100,12 +101,12 @@ const handleConfirm = () => {
                 >{{ selectedRadaways }} / {{ maxRadaways }}</span
               >
             </div>
-            <input
-              type="range"
-              v-model.number="selectedRadaways"
-              min="0"
+            <USlider
+              v-model="selectedRadaways"
+              :min="0"
               :max="Math.min(maxRadaways, 15)"
-              class="supply-slider radaway-slider"
+              accent="caps"
+              aria-label="RadAway to carry"
             />
           </div>
         </div>

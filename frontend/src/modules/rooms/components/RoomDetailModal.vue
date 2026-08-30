@@ -18,6 +18,7 @@ import RoomActions from './RoomActions.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
+import { useSound } from '@/core/composables/useSound'
 
 interface Props {
   room: Room | null
@@ -84,13 +85,16 @@ const {
   handleRecruitDweller,
 } = useRadioRoom(roomRef, modelValueRef, assignedDwellers)
 
+const { playSound } = useSound()
+
 // Clear error when modal closes
 watch(
   () => props.modelValue,
-  (newValue) => {
+  (newValue, oldValue) => {
     if (!newValue) {
       actionError.value = null
     }
+    if (newValue && newValue !== oldValue) playSound('modalOpen')
   }
 )
 </script>

@@ -3493,6 +3493,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/trading-post/market": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trading Market
+         * @description List soft-deleted dwellers on the market plus this vault's own listings.
+         */
+        get: operations["get_trading_market_api_v1_vaults__vault_id__trading_post_market_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/trading-post/sell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sell Dweller
+         * @description Sell one of this vault's soft-deleted dwellers for caps.
+         */
+        post: operations["sell_dweller_api_v1_vaults__vault_id__trading_post_sell_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/trading-post/buy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Buy Dweller
+         * @description Buy a soft-deleted dweller listed by another vault; caps go to the seller.
+         */
+        post: operations["buy_dweller_api_v1_vaults__vault_id__trading_post_buy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/training/start": {
         parameters: {
             query?: never;
@@ -5020,6 +5080,11 @@ export interface components {
             /** Thumbnail Url */
             thumbnail_url?: string | null;
             /**
+             * Is Traded
+             * @default false
+             */
+            is_traded: boolean;
+            /**
              * Level
              * @default 1
              */
@@ -5161,6 +5226,11 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /**
+             * Is Traded
+             * @default false
+             */
+            is_traded: boolean;
             /**
              * Level
              * @default 1
@@ -5336,6 +5406,11 @@ export interface components {
             /** Thumbnail Url */
             thumbnail_url?: string | null;
             /**
+             * Is Traded
+             * @default false
+             */
+            is_traded: boolean;
+            /**
              * Level
              * @default 1
              */
@@ -5470,6 +5545,11 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /**
+             * Is Traded
+             * @default false
+             */
+            is_traded: boolean;
             /**
              * Level
              * @default 1
@@ -5676,6 +5756,11 @@ export interface components {
             /** Thumbnail Url */
             thumbnail_url?: string | null;
             /**
+             * Is Traded
+             * @default false
+             */
+            is_traded: boolean;
+            /**
              * Level
              * @default 1
              */
@@ -5834,6 +5919,8 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+            /** Is Traded */
+            is_traded?: boolean | null;
             /** Level */
             level?: number | null;
             /** Experience */
@@ -7962,6 +8049,52 @@ export interface components {
             refresh_token: string;
             /** Token Type */
             token_type: string;
+        };
+        /**
+         * TradeMarketResponse
+         * @description Trading Post overview: market offers, own listings, and vault caps.
+         */
+        TradeMarketResponse: {
+            /** Market Offers */
+            market_offers: components["schemas"]["TradeOffer"][];
+            /** My Listings */
+            my_listings: components["schemas"]["TradeOffer"][];
+            /** Bottle Caps */
+            bottle_caps: number;
+        };
+        /**
+         * TradeOffer
+         * @description A soft-deleted dweller listed for trade, with its computed price and highlights.
+         */
+        TradeOffer: {
+            dweller: components["schemas"]["DwellerReadLess"];
+            /** Price */
+            price: number;
+            /**
+             * Has Bio
+             * @default false
+             */
+            has_bio: boolean;
+            /**
+             * Places Visited
+             * @default 0
+             */
+            places_visited: number;
+        };
+        /**
+         * TradeResultResponse
+         * @description Result of a sell/buy trade.
+         */
+        TradeResultResponse: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Price */
+            price: number;
+            /** Bottle Caps */
+            bottle_caps: number;
         };
         /**
          * TrainingProgress
@@ -13835,6 +13968,103 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trading_market_api_v1_vaults__vault_id__trading_post_market_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeMarketResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sell_dweller_api_v1_vaults__vault_id__trading_post_sell_post: {
+        parameters: {
+            query: {
+                dweller_id: string;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buy_dweller_api_v1_vaults__vault_id__trading_post_buy_post: {
+        parameters: {
+            query: {
+                dweller_id: string;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeResultResponse"];
                 };
             };
             /** @description Validation Error */

@@ -183,7 +183,7 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
 
 .stat-highlighted {
   border-left-color: var(--color-theme-accent);
-  background: rgba(0, 255, 0, 0.06);
+  background: color-mix(in srgb, var(--color-theme-primary) 6%, transparent);
   animation: stat-pulse 2.5s ease-out forwards;
 }
 

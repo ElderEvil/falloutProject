@@ -7,13 +7,14 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { getErrorMessage } from '@/core/types/utils'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
 import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
+import { useSound } from '@/core/composables/useSound'
 import { useMapStore } from '@/modules/map/stores/map'
 import { useToast } from '@/core/composables/useToast'
 import ChatMessageList from './ChatMessageList.vue'
@@ -33,6 +34,8 @@ const profileStore = useProfileStore()
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
+
+const userAvatarUrl = computed(() => profileStore.profile?.avatar_url ?? undefined)
 
 // Quota exceeded state
 const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
@@ -84,11 +87,12 @@ const {
   dwellerId: props.dwellerId,
   dwellerAvatar: props.dwellerAvatar,
   token: authStore.token,
-  userImageUrl: (authStore.user as any)?.image_url,
+  userImageUrl: userAvatarUrl,
   chatWs,
 })
 
 const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
+const { playSound } = useSound()
 
 const { handleTyping } = useTypingIndicator(chatWs)
 
@@ -182,7 +186,6 @@ const sendAudioMessage = async () => {
       type: 'user',
       content: '[Transcribing audio...]',
       timestamp: new Date(),
-      avatar: userAvatar.value,
     })
 
     const response = await apiClient.post(
@@ -206,7 +209,6 @@ const sendAudioMessage = async () => {
       content: response.data.dweller_response,
       messageId: response.data.dweller_message_id,
       timestamp: new Date(),
-      avatar: props.dwellerAvatar,
       audioUrl: response.data.dweller_audio_url,
       happinessImpact: response.data.happiness_impact || null,
       actionSuggestion: response.data.action_suggestion || null,
@@ -227,6 +229,11 @@ const sendAudioMessage = async () => {
 
 onMounted(() => {
   loadChatHistory()
+  if (!profileStore.hasProfile) {
+    profileStore.fetchProfile().catch(() => {
+      // Already reported by the store (handleStoreError); chat falls back to the icon avatar.
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -242,13 +249,12 @@ onUnmounted(() => {
     <div class="scanlines"></div>
     <div class="chat-identity-header">
       <div class="identity-avatar">
-        <img
-          v-if="dwellerAvatarUrl"
-          :src="dwellerAvatarUrl"
-          alt="Dweller"
-          class="header-avatar-image"
+        <DwellerPortrait
+          :thumbnail-url="dwellerAvatarUrl"
+          :alt="dwellerName"
+          image-class="header-avatar-image"
+          fallback-class="header-avatar-icon"
         />
-        <Icon v-else icon="mdi:robot" class="header-avatar-icon" />
       </div>
       <div class="identity-info">
         <span class="identity-name">{{ dwellerName }}</span>
@@ -262,6 +268,7 @@ onUnmounted(() => {
         :dweller-name="dwellerName"
         :username="username"
         :dweller-avatar-url="dwellerAvatarUrl"
+        :user-avatar-url="userAvatar"
         :is-typing="isTyping"
         :currently-playing-url="currentlyPlayingUrl"
         :latest-action-suggestion-index="latestActionSuggestionIndex"
@@ -302,6 +309,7 @@ onUnmounted(() => {
           class="chat-input-field"
           placeholder="Type your message..."
           @input="handleTyping"
+          @beforeinput="playSound('typeKey')"
         />
         <button
           class="chat-send-btn"

@@ -21,6 +21,11 @@ describe('DwellersView', () => {
   let incidentStore: any
   let pinia: ReturnType<typeof createPinia>
 
+  const mountView = async () => {
+    await router.isReady()
+    return mount(DwellersView, { global: { plugins: [router, pinia] } })
+  }
+
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -73,12 +78,7 @@ describe('DwellersView', () => {
     it('should render vault title', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      await router.isReady()
-      const wrapper = mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      const wrapper = await mountView()
       await flushPromises()
 
       expect(wrapper.text()).toContain('Dwellers')
@@ -87,12 +87,7 @@ describe('DwellersView', () => {
     it('should fetch dwellers on mount', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      await router.isReady()
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      await mountView()
       await flushPromises()
 
       // Should call fetchDwellersByVault with correct params
@@ -105,12 +100,7 @@ describe('DwellersView', () => {
     it('should fetch rooms on mount', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      await router.isReady()
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      await mountView()
       await flushPromises()
 
       // Should fetch both dwellers and rooms

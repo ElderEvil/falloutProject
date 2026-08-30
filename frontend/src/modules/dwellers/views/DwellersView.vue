@@ -162,16 +162,7 @@ onMounted(async () => {
   }
   if (
     filterParam &&
-    [
-      'idle',
-      'working',
-      'exploring',
-      'questing',
-      'training',
-      'resting',
-      'fighting',
-      'dead',
-    ].includes(filterParam)
+    ['idle', 'working', 'exploring', 'questing', 'training', 'resting', 'fighting', 'dead'].includes(filterParam)
   ) {
     dwellerStore.setFilterStatus(filterParam)
   }
@@ -332,15 +323,9 @@ const handleViewLowHappiness = () => {
               height="120px"
               rounded="lg"
             />
-            <div
-              v-else-if="vaultLoadError"
-              class="rounded border-2 border-danger/60 bg-surface-raised p-6 text-center"
-            >
-              <h2 class="mb-2 text-xl font-bold text-danger">Error Loading Vault</h2>
-              <p class="text-terminal-green">{{ vaultLoadError }}</p>
-            </div>
+            <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <HappinessDashboard
-              v-else-if="happinessDashboardData && !vaultLoadError"
+              v-else-if="happinessDashboardData"
               :loading="isDashboardLoading"
               :vaultHappiness="happinessDashboardData.vaultHappiness"
               :dwellerCount="happinessDashboardData.dwellerCount"

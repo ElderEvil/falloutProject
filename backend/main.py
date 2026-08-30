@@ -53,9 +53,10 @@ from app.utils.seed_quests import seed_quests_from_json
 # Import security middleware (conditional on settings)
 if settings.ENABLE_RATE_LIMITING:
     from guard.middleware import SecurityMiddleware
-    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
     from app.middleware.security import create_security_config
+
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Configure logging with centralized setup
 setup_logging(
@@ -135,14 +136,21 @@ app = FastAPI(
 # Add request ID middleware (first, so it wraps all other middleware)
 app.add_middleware(RequestIdMiddleware)
 
+# Add request ID middleware (first, so it wraps all other middleware)
+app.add_middleware(RequestIdMiddleware)
+
 # Add security middleware (rate limiting, IP filtering, etc.)
 if settings.ENABLE_RATE_LIMITING:
     security_config = create_security_config()
     app.add_middleware(SecurityMiddleware, config=security_config)
-    # ProxyHeadersMiddleware must be added after SecurityMiddleware so it runs first,
-    # rewriting request.client with the real IP from X-Forwarded-For before guard sees it.
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     logger.info("Security middleware enabled with rate limiting")
+
+# ProxyHeadersMiddleware must run before everything that reads request.client or
+# request scheme: it rewrites the client IP from X-Forwarded-For and the scheme
+# from X-Forwarded-Proto. Without it, sqladmin generates http:// asset URLs
+# behind the TLS-terminating proxy and browsers block them as mixed content.
+# Added after the conditional block above so it still runs before SecurityMiddleware.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add session middleware for admin authentication.  The admin session is short-lived,
 # restricted to HTTPS in production, and never sent to cross-site requests.

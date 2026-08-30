@@ -213,6 +213,12 @@ class RewardsService:
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
 
+            if item_type in {"stimpak", "radaway"}:
+                # Medical loot is returned via the stimpack/radaway counters in
+                # apply_rewards; creating junk here would double-count it and
+                # burn storage space.
+                continue
+
             # Check if space available
             if items_added >= available_space:
                 overflow.append(loot_item)

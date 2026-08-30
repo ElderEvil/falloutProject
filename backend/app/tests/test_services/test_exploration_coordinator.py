@@ -76,6 +76,36 @@ async def test_transfer_respects_storage_limits(
 
 
 @pytest.mark.asyncio
+async def test_transfer_skips_medical_loot_entries(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Stimpak/radaway loot entries create no junk; medical rewards flow through the counters."""
+    await make_vault_storage(5)
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.add_loot(item_name="Stimpak", quantity=1, rarity="Common", item_type="stimpak")
+    exploration.add_loot(item_name="RadAway", quantity=1, rarity="Common", item_type="radaway")
+    exploration.add_loot(item_name="Wonderglue", quantity=1, rarity="Common", item_type="junk")
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+
+    result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
+
+    assert [item["item_type"] for item in result["transferred"]] == ["junk"]
+    junk_names = {
+        junk.name
+        for junk in (
+            await async_session.execute(select(Junk).where(Junk.storage_id == result["storage_id"]))
+        ).scalars()
+    }
+    assert junk_names == {"Wonderglue"}
+
+
+@pytest.mark.asyncio
 async def test_transfer_prioritizes_rare_items(
     async_session: AsyncSession,
     vault: Vault,

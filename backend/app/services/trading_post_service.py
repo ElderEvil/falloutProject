@@ -115,19 +115,34 @@ class TradingPostService:
         )
 
     async def sell_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> TradeResultResponse:
-        """Sell one of the vault's soft-deleted dwellers for caps."""
+        """Sell one of the vault's soft-deleted dwellers for caps.
+
+        A sale is single-use: the dweller is marked ``is_traded`` so repeated
+        sells are rejected. The dweller stays on the market for other vaults.
+        """
         dweller = await _get_tradable(db_session, dweller_id)
         if dweller.vault_id != vault.id:
             raise VaultOperationException(detail="Dweller does not belong to this vault")
+        if dweller.is_traded:
+            raise VaultOperationException(detail="Dweller was already sold")
 
         price = trade_value(dweller)
         await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=price)
+
+        dweller.is_traded = True
+        db_session.add(dweller)
+        await db_session.commit()
 
         logger.info("Trading Post: vault %s sold dweller %s for %d caps", vault.id, dweller_id, price)
         return TradeResultResponse(dweller_id=dweller_id, price=price, bottle_caps=vault.bottle_caps)
 
     async def buy_dweller(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> TradeResultResponse:
-        """Buy a soft-deleted dweller from another vault; caps go to the seller."""
+        """Buy a soft-deleted dweller from another vault.
+
+        Caps go to the seller vault unless the dweller was already sold once
+        (``is_traded``) — the seller collected the proceeds at sell time, so a
+        later buy must not credit them again.
+        """
         dweller = await _get_tradable(db_session, dweller_id)
         if dweller.vault_id == vault.id:
             raise VaultOperationException(detail="Dweller is already owned by this vault")
@@ -138,7 +153,13 @@ class TradingPostService:
             raise ResourceNotFoundException(Vault, identifier=dweller.vault_id)
 
         await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=seller_vault, amount=price)
+        if not dweller.is_traded:
+            await vault_crud.deposit_caps(db_session=db_session, vault_obj=seller_vault, amount=price)
+        else:
+            logger.info(
+                "Trading Post: dweller %s was already sold once; buy proceeds are kept by the market",
+                dweller_id,
+            )
 
         recycled = await dweller_recycling_service.recycle_dweller_for_vault(
             db_session=db_session,

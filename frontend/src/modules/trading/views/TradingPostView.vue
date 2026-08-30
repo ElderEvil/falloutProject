@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -12,7 +12,7 @@ import TradingPostPanel from '../components/TradingPostPanel.vue'
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
 
-const vaultId = route.params.id as string
+const vaultId = computed(() => route.params.id as string)
 
 const activeTab = ref('dwellers')
 const tabs = [

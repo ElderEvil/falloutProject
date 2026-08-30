@@ -53,7 +53,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
-  async function softDeleteDweller(dwellerId: string, token: string): Promise<Dweller | null> {
+  async function softDeleteDweller(dwellerId: string, token: string): Promise<Dweller> {
     try {
       const response = await axios.post<Dweller>(`/api/v1/dwellers/${dwellerId}/soft-delete`, null, {
         headers: {
@@ -68,12 +68,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       toast.success('Dweller moved to the Trading Post pool')
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Failed to soft-delete dweller'
       handleStoreError(error, `Failed to soft-delete dweller ${dwellerId}`)
-      toast.error(errorMessage)
-      return null
+      throw error
     }
   }
 

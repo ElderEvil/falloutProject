@@ -220,6 +220,68 @@ async def test_buy_own_listing_conflicts(
     assert response.status_code == 400
 
 
+async def test_sell_same_dweller_twice_rejected(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    superuser,
+):
+    """A sale is single-use: the second sell must not grant caps again."""
+    vault = await _make_vault(async_session, superuser)
+    dweller = await _soft_delete(async_session, await _make_dweller(async_session, vault.id, level=5))
+
+    first = await async_client.post(
+        f"/vaults/{vault.id}/trading-post/sell",
+        params={"dweller_id": str(dweller.id)},
+        headers=superuser_token_headers,
+    )
+    assert first.status_code == 200
+
+    second = await async_client.post(
+        f"/vaults/{vault.id}/trading-post/sell",
+        params={"dweller_id": str(dweller.id)},
+        headers=superuser_token_headers,
+    )
+
+    assert second.status_code == 400
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == 1000 + _price(5)  # only one payout
+
+
+async def test_buy_traded_dweller_does_not_credit_seller_again(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    superuser,
+):
+    """Seller collected proceeds at sell time; a later buy must not pay twice."""
+    seller_vault = await _make_vault(async_session, superuser)
+    buyer_vault = await _make_vault(async_session, superuser)
+    listed = await _soft_delete(async_session, await _make_dweller(async_session, seller_vault.id, level=4))
+
+    sold = await async_client.post(
+        f"/vaults/{seller_vault.id}/trading-post/sell",
+        params={"dweller_id": str(listed.id)},
+        headers=superuser_token_headers,
+    )
+    assert sold.status_code == 200
+    seller_caps_after_sell = 1000 + _price(4)
+
+    bought = await async_client.post(
+        f"/vaults/{buyer_vault.id}/trading-post/buy",
+        params={"dweller_id": str(listed.id)},
+        headers=superuser_token_headers,
+    )
+
+    assert bought.status_code == 200
+    await async_session.refresh(seller_vault)
+    assert seller_vault.bottle_caps == seller_caps_after_sell  # no second payout
+
+    await async_session.refresh(listed)
+    assert str(listed.vault_id) == str(buyer_vault.id)
+    assert not listed.is_traded  # recycled into the buyer un-traded
+
+
 async def test_buy_with_insufficient_caps_fails(
     async_client: AsyncClient,
     async_session: AsyncSession,

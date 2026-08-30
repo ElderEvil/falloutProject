@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
@@ -67,6 +67,11 @@ async function buy(offer: TradeOffer) {
 }
 
 onMounted(refreshMarket)
+
+watch(
+  () => props.vaultId,
+  () => refreshMarket()
+)
 </script>
 
 <template>

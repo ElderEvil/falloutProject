@@ -39,42 +39,41 @@ export function getItemIcon(itemType: string, item: IconSource): string {
   return JUNK_ICON
 }
 
-// Rarity -> design-token color / Tailwind classes (tokens in src/assets/tailwind.css)
 type RarityKey = 'common' | 'rare' | 'legendary'
 
-const RARITY_COLORS: Record<RarityKey, string> = {
-  common: 'var(--color-rarity-common)',
-  rare: 'var(--color-rarity-rare)',
-  legendary: 'var(--color-rarity-legendary)',
+const RARITY_TOKENS: Record<RarityKey, { color: string; border: string; text: string }> = {
+  common: {
+    color: 'var(--color-rarity-common)',
+    border: 'border-(--color-rarity-common)',
+    text: 'text-(--color-rarity-common)',
+  },
+  rare: {
+    color: 'var(--color-rarity-rare)',
+    border: 'border-(--color-rarity-rare)',
+    text: 'text-(--color-rarity-rare)',
+  },
+  legendary: {
+    color: 'var(--color-rarity-legendary)',
+    border: 'border-(--color-rarity-legendary)',
+    text: 'text-(--color-rarity-legendary)',
+  },
 }
 
-const RARITY_BORDER_CLASSES: Record<RarityKey, string> = {
-  common: 'border-(--color-rarity-common)',
-  rare: 'border-(--color-rarity-rare)',
-  legendary: 'border-(--color-rarity-legendary)',
-}
-
-const RARITY_TEXT_CLASSES: Record<RarityKey, string> = {
-  common: 'text-(--color-rarity-common)',
-  rare: 'text-(--color-rarity-rare)',
-  legendary: 'text-(--color-rarity-legendary)',
-}
-
-function rarityKey(rarity?: string): RarityKey | undefined {
+function rarityKey(rarity?: string): RarityKey {
   const key = rarity?.trim().toLowerCase()
-  return key === 'common' || key === 'rare' || key === 'legendary' ? key : undefined
+  return key === 'rare' || key === 'legendary' ? key : 'common'
 }
 
 export function getRarityColor(rarity?: string): string {
-  return RARITY_COLORS[rarityKey(rarity) ?? 'common']
+  return RARITY_TOKENS[rarityKey(rarity)].color
 }
 
 export function getRarityBorderClass(rarity?: string): string {
-  return RARITY_BORDER_CLASSES[rarityKey(rarity) ?? 'common']
+  return RARITY_TOKENS[rarityKey(rarity)].border
 }
 
 export function getRarityTextClass(rarity?: string): string {
-  return RARITY_TEXT_CLASSES[rarityKey(rarity) ?? 'common']
+  return RARITY_TOKENS[rarityKey(rarity)].text
 }
 
 // Stat rows shared by item cards
@@ -115,18 +114,19 @@ export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: nu
   return bonuses
 }
 
-interface WeaponStatsSource extends DamageSource {
-  stat?: string
-  accuracy?: number | null
-  weapon_type?: string
+interface CommonItemStats {
   weight?: number
   durability?: number
 }
 
+interface WeaponStatsSource extends DamageSource, CommonItemStats {
+  stat?: string
+  accuracy?: number | null
+  weapon_type?: string
+}
+
 export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
-  const stats: ItemStat[] = [
-    { label: 'Damage', value: getDamageRange(weapon), icon: 'mdi:sword-cross' },
-  ]
+  const stats: ItemStat[] = [{ label: 'Damage', value: getDamageRange(weapon), icon: 'mdi:sword-cross' }]
   if (weapon.stat) stats.push({ label: 'Uses', value: weapon.stat.toUpperCase(), icon: 'mdi:alphabet-latin' })
   if (weapon.accuracy != null) stats.push({ label: 'Accuracy', value: `${weapon.accuracy}%`, icon: 'mdi:target' })
   if (weapon.weapon_type) stats.push({ label: 'Type', value: weapon.weapon_type, icon: 'mdi:tag' })
@@ -135,10 +135,8 @@ export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
   return stats
 }
 
-interface OutfitStatsSource extends BonusSource {
+interface OutfitStatsSource extends BonusSource, CommonItemStats {
   gender?: string | null
-  weight?: number
-  durability?: number
 }
 
 export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {

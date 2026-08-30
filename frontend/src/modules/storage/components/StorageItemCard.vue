@@ -10,10 +10,9 @@ import {
   getWeaponStats,
 } from '@/core/models/items'
 import { useItemImage } from '@/core/composables/useItemImage'
-
 interface Props {
   item: any
-  itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits'
+  itemType: 'weapon' | 'outfit' | 'junk'
   count?: number
 }
 
@@ -25,47 +24,29 @@ const emit = defineEmits<{
   scrap: []
 }>()
 
-// Normalize item type (handle plural forms)
-const normalizedItemType = computed(() => {
-  if (itemType === 'weapons') return 'weapon'
-  if (itemType === 'outfits') return 'outfit'
-  return itemType
-})
+const itemIcon = computed(() => getItemIcon(itemType, item as any))
 
-const itemIcon = computed(() => getItemIcon(normalizedItemType.value, item))
+const rarityBorderClass = computed(() => getRarityBorderClass((item as any).rarity))
 
-const rarityBorderClass = computed(() => getRarityBorderClass(item.rarity))
+const rarityTextClass = computed(() => getRarityTextClass((item as any).rarity))
 
-const rarityTextClass = computed(() => getRarityTextClass(item.rarity))
+const { imageUrl, onImageError } = useItemImage(() => (item as any).image_url)
 
-const { imageUrl, onImageError } = useItemImage(() => item.image_url)
-
-// Format weapon/outfit type for display
 const itemTypeDisplay = computed(() => {
-  if (normalizedItemType.value === 'weapon') {
-    return `${item.weapon_subtype || ''} • ${item.rarity || 'common'}`
-  } else if (normalizedItemType.value === 'outfit') {
-    return `${item.outfit_type || ''} • ${item.rarity || 'common'}`
-  }
-  return item.rarity || 'common'
+  if (itemType === 'weapon') return `${(item as any).weapon_subtype || ''} • ${(item as any).rarity || 'common'}`
+  if (itemType === 'outfit') return `${(item as any).outfit_type || ''} • ${(item as any).rarity || 'common'}`
+  return (item as any).rarity || 'common'
 })
 
-// Unified stat rows (shared with EquipmentCard)
 const itemStats = computed(() => {
-  if (normalizedItemType.value === 'weapon') return getWeaponStats(item)
-  if (normalizedItemType.value === 'outfit') return getOutfitStats(item)
+  if (itemType === 'weapon') return getWeaponStats(item as any)
+  if (itemType === 'outfit') return getOutfitStats(item as any)
   return []
 })
 
-// Show scrap button only for weapons and outfits
-const canScrap = computed(() => {
-  return normalizedItemType.value === 'weapon' || normalizedItemType.value === 'outfit'
-})
+const canScrap = computed(() => itemType === 'weapon' || itemType === 'outfit')
 
-// Show sell all button only for junk items and when there are multiple copies
-const showSellAll = computed(() => {
-  return count > 1 && normalizedItemType.value === 'junk'
-})
+const showSellAll = computed(() => count > 1 && itemType === 'junk')
 </script>
 
 <template>

@@ -241,8 +241,8 @@ class TestPrepareInitialRooms:
         infra, cap, prod, misc, training, arena = service._prepare_initial_rooms(rooms, vault_id, is_boosted=True)
 
         assert len(infra) == 4
-        # capacity: 1 base living + 1 storage + 2 extra living
-        assert len(cap) == 4
+        # capacity: 1 base living + 1 storage + 3 extra living (ceil(25/8)=4 living)
+        assert len(cap) == 5
         # production: 3 base + medbay + science lab = 5
         assert len(prod) == 5
         # misc: radio + overseer's office (arena is separate)

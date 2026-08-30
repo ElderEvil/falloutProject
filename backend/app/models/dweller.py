@@ -160,12 +160,11 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
 
     @property
     def weapon_type(self) -> WeaponTypeEnum | None:
-        """Type of the equipped weapon (weapon must be eager-loaded in async contexts)."""
-        return self.weapon.weapon_type if self.weapon else None
+        weapon = self.__dict__.get("weapon")
+        return weapon.weapon_type if weapon is not None else None
 
     @property
     def combat_power(self) -> float:
-        """Backend-computed combat power: weapon-type-weighted SPECIAL + weapon damage + level bonus."""
         from app.core.game_config import game_config
 
         weapon = self.__dict__.get("weapon")
@@ -173,13 +172,8 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         weights = (
             game_config.combat.weapon_stat_weights.get(weapon_type) or game_config.combat.weapon_stat_weights["unarmed"]
         )
-        stat_power = sum(getattr(self, stat, 0) * w for stat, w in weights.items() if hasattr(self, stat))
-        weapon_damage = 0.0
-        if weapon is not None:
-            try:
-                weapon_damage = (weapon.damage_min + weapon.damage_max) / 2
-            except Exception:
-                weapon_damage = 0.0
+        stat_power = sum(getattr(self, stat, 0) * w for stat, w in weights.items())
+        weapon_damage = (weapon.damage_min + weapon.damage_max) / 2 if weapon is not None else 0.0
         level_bonus = self.level * game_config.combat.level_bonus_multiplier
         return float(stat_power + weapon_damage + level_bonus)
 

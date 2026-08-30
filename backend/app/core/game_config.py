@@ -19,6 +19,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models.incident import IncidentType
+from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
     from app.models.room import Room
@@ -196,11 +197,9 @@ _DEFAULT_WEAPON_STAT_WEIGHTS: dict[str, dict[str, float]] = {
     },
 }
 
-_SPECIAL_KEYS: frozenset[str] = frozenset(
-    {"strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"}
-)
+_SPECIAL_KEYS: frozenset[str] = frozenset(e.value for e in SPECIALEnum)
 
-_REQUIRED_WEAPON_TYPES: frozenset[str] = frozenset({"melee", "gun", "energy", "heavy", "unarmed"})
+_REQUIRED_WEAPON_TYPES: frozenset[str] = frozenset({e.value for e in WeaponTypeEnum} | {"unarmed"})
 
 
 class CombatConfig(BaseSettings):
@@ -220,38 +219,23 @@ class CombatConfig(BaseSettings):
     @field_validator("weapon_stat_weights", mode="before")
     @classmethod
     def validate_weapon_stat_weights(cls, v: dict[str, dict[str, float]] | None) -> dict[str, dict[str, float]]:
-        """Deep-merge partial env overrides with defaults and validate SPECIAL keys.
-
-        `COMBAT_WEAPON_STAT_WEIGHTS` is a JSON dict. Without this validator a partial
-        mapping like `{"melee": {"strength": 0.5}}` would delete `unarmed` and crash
-        `combat_power()` for unarmed dwellers. We preserve required weapon types and
-        validate SPECIAL stat names before combat code uses `getattr`.
-        """
+        """Deep-merge partial env overrides with defaults and validate SPECIAL keys."""
         if v is None:
             return _DEFAULT_WEAPON_STAT_WEIGHTS
         if not isinstance(v, dict):
             raise TypeError("weapon_stat_weights must be a dict")
-        import copy
-
-        merged: dict[str, dict[str, float]] = copy.deepcopy(_DEFAULT_WEAPON_STAT_WEIGHTS)
+        merged = {k: dict(val) for k, val in _DEFAULT_WEAPON_STAT_WEIGHTS.items()}
         for weapon_type, weights in v.items():
             if not isinstance(weights, dict):
                 raise TypeError(f"weapon type '{weapon_type}' must map to a dict of SPECIAL weights")
+            if weapon_type not in _REQUIRED_WEAPON_TYPES:
+                raise ValueError(f"Invalid weapon type {weapon_type!r}")
             for stat, weight in weights.items():
                 if stat not in _SPECIAL_KEYS:
                     raise ValueError(f"Invalid SPECIAL stat '{stat}' for weapon type '{weapon_type}'")
                 if not isinstance(weight, (int, float)) or not 0 <= float(weight) <= 1:
                     raise ValueError(f"Weight for {weapon_type}.{stat} must be a number in [0, 1]")
-            if weapon_type in merged:
-                merged[weapon_type] = {**merged[weapon_type], **weights}
-            else:
-                # Allow unknown weapon types only if they look valid, but keep required ones
-                if weapon_type not in _REQUIRED_WEAPON_TYPES:
-                    raise ValueError(f"Invalid weapon type '{weapon_type}'")
-                merged[weapon_type] = dict(weights)
-        for required in _REQUIRED_WEAPON_TYPES:
-            if required not in merged:
-                raise ValueError(f"Missing required weapon type '{required}'")
+            merged[weapon_type] = {**merged[weapon_type], **weights}
         return merged
 
     # Loot

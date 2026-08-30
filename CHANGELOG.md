@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.63.1 (2026-08-30)
+
+### Bug Fixes
+
+* allow youth apprentices on fully staffed production rooms 966a58c
+
 ## 2.63.0 (2026-08-30)
 
 ### Features

@@ -83,6 +83,7 @@ class AudioManager {
     this.settings.muted = muted
     if (muted) {
       this.currentLoop?.audio.pause()
+      this.musicPreview?.pause()
     } else if (this.pendingLoop) {
       this.playLoop(this.pendingLoop)
     } else if (this.currentLoop) {

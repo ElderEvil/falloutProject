@@ -603,7 +603,8 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 | Version | Release      | Highlights                                                                                                                             |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
-| v2.42.0 | TBD          | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
+| v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links, determinism fix                                         |
+| v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |
 | v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)                                                                                    |
 | v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation                                                                                  |

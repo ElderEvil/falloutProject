@@ -668,12 +668,12 @@ function handleCancel() {
   grid-column: 1 / -1;
 }
 
-.editor-workbench :deep(input) {
+.editor-workbench :deep(input:not([type='range'])) {
   background: transparent;
   border-color: color-mix(in srgb, var(--color-theme-primary) 32%, transparent);
 }
 
-.editor-workbench :deep(input:focus) {
+.editor-workbench :deep(input:not([type='range']):focus) {
   background: color-mix(in srgb, var(--color-theme-primary) 7%, transparent);
 }
 

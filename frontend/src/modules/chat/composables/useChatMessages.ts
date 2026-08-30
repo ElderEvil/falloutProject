@@ -28,15 +28,18 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   // Chat feedback sounds: a single-message append is a live receive (sends are
   // covered by the per-keystroke typewriter); bulk appends are history loads
-  // and stay silent.
+  // and stay silent. The sync flush lets loadChatHistory suppress the watcher
+  // while it replaces the whole list.
   const { playSound } = useSound()
+  let suppressMessageSound = false
   watch(
     () => messages.value.length,
     (newLen, oldLen) => {
-      if (newLen - oldLen !== 1) return
+      if (suppressMessageSound || newLen - oldLen !== 1) return
       const last = messages.value[newLen - 1]
       if (last?.type === 'dweller') playSound('messageReceive')
-    }
+    },
+    { flush: 'sync' }
   )
 
   const getToken = () =>
@@ -129,7 +132,10 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             : undefined,
       }))
 
+      suppressMessageSound = true
       messages.value = history
+      // History replaced the list; re-arm the sound watcher afterwards.
+      suppressMessageSound = false
     } catch (error) {
       handleStoreError(error, 'Error loading chat history')
     }

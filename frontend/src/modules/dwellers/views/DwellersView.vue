@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -61,6 +61,10 @@ const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
 const isAllDwellersLoading = ref(false)
 const isIncidentsLoading = ref(false)
+const distributionCache = shallowRef<ReturnType<
+  typeof happinessService.calculateDistribution
+> | null>(null)
+const vaultLoadError = ref<string | null>(null)
 
 const isDashboardLoading = computed(
   () =>
@@ -70,11 +74,30 @@ const isDashboardLoading = computed(
     !currentVault.value
 )
 
+/**
+ * Distribution with stable identity: the game-tick SSE replaces the vault
+ * object every tick, which would otherwise recreate this object (and re-render
+ * the dashboard) even when no dweller happiness bucket actually changed.
+ */
+const distribution = computed(() => {
+  const next = happinessService.calculateDistribution(dwellerStore.allDwellers)
+  const prev = distributionCache.value
+  if (prev && JSON.stringify(prev) === JSON.stringify(next)) return prev
+  return next
+})
+
+watch(
+  distribution,
+  (next) => {
+    distributionCache.value = next
+  },
+  { immediate: true }
+)
+
 const happinessDashboardData = computed(() => {
   if (!currentVault.value) return null
 
   const population = dwellerStore.allDwellers
-  const distribution = happinessService.calculateDistribution(population)
   const activeIncidents = incidentStore.activeIncidents
 
   // Count idle dwellers
@@ -90,7 +113,7 @@ const happinessDashboardData = computed(() => {
   return {
     vaultHappiness: currentVault.value.happiness || 0,
     dwellerCount: currentVault.value.dweller_count || 0,
-    distribution,
+    distribution: distribution.value,
     idleDwellerCount: idleDwellers.length,
     activeIncidentCount: activeIncidents.length,
     lowResourceCount,
@@ -147,31 +170,26 @@ onMounted(async () => {
     dwellerStore.setFilterAgeGroup(ageGroupParam)
   }
 
-  await fetchDwellers()
-
-  // Fetch all dwellers (unfiltered) for happiness dashboard aggregates
+  // Dashboard aggregates, incidents, and rooms load concurrently: the
+  // dashboard's loading flag then flips once instead of flapping
+  // skeleton -> content -> skeleton per sequential fetch.
   if (authStore.isAuthenticated && vaultId.value) {
+    vaultLoadError.value = null
     isAllDwellersLoading.value = true
-    try {
-      await dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string)
-    } finally {
-      isAllDwellersLoading.value = false
-    }
-  }
-
-  // Fetch rooms to show room assignments
-  if (authStore.isAuthenticated && vaultId.value) {
-    await roomStore.fetchRooms(vaultId.value, authStore.token as string)
-  }
-
-  // Fetch incidents for happiness dashboard
-  if (authStore.isAuthenticated && vaultId.value) {
     isIncidentsLoading.value = true
-    try {
-      await incidentStore.fetchIncidents(vaultId.value, authStore.token as string)
-    } finally {
-      isIncidentsLoading.value = false
-    }
+    await Promise.all([
+      fetchDwellers(),
+      vaultStore.loadVault(vaultId.value, authStore.token as string).catch((error: unknown) => {
+        vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
+      }),
+      dwellerStore.fetchAllDwellers(vaultId.value, authStore.token as string).finally(() => {
+        isAllDwellersLoading.value = false
+      }),
+      incidentStore.fetchIncidents(vaultId.value, authStore.token as string).finally(() => {
+        isIncidentsLoading.value = false
+      }),
+      roomStore.fetchRooms(vaultId.value, authStore.token as string),
+    ])
   }
 })
 
@@ -299,7 +317,13 @@ const handleViewLowHappiness = () => {
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
-            <USkeleton v-if="!currentVault" width="100%" height="120px" rounded="lg" />
+            <USkeleton
+              v-if="!currentVault && !vaultLoadError"
+              width="100%"
+              height="120px"
+              rounded="lg"
+            />
+            <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <HappinessDashboard
               v-else-if="happinessDashboardData"
               :loading="isDashboardLoading"

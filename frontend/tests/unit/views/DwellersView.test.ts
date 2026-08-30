@@ -7,6 +7,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
@@ -17,7 +18,13 @@ describe('DwellersView', () => {
   let _dwellerStore: any
   let vaultStore: any
   let _roomStore: any
+  let incidentStore: any
   let pinia: ReturnType<typeof createPinia>
+
+  const mountView = async () => {
+    await router.isReady()
+    return mount(DwellersView, { global: { plugins: [router, pinia] } })
+  }
 
   beforeEach(() => {
     pinia = createPinia()
@@ -38,6 +45,7 @@ describe('DwellersView', () => {
     _dwellerStore = useDwellerStore()
     vaultStore = useVaultStore()
     _roomStore = useRoomStore()
+    incidentStore = useIncidentStore()
 
     // Mock vault
     vaultStore.loadedVaults['vault-1'] = {
@@ -70,12 +78,7 @@ describe('DwellersView', () => {
     it('should render vault title', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      await router.isReady()
-      const wrapper = mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      const wrapper = await mountView()
       await flushPromises()
 
       expect(wrapper.text()).toContain('Dwellers')
@@ -84,12 +87,7 @@ describe('DwellersView', () => {
     it('should fetch dwellers on mount', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      await router.isReady()
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      await mountView()
       await flushPromises()
 
       // Should call fetchDwellersByVault with correct params
@@ -102,6 +100,34 @@ describe('DwellersView', () => {
     it('should fetch rooms on mount', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
+      await mountView()
+      await flushPromises()
+
+      // Should fetch both dwellers and rooms
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/rooms/vault/vault-1'),
+        expect.any(Object)
+      )
+    })
+
+    it('starts all initial data requests together', async () => {
+      const startedRequests: string[] = []
+      const resolvers: Array<() => void> = []
+      const deferredRequest = (name: string) => {
+        startedRequests.push(name)
+        return new Promise<void>((resolve) => resolvers.push(resolve))
+      }
+
+      vi.spyOn(vaultStore, 'loadVault').mockImplementation(() => deferredRequest('vault'))
+      vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockImplementation(() =>
+        deferredRequest('filtered dwellers')
+      )
+      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockImplementation(() =>
+        deferredRequest('all dwellers')
+      )
+      vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(() => deferredRequest('incidents'))
+      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(() => deferredRequest('rooms'))
+
       await router.isReady()
       mount(DwellersView, {
         global: {
@@ -110,11 +136,35 @@ describe('DwellersView', () => {
       })
       await flushPromises()
 
-      // Should fetch both dwellers and rooms
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/rooms/vault/vault-1'),
-        expect.any(Object)
-      )
+      try {
+        expect(startedRequests).toEqual(
+          expect.arrayContaining(['vault', 'filtered dwellers', 'all dwellers', 'incidents', 'rooms'])
+        )
+      } finally {
+        while (resolvers.length > 0) {
+          resolvers.splice(0).forEach((resolve) => resolve())
+          await flushPromises()
+        }
+      }
+    })
+
+    it('shows an error when the vault cannot be loaded', async () => {
+      delete vaultStore.loadedVaults['vault-1']
+      vi.spyOn(vaultStore, 'loadVault').mockRejectedValue(new Error('Vault unavailable'))
+      vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
+      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockResolvedValue()
+      vi.spyOn(incidentStore, 'fetchIncidents').mockResolvedValue()
+      vi.spyOn(_roomStore, 'fetchRooms').mockResolvedValue()
+
+      await router.isReady()
+      const wrapper = mount(DwellersView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Vault unavailable')
     })
   })
 

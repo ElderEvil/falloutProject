@@ -255,23 +255,18 @@ class BreedingService:
             Created pregnancy
 
         Raises:
+            ResourceNotFoundException: If either parent does not exist.
             ValueError: If either parent is not an adult, or mother is not female, or father is not male.
         """
         from app.schemas.common import AgeGroupEnum, GenderEnum
 
-        mother_query = select(Dweller).where(Dweller.id == mother_id)
-        mother = (await db_session.execute(mother_query)).scalars().first()
-        if not mother:
-            raise ValueError("Mother not found")
+        mother = await dweller_crud.get(db_session, mother_id)
         if mother.age_group != AgeGroupEnum.ADULT:
             raise ValueError("Mother must be an adult")
         if mother.gender != GenderEnum.FEMALE:
             raise ValueError("Mother must be female")
 
-        father_query = select(Dweller).where(Dweller.id == father_id)
-        father = (await db_session.execute(father_query)).scalars().first()
-        if not father:
-            raise ValueError("Father not found")
+        father = await dweller_crud.get(db_session, father_id)
         if father.age_group != AgeGroupEnum.ADULT:
             raise ValueError("Father must be an adult")
         if father.gender != GenderEnum.MALE:
@@ -358,30 +353,17 @@ class BreedingService:
             Newly created child dweller
 
         Raises:
-            ValueError: If pregnancy not found or not due
+            ResourceNotFoundException: If pregnancy or parents not found.
+            ValueError: If pregnancy is not due yet.
         """
-        # Get pregnancy
-        pregnancy_query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
-        pregnancy = (await db_session.execute(pregnancy_query)).scalars().first()
-
-        if not pregnancy:
-            msg = "Pregnancy not found"
-            raise ValueError(msg)
+        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 
         if not pregnancy.is_due:
             msg = "Pregnancy is not due yet"
             raise ValueError(msg)
 
-        # Get parents
-        mother_query = select(Dweller).where(Dweller.id == pregnancy.mother_id)
-        father_query = select(Dweller).where(Dweller.id == pregnancy.father_id)
-
-        mother = (await db_session.execute(mother_query)).scalars().first()
-        father = (await db_session.execute(father_query)).scalars().first()
-
-        if not mother or not father:
-            msg = "Parent dwellers not found"
-            raise ValueError(msg)
+        mother = await dweller_crud.get(db_session, pregnancy.mother_id)
+        father = await dweller_crud.get(db_session, pregnancy.father_id)
 
         # Calculate inherited traits
         child_stats = BreedingService._calculate_inherited_stats(mother, father)
@@ -397,8 +379,6 @@ class BreedingService:
             last_name = father.last_name
 
         # Create a child dweller
-        from app import crud
-
         child_data = {
             "first_name": first_name,
             "last_name": last_name,
@@ -417,7 +397,7 @@ class BreedingService:
         }
 
         child_in = DwellerCreate(**child_data, vault_id=mother.vault_id)
-        child = await crud.dweller.create(db_session=db_session, obj_in=child_in)
+        child = await dweller_crud.create(db_session=db_session, obj_in=child_in)
 
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id
@@ -592,12 +572,7 @@ class BreedingService:
         mother_id: UUID4,
         father_id: UUID4,
     ) -> Pregnancy:
-        mother_query = select(Dweller).where(Dweller.id == mother_id)
-        mother = (await db_session.execute(mother_query)).scalars().first()
-
-        if not mother:
-            msg = "Mother not found"
-            raise ValueError(msg)
+        mother = await dweller_crud.get(db_session, mother_id)
 
         if mother.gender != GenderEnum.FEMALE:
             msg = "Mother must be female"
@@ -607,12 +582,7 @@ class BreedingService:
             msg = "Mother must be adult"
             raise ValueError(msg)
 
-        father_query = select(Dweller).where(Dweller.id == father_id)
-        father = (await db_session.execute(father_query)).scalars().first()
-
-        if not father:
-            msg = "Father not found"
-            raise ValueError(msg)
+        father = await dweller_crud.get(db_session, father_id)
 
         if father.gender != GenderEnum.MALE:
             msg = "Father must be male"
@@ -622,13 +592,7 @@ class BreedingService:
             msg = "Father must be adult"
             raise ValueError(msg)
 
-        existing_query = select(Pregnancy).where(
-            Pregnancy.mother_id == mother_id,
-            Pregnancy.status == PregnancyStatusEnum.PREGNANT,
-        )
-        existing = (await db_session.execute(existing_query)).scalars().first()
-
-        if existing:
+        if await pregnancy_crud.get_active_by_mother(db_session, mother_id):
             msg = "Mother is already pregnant"
             raise ValueError(msg)
 
@@ -639,12 +603,7 @@ class BreedingService:
         db_session: AsyncSession,
         pregnancy_id: UUID4,
     ) -> Pregnancy:
-        query = select(Pregnancy).where(Pregnancy.id == pregnancy_id)
-        pregnancy = (await db_session.execute(query)).scalars().first()
-
-        if not pregnancy:
-            msg = "Pregnancy not found"
-            raise ValueError(msg)
+        pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 
         if pregnancy.status != PregnancyStatusEnum.PREGNANT:
             msg = "Pregnancy is not active"

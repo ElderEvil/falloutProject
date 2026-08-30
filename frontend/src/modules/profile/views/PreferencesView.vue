@@ -10,7 +10,7 @@ import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { UCard, UButton } from '@/core/components/ui'
+import { UCard, UButton, USlider } from '@/core/components/ui'
 
 const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'Display Preferences' }]
 
@@ -313,15 +313,13 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <h3 class="setting-label">{{ option.label }}</h3>
                     <p class="setting-description">{{ option.description }}</p>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    :value="soundVolumes[option.bus]"
-                    @input="setBusVolume(option.bus, Number(($event.target as HTMLInputElement).value))"
-                    class="volume-slider"
+                  <USlider
+                    :model-value="soundVolumes[option.bus]"
+                    :min="0"
+                    :max="1"
+                    :step="0.05"
                     :aria-label="`${option.label} volume`"
+                    @update:model-value="setBusVolume(option.bus, $event)"
                   />
                 </div>
               </template>
@@ -529,12 +527,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   letter-spacing: 0.05em;
 }
 
-/* Volume Slider */
-.volume-slider {
-  width: 160px;
-  accent-color: var(--color-theme-primary);
-  cursor: pointer;
-}
+/* Volume sliders use the shared USlider component */
 
 /* Action Buttons */
 .action-button {

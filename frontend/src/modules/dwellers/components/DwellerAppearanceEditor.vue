@@ -5,6 +5,7 @@ import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UInput from '@/core/components/ui/UInput.vue'
 import USelect from '@/core/components/ui/USelect.vue'
+import USlider from '@/core/components/ui/USlider.vue'
 import type { Dweller, VisualAttributes } from '../models/dweller'
 
 interface Props {
@@ -454,12 +455,10 @@ function handleCancel() {
               <Icon icon="mdi:calendar-outline" class="h-3.5 w-3.5 text-theme-primary/60" />
               Age <strong class="ml-auto text-theme-primary">{{ ageValue }}</strong>
             </span>
-            <input
-              v-model.number="ageValue"
-              type="range"
-              min="18"
-              max="80"
-              class="h-2 w-full cursor-pointer accent-theme-primary"
+            <USlider
+              v-model="ageValue"
+              :min="18"
+              :max="80"
               aria-label="Age"
             />
             <span class="flex justify-between text-xs text-theme-primary/50"><span>18</span><span>80</span></span>

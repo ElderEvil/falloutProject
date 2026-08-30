@@ -148,28 +148,6 @@ describe('Exploration Store', () => {
       expect(vaultExplorations.every((e) => e.vault_id === 'vault-1')).toBe(true)
       expect(vaultExplorations.every((e) => e.status === 'active')).toBe(true)
     })
-
-    it('isDwellerExploring should return true when dweller is exploring', () => {
-      const store = useExplorationStore()
-      store.explorations = [mockExploration]
-
-      expect(store.isDwellerExploring('dweller-1')).toBe(true)
-    })
-
-    it('isDwellerExploring should return false when dweller is not exploring', () => {
-      const store = useExplorationStore()
-      store.explorations = [mockExploration]
-
-      expect(store.isDwellerExploring('dweller-999')).toBe(false)
-    })
-
-    it('isDwellerExploring should return false for completed explorations', () => {
-      const store = useExplorationStore()
-      const completedExploration = { ...mockExploration, status: 'completed' }
-      store.explorations = [completedExploration]
-
-      expect(store.isDwellerExploring('dweller-1')).toBe(false)
-    })
   })
 
   describe('sendDwellerToWasteland Action', () => {

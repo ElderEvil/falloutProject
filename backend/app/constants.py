@@ -6,6 +6,6 @@ For game balance settings, use app.core.game_config instead.
 
 # Grid coordinate limits (fundamental to the vault map layout)
 GRID_X_MIN = 0
-GRID_X_MAX = 8
+GRID_X_MAX = 9
 GRID_Y_MIN = 0
 GRID_Y_MAX = 25

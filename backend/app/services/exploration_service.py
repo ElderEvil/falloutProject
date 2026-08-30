@@ -4,14 +4,17 @@ This service provides a clean API for exploration operations and delegates to
 the modular exploration system in services/exploration/ modules.
 """
 
+from datetime import datetime
+
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import exploration as crud_exploration
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
-from app.models.exploration import Exploration
-from app.schemas.common import AgeGroupEnum
+from app.models.exploration import Exploration, ExplorationStatus
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.coordinator import exploration_coordinator
@@ -167,14 +170,34 @@ class ExplorationService:
         total_stimpaks = stimpaks_from_vault + stimpaks_from_dweller
         total_radaways = radaways_from_vault + radaways_from_dweller
 
-        return await crud_exploration.create_with_dweller_stats(
-            db_session,
+        exploration = Exploration(
             vault_id=vault_id,
             dweller_id=dweller_id,
             duration=duration,
             stimpaks=total_stimpaks,
             radaways=total_radaways,
+            dweller_strength=dweller.strength,
+            dweller_perception=dweller.perception,
+            dweller_endurance=dweller.endurance,
+            dweller_charisma=dweller.charisma,
+            dweller_intelligence=dweller.intelligence,
+            dweller_agility=dweller.agility,
+            dweller_luck=dweller.luck,
+            start_time=datetime.utcnow(),
+            status=ExplorationStatus.ACTIVE,
         )
+        db_session.add(exploration)
+
+        await dweller_crud.update(
+            db_session,
+            dweller_id,
+            DwellerUpdate(status=DwellerStatusEnum.EXPLORING),
+            commit=False,
+        )
+
+        await db_session.commit()
+        await db_session.refresh(exploration)
+        return exploration
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:
         """Get current progress of an exploration.

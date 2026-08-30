@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDwellerStore } from '../stores/dweller'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
@@ -11,7 +10,6 @@ import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-const explorationStore = useExplorationStore()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -26,12 +24,8 @@ const unassignedDwellers = computed(() => {
     // Must not have a room assignment
     if (dweller.room_id) return false
 
-    // Must not be actively exploring in wasteland
-    const isExploring = explorationStore.isDwellerExploring(dweller.id)
-    if (isExploring) return false
-
-    // Must not be dead (unless we want to see dead bodies to unassign? No, dead dwellers are handled elsewhere usually)
-    if (dweller.status === 'dead') return false
+    // Must not be out of the vault (exploring or on a quest) or dead
+    if (['dead', 'questing', 'exploring'].includes(dweller.status)) return false
 
     return true
   })

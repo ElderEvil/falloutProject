@@ -449,7 +449,7 @@ class TestBuild:
         base = _make_room_create()
         room_in = RoomCreate.model_construct(
             **base.model_dump(exclude={"coordinate_x", "size_min"}),
-            coordinate_x=7,
+            coordinate_x=8,
             size_min=3,
         )
         with pytest.raises(ValueError, match="Room exceeds grid width"):

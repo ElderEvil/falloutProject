@@ -13,6 +13,7 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
+from app.services.exploration_service import exploration_service
 
 
 @pytest.mark.asyncio
@@ -75,12 +76,7 @@ async def test_send_dweller_already_exploring(
         dweller_id=dweller.id,
         duration=4,
     )
-    await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Try to send the same dweller again
     response = await async_client.post(
@@ -126,27 +122,18 @@ async def test_list_explorations_active_only(
 ) -> None:
     """Test listing only active explorations for a vault."""
     # Create active exploration
-    active_exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    active_exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Create completed exploration
     from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
     dweller2_data = create_fake_dweller()
+    dweller2_data = create_fake_adult_dweller()
     dweller2_data["vault_id"] = vault.id
     dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
 
-    completed_exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller2.id,
-        duration=4,
-    )
+    completed_exploration = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=4)
     await crud.exploration.complete_exploration(async_session, exploration_id=completed_exploration.id)
 
     # List active only
@@ -185,12 +172,7 @@ async def test_get_exploration_details(
     dweller: Dweller,
 ) -> None:
     """Test getting detailed exploration information."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some events and loot
     exploration = await crud.exploration.add_event(
@@ -223,12 +205,7 @@ async def test_get_exploration_progress(
     dweller: Dweller,
 ) -> None:
     """Test getting exploration progress."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.get(
         f"/explorations/{exploration.id}/progress",
@@ -256,12 +233,7 @@ async def test_recall_dweller_success(
     dweller: Dweller,
 ) -> None:
     """Test successfully recalling a dweller from exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot
     exploration = await crud.exploration.add_loot(
@@ -315,12 +287,7 @@ async def test_recall_dweller_not_active(
     dweller: Dweller,
 ) -> None:
     """Test error when trying to recall a completed exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
 
     response = await async_client.post(
@@ -341,12 +308,7 @@ async def test_complete_exploration_success(
     dweller: Dweller,
 ) -> None:
     """Test successfully completing an exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot and stats
     exploration = await crud.exploration.add_loot(
@@ -406,12 +368,7 @@ async def test_complete_exploration_before_duration_is_rejected(
     dweller: Dweller,
 ) -> None:
     """Only recall may end an active expedition before its duration elapses."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.post(
         f"/explorations/{exploration.id}/complete",
@@ -432,12 +389,7 @@ async def test_complete_exploration_not_active(
     dweller: Dweller,
 ) -> None:
     """Test error when trying to complete a recalled exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.recall_exploration(async_session, exploration_id=exploration.id)
 
     response = await async_client.post(
@@ -458,12 +410,7 @@ async def test_generate_event_success(
     dweller: Dweller,
 ) -> None:
     """Test manually generating an event for testing."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.post(
         f"/explorations/{exploration.id}/generate_event",
@@ -486,12 +433,7 @@ async def test_generate_event_not_active(
     dweller: Dweller,
 ) -> None:
     """Test error when trying to generate event for inactive exploration."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
 
     response = await async_client.post(

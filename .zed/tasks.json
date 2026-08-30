@@ -42,6 +42,17 @@
     "save": "all"
   },
   {
+    "label": "Fallout: Rebuild dramatiq worker",
+    "command": "sh",
+    "args": ["-c", "podman compose -f docker-compose.infra.yml down && podman compose -f docker-compose.infra.yml up -d --build dramatiq_worker"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "on_success",
+    "save": "none"
+  },
+  {
     "label": "Fallout: Stop Podman infrastructure",
     "command": "podman",
     "args": ["compose", "-f", "docker-compose.infra.yml", "down"],

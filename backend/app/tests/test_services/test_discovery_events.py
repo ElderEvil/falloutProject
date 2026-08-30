@@ -33,12 +33,7 @@ async def test_discovery_event_generated_when_chance_is_1(
     dweller: Dweller,
 ):
     """Happy: monkeypatch event_discovery_chance to 1.0 → every event is discovery."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -71,12 +66,7 @@ async def test_add_event_persists_location_name(
     dweller: Dweller,
 ):
     """add_event with location_name persists the key into exploration.events[-1]."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -98,12 +88,7 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
     dweller: Dweller,
 ) -> None:
     """The map route comes from events, not the de-duplicated location row."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     location = await map_service.register_discovery(async_session, vault.id, exploration.id, dweller.id, "Rusty Depot")
     assert location is not None
 
@@ -156,12 +141,7 @@ async def test_no_discovery_when_chance_is_0(
     dweller: Dweller,
 ):
     """Failure: chance 0.0 → no discovery events across 200 draws."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -198,12 +178,7 @@ async def test_event_without_location_name_persists_as_before(
     dweller: Dweller,
 ):
     """Regression: event WITHOUT location_name persists exactly as before — no new key in dict."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -225,12 +200,7 @@ async def test_coordinator_uses_location_name(
     dweller: Dweller,
 ):
     """Happy: process_event (via exploration_service) with discovery event persists location_name."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -256,12 +226,7 @@ async def test_process_event_registers_discovery_location(
     dweller: Dweller,
 ):
     """Happy: process_event with discovery → DISCOVERY WastelandLocation row exists."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -305,12 +270,7 @@ async def test_process_event_discovery_unlocks_location_on_map(
     dweller: Dweller,
 ):
     """Happy: a discovery event unlocks the place for the exploring dweller."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 
@@ -337,12 +297,7 @@ async def test_process_event_register_discovery_failure_does_not_break_event(
     dweller: Dweller,
 ):
     """Failure: register_discovery raises → event still persisted, no exception propagates."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
 

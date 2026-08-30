@@ -12,6 +12,7 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.models.wasteland_location import DwellerLocation
 from app.services.discovery_backfill_service import discovery_backfill_service
+from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
 
 
@@ -20,12 +21,7 @@ async def test_backfill_unlocks_discoveries_and_is_idempotent(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """First run unlocks every discovery; a second run changes nothing."""
-    exploration = await crud.exploration.create_with_dweller_stats(
-        async_session,
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
 
     location = await map_service.register_discovery(

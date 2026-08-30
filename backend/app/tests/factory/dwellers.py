@@ -2,7 +2,7 @@ import random
 
 from faker import Faker
 
-from app.schemas.common import GenderEnum, RarityEnum
+from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
 fake = Faker()
@@ -29,6 +29,10 @@ def create_fake_dweller():
         "stimpack": random.randint(0, 15),
         "radaway": random.randint(0, 15),
     }
+
+
+def create_fake_adult_dweller():
+    return create_fake_dweller() | {"is_adult": True, "age_group": AgeGroupEnum.ADULT}
 
 
 def create_random_common_dweller(gender: GenderEnum | None = None):

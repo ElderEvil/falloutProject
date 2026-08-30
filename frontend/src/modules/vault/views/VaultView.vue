@@ -125,8 +125,7 @@ const questingCount = computed(
 const unassignedCount = computed(
   () =>
     dwellerStore.dwellers.filter(
-      (dweller) =>
-        !dweller.room_id && dweller.status !== 'dead' && !explorationStore.isDwellerExploring(dweller.id)
+      (dweller) => !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
     ).length
 )
 const dwellersPath = computed(() => `/vault/${vaultId.value}/dwellers`)

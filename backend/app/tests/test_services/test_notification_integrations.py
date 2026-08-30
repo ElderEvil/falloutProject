@@ -11,6 +11,7 @@ from app.models.exploration import ExplorationStatus
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.notification import NotificationType
 from app.services.exploration.coordinator import ExplorationCoordinator
+from app.services.exploration_service import exploration_service
 from app.services.incident_service import IncidentService
 from app.services.notification_service import NotificationService
 from app.services.radio_service import RadioService
@@ -31,10 +32,10 @@ class TestExplorationNotifications:
 
         # Create completed exploration
         # Create exploration using proper method that captures dweller stats
-        exploration = await crud.exploration.create_with_dweller_stats(
-            db_session=async_session,
-            vault_id=vault.id,
-            dweller_id=dweller_in_vault.id,
+        exploration = await exploration_service.send_dweller(
+            async_session,
+            vault.id,
+            dweller_in_vault.id,
             duration=1,
             stimpaks=0,
             radaways=0,

@@ -27,7 +27,7 @@ class RoomBase(SQLModel):
     size_max: int = Field(ge=1, le=9)
     size: int | None = Field(default=None, ge=1, le=9)
     tier: int = Field(default=1, ge=1, le=3)
-    coordinate_x: int | None = Field(default=None, ge=0, le=8)
+    coordinate_x: int | None = Field(default=None, ge=0, le=9)
     coordinate_y: int | None = Field(default=None, ge=0, le=25)
     image_url: str | None = Field(default=None)
     speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)

@@ -162,6 +162,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def get_adults_with_partners_in_rooms(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        room_ids: list[UUID4],
+    ) -> Sequence[Dweller]:
+        """Active adults with a partner currently assigned to any of the given rooms."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.partner_id.is_not(None))
+            .where(self.model.room_id.in_(room_ids))
+            .where(self.model.age_group == AgeGroupEnum.ADULT)
+            .where(~self.model.is_deleted)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
     @staticmethod
     async def create_random(
         db_session: AsyncSession,

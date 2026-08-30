@@ -44,6 +44,7 @@ class AudioManager {
   private settings: AudioSettings = loadSettings()
   private unlocked = false
   private sfxBuffers = new Map<SoundKey, HTMLAudioElement>()
+  private musicPreview: HTMLAudioElement | null = null
   private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
   private pendingLoop: MusicKey | null = null
 
@@ -117,6 +118,21 @@ class AudioManager {
     audio.play().catch(() => {
       // Missing file or interrupted play — stay silent by design.
     })
+  }
+
+  /** One-shot sample of the music bus at its current volume (volume sliders). */
+  previewMusic(): void {
+    if (this.settings.muted || !this.unlocked) return
+    const src = MUSIC_MANIFEST.vaultAmbient
+    if (!src) return
+
+    if (!this.musicPreview) {
+      this.musicPreview = new Audio(src)
+      this.musicPreview.preload = 'auto'
+    }
+    this.musicPreview.currentTime = 0
+    this.musicPreview.volume = this.settings.volumes.music
+    this.musicPreview.play().catch(() => {})
   }
 
   /** Start a looping music track (one loop at a time; restarts if same key). */

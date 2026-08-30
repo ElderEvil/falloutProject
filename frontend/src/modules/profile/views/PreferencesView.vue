@@ -45,11 +45,15 @@ const soundBusOptions: { bus: AudioBus; label: string; description: string }[] =
 const toggleSound = () => {
   soundMuted.value = !soundMuted.value
   audioManager.setMuted(soundMuted.value)
+  if (!soundMuted.value) audioManager.play('success', 'ui')
 }
 
 const setBusVolume = (bus: AudioBus, volume: number) => {
   soundVolumes.value[bus] = volume
   audioManager.setVolume(bus, volume)
+  // Audible feedback: play that bus's sample so the change is heard live.
+  if (bus === 'music') audioManager.previewMusic()
+  else audioManager.play(bus === 'sfx' ? 'success' : 'select', bus)
 }
 
 // Persist theme to the user profile so fetchProfile() does not reset the

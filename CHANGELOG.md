@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.62.1 (2026-08-30)
+
+### Bug Fixes
+
+* **changelog:** keep release notes plain text 2e24199
+* **exploration:** correct storage lookup in coordinator c2558a0
+* **game_loop:** use Dweller string representation for level-up log ce39442
+* **review:** conception soft-delete safety and tick retry idempotency d8b53d0
+* **rooms:** widen vault grid to fit full-width crafting rooms 3eeb970
+
+### Code Refactoring
+
+* **game-loop:** fail fast by narrowing try/except e8a837c
+* unify exploration and breeding crud/service split 587a2a3
+
 ## 2.62.0 (2026-08-30)
 
 ### Features

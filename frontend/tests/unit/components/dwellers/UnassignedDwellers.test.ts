@@ -138,7 +138,7 @@ describe('UnassignedDwellers', () => {
 
       expect(wrapper.find('.dweller-card').exists()).toBe(true)
       expect(wrapper.text()).toContain('John Doe')
-      expect(wrapper.text()).toContain('Level 5')
+      expect(wrapper.text()).toContain('Lv 5')
     })
 
     it('should display all SPECIAL stats', () => {
@@ -195,6 +195,85 @@ describe('UnassignedDwellers', () => {
 
       expect(wrapper.find('.dweller-card').exists()).toBe(false)
       expect(wrapper.text()).toContain('All dwellers are assigned!')
+    })
+  })
+
+  describe('Filters', () => {
+    const adultDweller = {
+      ...mockDweller,
+      id: 'dweller-adult',
+      first_name: 'Ada',
+      age_group: 'adult',
+      rarity: 'legendary',
+    }
+    const childDweller = {
+      ...mockDweller,
+      id: 'dweller-child',
+      first_name: 'Tim',
+      age_group: 'child',
+      rarity: 'common',
+    }
+
+    const clickChip = async (wrapper: ReturnType<typeof mount>, label: string) => {
+      const chip = wrapper.findAll('.chip').find((c) => c.text() === label)
+      expect(chip).toBeTruthy()
+      await chip!.trigger('click')
+    }
+
+    it('should render age and rarity filter chips', () => {
+      dwellerStore.dwellers = [mockDweller]
+
+      const wrapper = mount(UnassignedDwellers)
+
+      const labels = wrapper.findAll('.chip').map((c) => c.text())
+      expect(labels).toContain('All Ages')
+      expect(labels).toContain('Adult')
+      expect(labels).toContain('Legendary')
+    })
+
+    it('should filter cards by age group', async () => {
+      dwellerStore.dwellers = [adultDweller, childDweller]
+
+      const wrapper = mount(UnassignedDwellers)
+      expect(wrapper.findAll('.dweller-card').length).toBe(2)
+
+      await clickChip(wrapper, 'Adult')
+
+      const cards = wrapper.findAll('.dweller-card')
+      expect(cards.length).toBe(1)
+      expect(cards[0].text()).toContain('Ada')
+    })
+
+    it('should filter cards by rarity', async () => {
+      dwellerStore.dwellers = [adultDweller, childDweller]
+
+      const wrapper = mount(UnassignedDwellers)
+
+      await clickChip(wrapper, 'Legendary')
+
+      const cards = wrapper.findAll('.dweller-card')
+      expect(cards.length).toBe(1)
+      expect(cards[0].text()).toContain('Ada')
+    })
+
+    it('should show a filtered-out message instead of the all-assigned state', async () => {
+      dwellerStore.dwellers = [adultDweller]
+
+      const wrapper = mount(UnassignedDwellers)
+
+      await clickChip(wrapper, 'Child')
+
+      expect(wrapper.text()).toContain('No dwellers match the filters')
+      expect(wrapper.text()).not.toContain('All dwellers are assigned!')
+    })
+
+    it('should tint the avatar ring by rarity', () => {
+      dwellerStore.dwellers = [adultDweller]
+
+      const wrapper = mount(UnassignedDwellers)
+
+      const avatar = wrapper.find('.dweller-avatar')
+      expect(avatar.attributes('style')).toContain('--rarity-ring')
     })
   })
 

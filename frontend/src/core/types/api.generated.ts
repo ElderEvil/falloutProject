@@ -5582,6 +5582,7 @@ export interface components {
             is_adult: boolean;
             age_group: components["schemas"]["AgeGroupEnum"];
             gender: components["schemas"]["GenderEnum"];
+            rarity: components["schemas"]["RarityEnum"];
             /** Birth Date */
             birth_date?: string | null;
             apprentice_stat?: components["schemas"]["SPECIALEnum"] | null;
@@ -14686,7 +14687,9 @@ export interface operations {
     };
     auto_assign_production_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_production_post: {
         parameters: {
-            query?: never;
+            query?: {
+                age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            };
             header?: never;
             path: {
                 vault_id: string;
@@ -14717,7 +14720,9 @@ export interface operations {
     };
     auto_assign_all_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_all_post: {
         parameters: {
-            query?: never;
+            query?: {
+                age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            };
             header?: never;
             path: {
                 vault_id: string;

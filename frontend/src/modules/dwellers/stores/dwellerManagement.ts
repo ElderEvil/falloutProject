@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 import type { Dweller } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
 import { getLineage, type LineageResponse } from '../services/lineageService'
+
+type AutoAssignResponse = components['schemas']['AutoAssignResponse']
+type AutoAssignAgeGroup = components['schemas']['AgeGroupEnum']
 
 export const useDwellerManagementStore = defineStore('dwellerManagement', () => {
   const toast = useToast()
@@ -243,13 +247,19 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     }
   }
 
-  async function autoAssignProductionDwellers(
+  /** Shared auto-assign request: POST with optional filters, refetch, toast. */
+  async function autoAssignDwellers(
+    endpoint: 'auto-assign-production' | 'auto-assign-all',
     vaultId: string,
-    token: string
-  ): Promise<{ assigned_count: number; assignments: any[] } | null> {
+    token: string,
+    filters: { ageGroup?: AutoAssignAgeGroup } | undefined,
+    successSuffix: string,
+    failureLabel: string
+  ): Promise<AutoAssignResponse | null> {
     try {
-      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
-        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-production`,
+      const queryString = filters?.ageGroup ? `?age_group=${filters.ageGroup}` : ''
+      const response = await axios.post<AutoAssignResponse>(
+        `/api/v1/vaults/${vaultId}/dwellers/${endpoint}${queryString}`,
         null,
         {
           headers: {
@@ -259,57 +269,46 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       )
 
       // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId, token)
+      await filterStore.fetchDwellersByVault(vaultId, token, {
+        status: filterStore.filterStatus,
+        ageGroup: filterStore.filterAgeGroup,
+        sortBy: filterStore.sortBy,
+        order: filterStore.sortDirection,
+      })
 
-      toast.success(`Assigned ${response.data.assigned_count} dwellers to production rooms!`)
+      toast.success(`Assigned ${response.data.assigned_count} dwellers ${successSuffix}`)
       return response.data
-    } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to auto-assign dwellers to production rooms'
-      handleStoreError(
-        error,
-        `Failed to auto-assign dwellers to production rooms for vault ${vaultId}`
-      )
-      toast.error(errorMessage)
+    } catch (error) {
+      const errorMessage = handleStoreError(error, `${failureLabel} for vault ${vaultId}`)
+      toast.error(errorMessage || failureLabel)
       return null
     }
   }
 
-  async function autoAssignAllDwellers(
+  function autoAssignProductionDwellers(
     vaultId: string,
-    token: string
-  ): Promise<{ assigned_count: number; assignments: any[] } | null> {
-    try {
-      const response = await axios.post<{ assigned_count: number; assignments: any[] }>(
-        `/api/v1/vaults/${vaultId}/dwellers/auto-assign-all`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+    token: string,
+    filters?: { ageGroup?: AutoAssignAgeGroup }
+  ) {
+    return autoAssignDwellers(
+      'auto-assign-production',
+      vaultId,
+      token,
+      filters,
+      'to production rooms!',
+      'Failed to auto-assign dwellers to production rooms'
+    )
+  }
 
-      // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId, token)
-
-      toast.success(`Assigned ${response.data.assigned_count} dwellers to rooms!`)
-      return response.data
-    } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to auto-assign dwellers'
-      handleStoreError(error, `Failed to auto-assign dwellers for vault ${vaultId}`)
-      toast.error(errorMessage)
-      return null
-    }
+  function autoAssignAllDwellers(vaultId: string, token: string, filters?: { ageGroup?: AutoAssignAgeGroup }) {
+    return autoAssignDwellers(
+      'auto-assign-all',
+      vaultId,
+      token,
+      filters,
+      'to rooms!',
+      'Failed to auto-assign dwellers'
+    )
   }
 
   async function fetchLineage(dwellerId: string): Promise<LineageResponse | null> {

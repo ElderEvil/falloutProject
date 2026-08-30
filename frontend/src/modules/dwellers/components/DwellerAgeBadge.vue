@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DwellerBadge from './DwellerBadge.vue'
+import type { components } from '@/core/types/api.generated'
 
-type AgeGroup = 'child' | 'teen' | 'adult'
+type AgeGroup = components['schemas']['AgeGroupEnum']
 
 const props = withDefaults(
   defineProps<{

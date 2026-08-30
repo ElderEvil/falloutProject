@@ -170,6 +170,7 @@ class DwellerReadLess(SQLModel):
     is_adult: bool
     age_group: AgeGroupEnum
     gender: GenderEnum
+    rarity: RarityEnum
     birth_date: datetime | None = None
     apprentice_stat: SPECIALEnum | None = None
     apprentice_started_at: datetime | None = None

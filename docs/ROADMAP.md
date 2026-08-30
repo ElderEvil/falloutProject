@@ -141,6 +141,9 @@ identity layer across the vault—without adding new gameplay rules or duplicati
   existing options modules; validate race/faction combinations whenever visual attributes are saved.
 - 🔄 **Identity dossiers** — add reusable race/faction insignia, lore-aware labels, and compact state descriptions to
   dweller cards, grid items, quest parties, exploration, and the dweller detail view.
+- 🔄 **Badge & tooltip unification** — identity badges (race, faction) and demographic badges (rarity, gender, age)
+  currently mix tooltip implementations (`UTooltip` vs native `title`) and visual treatments; consolidate on one
+  badge component and one tooltip pattern, keeping the styleguide's informational intent (`--glow-0`, no fill).
 - 🔄 **Appearance presets** — offer the existing archetypes (Vault Dweller, Brotherhood Knight, NCR Ranger, Ghoul
   Mercenary, Institute Courser, and others) as previewable appearance-editor presets; presets only populate visual
   attributes and never grant equipment or stats.
@@ -510,6 +513,13 @@ consume the same `combat_power()`; per-type unit tests cover primary-beats-secon
     dweller visuals can show items the dweller does not own.
   - **Fix:** Constrain visual-attribute generation to equipped or owned items.
   - **Effort:** medium.
+- [x] **Bigger status badge in dwellers grid view**
+  - **Where:** `frontend/src/modules/dwellers/components/grid/DwellerGridItem.vue`
+  - **Issue:** the status badge is small relative to the card, hurting at-a-glance readability compared with the
+    list view.
+  - **Fix:** moved to a labeled `medium` overlay on the card thumbnail (top-left), out of the cramped header badge
+    row; keeps the styleguide's live-status intent.
+  - **Effort:** small. ✅ Done
 
 ---
 

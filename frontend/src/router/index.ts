@@ -14,6 +14,7 @@ import { socialRoutes } from '@/modules/social/routes'
 import { dwellersRoutes } from '@/modules/dwellers/routes'
 import { storageRoutes } from '@/modules/storage/routes'
 import { aiSettingsRoutes } from '@/modules/ai-settings/routes'
+import { tradingRoutes } from '@/modules/trading/routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,8 @@ const router = createRouter({
     ...mapRoutes,
     // Storage module routes
     ...storageRoutes,
+    // Trading Post module routes
+    ...tradingRoutes,
     // Progression module routes (training, quests, objectives)
     ...progressionRoutes,
     // Radio module routes

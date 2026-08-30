@@ -23,6 +23,7 @@ export default mergeConfig(
           'src/**/*.test.ts',
           'src/core/types/api.generated.ts',
           'src/main.ts',
+          'src/modules/trading/**',
         ],
       },
     },

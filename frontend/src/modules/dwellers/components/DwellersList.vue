@@ -12,6 +12,7 @@ import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
+import DwellerListRow from './DwellerListRow.vue'
 
 interface Props {
   dwellers: DwellerShort[]
@@ -59,72 +60,47 @@ const getRoomStat = (
       <DwellerCardSkeleton v-for="i in 3" :key="`skeleton-${i}`" />
     </template>
 
-    <li
+    <DwellerListRow
       v-for="dweller in dwellers"
       v-else
       :key="dweller.id"
-      class="flex cursor-pointer items-center gap-3 rounded border border-theme-primary/20 bg-surface-canvas p-3 transition-all hover:bg-surface-hover"
-      role="button"
-      tabindex="0"
-      @click="emit('view-details', dweller.id)"
-      @keydown.enter.prevent="emit('view-details', dweller.id)"
-      @keydown.space.prevent="emit('view-details', dweller.id)"
+      :dweller="dweller"
+      @activate="emit('view-details', dweller.id)"
     >
-      <div class="flex-shrink-0">
-        <DwellerPortrait
-          :thumbnail-url="dweller.thumbnail_url"
-          alt=""
-          url-mode="static"
-          fallback-icon="mdi:account-circle"
-          image-class="h-16 w-16 rounded object-cover"
-          fallback-class="h-16 w-16 text-theme-primary/60"
-        />
-      </div>
-
-      <div class="dweller-identity flex w-44 min-w-0 flex-col">
-        <h3 class="truncate text-base font-bold text-terminal-green">
-          {{ dweller.first_name }} {{ dweller.last_name }}
-        </h3>
-        <div class="flex items-center gap-2">
-          <p class="text-sm text-theme-primary/60">Level {{ dweller.level }}</p>
-          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
-          <DwellerGenderBadge :gender="dweller.gender" size="sm" />
-          <DwellerRarityBadge :rarity="dweller.rarity" size="sm" />
-        </div>
-      </div>
-
-      <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
-      <div class="flex-shrink-0">
-        <DwellerStatusBadge :status="dweller.status" :show-label="true" size="small" />
-      </div>
-      <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
-
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-1.5">
-          <Icon icon="mdi:heart" class="h-4 w-4 text-red-400" />
-          <span class="text-sm font-semibold">{{ dweller.health }} / {{ dweller.max_health }}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-yellow-400" />
-          <span class="text-sm font-semibold">{{ dweller.happiness }}%</span>
-        </div>
-      </div>
-
-      <template v-if="getRoomStat(dweller)">
+      <template #middle>
         <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
-        <div class="flex items-center gap-1.5">
-          <Icon
-            :icon="getRoomStat(dweller)!.icon"
-            :class="getRoomStat(dweller)!.isPower ? 'text-orange-400' : 'text-theme-primary/60'"
-            class="h-4 w-4"
-          />
-          <span class="text-sm font-semibold">
-            {{ getRoomStat(dweller)!.label }}: {{ getRoomStat(dweller)!.value }}
-          </span>
+        <div class="flex-shrink-0">
+          <DwellerStatusBadge :status="dweller.status" :show-label="true" size="small" />
         </div>
+        <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
+
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1.5">
+            <Icon icon="mdi:heart" class="h-4 w-4 text-red-400" />
+            <span class="text-sm font-semibold">{{ dweller.health }} / {{ dweller.max_health }}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-yellow-400" />
+            <span class="text-sm font-semibold">{{ dweller.happiness }}%</span>
+          </div>
+        </div>
+
+        <template v-if="getRoomStat(dweller)">
+          <div class="h-10 w-px flex-shrink-0 bg-theme-primary/20"></div>
+          <div class="flex items-center gap-1.5">
+            <Icon
+              :icon="getRoomStat(dweller)!.icon"
+              :class="getRoomStat(dweller)!.isPower ? 'text-orange-400' : 'text-theme-primary/60'"
+              class="h-4 w-4"
+            />
+            <span class="text-sm font-semibold">
+              {{ getRoomStat(dweller)!.label }}: {{ getRoomStat(dweller)!.value }}
+            </span>
+          </div>
+        </template>
       </template>
 
-      <div class="ml-auto flex items-center gap-2">
+      <template #actions>
         <div
           v-if="getRoomForDweller(dweller.room_id)"
           class="flex cursor-pointer items-center gap-2 rounded border border-theme-primary/30 bg-surface-raised px-3 py-1.5 text-sm font-medium text-theme-primary/80 transition-all hover:bg-surface-hover"
@@ -145,8 +121,8 @@ const getRoomStat = (
           </button>
         </div>
         <Icon icon="mdi:chevron-right" class="h-5 w-5 flex-shrink-0 text-terminal-green/50" />
-      </div>
-    </li>
+      </template>
+    </DwellerListRow>
   </ul>
 
   <div v-else class="w-full dweller-grid">

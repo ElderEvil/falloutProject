@@ -286,3 +286,6 @@ locust/*.html
 .omo/
 # Backend runtime logs
 backend/logs/
+
+# Local audio source library (curated copies live in frontend/public/audio)
+/assets/audio/

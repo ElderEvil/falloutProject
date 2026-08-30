@@ -5,6 +5,7 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { useSound } from '@/core/composables/useSound'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import axios from '@/core/plugins/axios'
 
@@ -22,6 +23,7 @@ interface Notification {
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { playSound } = useSound()
 const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
@@ -128,6 +130,7 @@ watch(currentSseEvent, (evt) => {
     }
     notifications.value.unshift(newNotif)
     unreadCount.value++
+    playSound('notification')
 })
 
 const fetchNotifications = async () => {

@@ -7,6 +7,7 @@ import { useVaultStore } from '../stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useSound } from '@/core/composables/useSound'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
 import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
@@ -46,6 +47,7 @@ const toast = useToast()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
+const { playMusic, stopMusic } = useSound()
 const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
@@ -279,6 +281,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 onMounted(async () => {
   // Initial load is handled by the watcher
   window.addEventListener('keydown', handleKeyPress)
+  playMusic('vaultAmbient')
 })
 
 onUnmounted(() => {
@@ -286,6 +289,7 @@ onUnmounted(() => {
   vaultStore.stopResourcePolling()
   incidentStore.stopPolling()
   window.removeEventListener('keydown', handleKeyPress)
+  stopMusic()
 })
 
 const toggleBuildMode = async () => {

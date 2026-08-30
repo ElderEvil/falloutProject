@@ -163,14 +163,16 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     // Find the target room
     const targetRoom = rooms.value.find((r) => r.id === roomId)
 
-    // Check room capacity
-    if (targetRoom) {
+    // Check room capacity. Youth apprentices sit outside worker capacity
+    // (backend policy: one per production room) — gate adults on staffed
+    // slots only; apprentices never count toward them.
+    if (targetRoom && dwellerStore.dwellers.find((d) => d.id === dwellerId)?.is_adult !== false) {
       const capacity = getTrainingRoomCapacity(targetRoom)
-      const currentDwellers = dwellerStore.dwellers.filter((d) => d.room_id === roomId).length
-
-      // Prevent assignment if room is full (unless moving from same room)
-      if (currentDwellers >= capacity && currentRoomId !== roomId) {
-        toast.warning(`${targetRoom.name} is full (${currentDwellers}/${capacity})`)
+      const staffedDwellers = dwellerStore.dwellers.filter(
+        (d) => d.room_id === roomId && !d.apprentice_stat
+      ).length
+      if (staffedDwellers >= capacity) {
+        toast.warning(`${targetRoom.name} is full (${staffedDwellers}/${capacity})`)
         return
       }
     }

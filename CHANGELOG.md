@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.65.0 (2026-08-30)
+
+### Features
+
+* chat UI avatar refactor via DwellerPortrait; fix tall-thumbnail centering 948162c
+* map sounds to actions — clicks, room modals, chat messaging c290df0
+* sound settings in profile preferences, disabled by default 01a742b
+* sound system foundation — audio manager, SFX manifest, first wiring 8bd3040
+* typewriter keystroke sound in chat; drop modal-close and send sounds 235ef21
+* unify all range sliders into shared USlider component 4f08e84
+* USlider filled track + thicker bar d72d4cd
+* volume sliders play a live sample of their bus ce20a9e
+
+### Bug Fixes
+
+* address CodeRabbit review round 2 a6fd9ae
+* real mechanical typewriter keypress for chat typing sound 1f1688b
+* replace typewriter key sound with a proper CC0 keystroke tick 5d661c7
+* sound slider rows — fixed-width slider, row gap for label text 1cabb03
+* training-complete stat highlight follows theme color 776fc4f
+* wrap sound sliders in fixed-width container so they stay inside the card 9659840
+
 ## 2.64.0 (2026-08-30)
 
 ### Features

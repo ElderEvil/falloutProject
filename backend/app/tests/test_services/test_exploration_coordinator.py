@@ -98,9 +98,7 @@ async def test_transfer_skips_medical_loot_entries(
     assert [item["item_type"] for item in result["transferred"]] == ["junk"]
     junk_names = {
         junk.name
-        for junk in (
-            await async_session.execute(select(Junk).where(Junk.storage_id == result["storage_id"]))
-        ).scalars()
+        for junk in (await async_session.execute(select(Junk).where(Junk.storage_id == result["storage_id"]))).scalars()
     }
     assert junk_names == {"Wonderglue"}
 

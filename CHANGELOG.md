@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 * **quests:** theme-aware party modal colors and idle-first dweller sorting 5c1cfc9
-* **review:** address coderabbit feedback on PR [#489](https://github.com/ElderEvil/falloutProject/issues/489) eb68e70
+* **review:** address coderabbit feedback on PR 489 eb68e70
 * **rooms:** render the apprentice preview slot only where apprentices exist 2634bb8
 * **test:** stop unit tests from leaking network calls into worker teardown 38e0701
 

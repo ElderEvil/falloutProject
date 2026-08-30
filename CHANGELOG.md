@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.63.0 (2026-08-30)
+
+### Features
+
+* filter-aware auto-assign and dwellers UI polish ff85dc2
+
+### Bug Fixes
+
+* hide gender badge for unknown gender values 23463c9
+* preserve list filters on auto-assign refresh and use generated API types 070522e
+
 ## 2.62.2 (2026-08-30)
 
 ### Bug Fixes

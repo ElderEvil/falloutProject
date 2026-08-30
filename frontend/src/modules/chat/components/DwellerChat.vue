@@ -14,6 +14,7 @@ import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
+import { useSound } from '@/core/composables/useSound'
 import { useMapStore } from '@/modules/map/stores/map'
 import { useToast } from '@/core/composables/useToast'
 import ChatMessageList from './ChatMessageList.vue'
@@ -89,6 +90,7 @@ const {
 })
 
 const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
+const { playSound } = useSound()
 
 const { handleTyping } = useTypingIndicator(chatWs)
 
@@ -302,6 +304,7 @@ onUnmounted(() => {
           class="chat-input-field"
           placeholder="Type your message..."
           @input="handleTyping"
+          @beforeinput="playSound('typeKey')"
         />
         <button
           class="chat-send-btn"

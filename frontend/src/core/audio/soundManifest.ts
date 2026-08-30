@@ -15,8 +15,7 @@ export const SOUND_MANIFEST = {
   upgrade: '/audio/ui/upgrade.wav',
   cardDrop: '/audio/ui/card-drop.wav',
   modalOpen: '/audio/ui/modal-open.wav',
-  modalClose: '/audio/ui/modal-close.wav',
-  messageSend: '/audio/ui/message-send.wav',
+  typeKey: '/audio/ui/typewriter-key.wav',
   messageReceive: '/audio/ui/message-receive.wav',
 } as const
 

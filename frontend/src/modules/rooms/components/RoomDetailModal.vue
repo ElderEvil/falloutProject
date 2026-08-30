@@ -94,7 +94,7 @@ watch(
     if (!newValue) {
       actionError.value = null
     }
-    if (newValue !== oldValue) playSound(newValue ? 'modalOpen' : 'modalClose')
+    if (newValue && newValue !== oldValue) playSound('modalOpen')
   }
 )
 </script>

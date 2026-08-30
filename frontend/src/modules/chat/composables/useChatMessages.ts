@@ -26,16 +26,16 @@ export function useChatMessages(options: UseChatMessagesOptions) {
   let streamingIndex: number | null = null
   let sendResolver: (() => void) | null = null
 
-  // Chat feedback sounds: a single-message append is a live send/receive;
-  // bulk appends are history loads and stay silent.
+  // Chat feedback sounds: a single-message append is a live receive (sends are
+  // covered by the per-keystroke typewriter); bulk appends are history loads
+  // and stay silent.
   const { playSound } = useSound()
   watch(
     () => messages.value.length,
     (newLen, oldLen) => {
       if (newLen - oldLen !== 1) return
       const last = messages.value[newLen - 1]
-      if (last?.type === 'user') playSound('messageSend')
-      else if (last?.type === 'dweller') playSound('messageReceive')
+      if (last?.type === 'dweller') playSound('messageReceive')
     }
   )
 

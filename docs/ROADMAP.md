@@ -663,8 +663,9 @@ source; curated copies land in `frontend/public/audio/`).
 - ✅ **First wiring** — notification chime on new SSE notifications (`NotificationBell`), vault ambient music loop
   on the vault view (`playLoop('vaultAmbient')`, stopped on unmount).
 - 🔄 **UI & feedback SFX pass** — wired: global button-click `select` (delegated listener in the audio manager),
-  room-modal `modalOpen`/`modalClose`, chat `messageSend`/`messageReceive` (WS + REST + audio paths via the shared
-  messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
+  room-modal `modalOpen` (close intentionally silent), chat typewriter key per keystroke in the message input
+  (`typeKey`, fires on `beforeinput`), and `messageReceive` on dweller replies (WS + REST + audio paths via the
+  shared messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
   `success` on completions, incident alarm on incident spawn (needs an incident event hook).
 - ✅ **Preferences controls** — Sound card in PreferencesView (master enable + per-bus volume sliders), bound to
   the manager's persisted settings. **Sound is disabled by default**; enabling starts any pending music loop.

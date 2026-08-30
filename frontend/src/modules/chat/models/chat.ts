@@ -29,7 +29,6 @@ export interface ChatMessageDisplay {
   content: string
   messageId?: string // Backend dweller_message_id for correlation with WebSocket events
   timestamp?: Date
-  avatar?: string
   audioUrl?: string
   transcription?: string
   isPlaying?: boolean

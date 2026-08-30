@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { normalizeImageUrl } from '@/core/utils/image'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion, ChatMessageDisplay } from '../models/chat'
 
 defineProps<{
@@ -8,6 +8,7 @@ defineProps<{
   dwellerName: string
   username: string
   dwellerAvatarUrl: string | null
+  userAvatarUrl: string | null
   isTyping: boolean
   currentlyPlayingUrl: string | null
   latestActionSuggestionIndex: number
@@ -32,18 +33,21 @@ const emit = defineEmits<{
     :class="message.type"
   >
     <div class="message-avatar">
-      <template v-if="message.type === 'dweller' && dwellerAvatarUrl">
-        <img :src="dwellerAvatarUrl" alt="Dweller" class="avatar-image" />
-      </template>
-      <template v-else-if="message.type === 'user' && message.avatar">
-        <img :src="normalizeImageUrl(message.avatar)" alt="User" class="avatar-image" />
-      </template>
-      <template v-else>
-        <Icon
-          :icon="message.type === 'user' ? 'mdi:account-circle' : 'mdi:robot'"
-          class="avatar-icon"
-        />
-      </template>
+      <DwellerPortrait
+        v-if="message.type === 'dweller'"
+        :thumbnail-url="dwellerAvatarUrl"
+        :alt="dwellerName"
+        image-class="avatar-image"
+        fallback-class="avatar-icon"
+      />
+      <DwellerPortrait
+        v-else
+        :image-url="userAvatarUrl"
+        :alt="username"
+        image-class="avatar-image"
+        fallback-class="avatar-icon"
+        fallback-icon="mdi:account-circle"
+      />
     </div>
 
     <div class="message-bubble">
@@ -151,12 +155,12 @@ const emit = defineEmits<{
 
   <div v-if="isTyping" class="typing-wrapper dweller">
     <div class="message-avatar">
-      <template v-if="dwellerAvatarUrl">
-        <img :src="dwellerAvatarUrl" alt="Dweller" class="avatar-image" />
-      </template>
-      <template v-else>
-        <Icon icon="mdi:robot" class="avatar-icon" />
-      </template>
+      <DwellerPortrait
+        :thumbnail-url="dwellerAvatarUrl"
+        :alt="dwellerName"
+        image-class="avatar-image"
+        fallback-class="avatar-icon"
+      />
     </div>
     <div class="typing-indicator">
       <span class="terminal-cursor">_</span>

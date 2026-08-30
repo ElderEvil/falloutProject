@@ -8,7 +8,6 @@ import { UButton, UCard } from '@/core/components/ui'
 import { Icon } from '@iconify/vue'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
-import { normalizeImageUrl } from '@/core/utils/image'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 
@@ -75,16 +74,6 @@ onMounted(async () => {
         :back-to="`/vault/${vaultId}/dwellers/${dwellerId}`"
         :breadcrumbs="breadcrumbs"
       />
-      <div class="chat-header">
-        <div class="dweller-info">
-          <img
-            :src="normalizeImageUrl(dweller.thumbnail_url)"
-            alt="Dweller Thumbnail"
-            class="dweller-thumbnail"
-          />
-          <h1>{{ dweller.first_name }} {{ dweller.last_name }}</h1>
-        </div>
-      </div>
       <div class="chat-container">
         <DwellerChat
           :dweller-id="dwellerId"
@@ -112,32 +101,6 @@ onMounted(async () => {
   box-sizing: border-box;
   background-color: var(--color-surface-dark);
   color: var(--color-theme-primary);
-}
-
-.chat-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.dweller-info {
-  display: flex;
-  align-items: center;
-}
-
-.dweller-info h1 {
-  font-size: 2rem;
-  text-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.dweller-thumbnail {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  margin-right: 15px;
-  border: 2px solid var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
 .chat-container {

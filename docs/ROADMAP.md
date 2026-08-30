@@ -678,6 +678,9 @@ source; curated copies land in `frontend/public/audio/`).
 
 **Reuse:** `GameEvent`/SSE streams as trigger sources, Preferences persistence pattern, radio room UI.
 **Blockers:** none hard remaining — remaining work is wiring + curation.
+**Deploy:** verified end-to-end — Vite copies `public/` into `dist/`, the frontend image serves it via `serve -s`,
+and the git-ignored source library never reaches CI. No pipeline changes needed; revisit cache headers or
+object storage only if the curated set grows large.
 
 ### Quests Improvements — Building Quests, Locked Chains, Puzzles (design fragment, Target: TBD)
 

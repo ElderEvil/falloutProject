@@ -319,6 +319,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   </div>
                   <USlider
                     :model-value="soundVolumes[option.bus]"
+                    class="w-40 shrink-0"
                     :min="0"
                     :max="1"
                     :step="0.05"
@@ -424,6 +425,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1.5rem;
   padding: 1rem 0;
   border-bottom: 1px solid rgba(0, 255, 0, 0.1);
 }

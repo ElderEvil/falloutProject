@@ -24,6 +24,8 @@ export interface DwellerDetailActions {
   rename(name: string): void
   confirmRename(): void
   openRenameDialog(): void
+  openSoftDeleteDialog(): void
+  confirmSoftDelete(): void
   revive(): void
   generateBio(): void
   generatePortrait(): void
@@ -68,6 +70,7 @@ export interface UseDwellerDetailReturn {
   trainingModalOpen: Ref<boolean>
   renameDialogOpen: Ref<boolean>
   renameDialogName: Ref<string>
+  softDeleteDialogOpen: Ref<boolean>
   wastelandModalOpen: Ref<boolean>
   wastelandPendingDweller: Readonly<Ref<{ firstName: string; lastName?: string } | null>>
   actions: DwellerDetailActions
@@ -113,6 +116,8 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
   const trainingModalOpen = ref(false)
   const renameDialogOpen = ref(false)
   const renameDialogName = ref('')
+  const softDeleteDialogOpen = ref(false)
+  const softDeleting = ref(false)
 
   const dweller = computed(() => dwellerStore.detailedDwellers[dwellerId.value])
   const revivalCost = ref<RevivalCostResponse | null>(null)
@@ -332,6 +337,18 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
     void handleRename(name)
   }
 
+  const openSoftDeleteDialog = () => {
+    softDeleteDialogOpen.value = true
+  }
+  const confirmSoftDelete = async () => {
+    softDeleteDialogOpen.value = false
+    await runAction(() => dwellerManagementStore.softDeleteDweller(dwellerId.value, authStore.token as string), {
+      flag: softDeleting,
+      errorMessage: 'Failed to soft-delete dweller',
+      onSuccess: onBack,
+    })
+  }
+
   const actions: DwellerDetailActions = {
     assign: handleAssign,
     unassign: handleUnassign,
@@ -345,6 +362,8 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
     rename: handleRename,
     confirmRename,
     openRenameDialog,
+    openSoftDeleteDialog,
+    confirmSoftDelete,
     revive: handleRevive,
     generateBio: generateDwellerBio,
     generatePortrait: generateDwellerPortrait,
@@ -387,6 +406,7 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
     trainingModalOpen,
     renameDialogOpen,
     renameDialogName,
+    softDeleteDialogOpen,
     wastelandModalOpen: sendWasteland.showModal,
     wastelandPendingDweller: readonly(sendWasteland.pendingDweller),
     actions,

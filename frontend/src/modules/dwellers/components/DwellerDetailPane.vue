@@ -45,6 +45,17 @@ const breadcrumbs = computed(() => [
           >
             <Icon icon="mdi:pencil" class="h-4 w-4" />
           </UButton>
+          <UButton
+            v-if="!isDead"
+            @click="ctx.actions.openSoftDeleteDialog()"
+            variant="ghost"
+            size="sm"
+            class="soft-delete-btn"
+            title="Soft-delete this dweller (makes them tradable at the Trading Post)"
+            aria-label="Soft-delete dweller"
+          >
+            <Icon icon="mdi:account-remove" class="h-4 w-4" />
+          </UButton>
         </div>
         <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
       </div>
@@ -144,6 +155,16 @@ const breadcrumbs = computed(() => [
 .rename-btn {
   opacity: 0.6;
   transition: opacity 0.2s;
+}
+
+.soft-delete-btn {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  color: var(--color-danger);
+}
+
+.soft-delete-btn:hover {
+  opacity: 1;
 }
 
 .rename-btn:hover {

@@ -317,15 +317,16 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <h3 class="setting-label">{{ option.label }}</h3>
                     <p class="setting-description">{{ option.description }}</p>
                   </div>
-                  <USlider
-                    :model-value="soundVolumes[option.bus]"
-                    class="w-40 shrink-0"
-                    :min="0"
-                    :max="1"
-                    :step="0.05"
-                    :aria-label="`${option.label} volume`"
-                    @update:model-value="setBusVolume(option.bus, $event)"
-                  />
+                  <div class="w-40 shrink-0">
+                    <USlider
+                      :model-value="soundVolumes[option.bus]"
+                      :min="0"
+                      :max="1"
+                      :step="0.05"
+                      :aria-label="`${option.label} volume`"
+                      @update:model-value="setBusVolume(option.bus, $event)"
+                    />
+                  </div>
                 </div>
               </template>
             </UCard>

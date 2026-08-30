@@ -217,7 +217,12 @@ class BreedingService:
 
             partner = await db_session.get(Dweller, dweller.partner_id)
 
-            if not partner or partner.room_id not in living_quarters_ids or partner.age_group != AgeGroupEnum.ADULT:
+            if (
+                not partner
+                or partner.is_deleted
+                or partner.room_id not in living_quarters_ids
+                or partner.age_group != AgeGroupEnum.ADULT
+            ):
                 continue
 
             if partner.gender == dweller.gender:

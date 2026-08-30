@@ -65,7 +65,12 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         within the post-birth cooldown window."""
         cooldown_start = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=cooldown_hours)
 
-        pregnant_query = select(Pregnancy.mother_id).where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
+        pregnant_query = (
+            select(Pregnancy.mother_id)
+            .join(Dweller, Pregnancy.mother_id == Dweller.id)
+            .where(Dweller.vault_id == vault_id)
+            .where(Pregnancy.status == PregnancyStatusEnum.PREGNANT)
+        )
         pregnant_ids = set((await db_session.execute(pregnant_query)).scalars().all())
 
         postpartum_query = (

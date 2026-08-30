@@ -117,7 +117,15 @@ class GameLoopService:
                 db_session, vault_id, seconds_passed
             )
             await vault_crud.update(db_session, vault_id, resource_update)
+
+            # Advance the tick boundary in the same transaction as the resource
+            # update: if a later phase raises and game_tick retries, the retried
+            # tick recomputes seconds_passed from this boundary instead of
+            # reapplying the same production window and duplicating events.
+            game_state.update_tick(seconds_passed)
+            db_session.add(game_state)
             await db_session.commit()
+
             await self.resource_manager.emit_production_events(vault_id, resource_events)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
@@ -162,11 +170,6 @@ class GameLoopService:
         # === PHASE 5: Event System ===
         event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
         results["updates"]["events"] = event_update
-
-        # Update game state
-        game_state.update_tick(seconds_passed)
-        db_session.add(game_state)
-        await db_session.commit()
 
         try:
             await sse_manager.publish(

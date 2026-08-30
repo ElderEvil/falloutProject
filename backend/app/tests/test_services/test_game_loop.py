@@ -183,6 +183,46 @@ class TestProcessVaultTick:
         assert "error" in result["updates"]["resources"]
 
     @pytest.mark.asyncio
+    async def test_retry_after_dweller_failure_does_not_reapply_resource_window(
+        self, async_session: AsyncSession, vault: Vault
+    ):
+        """A game_tick retry after an unexpected mid-tick failure must not reprocess the same window."""
+        gs = await game_loop_service._get_or_create_game_state(async_session, vault.id)
+        gs.last_tick_time = datetime.utcnow() - timedelta(seconds=60)
+        async_session.add(gs)
+        await async_session.commit()
+        pre_tick = gs.last_tick_time
+
+        mock_update = MagicMock()
+        mock_update.power = 100
+        mock_update.food = 50
+        mock_update.water = 75
+
+        with (
+            patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
+            patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock) as pd,
+            patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
+            patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
+            patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
+        ):
+            mr.return_value = (mock_update, ResourceTickEvents())
+            pd.side_effect = ValueError("boom")
+
+            with pytest.raises(ValueError, match="boom"):
+                await game_loop_service.process_vault_tick(async_session, vault.id)
+
+            await async_session.refresh(gs)
+            assert gs.last_tick_time > pre_tick
+
+            pd.side_effect = None
+            await game_loop_service.process_vault_tick(async_session, vault.id)
+
+        first_window = mr.call_args_list[0].args[2]
+        retry_window = mr.call_args_list[1].args[2]
+        assert first_window == 60
+        assert retry_window < first_window * 2
+
+    @pytest.mark.asyncio
     async def test_paused_vault_short_circuits(self, async_session: AsyncSession, vault: Vault):
         await game_loop_service.pause_vault(async_session, vault.id)
         with patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr:

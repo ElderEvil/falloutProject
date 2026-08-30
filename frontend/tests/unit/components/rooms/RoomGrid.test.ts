@@ -26,6 +26,20 @@ describe('RoomGrid', () => {
     capacity: 6,
   }
 
+  const dropEventFor = (dwellerId: string) => ({
+    preventDefault: vi.fn(),
+    dataTransfer: {
+      getData: vi.fn(() =>
+        JSON.stringify({ dwellerId, firstName: 'X', lastName: 'Y', currentRoomId: null })
+      ),
+    },
+  })
+
+  const dropOn = async (wrapper: ReturnType<typeof mount>, dwellerId: string) => {
+    await wrapper.find('.built-room').trigger('drop', dropEventFor(dwellerId) as any)
+    await wrapper.vm.$nextTick()
+  }
+
   describe('Room Highlighting', () => {
     it('shows an attention count only on the Overseer’s Office', () => {
       const roomStore = useRoomStore()
@@ -455,30 +469,7 @@ describe('RoomGrid', () => {
           incidents: [],
         },
       })
-
-      // Simulate drop event with JSON data
-      const dropEvent = {
-        preventDefault: vi.fn(),
-        dataTransfer: {
-          getData: vi.fn((type: string) => {
-            if (type === 'application/json') {
-              return JSON.stringify({
-                dwellerId: 'dweller-123',
-                firstName: 'John',
-                lastName: 'Doe',
-                currentRoomId: null,
-              })
-            }
-            return ''
-          }),
-        },
-      }
-
-      const roomElement = wrapper.find('.built-room')
-      await roomElement.trigger('drop', dropEvent as any)
-
-      // Wait for async operations
-      await wrapper.vm.$nextTick()
+      await dropOn(wrapper, 'dweller-123')
 
       // Verify assignDwellerToRoom was called
       expect(assignDwellerSpy).toHaveBeenCalledWith(
@@ -533,28 +524,7 @@ describe('RoomGrid', () => {
           incidents: [],
         },
       })
-
-      // Simulate drop event with JSON data
-      const dropEvent = {
-        preventDefault: vi.fn(),
-        dataTransfer: {
-          getData: vi.fn((type: string) => {
-            if (type === 'application/json') {
-              return JSON.stringify({
-                dwellerId: 'dweller-123',
-                firstName: 'John',
-                lastName: 'Doe',
-                currentRoomId: null,
-              })
-            }
-            return ''
-          }),
-        },
-      }
-
-      const roomElement = wrapper.find('.built-room')
-      await roomElement.trigger('drop', dropEvent as any)
-      await wrapper.vm.$nextTick()
+      await dropOn(wrapper, 'dweller-123')
 
       // Verify assignDwellerToRoom was called
       expect(assignDwellerSpy).toHaveBeenCalled()
@@ -601,31 +571,95 @@ describe('RoomGrid', () => {
           incidents: [],
         },
       })
-
-      const dropEvent = {
-        preventDefault: vi.fn(),
-        dataTransfer: {
-          getData: vi.fn((type: string) => {
-            if (type === 'application/json') {
-              return JSON.stringify({
-                dwellerId: 'dweller-123',
-                firstName: 'John',
-                lastName: 'Doe',
-                currentRoomId: null,
-              })
-            }
-            return ''
-          }),
-        },
-      }
-
-      const roomElement = wrapper.find('.built-room')
-      await roomElement.trigger('drop', dropEvent as any)
-      await wrapper.vm.$nextTick()
+      await dropOn(wrapper, 'dweller-123')
 
       // Verify startTraining was called and returned null (failure)
       expect(startTrainingSpy).toHaveBeenCalled()
       expect(await startTrainingSpy.mock.results[0].value).toBeNull()
+    })
+  })
+
+  describe('Apprentice drop gating', () => {
+    const productionRoom = {
+      id: 'production-room-123',
+      name: 'Power Generator',
+      category: 'production',
+      ability: 'strength',
+      coordinate_x: 0,
+      coordinate_y: 0,
+      size: 3,
+      size_min: 3,
+      tier: 1,
+      capacity: 6,
+    }
+
+    const dwellerIn = (overrides: Record<string, unknown>) =>
+      ({
+        first_name: 'X',
+        last_name: 'Y',
+        room_id: 'production-room-123',
+        is_adult: true,
+        apprentice_stat: null,
+        ...overrides,
+      }) as any
+
+    const staffedFull = [dwellerIn({ id: 'adult-1' }), dwellerIn({ id: 'adult-2' })]
+
+    const setupDrop = (dwellers: any[]) => {
+      useAuthStore().token = 'mock-token'
+      useRoomStore().rooms = [productionRoom]
+      const dwellerStore = useDwellerStore()
+      dwellerStore.filter.dwellers = dwellers
+      return dwellerStore
+    }
+
+    it('lets a youth apprentice be dropped on a fully staffed production room', async () => {
+      const dwellerStore = setupDrop([
+        ...staffedFull,
+        dwellerIn({ id: 'teen-1', room_id: null, is_adult: false, age_group: 'teen' }),
+      ])
+
+      const assignSpy = vi
+        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
+        .mockResolvedValue({ id: 'teen-1' } as any)
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      await dropOn(wrapper, 'teen-1')
+
+      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123', 'mock-token')
+    })
+
+    it('still blocks an adult when all worker slots are taken', async () => {
+      const dwellerStore = setupDrop([
+        ...staffedFull,
+        dwellerIn({ id: 'adult-3', room_id: null }),
+      ])
+
+      const assignSpy = vi
+        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
+        .mockResolvedValue({ id: 'adult-3' } as any)
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      await dropOn(wrapper, 'adult-3')
+
+      expect(assignSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not count an apprentice against worker capacity for adults', async () => {
+      const dwellerStore = setupDrop([
+        dwellerIn({ id: 'adult-1' }),
+        dwellerIn({ id: 'teen-1', is_adult: false, age_group: 'teen', apprentice_stat: 'strength' }),
+        dwellerIn({ id: 'adult-3', room_id: null }),
+      ])
+
+      const assignSpy = vi
+        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
+        .mockResolvedValue({ id: 'adult-3' } as any)
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      await dropOn(wrapper, 'adult-3')
+
+      expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123', 'mock-token')
     })
   })
 })

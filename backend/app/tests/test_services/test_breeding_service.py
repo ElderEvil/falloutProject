@@ -23,6 +23,7 @@ from app.schemas.common import (
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.breeding_service import BreedingService
+from app.utils.exceptions import ResourceNotFoundException
 
 
 @pytest_asyncio.fixture(name="living_quarters")
@@ -187,10 +188,10 @@ async def test_create_pregnancy_missing_mother(
     async_session: AsyncSession,
     male_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when mother not found."""
+    """create_pregnancy raises ResourceNotFoundException when mother not found."""
     from uuid import uuid4
 
-    with pytest.raises(ValueError, match="Mother not found"):
+    with pytest.raises(ResourceNotFoundException):
         await BreedingService.create_pregnancy(async_session, uuid4(), male_dweller.id)
 
 
@@ -199,10 +200,10 @@ async def test_create_pregnancy_missing_father(
     async_session: AsyncSession,
     female_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when father not found."""
+    """create_pregnancy raises ResourceNotFoundException when father not found."""
     from uuid import uuid4
 
-    with pytest.raises(ValueError, match="Father not found"):
+    with pytest.raises(ResourceNotFoundException):
         await BreedingService.create_pregnancy(async_session, female_dweller.id, uuid4())
 
 
@@ -1175,7 +1176,7 @@ async def test_deliver_baby_pregnancy_not_found(
 
     fake_id = uuid4()
 
-    with pytest.raises(ValueError, match="Pregnancy not found"):
+    with pytest.raises(ResourceNotFoundException):
         await BreedingService.deliver_baby(
             async_session,
             fake_id,

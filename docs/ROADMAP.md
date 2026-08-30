@@ -41,6 +41,12 @@ AI-powered dweller interactions.
       chat streaming + action cards (esp. wasteland exploration via LM Studio), AI Settings tab (save /
       reset / test connection / copy), profile persistence across backend restarts, and the profile page tabs
       (Dossier / Vault Analytics / AI Settings).
+- [ ] **Service simplification & unification (in review — `refactor/breeding-exploration-debt`)** — breeding
+      and pregnancy data access fully on crud (missing parents/pregnancies raise `ResourceNotFoundException`,
+      state rules keep `ValueError`), debug endpoints without string-matched exception mapping, and the
+      exploration coordinator split into `event_service` + `rewards_service` with match-based item scoring
+      (coordinator keeps complete/recall orchestration only). Follows the game-loop fail-fast narrowing and
+      crud/service split shipped in v2.62.x; net source LOC negative across both PRs.
 
 ---
 
@@ -533,13 +539,19 @@ consume the same `combat_power()`; per-type unit tests cover primary-beats-secon
 
 ### Apprentice System & Pets — design fragments (Issue #470)
 
-Loose fragments from the #470 discussion, recorded so the decisions aren't lost. Not a plan yet.
+Loose fragments from the #470 discussion, recorded so the decisions aren't lost.
 
-- **Apprentice eligibility** — `child` **and** `teen` age groups (not `adult`).
-- **Apprentice rooms** — `RoomTypeEnum.PRODUCTION` + `RoomTypeEnum.CRAFTING` (covers weapon/outfit crafting and research-style production).
-- **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage; the more skilled the apprentice, the larger the room efficiency bonus.
+- ✅ **Apprentice eligibility & accrual** — `child` **and** `teen` age groups (not `adult`). Shipped: boosted
+  vaults seed apprentices, the game tick advances the room's SPECIAL per training-duration interval
+  (`_process_apprenticeships`), per-stat gains convert into adult stats at maturity, and room-details render
+  apprentice slots.
+- ✅ **Apprentice rooms** — `RoomTypeEnum.PRODUCTION` + `RoomTypeEnum.CRAFTING` (covers weapon/outfit crafting
+  and research-style production).
+- ✅ **Large room placement near elevators** — vault grid widened to 10 tiles (`GRID_X_MAX = 9`); full-width
+  crafting rooms place at x=1 beside the elevator shaft without overlapping it.
+- ⬜ **Production/crafting bonus** — scaled by the apprentice's accrued SPECIAL skill, not a flat percentage;
+  the more skilled the apprentice, the larger the room efficiency bonus. Remaining follow-up.
 - **Pets** — assign to **living quarters (`CAPACITY`)** and **training rooms (`TRAINING`)**; intentionally NOT production/crafting rooms (a pet in a power plant or diner makes no sense). Pets remain a larger feature (new `Pet` model + assignment) tracked under Phase 3.
-- Full Apprentice System (SPECIAL accrual while assigned, production/crafting bonus, assignment UX) is a backend + frontend follow-up; UI groundwork (age badge + age filter) landed in `feat/dweller-ui`.
 
 ### Phase 4: Multiplayer
 
@@ -670,6 +682,6 @@ recorded per D8. No gaps found; no future ROADMAP items added from this workstre
 
 ---
 
-_Last updated: 2026-08-27_ (apprentice/pet design fragments noted under Planned Features (Future), tracked in #470;
-"The Overseer's Toolkit" is the next unreleased target; "The Wasteland Journal" shipped
-in v2.46.0, and raiding/social multiplayer phases remain parked. Plan: `docs/WORLD_MAP_PLAN.md`.)
+_Last updated: 2026-08-30_ (apprentice fragments updated: eligibility/accrual, rooms, and elevator-adjacent
+placement shipped; the SPECIAL-scaled production/crafting bonus remains open, tracked in #470. Service
+simplification & unification is in review on `refactor/breeding-exploration-debt`.)

@@ -10,7 +10,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
-from app.models.dweller import Dweller
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -130,10 +129,6 @@ async def force_conception(
     try:
         pregnancy = await breeding_service.force_conception(db_session, mother_id, father_id)
     except ValueError as e:
-        error_msg = str(e).lower()
-        if "not found" in error_msg:
-            identifier = mother_id if "mother" in error_msg else father_id
-            raise ResourceNotFoundException(model=Dweller, identifier=identifier) from e
         raise ValidationException(detail=str(e)) from e
 
     return PregnancyRead.model_validate(pregnancy)
@@ -157,8 +152,7 @@ async def accelerate_pregnancy(
     try:
         pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
     except ValueError as e:
-        status_code = 404 if "not found" in str(e).lower() else 400
-        raise HTTPException(status_code=status_code, detail=str(e)) from e
+        raise ValidationException(detail=str(e)) from e
 
     logger.info(
         "DEBUG pregnancy accelerated",

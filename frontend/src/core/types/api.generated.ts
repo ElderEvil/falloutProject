@@ -4185,6 +4185,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/dwellers/auto-assign-training": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Auto Assign Training Rooms
+         * @description Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat.
+         */
+        post: operations["auto_assign_training_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_training_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/weapons/": {
         parameters: {
             query?: never;
@@ -14949,6 +14969,39 @@ export interface operations {
         };
     };
     auto_assign_all_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_all_post: {
+        parameters: {
+            query?: {
+                age_group?: components["schemas"]["AgeGroupEnum"] | null;
+            };
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoAssignResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auto_assign_training_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_training_post: {
         parameters: {
             query?: {
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;

@@ -165,6 +165,9 @@ class RadioService:
         recycled = False
         dweller: Dweller | None = None
 
+        # Recycling restores the soft-deleted dweller as-is: race/faction/state_of_being
+        # and rarity are preserved, never re-rolled (plan §6.2). Only the fresh-recruit
+        # path below applies race_weights diversity and rare_chance.
         # Only attempt recycling when no caller-supplied override is present — an
         # override signals an intentional customisation, so honour it with a fresh dweller.
         if (

@@ -76,7 +76,8 @@ def test_identity_options_match_the_canonical_faction_restrictions() -> None:
 
     assert options.races == ["human", "ghoul", "super_mutant", "synth"]
     assert options.factions_by_race["synth"] == ["the_institute", "railroad", "none"]
-    assert options.states_by_race["ghoul"] == ["sane", "partially_feral", "fully_feral"]
+    assert options.states_by_race["ghoul"] == ["sane", "wild", "feral"]
+    assert options.states_by_race["super_mutant"] == ["mild", "average", "behemoth"]
 
 
 def test_full_population() -> None:

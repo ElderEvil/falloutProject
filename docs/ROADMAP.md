@@ -9,45 +9,19 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work:**
-
-- [x] **v2.39.0–v2.42.0 released** — resource-rate corrections, training/chat/notification UX, vault event system,
-      design-token migration, quest storage fix, postpartum breeding cooldown + last-name inheritance, The Family
-      Update (married stage, lineage API + family tree, migration-safety CI, Pydantic AI/Logfire verification).
-- [ ] **Arena & Incident Combat Update (in review — `feat/arena-incidents`)** — dweller-vs-dweller battle
-      playground in the Arena room (assign adults, pick two fighters, countdown start, live HP + floating damage,
-      battle journal, one match per assignment, happiness/XP reward), plus incident fairness: active-incident cap
-      enforced at spawn and spread behind a per-vault advisory lock, a dedicated 2s incident tick with a Redis
-      chain lease (watchdog can no longer spawn duplicate processing chains), session-advisory-locked all-vault
-      pass, room-name + compact FIGHT buttons + "send best defenders" in the combat modal, and distinct debug
-      spawn errors (disabled → 400, at-cap → 409). Follows the arena prototype previously parked on
-      `experiment/arena`.
-- [ ] **AI provider profile + LM Studio support (in review — `feat/ai-settings`)** — DB-backed AI provider
-      settings (profile overrides env, secrets stay in env), admin UI embedded in the Overseer profile,
-      live provider connection test, token-usage estimation for local providers (LM Studio/Ollama), profile
-      re-applied at backend startup, and a chat streaming fallback that re-runs the retry-capable structured
-      path so action suggestions survive a failed local-model validation. **Needs manual testing:** dweller
-      chat streaming + action cards (esp. wasteland exploration via LM Studio), AI Settings tab (save /
-      reset / test connection / copy), profile persistence across backend restarts, and the profile page tabs
-      (Dossier / Vault Analytics / AI Settings).
-- [ ] **Service simplification & unification (in review — `refactor/breeding-exploration-debt`)** — breeding
-      and pregnancy data access fully on crud (missing parents/pregnancies raise `ResourceNotFoundException`,
-      state rules keep `ValueError`), debug endpoints without string-matched exception mapping, and the
-      exploration coordinator split into `event_service` + `rewards_service` with match-based item scoring
-      (coordinator keeps complete/recall orchestration only). Follows the game-loop fail-fast narrowing and
-      crud/service split shipped in v2.62.x; net source LOC negative across both PRs.
+**Current work:** — _no active branch; roadmap pruned 2026-08-31 to reflect merged work (see Recently Shipped)._
 
 ---
 
 ## Planned
 
-### Next update target — "The Overseer's Toolkit" (shipped, awaiting release)
+### Recently Shipped — "The Overseer's Toolkit" (2.62–2.67, now on `master`)
 
 **Shipped:** Overseer Briefing (vault state summary + unresolved-item tile count + direct response links), AI
 reliability fixes (incremental structured chat streaming, shared quota-cache keys), UI consistency polish (page
 rails/headers/metrics, Build control restored, glow tokens, exploration portraits and meters), production logging
-(rotating JSON API log on a persistent volume; Ollama stays local-dev-only), and authenticated Playwright coverage
-for the briefing route. Semantic Release picks the version at release time.
+(rotating JSON API log on a persistent volume; Ollama stays local-dev-only), authenticated Playwright coverage
+for the briefing route, plus AI Layer Plans 0–4, sound system foundation, Trading Post PoC, and AI prompt observability (see CHANGELOG 2.62–2.67).
 
 ### Frontend Design-System Consolidation (Target: TBD)
 
@@ -762,6 +736,4 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-08-30_ (apprentice fragments updated; Onboarding, Celldweller easter egg, Sound System, Quests
-Improvements, Bio Extension, and Boosted Vault Rarity & Race/Faction Diversity fragments added; Roadmap Direction &
-Blockers map added; completed work compressed to shipped summaries.)
+_Last updated: 2026-08-31_ — moved shipped items out of `In Progress`; retitled Overseer's Toolkit to Recently Shipped. Next pick: Bio Extension templates (see Low-Hanging Fruit P1); Boosted Vault diversity shipped in this PR (race/faction weights + rarity boost).

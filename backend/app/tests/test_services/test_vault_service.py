@@ -3,8 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic import UUID4
+from pydantic import UUID4, ValidationError
 
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.storage import Storage
@@ -433,7 +434,7 @@ class TestCreateInitialDwellers:
 
         call_count = 0
 
-        async def fake_create_random(db_session, vault_id, dweller_data):
+        async def fake_create_random(db_session, vault_id, dweller_data, **kwargs):
             nonlocal call_count
             call_count += 1
             gender = dweller_data.gender if hasattr(dweller_data, "gender") and dweller_data.gender else GenderEnum.MALE
@@ -501,7 +502,7 @@ class TestCreateInitialDwellers:
 
         call_count = 0
 
-        async def fake_create_random(db_session, vault_id, dweller_data):
+        async def fake_create_random(db_session, vault_id, dweller_data, **kwargs):
             nonlocal call_count
             call_count += 1
             return Dweller(
@@ -537,6 +538,55 @@ class TestCreateInitialDwellers:
 
         # 6 production + 4 medbay/science + 7 training + 1 radio + 2 living quarters + 2 apprentices = 22
         assert call_count == 22
+
+    async def test_initial_dweller_rarity_rolls_configured_chance(self) -> None:
+        """Seeded dwellers roll RARE from standard/boosted rare chance — not hardcoded COMMON."""
+        prod_rooms = [
+            _make_room(name="Power Gen", ability=SPECIALEnum.STRENGTH),
+            _make_room(name="Diner", ability=SPECIALEnum.AGILITY),
+            _make_room(name="Water Treatment", ability=SPECIALEnum.PERCEPTION),
+        ]
+        rarities: list[RarityEnum] = []
+
+        async def fake_create_random(db_session, vault_id, dweller_data, **kwargs):
+            rarities.append(kwargs.get("rarity", RarityEnum.COMMON))
+            return Dweller(
+                id=_dweller_id(len(rarities)),
+                first_name="Rare",
+                last_name="Test",
+                gender=GenderEnum.MALE,
+                rarity=rarities[-1],
+                level=1,
+            )
+
+        with (
+            patch(
+                "app.services.vault_service.dweller_crud.create_random",
+                new_callable=AsyncMock,
+                side_effect=fake_create_random,
+            ),
+            patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+        ):
+            db_session = AsyncMock()
+            db_session.commit = AsyncMock()
+            service = VaultService()
+
+            with patch.object(game_config.vault_start, "standard_rare_chance", new=1.0):
+                await service._create_initial_dwellers(db_session, VAULT_ID, prod_rooms, [], [], [], is_boosted=False)
+            assert rarities
+            assert all(rarity == RarityEnum.RARE for rarity in rarities)
+
+            with patch.object(game_config.vault_start, "standard_rare_chance", new=0.0):
+                await service._create_initial_dwellers(db_session, VAULT_ID, prod_rooms, [], [], [], is_boosted=False)
+            assert rarities[len(rarities) // 2 :] == [RarityEnum.COMMON] * (len(rarities) // 2)
+
+            # Boosted gate: boosted_rare_chance wins over standard when is_boosted=True.
+            with (
+                patch.object(game_config.vault_start, "standard_rare_chance", new=0.0),
+                patch.object(game_config.vault_start, "boosted_rare_chance", new=1.0),
+            ):
+                await service._create_initial_dwellers(db_session, VAULT_ID, prod_rooms, [], [], [], is_boosted=True)
+            assert rarities[-1] == RarityEnum.RARE
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -1449,3 +1499,115 @@ class TestInitiateVault:
         assert result == vault
         service._start_training_sessions.assert_awaited_once()
         service._assign_initial_objectives.assert_awaited_once()
+
+    async def test_initiate_vault_standard_honors_vault_start_config(self, monkeypatch) -> None:
+        """initiate_vault consumes VaultStartConfig instead of hardcoded literals."""
+        from app.core.game_config import VaultStartConfig, game_config
+
+        monkeypatch.setattr(
+            game_config,
+            "vault_start",
+            VaultStartConfig(initial_resource_pct=0.8, initial_stimpaks=3, initial_radaways=2),
+        )
+
+        vault_id = VAULT_ID
+        user_id = UUID4("11111111-1111-1111-1111-111111111111")
+
+        vault = Vault(
+            id=vault_id,
+            number=42,
+            user_id=user_id,
+            population_max=0,
+            power_max=30,
+            food_max=30,
+            water_max=30,
+        )
+        storage_obj = _make_storage(vault_id=str(vault_id), stimpack=0, radaway=0)
+
+        service = VaultService()
+        service._prepare_initial_rooms = MagicMock(
+            return_value=PreparedRooms(infrastructure=[], capacity=[], production=[], misc=[], training=[], arena=[])
+        )
+        service._create_initial_rooms = AsyncMock(
+            return_value=(vault, CreatedRooms(production=[], training=[], misc=[], capacity=[], arena=[]))
+        )
+        service._create_initial_dwellers = AsyncMock()
+        service._start_training_sessions = AsyncMock()
+        service._assign_initial_objectives = AsyncMock()
+        service._create_initial_items = AsyncMock()
+
+        db_session = AsyncMock()
+        db_session.commit = AsyncMock()
+        db_session.refresh = AsyncMock()
+        db_session.add = MagicMock()
+        db_session.execute = AsyncMock()
+
+        with (
+            patch(
+                "app.services.vault_service.vault_crud.create_with_user_id",
+                new_callable=AsyncMock,
+                return_value=vault,
+            ),
+            patch(
+                "app.services.vault_service.vault_crud.create_storage",
+                new_callable=AsyncMock,
+                return_value=storage_obj,
+            ),
+            patch(
+                "app.services.vault_service.vault_crud.update",
+                new_callable=AsyncMock,
+                return_value=vault,
+            ) as mock_update,
+            patch(
+                "app.services.vault_service.get_static_game_data",
+                new_callable=AsyncMock,
+                return_value=MagicMock(rooms=[]),
+            ),
+            patch(
+                "app.services.vault_service.storage_crud.get_by_vault",
+                new_callable=AsyncMock,
+                return_value=storage_obj,
+            ),
+            patch(
+                "app.services.vault_service.compute_medical_capacity",
+                return_value={"stimpack": 10, "radaway": 10},
+            ),
+        ):
+            result = await service.initiate_vault(db_session, VaultNumber(number=42), user_id, is_boosted=False)
+
+        assert result == vault
+        assert mock_update.await_count == 1
+        update_in = mock_update.await_args.kwargs["obj_in"]
+        assert update_in.power == int(30 * 0.8) == 24
+        assert update_in.food == 24
+        assert update_in.water == 24
+        assert storage_obj.stimpack == 3
+        assert storage_obj.radaway == 2
+
+
+class TestVaultStartConfig:
+    """VaultStartConfig defaults and validation bounds (VAULT_START_* env)."""
+
+    def test_defaults_and_bounds(self) -> None:
+        from app.core.game_config import VaultStartConfig
+
+        cfg = VaultStartConfig()
+        assert cfg.initial_resource_pct == 0.5
+        assert cfg.initial_stimpaks == 5
+        assert cfg.initial_radaways == 5
+        assert cfg.standard_rare_chance == 0.04
+        assert cfg.boosted_rare_chance == 0.12
+        with pytest.raises(ValidationError):
+            VaultStartConfig(initial_resource_pct=1.5)
+        with pytest.raises(ValidationError):
+            VaultStartConfig(initial_stimpaks=-1)
+
+    def test_loads_vault_start_values_from_dotenv(self, monkeypatch, tmp_path) -> None:
+        """Vault-start settings read VAULT_START_* values from the project dotenv file."""
+        (tmp_path / ".env").write_text("VAULT_START_INITIAL_RESOURCE_PCT=0.8\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("VAULT_START_INITIAL_RESOURCE_PCT", raising=False)
+
+        from app.core.game_config import VaultStartConfig
+
+        assert VaultStartConfig().initial_resource_pct == 0.8

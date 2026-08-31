@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
+from app.options.factions import faction_restrictions
+from app.options.races import RaceOption
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.schemas.room import RoomCreate
@@ -14,12 +16,15 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (
     InvalidVaultTransferException,
     ResourceConflictException,
     ValidationException,
 )
 from backend.app.tests.factory.dwellers import create_fake_dweller
+
+RACE_VALUES = {race.value for race in RaceOption}
 
 
 @pytest.mark.asyncio
@@ -73,14 +78,15 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
-    # Create a random dweller without overrides
-    dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id)
+    # Seeded random dweller: race ∈ RaceOption, faction valid for that race.
+    dweller = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id, seed=42)
     assert dweller.id
     assert dweller.vault_id == vault.id  # Check vault association
-    # Check default visual_attributes
     assert dweller.visual_attributes is not None
-    assert dweller.visual_attributes.get("race") == "human"
-    assert dweller.visual_attributes.get("faction") == "vault_dweller"
+    race = dweller.visual_attributes.get("race")
+    faction = dweller.visual_attributes.get("faction")
+    assert race in RACE_VALUES
+    assert faction in faction_restrictions[RaceOption(race)]
 
     # Create a random dweller with a special boost override
     special_stat = random.choice(list(SPECIALEnum))
@@ -89,9 +95,19 @@ async def test_create_random_common_dweller(async_session: AsyncSession):
     assert dweller_boosted.id
     assert dweller_boosted.vault_id == vault.id  # Check vault association
     assert getattr(dweller_boosted, special_stat.value.lower()) == game_config.dweller.boosted_stat_value
-    # Check default visual_attributes are present even with override
     assert dweller_boosted.visual_attributes is not None
-    assert dweller_boosted.visual_attributes.get("race") == "human"
+    boosted_race = dweller_boosted.visual_attributes.get("race")
+    assert boosted_race in RACE_VALUES
+    assert dweller_boosted.visual_attributes.get("faction") in faction_restrictions[RaceOption(boosted_race)]
+
+    # Diversity policy (70/15/10/5): 200 seeded draws must surface every race.
+    races_seen: set[str] = set()
+    for seed in range(200):
+        attrs = create_random_common_dweller(seed=seed)["visual_attributes"]
+        assert attrs["race"] in RACE_VALUES
+        assert attrs["faction"] in faction_restrictions[RaceOption(attrs["race"])]
+        races_seen.add(attrs["race"])
+    assert races_seen == RACE_VALUES
 
 
 @pytest.mark.asyncio

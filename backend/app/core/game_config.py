@@ -739,14 +739,15 @@ class DwellerConfig(BaseSettings):
 class VaultStartConfig(BaseSettings):
     """Vault start tuning (env prefix ``VAULT_START_``).
 
-    Internal tuning only — no preset enum this slice; ``boosted: bool`` stays the
-    only start toggle (BOOSTED_START_ONBOARDING_PLAN.md §6.4).
+    Internal tuning only — ``boosted: bool`` remains the only start toggle.
 
     Vault seeding reads its rarity chances from this config; radio recruitment
     keeps ``RadioConfig.rare_chance``.
     """
 
-    model_config = SettingsConfigDict(env_prefix="VAULT_START_")
+    model_config = SettingsConfigDict(
+        env_prefix="VAULT_START_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     initial_resource_pct: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Initial power/food/water as a share of max capacity"

@@ -11,27 +11,6 @@ AI-powered dweller interactions.
 
 **Current work:** — _no active branch; roadmap pruned 2026-08-31 to reflect merged work (see Recently Shipped)._
 
-- [x] **v2.39.0–v2.42.0 released** — resource-rate corrections, training/chat/notification UX, vault event system,
-      design-token migration, quest storage fix, postpartum breeding cooldown + last-name inheritance, The Family
-      Update (married stage, lineage API + family tree, migration-safety CI, Pydantic AI/Logfire verification).
-- [x] **Arena & Incident Combat Update — shipped (#484 merged, `feat/arena-incidents`)** — dweller-vs-dweller battle
-      playground in the Arena room (assign adults, pick two fighters, countdown start, live HP + floating damage,
-      battle journal, one match per assignment, happiness/XP reward), plus incident fairness: active-incident cap
-      enforced at spawn and spread behind a per-vault advisory lock, a dedicated 2s incident tick with a Redis
-      chain lease (watchdog can no longer spawn duplicate processing chains), session-advisory-locked all-vault
-      pass, room-name + compact FIGHT buttons + "send best defenders" in the combat modal, and distinct debug
-      spawn errors (disabled → 400, at-cap → 409).
-- [x] **AI provider profile + LM Studio support — shipped (`feat/ai-settings` merged)** — DB-backed AI provider
-      settings (profile overrides env, secrets stay in env), admin UI embedded in the Overseer profile,
-      live provider connection test, token-usage estimation for local providers (LM Studio/Ollama), profile
-      re-applied at backend startup, and a chat streaming fallback that re-runs the retry-capable structured
-      path so action suggestions survive a failed local-model validation.
-- [x] **Service simplification & unification — shipped (#491/#490 merged, `refactor/breeding-exploration-debt`)** — breeding
-      and pregnancy data access fully on crud (missing parents/pregnancies raise `ResourceNotFoundException`,
-      state rules keep `ValueError`), debug endpoints without string-matched exception mapping, and the
-      exploration coordinator split into `event_service` + `rewards_service` with match-based item scoring
-      (coordinator keeps complete/recall orchestration only). Net source LOC negative across both PRs.
-
 ---
 
 ## Planned
@@ -757,4 +736,4 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-08-31_ — pruned `In Progress` (arena `feat/arena-incidents`, AI settings `feat/ai-settings`, and `refactor/breeding-exploration-debt` all merged to `master` at 2.62–2.67); retitled Overseer's Toolkit to Recently Shipped; no active branch. Next pick: Bio Extension templates or Boosted Vault diversity (see Low-Hanging Fruit P1).
+_Last updated: 2026-08-31_ — moved shipped items out of `In Progress`; retitled Overseer's Toolkit to Recently Shipped. Next pick: Bio Extension templates or Boosted Vault diversity (see Low-Hanging Fruit P1)._

@@ -1601,3 +1601,12 @@ class TestVaultStartConfig:
             VaultStartConfig(initial_resource_pct=1.5)
         with pytest.raises(ValidationError):
             VaultStartConfig(initial_stimpaks=-1)
+
+    def test_loads_vault_start_values_from_dotenv(self, monkeypatch, tmp_path) -> None:
+        """Vault-start settings read VAULT_START_* values from the project dotenv file."""
+        (tmp_path / ".env").write_text("VAULT_START_INITIAL_RESOURCE_PCT=0.8\n")
+        monkeypatch.chdir(tmp_path)
+
+        from app.core.game_config import VaultStartConfig
+
+        assert VaultStartConfig().initial_resource_pct == 0.8

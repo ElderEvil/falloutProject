@@ -103,6 +103,7 @@ uv lock --script example.py
 # ///
 
 import httpx
+
 print(httpx.get("https://example.com").text)
 ```
 
@@ -132,15 +133,18 @@ import httpx
 from pydantic import BaseModel
 from rich import print
 
+
 class User(BaseModel):
     id: int
     name: str
     email: str
 
+
 def main() -> None:
     response = httpx.get("https://jsonplaceholder.typicode.com/users/1")
     user = User(**response.json())
     print(f"[green]User:[/green] {user.name} ({user.email})")
+
 
 if __name__ == "__main__":
     main()

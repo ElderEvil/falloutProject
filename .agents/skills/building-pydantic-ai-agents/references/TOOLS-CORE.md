@@ -11,7 +11,7 @@ import random
 
 from pydantic_ai import Agent, RunContext
 
-agent = Agent('google:gemini-3-flash-preview', deps_type=str)
+agent = Agent("google:gemini-3-flash-preview", deps_type=str)
 
 
 @agent.tool_plain
@@ -64,13 +64,13 @@ Attach an MCP server as a toolset on the agent.
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 
-server = MCPServerStdio('python', args=['mcp_server.py'], timeout=10)
-agent = Agent('openai:gpt-5.2', toolsets=[server])
+server = MCPServerStdio("python", args=["mcp_server.py"], timeout=10)
+agent = Agent("openai:gpt-5.2", toolsets=[server])
 
 
 async def main():
     async with agent:
-        result = await agent.run('What is the weather in Paris?')
+        result = await agent.run("What is the weather in Paris?")
         print(result.output)
 ```
 
@@ -90,9 +90,9 @@ from pydantic_ai import Agent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 
 agent = Agent(
-    'openai:gpt-5.2',
+    "openai:gpt-5.2",
     tools=[duckduckgo_search_tool()],
-    instructions='Search DuckDuckGo for the given query and return the results.',
+    instructions="Search DuckDuckGo for the given query and return the results.",
 )
 ```
 

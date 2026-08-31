@@ -318,7 +318,7 @@ async def test_with_startup():
 ```python
 transport = ASGITransport(
     app=app,
-    root_path="/api",           # For proxy testing
+    root_path="/api",  # For proxy testing
     client=("127.0.0.1", 12345),  # For client IP testing
 )
 

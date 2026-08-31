@@ -153,6 +153,14 @@ def test_create_random_common_dweller_identity_pairs_pass_schema_validator() -> 
         DwellerVisualAttributes(race=attrs["race"], faction=attrs["faction"])
 
 
+def test_create_random_common_dweller_identity_serializes_through_read_schema() -> None:
+    """Generated state-of-being values must satisfy the API response schema."""
+    from app.schemas.dweller import DwellerVisualAttributes
+
+    for seed in range(300):
+        DwellerVisualAttributes.model_validate(create_random_common_dweller(seed=seed)["visual_attributes"])
+
+
 def test_dweller_config_race_weights_defaults() -> None:
     """Default race weights implement the 70/15/10/5 diversity policy; accessor returns a copy."""
     weights = game_config.dweller.get_race_weights()

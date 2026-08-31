@@ -24,15 +24,15 @@ class GhoulFeralness(StrEnum):
     """State of being for Ghoul characters."""
 
     SANE = "sane"
-    PARTIALLY_FERAL = "partially_feral"
-    FULLY_FERAL = "fully_feral"
+    WILD = "wild"
+    FERAL = "feral"
 
 
 class SuperMutantMutation(StrEnum):
     """State of being for Super Mutant characters."""
 
-    MILD = "mild_mutation"
-    SEVERE = "severe_mutation"
+    MILD = "mild"
+    AVERAGE = "average"
     BEHEMOTH = "behemoth"
 
 

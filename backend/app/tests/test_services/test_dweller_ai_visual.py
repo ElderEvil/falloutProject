@@ -3,6 +3,10 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from fastapi import HTTPException
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
 
 
@@ -125,6 +129,43 @@ async def test_generate_replaces_substantial_attrs(
     assert stored.voice_line_text == "Stay sharp."
     assert stored.voice_line_url == "https://audio.example/voice.mp3"
     assert generated is updated_dweller
+
+
+@patch("app.services.dweller_ai.get_provider_model_snapshot", new_callable=AsyncMock)
+@patch("app.services.dweller_ai.get_instructions", new_callable=AsyncMock)
+@patch("app.services.dweller_ai.visual_attributes_agent")
+@patch("app.services.dweller_ai.dweller_crud")
+@patch("app.services.dweller_ai.quota_service")
+async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
+    mock_quota: MagicMock,
+    mock_crud: MagicMock,
+    mock_agent: MagicMock,
+    mock_instructions: AsyncMock,
+    mock_provider_model: AsyncMock,
+) -> None:
+    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
+    mock_instructions.return_value = ("instructions", uuid.uuid4(), "instructions-hash")
+    mock_provider_model.return_value = ("lmstudio", "test-model")
+    mock_agent.run = AsyncMock(side_effect=UnexpectedModelBehavior("invalid JSON"))
+
+    dweller = MagicMock(
+        id=uuid.uuid4(),
+        first_name="Test",
+        last_name="Dweller",
+        gender="male",
+        bio="A test dweller.",
+        visual_attributes={"race": "human", "faction": "vault_dweller"},
+        weapon=None,
+        outfit=None,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await dweller_ai.generate_visual_attributes(
+            user=MagicMock(id=uuid.uuid4()), db_session=MagicMock(), dweller_info=dweller
+        )
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == "The AI provider returned an invalid appearance response. Please try again."
 
 
 def test_restrict_equipment_fields_removes_non_owned() -> None:

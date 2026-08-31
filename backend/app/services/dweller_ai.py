@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from pydantic import UUID4
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
@@ -80,6 +81,15 @@ class DwellerAIService:
         else:
             return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
+    @staticmethod
+    def _provider_error_detail(error: ModelHTTPError) -> str:
+        """Return a safe provider message suitable for a player-facing API response."""
+        if isinstance(error.body, dict):
+            message = error.body.get("message")
+            if isinstance(message, str) and message:
+                return message
+        return f"AI provider request failed (HTTP {error.status_code})"
+
     async def generate_backstory(
         self,
         user: User,
@@ -97,8 +107,6 @@ class DwellerAIService:
             )
 
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
-        if dweller_obj.bio:
-            raise ContentNoChangeException(detail="Dweller already has a bio")
 
         location = origin or "Wasteland"
         special_stats = SPECIALModel.format_special_stats(dweller_obj)
@@ -224,7 +232,7 @@ class DwellerAIService:
             obj_in=llm_int_create,
         )
 
-        return dweller_obj
+        return await dweller_crud.get_full_info(db_session, dweller_id)
 
     async def generate_visual_attributes(
         self,
@@ -264,11 +272,21 @@ class DwellerAIService:
         instructions, prompt_id, instructions_hash = await get_instructions(db_session, "visual_attributes")
         provider, model = await get_provider_model_snapshot(db_session)
 
-        result = await visual_attributes_agent.run(
-            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.",
-            deps=deps,
-            instructions=instructions,
-        )
+        try:
+            result = await visual_attributes_agent.run(
+                f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.",
+                deps=deps,
+                instructions=instructions,
+            )
+        except ModelHTTPError as error:
+            logger.exception("Appearance generation provider request failed for dweller %s", dweller_obj.id)
+            raise HTTPException(status_code=502, detail=self._provider_error_detail(error)) from error
+        except UnexpectedModelBehavior as error:
+            logger.exception("Appearance generation returned invalid structured output for dweller %s", dweller_obj.id)
+            raise HTTPException(
+                status_code=502,
+                detail="The AI provider returned an invalid appearance response. Please try again.",
+            ) from error
 
         visual_attributes = result.output.model_dump(exclude_none=True)
 

@@ -1,3 +1,4 @@
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -5,11 +6,25 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.api.v1.endpoints.dweller import extend_bio
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
+
+
+async def test_extend_bio_endpoint_delegates_to_ai_service() -> None:
+    user = MagicMock()
+    session = MagicMock()
+    dweller_id = uuid4()
+    expected = MagicMock()
+
+    with patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock(return_value=expected)) as extend:
+        result = await extend_bio(dweller_id=dweller_id, user=user, db_session=session)
+
+    assert result is expected
+    extend.assert_awaited_once_with(db_session=session, dweller_id=dweller_id, user=user)
 
 
 @pytest.mark.asyncio

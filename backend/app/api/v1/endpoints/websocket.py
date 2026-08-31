@@ -130,7 +130,8 @@ async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_
         "dweller_message_id": "uuid",
         "response_text": "Hello dweller!",
         "happiness_impact": {...} | null,
-        "action_suggestion": {...} | null
+        "action_suggestion": {...} | null,
+        "unlocked_places": [{"location_id": "uuid", "name": "Megaton"}]
     }
     {
         "type": "error",

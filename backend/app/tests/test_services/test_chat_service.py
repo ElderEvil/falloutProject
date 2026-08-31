@@ -11,6 +11,7 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
+from app.schemas.chat import UnlockedPlace
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.chat_service import chat_service
@@ -404,7 +405,11 @@ class TestChatServiceErrorHandling:
                 "app.services.chat_service.parse_action_suggestion",
                 new=AsyncMock(return_value=MagicMock(model_dump=dict)),
             ),
-            patch.object(chat_service, "_maybe_unlock_places", new=AsyncMock()),
+            patch.object(
+                chat_service,
+                "_maybe_unlock_places",
+                new=AsyncMock(return_value=[UnlockedPlace(location_id=uuid4(), name="Megaton")]),
+            ),
         ):
             events = [
                 event
@@ -424,6 +429,7 @@ class TestChatServiceErrorHandling:
         assert events[-1]["type"] == "done"
         assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
+        assert events[-1]["unlocked_places"][0]["name"] == "Megaton"
 
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,
@@ -595,7 +601,7 @@ class TestMaybeUnlockPlaces:
                 ),
             )
 
-        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+        assert await chat_service._maybe_unlock_places(async_session, chat_dweller) == []
 
         await async_session.refresh(link)
         assert link.is_unlocked is False, "Should NOT unlock after only 2 messages"
@@ -611,7 +617,9 @@ class TestMaybeUnlockPlaces:
             ),
         )
 
-        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+        unlocked_places = await chat_service._maybe_unlock_places(async_session, chat_dweller)
+        assert [place.name for place in unlocked_places] == ["Megaton"]
+        assert unlocked_places[0].location_id == loc.id
 
         await async_session.refresh(link)
         assert link.is_unlocked is True, "Should unlock after 3 messages"

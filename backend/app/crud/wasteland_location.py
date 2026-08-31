@@ -239,8 +239,8 @@ class CRUDWastelandLocation:
             )
         return mapping
 
-    async def unlock_places_for_dweller(self, db_session: AsyncSession, *, dweller_id: UUID) -> int:
-        """Unlock all places linked to the given dweller. Returns number of rows updated."""
+    async def unlock_places_for_dweller(self, db_session: AsyncSession, *, dweller_id: UUID) -> list[tuple[UUID, str]]:
+        """Unlock linked places and return the IDs and names newly revealed by this dweller."""
         stmt = (
             sa_update(DwellerLocation)
             .where(
@@ -248,10 +248,18 @@ class CRUDWastelandLocation:
                 DwellerLocation.is_unlocked.is_(False),
             )
             .values(is_unlocked=True)
+            .returning(DwellerLocation.location_id)
         )
-        result = await db_session.execute(stmt)
+        location_ids = list((await db_session.execute(stmt)).scalars())
+        if not location_ids:
+            return []
+
+        names_result = await db_session.execute(
+            select(WastelandLocation.id, WastelandLocation.name).where(WastelandLocation.id.in_(location_ids))
+        )
+        location_names = {row.id: row.name for row in names_result.all()}
         await db_session.commit()
-        return result.rowcount
+        return [(location_id, location_names[location_id]) for location_id in location_ids]
 
 
 # Module-level singleton — matches the convention used by other crud modules.

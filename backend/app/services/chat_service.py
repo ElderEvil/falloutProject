@@ -23,7 +23,7 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Dweller, User, Vault
 from app.models.chat_message import ChatMessageCreate
-from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
+from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction, UnlockedPlace
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
@@ -172,7 +172,7 @@ class ChatService:
         )
 
         # Unlock the dweller's map places after 3+ user messages (best-effort)
-        await self._maybe_unlock_places(db_session, dweller)
+        unlocked_places = await self._maybe_unlock_places(db_session, dweller)
 
         # Build and return response
         return DwellerChatResponse(
@@ -180,6 +180,7 @@ class ChatService:
             dweller_message_id=dweller_message.id,
             happiness_impact=happiness_impact,
             action_suggestion=action_suggestion,
+            unlocked_places=unlocked_places,
         )
 
     async def stream_response(
@@ -239,7 +240,7 @@ class ChatService:
             async for event in self._stream_with_fallback(deps, dweller, message_text, bundle, instructions):
                 yield event
 
-            dweller_message_id = await self._persist_chat(
+            dweller_message_id, unlocked_places = await self._persist_chat(
                 db_session=db_session,
                 user=user,
                 dweller=dweller,
@@ -257,6 +258,7 @@ class ChatService:
                 "action_suggestion": bundle.action_suggestion.model_dump(mode="json")
                 if bundle.action_suggestion
                 else None,
+                "unlocked_places": [place.model_dump(mode="json") for place in unlocked_places],
             }
 
         except AccessDeniedException as e:
@@ -366,7 +368,7 @@ class ChatService:
         dweller: DwellerReadFull,
         message_text: str,
         bundle: _StreamBundle,
-    ) -> UUID4:
+    ) -> tuple[UUID4, list[UnlockedPlace]]:
         """Persist the LLM interaction and chat messages for a completed response."""
         llm_int_create = LLMInteractionCreate(
             parameters=message_text,
@@ -415,9 +417,9 @@ class ChatService:
         )
 
         # Unlock the dweller's map places after 3+ user messages (best-effort)
-        await self._maybe_unlock_places(db_session, dweller)
+        unlocked_places = await self._maybe_unlock_places(db_session, dweller)
 
-        return dweller_message.id
+        return dweller_message.id, unlocked_places
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
@@ -594,7 +596,7 @@ class ChatService:
                 return message
         return f"AI provider request failed (HTTP {error.status_code})"
 
-    async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> None:
+    async def _maybe_unlock_places(self, db_session: AsyncSession, dweller: DwellerReadFull) -> list[UnlockedPlace]:
         """Unlock the dweller's associated places after 3+ user messages (best-effort)."""
         from app.crud.chat_message import chat_message as chat_crud
         from app.crud.wasteland_location import wasteland_location as wl_crud
@@ -602,12 +604,28 @@ class ChatService:
         try:
             user_msg_count = await chat_crud.count_user_messages_to_dweller(db_session, dweller_id=dweller.id)
             if user_msg_count >= 3:
-                updated = await wl_crud.unlock_places_for_dweller(db_session, dweller_id=dweller.id)
-                if updated:
-                    logger.info("Unlocked places for dweller %s after %d user messages", dweller.id, user_msg_count)
+                unlocked_rows = await wl_crud.unlock_places_for_dweller(db_session, dweller_id=dweller.id)
+                unlocked_places = [
+                    UnlockedPlace(location_id=location_id, name=name) for location_id, name in unlocked_rows
+                ]
+                if unlocked_places:
+                    logger.info(
+                        "Unlocked %d places for dweller %s after %d user messages",
+                        len(unlocked_places),
+                        dweller.id,
+                        user_msg_count,
+                    )
+                return unlocked_places
         except Exception:
             await db_session.rollback()
             logger.exception("Failed to unlock places for dweller %s, continuing", dweller.id)
+        return []
+
+    async def unlock_places_after_conversation(
+        self, db_session: AsyncSession, dweller: DwellerReadFull
+    ) -> list[UnlockedPlace]:
+        """Apply the shared post-message discovery rule for non-text chat flows."""
+        return await self._maybe_unlock_places(db_session, dweller)
 
     @staticmethod
     def _validate_dweller_exists(dweller: "DwellerReadFull | None", _dweller_id: UUID4) -> None:

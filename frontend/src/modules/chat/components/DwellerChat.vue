@@ -10,13 +10,14 @@ import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
-import { useChatMessages } from '../composables/useChatMessages'
+import { normalizeUnlockedPlaces, useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
 import { useSound } from '@/core/composables/useSound'
-import { useMapStore } from '@/modules/map/stores/map'
 import { useToast } from '@/core/composables/useToast'
+import { useMapStore } from '@/modules/map/stores/map'
+import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
 
 const router = useRouter()
@@ -31,6 +32,7 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
+const mapStore = useMapStore()
 
 const isSendingAudio = ref(false)
 const audioMode = ref(false)
@@ -51,6 +53,18 @@ const resetDate = computed(() => {
   })
 })
 
+const chatBudgetSummary = computed(() => {
+  const stats = profileStore.aiUsageStats
+  if (!stats || stats.quota_exceeded || typeof stats.quota_remaining !== 'number') return null
+  return `${stats.quota_remaining.toLocaleString()} tokens remaining`
+})
+
+const placeLinks = computed(() =>
+  mapStore.locations
+    .filter((location) => location.dwellers?.some((dweller) => dweller.dweller_id === props.dwellerId))
+    .map((location): MapPlaceLink => ({ name: location.name, locationId: location.id }))
+)
+
 const goToProfile = () => {
   router.push('/profile')
 }
@@ -67,6 +81,7 @@ const {
 
 const userId = computed(() => authStore.user?.id || '')
 const chatWs = useChatWebSocket(userId.value, props.dwellerId, authStore.token)
+const toast = useToast()
 
 const {
   messages,
@@ -102,27 +117,6 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
   messages,
   vaultId: props.vaultId,
 })
-
-const mapStore = useMapStore()
-const toast = useToast()
-const initialUnlockedCount = ref<number | null>(null)
-
-watch(
-  () => mapStore.unlockedPlacesCount,
-  (newCount) => {
-    if (initialUnlockedCount.value === null) {
-      initialUnlockedCount.value = newCount
-      return
-    }
-    const previousCount = initialUnlockedCount.value
-    if (newCount > previousCount) {
-      const unlockedDelta = newCount - previousCount
-      const pluralSuffix = unlockedDelta > 1 ? 's' : ''
-      toast.success(`New location uncovered! (${unlockedDelta} place${pluralSuffix})`)
-    }
-    initialUnlockedCount.value = newCount
-  }
-)
 
 const handleSendMessage = async () => {
   await sendMessage()
@@ -212,6 +206,7 @@ const sendAudioMessage = async () => {
       audioUrl: response.data.dweller_audio_url,
       happinessImpact: response.data.happiness_impact || null,
       actionSuggestion: response.data.action_suggestion || null,
+      unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
     })
 
     if (response.data.dweller_audio_url) {
@@ -229,9 +224,17 @@ const sendAudioMessage = async () => {
 
 onMounted(() => {
   loadChatHistory()
+  if (props.vaultId && authStore.token) {
+    void mapStore.fetchMap(props.vaultId, authStore.token)
+  }
   if (!profileStore.hasProfile) {
     profileStore.fetchProfile().catch(() => {
       // Already reported by the store (handleStoreError); chat falls back to the icon avatar.
+    })
+  }
+  if (!profileStore.aiUsageStats) {
+    profileStore.fetchAIUsage().catch(() => {
+      // Chat remains usable when the optional budget readout is unavailable.
     })
   }
 })
@@ -265,6 +268,8 @@ onUnmounted(() => {
     <div ref="chatMessages" class="chat-messages">
       <ChatMessageList
         :messages="messages"
+        :vault-id="vaultId"
+        :place-links="placeLinks"
         :dweller-name="dwellerName"
         :username="username"
         :dweller-avatar-url="dwellerAvatarUrl"
@@ -280,6 +285,16 @@ onUnmounted(() => {
         @confirm-action="handleActionConfirm"
         @dismiss-action="dismissAction"
       />
+    </div>
+
+    <div v-if="chatBudgetSummary" class="chat-budget-status flex items-center justify-between gap-3 border-t border-theme-primary/15 bg-surface-sunken px-4 py-2 text-xs text-theme-primary/70" role="status">
+      <span class="flex items-center gap-1.5">
+        <Icon icon="mdi:robot-outline" class="h-4 w-4 text-theme-primary/70" />
+        {{ chatBudgetSummary }}
+      </span>
+      <button class="text-theme-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary" @click="goToProfile">
+        Usage details
+      </button>
     </div>
 
     <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">

@@ -42,8 +42,8 @@ async def test_unlock_places_for_dweller_updates_rows(
     assert link.is_unlocked is False
 
     # Unlock
-    updated = await wl_crud.unlock_places_for_dweller(async_session, dweller_id=dweller.id)
-    assert updated == 1
+    unlocked_places = await wl_crud.unlock_places_for_dweller(async_session, dweller_id=dweller.id)
+    assert unlocked_places == [(loc.id, "Megaton")]
 
     # Verify is_unlocked is now True
     await async_session.refresh(link)
@@ -52,11 +52,11 @@ async def test_unlock_places_for_dweller_updates_rows(
 
 @pytest.mark.asyncio
 async def test_unlock_places_for_dweller_no_rows(async_session: AsyncSession, vault: Vault) -> None:
-    """unlock_places_for_dweller returns 0 when the dweller has no linked places."""
+    """unlock_places_for_dweller returns no names when the dweller has no linked places."""
     from uuid import uuid4
 
-    updated = await wl_crud.unlock_places_for_dweller(async_session, dweller_id=uuid4())
-    assert updated == 0
+    unlocked_places = await wl_crud.unlock_places_for_dweller(async_session, dweller_id=uuid4())
+    assert unlocked_places == []
 
 
 @pytest.mark.asyncio

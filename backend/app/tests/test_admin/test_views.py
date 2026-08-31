@@ -23,6 +23,8 @@ from app.admin.views import (
 )
 from app.core.config import settings
 from app.models.dweller import Dweller
+from app.models.llm_interaction import LLMInteraction
+from app.models.prompt import Prompt
 from app.models.user import User
 from main import app
 
@@ -54,6 +56,16 @@ def test_llm_and_prompt_views_are_read_only() -> None:
         assert view.can_edit is False
         assert view.can_delete is False
         assert view.can_export is False
+
+
+def test_ai_audit_views_expose_targeted_search_and_filters() -> None:
+    assert {Prompt.prompt_name, Prompt.description} <= set(PromptAdmin.column_searchable_list)
+    assert {filter_.column for filter_ in PromptAdmin.column_filters} == {Prompt.is_active, Prompt.version}
+    assert {filter_.column for filter_ in LLInteractionAdmin.column_filters} == {
+        LLMInteraction.usage,
+        LLMInteraction.provider,
+        LLMInteraction.model,
+    }
 
 
 def test_user_admin_exposes_a_verify_email_action() -> None:

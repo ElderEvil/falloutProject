@@ -503,6 +503,43 @@
   font-weight: 600;
 }
 
+.map-discovery-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  color: var(--color-theme-primary);
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+}
+
+.map-discovery-label {
+  opacity: 0.7;
+}
+
+.map-discovery-link {
+  color: var(--color-theme-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: text-shadow 0.2s ease;
+}
+
+.map-discovery-link:hover {
+  text-shadow: 0 0 6px var(--color-theme-glow);
+}
+
+.chat-place-link {
+  color: var(--color-theme-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: text-shadow 0.2s ease;
+}
+
+.chat-place-link:hover {
+  text-shadow: 0 0 6px var(--color-theme-glow);
+}
+
 /* Action suggestion card */
 .action-suggestion-card {
   margin-top: 0.75rem;

@@ -44,6 +44,13 @@ describe('DwellerBio', () => {
       expect(wrapper.find('.generate-button').text()).toContain('Regenerate biography')
     })
 
+    it('offers biography extension only when a biography exists', () => {
+      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      expect(wrapper.find('.extend-bio-button').text()).toContain('Extend biography')
+    })
+
     it('should call the generateBio action when button clicked', async () => {
       await wrapper.find('.generate-button').trigger('click')
       expect(ctx.actions.generateBio).toHaveBeenCalledOnce()

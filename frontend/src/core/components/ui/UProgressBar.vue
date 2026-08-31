@@ -22,9 +22,11 @@ interface Props {
   glow?: boolean
   /** Animation variant */
   animation?: 'none' | 'pulse' | 'shimmer' | 'shine'
+  /** Accessible description of the represented value */
+  ariaLabel?: string
 }
 
-const { modelValue = 0, height = 10, glow = true, animation = 'none', color } = defineProps<Props>()
+const { modelValue = 0, height = 10, glow = true, animation = 'none', color, ariaLabel } = defineProps<Props>()
 
 import { computed } from 'vue'
 
@@ -44,6 +46,7 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
     :aria-valuenow="clampedValue"
     aria-valuemin="0"
     aria-valuemax="100"
+    :aria-label="ariaLabel"
   >
     <div
       class="u-progress-bar__fill"

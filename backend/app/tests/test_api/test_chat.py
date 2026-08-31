@@ -23,7 +23,14 @@ from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.room import RoomTypeEnum
 from app.models.vault import Vault
-from app.schemas.chat import AssignToRoomAction, ChatMessage, NoAction, RecallExplorationAction, StartExplorationAction
+from app.schemas.chat import (
+    AssignToRoomAction,
+    ChatMessage,
+    NoAction,
+    RecallExplorationAction,
+    StartExplorationAction,
+    UnlockedPlace,
+)
 from app.schemas.common import GenderEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
@@ -995,6 +1002,7 @@ class TestMessageIdCorrelation:
                     happiness_after=84,
                 ),
                 "action_suggestion": NoAction(reason="No action needed"),
+                "unlocked_places": [UnlockedPlace(location_id=uuid4(), name="Megaton")],
             }
         )
         mock_manager.send_chat_message = AsyncMock()
@@ -1017,6 +1025,14 @@ class TestMessageIdCorrelation:
         assert "dweller_message_id" in data, "Voice chat response should include dweller_message_id"
         dweller_message_id = data["dweller_message_id"]
         assert dweller_message_id is not None, "dweller_message_id should not be None"
+        assert data["unlocked_places"] == [
+            {
+                "location_id": str(
+                    mock_conversation_service.process_audio_message.return_value["unlocked_places"][0].location_id
+                ),
+                "name": "Megaton",
+            }
+        ]
 
         # Verify it's a valid UUID string
         import uuid

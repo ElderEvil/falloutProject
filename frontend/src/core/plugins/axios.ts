@@ -2,10 +2,14 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { useToast } from '@/core/composables/useToast'
 import { dispatchRefreshedAuthTokens } from '@/core/utils/authSessionEvents'
 
-interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
-  _retry?: boolean
-  _skipErrorNotification?: boolean
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    _retry?: boolean
+    _skipErrorNotification?: boolean
+  }
 }
+
+type CustomAxiosRequestConfig = InternalAxiosRequestConfig
 
 interface ValidationError {
   loc: string[]

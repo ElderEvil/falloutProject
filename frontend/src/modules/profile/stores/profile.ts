@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserProfile, ProfileUpdate } from '../models/profile'
 import type { AIUsageStats } from '../models/aiUsage'
+import { fetchAIUsage as fetchAIUsageRequest } from '../services/aiUsageService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import axios from '@/core/plugins/axios'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
@@ -92,9 +93,9 @@ export const useProfileStore = defineStore('profile', () => {
   async function fetchAIUsage(): Promise<AIUsageStats | null> {
     aiUsageLoading.value = true
     try {
-      const response = await axios.get<AIUsageStats>('/api/v1/users/me/profile/ai-usage')
-      aiUsageStats.value = response.data
-      return response.data
+      const stats = await fetchAIUsageRequest()
+      aiUsageStats.value = stats
+      return stats
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to fetch AI usage')
       return null

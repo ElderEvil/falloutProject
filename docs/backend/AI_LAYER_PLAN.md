@@ -115,6 +115,74 @@ guards, verify-email action) but **no authenticated render smoke coverage** — 
 Each idea must justify its token cost against the template-first rule: anything that can be a template should be,
 and nothing ships before per-operation usage data shows there is budget headroom.
 
+### Plan 4.5 — AI control surfaces: player clarity and operator discovery (next)
+
+Turn the shipped prompt provenance and usage data into understandable UI, not another analytics product. The work is
+deliberately staged: the first slice is frontend-only and valuable on its own; operator search reuses sqladmin; a
+player-level activity log waits for a scoped API and a clear privacy decision.
+
+#### Slice A — Player quick wins (ship first)
+
+1. **Monthly AI-use briefing in Profile → Analytics.** Extend the existing `AIUsageCard.vue`—do not create a second
+   dashboard—with a compact “This month by operation” readout. Each non-operational `by_operation` item shows a
+   plain-language label, tokens, request count, and percentage of `current_month.total_tokens`. Preserve the backend
+   order and exclude `quota_tracking`; client code only presents the server aggregate.
+2. **Make the data explain itself.** Add a one-line “What counts toward my quota?” disclosure: chats, bios, and
+   optional generation consume the monthly budget; the reset date is already present. Known operation tags get concise
+   labels; unknown tags render as “Other AI activity,” never as raw internal identifiers.
+3. **A calm in-context budget signal.** In `DwellerChat.vue`, show a small, non-blocking remaining-budget/readiness
+   line once quota data has loaded. Escalate only at the existing warning/exceeded thresholds; `chat_heavy` becomes an
+   advisory (“Most AI use this month is dwelling chat”), never an accusation or a restriction. Reuse the existing
+   profile navigation for details rather than adding modal flow.
+4. **Accessible terminal presentation.** Use the existing CRT card, `UProgressBar`, warm-neutral surfaces, semantic
+   warning color, focus treatment, and reduced-motion rules. Every visual bar must have its full value in text and
+   never rely on color alone, consistent with [W3C’s guidance for charts and non-text content](https://www.w3.org/WAI/tutorials/images/complex/).
+
+#### Slice B — Operator low-hanging fruit (independent follow-up)
+
+1. **Findable prompt registry.** Add sqladmin search for prompt name and description, a visible active/version filter,
+   and a default ordering that puts the active latest version first. Keep writes in `fo-cli version-prompt`; the admin
+   remains an audit surface, not a mutable prompt editor.
+2. **Trace a generation without database access.** Add filters for interaction operation, provider/model, prompt
+   presence, and created-at range. In an interaction detail view, make the saved prompt snapshot/hash and prompt
+   version easy to read; do not expose an end-user’s full chat parameters in a list or broad search index.
+3. **Search boundary.** Do not build player-facing search over LLM interactions yet: the current endpoint only returns
+   aggregates, and a raw interaction history raises retention, privacy, and pagination questions. Decide those before
+   introducing a new API or UI route.
+
+#### Delivery contract
+
+- **Types/data:** align `AIUsageStats` with the generated API’s guaranteed `by_operation` and `chat_heavy` fields;
+  retain graceful handling of empty historical data.
+- **Components:** keep derived presentation in computed values, use `<script setup lang="ts">`, and extend the existing
+  profile/chat components unless a focused operation-row component removes more duplication than it adds.
+- **Tests:** add Vitest coverage for normal, empty, unknown-operation, chat-heavy, quota-warning, and keyboard/screen
+  reader labels; cover sqladmin list filters/search with authenticated smoke tests.
+- **Verification:** `pnpm run lint && pnpm run typecheck`, the focused Vitest files, backend admin tests for Slice B,
+  and a manual narrow-mobile/keyboard pass.
+
+**Non-goals:** daily graphs, token-price/cost estimates, prompt editing/history for players, automatic quota polling,
+player-facing per-interaction logs, or new backend endpoints. Revisit daily trends and activity search only after the
+monthly briefing proves insufficient and product decisions cover privacy/retention.
+
+#### Next small player-facing follow-up — contextual conversation starters
+
+For an empty dweller chat, show at most three compact, deterministic starter chips such as “Ask about Megaton” or
+“Ask about wasteland life”. Derive place-specific starters from locations the dweller already knows, and use a general
+biography starter when no locations exist. A chip only fills the composer; it never sends a message or calls a provider
+until the player chooses Send. This reuses the existing map-intelligence data, makes chat approachable for a new
+player, and adds no background token spend. Keep the row hidden once a conversation has started so it remains an
+invitation rather than persistent UI chrome.
+
+#### Future content-quality update — species-aware biographies
+
+Split biography generation and extension into explicit human, ghoul, synth, and super-mutant variants. Each variant
+gets a focused, versioned prompt and deterministic template fallback that respects its identity and Fallout lore;
+shared voice, safety rules, and output schema remain common. Select the variant from the dweller’s existing race/type
+rather than asking the player to choose, and preserve the current generic path as a safe fallback for unknown or
+legacy records. Treat this as a future prompt/content pass: it should not add a new runtime call, and curated offline
+template variations remain preferable where they cover the need.
+
 ### Plan 5 — Pre-Generation Shift (local AI → curated content, zero runtime cost)
 
 **Direction:** reduce in-time AI generation to the minimum and rely on **pre-generated, curated, reusable**

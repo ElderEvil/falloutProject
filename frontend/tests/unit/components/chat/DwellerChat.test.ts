@@ -6,6 +6,7 @@ import DwellerChat from '@/modules/chat/components/DwellerChat.vue'
 import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useProfileStore } from '@/modules/profile/stores/profile'
 import * as trainingService from '@/modules/progression/services/trainingService'
 
 // Mock axios
@@ -136,8 +137,9 @@ const { mockRefreshMap } = vi.hoisted(() => ({
 
 vi.mock('@/modules/map/stores/map', () => ({
   useMapStore: () => ({
-    locations: ref([]),
+    locations: [],
     unlockedPlacesCount: ref(0),
+    fetchMap: mockRefreshMap,
     refreshMap: mockRefreshMap,
   }),
 }))
@@ -148,6 +150,7 @@ describe('DwellerChat', () => {
     dwellerName: 'Test Dweller',
     username: 'TestUser',
     dwellerAvatar: undefined,
+    vaultId: 'vault-123',
   }
 
   beforeEach(() => {
@@ -1994,6 +1997,34 @@ describe('DwellerChat', () => {
     })
   })
 
+  describe('Map discoveries', () => {
+    it('renders map intel beside the dweller message', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'I remember the old roads.',
+          happiness_impact: null,
+          action_suggestion: null,
+          unlocked_places: [{ location_id: 'place-old-north', name: 'Old North Church' }],
+        },
+      })
+
+      await wrapper.find('.chat-input-field').setValue('Tell me about Boston.')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      const discovery = wrapper.find('.map-discovery-indicator')
+      expect(discovery.exists()).toBe(true)
+      expect(discovery.text()).toContain('1')
+      expect(discovery.attributes('title')).toBe('Map intel: Old North Church unlocked')
+      expect(wrapper.find('.map-discovery-link').attributes('href')).toBe(
+        '/vault/vault-123/map?place=place-old-north'
+      )
+    })
+  })
+
   describe('WebSocket Message Streaming', () => {
     beforeEach(() => {
       mockWsState.value = 'connected'
@@ -2070,6 +2101,31 @@ describe('DwellerChat', () => {
       expect(actionCard.text()).toContain('Train strength')
     })
 
+    it('renders map intel from a streamed response', async () => {
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await wrapper.find('.chat-input-field').setValue('What places do you know?')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      mockWebSocketHandlers['token'][0]({ text: 'Try the old overpass.' })
+      mockWebSocketHandlers['done'][0]({
+        dweller_message_id: 'msg-stream-discovery',
+        happiness_impact: null,
+        action_suggestion: null,
+        unlocked_places: [{ location_id: 'place-rivet-city', name: 'Rivet City' }],
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.map-discovery-indicator').attributes('title')).toBe(
+        'Map intel: Rivet City unlocked'
+      )
+      expect(wrapper.find('.map-discovery-link').attributes('href')).toBe(
+        '/vault/vault-123/map?place=place-rivet-city'
+      )
+    })
+
     it('should mark message as failed when stream errors', async () => {
       const wrapper = mountComponent()
       await flushPromises()
@@ -2084,6 +2140,31 @@ describe('DwellerChat', () => {
 
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
       expect(wrapper.text()).toContain('AI quota exceeded')
+    })
+  })
+
+  describe('AI budget readiness', () => {
+    it('shows a compact remaining-budget signal when usage has loaded', () => {
+      useProfileStore().$patch({
+        aiUsageStats: {
+          all_time: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          current_month: { prompt_tokens: 250, completion_tokens: 100, total_tokens: 350 },
+          month: '2026-08',
+          quota_limit: 1000,
+          quota_used: 350,
+          quota_remaining: 650,
+          quota_percentage: 35,
+          quota_warning: false,
+          quota_exceeded: false,
+          reset_date: '2026-09-01',
+          by_operation: [],
+          chat_heavy: false,
+        },
+      })
+
+      const wrapper = mountComponent()
+
+      expect(wrapper.find('.chat-budget-status').text()).toContain('650 tokens remaining')
     })
   })
 })

@@ -328,6 +328,9 @@ class ConversationService:
             instructions_snapshot=instructions,
         )
         dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
+        from app.services.chat_service import chat_service
+
+        unlocked_places = await chat_service.unlock_places_after_conversation(db_session, dweller)
 
         return {
             "transcription": transcribed_text,
@@ -338,6 +341,7 @@ class ConversationService:
             "dweller_message_id": dweller_message_id,
             "happiness_impact": response.happiness_impact,
             "action_suggestion": response.action_suggestion,
+            "unlocked_places": unlocked_places,
         }
 
 

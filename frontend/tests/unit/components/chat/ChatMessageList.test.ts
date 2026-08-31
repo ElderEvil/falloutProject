@@ -82,4 +82,18 @@ describe('ChatMessageList', () => {
     expect(img.attributes('src')).toBe('/media/avatars/overseer.png')
     expect(img.attributes('alt')).toBe('Overseer')
   })
+
+  it('links known dweller locations in chat text to their map markers', () => {
+    const wrapper = mountList(
+      [{ type: 'dweller', content: 'Megaton taught me to keep moving.' }],
+      {
+        vaultId: 'vault-123',
+        placeLinks: [{ name: 'Megaton', locationId: 'place-megaton' }],
+      }
+    )
+
+    const placeLink = wrapper.find('.chat-place-link')
+    expect(placeLink.text()).toBe('Megaton')
+    expect(placeLink.attributes('href')).toBe('/vault/vault-123/map?place=place-megaton')
+  })
 })

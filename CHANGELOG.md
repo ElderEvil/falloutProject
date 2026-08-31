@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.69.1 (2026-08-31)
+
+### Bug Fixes
+
+* announce chat send failures 4747cc1
+* isolate AI provider reconfiguration a56e8cc
+
+### Documentation
+
+* close exploration report follow-up bd9456f
+* prioritize progression correctness 936db73
+* retire completed roadmap follow-ups 388fb40
+
+### Code Refactoring
+
+* share dweller stat animations 8ede374
+
 ## 2.69.0 (2026-08-31)
 
 ### Features

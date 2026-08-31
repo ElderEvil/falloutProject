@@ -479,7 +479,7 @@ tests cover primary-beats-secondary and cross-type reversals.
 - Pet system, legendary dwellers
 - Merchant system, economy
 - Achievement system, daily/weekly challenges
-- **Dead Dweller Reuse System**
+- **Dead Dweller Reuse System** — parked; cross-vault encounters are out of scope under the single-vault exploration guardrail.
   - Soft-delete permanently dead dwellers (keep data)
   - Reuse as raiders attacking other vaults
   - Transformation chance: ghoul, synth, super mutant
@@ -596,6 +596,7 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 | Version | Release      | Highlights                                                                                                                             |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
+| v2.68.0 | Aug 31, 2026 | Boosted vault rarity and race/faction diversity; dweller state identity icons                                                          |
 | v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links, determinism fix                                         |
 | v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |

@@ -44,8 +44,14 @@ def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts(
         with Operations.context(MigrationContext.configure(connection)):
             migration.upgrade()
 
-        rows = connection.execute(sa.text("SELECT version, is_active FROM prompt ORDER BY id")).all()
+        rows = connection.execute(
+            sa.text("SELECT version, is_active FROM prompt WHERE prompt_name = 'chat' ORDER BY id")
+        ).all()
         assert rows == [(1, 1), (2, 0)]
+        prompt_names = (
+            connection.execute(sa.text("SELECT prompt_name FROM prompt ORDER BY prompt_name")).scalars().all()
+        )
+        assert prompt_names == ["backstory", "chat", "chat", "extend_bio", "visual_attributes"]
         indexes = sa.inspect(connection).get_indexes("prompt")
         active_index = next(index for index in indexes if index["name"] == "ix_prompt_active_name")
         assert active_index["dialect_options"]["sqlite_where"] is not None

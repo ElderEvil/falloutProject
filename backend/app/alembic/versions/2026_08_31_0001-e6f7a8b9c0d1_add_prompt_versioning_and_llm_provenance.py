@@ -32,33 +32,51 @@ def upgrade() -> None:
     inspector = sa.inspect(op.get_bind())
 
     prompt_cols = _column_names(inspector, "prompt")
-    if "version" not in prompt_cols:
-        op.add_column("prompt", sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
-    if "is_active" not in prompt_cols:
-        op.add_column("prompt", sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()))
-    op.alter_column("prompt", "version", server_default=None)
-    op.alter_column("prompt", "is_active", server_default=None)
-
-    if "uq_prompt_name_version" not in {c["name"] for c in inspector.get_unique_constraints("prompt")}:
-        op.create_unique_constraint("uq_prompt_name_version", "prompt", ["prompt_name", "version"])
-
+    needs_normalization = "version" not in prompt_cols or "is_active" not in prompt_cols
     prompt_indexes = {i["name"] for i in inspector.get_indexes("prompt")}
-    # Pre-existing field indexes were silently skipped (pydantic Field import); backfill them for metadata parity.
-    for name, column in (
-        ("ix_prompt_prompt_name", "prompt_name"),
-        ("ix_prompt_entity_id", "entity_id"),
-        ("ix_prompt_is_active", "is_active"),
-    ):
-        if name not in prompt_indexes:
-            op.create_index(name, "prompt", [column], unique=False)
-    if "ix_prompt_active_name" not in prompt_indexes:
-        op.create_index(
-            "ix_prompt_active_name",
-            "prompt",
-            ["prompt_name"],
-            unique=True,
-            postgresql_where=sa.text("is_active = true"),
-        )
+    prompt_constraints = {c["name"] for c in inspector.get_unique_constraints("prompt")}
+    with op.batch_alter_table("prompt") as batch_op:
+        if "version" not in prompt_cols:
+            batch_op.add_column(sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
+        if "is_active" not in prompt_cols:
+            batch_op.add_column(sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()))
+
+    if needs_normalization:
+        rows = op.get_bind().execute(sa.text("SELECT id, prompt_name FROM prompt ORDER BY prompt_name, id")).mappings()
+        versions: dict[str, int] = {}
+        normalized = []
+        for row in rows:
+            version = versions.get(row["prompt_name"], 0) + 1
+            versions[row["prompt_name"]] = version
+            normalized.append({"id": row["id"], "version": version, "is_active": version == 1})
+        if normalized:
+            op.get_bind().execute(
+                sa.text("UPDATE prompt SET version = :version, is_active = :is_active WHERE id = :id"), normalized
+            )
+
+    with op.batch_alter_table("prompt") as batch_op:
+        if "version" not in prompt_cols:
+            batch_op.alter_column("version", server_default=None)
+        if "is_active" not in prompt_cols:
+            batch_op.alter_column("is_active", server_default=None)
+        # Pre-existing field indexes were silently skipped (pydantic Field import); backfill metadata parity.
+        for name, column in (
+            ("ix_prompt_prompt_name", "prompt_name"),
+            ("ix_prompt_entity_id", "entity_id"),
+            ("ix_prompt_is_active", "is_active"),
+        ):
+            if name not in prompt_indexes:
+                batch_op.create_index(name, [column], unique=False)
+        if "uq_prompt_name_version" not in prompt_constraints:
+            batch_op.create_unique_constraint("uq_prompt_name_version", ["prompt_name", "version"])
+        if "ix_prompt_active_name" not in prompt_indexes:
+            batch_op.create_index(
+                "ix_prompt_active_name",
+                ["prompt_name"],
+                unique=True,
+                postgresql_where=sa.text("is_active = true"),
+                sqlite_where=sa.text("is_active = true"),
+            )
 
     interaction_cols = _column_names(inspector, "llminteraction")
     provenance_columns = {
@@ -78,8 +96,9 @@ def downgrade() -> None:
     op.drop_column("llminteraction", "instructions_hash")
     op.drop_column("llminteraction", "model")
     op.drop_column("llminteraction", "provider")
-    op.drop_index("ix_prompt_active_name", table_name="prompt")
-    op.drop_index("ix_prompt_is_active", table_name="prompt")
-    op.drop_constraint("uq_prompt_name_version", "prompt", type_="unique")
-    op.drop_column("prompt", "is_active")
-    op.drop_column("prompt", "version")
+    with op.batch_alter_table("prompt") as batch_op:
+        batch_op.drop_index("ix_prompt_active_name")
+        batch_op.drop_index("ix_prompt_is_active")
+        batch_op.drop_constraint("uq_prompt_name_version", type_="unique")
+        batch_op.drop_column("is_active")
+        batch_op.drop_column("version")

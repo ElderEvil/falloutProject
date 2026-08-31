@@ -1,6 +1,7 @@
 # AI Layer Upgrade — Prompts, LLM Interactions, Admin & New Usage
 
-> Status: Proposal (Target: next updates). Predecessor docs: `docs/backend/PYDANTIC_AI_GATEWAY.md`,
+> Status: Implemented through Plan 4 (2026-08-31); this document preserves the original design rationale and the
+> parked Plans 5–6. Predecessor docs: `docs/backend/PYDANTIC_AI_GATEWAY.md`,
 > `docs/ROADMAP.md` (Bio Extension, Quests Improvements), `docs/features/BIO_MAP_UNCOVERING.md`.
 
 ## Goal
@@ -8,7 +9,7 @@
 Make the AI layer observable, configurable, and cheap — and decide, per consumer, whether the current
 per-feature Pydantic AI agents stay, get upgraded, or get replaced with cheaper deterministic paths.
 
-## Current State (audited)
+## Delivered State (audited 2026-08-31)
 
 ### What exists
 
@@ -16,12 +17,12 @@ per-feature Pydantic AI agents stay, get upgraded, or get replaced with cheaper 
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Pydantic AI agents | `backend/app/agents/dweller_agents.py` (backstory, extend-bio, visual-attributes), `dweller_chat_agent.py` (chat, 6 tools) | Live, structured outputs, retry validation, Logfire tracing                                                         |
 | Provider profile   | `AIService.get_model()` + `AISettings` DB row (provider/model/base_url/gateway)                                            | Live; profile overrides env                                                                                         |
-| Usage tracking     | `LLMInteraction` rows (`usage` operation tag, token counts, user) written by `dweller_ai`                                  | Written, but `prompt_id` is **never populated**; no provider/model snapshot                                         |
-| Quota              | `quota_service` + `ai_usage_service.get_user_usage()` (all-time/monthly aggregates)                                        | Per-user totals only — **no per-operation breakdown**                                                               |
-| Prompt model       | `Prompt` table (`prompt_name`, `prompt_template`, `generate_prompt()`) + CRUD + admin view                                 | **Dead code**: no API, no seed, no consumer reads it; `prompt_name` is **not unique**, no active/version concept    |
-| Legacy AI path     | `chat_service.generate_objectives()`                                                                                       | Raw `AsyncOpenAI` + hardcoded `gpt-4-turbo` + inline prompt string — **bypasses** profile, quota, and usage logging |
+| Usage tracking     | `LLMInteraction` rows (`usage` operation tag, token counts, user)                                                         | Prompt-backed calls snapshot `prompt_id`, provider/model, instructions hash, and instructions text                  |
+| Quota              | `quota_service` + `ai_usage_service.get_user_usage()`                                                                      | Per-user totals plus current-month per-operation breakdown and chat-heavy anomaly flag                               |
+| Prompt model       | `Prompt` table + `PromptService` + `fo-cli seed-prompts`                                                                   | Versioned active rows, 60-second cache, DB-failure fallback, and four v1 seeds                                       |
+| Objective AI path  | `GET /objectives/generate` and `ChatService.generate_objectives()`                                                         | Removed; no unauthenticated raw-provider path remains                                                                |
 
-### Problems
+### Original problems (resolved through Plan 4)
 
 1. **Prompts are code.** All agent instructions are hardcoded in `dweller_agents.py` / `dweller_chat_agent.py`.
    The `Prompt` DB model (name + template + `generate_prompt(**kwargs)`) exists but is orphaned: no seed data,
@@ -38,16 +39,7 @@ per-feature Pydantic AI agents stay, get upgraded, or get replaced with cheaper 
    generation back to its inputs. (Configuration regression tests exist in `test_admin/test_views.py`; what is
    missing is authenticated render smoke coverage.)
 
-## Plan
-
-### Plan 0 — Lock down `/objectives/generate` (immediate, do first)
-
-`GET /objectives/generate` is an **unauthenticated, token-spending endpoint** — anyone on the internet can burn
-API budget. The frontend has **no caller** (only the generated OpenAPI types mention it).
-
-- **Now:** require `CurrentSuperuser` and switch to `POST` (a token-spending action must not be a GET).
-- **Then decide:** no frontend caller exists today, so the likely outcome is **deletion** (Option B below).
-  Keep the endpoint only if a product need for on-demand objective generation is confirmed.
+## Delivered plans and future direction
 
 ### Plan 1 — Durable interaction metadata (before analytics)
 
@@ -114,7 +106,7 @@ Current admin has configuration regression tests (`test_admin/test_views.py`: cr
 guards, verify-email action) but **no authenticated render smoke coverage** — that is the gap to fill.
 
 1. **LLM Interaction view upgrade** — add `prompt_tokens`, `completion_tokens`, `total_tokens`, `created_at`,
-   `provider`/`model` (once Plan 1 lands) to `column_list`; read-only; sortable by operation and user.
+   `provider`/`model` to `column_list`; read-only; sortable by operation, creation time, and token total.
 2. **Prompt view** — add `prompt_template` to details plus a "preview rendered prompt" panel (format with sample
    kwargs, using the validated formatter) so tuning doesn't require DB access.
 3. **Dweller view bio column** — show a has-bio flag / bio length in the list; jump-starts bio-gap audits
@@ -148,7 +140,7 @@ instead of calling providers.
 
 | Content                   | Today                                                                   | Pre-generated                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Quest chains / objectives | runtime AI (`generate_objectives`, hardcoded gpt-4-turbo) or JSON seeds | LM Studio batch → curated `quests.json` (feeds the Quests Improvements fragment)                  |
+| Quest chains / objectives | curated JSON seeds                                                       | LM Studio batch → curated `quests.json` (feeds the Quests Improvements fragment)                  |
 | Dweller portraits         | per-request OpenAI image call                                           | ComfyUI batch per archetype/race/faction matrix → RustFS library; creation picks from the library |
 | Bios                      | template-first (already shipped)                                        | LM Studio generates template _variations_ offline → curated into the options library              |
 | Incident narration        | (idea, parked)                                                          | pre-generated pool per incident type, runtime picks one                                           |
@@ -188,18 +180,15 @@ and nothing ships before per-operation usage data shows there is budget headroom
 
 ## Delivery Order
 
-1. **Plan 0 (lock down `/objectives/generate`)** — immediate: auth + POST, then decide delete vs migrate after
-   confirming the (currently absent) frontend usage.
-2. **Plans 1–2 (interaction metadata + prompt registry)** — schema first (`version`, `is_active`, snapshot/hash),
-   then runtime resolution with cache + DB-failure fallback.
-3. **Plan 3 (usage analytics)** — only after Plans 1–2 make the data trustworthy.
-4. **Plan 4 (sqladmin)** — rides along with Plans 1–3 (same views).
-5. **Plan 5 (pre-generation shift)** — offline LM Studio/ComfyUI batch runs; content lands as curated JSON/assets.
-6. **Plan 6 ideas** — only after 1–3 land and only if per-operation usage shows headroom.
+1. ✅ **Plans 0–4** — delivered: objective generation removed; durable interaction metadata, prompt registry,
+   usage analytics, and admin observability shipped together.
+2. ⏸️ **Plan 5 (pre-generation shift)** — parked pending product decisions; offline LM Studio/ComfyUI content
+   would land as curated JSON/assets.
+3. ⏸️ **Plan 6 ideas** — parked until per-operation usage data demonstrates headroom.
 
 ## Non-Goals
 
-- No migration off Pydantic AI — the agent layer stays; only prompt sourcing and the raw-OpenAI outlier change.
+- No migration off Pydantic AI — the agent layer stays; prompt sourcing changed and the raw-OpenAI outlier was removed.
 - No per-request admin editing of agent behavior beyond prompt text (no model/temperature per prompt).
 - No retroactive cost "truth" — historical figures are estimates labeled as such; exact per-interaction cost
   starts only once provider/model snapshots exist.

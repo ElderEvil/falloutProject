@@ -1,0 +1,51 @@
+"""Regression coverage for the prompt provenance Alembic migration."""
+
+import importlib.util
+from pathlib import Path
+
+import sqlalchemy as sa
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+
+
+def _migration_module():
+    path = (
+        Path(__file__).parents[2]
+        / "alembic/versions/2026_08_31_0001-e6f7a8b9c0d1_add_prompt_versioning_and_llm_provenance.py"
+    )
+    spec = importlib.util.spec_from_file_location("prompt_provenance_migration", path)
+    assert spec
+    assert spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts() -> None:
+    """Upgrade backfills distinct versions before adding SQLite-compatible constraints."""
+    engine = sa.create_engine("sqlite://")
+    migration = _migration_module()
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "CREATE TABLE prompt ("
+                "id VARCHAR PRIMARY KEY, prompt_name VARCHAR NOT NULL, description VARCHAR NOT NULL, "
+                "prompt_template VARCHAR NOT NULL, entity_id VARCHAR)"
+            )
+        )
+        connection.execute(sa.text("CREATE TABLE llminteraction (id VARCHAR PRIMARY KEY)"))
+        connection.execute(
+            sa.text(
+                "INSERT INTO prompt (id, prompt_name, description, prompt_template) VALUES "
+                "('a', 'chat', 'first', 'one'), ('b', 'chat', 'second', 'two')"
+            )
+        )
+
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.upgrade()
+
+        rows = connection.execute(sa.text("SELECT version, is_active FROM prompt ORDER BY id")).all()
+        assert rows == [(1, 1), (2, 0)]
+        indexes = sa.inspect(connection).get_indexes("prompt")
+        active_index = next(index for index in indexes if index["name"] == "ix_prompt_active_name")
+        assert active_index["dialect_options"]["sqlite_where"] is not None

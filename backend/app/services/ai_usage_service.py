@@ -88,10 +88,11 @@ class AIUsageService:
     @staticmethod
     def _is_chat_heavy(by_operation: list[AIOperationStats]) -> bool:
         """Anomaly flag: chat_with_dweller dominates monthly token spend (>80%)."""
-        month_total = sum(op.total_tokens for op in by_operation)
+        non_operational = [op for op in by_operation if not op.is_operational]
+        month_total = sum(op.total_tokens for op in non_operational)
         if month_total <= 0:
             return False
-        chat_total = sum(op.total_tokens for op in by_operation if op.operation == CHAT_HEAVY_OPERATION)
+        chat_total = sum(op.total_tokens for op in non_operational if op.operation == CHAT_HEAVY_OPERATION)
         return chat_total / month_total > CHAT_HEAVY_THRESHOLD
 
     async def _aggregate_tokens(

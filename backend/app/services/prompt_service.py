@@ -100,10 +100,11 @@ async def get_instructions(db_session: AsyncSession, agent_name: str) -> tuple[s
         return cached[0], cached[1], cached[2]
 
     try:
-        rows = await db_session.execute(
-            select(Prompt).where(col(Prompt.prompt_name) == agent_name, col(Prompt.is_active).is_(True))
-        )
-        prompt = rows.scalars().first()
+        async with db_session.begin_nested():
+            rows = await db_session.execute(
+                select(Prompt).where(col(Prompt.prompt_name) == agent_name, col(Prompt.is_active).is_(True))
+            )
+            prompt = rows.scalars().first()
     except Exception:
         logger.warning("Prompt registry lookup failed for %r; using hardcoded default", agent_name)
         return default, None, compute_instructions_hash(default)
@@ -128,7 +129,8 @@ async def get_provider_model_snapshot(db_session: AsyncSession) -> tuple[str, st
     Best-effort provenance: a failed profile read degrades to env config.
     """
     try:
-        profile = await ai_settings_crud.get_single(db_session)
+        async with db_session.begin_nested():
+            profile = await ai_settings_crud.get_single(db_session)
     except Exception:
         logger.warning("AI settings profile read failed; snapshotting env config only")
         return settings.AI_PROVIDER, settings.AI_MODEL

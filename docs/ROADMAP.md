@@ -247,9 +247,9 @@ grounding suggestions in live gameplay state.
 
 ---
 
-### AI Layer Upgrade — Prompts, LLM Interactions, Admin & New Usage (In Progress — see `docs/backend/AI_LAYER_PLAN.md`)
+### AI Layer Upgrade — Prompts, LLM Interactions, Admin & New Usage (Delivered through Plan 4 — see `docs/backend/AI_LAYER_PLAN.md`)
 
-**Focus**: Make the AI layer observable, configurable, and cheap — per-consumer decision whether Pydantic AI agents stay, get upgraded, or get replaced with deterministic paths. Delivery order Plan 0→6; Plans 5–6 parked.
+**Focus**: Make the AI layer observable, configurable, and cheap — per-consumer decision whether Pydantic AI agents stay, get upgraded, or get replaced with deterministic paths. Plans 0–4 are delivered; Plans 5–6 remain parked.
 
 - ✅ **Plan 0 — Lock down `/objectives/generate`** — `GET /objectives/generate` was unauthenticated, token-spending (`AsyncOpenAI` + hardcoded `gpt-4-turbo`, no quota/logging, no frontend caller). **Deleted**: endpoint + `ChatService.generate_objectives` + dead imports removed; `GET /objectives/generate` now 404.
 - ✅ **Plan 1 — Durable interaction metadata** — `LLMInteraction` now snapshots `provider`/`model`/`instructions_hash`/`instructions_snapshot` + `prompt_id` (FK already existed, now populated). Existing rows backfilled via server defaults; migration `e6f7a8b9c0d1`.

@@ -198,6 +198,27 @@ class TestAIUsageService:
 
         assert response.chat_heavy is False
 
+    def test_chat_heavy_ignores_operational_usage(self) -> None:
+        """Quota bookkeeping must not dilute the user-facing chat anomaly signal."""
+        by_operation = [
+            AIOperationStats(
+                operation="chat_with_dweller", prompt_tokens=80, completion_tokens=10, total_tokens=90, count=9
+            ),
+            AIOperationStats(
+                operation="generate_backstory", prompt_tokens=5, completion_tokens=5, total_tokens=10, count=1
+            ),
+            AIOperationStats(
+                operation="quota_tracking",
+                prompt_tokens=900,
+                completion_tokens=0,
+                total_tokens=900,
+                count=9,
+                is_operational=True,
+            ),
+        ]
+
+        assert AIUsageService._is_chat_heavy(by_operation) is True
+
     async def test_get_user_usage_logs_and_reraises(self) -> None:
         """Unexpected errors are logged and re-raised."""
         user_id = uuid4()

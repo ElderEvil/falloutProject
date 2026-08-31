@@ -46,4 +46,4 @@ class AIUsageResponse(SQLModel):
     quota: QuotaInfo
     month: str
     by_operation: list[AIOperationStats] = Field(default_factory=list)
-    chat_heavy: bool = Field(default=False)  # chat_with_dweller > 80% of monthly tokens
+    chat_heavy: bool = Field(default=False)  # chat_with_dweller > 80% of non-operational monthly tokens

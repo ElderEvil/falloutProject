@@ -108,9 +108,8 @@ onUnmounted(() => {
 })
 
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)
-const isBuildingQuest = computed(() => quest.quest_category === 'building')
+const isStateQuest = computed(() => ['building', 'population', 'training'].includes(quest.quest_category ?? ''))
 
-// Type badge colors
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
   main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
   side: { bg: 'var(--color-quest-side)', text: '#000000', border: 'var(--color-quest-side)' },
@@ -280,7 +279,7 @@ const handleAction = () => {
   }
   switch (status) {
     case 'available':
-      if (isBuildingQuest.value || hasParty.value) {
+      if (isStateQuest.value || hasParty.value) {
         emit('start', quest.id)
       } else {
         emit('assignParty', quest.id)
@@ -439,11 +438,10 @@ const handleAction = () => {
       <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
-    <!-- Duration Info (for available quests) -->
     <div v-if="status === 'available' && quest.duration_minutes" class="quest-duration">
       <Icon icon="mdi:clock-outline" class="duration-icon" />
       <span>Duration: {{ quest.duration_minutes }} min</span>
-      <span v-if="!hasParty" class="duration-hint">(Assign party to start)</span>
+      <span v-if="!hasParty && !isStateQuest" class="duration-hint">(Assign party to start)</span>
     </div>
 
     </div>

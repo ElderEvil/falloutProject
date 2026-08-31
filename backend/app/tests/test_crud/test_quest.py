@@ -548,23 +548,22 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def test_start_building_quest_is_ready_without_a_party(async_session: AsyncSession) -> None:
-    """Building quests settle from their prerequisite state, not a dispatched party."""
+@pytest.mark.parametrize("quest_category", ["building", "population", "training"])
+async def test_start_state_quest_is_ready_without_a_party(async_session: AsyncSession, quest_category: str) -> None:
+    """State quests settle from their prerequisite state, not a dispatched party."""
     from app.services.quest_service import quest_service
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     quest = await crud.quest_crud.create(
         async_session,
         obj_in=QuestCreate(
-            title="Build Living Quarters",
-            short_description="Expand the vault",
-            long_description="Build a Living Quarter for your dwellers.",
-            requirements="1 Living Quarter",
+            title=f"{quest_category.title()} objective",
+            short_description="Reach the vault objective",
+            long_description="The vault already meets this objective.",
+            requirements="Existing vault progress",
             rewards="100 caps",
-            quest_category="building",
+            quest_category=quest_category,
         ),
     )
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)

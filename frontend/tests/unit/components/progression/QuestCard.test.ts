@@ -41,16 +41,17 @@ describe('QuestCard', () => {
     expect(wrapper.text()).toContain('Start Quest')
   })
 
-  it('starts building quests without opening party selection', async () => {
+  it.each(['building', 'population', 'training'])('starts %s quests without opening party selection', async quest_category => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
-      props: { quest: { ...quest, quest_category: 'building' }, vaultId: 'vault-1', status: 'available' },
+      props: { quest: { ...quest, quest_category }, vaultId: 'vault-1', status: 'available' },
     })
 
     await wrapper.get('button').trigger('click')
 
     expect(wrapper.emitted('start')).toEqual([['quest-1']])
     expect(wrapper.emitted('assignParty')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Assign party to start')
   })
 
   it('capitalizes a dweller reward template name', () => {

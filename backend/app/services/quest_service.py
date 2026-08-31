@@ -56,7 +56,7 @@ class QuestService:
         return completed_count
 
     async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
-        """Start a quest with a timer."""
+        """Start a quest or ready a state objective."""
         from app.crud.quest_party import quest_party_crud
         from app.utils.exceptions import (
             AccessDeniedException,
@@ -80,7 +80,7 @@ class QuestService:
         quest = await db_session.get(Quest, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
-        if quest.quest_category == "building":
+        if quest.quest_category in ("building", "population", "training"):
             link.is_reward_ready = True
             await db_session.commit()
             await db_session.refresh(link)

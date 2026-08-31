@@ -184,9 +184,8 @@ swallows vault-owner lookup failures). The remaining items were deferred or reco
   the pregnancy insert in one transaction (`SELECT ... FOR UPDATE` on the vault row), at the `create_pregnancy`
   boundary so every conception path is covered. Heavy lift; the in-memory SQLite test harness cannot exercise row
   locks today.
-- 🔄 **Pending-report dedup by `exploration_id`** — `usePendingReports` deduplicates by dweller + rewards content, so
-  two identical completions from the same dweller are collapsed. Propagate the SSE `exploration_id` through the
-  notification metadata and dedup on it instead. Heavy lift (backend metadata change).
+- ✅ **Shipped** — pending reports propagate `explorationId` through SSE and notification delivery, then deduplicate
+  by it without collapsing separate but identical completions.
 - ✅ **Shipped** — DwellerPanel watches query-driven tab/stat changes and restarts the stat badge timer; pending
   exploration reports are filtered by active `vaultId` before display and acknowledgement.
 - ✅ **Shipped** — DwellerStats highlight and badge animations use shared Tailwind utilities with motion-reduce

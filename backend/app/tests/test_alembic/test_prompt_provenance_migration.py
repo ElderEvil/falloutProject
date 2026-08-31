@@ -35,7 +35,7 @@ def test_prompt_provenance_upgrade_normalizes_existing_duplicate_versions() -> N
         connection.execute(sa.text("CREATE TABLE llminteraction (id VARCHAR PRIMARY KEY)"))
         connection.execute(
             sa.text(
-                    "INSERT INTO prompt (id, prompt_name, description, prompt_template, version, is_active) VALUES "
+                "INSERT INTO prompt (id, prompt_name, description, prompt_template, version, is_active) VALUES "
                 "('a', 'chat', 'first', 'one', 1, true), ('b', 'chat', 'second', 'two', 1, true)"
             )
         )

@@ -16,6 +16,7 @@ from app.models.room import Room
 from app.models.storage import Storage
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.models.weapon import Weapon
+from app.utils.objective_constants import normalize_room_type
 
 logger = logging.getLogger(__name__)
 
@@ -78,19 +79,13 @@ class PrerequisiteService:
     async def validate_room_requirement(
         self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
     ) -> bool:
-        room_type = requirement_data.get("room_type", "")
+        room_type = normalize_room_type(requirement_data.get("room_type"))
         required_count = requirement_data.get("count", 1)
+        if room_type is None:
+            return False
 
-        result = await db_session.execute(
-            select(func.count(Room.id)).where(
-                and_(
-                    Room.vault_id == vault_id,
-                    func.lower(Room.name) == room_type.lower().replace("_", " "),
-                )
-            )
-        )
-        matching_count = result.scalar_one()
-        return matching_count >= required_count
+        room_names = (await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))).scalars()
+        return sum(normalize_room_type(name) == room_type for name in room_names) >= required_count
 
     async def validate_dweller_count_requirement(
         self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]

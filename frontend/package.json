@@ -23,7 +23,7 @@
     "@iconify/vue": "5.0.1",
     "@vueuse/core": "14.4.0",
     "axios": "1.19.0",
-    "dompurify": "3.4.13",
+    "dompurify": "3.4.14",
     "jwt-decode": "4.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.41",
@@ -37,8 +37,8 @@
     "@types/jsdom": "28.0.3",
     "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/coverage-v8": "4.1.10",
-    "@vitest/ui": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/ui": "4.1.11",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
     "jsdom": "^29.1.1",
@@ -46,9 +46,9 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@^0.2.2",
-    "vite-plus": "0.2.9",
-    "vitest": "4.1.10",
-    "vue-tsc": "^3.3.10"
+    "vite-plus": "0.3.0",
+    "vitest": "4.1.11",
+    "vue-tsc": "^3.3.11"
   },
   "engines": {
     "node": ">=22",

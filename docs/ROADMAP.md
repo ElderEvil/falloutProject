@@ -187,11 +187,8 @@ swallows vault-owner lookup failures). The remaining items were deferred or reco
 - 🔄 **Pending-report dedup by `exploration_id`** — `usePendingReports` deduplicates by dweller + rewards content, so
   two identical completions from the same dweller are collapsed. Propagate the SSE `exploration_id` through the
   notification metadata and dedup on it instead. Heavy lift (backend metadata change).
-- 🔄 **DwellerPanel query-prop sync** — clicking the same dweller's `training_complete` notification again (query-only
-  `?tab=stats&stat=X` change) does not update the active tab or badge because the component instance is reused
-  without re-running setup. Watch `initialTab`/`highlightStat` props and restart the badge timer on change.
-- 🔄 **ExplorationView vault filter** — pending reports are global (single `localStorage` key), so reports from one
-  vault can surface while viewing another. Scope selection/acknowledgement to the active `vaultId`.
+- ✅ **Shipped** — DwellerPanel watches query-driven tab/stat changes and restarts the stat badge timer; pending
+  exploration reports are filtered by active `vaultId` before display and acknowledgement.
 - 🔄 **DwellerStats animations → Tailwind utilities** — move the scoped `stat-pulse`/`badge-fade` keyframes into
   `tailwind.css` as utilities with motion-reduce variants (aligns with the Tailwind-utilities-only guideline).
 - ⚪ **Nitpicks (optional)** — route exploration-completion notifications through `notify_owner` for consistency with
@@ -415,18 +412,6 @@ update reduce net source LOC (features that add code must first offset it by rem
       Vault Rarity & Race/Faction Diversity" (Planned above). Self-contained seeding/roll changes.
   - **Effort:** small–medium.
 
-### P1 — Verification (merged without review)
-
-- [ ] **Backfill tests for merged low-hanging fruit**
-  - **Why:** The two checked-off items below (chat WebSocket streaming, dweller visual equipment) were merged without
-    code review. They need regression coverage before they can be considered verified.
-  - **What:**
-    - **Chat WebSocket streaming** (`backend/app/api/v1/endpoints/websocket.py`): integration test covering the full
-      chat round-trip over the socket (`ping`/`typing`/`message`), error paths, and the REST fallback removal safety.
-    - **Dweller visual equipment** (`backend/app/schemas/dweller.py:90-93`): test that `accessory`/`object_held`
-      generation is constrained to equipped/owned inventory items and cannot show unowned items.
-  - **Effort:** medium.
-
 ### P2 — Quality of Life
 
 - [ ] **Incremental `ty` cleanup** — run `ty` on touched Python files and resolve clear, local diagnostics as part of
@@ -448,11 +433,13 @@ tests cover primary-beats-secondary and cross-type reversals.
 
 ### P2 — Chat Polish
 
-- [x] **Chat streaming over WebSocket** — shipped in v2.41.0; regression coverage still owed (see P1 Verification).
+- [x] **Chat streaming over WebSocket** — shipped in v2.41.0 with authenticated round-trip and error-path regression
+      coverage.
 
 ### P3 — Consistency
 
-- [x] **Done:** dweller visual equipment wired to actual inventory (generation constrained to equipped/owned items);
+- [x] **Done:** dweller visual equipment wired to actual inventory (generation constrained to equipped/owned items,
+      regression-tested);
       bigger status badge in the dwellers grid view (labeled `medium` overlay on the card thumbnail, live-status
       intent preserved).
 

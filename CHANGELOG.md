@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.69.0 (2026-08-31)
+
+### Features
+
+* improve AI control surfaces abe399a
+
+### Bug Fixes
+
+* address AI chat review findings 2ba94ca
+
 ## 2.68.0 (2026-08-31)
 
 ### Features

@@ -259,9 +259,6 @@ class DwellerAIService:
         # Extract race/faction from existing visual attributes (if any)
         existing_attrs = dweller_obj.visual_attributes or {}
 
-        # Check if visual_attributes already has meaningful content beyond identity defaults
-        if self._has_substantial_visual_attributes(existing_attrs):
-            raise ContentNoChangeException(detail="Dweller already has visual attributes")
         dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
         dweller_faction = existing_attrs.get("faction") if isinstance(existing_attrs, dict) else None
 

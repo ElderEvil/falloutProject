@@ -34,6 +34,15 @@ const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
   ncr: { icon: 'mdi:star-four-points-outline', label: 'NCR' },
   caesars_legion: { icon: 'mdi:shield-sun-outline', label: "Caesar's Legion" },
   none: { icon: 'mdi:account-question-outline', label: 'Unaffiliated' },
+  sane: { icon: 'mdi:head-heart-outline', label: 'Sane' },
+  wild: { icon: 'mdi:head-alert-outline', label: 'Wild' },
+  feral: { icon: 'mdi:skull-outline', label: 'Feral' },
+  mild: { icon: 'mdi:dna', label: 'Mild Mutation' },
+  average: { icon: 'mdi:dna', label: 'Average Mutation' },
+  behemoth: { icon: 'mdi:arm-flex-outline', label: 'Behemoth' },
+  gen_1: { icon: 'mdi:robot-outline', label: 'Gen 1' },
+  gen_2: { icon: 'mdi:robot-outline', label: 'Gen 2' },
+  gen_3: { icon: 'mdi:robot-happy-outline', label: 'Gen 3' },
 }
 
 const formatLabel = (value: string) =>

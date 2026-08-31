@@ -861,7 +861,9 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     """Test that assign_party replaces existing party members."""
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
+    from app.services.quest_service import quest_service
     from app.tests.factory.dwellers import create_fake_dweller
+    from app.utils.exceptions import ResourceConflictException
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -883,20 +885,13 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
         db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
     )
 
-    dweller1_data = create_fake_dweller()
-    dweller1_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller1 = Dweller(**dweller1_data, vault_id=vault.id)
-    async_session.add(dweller1)
-
-    dweller2_data = create_fake_dweller()
-    dweller2_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller2 = Dweller(**dweller2_data, vault_id=vault.id)
-    async_session.add(dweller2)
-
-    dweller3_data = create_fake_dweller()
-    dweller3_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller3 = Dweller(**dweller3_data, vault_id=vault.id)
-    async_session.add(dweller3)
+    dwellers = []
+    for _ in range(3):
+        dweller_data = create_fake_dweller()
+        dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+        dwellers.append(Dweller(**dweller_data, vault_id=vault.id))
+    dweller1, dweller2, dweller3 = dwellers
+    async_session.add_all(dwellers)
     await async_session.commit()
 
     party1 = await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller1.id, dweller2.id])
@@ -906,6 +901,11 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     party2 = await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller3.id])
     assert len(party2) == 1
     assert party2[0].dweller_id == dweller3.id
+
+    await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    with pytest.raises(ResourceConflictException, match="already in progress"):
+        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller1.id])
 
 
 @pytest.mark.asyncio

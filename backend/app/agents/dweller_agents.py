@@ -11,13 +11,7 @@ from app.services.ai_service import AIService
 # Initialize the model (will be shared across agents)
 model = AIService.get_model()
 
-GENDER_PRONOUNS_MAP = {
-    GenderEnum.MALE: "his",
-    GenderEnum.FEMALE: "her",
-    None: "their",
-}
-
-BIO_MAX_LENGTH = 1_000
+GENDER_PRONOUNS_MAP = {GenderEnum.MALE: "his", GenderEnum.FEMALE: "her", None: "their"}
 
 # Backstory Generation Agent
 backstory_agent = Agent(

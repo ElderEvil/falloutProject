@@ -31,7 +31,7 @@ GENDER_PRONOUNS_MAP = {
     None: "",
 }
 
-BIO_MAX_LENGTH = 1_000
+BIO_MAX_LENGTH = 900
 BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 
 # Visual-attribute fields that may only reflect items the dweller owns/equips.
@@ -132,7 +132,7 @@ class DwellerAIService:
         )
         backstory = result.output.bio
 
-        # Safety check: truncate if exceeds max length (shouldn't happen with proper prompts)
+        # Keep generated biographies within the prompt's rendering-friendly upper bound.
         if len(backstory) > BIO_MAX_LENGTH:
             backstory = backstory[: BIO_MAX_LENGTH - 3] + "..."
             msg = f"Backstory exceeded max length, truncated to {BIO_MAX_LENGTH} characters"

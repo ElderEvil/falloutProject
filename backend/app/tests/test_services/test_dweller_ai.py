@@ -178,10 +178,10 @@ async def test_generate_backstory_truncates_long_bio(
 
     await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
 
-    # Verify truncation: stored bio should be <= BIO_MAX_LENGTH and end with "..."
+    # Rendered bios must stay within the prompt's 900-character upper bound.
     mock_crud.update.assert_called_once()
     stored_bio = mock_crud.update.call_args[0][2].bio
-    assert len(stored_bio) <= BIO_MAX_LENGTH
+    assert len(stored_bio) <= 900
     assert stored_bio.endswith("...")
 
 

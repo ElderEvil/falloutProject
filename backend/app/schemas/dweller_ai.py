@@ -10,7 +10,7 @@ class DwellerBackstory(BaseModel):
 
     bio: str = Field(
         ...,
-        description="A Fallout-style biography for the dweller, approximately 800-1000 characters",
+        description="A Fallout-style biography for the dweller, between 600 and 900 characters",
     )
     origin_place: str = Field(
         max_length=64,

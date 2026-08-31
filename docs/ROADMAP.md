@@ -558,6 +558,8 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
 - [x] Test coverage target 80% — achieved 82.44%; enforced via nightly/master coverage workflow with `--cov-fail-under=80`
+- [ ] Test-suite consolidation (backend + frontend) — audit redundant examples; prefer parameterized/table-driven cases,
+      behavior-contract suites, and shared fixtures while preserving coverage and every currently exercised edge case.
 - [ ] Reduce test flakiness — the suite runs on an in-memory SQLite engine with a single `StaticPool` connection, which
       serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
       not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition

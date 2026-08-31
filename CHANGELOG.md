@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-* address CodeRabbit review on PR #497 7cdc8d8
 * happiness dashboard re-renders on every game tick 02ccd4c
 * mount ProxyHeadersMiddleware unconditionally 81ccee7
 

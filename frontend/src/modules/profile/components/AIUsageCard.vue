@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { UCard, UAlert, UProgressBar } from '@/core/components/ui'
 import USkeleton from '@/core/components/ui/USkeleton.vue'
-import type { AIUsageStats } from '../models/aiUsage'
+import type { AIOperationStats, AIUsageStats } from '../models/aiUsage'
 
 interface Props {
   stats: AIUsageStats | null
@@ -54,6 +54,29 @@ const isEmpty = computed(() => {
   if (!stats) return false
   return allTimeTotal.value === 0 && monthlyTotal.value === 0 && (stats.quota_used ?? 0) === 0
 })
+
+const operationLabels: Record<string, string> = {
+  chat_with_dweller: 'Dweller chat',
+  audio_chat: 'Voice chat',
+  generate_backstory: 'Biography generation',
+  extend_bio: 'Biography extension',
+  generate_visual_attributes: 'Appearance generation',
+  generate_photo: 'Portrait generation',
+  generate_audio: 'Voice line generation',
+}
+
+const operationBreakdown = computed(() => {
+  const monthTotal = monthlyTotal.value
+  return (stats?.by_operation ?? [])
+    .filter((operation) => !operation.is_operational)
+    .map((operation: AIOperationStats) => ({
+      ...operation,
+      label: operationLabels[operation.operation] ?? 'Other AI activity',
+      percentage: monthTotal > 0 ? (operation.total_tokens / monthTotal) * 100 : 0,
+    }))
+})
+
+const requestLabel = (count: number): string => `${count} request${count === 1 ? '' : 's'}`
 
 const storageKey = computed(() => {
   const month = stats?.month ?? new Date().toISOString().slice(0, 7)
@@ -186,6 +209,37 @@ const showWarningBanner = computed(() => {
             </div>
           </div>
         </div>
+
+        <section v-if="operationBreakdown.length" class="border-t border-theme-primary/20 pt-4 space-y-3" aria-labelledby="operation-usage-heading">
+          <div>
+            <h3 id="operation-usage-heading" class="text-xs text-theme-primary/70 uppercase tracking-wider">
+              This Month by Operation
+            </h3>
+            <p class="mt-1 text-xs leading-5 text-theme-primary/55">
+              Chats and optional generation count toward your monthly AI quota.
+            </p>
+          </div>
+
+          <div v-for="operation in operationBreakdown" :key="operation.operation" class="space-y-1.5">
+            <div class="flex items-baseline justify-between gap-3 text-sm">
+              <span class="font-medium text-theme-primary">{{ operation.label }}</span>
+              <span class="shrink-0 text-theme-primary/70">
+                {{ formatNumber(operation.total_tokens) }} · {{ requestLabel(operation.count) }} · {{ Math.round(operation.percentage) }}%
+              </span>
+            </div>
+            <UProgressBar
+              :model-value="operation.percentage"
+              :ariaLabel="`${operation.label}: ${operation.total_tokens} tokens across ${requestLabel(operation.count)}, ${Math.round(operation.percentage)}% of this month`"
+              :height="5"
+              :glow="false"
+            />
+          </div>
+
+          <div v-if="stats.chat_heavy" class="flex items-start gap-2 rounded border border-warning/30 bg-warning/10 p-2.5 text-xs leading-5 text-warning" role="status">
+            <Icon icon="mdi:message-alert-outline" class="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Most AI use this month is dwelling chat. Your quota is still available for any AI feature.</span>
+          </div>
+        </section>
 
         <div v-if="stats.quota_limit > 0" class="border-t border-theme-primary/20 pt-4 space-y-3">
           <div class="text-xs text-theme-primary/70 uppercase tracking-wider mb-3">

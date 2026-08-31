@@ -967,6 +967,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/{dweller_id}/extend_bio/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extend Bio
+         * @description Append new AI-generated detail to a dweller's existing biography.
+         */
+        post: operations["extend_bio_api_v1_dwellers__dweller_id__extend_bio__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}/generate_visual_attributes/": {
         parameters: {
             query?: never;
@@ -5061,6 +5081,11 @@ export interface components {
              * @description Optional action suggestion based on conversation context
              */
             action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
+            /**
+             * Unlocked Places
+             * @description Map locations newly unlocked by this conversation
+             */
+            unlocked_places?: components["schemas"]["UnlockedPlace"][];
         };
         /** DwellerCreate */
         DwellerCreate: {
@@ -6070,6 +6095,8 @@ export interface components {
             background?: string | null;
             /** Voice Line Text */
             voice_line_text?: string | null;
+            /** Voice Line Url */
+            voice_line_url?: string | null;
         };
         /**
          * DwellerVoiceChatResponse
@@ -8221,6 +8248,23 @@ export interface components {
             /** Unassigned Count */
             unassigned_count: number;
         };
+        /**
+         * UnlockedPlace
+         * @description A map location newly revealed by a conversation.
+         */
+        UnlockedPlace: {
+            /**
+             * Location Id
+             * Format: uuid4
+             * @description ID used to open the location on the vault map
+             */
+            location_id: string;
+            /**
+             * Name
+             * @description Display name of the revealed location
+             */
+            name: string;
+        };
         /** UserCreate */
         UserCreate: {
             /** Username */
@@ -10317,6 +10361,37 @@ export interface operations {
         };
     };
     generate_backstory_api_v1_dwellers__dweller_id__generate_backstory__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerReadFull"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extend_bio_api_v1_dwellers__dweller_id__extend_bio__post: {
         parameters: {
             query?: never;
             header?: never;

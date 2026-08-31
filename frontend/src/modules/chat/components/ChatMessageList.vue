@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import type { ActionSuggestion, ChatMessageDisplay } from '../models/chat'
+import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
+import type { ActionSuggestion, ChatMessageDisplay, MapDiscovery } from '../models/chat'
+import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 
 defineProps<{
   messages: ChatMessageDisplay[]
+  vaultId?: string | null
+  placeLinks?: MapPlaceLink[]
   dwellerName: string
   username: string
   dwellerAvatarUrl: string | null
@@ -23,6 +27,39 @@ const emit = defineEmits<{
   confirmAction: [action: ActionSuggestion, index: number]
   dismissAction: [index: number]
 }>()
+
+const mapDiscoveryTitle = (places: MapDiscovery[]) =>
+  `Map intel: ${places.map((place) => place.name).join(', ')} unlocked`
+
+const mapPlaceHref = (vaultId: string | null | undefined, locationId: string) =>
+  vaultId ? `/vault/${vaultId}/map?place=${locationId}` : undefined
+
+const messageContentSegments = (
+  content: string,
+  type: ChatMessageDisplay['type'],
+  placeLinks: MapPlaceLink[] | undefined
+) => {
+  if (type !== 'dweller' || !placeLinks?.length) return [{ text: content }]
+
+  const lookup = new Map(placeLinks.map((place) => [place.name.toLowerCase(), place.locationId]))
+  const pattern = [...placeLinks]
+    .sort((a, b) => b.name.length - a.name.length)
+    .map((place) => place.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|')
+  const matches = [...content.matchAll(new RegExp(pattern, 'gi'))]
+  if (!matches.length) return [{ text: content }]
+
+  const segments: { text: string; locationId?: string }[] = []
+  let cursor = 0
+  for (const match of matches) {
+    const index = match.index ?? 0
+    if (index > cursor) segments.push({ text: content.slice(cursor, index) })
+    segments.push({ text: match[0], locationId: lookup.get(match[0].toLowerCase()) })
+    cursor = index + match[0].length
+  }
+  if (cursor < content.length) segments.push({ text: content.slice(cursor) })
+  return segments
+}
 </script>
 
 <template>
@@ -68,6 +105,12 @@ const emit = defineEmits<{
               {{ message.happinessImpact.delta > 0 ? '+' : '' }}{{ message.happinessImpact.delta }}
             </span>
           </span>
+          <DwellerPlacesBadge
+            v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
+            class="map-discovery-indicator happiness-indicator text-theme-primary"
+            :count="message.unlockedPlaces.length"
+            :title="mapDiscoveryTitle(message.unlockedPlaces)"
+          />
           <button
             v-if="message.audioUrl"
             class="audio-replay-btn"
@@ -90,7 +133,33 @@ const emit = defineEmits<{
           </button>
         </div>
       </div>
-      <div class="message-content">{{ message.content }}</div>
+      <div class="message-content">
+        <template v-for="(segment, segmentIndex) in messageContentSegments(message.content, message.type, placeLinks)" :key="segmentIndex">
+          <a
+            v-if="segment.locationId && vaultId"
+            class="chat-place-link"
+            :href="mapPlaceHref(vaultId, segment.locationId)"
+          >{{ segment.text }}</a>
+          <span v-else>{{ segment.text }}</span>
+        </template>
+      </div>
+
+      <div
+        v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
+        class="map-discovery-links"
+      >
+        <Icon icon="mdi:map-outline" class="h-4 w-4 shrink-0" />
+        <span class="map-discovery-label">Map intel:</span>
+        <template v-for="(place, placeIndex) in message.unlockedPlaces" :key="place.locationId">
+          <span v-if="placeIndex" aria-hidden="true">·</span>
+          <a
+            v-if="vaultId"
+            class="map-discovery-link"
+            :href="mapPlaceHref(vaultId, place.locationId)"
+          >{{ place.name }}</a>
+          <span v-else>{{ place.name }}</span>
+        </template>
+      </div>
 
       <div v-if="message.error" class="message-error">
         <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />

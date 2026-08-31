@@ -28,6 +28,7 @@ export interface DwellerDetailActions {
   confirmSoftDelete(): void
   revive(): void
   generateBio(): void
+  extendBio(): void
   generatePortrait(): void
   generateAppearance(): void
   generateAll(): void
@@ -271,6 +272,11 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
       flag: generatingBio,
       errorMessage: 'Failed to generate dweller biography',
     })
+  const extendDwellerBio = () =>
+    runAction(() => dwellerGenerationStore.extendDwellerBio(dwellerId.value, authStore.token as string), {
+      flag: generatingBio,
+      errorMessage: 'Failed to extend dweller biography',
+    })
   const generateDwellerPortrait = () =>
     runAction(() => dwellerGenerationStore.generateDwellerPortrait(dwellerId.value, authStore.token as string), {
       flag: generatingPortrait,
@@ -366,6 +372,7 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
     confirmSoftDelete,
     revive: handleRevive,
     generateBio: generateDwellerBio,
+    extendBio: extendDwellerBio,
     generatePortrait: generateDwellerPortrait,
     generateAppearance: generateDwellerAppearance,
     generateAll: generateDwellerInfo,

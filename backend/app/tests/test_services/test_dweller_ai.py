@@ -125,19 +125,28 @@ async def test_generate_backstory_passes_active_registry_prompt_to_agent() -> No
     assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
 
 
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.dweller_crud")
-async def test_generate_backstory_already_has_bio(mock_crud: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise ContentNoChangeException if dweller already has a bio."""
-    from app.utils.exceptions import ContentNoChangeException
+async def test_generate_backstory_replaces_an_existing_bio() -> None:
+    """Regeneration replaces an existing biography instead of rejecting it."""
+    from app.schemas.dweller_ai import DwellerBackstory
 
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
+    dweller = _make_dweller_mock(bio="Existing biography text.")
+    result = _make_agent_result(DwellerBackstory(bio="A new biography.", origin_place="Megaton"))
 
-    mock_dweller = _make_dweller_mock(bio="Existing biography text.")
-    mock_crud.update = AsyncMock()
+    with (
+        patch("app.services.dweller_ai.quota_service.check_quota", new=AsyncMock(return_value=MagicMock(allowed=True))),
+        patch("app.services.dweller_ai.backstory_agent.run", new=AsyncMock(return_value=result)),
+        patch("app.services.dweller_ai.dweller_crud.update", new=AsyncMock()) as update,
+        patch("app.services.dweller_ai.llm_interaction_crud.create", new=AsyncMock()),
+        patch("app.services.dweller_ai.map_service.register_bio_places", new=AsyncMock()),
+        patch("app.services.dweller_ai.get_instructions", new=AsyncMock(return_value=("instructions", None, "a" * 64))),
+        patch(
+            "app.services.dweller_ai.get_provider_model_snapshot",
+            new=AsyncMock(return_value=("lmstudio", "test-model")),
+        ),
+    ):
+        await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=dweller)
 
-    with pytest.raises(ContentNoChangeException, match="already has a bio"):
-        await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
+    assert update.call_args.args[2].bio == "A new biography."
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")

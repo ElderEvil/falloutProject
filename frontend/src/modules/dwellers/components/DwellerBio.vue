@@ -129,6 +129,22 @@ const sanitizedBio = computed(() => {
             <span>{{ bio ? 'Regenerate biography' : 'Generate biography' }}</span>
           </UButton>
         </UTooltip>
+        <UTooltip v-if="bio" text="Adds new details while keeping the current biography" position="top">
+          <UButton
+            class="extend-bio-button"
+            variant="secondary"
+            size="sm"
+            :disabled="isAnyGenerating"
+            @click="ctx.actions.extendBio()"
+          >
+            <Icon
+              :icon="generatingBio ? 'mdi:loading' : 'mdi:text-long'"
+              class="h-5 w-5"
+              :class="{ 'animate-spin': generatingBio }"
+            />
+            <span>Extend biography</span>
+          </UButton>
+        </UTooltip>
       </div>
     </div>
     <div class="bio-content">

@@ -68,6 +68,13 @@ ActionSuggestion = Annotated[
 # --- Chat Response Schema ---
 
 
+class UnlockedPlace(BaseModel):
+    """A map location newly revealed by a conversation."""
+
+    location_id: UUID4 = Field(..., description="ID used to open the location on the vault map")
+    name: str = Field(..., description="Display name of the revealed location")
+
+
 class DwellerChatResponse(BaseModel):
     """Response schema for dweller chat interactions.
 
@@ -84,6 +91,10 @@ class DwellerChatResponse(BaseModel):
     action_suggestion: ActionSuggestion | None = Field(
         None,
         description="Optional action suggestion based on conversation context",
+    )
+    unlocked_places: list[UnlockedPlace] = Field(
+        default_factory=list,
+        description="Map locations newly unlocked by this conversation",
     )
 
 

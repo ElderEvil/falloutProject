@@ -5,7 +5,7 @@ import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { normalizeImageUrl } from '@/core/utils/image'
 import { useSound } from '@/core/composables/useSound'
-import type { ChatMessageDisplay } from '@/modules/chat/models/chat'
+import type { ChatMessageDisplay, MapDiscovery } from '@/modules/chat/models/chat'
 
 export interface UseChatMessagesOptions {
   dwellerId: string
@@ -59,6 +59,19 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     }
   }
 
+  const normalizeUnlockedPlaces = (places: unknown): MapDiscovery[] =>
+    Array.isArray(places)
+      ? places
+          .filter(
+            (place): place is { location_id: string; name: string } =>
+              typeof place === 'object' &&
+              place !== null &&
+              typeof place.location_id === 'string' &&
+              typeof place.name === 'string'
+          )
+          .map((place) => ({ locationId: place.location_id, name: place.name }))
+      : []
+
   if (options.chatWs) {
     options.chatWs.on('token', (msg: any) => {
       if (streamingIndex === null) {
@@ -83,6 +96,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           streamingMsg.messageId = msg.dweller_message_id
           streamingMsg.happinessImpact = msg.happiness_impact || null
           streamingMsg.actionSuggestion = msg.action_suggestion || null
+          streamingMsg.unlockedPlaces = normalizeUnlockedPlaces(msg.unlocked_places)
         }
         streamingIndex = null
       }
@@ -180,6 +194,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
           messageId: response.data.dweller_message_id,
           timestamp: new Date(),
           happinessImpact: response.data.happiness_impact || null,
+          unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
           actionSuggestion: response.data.action_suggestion || null,
         })
       } catch (error) {

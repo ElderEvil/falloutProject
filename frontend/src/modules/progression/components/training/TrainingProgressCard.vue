@@ -127,12 +127,11 @@ const handleComplete = () => {
 
 <template>
   <div
-    class="rounded-lg border bg-transparent px-2.5 py-2 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-all duration-300"
+    class="training-progress-card rounded-lg border bg-transparent px-2.5 py-2 shadow-[0_0_10px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)] transition-colors duration-200"
     :class="{
       'border-theme-primary hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
         !isReadyToComplete && training.status === 'active',
-      'border-theme-accent shadow-[0_0_15px_var(--color-theme-accent),inset_0_0_10px_rgb(0_0_0_/_0.5)] animate-[pulse_2s_ease-in-out_infinite]':
-        isReadyToComplete,
+      'completion-ready border-theme-accent': isReadyToComplete,
       'border-theme-glow opacity-60 hover:shadow-[0_0_15px_var(--color-theme-primary),inset_0_0_10px_rgb(0_0_0_/_0.5)]':
         training.status !== 'active',
     }"
@@ -147,9 +146,9 @@ const handleComplete = () => {
         />
         <Icon
           :icon="getStatIcon(training.stat_being_trained)"
-          class="text-lg text-theme-primary"
+          class="completion-stat-icon text-lg text-theme-primary"
           :class="{
-            'text-theme-accent animate-[bounce_1s_ease-in-out_infinite]': isReadyToComplete,
+            'text-theme-accent': isReadyToComplete,
           }"
         />
       </div>
@@ -189,10 +188,9 @@ const handleComplete = () => {
       <div class="flex shrink-0 items-center gap-1">
         <Icon icon="mdi:clock-outline" class="text-xs text-theme-primary" />
         <span
-          class="whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
+          class="completion-time whitespace-nowrap font-mono text-xs font-bold text-theme-primary"
           :class="{
-            'text-theme-accent [text-shadow:0_0_4px_var(--color-theme-accent)] animate-[pulse-text_1s_ease-in-out_infinite]':
-              isReadyToComplete,
+            'text-theme-accent [text-shadow:0_0_4px_var(--color-theme-accent)]': isReadyToComplete,
           }"
         >
           {{ timeRemaining }}
@@ -218,37 +216,9 @@ const handleComplete = () => {
 </template>
 
 <style scoped>
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 15px var(--color-theme-accent),
-      inset 0 0 10px rgb(0 0 0 / 0.5);
-  }
-  50% {
-    box-shadow:
-      0 0 25px var(--color-theme-accent),
-      inset 0 0 10px rgb(0 0 0 / 0.5);
-  }
-}
-
-@keyframes bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-@keyframes pulse-text {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
+.completion-ready {
+  box-shadow:
+    0 0 14px var(--color-theme-accent),
+    inset 0 0 10px rgb(0 0 0 / 0.5);
 }
 </style>

@@ -24,6 +24,7 @@ function createDefaultActions(): DwellerDetailActions {
     openRenameDialog: vi.fn(),
     revive: vi.fn(),
     generateBio: vi.fn(),
+    extendBio: vi.fn(),
     generatePortrait: vi.fn(),
     generateAppearance: vi.fn(),
     generateAll: vi.fn(),

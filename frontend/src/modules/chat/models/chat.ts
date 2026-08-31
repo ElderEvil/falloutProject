@@ -23,6 +23,11 @@ export interface HappinessImpactDisplay {
   reason_text: string
 }
 
+export interface MapDiscovery {
+  locationId: string
+  name: string
+}
+
 // Extended message type for frontend display
 export interface ChatMessageDisplay {
   type: 'user' | 'dweller'
@@ -33,6 +38,7 @@ export interface ChatMessageDisplay {
   transcription?: string
   isPlaying?: boolean
   happinessImpact?: HappinessImpact | HappinessImpactDisplay | null
+  unlockedPlaces?: MapDiscovery[]
   actionSuggestion?: ActionSuggestion | null
   error?: string
 }

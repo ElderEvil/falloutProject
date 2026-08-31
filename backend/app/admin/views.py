@@ -1,6 +1,7 @@
 from typing import ClassVar
 
 from sqladmin import ModelView, action
+from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter
 from sqlmodel import select
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -286,6 +287,12 @@ class PromptAdmin(AdminModelView, model=Prompt):
     # Templates are a constrained interface: details previews the raw template;
     # edits go through the deferred copy-as-new-version flow, never in place.
     column_details_exclude_list: ClassVar[list] = [Prompt.llm_interactions]
+    column_searchable_list: ClassVar[list] = [Prompt.prompt_name, Prompt.description]
+    column_filters: ClassVar[list] = [
+        BooleanFilter(Prompt.is_active),
+        AllUniqueStringValuesFilter(Prompt.version),
+    ]
+    column_default_sort: ClassVar[list] = [(Prompt.is_active, True), (Prompt.version, True)]
 
     icon = "fa-solid fa-comment-dots"
 
@@ -346,6 +353,11 @@ class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
         LLMInteraction.created_at,
     ]
     column_searchable_list: ClassVar[list] = [LLMInteraction.usage]
+    column_filters: ClassVar[list] = [
+        AllUniqueStringValuesFilter(LLMInteraction.usage),
+        AllUniqueStringValuesFilter(LLMInteraction.provider),
+        AllUniqueStringValuesFilter(LLMInteraction.model),
+    ]
     column_sortable_list: ClassVar[list] = [
         LLMInteraction.usage,
         LLMInteraction.created_at,

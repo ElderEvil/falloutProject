@@ -354,4 +354,62 @@ describe('AIUsageCard', () => {
       expect(wrapper.text()).toContain('No AI usage data available')
     })
   })
+
+  describe('Monthly operation briefing', () => {
+    it('presents the monthly mix with text labels, counts, and accessible progress bars', () => {
+      const wrapper = mount(AIUsageCard, {
+        props: {
+          stats: createMockStats({
+            by_operation: [
+              {
+                operation: 'chat_with_dweller',
+                prompt_tokens: 300,
+                completion_tokens: 150,
+                total_tokens: 450,
+                count: 3,
+                is_operational: false,
+              },
+              {
+                operation: 'quota_tracking',
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 300,
+                count: 1,
+                is_operational: true,
+              },
+            ],
+          }),
+        },
+      })
+
+      expect(wrapper.text()).toContain('This Month by Operation')
+      expect(wrapper.text()).toContain('Dweller chat')
+      expect(wrapper.text()).toContain('3 requests')
+      expect(wrapper.text()).not.toContain('quota_tracking')
+      expect(wrapper.find('[aria-label="Dweller chat: 450 tokens across 3 requests, 60% of this month"]').exists()).toBe(true)
+    })
+
+    it('uses a safe label for unrecognised operations and explains chat-heavy use', () => {
+      const wrapper = mount(AIUsageCard, {
+        props: {
+          stats: createMockStats({
+            by_operation: [
+              {
+                operation: 'future_operation',
+                prompt_tokens: 100,
+                completion_tokens: 0,
+                total_tokens: 100,
+                count: 1,
+                is_operational: false,
+              },
+            ],
+            chat_heavy: true,
+          }),
+        },
+      })
+
+      expect(wrapper.text()).toContain('Other AI activity')
+      expect(wrapper.text()).toContain('Most AI use this month is dwelling chat')
+    })
+  })
 })

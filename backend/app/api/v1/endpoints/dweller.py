@@ -240,6 +240,16 @@ async def generate_backstory(
     return await dweller_ai.generate_backstory(db_session=db_session, dweller_id=dweller_id, user=user)
 
 
+@router.post("/{dweller_id}/extend_bio/", response_model=DwellerReadFull)
+async def extend_bio(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> DwellerReadFull:
+    """Append new AI-generated detail to a dweller's existing biography."""
+    return await dweller_ai.extend_bio(db_session=db_session, dweller_id=dweller_id, user=user)
+
+
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
 async def generate_visual_attributes(
     dweller_id: UUID4,

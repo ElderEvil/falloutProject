@@ -256,6 +256,13 @@ grounding suggestions in live gameplay state.
 - ✅ **Plan 2 — Prompt Registry (immutable versions)** — `Prompt` now `version: int` + `is_active: bool`, `UNIQUE(prompt_name, version)` + partial unique index `ix_prompt_active_name WHERE is_active`. `PromptService.get_instructions()` reads active row via 60s TTL cache, falls back to hardcoded defaults on DB error. Seed: `backend/app/utils/seed_prompts.py` + `fo-cli seed-prompts` (4 rows: backstory/extend_bio/visual_attributes/chat v1).
 - ✅ **Plan 3 — Usage analytics** — `AIUsageResponse` now `by_operation: list[AIOperationStats]` (GROUP BY usage) + `chat_heavy` flag (>80% chat share). `ai_usage_service._aggregate_by_operation` covers totals; daily trend deferred as separate GROUP BY day query. Snapshotted `provider`/`model` enables honest future cost math (image/audio excluded).
 - ✅ **Plan 4 — sqladmin** — `LLMInteractionAdmin` shows tokens + provider/model + hash + created_at (search/sort), `PromptAdmin` shows version/is_active/template, `DwellerAdmin` shows bio flag; DRY truncation helper; 3 authenticated render smoke tests.
+- 🔜 **Plan 4.5 — AI control surfaces** — player quick wins: explain monthly AI use in Profile → Analytics and show a
+  calm in-chat budget signal; operator quick wins: searchable/filterable prompt and interaction audit views. Reuse
+  delivered API data; defer player interaction search, cost estimates, daily graphs, polling, and new endpoints until
+  privacy/retention needs are decided. Next low-cost UX follow-up: empty-chat conversation starters derived from a
+  dweller’s known places; chips prefill but never auto-send. Future content-quality follow-up: separate human, ghoul,
+  synth, and super-mutant bio prompt/template variants, selected from existing dweller identity with no extra runtime
+  call. See `docs/backend/AI_LAYER_PLAN.md`.
 - ⏸️ **Plan 5 — Pre-generation shift (LM Studio/ComfyUI batch → curated content)** + **Plan 6 — New AI usage ideas** (incident narration, quest flavor, daily digest, dweller ambient chat) — parked, need product decisions + per-operation usage headroom before shipping.
 
 **Guardrails:** no Pydantic AI framework migration, no per-request model/temperature per prompt, no retroactive cost truth; template-first.

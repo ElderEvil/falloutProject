@@ -23,6 +23,11 @@ audit; objectives need deliberate in-game validation rather than relying only on
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.
+  - **Verified gap:** `quest_type` is currently presentation metadata; every category follows the same
+    party-assignment + timer lifecycle. Seeded `building`, `collection`, `population`, and `training` quests need
+    their own event/state-completion path, while `exploration` and `combat` retain the timed-party path.
+  - **Verified gap:** chains persist predecessor links and hide locked entries, but do not yet model an explicit
+    chain lifecycle or requirement-driven unlock feedback.
 - [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,
   notifications, and frontend presentation so caps, items, XP, and objective progress agree exactly.
 - [ ] **Objective balance review** — enumerate active objective templates and their targets/rewards; identify dead,

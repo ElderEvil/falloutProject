@@ -316,7 +316,7 @@ class CRUDQuest(
         await event_bus.emit(
             GameEvent.QUEST_COMPLETED,
             vault_id,
-            {"quest_id": str(db_obj.id), "quest_title": db_obj.title},
+            {"quest_id": str(db_obj.id), "quest_title": db_obj.title, "quest_type": db_obj.quest_type.value},
         )
 
         try:

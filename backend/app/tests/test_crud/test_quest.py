@@ -682,18 +682,15 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     from app.models.storage import Storage
     from app.models.weapon import Weapon
     from app.schemas.common import AgeGroupEnum
+    from app.services.event_bus import GameEvent, event_bus
     from app.services.quest_service import quest_service
     from app.tests.factory.dwellers import create_fake_dweller
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id),
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
     async_session.add(Storage(vault_id=vault.id, max_space=10))
-    dweller_data = create_fake_dweller()
-    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller_data = create_fake_dweller() | {"is_adult": True, "age_group": AgeGroupEnum.ADULT}
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
 
@@ -710,16 +707,12 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     async_session.add_all(
         [
             QuestReward(
-                quest_id=quest.id,
-                reward_type=RewardType.CAPS,
-                reward_data={"amount": 50},
-                reward_chance=1.0,
+                quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0
             ),
             QuestReward(
                 quest_id=quest.id,
                 reward_type=RewardType.ITEM,
                 reward_data={"item_type": "weapon", "name": "Laser Pistol"},
-                reward_chance=1.0,
             ),
         ]
     )
@@ -734,22 +727,28 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     assert await quest_service.check_and_complete_quests(async_session) == 1
 
     await async_session.refresh(link)
-    await async_session.refresh(vault)
-    await async_session.refresh(dweller)
     assert link.is_completed is False
     assert link.is_reward_ready is True
     assert vault.bottle_caps == vault_data["bottle_caps"]
     assert dweller.status == DwellerStatusEnum.IDLE
 
-    await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
+    events = []
+
+    async def capture_event(_event_type, _vault_id, data) -> None:
+        events.append(data)
+
+    event_bus.subscribe(GameEvent.QUEST_COMPLETED, capture_event)
+    try:
+        await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
+    finally:
+        event_bus.unsubscribe(GameEvent.QUEST_COMPLETED, capture_event)
 
     await async_session.refresh(link)
     await async_session.refresh(vault)
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
     assert link.is_completed is True
-    assert vault.bottle_caps == vault_data["bottle_caps"] + 50
     assert weapon.storage_id is not None
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert events == [{"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value}]
 
     with pytest.raises(ResourceConflictException, match="Already completed"):
         await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)

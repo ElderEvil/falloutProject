@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.69.2 (2026-08-31)
+
+### Bug Fixes
+
+* address quest audit review findings 1426d76
+* complete building quests from vault state 1c3c07a
+* complete state quests from vault progress 9ee8365
+* include quest type in completion events e7ccc6c
+* lock quest party after start 9770189
+* present state quests as objectives db2ea50
+* recognize living quarters quest requirements c41ed48
+* support local AI appearance and portraits 3ece24b
+* sync and backfill state quest objectives 73c6f80
+
+### Documentation
+
+* align roadmap scope and milestones 5708de3
+* record quest lifecycle audit gaps 9b7352a
+* record quest reward delivery gap 7e77918
+
 ## 2.69.1 (2026-08-31)
 
 ### Bug Fixes

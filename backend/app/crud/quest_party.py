@@ -29,7 +29,9 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
 
         if not await db_session.get(Vault, vault_id):
             raise ValueError(f"Vault {vault_id} not found")
-        if (link := await db_session.get(VaultQuestCompletionLink, (vault_id, quest_id))) and link.started_at:
+        if (link := await db_session.get(VaultQuestCompletionLink, (vault_id, quest_id))) and (
+            link.started_at is not None or link.is_reward_ready or link.is_completed
+        ):
             raise ResourceConflictException("Quest is already in progress")
 
         existing_query = select(QuestParty).where(

@@ -149,6 +149,9 @@ def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
         "distinguishing_features": ["scar", "freckles"],
     }
 
+    singleton = DwellerVisualAttributes.model_validate({"distinguishing_features": ["scar"]})
+    assert singleton.distinguishing_features == ["scar"]
+
 
 def test_backward_compatibility_alias() -> None:
     """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""

@@ -138,35 +138,17 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
     Returns:
         Number of quests seeded
     """
+    quest_chains = load_all_quest_chain_files(quest_dir)
+    all_quest_jsons: list[QuestJSON] = []
+    quest_chain_ids: dict[str, str | None] = {}
+    for chain in quest_chains:
+        for quest_json in chain.quests:
+            if quest_json.quest_name in quest_chain_ids:
+                raise ValueError(f"Duplicate quest_name '{quest_json.quest_name}' in quest data")
+            all_quest_jsons.append(quest_json)
+            quest_chain_ids[quest_json.quest_name] = chain.chain_id
+
     try:
-        # Load quest chains from JSON files
-        quest_chains = load_all_quest_chain_files(quest_dir)
-
-        # Flatten all quests from all chains
-        all_quest_jsons: list[QuestJSON] = []
-        for chain in quest_chains:
-            all_quest_jsons.extend(chain.quests)
-        quest_chain_ids = {quest.quest_name: chain.chain_id for chain in quest_chains for quest in chain.quests}
-
-        # Detect duplicate quest_names within loaded JSON files (rglob discovery)
-        seen_quest_names: dict[str, list[str]] = {}
-        for quest_json in all_quest_jsons:
-            if quest_json.quest_name:
-                source_file = getattr(quest_json, "_source_file", "unknown")
-                if quest_json.quest_name not in seen_quest_names:
-                    seen_quest_names[quest_json.quest_name] = []
-                seen_quest_names[quest_json.quest_name].append(source_file)
-
-        # Log warnings for duplicates found
-        for quest_name, files in seen_quest_names.items():
-            if len(files) > 1:
-                unique_files = list(dict.fromkeys(files))
-                logger.warning(
-                    f"Duplicate quest_name '{quest_name}' found in %d files: {unique_files}. "
-                    "This may cause non-deterministic seeding behavior.",
-                    len(unique_files),
-                )
-
         logger.info("Loaded %d quests from %d quest chains", len(all_quest_jsons), len(quest_chains))
 
         # Check which quests already exist in database

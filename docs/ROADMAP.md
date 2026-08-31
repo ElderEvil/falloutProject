@@ -487,9 +487,9 @@ tests cover primary-beats-secondary and cross-type reversals.
 - Achievement system, daily/weekly challenges
 - **Dead Dweller Reuse System** — parked; cross-vault encounters are out of scope under the single-vault exploration guardrail.
   - Soft-delete permanently dead dwellers (keep data)
-  - Reuse as raiders attacking other vaults
+  - ~~Reuse as raiders attacking other vaults~~ — out of scope
   - Transformation chance: ghoul, synth, super mutant
-  - Cross-vault encounters with former dwellers
+  - ~~Cross-vault encounters with former dwellers~~ — out of scope
 
 ### Apprentice System & Pets — design fragments (Issue #470)
 

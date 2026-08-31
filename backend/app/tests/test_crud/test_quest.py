@@ -933,6 +933,39 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("link_state", [{"is_reward_ready": True}, {"is_completed": True}])
+async def test_assign_party_rejects_reward_ready_or_completed_quest(
+    async_session: AsyncSession, link_state: dict[str, bool]
+) -> None:
+    """Reward-ready and completed quests cannot acquire a party."""
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
+    from app.models.vault_quest import VaultQuestCompletionLink
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Finished Objective",
+            short_description="No party allowed",
+            long_description="State objective guard",
+            requirements="None",
+            rewards="None",
+        ),
+    )
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add_all([dweller, VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, **link_state)])
+    await async_session.commit()
+
+    with pytest.raises(ResourceConflictException, match="already in progress"):
+        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+
+
+@pytest.mark.asyncio
 async def test_get_party_for_quest_returns_dicts(async_session: AsyncSession) -> None:
     """Test that get_party_for_quest returns proper dictionary format."""
     from app.crud.quest_party import quest_party_crud

@@ -733,9 +733,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     )
     async_session.add_all(
         [
-            QuestReward(
-                quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0
-            ),
+            QuestReward(quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0),
             QuestReward(
                 quest_id=quest.id,
                 reward_type=RewardType.ITEM,

@@ -736,4 +736,4 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-08-31_ — moved shipped items out of `In Progress`; retitled Overseer's Toolkit to Recently Shipped. Next pick: Bio Extension templates or Boosted Vault diversity (see Low-Hanging Fruit P1)._
+_Last updated: 2026-08-31_ — moved shipped items out of `In Progress`; retitled Overseer's Toolkit to Recently Shipped. Next pick: Bio Extension templates (see Low-Hanging Fruit P1); Boosted Vault diversity shipped in this PR (race/faction weights + rarity boost).

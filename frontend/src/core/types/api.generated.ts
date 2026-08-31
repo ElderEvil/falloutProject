@@ -6070,6 +6070,8 @@ export interface components {
             background?: string | null;
             /** Voice Line Text */
             voice_line_text?: string | null;
+            /** Voice Line Url */
+            voice_line_url?: string | null;
         };
         /**
          * DwellerVoiceChatResponse

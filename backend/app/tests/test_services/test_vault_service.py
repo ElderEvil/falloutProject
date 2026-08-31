@@ -1606,6 +1606,7 @@ class TestVaultStartConfig:
         """Vault-start settings read VAULT_START_* values from the project dotenv file."""
         (tmp_path / ".env").write_text("VAULT_START_INITIAL_RESOURCE_PCT=0.8\n")
         monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv("VAULT_START_INITIAL_RESOURCE_PCT", raising=False)
 
         from app.core.game_config import VaultStartConfig
 

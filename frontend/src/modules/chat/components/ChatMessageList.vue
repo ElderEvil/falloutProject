@@ -161,7 +161,7 @@ const messageContentSegments = (
         </template>
       </div>
 
-      <div v-if="message.error" class="message-error">
+      <div v-if="message.error" class="message-error" role="alert" aria-live="polite">
         <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
         <span>{{ message.error }}</span>
       </div>

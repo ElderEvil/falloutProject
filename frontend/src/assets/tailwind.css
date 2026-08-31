@@ -339,6 +339,46 @@ body {
     }
 }
 
+@utility stat-highlight-pulse {
+    animation: stat-highlight-pulse 2.5s ease-out forwards;
+}
+
+@utility stat-badge-fade {
+    animation: stat-badge-fade 2.5s ease-out forwards;
+}
+
+@keyframes stat-highlight-pulse {
+    from {
+        box-shadow: 0 0 12px var(--color-theme-glow);
+        filter: brightness(1.3);
+    }
+    40% {
+        box-shadow: 0 0 20px var(--color-theme-glow), 0 0 30px var(--color-theme-glow);
+        filter: brightness(1.5);
+    }
+    to {
+        box-shadow: 0 0 6px var(--color-theme-glow);
+        filter: brightness(1);
+    }
+}
+
+@keyframes stat-badge-fade {
+    from,
+    70% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stat-highlight-pulse { animation: none; box-shadow: var(--glow-2); }
+    .stat-badge-fade { animation: none; opacity: 1; }
+}
+
 .badge-action {
     /* Actionable: clicking the badge does something (claim reward, revive).
      Behaves like a button: interactive emphasis, glow on hover. */

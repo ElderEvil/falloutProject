@@ -58,6 +58,7 @@ describe('DwellerStats', () => {
       const { wrapper } = mountStats('strength')
       const items = wrapper.findAll('.stat-item')
       expect(items[0].classes()).toContain('stat-highlighted')
+      expect(items[0].classes()).toContain('stat-highlight-pulse')
       expect(items[1].classes()).not.toContain('stat-highlighted')
     })
 
@@ -66,6 +67,7 @@ describe('DwellerStats', () => {
       const badge = wrapper.find('.stat-badge')
       expect(badge.exists()).toBe(true)
       expect(badge.text()).toBe('+1')
+      expect(badge.classes()).toContain('stat-badge-fade')
     })
 
     it('restarts the badge when the highlighted stat changes', async () => {

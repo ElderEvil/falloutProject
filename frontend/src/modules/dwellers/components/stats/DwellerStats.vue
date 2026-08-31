@@ -68,13 +68,13 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
         v-for="stat in stats"
         :key="stat.key"
         class="stat-item"
-        :class="{ 'stat-highlighted': isHighlighted(stat.key) }"
+        :class="{ 'stat-highlighted stat-highlight-pulse': isHighlighted(stat.key) }"
       >
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
           <span class="stat-value-group">
             <span class="stat-value">{{ statValue(stat.key) }}</span>
-            <span v-if="isHighlighted(stat.key) && showBadge" class="stat-badge">+1</span>
+            <span v-if="isHighlighted(stat.key) && showBadge" class="stat-badge stat-badge-fade">+1</span>
           </span>
         </div>
         <div class="stat-bar">
@@ -178,56 +178,10 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--color-theme-accent);
-  animation: badge-fade 2.5s ease-out forwards;
 }
 
 .stat-highlighted {
   border-left-color: var(--color-theme-accent);
   background: color-mix(in srgb, var(--color-theme-primary) 6%, transparent);
-  animation: stat-pulse 2.5s ease-out forwards;
-}
-
-@keyframes stat-pulse {
-  0% {
-    box-shadow: 0 0 12px var(--color-theme-glow);
-    filter: brightness(1.3);
-  }
-  40% {
-    box-shadow:
-      0 0 20px var(--color-theme-glow),
-      0 0 30px var(--color-theme-glow);
-    filter: brightness(1.5);
-  }
-  100% {
-    box-shadow: 0 0 6px var(--color-theme-glow);
-    filter: brightness(1);
-  }
-}
-
-@keyframes badge-fade {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stat-highlighted {
-    animation: none;
-    box-shadow: var(--glow-2);
-  }
-
-  .stat-badge {
-    animation: none;
-    opacity: 1;
-  }
 }
 </style>

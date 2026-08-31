@@ -13,6 +13,31 @@ AI-powered dweller interactions.
 
 ---
 
+## Active Priorities
+
+### P1 — Quest mechanics, rewards, and objectives
+
+The progression loop must be correct and balanced before it grows. Quest rewards and mechanics need an end-to-end
+audit; objectives need deliberate in-game validation rather than relying only on automated coverage.
+
+- [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
+  lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
+  protection. Add a regression test for every bug found before changing the implementation.
+- [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,
+  notifications, and frontend presentation so caps, items, XP, and objective progress agree exactly.
+- [ ] **Objective balance review** — enumerate active objective templates and their targets/rewards; identify dead,
+  trivial, or excessively grindy objectives and tune from observed normal-vault progression rather than assumptions.
+- [ ] **Manual progression playtest** — run a documented fresh-vault and established-vault pass covering objective
+  rerolls/completions, quest start/complete/claim, reward storage limits, reconnect/SSE delivery, and notification
+  navigation. Convert each finding into a tracked issue and regression test where practical.
+- [ ] **Notification click-through investigation** — collect cases where a notification opens an unexpected screen,
+  tab, entity, or state; trace route construction and query-prop handling from notification metadata through the
+  destination view. Add targeted regression coverage before changing navigation behavior.
+
+**Order:** fix quest/reward correctness first, then tune objective balance from the same playtest evidence; do not add
+new quest kinds until the existing loop is trustworthy. Investigate click-through failures after the playtest yields
+reproducible cases, unless they block a core progression action.
+
 ## Planned
 
 ### Recently Shipped — "The Overseer's Toolkit" (2.62–2.67, now on `master`)
@@ -110,11 +135,11 @@ storage lifecycle requires otherwise.
 **Success criteria**: each dweller concern has one clear schema owner, API contracts remain backward-compatible, and
 the database remains simple until its shape demonstrably needs to change.
 
-### World Map — Multiplayer-First Architecture (Target: TBD)
+### World Map — Single-Vault Exploration (Target: TBD)
 
-**Focus**: Evolve the wasteland map into the game's multiplayer surface — one deterministic shared world
-with per-player fog of war, over which async-PvP raiding, cross-vault encounters, and social features layer.
-Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_PLAN.md`.
+**Focus**: Preserve the wasteland map as a legible, per-vault exploration surface: discoveries, routes, and journal
+context for the player's own dwellers. Feature contract: `docs/features/WORLD_MAP.md`; delivery plan:
+`docs/WORLD_MAP_PLAN.md`.
 
 **Near-term release — "The Wasteland Journal" (shipped in v2.46.0):**
 
@@ -123,7 +148,7 @@ Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_P
   fix), quest party-roster rendering, and the discovery-unlock fix (`register_discovery` links the exploring
   dweller; v2.46.1 backfill script repairs pre-fix rows).
 
-**Current focus — World Map + exploration polish (no multiplayer):**
+**Current focus — World Map + exploration polish:**
 
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
   discoveries unlock live (the currently deployed worker runs pre-fix code).
@@ -133,16 +158,12 @@ Feature contract: `docs/features/WORLD_MAP.md`; delivery plan: `docs/WORLD_MAP_P
 Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
 `docs/WORLD_MAP_PLAN.md`.
 
-**Deferred multiplayer phases** (parked; revisit when the single-vault experience is solid, see
-`docs/WORLD_MAP_PLAN.md`):
+**Out of scope:** multiplayer world simulation, async-PvP raids, cross-vault fallen dwellers, friends, visits, and
+leaderboards are not planned work. Revisit only with a separate product direction; no map architecture should be
+optimized around them now.
 
-- ⏸️ **Phase B — async-PvP raiding** — `RaidTarget` snapshots + a `raid` exploration subtype.
-- ⏸️ **Phase C — cross-vault fallen dwellers** — global `FallenDwellerRegistry` (dead dwellers as raiders).
-- ⏸️ **Phase D — social** — friends, vault visits, leaderboards, global location registry.
-
-**Guardrails:** async only (no live shared-world simulation); names determine shared base coordinates, while
-vault-local collision resolution may temporarily offset overlapping markers; no denormalized global registry
-until Phase D; respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
+**Guardrails:** keep map state vault-local and exploration-led; no global location registry or cross-vault simulation;
+respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
 
 **Success criteria:** the near-term release delivers a legible per-explorer journey (loot + health-change trail +
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent
@@ -184,16 +205,12 @@ swallows vault-owner lookup failures). The remaining items were deferred or reco
   the pregnancy insert in one transaction (`SELECT ... FOR UPDATE` on the vault row), at the `create_pregnancy`
   boundary so every conception path is covered. Heavy lift; the in-memory SQLite test harness cannot exercise row
   locks today.
-- 🔄 **Pending-report dedup by `exploration_id`** — `usePendingReports` deduplicates by dweller + rewards content, so
-  two identical completions from the same dweller are collapsed. Propagate the SSE `exploration_id` through the
-  notification metadata and dedup on it instead. Heavy lift (backend metadata change).
-- 🔄 **DwellerPanel query-prop sync** — clicking the same dweller's `training_complete` notification again (query-only
-  `?tab=stats&stat=X` change) does not update the active tab or badge because the component instance is reused
-  without re-running setup. Watch `initialTab`/`highlightStat` props and restart the badge timer on change.
-- 🔄 **ExplorationView vault filter** — pending reports are global (single `localStorage` key), so reports from one
-  vault can surface while viewing another. Scope selection/acknowledgement to the active `vaultId`.
-- 🔄 **DwellerStats animations → Tailwind utilities** — move the scoped `stat-pulse`/`badge-fade` keyframes into
-  `tailwind.css` as utilities with motion-reduce variants (aligns with the Tailwind-utilities-only guideline).
+- ✅ **Shipped** — pending reports propagate `explorationId` through SSE and notification delivery, then deduplicate
+  by it without collapsing separate but identical completions.
+- ✅ **Shipped** — DwellerPanel watches query-driven tab/stat changes and restarts the stat badge timer; pending
+  exploration reports are filtered by active `vaultId` before display and acknowledgement.
+- ✅ **Shipped** — DwellerStats highlight and badge animations use shared Tailwind utilities with motion-reduce
+  variants.
 - ⚪ **Nitpicks (optional)** — route exploration-completion notifications through `notify_owner` for consistency with
   the other flows; wrap a >100-char line in `exploration.ts`.
 
@@ -403,29 +420,13 @@ These items are small, scoped changes that deliver noticeable player value witho
 architecture. They are ordered by a rough impact/effort ratio, and they respect the v2.35+ constraint that every
 update reduce net source LOC (features that add code must first offset it by removing or compacting existing code).
 
-### P1 — High Priority (user-requested)
+### P2 — Deferred player-facing improvements
 
-- [ ] **Bio extension** — pre-baked template bios for every dweller + living biographies updated on exploration,
-      marriage, and dialogues. Full design in "Bio Extension" (Planned above). Start with the storage decision
-      (JSONB vs side-table), then template application at creation — that alone is shippable.
-  - **Effort:** medium (templates first), larger for action-driven updates.
+- [ ] **Living biographies** — build on shipped template bios with action-driven updates for exploration, marriage,
+      and dialogues. Start with the structured-entry storage decision (JSONB vs side-table).
+  - **Effort:** medium–large.
 
-- [ ] **Boosted vault rarity + race/faction diversity** — boosted vaults roll higher rare/legendary shares;
-      seeded/recruited populations target ~15% ghouls, ~10% synths, ~5% super mutants. Full design in "Boosted
-      Vault Rarity & Race/Faction Diversity" (Planned above). Self-contained seeding/roll changes.
-  - **Effort:** small–medium.
-
-### P1 — Verification (merged without review)
-
-- [ ] **Backfill tests for merged low-hanging fruit**
-  - **Why:** The two checked-off items below (chat WebSocket streaming, dweller visual equipment) were merged without
-    code review. They need regression coverage before they can be considered verified.
-  - **What:**
-    - **Chat WebSocket streaming** (`backend/app/api/v1/endpoints/websocket.py`): integration test covering the full
-      chat round-trip over the socket (`ping`/`typing`/`message`), error paths, and the REST fallback removal safety.
-    - **Dweller visual equipment** (`backend/app/schemas/dweller.py:90-93`): test that `accessory`/`object_held`
-      generation is constrained to equipped/owned inventory items and cannot show unowned items.
-  - **Effort:** medium.
+- [x] **Boosted vault rarity + race/faction diversity** — shipped in v2.68.0.
 
 ### P2 — Quality of Life
 
@@ -448,11 +449,13 @@ tests cover primary-beats-secondary and cross-type reversals.
 
 ### P2 — Chat Polish
 
-- [x] **Chat streaming over WebSocket** — shipped in v2.41.0; regression coverage still owed (see P1 Verification).
+- [x] **Chat streaming over WebSocket** — shipped in v2.41.0 with authenticated round-trip and error-path regression
+      coverage.
 
 ### P3 — Consistency
 
-- [x] **Done:** dweller visual equipment wired to actual inventory (generation constrained to equipped/owned items);
+- [x] **Done:** dweller visual equipment wired to actual inventory (generation constrained to equipped/owned items,
+      regression-tested);
       bigger status badge in the dwellers grid view (labeled `medium` overlay on the card thumbnail, live-status
       intent preserved).
 
@@ -532,10 +535,10 @@ Loose ideas, none committed:
 
 Keep it optional, non-breaking, and discoverable — easter eggs should reward curiosity, never gate progress.
 
-### Phase 4: Multiplayer
+### Parked Product Ideas
 
-- Social features (friends, vault visits, leaderboards)
-- Cloud saves, multi-device sync
+- Multiplayer/social features (friends, vault visits, leaderboards) are not on the delivery roadmap.
+- Cloud saves and multi-device sync require a separate product and operations plan before scheduling.
 
 ---
 
@@ -556,8 +559,7 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 - [ ] Docstring coverage: AI settings / chat services sit at ~32% (ruff `D` rules) vs the 80% repo target — add
       module and public-method docstrings to `app/services/ai_service.py`, `app/services/chat_service.py`,
       `app/crud/ai_settings.py`.
-- [ ] `AIService.reconfigure` mutates the global `settings` object (save/restore via `setattr`) instead of building a
-      scoped override — refactor to a pure settings-builder so concurrent requests can't observe intermediate values.
+- [x] `AIService.reconfigure` builds an isolated settings copy, so concurrent requests cannot observe profile overrides.
 
 ### Frontend
 
@@ -566,10 +568,7 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 - [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
       ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
       Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
-- [ ] Chat error accessibility: announce send failures through a live region (`role="alert" aria-live="polite"`) in the
-      chat UI instead of only console logging.
-- [ ] `useChatMessages.ts` error mapping: fall back to `detail ?? 'Failed to send'` so API `detail` strings surface to
-      the user instead of a generic message.
+- [x] Chat errors use a polite live region and surface API `detail` strings.
 
 ### DevOps
 
@@ -677,12 +676,16 @@ source; curated copies land in `frontend/public/audio/`).
 and the git-ignored source library never reaches CI. No pipeline changes needed; revisit cache headers or
 object storage only if the curated set grows large.
 
-### Quests Improvements — Building Quests, Locked Chains, Puzzles (design fragment, Target: TBD)
+### Quest System Completion & Expansion (P1 correctness, P2 new mechanics)
 
-User request: richer quest handling — construction-driven quests, properly locked quest chains, and
-quiz/puzzle quests. Reuse-first: the quest model already has `chain_id`/`chain_order`, `previous_quest_id`/
-`next_quest_id` links, and `QuestRequirement`/`QuestReward` relations; the objectives system and room
-construction flow already emit state that quests can key off.
+**P1 — correctness before expansion:** existing quest mechanics and rewards are the immediate priority (see Active
+Priorities). Complete the audit and manual progression playtest before adding quest types, chain gates, or interactive
+content.
+
+**P2 — richer quest handling after the core loop is proven:** construction-driven quests, properly locked quest
+chains, and quiz/puzzle quests. Reuse-first: the quest model already has `chain_id`/`chain_order`,
+`previous_quest_id`/`next_quest_id` links, and `QuestRequirement`/`QuestReward` relations; the objectives system and
+room construction flow already emit state that quests can key off.
 
 - ⬜ **Locked quest chains** — chain visibility/lock state in the UI: show the next chain quest as "locked"
   with its unlock requirement instead of hiding it. Blocker: chain unlocking today is purely linear
@@ -711,12 +714,13 @@ construction flow already emit state that quests can key off.
 
 Standing direction for picking work, in order:
 
-1. **Low-hanging fruits first** — the P1/P2 items in "Low-Hanging Fruit" above always outrank new feature
-   fragments when effort is comparable.
+1. **Correctness and balance first** — quest rewards/mechanics and objective balance/playtesting outrank new
+   progression features, technical polish, and expansion work.
 2. **Reuse & integration over new systems** — a feature that composes existing services (event bus, quest
    chains, recycling pipeline, objectives) beats a green-field design at equal value.
 3. **Unblock before building** — when a feature is blocked, prefer work that removes the blocker over
    workarounds.
+4. **Low-hanging fruit next** — prefer scoped P1/P2 work when it does not displace progression correctness.
 
 Current blocker map (what stalls what):
 
@@ -729,7 +733,6 @@ Current blocker map (what stalls what):
 | Trading PoC validation                | Trading Post graduation (weapons/outfits tabs, coverage re-inclusion)           | Playtest the dweller loop, then graduate per the WIP sidebar marker          |
 | Bio structured-entry storage decision | Bio extension (action-driven updates)                                           | Decide JSONB vs side-table; template bios are NOT blocked and can ship first |
 | Onboarding step persistence decision  | Onboarding feature                                                              | Choose localStorage vs server-side completion state                          |
-| World Map / multiplayer architecture  | Cross-vault encounters, Dead Dweller Reuse                                      | See World Map plan above                                                     |
 
 ---
 
@@ -743,4 +746,6 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-08-31_ — moved shipped items out of `In Progress`; retitled Overseer's Toolkit to Recently Shipped. Next pick: Bio Extension templates (see Low-Hanging Fruit P1); Boosted Vault diversity shipped in this PR (race/faction weights + rarity boost).
+_Last updated: 2026-08-31_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
+manual playtesting. The world map remains single-vault exploration; multiplayer is out of scope. Investigate reported
+notification click-through failures after reproducible cases are collected.

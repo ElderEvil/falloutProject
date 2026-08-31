@@ -44,3 +44,10 @@ class TestLLMInteractionModel:
             usage="image_generation",
         )
         assert data.usage == "image_generation"
+
+    def test_provenance_snapshot_fields_default_to_none(self):
+        data = LLMInteractionBase(parameters="test", response="test response", usage="chat")
+        assert data.provider is None
+        assert data.model is None
+        assert data.instructions_hash is None
+        assert data.instructions_snapshot is None

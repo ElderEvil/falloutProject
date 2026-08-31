@@ -9,28 +9,23 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
 from app.agents.dweller_agents import backstory_agent, bio_extension_agent, visual_attributes_agent
+from app.core.config import settings
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
-from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.map_service import map_service
+from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
 from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
-GENDER_PRONOUNS_MAP = {
-    GenderEnum.MALE: "his",
-    GenderEnum.FEMALE: "her",
-    None: "",
-}
-
-BIO_MAX_LENGTH = 1_000
+BIO_MAX_LENGTH = 900
 BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 
 # Visual-attribute fields that may only reflect items the dweller owns/equips.
@@ -38,12 +33,7 @@ EQUIPMENT_RESTRICTED_FIELDS = ("accessory", "object_held")
 
 
 def restrict_equipment_fields(visual_attributes: dict[str, Any], equipped_items: list[str]) -> None:
-    """Ensure accessory/object_held only reference equipped/owned items.
-
-    Mutates ``visual_attributes`` in place: any restricted field whose value is
-    not among ``equipped_items`` is removed. When nothing is equipped, both
-    fields are removed entirely.
-    """
+    """Remove accessory/object_held fields that do not match equipped items."""
     if equipped_items:
         owned = set(equipped_items)
         for field in EQUIPMENT_RESTRICTED_FIELDS:
@@ -100,7 +90,6 @@ class DwellerAIService:
         origin: str | None = None,
     ) -> DwellerReadFull:
         """Generate a backstory for a dweller using PydanticAI agent."""
-        # Check quota before making LLM call
         quota_result = await quota_service.check_quota(user.id, db_session)
         if not quota_result.allowed:
             raise QuotaExceededException(
@@ -122,11 +111,16 @@ class DwellerAIService:
             location=location,
         )
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "backstory")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run the backstory agent
-        result = await backstory_agent.run(f"Tell me about yourself, {dweller_obj.first_name}.", deps=deps)
+        result = await backstory_agent.run(
+            f"Tell me about yourself, {dweller_obj.first_name}.", deps=deps, instructions=instructions
+        )
         backstory = result.output.bio
 
-        # Safety check: truncate if exceeds max length (shouldn't happen with proper prompts)
+        # Keep generated biographies within the prompt's rendering-friendly upper bound.
         if len(backstory) > BIO_MAX_LENGTH:
             backstory = backstory[: BIO_MAX_LENGTH - 3] + "..."
             msg = f"Backstory exceeded max length, truncated to {BIO_MAX_LENGTH} characters"
@@ -153,6 +147,11 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -177,8 +176,13 @@ class DwellerAIService:
         # Create dependencies for the agent
         deps = ExtendBioDeps(current_bio=dweller_obj.bio)
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "extend_bio")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run the bio extension agent
-        result = await bio_extension_agent.run("Please extend this biography with more details.", deps=deps)
+        result = await bio_extension_agent.run(
+            "Please extend this biography with more details.", deps=deps, instructions=instructions
+        )
         extended_bio = result.output.extended_bio
 
         full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
@@ -209,6 +213,11 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -235,18 +244,13 @@ class DwellerAIService:
 
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
 
-        # Extract race/faction from existing visual attributes (if any)
         existing_attrs = dweller_obj.visual_attributes or {}
 
-        # Check if visual_attributes already has meaningful content beyond identity defaults
-        if self._has_substantial_visual_attributes(existing_attrs):
-            raise ContentNoChangeException(detail="Dweller already has visual attributes")
         dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
         dweller_faction = existing_attrs.get("faction") if isinstance(existing_attrs, dict) else None
 
         equipped_items = [item.name for item in (dweller_obj.weapon, dweller_obj.outfit) if item is not None]
 
-        # Create dependencies for the agent
         deps = VisualAttributesDeps(
             first_name=dweller_obj.first_name,
             last_name=dweller_obj.last_name or "",
@@ -257,19 +261,21 @@ class DwellerAIService:
             equipped_items=equipped_items,
         )
 
-        # Run the visual attributes agent
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "visual_attributes")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         result = await visual_attributes_agent.run(
-            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.", deps=deps
+            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.",
+            deps=deps,
+            instructions=instructions,
         )
 
-        # Convert Pydantic model to dict, excluding None values
         visual_attributes = result.output.model_dump(exclude_none=True)
 
         restrict_equipment_fields(visual_attributes, equipped_items)
 
-        # Merge with existing identity fields (race/faction) to preserve defaults
         if isinstance(existing_attrs, dict):
-            for key in ("race", "faction", "age", "state_of_being"):
+            for key in ("race", "faction", "age", "state_of_being", "voice_line_text", "voice_line_url"):
                 if key in existing_attrs and key not in visual_attributes:
                     visual_attributes[key] = existing_attrs[key]
 
@@ -285,13 +291,18 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,
             obj_in=llm_int_create,
         )
 
-        return dweller_obj
+        return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
     async def generate_photo(
         self,
@@ -344,6 +355,8 @@ class DwellerAIService:
             response=image_url,
             usage="generate_photo",
             user_id=user.id,
+            provider="openai",
+            model=settings.AI_IMAGE_MODEL,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -419,6 +432,8 @@ class DwellerAIService:
             prompt_tokens=None,
             completion_tokens=estimated_tokens,
             total_tokens=estimated_tokens,
+            provider="openai",
+            model="tts-1",
         )
         await llm_interaction_crud.create(
             db_session,
@@ -436,8 +451,7 @@ class DwellerAIService:
         db_session: AsyncSession,
         user: User,
     ) -> DwellerReadFull:
-        # 1. Update Dweller with provided visual attributes
-        # This is where we save the user's choices.
+        """Save avatar choices, generate a photo, and optionally add a voice line."""
         update_data = DwellerUpdate(
             first_name=dweller_first_name,
             last_name=dweller_last_name,
@@ -445,22 +459,7 @@ class DwellerAIService:
         )
         updated_dweller = await dweller_crud.update(db_session, dweller_id, update_data)
 
-        # 2. Refine the prompt
-        # The prompt should be built based on the *updated* dweller's attributes.
-        # This could be more sophisticated using the visual_attributes_input.
-        # You would need to add a method to your DwellerAIService for this.
-        # For simplicity, let's assume `generate_photo` handles prompt building internally
-        # or takes a prompt from this endpoint if you implement a prompt building service here.
-
-        # Example: Building prompt from current dweller object
-        # You'll need to pass 'character' (from Streamlit) to build_prompt here,
-        # or integrate prompt building into DwellerAIService.
-        # For now, let's assume dweller_ai_service.generate_photo pulls what it needs from dweller_obj
-        # after it's updated.
-
-        # 3. Generate Photo
         dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
-        # 4. Generate Audio (only if voice_line_text is provided)
         if visual_attributes_input.voice_line_text:
             return await self.generate_audio(
                 db_session=db_session,

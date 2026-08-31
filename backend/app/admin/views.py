@@ -28,6 +28,10 @@ from app.models.weapon import Weapon
 TRUNCATE_LENGTH = 50
 
 
+def _truncate(value: str | None) -> str | None:
+    return f"{value[:TRUNCATE_LENGTH]}..." if value and len(value) > TRUNCATE_LENGTH else value
+
+
 class AdminModelView(ModelView):
     """Safe defaults for administrative data views."""
 
@@ -155,6 +159,7 @@ class DwellerAdmin(AdminModelView, model=Dweller):
         Dweller.radaway,
         Dweller.is_dead,
         Dweller.death_cause,
+        Dweller.bio,
         Dweller.vault,
         Dweller.room,
         Dweller.created_at,
@@ -164,9 +169,7 @@ class DwellerAdmin(AdminModelView, model=Dweller):
     column_labels: ClassVar[dict] = {Dweller.max_health: "Max HP", Dweller.health: "HP"}
 
     column_formatters: ClassVar[dict] = {
-        Dweller.bio: lambda m, _attribute: (
-            (m.bio[:TRUNCATE_LENGTH] + "...") if m.bio and len(m.bio) > TRUNCATE_LENGTH else m.bio
-        ),
+        Dweller.bio: lambda m, _attribute: _truncate(m.bio),
     }
 
     icon = "fa-solid fa-person"
@@ -275,10 +278,20 @@ class PromptAdmin(AdminModelView, model=Prompt):
     column_list: ClassVar[list] = [
         Prompt.id,
         Prompt.prompt_name,
-        # Prompt.ai_model_type,
+        Prompt.version,
+        Prompt.is_active,
+        Prompt.description,
+        Prompt.entity_id,
     ]
+    # Templates are a constrained interface: details previews the raw template;
+    # edits go through the deferred copy-as-new-version flow, never in place.
+    column_details_exclude_list: ClassVar[list] = [Prompt.llm_interactions]
 
     icon = "fa-solid fa-comment-dots"
+
+    can_create = False
+    can_edit = False
+    can_export = False
 
 
 class AISettingsAdmin(AdminModelView, model=AISettings):
@@ -321,13 +334,30 @@ class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
     name_plural = "LLM Interactions"
     column_list: ClassVar[list] = [
         LLMInteraction.id,
-        # LLMInteraction.ai_model_type,
         LLMInteraction.usage,
         LLMInteraction.prompt,
         LLMInteraction.user,
+        LLMInteraction.provider,
+        LLMInteraction.model,
+        LLMInteraction.prompt_tokens,
+        LLMInteraction.completion_tokens,
+        LLMInteraction.total_tokens,
+        LLMInteraction.instructions_hash,
+        LLMInteraction.created_at,
     ]
+    column_searchable_list: ClassVar[list] = [LLMInteraction.usage]
+    column_sortable_list: ClassVar[list] = [
+        LLMInteraction.usage,
+        LLMInteraction.created_at,
+        LLMInteraction.total_tokens,
+    ]
+    column_default_sort: ClassVar[list] = [(LLMInteraction.created_at, True)]
 
     icon = "fa-solid fa-comment-dots"
+
+    can_create = False
+    can_edit = False
+    can_export = False
 
 
 class RelationshipAdmin(AdminModelView, model=Relationship):
@@ -466,16 +496,8 @@ class ChatMessageAdmin(AdminModelView, model=ChatMessage):
     column_default_sort: ClassVar[list] = [(ChatMessage.created_at, True)]
 
     column_formatters: ClassVar[dict] = {
-        ChatMessage.message_text: lambda m, _attribute: (
-            m.message_text[:TRUNCATE_LENGTH] + "..."
-            if m.message_text and len(m.message_text) > TRUNCATE_LENGTH
-            else m.message_text
-        ),
-        ChatMessage.happiness_reason: lambda m, _attribute: (
-            m.happiness_reason[:TRUNCATE_LENGTH] + "..."
-            if m.happiness_reason and len(m.happiness_reason) > TRUNCATE_LENGTH
-            else m.happiness_reason
-        ),
+        ChatMessage.message_text: lambda m, _attribute: _truncate(m.message_text),
+        ChatMessage.happiness_reason: lambda m, _attribute: _truncate(m.happiness_reason),
     }
 
     name = "Chat Message"
@@ -510,9 +532,7 @@ class NotificationAdmin(AdminModelView, model=Notification):
     column_default_sort: ClassVar[list] = [(Notification.created_at, True)]
 
     column_formatters: ClassVar[dict] = {
-        Notification.message: lambda m, _attribute: (
-            m.message[:TRUNCATE_LENGTH] + "..." if m.message and len(m.message) > TRUNCATE_LENGTH else m.message
-        ),
+        Notification.message: lambda m, _attribute: _truncate(m.message),
     }
 
     name = "Notification"

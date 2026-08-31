@@ -19,6 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
+from app.services.ai_constants import AI_USAGE_CACHE_KEY, QUOTA_TRACKING_OPERATION
 
 logger = logging.getLogger(__name__)
 
@@ -163,12 +164,10 @@ class QuotaService:
                 completion_tokens=0,
                 parameters=None,
                 response=None,
-                usage="quota_tracking",
+                usage=QUOTA_TRACKING_OPERATION,
             )
             db_session.add(interaction)
             await db_session.flush()
-
-            from app.services.ai_constants import AI_USAGE_CACHE_KEY
 
             cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)
             try:

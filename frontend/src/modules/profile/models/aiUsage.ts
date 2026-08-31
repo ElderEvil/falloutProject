@@ -4,6 +4,15 @@ export interface TokenUsage {
   total_tokens: number
 }
 
+export interface AIOperationStats {
+  operation: string
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  count: number
+  is_operational: boolean
+}
+
 export interface AIUsageStats {
   all_time: TokenUsage
   current_month: TokenUsage
@@ -15,4 +24,6 @@ export interface AIUsageStats {
   quota_warning: boolean
   quota_exceeded: boolean
   reset_date: string
+  by_operation?: AIOperationStats[]
+  chat_heavy?: boolean
 }

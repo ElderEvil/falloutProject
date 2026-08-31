@@ -104,6 +104,7 @@ class DwellerVisualAttributes(BaseModel):
 
     # Audio
     voice_line_text: str | None = None
+    voice_line_url: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
     def validate_identity_combination(self) -> "DwellerVisualAttributes":

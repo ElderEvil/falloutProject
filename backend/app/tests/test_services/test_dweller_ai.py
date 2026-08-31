@@ -10,9 +10,6 @@ from app.services.dweller_ai import BIO_MAX_LENGTH, dweller_ai
 pytestmark = pytest.mark.asyncio
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-
 def _make_dweller_mock(
     *,
     bio: str | None = None,
@@ -63,9 +60,6 @@ def _make_agent_result(output, input_tokens=50, output_tokens=30, total_tokens=8
     return result
 
 
-# ── Quota Exceeded Tests ────────────────────────────────────────────────
-
-
 @pytest.mark.parametrize(
     ("method_name", "method_kwargs"),
     [
@@ -97,7 +91,38 @@ async def test_quota_exceeded_raises(
         await getattr(dweller_ai, method_name)(**kwargs)
 
 
-# ── generate_backstory edge cases ───────────────────────────────────────
+async def test_generate_backstory_passes_active_registry_prompt_to_agent() -> None:
+    """The configured prompt, not the legacy static string, drives the agent run."""
+    from app.schemas.dweller_ai import DwellerBackstory
+
+    active_instructions = "Use this active backstory prompt."
+    mock_dweller = _make_dweller_mock(bio=None)
+    mock_agent = MagicMock()
+    mock_agent.run = AsyncMock(
+        return_value=_make_agent_result(DwellerBackstory(bio="A valid backstory.", origin_place="Megaton"))
+    )
+
+    with (
+        patch(
+            "app.services.dweller_ai.quota_service.check_quota",
+            new=AsyncMock(return_value=MagicMock(allowed=True)),
+        ),
+        patch("app.services.dweller_ai.backstory_agent", mock_agent),
+        patch("app.services.dweller_ai.dweller_crud.update", new=AsyncMock()),
+        patch("app.services.dweller_ai.llm_interaction_crud.create", new=AsyncMock()),
+        patch("app.services.dweller_ai.map_service.register_bio_places", new=AsyncMock()),
+        patch(
+            "app.services.dweller_ai.get_instructions",
+            new=AsyncMock(return_value=(active_instructions, None, "a" * 64)),
+        ),
+        patch(
+            "app.services.dweller_ai.get_provider_model_snapshot",
+            new=AsyncMock(return_value=("openai", "gpt-test")),
+        ),
+    ):
+        await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
+
+    assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
 
 
 @patch("app.services.dweller_ai.quota_service")
@@ -144,10 +169,10 @@ async def test_generate_backstory_truncates_long_bio(
 
     await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
 
-    # Verify truncation: stored bio should be <= BIO_MAX_LENGTH and end with "..."
+    # Rendered bios must stay within the prompt's 900-character upper bound.
     mock_crud.update.assert_called_once()
     stored_bio = mock_crud.update.call_args[0][2].bio
-    assert len(stored_bio) <= BIO_MAX_LENGTH
+    assert len(stored_bio) <= 900
     assert stored_bio.endswith("...")
 
 
@@ -278,6 +303,7 @@ async def test_generate_visual_usage_extraction_fails(
     mock_llm.create = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
     mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", hair_color="brown")
     mock_result = MagicMock()
     mock_result.output = mock_output
@@ -319,6 +345,7 @@ async def test_generate_visual_attributes_constrains_accessory_and_object_held(
     mock_dweller.weapon.name = "Laser Rifle"
     mock_dweller.outfit = MagicMock()
     mock_dweller.outfit.name = "Vault Suit"
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
     mock_output = dweller_schemas.DwellerVisualAttributes(
         height="tall", accessory="Bandolier", object_held="Laser Rifle"
@@ -359,6 +386,7 @@ async def test_generate_visual_attributes_drops_equipment_when_none_equipped(
     mock_llm.create = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
     mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", object_held="Laser Rifle")
     mock_result = MagicMock()
@@ -465,6 +493,9 @@ async def test_generate_photo_success(mock_crud: MagicMock, mock_llm: MagicMock)
     mock_storage.upload_thumbnail.assert_called_once()
     mock_crud.update.assert_called_once()
     mock_llm.create.assert_called_once()
+    interaction = mock_llm.create.call_args.kwargs["obj_in"]
+    assert interaction.provider == "openai"
+    assert interaction.model == "gpt-image-1"
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
@@ -640,6 +671,8 @@ async def test_generate_audio_success(mock_crud: MagicMock, mock_llm: MagicMock,
     mock_llm.create.assert_called_once()
     llm_kwargs = mock_llm.create.call_args[1]["obj_in"]
     assert llm_kwargs.usage == "generate_audio"
+    assert llm_kwargs.provider == "openai"
+    assert llm_kwargs.model == "tts-1"
 
 
 @patch("app.services.dweller_ai.quota_service")

@@ -3,11 +3,7 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
-
-# --- _has_substantial_visual_attributes ---
 
 
 def test_substantial_none() -> None:
@@ -73,17 +69,19 @@ def test_substantial_full_ai_data() -> None:
     )
 
 
-# --- generate_visual_attributes ---
-
-
-@patch("app.services.dweller_ai.quota_service")
+@patch("app.services.dweller_ai.llm_interaction_crud")
+@patch("app.services.dweller_ai.visual_attributes_agent")
 @patch("app.services.dweller_ai.dweller_crud")
-async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise ContentNoChangeException if dweller already has substantial VA."""
-    from app.utils.exceptions import ContentNoChangeException
+@patch("app.services.dweller_ai.quota_service")
+async def test_generate_replaces_substantial_attrs(
+    mock_quota: MagicMock, mock_crud: MagicMock, mock_agent: MagicMock, mock_llm: MagicMock
+) -> None:
+    """Regeneration replaces existing AI appearance while retaining identity fields."""
+    from app.schemas.dweller import DwellerVisualAttributes
 
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_crud.update = AsyncMock(return_value=MagicMock())
+    mock_llm.create = AsyncMock()
 
     mock_dweller = MagicMock()
     mock_dweller.visual_attributes = {
@@ -91,6 +89,8 @@ async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, 
         "faction": "vault_dweller",
         "height": "tall",
         "build": "athletic",
+        "voice_line_text": "Stay sharp.",
+        "voice_line_url": "https://audio.example/voice.mp3",
     }
     mock_dweller.first_name = "Test"
     mock_dweller.last_name = "Dweller"
@@ -98,66 +98,33 @@ async def test_generate_raises_if_substantial_attrs_exist(mock_crud: MagicMock, 
     mock_dweller.bio = "A test dweller."
     mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
-    with pytest.raises(ContentNoChangeException, match="already has visual attributes"):
-        await dweller_ai.generate_visual_attributes(user=MagicMock(), db_session=MagicMock(), dweller_info=mock_dweller)
+    output = DwellerVisualAttributes(height="average", hair_color="red")
+    result = MagicMock()
+    result.output = output
+    result.usage.return_value = MagicMock(input_tokens=100, output_tokens=50, total_tokens=150)
+    mock_agent.run = AsyncMock(return_value=result)
+    updated_dweller = MagicMock()
+    updated_dweller.visual_attributes = {"height": "average", "hair_color": "red"}
+    mock_crud.get_full_info = AsyncMock(return_value=updated_dweller)
 
-
-@patch("app.services.dweller_ai.quota_service")
-@patch("app.services.dweller_ai.dweller_crud")  # Mock crud to avoid DB
-@patch("app.services.dweller_ai.visual_attributes_agent")
-@patch("app.services.dweller_ai.llm_interaction_crud")
-async def test_generate_allows_with_only_defaults(
-    mock_llm: MagicMock, mock_agent: MagicMock, mock_crud: MagicMock, mock_quota: MagicMock
-) -> None:
-    """Should allow generation when dweller only has identity defaults."""
-    import app.schemas.dweller as dweller_schemas
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_crud.update = AsyncMock(return_value=MagicMock())
-    mock_llm.create = AsyncMock(return_value=MagicMock())
-
-    mock_dweller = MagicMock()
-    mock_dweller.visual_attributes = {"race": "human", "faction": "vault_dweller"}
-    mock_dweller.first_name = "Test"
-    mock_dweller.last_name = "Dweller"
-    mock_dweller.gender = "male"
-    mock_dweller.bio = None
-    mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000002")
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.UUID("00000000-0000-0000-0000-000000000099")
-
-    # Mock agent to return a full set of attributes
-    mock_output = dweller_schemas.DwellerVisualAttributes(
-        height="average",
-        build="athletic",
-        skin_tone="fair",
-        eye_color="blue",
-        hair_color="brown",
-        hair_style="short",
-    )
-    mock_result = MagicMock()
-    mock_result.output = mock_output
-    mock_result.usage.return_value = MagicMock(input_tokens=100, output_tokens=50, total_tokens=150)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    # Should not raise
-    result = await dweller_ai.generate_visual_attributes(
-        user=mock_user, db_session=MagicMock(), dweller_info=mock_dweller
+    user = MagicMock()
+    user.id = uuid.uuid4()
+    generated = await dweller_ai.generate_visual_attributes(
+        user=user, db_session=MagicMock(), dweller_info=mock_dweller
     )
 
-    # Verify the agent was called with deps containing race/faction
-    call_args = mock_agent.run.call_args
-    assert call_args is not None
-    deps = call_args[1]["deps"]
+    deps = mock_agent.run.call_args.kwargs["deps"]
     assert deps.race == "human"
     assert deps.faction == "vault_dweller"
-
-    # Verify result is returned
-    assert result is not None
-
-
-# --- Options module ---
+    stored = mock_crud.update.call_args.args[2].visual_attributes
+    assert stored.race == "human"
+    assert stored.faction == "vault_dweller"
+    assert stored.height == "average"
+    assert stored.hair_color == "red"
+    assert stored.build is None
+    assert stored.voice_line_text == "Stay sharp."
+    assert stored.voice_line_url == "https://audio.example/voice.mp3"
+    assert generated is updated_dweller
 
 
 def test_restrict_equipment_fields_removes_non_owned() -> None:
@@ -198,9 +165,6 @@ def test_restrict_equipment_fields_noop_when_fields_absent() -> None:
     attrs = {"height": "tall", "hair_color": "brown"}
     restrict_equipment_fields(attrs, ["Leather Armor"])
     assert attrs == {"height": "tall", "hair_color": "brown"}
-
-
-# --- Options module ---
 
 
 def test_race_options() -> None:

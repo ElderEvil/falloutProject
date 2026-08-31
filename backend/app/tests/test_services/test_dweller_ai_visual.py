@@ -123,6 +123,7 @@ async def test_generate_replaces_substantial_attrs(
     assert stored.hair_color == "red"
     assert stored.build is None
 
+
 # --- Options module ---
 
 

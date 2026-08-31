@@ -493,6 +493,9 @@ async def test_generate_photo_success(mock_crud: MagicMock, mock_llm: MagicMock)
     mock_storage.upload_thumbnail.assert_called_once()
     mock_crud.update.assert_called_once()
     mock_llm.create.assert_called_once()
+    interaction = mock_llm.create.call_args.kwargs["obj_in"]
+    assert interaction.provider == "openai"
+    assert interaction.model == "gpt-image-1"
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
@@ -668,6 +671,8 @@ async def test_generate_audio_success(mock_crud: MagicMock, mock_llm: MagicMock,
     mock_llm.create.assert_called_once()
     llm_kwargs = mock_llm.create.call_args[1]["obj_in"]
     assert llm_kwargs.usage == "generate_audio"
+    assert llm_kwargs.provider == "openai"
+    assert llm_kwargs.model == "tts-1"
 
 
 @patch("app.services.dweller_ai.quota_service")

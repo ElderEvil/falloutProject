@@ -9,6 +9,7 @@ LLM call.
 import hashlib
 import logging
 import time
+from string import Formatter
 from uuid import UUID
 
 from sqlmodel import col, select
@@ -22,9 +23,8 @@ logger = logging.getLogger(__name__)
 
 PROMPT_CACHE_TTL_SECONDS = 60.0  # admin edits propagate quickly without a DB hit per request
 
-# Hardcoded fallbacks, verbatim copies of the v1 seed strings in
-# app.utils.seed_prompts (deliberately not imported from the agents or the
-# seeds: the fallback must stay stable even if those change).
+# Hardcoded fallbacks also seed the v1 registry rows. They stay independent of
+# agents so a prompt-store outage always uses the shipped instructions.
 DEFAULT_PROMPTS: dict[str, str] = {
     "backstory": (
         "You are a creative writer specialized in creating Fallout game series style character biographies. "
@@ -83,6 +83,52 @@ def invalidate(agent_name: str | None = None) -> None:
         _cache.pop(agent_name, None)
 
 
+def _validate_prompt_template(template: str) -> None:
+    """Reject interpolation fields because runtime instructions are literal text."""
+    if not template.strip():
+        raise ValueError("Prompt template cannot be empty")
+    if any(field_name is not None for _, field_name, _, _ in Formatter().parse(template)):
+        raise ValueError("Prompt templates cannot contain format placeholders")
+
+
+async def create_prompt_version(
+    db_session: AsyncSession,
+    agent_name: str,
+    template: str,
+    *,
+    description: str | None = None,
+) -> Prompt:
+    """Activate an append-only replacement for one registered agent prompt."""
+    if agent_name not in DEFAULT_PROMPTS:
+        raise ValueError(f"Unknown prompt agent_name: {agent_name!r}")
+    _validate_prompt_template(template)
+
+    result = await db_session.exec(
+        select(Prompt)
+        .where(col(Prompt.prompt_name) == agent_name)
+        .order_by(col(Prompt.version).desc())
+        .with_for_update()
+    )
+    versions = list(result.all())
+    active = next((prompt for prompt in versions if prompt.is_active), None)
+    if active is None:
+        raise ValueError(f"No active prompt registered for {agent_name!r}")
+
+    active.is_active = False
+    replacement = Prompt(
+        prompt_name=agent_name,
+        description=description or active.description,
+        prompt_template=template,
+        version=max(prompt.version for prompt in versions) + 1,
+        is_active=True,
+    )
+    db_session.add(replacement)
+    await db_session.commit()
+    await db_session.refresh(replacement)
+    invalidate(agent_name)
+    return replacement
+
+
 async def get_instructions(db_session: AsyncSession, agent_name: str) -> tuple[str, UUID | None, str]:
     """Resolve the active instructions for an agent name.
 
@@ -101,10 +147,10 @@ async def get_instructions(db_session: AsyncSession, agent_name: str) -> tuple[s
 
     try:
         async with db_session.begin_nested():
-            rows = await db_session.execute(
+            rows = await db_session.exec(
                 select(Prompt).where(col(Prompt.prompt_name) == agent_name, col(Prompt.is_active).is_(True))
             )
-            prompt = rows.scalars().first()
+            prompt = rows.first()
     except Exception:
         logger.warning("Prompt registry lookup failed for %r; using hardcoded default", agent_name)
         return default, None, compute_instructions_hash(default)
@@ -116,11 +162,6 @@ async def get_instructions(db_session: AsyncSession, agent_name: str) -> tuple[s
     instructions_hash = compute_instructions_hash(prompt.prompt_template)
     _cache[agent_name] = (prompt.prompt_template, prompt.id, instructions_hash, time.monotonic())
     return prompt.prompt_template, prompt.id, instructions_hash
-
-
-async def get_prompt_id(db_session: AsyncSession, agent_name: str) -> UUID | None:
-    """Resolve just the active prompt row id (``None`` when on the hardcoded default)."""
-    return (await get_instructions(db_session, agent_name))[1]
 
 
 async def get_provider_model_snapshot(db_session: AsyncSession) -> tuple[str, str]:
@@ -135,12 +176,3 @@ async def get_provider_model_snapshot(db_session: AsyncSession) -> tuple[str, st
         logger.warning("AI settings profile read failed; snapshotting env config only")
         return settings.AI_PROVIDER, settings.AI_MODEL
     return settings.effective_ai_provider(profile), settings.effective_ai_model(profile)
-
-
-def format_prompt(template: str, **kwargs: object) -> str:
-    """Format a prompt template, falling back to the raw template on bad placeholders."""
-    try:
-        return template.format(**kwargs)
-    except (KeyError, IndexError, ValueError):
-        logger.warning("Prompt template formatting failed; returning raw template")
-        return template

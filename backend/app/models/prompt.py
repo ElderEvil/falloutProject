@@ -18,12 +18,6 @@ class PromptBase(SQLModel):
     version: int = Field(default=1, ge=1, description="Immutable prompt version; new text = new row")
     is_active: bool = Field(default=True, index=True, description="Only one active row per prompt_name")
 
-    def generate_prompt(self, **kwargs) -> str:
-        """
-        Generate the full prompt by formatting the template with provided kwargs.
-        """
-        return self.prompt_template.format(**kwargs)
-
     def __str__(self):
         return f"{self.prompt_name}"
 

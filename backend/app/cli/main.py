@@ -5,6 +5,7 @@ Usage:
     uv run fo-cli createsuperuser
     uv run fo-cli seed
     uv run fo-cli seed-prompts
+    uv run fo-cli version-prompt chat --template-file /path/to/chat-v2.txt
     uv run fo-cli family-scenario --help
     uv run fo-cli apprentice-scenario --help
     uv run fo-cli backfill --help
@@ -164,6 +165,28 @@ def seed_prompts() -> None:
     inserted = asyncio.run(_seed())
     typer.echo(f"  Prompts seeded: {inserted}")
     typer.echo("✅ Prompt seeding complete.")
+
+
+@cli.command(name="version-prompt")
+def version_prompt(
+    prompt_name: Annotated[str, typer.Argument(help="Registered prompt name, e.g. chat")],
+    template_file: Annotated[str, typer.Option(help="Path to the replacement instruction text")],
+    description: Annotated[str | None, typer.Option(help="Optional replacement description")] = None,
+) -> None:
+    """Create and activate an immutable replacement prompt version."""
+    from pathlib import Path
+
+    from app.services.prompt_service import create_prompt_version
+
+    template = Path(template_file).read_text()
+
+    async def _version() -> int:
+        async with async_session_maker() as session:
+            prompt = await create_prompt_version(session, prompt_name, template, description=description)
+            return prompt.version
+
+    version = asyncio.run(_version())
+    typer.echo(f"✅ Activated {prompt_name} v{version}.")
 
 
 if __name__ == "__main__":

@@ -133,6 +133,9 @@ uv run alembic upgrade head     # Migrations
 
 **Timestamp convention:** store and compare timestamps as naive UTC (`datetime.utcnow()`), with the DB connection pinned to UTC.
 
+**AI prompt updates:** Prompt instructions are immutable versions. From `backend/`, create and activate a replacement with
+`uv run fo-cli version-prompt <name> --template-file <path>`; do not edit `Prompt` rows directly.
+
 ### Frontend
 
 ```bash

@@ -66,7 +66,7 @@ Move agent instructions into the `Prompt` table — but as **append-only history
 - **Schema additions:** `version: int`, `is_active: bool`, a **unique constraint on `(prompt_name, version)`**,
   and a PostgreSQL partial unique index allowing only one active row per `prompt_name`. `prompt_name` alone is not
   unique today, which would make runtime resolution ambiguous.
-- **"Copy as new version"** in admin creates a new row with `version+1` and flips `is_active` in one transaction;
+- **"Copy as new version"** through `fo-cli version-prompt` creates a new row with `version+1` and flips `is_active` in one transaction;
   old rows are never edited. Activation invalidates the prompt cache immediately. This preserves the provenance
   guarantee: an old `LLMInteraction.prompt_id` still points at the exact instructions that were sent.
 - **Runtime resolution with failure/latency strategy:** `PromptService.get_instructions(agent_name)` reads the
@@ -76,10 +76,8 @@ Move agent instructions into the `Prompt` table — but as **append-only history
   `ExtendBioDeps` / `VisualAttributesDeps` do **not** carry a DB session, so the loader resolves prompts in the
   service layer before the agent runs and passes the resolved string via deps (or a cached service) — this is a
   designed change, not a decorator swap.
-- **Templates are a constrained interface:** validate allowed variables on save (admin-side validation listing
-  the permitted slots per agent), and reject unknown `{placeholders}` and unescaped literal braces — plain
-  `str.format()` raises on both, and JSON examples in prompts are full of braces. Prefer explicit
-  `string.Template`-style substitution or an allow-listed formatter over raw `str.format`.
+- **Templates are a constrained interface:** runtime instructions are literal text, so the version command rejects
+  interpolation placeholders rather than accepting a template that could fail at generation time.
 - **Seed** the current hardcoded strings as version 1 (one seed script): `backstory`, `extend_bio`,
   `visual_attributes`, `chat`.
 - **LLMInteraction gains `prompt_id` + `instructions_hash`** — populated for prompt-backed interactions;
@@ -107,8 +105,7 @@ guards, verify-email action) but **no authenticated render smoke coverage** — 
 
 1. **LLM Interaction view upgrade** — add `prompt_tokens`, `completion_tokens`, `total_tokens`, `created_at`,
    `provider`/`model` to `column_list`; read-only; sortable by operation, creation time, and token total.
-2. **Prompt view** — add `prompt_template` to details plus a "preview rendered prompt" panel (format with sample
-   kwargs, using the validated formatter) so tuning doesn't require DB access.
+2. **Prompt view** — add `prompt_template` to details; `fo-cli version-prompt` is the audited write path.
 3. **Dweller view bio column** — show a has-bio flag / bio length in the list; jump-starts bio-gap audits
    (feeds the Bio Extension backfill).
 4. **Authenticated render smoke tests** — one per view (list renders, 200) using the existing superuser

@@ -9,11 +9,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
 from app.agents.dweller_agents import backstory_agent, bio_extension_agent, visual_attributes_agent
+from app.core.config import settings
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
-from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
@@ -24,12 +24,6 @@ from app.services.storage import get_storage_client
 from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
 
 logger = logging.getLogger(__name__)
-
-GENDER_PRONOUNS_MAP = {
-    GenderEnum.MALE: "his",
-    GenderEnum.FEMALE: "her",
-    None: "",
-}
 
 BIO_MAX_LENGTH = 900
 BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
@@ -361,6 +355,8 @@ class DwellerAIService:
             response=image_url,
             usage="generate_photo",
             user_id=user.id,
+            provider="openai",
+            model=settings.AI_IMAGE_MODEL,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -436,6 +432,8 @@ class DwellerAIService:
             prompt_tokens=None,
             completion_tokens=estimated_tokens,
             total_tokens=estimated_tokens,
+            provider="openai",
+            model="tts-1",
         )
         await llm_interaction_crud.create(
             db_session,

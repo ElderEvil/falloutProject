@@ -32,6 +32,12 @@ uv run fastapi dev main.py   # dev server :8000
 
 CI gate: `uv run prek run` (see `.github/workflows/backend-ci.yml`).
 
+### Prompt registry
+
+AI instructions are append-only registry entries. Never edit `Prompt` rows directly:
+create and activate a replacement with `uv run fo-cli version-prompt <name> --template-file <path>`.
+The command retires the active row, clears the process cache, and rejects format placeholders.
+
 ### Architecture (MANDATORY)
 
 Business logic lives in **services**, never endpoints. Endpoints are thin: parse params → call a service → map exceptions to HTTP.

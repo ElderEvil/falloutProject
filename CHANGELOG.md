@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.66.0 (2026-08-31)
+
+### Features
+
+* add training auto-assignment b81c52f
+
+### Bug Fixes
+
+* keep changelog release notes plain text 11fc365
+* remove internal changelog note 7912683
+
 ## 2.65.1 (2026-08-30)
 
 ### Bug Fixes

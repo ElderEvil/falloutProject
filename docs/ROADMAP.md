@@ -23,6 +23,12 @@ audit; objectives need deliberate in-game validation rather than relying only on
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.
+  - **In progress:** `building`, `population`, and state-based `training` quests now settle directly from validated
+    vault progress; `exploration` and `combat` retain the timed-party path. `quest_type` remains presentation metadata.
+  - **Verified gap:** authored generic `ITEM` rewards include medication, lunchboxes, junk, Nuka-Cola Quantum, and a
+    Legendary Dweller; delivery currently supports only weapon/outfit items and does not honor item quantities.
+  - **Verified gap:** chains persist predecessor links and hide locked entries, but do not yet model an explicit
+    chain lifecycle or requirement-driven unlock feedback.
 - [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,
   notifications, and frontend presentation so caps, items, XP, and objective progress agree exactly.
 - [ ] **Objective balance review** — enumerate active objective templates and their targets/rewards; identify dead,
@@ -479,11 +485,11 @@ tests cover primary-beats-secondary and cross-type reversals.
 - Pet system, legendary dwellers
 - Merchant system, economy
 - Achievement system, daily/weekly challenges
-- **Dead Dweller Reuse System**
+- **Dead Dweller Reuse System** — parked; cross-vault encounters are out of scope under the single-vault exploration guardrail.
   - Soft-delete permanently dead dwellers (keep data)
-  - Reuse as raiders attacking other vaults
+  - ~~Reuse as raiders attacking other vaults~~ — out of scope
   - Transformation chance: ghoul, synth, super mutant
-  - Cross-vault encounters with former dwellers
+  - ~~Cross-vault encounters with former dwellers~~ — out of scope
 
 ### Apprentice System & Pets — design fragments (Issue #470)
 
@@ -552,6 +558,8 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 - [ ] Performance testing: Locust in nightly CI
 - [ ] Datetime consistency: Migrate all `datetime.utcnow()` to aware `datetime.now(UTC)`
 - [x] Test coverage target 80% — achieved 82.44%; enforced via nightly/master coverage workflow with `--cov-fail-under=80`
+- [ ] Test-suite consolidation (backend + frontend) — audit redundant examples; prefer parameterized/table-driven cases,
+      behavior-contract suites, and shared fixtures while preserving coverage and every currently exercised edge case.
 - [ ] Reduce test flakiness — the suite runs on an in-memory SQLite engine with a single `StaticPool` connection, which
       serializes cross-session work and limits concurrency-sensitive tests (e.g. row-lock/`FOR UPDATE` guarantees are
       not exercisable). Consider a per-test transactional Postgres/`pytest-postgresql` harness for race-condition
@@ -596,6 +604,7 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 | Version | Release      | Highlights                                                                                                                             |
 | ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
+| v2.68.0 | Aug 31, 2026 | Boosted vault rarity and race/faction diversity; dweller state identity icons                                                          |
 | v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links, determinism fix                                         |
 | v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
 | v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |

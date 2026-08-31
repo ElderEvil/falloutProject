@@ -67,6 +67,7 @@ VALID_REACH_TYPES = frozenset({"dweller_count", "population", "level"})
 # Map from objective room_type values to valid room names (for normalization)
 ROOM_TYPE_ALIASES: dict[str, str] = {
     "living_quarters": "living_room",
+    "living_quarter": "living_room",
     "livingquarter": "living_room",
     "quarters": "living_room",
     "storage": "storage_room",

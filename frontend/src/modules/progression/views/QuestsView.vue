@@ -315,6 +315,7 @@ onMounted(async () => {
                     :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
                     :is-locked="!isQuestUnlocked(quest)"
                     :party-members="questPartyMembersMap[quest.id] || []"
+                    @start="vaultId && questStore.startQuest(vaultId, $event)"
                     @assign-party="handleAssignParty"
                   />
                 </div>

@@ -9,7 +9,9 @@ from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_party import QuestParty
 from app.models.vault import Vault
+from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.utils.exceptions import ResourceConflictException
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +24,25 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
         if len(dweller_ids) > 3 or len(dweller_ids) < 1:
             raise ValueError("Party size must be 1-3")
 
-        quest = await db_session.get(Quest, quest_id)
-        if not quest:
+        if not await db_session.get(Quest, quest_id):
             raise ValueError(f"Quest {quest_id} not found")
 
-        vault = await db_session.get(Vault, vault_id)
-        if not vault:
+        if not await db_session.get(Vault, vault_id):
             raise ValueError(f"Vault {vault_id} not found")
+        if (link := await db_session.get(VaultQuestCompletionLink, (vault_id, quest_id))) and (
+            link.started_at is not None or link.is_reward_ready or link.is_completed
+        ):
+            raise ResourceConflictException("Quest is already in progress")
 
         existing_query = select(QuestParty).where(
             QuestParty.quest_id == quest_id,
             QuestParty.vault_id == vault_id,
         )
-        existing_result = await db_session.execute(existing_query)
-        existing_party = existing_result.scalars().all()
+        existing_party = (await db_session.execute(existing_query)).scalars().all()
         existing_dweller_ids = {member.dweller_id for member in existing_party}
 
-        # Validate the full replacement party before clearing the current one,
-        # so an invalid request cannot silently unassign valid quest members.
+        # Validate the full replacement before clearing the current party.
+        dwellers_by_id = {}
         for dweller_id in dweller_ids:
             dweller = await db_session.get(Dweller, dweller_id)
             if not dweller:
@@ -54,20 +57,19 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
                 raise ValueError(f"Dweller {dweller_id} is exploring and cannot join a quest")
             if dweller.status == DwellerStatusEnum.QUESTING and dweller_id not in existing_dweller_ids:
                 raise ValueError(f"Dweller {dweller_id} is already on a quest")
+            dwellers_by_id[dweller_id] = dweller
 
         for member in existing_party:
             dweller = await db_session.get(Dweller, member.dweller_id)
             if dweller:
-                dweller.status = "idle"
-                db_session.add(dweller)
+                dweller.status = DwellerStatusEnum.IDLE
             await db_session.delete(member)
         await db_session.flush()
 
         party_members = []
         for i, dweller_id in enumerate(dweller_ids):
-            dweller = await db_session.get(Dweller, dweller_id)
+            dweller = dwellers_by_id[dweller_id]
             dweller.status = DwellerStatusEnum.QUESTING
-            db_session.add(dweller)
 
             party = QuestParty(
                 quest_id=quest_id,
@@ -92,8 +94,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
             QuestParty.quest_id == quest_id,
             QuestParty.vault_id == vault_id,
         )
-        result = await db_session.execute(query)
-        return list(result.scalars().all())
+        return list((await db_session.execute(query)).scalars().all())
 
     async def get_available_dwellers(self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4) -> list[Dweller]:
         """Get dwellers not currently on this quest."""

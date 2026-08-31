@@ -107,12 +107,9 @@ onUnmounted(() => {
   stopTimer()
 })
 
-const hasParty = computed(() => {
-  return partyMembers && partyMembers.length > 0
-})
-const isQuestReady = computed(() => hasParty.value)
+const hasParty = computed(() => partyMembers && partyMembers.length > 0)
+const isStateQuest = computed(() => ['building', 'population', 'training'].includes(quest.quest_category ?? ''))
 
-// Type badge colors
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
   main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
   side: { bg: 'var(--color-quest-side)', text: '#000000', border: 'var(--color-quest-side)' },
@@ -239,37 +236,25 @@ const getRequirementCount = (requirementData: Record<string, unknown>): number =
 }
 
 const actionButtonText = computed(() => {
-  if (isLocked) {
-    return 'Locked'
-  }
-  switch (status) {
-    case 'available':
-      return 'Start Quest'
-    case 'active':
-      return 'In Progress'
-    case 'ready':
-      return 'Claim Rewards'
-    case 'completed':
-      return 'View Details'
-    default:
-      return 'View'
-  }
+  if (isLocked) return 'Locked'
+  return {
+    available: isStateQuest.value ? 'Check Objective' : 'Start Quest',
+    active: 'In Progress',
+    ready: 'Claim Rewards',
+    completed: 'View Details',
+    locked: 'Locked',
+  }[status]
 })
 
 const cardBorderColor = computed(() => {
-  if (isLocked) {
-    return 'var(--color-quest-locked)'
-  }
-  switch (status) {
-    case 'active':
-      return 'var(--color-theme-accent)'
-    case 'ready':
-      return 'var(--color-rarity-legendary)'
-    case 'completed':
-      return 'var(--color-quest-muted)'
-    default:
-      return typeColor.value.border
-  }
+  if (isLocked) return 'var(--color-quest-locked)'
+  return {
+    available: typeColor.value.border,
+    active: 'var(--color-theme-accent)',
+    ready: 'var(--color-rarity-legendary)',
+    completed: 'var(--color-quest-muted)',
+    locked: 'var(--color-quest-locked)',
+  }[status]
 })
 
 const isButtonDisabled = computed(() => {
@@ -282,7 +267,7 @@ const handleAction = () => {
   }
   switch (status) {
     case 'available':
-      if (hasParty.value) {
+      if (isStateQuest.value || hasParty.value) {
         emit('start', quest.id)
       } else {
         emit('assignParty', quest.id)
@@ -379,6 +364,12 @@ const handleAction = () => {
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>
             </template>
+            <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
+              Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ req.requirement_data.room_type || 'room' }}
+            </template>
+            <template v-else-if="req.requirement_type === 'dweller_count' && req.requirement_data">
+              Reach {{ getRequirementCount(req.requirement_data) }} dwellers
+            </template>
             <template
               v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"
             >
@@ -428,8 +419,8 @@ const handleAction = () => {
       </div>
     </div>
 
-    <!-- Quest progress stays visible until its reward is claimed -->
-    <div v-if="(status === 'active' && timeRemaining) || status === 'ready'" class="quest-timer">
+    <!-- Timed quest progress stays visible until its reward is claimed -->
+    <div v-if="(status === 'active' && timeRemaining) || (status === 'ready' && !isStateQuest)" class="quest-timer">
       <div class="timer-header">
         <div class="timer-status">
           <Icon icon="mdi:clock-outline" class="timer-icon" />
@@ -441,11 +432,10 @@ const handleAction = () => {
       <span class="timer-progress">{{ questProgressLabel }}</span>
     </div>
 
-    <!-- Duration Info (for available quests) -->
-    <div v-if="status === 'available' && quest.duration_minutes" class="quest-duration">
+    <div v-if="status === 'available' && quest.duration_minutes && !isStateQuest" class="quest-duration">
       <Icon icon="mdi:clock-outline" class="duration-icon" />
       <span>Duration: {{ quest.duration_minutes }} min</span>
-      <span v-if="!hasParty" class="duration-hint">(Assign party to start)</span>
+      <span v-if="!hasParty && !isStateQuest" class="duration-hint">(Assign party to start)</span>
     </div>
 
     </div>
@@ -465,6 +455,8 @@ const handleAction = () => {
                 ? 'mdi:treasure-chest'
               : status === 'active'
                 ? 'mdi:progress-clock'
+                : isStateQuest
+                  ? 'mdi:clipboard-check'
                 : hasParty
                   ? 'mdi:play'
                   : 'mdi:account-plus'

@@ -474,6 +474,28 @@ async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm:
 
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.dweller_crud")
+async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
+    """Portrait provider failures must not reach the client as an unstructured 500."""
+    from fastapi import HTTPException
+
+    mock_dweller = _make_dweller_mock(image_url=None)
+    mock_storage = MagicMock()
+    mock_ai_service = MagicMock()
+    mock_ai_service.generate_image = AsyncMock(side_effect=RuntimeError("OpenAI client not available"))
+
+    with (
+        patch.object(dweller_ai, "storage_service", mock_storage),
+        patch.object(dweller_ai, "ai_service", mock_ai_service),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await dweller_ai.generate_photo(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == "Portrait generation failed. Please try again."
+
+
+@patch("app.services.dweller_ai.llm_interaction_crud")
+@patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_photo_success(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Normal photo generation: image generated, uploaded, thumbnailed, dweller updated."""
     mock_crud.update = AsyncMock()

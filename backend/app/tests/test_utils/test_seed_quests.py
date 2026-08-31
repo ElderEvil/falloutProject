@@ -56,6 +56,65 @@ async def test_seed_quests_from_json_basic(async_session: AsyncSession, tmp_path
 
 
 @pytest.mark.asyncio
+async def test_seed_quests_syncs_quest_metadata(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Quest JSON metadata keeps state objectives out of the timed quest flow."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_file = quest_dir / "onboarding.json"
+    quest_data = {
+        "chain_id": "onboarding",
+        "chain_name": "Onboarding",
+        "quests": [
+            {
+                "quest_name": "Build a Room",
+                "short_description": "Build your first room.",
+                "long_description": "Build a Living Quarter to house your dwellers.",
+                "requirements": "1 Living Quarter",
+                "rewards": "100 caps",
+                "quest_type": "main",
+                "quest_category": "building",
+                "chain_order": 2,
+            }
+        ],
+    }
+    with quest_file.open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Build a Room"))).scalar_one()
+    assert (quest.quest_type.value, quest.quest_category, quest.chain_id, quest.chain_order) == (
+        "main",
+        "building",
+        "onboarding",
+        2,
+    )
+
+    quest.quest_category = None
+    await async_session.commit()
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+    assert quest.quest_category == "building"
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_rejects_duplicate_names(async_session: AsyncSession, tmp_path: Path) -> None:
+    """A duplicate title cannot silently acquire another chain's metadata."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    for chain_id in ("first", "second"):
+        with (quest_dir / f"{chain_id}.json").open("w", encoding="utf-8") as file:
+            json.dump(
+                {
+                    "chain_id": chain_id,
+                    "quests": [{"quest_name": "Duplicate Quest", "chain_order": 1}],
+                },
+                file,
+            )
+
+    with pytest.raises(ValueError, match="Duplicate quest_name 'Duplicate Quest'"):
+        await seed_quests_from_json(async_session, quest_dir=quest_dir)
+
+
+@pytest.mark.asyncio
 async def test_seed_quests_persists_item_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
     """Seeded item rewards retain the data needed to grant the listed item."""
     quest_dir = tmp_path / "quests"

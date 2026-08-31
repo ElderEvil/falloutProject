@@ -106,6 +106,24 @@ class DwellerVisualAttributes(BaseModel):
     voice_line_text: str | None = None
     voice_line_url: str | None = Field(default=None, max_length=500)
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_provider_scalar_lists(cls, data: object) -> object:
+        """Accept singleton scalar lists emitted by some local structured-output models."""
+        if not isinstance(data, dict):
+            return data
+
+        normalized = {
+            field: value[0]
+            if field != "distinguishing_features" and isinstance(value, list) and len(value) == 1
+            else value
+            for field, value in data.items()
+        }
+        age = normalized.get("age")
+        if isinstance(age, str) and age.removesuffix("s").isdigit():
+            normalized["age"] = int(age.removesuffix("s"))
+        return normalized
+
     @model_validator(mode="after")
     def validate_identity_combination(self) -> "DwellerVisualAttributes":
         """Reject race/faction pairs that the canonical options data excludes."""

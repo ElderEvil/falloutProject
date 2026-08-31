@@ -9,7 +9,9 @@ from app import crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.models.room import Room
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.prerequisite_service import prerequisite_service
@@ -49,6 +51,33 @@ async def test_validate_level_requirement_not_met(async_session: AsyncSession) -
 
     result = await prerequisite_service.validate_level_requirement(async_session, vault.id, {"level": 10, "count": 1})
     assert result is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("room_name", ["Living room", "Living Quarters"])
+async def test_validate_room_requirement_accepts_living_quarters_alias(
+    async_session: AsyncSession, room_name: str
+) -> None:
+    """Both Living Quarters labels satisfy the seeded living_quarter requirement."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(
+        Room(
+            name=room_name,
+            category=RoomTypeEnum.CAPACITY,
+            ability=SPECIALEnum.CHARISMA,
+            base_cost=100,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        )
+    )
+    await async_session.commit()
+
+    assert (
+        await prerequisite_service.validate_room_requirement(async_session, vault.id, {"room_type": "living_quarter"})
+        is True
+    )
 
 
 @pytest.mark.asyncio

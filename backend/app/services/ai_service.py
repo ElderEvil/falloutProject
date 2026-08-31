@@ -120,8 +120,7 @@ class AIService:
             route_suffix = f" via {config.PYDANTIC_AI_GATEWAY_ROUTE}" if config.PYDANTIC_AI_GATEWAY_ROUTE else ""
             logger.info(f"AI initialized via Gateway ({config.AI_PROVIDER}/{config.AI_MODEL}){route_suffix}")
             # For OpenAI-specific features, still need direct client
-            if config.OPENAI_API_KEY:
-                self._client = openai.Client(api_key=config.OPENAI_API_KEY)
+            self._initialize_openai_native_client(config)
         except Exception:
             logger.exception("Failed to initialize Gateway")
             self._model = None
@@ -141,7 +140,7 @@ class AIService:
         match config.AI_PROVIDER:
             case "openai":
                 if config.OPENAI_API_KEY:
-                    self._client = openai.Client(api_key=config.OPENAI_API_KEY)
+                    self._initialize_openai_native_client(config)
                     from pydantic_ai.providers.openai import OpenAIProvider
 
                     provider = OpenAIProvider(api_key=config.OPENAI_API_KEY, base_url=base_url)
@@ -174,6 +173,7 @@ class AIService:
             provider = OllamaProvider(base_url=config.OLLAMA_BASE_URL)
             self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
             logger.info(f"AI initialized with Ollama ({config.AI_MODEL}) at {config.OLLAMA_BASE_URL}")
+        self._initialize_openai_native_client(config)
 
     def _initialize_lmstudio(self, *, config: Settings = settings) -> None:
         """Initialize using local LM Studio instance (OpenAI-compatible)."""
@@ -183,6 +183,12 @@ class AIService:
             provider = OpenAIProvider(base_url=config.LMSTUDIO_BASE_URL, api_key="lm-studio")
             self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
             logger.info(f"AI initialized with LM Studio ({config.AI_MODEL}) at {config.LMSTUDIO_BASE_URL}")
+        self._initialize_openai_native_client(config)
+
+    def _initialize_openai_native_client(self, config: Settings) -> None:
+        """Initialize the direct OpenAI client used for image and audio features."""
+        if config.OPENAI_API_KEY:
+            self._client = openai.Client(api_key=config.OPENAI_API_KEY)
 
     @property
     def model(self) -> Any | None:

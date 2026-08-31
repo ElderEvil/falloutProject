@@ -189,8 +189,8 @@ swallows vault-owner lookup failures). The remaining items were deferred or reco
   notification metadata and dedup on it instead. Heavy lift (backend metadata change).
 - ✅ **Shipped** — DwellerPanel watches query-driven tab/stat changes and restarts the stat badge timer; pending
   exploration reports are filtered by active `vaultId` before display and acknowledgement.
-- 🔄 **DwellerStats animations → Tailwind utilities** — move the scoped `stat-pulse`/`badge-fade` keyframes into
-  `tailwind.css` as utilities with motion-reduce variants (aligns with the Tailwind-utilities-only guideline).
+- ✅ **Shipped** — DwellerStats highlight and badge animations use shared Tailwind utilities with motion-reduce
+  variants.
 - ⚪ **Nitpicks (optional)** — route exploration-completion notifications through `notify_owner` for consistency with
   the other flows; wrap a >100-char line in `exploration.ts`.
 

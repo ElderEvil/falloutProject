@@ -57,6 +57,11 @@
           "requirement_type": "QUEST_COMPLETED",
           "requirement_data": {"quest_name": "Getting Started"},
           "is_mandatory": true
+        },
+        {
+          "requirement_type": "ROOM",
+          "requirement_data": {"room_type": "living_quarter", "count": 1},
+          "is_mandatory": true
         }
       ],
       "quest_rewards": [

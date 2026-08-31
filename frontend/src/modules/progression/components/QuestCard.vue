@@ -107,10 +107,8 @@ onUnmounted(() => {
   stopTimer()
 })
 
-const hasParty = computed(() => {
-  return partyMembers && partyMembers.length > 0
-})
-const isQuestReady = computed(() => hasParty.value)
+const hasParty = computed(() => partyMembers && partyMembers.length > 0)
+const isBuildingQuest = computed(() => quest.quest_category === 'building')
 
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -282,7 +280,7 @@ const handleAction = () => {
   }
   switch (status) {
     case 'available':
-      if (hasParty.value) {
+      if (isBuildingQuest.value || hasParty.value) {
         emit('start', quest.id)
       } else {
         emit('assignParty', quest.id)

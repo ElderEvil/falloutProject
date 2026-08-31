@@ -548,6 +548,34 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_start_building_quest_is_ready_without_a_party(async_session: AsyncSession) -> None:
+    """Building quests settle from their prerequisite state, not a dispatched party."""
+    from app.services.quest_service import quest_service
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Build Living Quarters",
+            short_description="Expand the vault",
+            long_description="Build a Living Quarter for your dwellers.",
+            requirements="1 Living Quarter",
+            rewards="100 caps",
+            quest_category="building",
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.is_reward_ready is True
+    assert link.started_at is None
+
+
+@pytest.mark.asyncio
 async def test_start_quest_requires_a_positive_template_duration(async_session: AsyncSession) -> None:
     """Quest timers must come from a positive server-side template duration."""
     from app.services.quest_service import quest_service

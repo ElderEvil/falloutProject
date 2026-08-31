@@ -543,8 +543,7 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 - [ ] Docstring coverage: AI settings / chat services sit at ~32% (ruff `D` rules) vs the 80% repo target — add
       module and public-method docstrings to `app/services/ai_service.py`, `app/services/chat_service.py`,
       `app/crud/ai_settings.py`.
-- [ ] `AIService.reconfigure` mutates the global `settings` object (save/restore via `setattr`) instead of building a
-      scoped override — refactor to a pure settings-builder so concurrent requests can't observe intermediate values.
+- [x] `AIService.reconfigure` builds an isolated settings copy, so concurrent requests cannot observe profile overrides.
 
 ### Frontend
 

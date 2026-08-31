@@ -193,20 +193,22 @@ class TestAIServiceReconfigure:
                 assert result is True
                 assert svc._model is mock_model
 
-    def test_reconfigure_restores_settings_after(self) -> None:
+    def test_reconfigure_uses_an_isolated_settings_copy(self) -> None:
         svc = self._make_fresh_service()
         original_provider = settings.AI_PROVIDER
         original_model = settings.AI_MODEL
-        with (
-            patch.object(settings, "PYDANTIC_AI_GATEWAY_API_KEY", None),
-            patch.object(settings, "OPENAI_API_KEY", None),
-            patch.object(settings, "ANTHROPIC_API_KEY", None),
-            patch("pydantic_ai.providers.openai.OpenAIProvider", return_value=MagicMock()),
-            patch("app.services.ai_service.OpenAIChatModel", return_value=MagicMock()),
-        ):
+        observed: dict[str, str] = {}
+
+        def initialize(*, config, **_kwargs) -> None:
+            observed["global_provider"] = settings.AI_PROVIDER
+            observed["profile_provider"] = config.AI_PROVIDER
+
+        with patch.object(svc, "_initialize_provider", side_effect=initialize):
             svc.reconfigure(provider="lmstudio", model="test", base_url="http://x:1234/v1")
-            assert original_provider == settings.AI_PROVIDER
-            assert original_model == settings.AI_MODEL
+
+        assert observed == {"global_provider": original_provider, "profile_provider": "lmstudio"}
+        assert original_provider == settings.AI_PROVIDER
+        assert original_model == settings.AI_MODEL
 
     def test_reconfigure_returns_false_on_exception(self) -> None:
         svc = self._make_fresh_service()

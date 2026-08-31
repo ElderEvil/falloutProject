@@ -26,7 +26,7 @@ import openai
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.gateway import gateway_provider
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.utils.image_processing import image_url_to_bytes
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,9 @@ class AIService:
         self._initialize_provider()
         self._initialized = True
 
-    def _initialize_provider(self, mode: str | None = None, base_url: str | None = None) -> None:
+    def _initialize_provider(
+        self, mode: str | None = None, base_url: str | None = None, *, config: Settings | None = None
+    ) -> None:
         """Initialize AI provider based on configuration priority.
 
         Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled
@@ -79,53 +81,54 @@ class AIService:
             base_url: Optional base URL override forwarded to the gateway and
                 direct provider initializers.
         """
-        mode = mode or settings.ai_provider_mode
+        config = config or settings
+        mode = mode or config.ai_provider_mode
 
         match mode:
             case "gateway":
-                self._initialize_gateway(base_url=base_url)
+                self._initialize_gateway(base_url=base_url, config=config)
             case "direct":
-                self._initialize_direct_provider(base_url=base_url)
+                self._initialize_direct_provider(base_url=base_url, config=config)
             case "ollama":
-                self._initialize_ollama()
+                self._initialize_ollama(config=config)
             case "lmstudio":
-                self._initialize_lmstudio()
+                self._initialize_lmstudio(config=config)
             case "disabled":
                 logger.warning("No AI provider configured. AI features disabled.")
 
-    def _initialize_gateway(self, base_url: str | None = None) -> None:
+    def _initialize_gateway(self, base_url: str | None = None, *, config: Settings = settings) -> None:
         """Initialize using Pydantic AI Gateway (recommended approach).
 
         Args:
             base_url: Optional Gateway proxy URL override (defaults to
                 ``PYDANTIC_AI_GATEWAY_BASE_URL``).
         """
-        if not settings.PYDANTIC_AI_GATEWAY_API_KEY:
+        if not config.PYDANTIC_AI_GATEWAY_API_KEY:
             return
         try:
-            gateway_options = {"api_key": settings.PYDANTIC_AI_GATEWAY_API_KEY}
-            if settings.PYDANTIC_AI_GATEWAY_ROUTE:
-                gateway_options["route"] = settings.PYDANTIC_AI_GATEWAY_ROUTE
-            gateway_base_url = base_url or settings.PYDANTIC_AI_GATEWAY_BASE_URL
+            gateway_options = {"api_key": config.PYDANTIC_AI_GATEWAY_API_KEY}
+            if config.PYDANTIC_AI_GATEWAY_ROUTE:
+                gateway_options["route"] = config.PYDANTIC_AI_GATEWAY_ROUTE
+            gateway_base_url = base_url or config.PYDANTIC_AI_GATEWAY_BASE_URL
             if gateway_base_url:
                 gateway_options["base_url"] = gateway_base_url
-            provider = gateway_provider(settings.AI_PROVIDER, **gateway_options)
+            provider = gateway_provider(config.AI_PROVIDER, **gateway_options)
             self._model = OpenAIChatModel(
-                model_name=settings.AI_MODEL,
+                model_name=config.AI_MODEL,
                 provider=provider,
             )
             self._using_gateway = True
-            route_suffix = f" via {settings.PYDANTIC_AI_GATEWAY_ROUTE}" if settings.PYDANTIC_AI_GATEWAY_ROUTE else ""
-            logger.info(f"AI initialized via Gateway ({settings.AI_PROVIDER}/{settings.AI_MODEL}){route_suffix}")
+            route_suffix = f" via {config.PYDANTIC_AI_GATEWAY_ROUTE}" if config.PYDANTIC_AI_GATEWAY_ROUTE else ""
+            logger.info(f"AI initialized via Gateway ({config.AI_PROVIDER}/{config.AI_MODEL}){route_suffix}")
             # For OpenAI-specific features, still need direct client
-            if settings.OPENAI_API_KEY:
-                self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
+            if config.OPENAI_API_KEY:
+                self._client = openai.Client(api_key=config.OPENAI_API_KEY)
         except Exception:
             logger.exception("Failed to initialize Gateway")
             self._model = None
             self._using_gateway = False
 
-    def _initialize_direct_provider(self, base_url: str | None = None) -> None:
+    def _initialize_direct_provider(self, base_url: str | None = None, *, config: Settings = settings) -> None:
         """Initialize using direct provider API keys (deprecated).
 
         Args:
@@ -136,51 +139,51 @@ class AIService:
             DeprecationWarning,
             stacklevel=3,
         )
-        match settings.AI_PROVIDER:
+        match config.AI_PROVIDER:
             case "openai":
-                if settings.OPENAI_API_KEY:
-                    self._client = openai.Client(api_key=settings.OPENAI_API_KEY)
+                if config.OPENAI_API_KEY:
+                    self._client = openai.Client(api_key=config.OPENAI_API_KEY)
                     from pydantic_ai.providers.openai import OpenAIProvider
 
-                    provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY, base_url=base_url)
-                    self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
+                    provider = OpenAIProvider(api_key=config.OPENAI_API_KEY, base_url=base_url)
+                    self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
                     logger.warning("AI initialized with direct OpenAI API (deprecated)")
             case "anthropic":
-                if settings.ANTHROPIC_API_KEY:
+                if config.ANTHROPIC_API_KEY:
                     # Anthropic direct access - use Gateway instead for better compatibility
                     raise RuntimeError(
                         f"Direct Anthropic API access is not supported. "
-                        f"AI_PROVIDER={settings.AI_PROVIDER} requires Pydantic AI Gateway. "
+                        f"AI_PROVIDER={config.AI_PROVIDER} requires Pydantic AI Gateway. "
                         f"Set PYDANTIC_AI_GATEWAY_API_KEY to use Anthropic models, "
                         f"or switch to a supported provider (AI_PROVIDER=openai, ollama)."
                     )
                 logger.warning(
                     "Direct provider mode does not support: %s. AI features will be disabled.",
-                    settings.AI_PROVIDER,
+                    config.AI_PROVIDER,
                 )
             case _:
                 logger.warning(
                     "Direct provider mode does not support: %s. AI features will be disabled.",
-                    settings.AI_PROVIDER,
+                    config.AI_PROVIDER,
                 )
 
-    def _initialize_ollama(self) -> None:
+    def _initialize_ollama(self, *, config: Settings = settings) -> None:
         """Initialize using local Ollama instance."""
-        if settings.OLLAMA_BASE_URL:
+        if config.OLLAMA_BASE_URL:
             from pydantic_ai.providers.ollama import OllamaProvider
 
-            provider = OllamaProvider(base_url=settings.OLLAMA_BASE_URL)
-            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
-            logger.info(f"AI initialized with Ollama ({settings.AI_MODEL}) at {settings.OLLAMA_BASE_URL}")
+            provider = OllamaProvider(base_url=config.OLLAMA_BASE_URL)
+            self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
+            logger.info(f"AI initialized with Ollama ({config.AI_MODEL}) at {config.OLLAMA_BASE_URL}")
 
-    def _initialize_lmstudio(self) -> None:
+    def _initialize_lmstudio(self, *, config: Settings = settings) -> None:
         """Initialize using local LM Studio instance (OpenAI-compatible)."""
-        if settings.LMSTUDIO_BASE_URL:
+        if config.LMSTUDIO_BASE_URL:
             from pydantic_ai.providers.openai import OpenAIProvider
 
-            provider = OpenAIProvider(base_url=settings.LMSTUDIO_BASE_URL, api_key="lm-studio")
-            self._model = OpenAIChatModel(model_name=settings.AI_MODEL, provider=provider)
-            logger.info(f"AI initialized with LM Studio ({settings.AI_MODEL}) at {settings.LMSTUDIO_BASE_URL}")
+            provider = OpenAIProvider(base_url=config.LMSTUDIO_BASE_URL, api_key="lm-studio")
+            self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
+            logger.info(f"AI initialized with LM Studio ({config.AI_MODEL}) at {config.LMSTUDIO_BASE_URL}")
 
     @property
     def model(self) -> Any | None:
@@ -216,9 +219,8 @@ class AIService:
     ) -> bool:
         """Re-initialize from effective values (profile overrides env).
 
-        Temporarily patches the settings attributes that ``_initialize_provider``
-        and its sub-initializers read, then restores them. Returns True if the
-        model is available after reconfiguration.
+        Builds an isolated effective settings copy and returns whether a model
+        is available after reconfiguration.
         """
         overrides: dict[str, Any] = {}
         if provider is not None:
@@ -241,23 +243,17 @@ class AIService:
         self._client = None
         self._using_gateway = False
 
-        saved = {key: getattr(settings, key) for key in overrides}
-        for key, val in overrides.items():
-            setattr(settings, key, val)
+        config = settings.model_copy(update=overrides)
         try:
             forced_mode: str | None = None
-            if provider == "lmstudio" and (base_url or settings.LMSTUDIO_BASE_URL):
+            if config.AI_PROVIDER == "lmstudio" and config.LMSTUDIO_BASE_URL:
                 forced_mode = "lmstudio"
-            elif provider == "ollama" and (base_url or settings.OLLAMA_BASE_URL):
+            elif config.AI_PROVIDER == "ollama" and config.OLLAMA_BASE_URL:
                 forced_mode = "ollama"
-            self._initialize_provider(mode=forced_mode, base_url=base_url)
+            self._initialize_provider(mode=forced_mode, base_url=base_url, config=config)
         except Exception:
             logger.exception("Failed to reconfigure AI service")
             self._model = None
-        finally:
-            for key, val in saved.items():
-                setattr(settings, key, val)
-
         return self._model is not None
 
     def _ensure_model_available(self) -> None:

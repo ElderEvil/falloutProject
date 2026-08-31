@@ -20,7 +20,7 @@ import base64
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 import openai
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -47,10 +47,9 @@ class AIService:
     All methods check if AI is available and raise RuntimeError if not.
     """
 
-    _instance: Optional["AIService"] = None
+    _instance: Self | None = None
 
     def __new__(cls) -> Self:
-        """Singleton pattern to ensure single model/client instance."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False

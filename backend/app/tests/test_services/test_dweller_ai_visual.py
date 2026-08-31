@@ -89,6 +89,8 @@ async def test_generate_replaces_substantial_attrs(
         "faction": "vault_dweller",
         "height": "tall",
         "build": "athletic",
+        "voice_line_text": "Stay sharp.",
+        "voice_line_url": "https://audio.example/voice.mp3",
     }
     mock_dweller.first_name = "Test"
     mock_dweller.last_name = "Dweller"
@@ -120,6 +122,8 @@ async def test_generate_replaces_substantial_attrs(
     assert stored.height == "average"
     assert stored.hair_color == "red"
     assert stored.build is None
+    assert stored.voice_line_text == "Stay sharp."
+    assert stored.voice_line_url == "https://audio.example/voice.mp3"
     assert generated is updated_dweller
 
 

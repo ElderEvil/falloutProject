@@ -23,16 +23,24 @@ def _column_names(inspector: sa.Inspector, table: str) -> set[str]:
 
 
 def upgrade() -> None:
-    """Version the prompt registry and snapshot LLM call provenance.
-
-    server_default backfills existing rows (version=1, is_active=true) and is
-    dropped afterwards so the schema matches the model metadata. Guards keep
-    the migration safe to re-run after a partially applied attempt.
-    """
+    """Version prompts and snapshot LLM call provenance."""
     inspector = sa.inspect(op.get_bind())
 
     prompt_cols = _column_names(inspector, "prompt")
     needs_normalization = "version" not in prompt_cols or "is_active" not in prompt_cols
+    if not needs_normalization:
+        needs_normalization = bool(
+            op.get_bind()
+            .execute(
+                sa.text(
+                    "SELECT EXISTS (SELECT 1 FROM prompt WHERE version IS NULL OR version < 1) "
+                    "OR EXISTS (SELECT 1 FROM prompt GROUP BY prompt_name, version HAVING COUNT(*) > 1) "
+                    "OR EXISTS (SELECT 1 FROM prompt GROUP BY prompt_name "
+                    "HAVING SUM(CASE WHEN is_active THEN 1 ELSE 0 END) != 1)"
+                )
+            )
+            .scalar()
+        )
     prompt_indexes = {i["name"] for i in inspector.get_indexes("prompt")}
     prompt_constraints = {c["name"] for c in inspector.get_unique_constraints("prompt")}
     with op.batch_alter_table("prompt") as batch_op:
@@ -59,7 +67,6 @@ def upgrade() -> None:
             batch_op.alter_column("version", server_default=None)
         if "is_active" not in prompt_cols:
             batch_op.alter_column("is_active", server_default=None)
-        # Pre-existing field indexes were silently skipped (pydantic Field import); backfill metadata parity.
         for name, column in (
             ("ix_prompt_prompt_name", "prompt_name"),
             ("ix_prompt_entity_id", "entity_id"),

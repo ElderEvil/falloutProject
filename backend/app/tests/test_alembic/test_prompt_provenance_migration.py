@@ -18,8 +18,8 @@ def _migration_module(filename: str):
     return module
 
 
-def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts() -> None:
-    """Upgrade backfills distinct versions before adding SQLite-compatible constraints."""
+def test_prompt_provenance_upgrade_normalizes_existing_duplicate_versions() -> None:
+    """Upgrade normalizes duplicate prompt versions before adding constraints."""
     engine = sa.create_engine("sqlite://")
     schema_migration = _migration_module("2026_08_31_0001-e6f7a8b9c0d1_add_prompt_versioning_and_llm_provenance.py")
     seed_migration = _migration_module("2026_08_31_0002-f7a8b9c0d1e2_seed_prompt_registry.py")
@@ -28,14 +28,15 @@ def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts(
             sa.text(
                 "CREATE TABLE prompt ("
                 "id VARCHAR PRIMARY KEY, prompt_name VARCHAR NOT NULL, description VARCHAR NOT NULL, "
-                "prompt_template VARCHAR NOT NULL, entity_id VARCHAR)"
+                "prompt_template VARCHAR NOT NULL, entity_id VARCHAR, "
+                "version INTEGER NOT NULL, is_active BOOLEAN NOT NULL)"
             )
         )
         connection.execute(sa.text("CREATE TABLE llminteraction (id VARCHAR PRIMARY KEY)"))
         connection.execute(
             sa.text(
-                "INSERT INTO prompt (id, prompt_name, description, prompt_template) VALUES "
-                "('a', 'chat', 'first', 'one'), ('b', 'chat', 'second', 'two')"
+                    "INSERT INTO prompt (id, prompt_name, description, prompt_template, version, is_active) VALUES "
+                "('a', 'chat', 'first', 'one', 1, true), ('b', 'chat', 'second', 'two', 1, true)"
             )
         )
 

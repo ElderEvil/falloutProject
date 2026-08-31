@@ -39,12 +39,7 @@ EQUIPMENT_RESTRICTED_FIELDS = ("accessory", "object_held")
 
 
 def restrict_equipment_fields(visual_attributes: dict[str, Any], equipped_items: list[str]) -> None:
-    """Ensure accessory/object_held only reference equipped/owned items.
-
-    Mutates ``visual_attributes`` in place: any restricted field whose value is
-    not among ``equipped_items`` is removed. When nothing is equipped, both
-    fields are removed entirely.
-    """
+    """Remove accessory/object_held fields that do not match equipped items."""
     if equipped_items:
         owned = set(equipped_items)
         for field in EQUIPMENT_RESTRICTED_FIELDS:
@@ -101,7 +96,6 @@ class DwellerAIService:
         origin: str | None = None,
     ) -> DwellerReadFull:
         """Generate a backstory for a dweller using PydanticAI agent."""
-        # Check quota before making LLM call
         quota_result = await quota_service.check_quota(user.id, db_session)
         if not quota_result.allowed:
             raise QuotaExceededException(
@@ -256,7 +250,6 @@ class DwellerAIService:
 
         dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
 
-        # Extract race/faction from existing visual attributes (if any)
         existing_attrs = dweller_obj.visual_attributes or {}
 
         dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
@@ -264,7 +257,6 @@ class DwellerAIService:
 
         equipped_items = [item.name for item in (dweller_obj.weapon, dweller_obj.outfit) if item is not None]
 
-        # Create dependencies for the agent
         deps = VisualAttributesDeps(
             first_name=dweller_obj.first_name,
             last_name=dweller_obj.last_name or "",
@@ -278,21 +270,18 @@ class DwellerAIService:
         instructions, prompt_id, instructions_hash = await get_instructions(db_session, "visual_attributes")
         provider, model = await get_provider_model_snapshot(db_session)
 
-        # Run the visual attributes agent
         result = await visual_attributes_agent.run(
             f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.",
             deps=deps,
             instructions=instructions,
         )
 
-        # Convert Pydantic model to dict, excluding None values
         visual_attributes = result.output.model_dump(exclude_none=True)
 
         restrict_equipment_fields(visual_attributes, equipped_items)
 
-        # Merge with existing identity fields (race/faction) to preserve defaults
         if isinstance(existing_attrs, dict):
-            for key in ("race", "faction", "age", "state_of_being"):
+            for key in ("race", "faction", "age", "state_of_being", "voice_line_text", "voice_line_url"):
                 if key in existing_attrs and key not in visual_attributes:
                     visual_attributes[key] = existing_attrs[key]
 
@@ -464,8 +453,7 @@ class DwellerAIService:
         db_session: AsyncSession,
         user: User,
     ) -> DwellerReadFull:
-        # 1. Update Dweller with provided visual attributes
-        # This is where we save the user's choices.
+        """Save avatar choices, generate a photo, and optionally add a voice line."""
         update_data = DwellerUpdate(
             first_name=dweller_first_name,
             last_name=dweller_last_name,
@@ -473,22 +461,7 @@ class DwellerAIService:
         )
         updated_dweller = await dweller_crud.update(db_session, dweller_id, update_data)
 
-        # 2. Refine the prompt
-        # The prompt should be built based on the *updated* dweller's attributes.
-        # This could be more sophisticated using the visual_attributes_input.
-        # You would need to add a method to your DwellerAIService for this.
-        # For simplicity, let's assume `generate_photo` handles prompt building internally
-        # or takes a prompt from this endpoint if you implement a prompt building service here.
-
-        # Example: Building prompt from current dweller object
-        # You'll need to pass 'character' (from Streamlit) to build_prompt here,
-        # or integrate prompt building into DwellerAIService.
-        # For now, let's assume dweller_ai_service.generate_photo pulls what it needs from dweller_obj
-        # after it's updated.
-
-        # 3. Generate Photo
         dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
-        # 4. Generate Audio (only if voice_line_text is provided)
         if visual_attributes_input.voice_line_text:
             return await self.generate_audio(
                 db_session=db_session,

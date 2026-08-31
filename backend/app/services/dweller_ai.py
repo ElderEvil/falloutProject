@@ -350,19 +350,23 @@ class DwellerAIService:
             f"Dweller info: {dweller_obj.rarity} {dweller_obj.gender}"
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
-        image_bytes = await self.ai_service.generate_image(prompt=prompt, return_bytes=True)
-        image_url = await asyncio.to_thread(
-            self.storage_service.upload_file,
-            file_data=image_bytes,
-            file_name=f"{dweller_obj.id}.png",
-            bucket_name="dweller-images",
-        )
-        thumbnail_url = await asyncio.to_thread(
-            self.storage_service.upload_thumbnail,
-            file_data=image_bytes,
-            file_name=f"{dweller_obj.id}_thumbnail.png",
-            bucket_name="dweller-thumbnails",
-        )
+        try:
+            image_bytes = await self.ai_service.generate_image(prompt=prompt, return_bytes=True)
+            image_url = await asyncio.to_thread(
+                self.storage_service.upload_file,
+                file_data=image_bytes,
+                file_name=f"{dweller_obj.id}.png",
+                bucket_name="dweller-images",
+            )
+            thumbnail_url = await asyncio.to_thread(
+                self.storage_service.upload_thumbnail,
+                file_data=image_bytes,
+                file_name=f"{dweller_obj.id}_thumbnail.png",
+                bucket_name="dweller-thumbnails",
+            )
+        except Exception as error:
+            logger.exception("Portrait generation failed for dweller %s", dweller_obj.id)
+            raise HTTPException(status_code=502, detail="Portrait generation failed. Please try again.") from error
 
         await dweller_crud.update(
             db_session, dweller_obj.id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)

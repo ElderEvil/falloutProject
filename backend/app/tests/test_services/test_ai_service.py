@@ -133,6 +133,23 @@ class TestAvailabilityGuards:
         svc._ensure_client_available()
 
 
+def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
+    """Changing chat to LM Studio must not disable direct OpenAI image generation."""
+    monkeypatch.setattr("app.services.ai_service.settings.LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "local-model")
+    monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", "sk-test-key")
+    svc = _make_fresh_service()
+
+    with (
+        patch("app.services.ai_service.OpenAIChatModel"),
+        patch("openai.Client") as mock_client,
+    ):
+        svc._initialize_lmstudio()
+
+    mock_client.assert_called_once_with(api_key="sk-test-key")
+    assert svc.client is mock_client.return_value
+
+
 # ============================================================================
 # Provider Initialization — Disabled
 # ============================================================================

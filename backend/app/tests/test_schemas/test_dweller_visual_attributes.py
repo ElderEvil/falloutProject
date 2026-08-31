@@ -121,6 +121,35 @@ def test_age_range() -> None:
     assert va.age is None
 
 
+def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
+    """Local models sometimes wrap every structured scalar in a one-item list."""
+    attributes = DwellerVisualAttributes.model_validate(
+        {
+            "race": ["human"],
+            "faction": ["vault_dweller"],
+            "build": ["athletic"],
+            "skin_tone": ["tan"],
+            "age": ["20s"],
+            "appearance": ["average"],
+            "clothing_style": ["rugged"],
+            "accessory": ["dirty bandana"],
+            "distinguishing_features": ["scar", "freckles"],
+        }
+    )
+
+    assert attributes.model_dump(exclude_none=True) == {
+        "race": "human",
+        "faction": "vault_dweller",
+        "build": "athletic",
+        "skin_tone": "tan",
+        "age": 20,
+        "appearance": "average",
+        "clothing_style": "rugged",
+        "accessory": "dirty bandana",
+        "distinguishing_features": ["scar", "freckles"],
+    }
+
+
 def test_backward_compatibility_alias() -> None:
     """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""
     assert DwellerVisualAttributesInput is DwellerVisualAttributes

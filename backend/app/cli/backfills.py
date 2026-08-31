@@ -22,6 +22,7 @@ from app import crud
 from app.db.session import async_session_maker
 from app.services.bio_place_backfill_service import bio_place_backfill_service
 from app.services.discovery_backfill_service import discovery_backfill_service
+from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
@@ -31,6 +32,18 @@ app = typer.Typer(
 )
 
 logger = logging.getLogger(__name__)
+
+
+@app.command(name="backfill-state-objectives")
+def backfill_state_objectives() -> None:
+    """Convert legacy timed state objectives to immediate claimable objectives."""
+
+    async def _run() -> int:
+        async with async_session_maker() as session:
+            return await quest_state_objective_backfill_service.backfill_started_state_objectives(session)
+
+    fixed = asyncio.run(_run())
+    typer.echo(f"Backfill complete: {fixed} state objective(s) repaired.")
 
 
 @app.command(name="backfill-bio-places")

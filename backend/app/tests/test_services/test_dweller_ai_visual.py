@@ -107,7 +107,9 @@ async def test_generate_replaces_substantial_attrs(
 
     user = MagicMock()
     user.id = uuid.uuid4()
-    generated = await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
+    generated = await dweller_ai.generate_visual_attributes(
+        user=user, db_session=MagicMock(), dweller_info=mock_dweller
+    )
 
     deps = mock_agent.run.call_args.kwargs["deps"]
     assert deps.race == "human"

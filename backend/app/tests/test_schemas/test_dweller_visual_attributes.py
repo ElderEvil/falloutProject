@@ -10,21 +10,17 @@ def test_unified_schema_has_all_fields() -> None:
     """Unified schema should contain both input and AI-generated fields."""
     fields = DwellerVisualAttributes.model_fields
 
-    # Identity fields (from input side)
     assert "race" in fields
     assert "faction" in fields
 
-    # AI-generated fields (from AI output side)
     assert "height" in fields
     assert "appearance" in fields
     assert "clothing_style" in fields
     assert "distinguishing_features" in fields
 
-    # Canonical name fields (renamed from old input names)
     assert "build" in fields  # was body_type in input
     assert "hair_style" in fields  # was haircut in input
 
-    # Common fields
     assert "skin_tone" in fields
     assert "eye_color" in fields
     assert "hair_color" in fields
@@ -39,11 +35,12 @@ def test_unified_schema_has_all_fields() -> None:
     assert "pose" in fields
     assert "background" in fields
     assert "voice_line_text" in fields
+    assert "voice_line_url" in fields
     assert "age" in fields
     assert "state_of_being" in fields
 
     # Count total fields
-    assert len(fields) == 22
+    assert len(fields) == 23
 
 
 def test_canonical_field_names() -> None:
@@ -107,6 +104,7 @@ def test_full_population() -> None:
         pose="Weapon drawn",
         background="Wasteland Ruins",
         voice_line_text="For the Brotherhood!",
+        voice_line_url="https://audio.example/voice.mp3",
     )
     assert va.race == "human"
     assert va.build == "athletic"

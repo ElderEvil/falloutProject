@@ -6136,6 +6136,11 @@ export interface components {
              * @description Optional action suggestion
              */
             action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
+            /**
+             * Unlocked Places
+             * @description Map locations newly unlocked by this conversation
+             */
+            unlocked_places?: components["schemas"]["UnlockedPlace"][];
         };
         /**
          * EligibleDwellerRead

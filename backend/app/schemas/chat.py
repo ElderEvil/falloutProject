@@ -114,3 +114,7 @@ class DwellerVoiceChatResponse(BaseModel):
         None,
         description="Optional action suggestion",
     )
+    unlocked_places: list[UnlockedPlace] = Field(
+        default_factory=list,
+        description="Map locations newly unlocked by this conversation",
+    )

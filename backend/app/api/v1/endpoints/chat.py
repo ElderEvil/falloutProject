@@ -190,6 +190,7 @@ async def voice_chat_with_dweller(
             dweller_message_id=result["dweller_message_id"],
             happiness_impact=result["happiness_impact"],
             action_suggestion=result["action_suggestion"],
+            unlocked_places=result.get("unlocked_places", []),
         )
 
     except ValueError as e:

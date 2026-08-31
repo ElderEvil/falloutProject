@@ -15,6 +15,19 @@ export interface UseChatMessagesOptions {
   chatWs?: ReturnType<typeof useChatWebSocket>
 }
 
+export const normalizeUnlockedPlaces = (places: unknown): MapDiscovery[] =>
+  Array.isArray(places)
+    ? places
+        .filter(
+          (place): place is { location_id: string; name: string } =>
+            typeof place === 'object' &&
+            place !== null &&
+            typeof place.location_id === 'string' &&
+            typeof place.name === 'string'
+        )
+        .map((place) => ({ locationId: place.location_id, name: place.name }))
+    : []
+
 export function useChatMessages(options: UseChatMessagesOptions) {
   const messages = ref<ChatMessageDisplay[]>([])
   const userMessage = ref('')
@@ -58,19 +71,6 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       lastMsg.error = error
     }
   }
-
-  const normalizeUnlockedPlaces = (places: unknown): MapDiscovery[] =>
-    Array.isArray(places)
-      ? places
-          .filter(
-            (place): place is { location_id: string; name: string } =>
-              typeof place === 'object' &&
-              place !== null &&
-              typeof place.location_id === 'string' &&
-              typeof place.name === 'string'
-          )
-          .map((place) => ({ locationId: place.location_id, name: place.name }))
-      : []
 
   if (options.chatWs) {
     options.chatWs.on('token', (msg: any) => {

@@ -10,7 +10,7 @@ import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
-import { useChatMessages } from '../composables/useChatMessages'
+import { normalizeUnlockedPlaces, useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
@@ -206,6 +206,7 @@ const sendAudioMessage = async () => {
       audioUrl: response.data.dweller_audio_url,
       happinessImpact: response.data.happiness_impact || null,
       actionSuggestion: response.data.action_suggestion || null,
+      unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
     })
 
     if (response.data.dweller_audio_url) {

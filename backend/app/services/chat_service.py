@@ -621,6 +621,12 @@ class ChatService:
             logger.exception("Failed to unlock places for dweller %s, continuing", dweller.id)
         return []
 
+    async def unlock_places_after_conversation(
+        self, db_session: AsyncSession, dweller: DwellerReadFull
+    ) -> list[UnlockedPlace]:
+        """Apply the shared post-message discovery rule for non-text chat flows."""
+        return await self._maybe_unlock_places(db_session, dweller)
+
     @staticmethod
     def _validate_dweller_exists(dweller: "DwellerReadFull | None", _dweller_id: UUID4) -> None:
         """Validate that a dweller exists, raising ValueError if not."""

@@ -270,7 +270,8 @@ async def test_extend_bio_usage_extraction_fails(
     mock_map.register_bio_places = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio="Original bio.")
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
+    refreshed_dweller = _make_dweller_mock(bio="Original bio.\n\nExtended details.")
+    mock_crud.get_full_info = AsyncMock(side_effect=[mock_dweller, refreshed_dweller])
 
     output = ExtendedBio(extended_bio="Extended details.", visited_places=[])
     mock_result = MagicMock()
@@ -282,7 +283,8 @@ async def test_extend_bio_usage_extraction_fails(
 
     result = await dweller_ai.extend_bio(db_session=MagicMock(), dweller_id=mock_dweller.id, user=user)
 
-    assert result is mock_dweller
+    assert result is refreshed_dweller
+    assert mock_crud.get_full_info.await_count == 2
     mock_crud.update.assert_called_once()
     mock_llm.create.assert_called_once()
     llm_kwargs = mock_llm.create.call_args[1]["obj_in"]

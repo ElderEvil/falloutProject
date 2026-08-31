@@ -237,7 +237,8 @@ const showWarningBanner = computed(() => {
 
           <div v-if="stats.chat_heavy" class="flex items-start gap-2 rounded border border-warning/30 bg-warning/10 p-2.5 text-xs leading-5 text-warning" role="status">
             <Icon icon="mdi:message-alert-outline" class="mt-0.5 h-4 w-4 shrink-0" />
-            <span>Most AI use this month is dwelling chat. Your quota is still available for any AI feature.</span>
+            <span v-if="stats.quota_exceeded">Most AI use this month is dwelling chat. Your quota is currently exhausted.</span>
+            <span v-else>Most AI use this month is dwelling chat. Your quota is still available for any AI feature.</span>
           </div>
         </section>
 

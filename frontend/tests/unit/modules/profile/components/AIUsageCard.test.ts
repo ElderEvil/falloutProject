@@ -386,6 +386,7 @@ describe('AIUsageCard', () => {
       expect(wrapper.text()).toContain('Dweller chat')
       expect(wrapper.text()).toContain('3 requests')
       expect(wrapper.text()).not.toContain('quota_tracking')
+      expect(wrapper.text()).not.toContain('Other AI activity')
       expect(wrapper.find('[aria-label="Dweller chat: 450 tokens across 3 requests, 60% of this month"]').exists()).toBe(true)
     })
 
@@ -410,6 +411,32 @@ describe('AIUsageCard', () => {
 
       expect(wrapper.text()).toContain('Other AI activity')
       expect(wrapper.text()).toContain('Most AI use this month is dwelling chat')
+    })
+
+    it('does not claim an exceeded quota is available', () => {
+      const wrapper = mount(AIUsageCard, {
+        props: {
+          stats: createMockStats({
+            quota_remaining: 0,
+            quota_used: 100000,
+            quota_exceeded: true,
+            chat_heavy: true,
+            by_operation: [
+              {
+                operation: 'chat_with_dweller',
+                prompt_tokens: 700,
+                completion_tokens: 300,
+                total_tokens: 1000,
+                count: 2,
+                is_operational: false,
+              },
+            ],
+          }),
+        },
+      })
+
+      expect(wrapper.text()).toContain('Most AI use this month is dwelling chat')
+      expect(wrapper.text()).not.toContain('quota is still available')
     })
   })
 })

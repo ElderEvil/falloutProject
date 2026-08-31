@@ -23,9 +23,10 @@ audit; objectives need deliberate in-game validation rather than relying only on
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.
-  - **Verified gap:** `quest_type` is currently presentation metadata; every category follows the same
-    party-assignment + timer lifecycle. Seeded `building`, `collection`, `population`, and `training` quests need
-    their own event/state-completion path, while `exploration` and `combat` retain the timed-party path.
+  - **In progress:** `building`, `population`, and state-based `training` quests now settle directly from validated
+    vault progress; `exploration` and `combat` retain the timed-party path. `quest_type` remains presentation metadata.
+  - **Verified gap:** authored generic `ITEM` rewards include medication, lunchboxes, junk, Nuka-Cola Quantum, and a
+    Legendary Dweller; delivery currently supports only weapon/outfit items and does not honor item quantities.
   - **Verified gap:** chains persist predecessor links and hide locked entries, but do not yet model an explicit
     chain lifecycle or requirement-driven unlock feedback.
 - [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,

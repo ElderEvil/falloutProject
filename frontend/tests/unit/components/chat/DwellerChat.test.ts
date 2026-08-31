@@ -9,7 +9,6 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import * as trainingService from '@/modules/progression/services/trainingService'
 
-// Mock axios
 vi.mock('@/core/plugins/axios', () => ({
   default: {
     get: vi.fn(),
@@ -17,7 +16,6 @@ vi.mock('@/core/plugins/axios', () => ({
   },
 }))
 
-// Mock useAudioRecorder
 vi.mock('@/modules/chat/composables/useAudioRecorder', () => ({
   useAudioRecorder: () => ({
     recordingState: { value: 'inactive' },
@@ -2140,6 +2138,7 @@ describe('DwellerChat', () => {
 
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
       expect(wrapper.text()).toContain('AI quota exceeded')
+      expect(wrapper.find('.message-error').attributes()).toMatchObject({ role: 'alert', 'aria-live': 'polite' })
     })
   })
 

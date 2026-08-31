@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.68.0 (2026-08-31)
+
+### Features
+
+* add dweller state identity icons 06b6699
+* diversify boosted vault dwellers 542975c
+
+### Bug Fixes
+
+* address review findings - dotenv isolation and roadmap next pick e30aaae
+* load vault start settings from dotenv 3edec71
+* normalize dweller identity states d41161a
+
 ## 2.67.0 (2026-08-31)
 
 ### Features

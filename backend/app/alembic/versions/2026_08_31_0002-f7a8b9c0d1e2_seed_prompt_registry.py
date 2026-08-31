@@ -28,8 +28,8 @@ def upgrade() -> None:
     """Insert missing v1 prompts without replacing existing administrator-managed rows."""
     statement = sa.text(
         "INSERT INTO prompt (id, prompt_name, description, prompt_template, version, is_active) "
-        "SELECT :id, :prompt_name, :description, :prompt_template, 1, true "
-        "WHERE NOT EXISTS (SELECT 1 FROM prompt WHERE prompt_name = :prompt_name)"
+        "SELECT :id, CAST(:prompt_name AS varchar), :description, :prompt_template, 1, true "
+        "WHERE NOT EXISTS (SELECT 1 FROM prompt WHERE prompt_name = CAST(:prompt_name AS varchar))"
     )
     for prompt_name, (description, prompt_template) in PROMPT_SEEDS.items():
         op.get_bind().execute(

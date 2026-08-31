@@ -12,6 +12,8 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
+from app.options.factions import faction_restrictions
+from app.options.races import RaceOption
 from app.schemas.common import (
     AgeGroupEnum,
     GenderEnum,
@@ -116,6 +118,7 @@ async def deleted_dweller_fixture(async_session: AsyncSession, vault: Vault) -> 
         "bio": "A survivor from the wastes who was lost to time.",
         "image_url": "https://s3-api.evillab.tech/dweller-images/ghost-signal.png",
         "thumbnail_url": "https://s3-api.evillab.tech/dweller-thumbnails/ghost-signal_thumbnail.png",
+        "visual_attributes": {"race": "ghoul", "faction": "none"},
     }
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
@@ -558,6 +561,39 @@ async def test_recruit_dweller_rare_chance_rolls_rare(async_session: AsyncSessio
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
     assert recycled is False
     assert dweller.rarity == RarityEnum.COMMON
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_fresh_recruit_inherits_race_weights(
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """Fresh radio recruits inherit race_weights diversity: race ∈ RaceOption, faction valid for race."""
+    with patch.object(game_config.radio, "recycle_enabled", new=False), patch("random.random", return_value=0.99):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is False
+    race = dweller.visual_attributes.get("race")
+    faction = dweller.visual_attributes.get("faction")
+    assert race in {r.value for r in RaceOption}
+    assert faction in faction_restrictions[RaceOption(race)]
+
+
+@pytest.mark.asyncio
+async def test_recruit_dweller_recycling_preserves_race(
+    async_session: AsyncSession,
+    vault: Vault,
+    deleted_dweller: Dweller,
+) -> None:
+    """Recycling restores the original dweller identity — race is never re-rolled (plan §6.2)."""
+    original_race = deleted_dweller.visual_attributes.get("race")
+
+    with patch("random.random", return_value=0.0):
+        dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
+
+    assert recycled is True
+    assert dweller.id == deleted_dweller.id
+    assert dweller.visual_attributes.get("race") == original_race
 
 
 @pytest.mark.asyncio

@@ -13,12 +13,14 @@ Usage:
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models.incident import IncidentType
+from app.options.factions import faction_restrictions
+from app.options.races import RaceOption
 from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
@@ -662,6 +664,98 @@ class DwellerConfig(BaseSettings):
         le=10,
     )
 
+    # Race distribution for generated dwellers — global (standard and boosted
+    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":70,"ghoul":15,...}'.
+    race_weights: dict[str, int] = Field(
+        default_factory=lambda: {"human": 70, "ghoul": 15, "synth": 10, "super_mutant": 5},
+        description="Seeded race roll weights; keys must cover every RaceOption",
+    )
+
+    # Faction-weighting policy: humans stay lore-coherent with vault_dweller
+    # dominant (strictly largest weight, enforced below). Non-human races draw
+    # uniformly from faction_restrictions[race] (options/factions.py) — the
+    # canonical table is not duplicated here.
+    human_faction_weights: dict[str, int] = Field(
+        default_factory=lambda: {
+            "vault_dweller": 70,
+            "brotherhood_of_steel": 5,
+            "minutemen": 5,
+            "ncr": 4,
+            "raiders": 3,
+            "children_of_atom": 2,
+            "the_institute": 2,
+            "railroad": 2,
+            "enclave": 1,
+            "caesars_legion": 1,
+            "none": 5,
+        },
+        description="Faction roll weights for human dwellers; vault_dweller must dominate",
+    )
+
+    @field_validator("race_weights", "human_faction_weights", mode="before")
+    @classmethod
+    def _validate_weight_map(cls, value: Any, info: ValidationInfo) -> dict[str, int]:
+        """Strictly validate weight maps before rng.choices can see them.
+
+        race_weights must cover every RaceOption; human_faction_weights may be a
+        subset of the human faction_restrictions but must keep vault_dweller
+        dominant. Keys are normalized ("Super Mutant"/"super-mutant" →
+        super_mutant); weights must be integers >= 0 with a positive total.
+        """
+        if info.field_name == "race_weights":
+            valid_keys = {race.value for race in RaceOption}
+            label = "race"
+        else:
+            valid_keys = {faction.value for faction in faction_restrictions[RaceOption.HUMAN]}
+            label = "faction"
+        if not isinstance(value, dict):
+            raise TypeError(f"{info.field_name} must be a mapping of {label} name to integer weight")
+        normalized: dict[str, int] = {}
+        for raw_key, raw_weight in value.items():
+            key = str(raw_key).strip().lower().replace(" ", "_").replace("-", "_")
+            if key not in valid_keys:
+                raise ValueError(
+                    f"Unknown {label} '{raw_key}' in {info.field_name}; valid {label}s: {sorted(valid_keys)}"
+                )
+            if isinstance(raw_weight, bool) or not isinstance(raw_weight, int) or raw_weight < 0:
+                raise ValueError(f"{info.field_name}['{key}'] must be a non-negative integer, got {raw_weight!r}")
+            normalized[key] = raw_weight
+        if info.field_name == "race_weights":
+            if missing := valid_keys - normalized.keys():
+                raise ValueError(f"{info.field_name} is missing required races: {sorted(missing)}")
+        elif normalized.get("vault_dweller", 0) <= max(
+            (weight for key, weight in normalized.items() if key != "vault_dweller"), default=0
+        ):
+            raise ValueError(f"{info.field_name} must keep 'vault_dweller' dominant (strictly largest weight)")
+        if sum(normalized.values()) <= 0:
+            raise ValueError(f"{info.field_name} must have a positive total weight")
+        return normalized
+
+    def get_race_weights(self) -> dict[str, int]:
+        """Get a validated copy of the race weights (keys = RaceOption values)."""
+        return dict(self.race_weights)
+
+
+class VaultStartConfig(BaseSettings):
+    """Vault start tuning (env prefix ``VAULT_START_``).
+
+    Internal tuning only — no preset enum this slice; ``boosted: bool`` stays the
+    only start toggle (BOOSTED_START_ONBOARDING_PLAN.md §6.4).
+
+    Vault seeding reads its rarity chances from this config; radio recruitment
+    keeps ``RadioConfig.rare_chance``.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="VAULT_START_")
+
+    initial_resource_pct: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Initial power/food/water as a share of max capacity"
+    )
+    initial_stimpaks: int = Field(default=5, ge=0, description="Initial stimpaks (capped by medical capacity)")
+    initial_radaways: int = Field(default=5, ge=0, description="Initial radaways (capped by medical capacity)")
+    standard_rare_chance: float = Field(default=0.04, ge=0.0, le=1.0, description="RARE roll chance, standard seeding")
+    boosted_rare_chance: float = Field(default=0.12, ge=0.0, le=1.0, description="RARE roll chance, boosted seeding")
+
 
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
@@ -782,6 +876,7 @@ class GameConfig(BaseSettings):
     dweller: DwellerConfig = Field(default_factory=DwellerConfig)
     bio: BioConfig = Field(default_factory=BioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
+    vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
 
 
 # Medical room production mapping (room name lowercase → product type)

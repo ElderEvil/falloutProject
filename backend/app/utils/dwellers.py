@@ -7,6 +7,8 @@ from typing import Any
 from faker import Faker
 
 from app.core.game_config import game_config
+from app.options.factions import FactionOption, faction_restrictions
+from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
 from app.schemas.common import AgeGroupEnum, GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
@@ -76,6 +78,29 @@ def _calendar_years_ago(value: datetime, years: int) -> datetime:
         return value.replace(year=value.year - years, month=2, day=28)
 
 
+def _roll_identity(rng: random.Random) -> dict[str, Any]:
+    """Roll race/faction/state_of_being from game_config weights using ``rng``.
+
+    Race follows ``DwellerConfig.race_weights`` (70/15/10/5 by default). Humans
+    draw factions from the vault_dweller-dominant ``human_faction_weights``
+    policy; non-humans draw uniformly from the canonical
+    ``faction_restrictions[race]``. Non-humans also carry a ``state_of_being``
+    from ``STATE_OF_BEING_OPTIONS``. Every emitted pair passes the
+    ``DwellerVisualAttributes`` identity validator.
+    """
+    weights = game_config.dweller.get_race_weights()
+    race = rng.choices(list(RaceOption), weights=[weights[r.value] for r in RaceOption])[0]
+    if race == RaceOption.HUMAN:
+        faction_weights = game_config.dweller.human_faction_weights
+        faction = rng.choices(list(faction_weights), weights=list(faction_weights.values()))[0]
+    else:
+        faction = rng.choice(faction_restrictions[race])
+    identity: dict[str, Any] = {"race": race.value, "faction": FactionOption(faction).value}
+    if states := STATE_OF_BEING_OPTIONS.get(race):
+        identity["state_of_being"] = rng.choice(states).value
+    return identity
+
+
 def create_random_common_dweller(
     gender: GenderEnum | None = None, seed: int | None = None, rarity: RarityEnum = RarityEnum.COMMON
 ) -> dict[str, Any]:
@@ -116,7 +141,7 @@ def create_random_common_dweller(
         "happiness": 50,
         "stimpack": 0,
         "radaway": 0,
-        "visual_attributes": {"race": "human", "faction": "vault_dweller"},
+        "visual_attributes": _roll_identity(rng),
         "bio": _render_template_bio(origin, visited),
         # Reserved for the caller (crud.create_random) to register map places;
         # never a Dweller column, so it must be popped before model construction.

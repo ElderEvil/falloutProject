@@ -1,6 +1,7 @@
 """Service for vault initialization and resource management."""
 
 import logging
+import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -10,7 +11,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
-from app.core.game_config import compute_medical_capacity
+from app.core.game_config import compute_medical_capacity, game_config
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.storage import storage as storage_crud
@@ -22,6 +23,7 @@ from app.schemas.common import (
     AgeGroupEnum,
     DwellerStatusEnum,
     GenderEnum,
+    RarityEnum,
     RoomTypeEnum,
     SPECIALEnum,
 )
@@ -191,6 +193,12 @@ class VaultService:
             arena=created_arena,
         )
 
+    def _roll_initial_rarity(self, is_boosted: bool) -> RarityEnum:
+        """Roll RARE for initial seeded dwellers; boosted vaults use the higher chance."""
+        vault_start = game_config.vault_start
+        chance = vault_start.boosted_rare_chance if is_boosted else vault_start.standard_rare_chance
+        return RarityEnum.RARE if random.random() < chance else RarityEnum.COMMON
+
     async def _create_initial_dwellers(
         self,
         db_session: AsyncSession,
@@ -216,7 +224,10 @@ class VaultService:
             for room, boosted_stat, count in assignments:
                 for _ in range(count):
                     dweller_obj = await dweller_crud.create_random(
-                        db_session, vault_id, DwellerCreateCommonOverride(special_boost=boosted_stat)
+                        db_session,
+                        vault_id,
+                        DwellerCreateCommonOverride(special_boost=boosted_stat),
+                        rarity=self._roll_initial_rarity(is_boosted),
                     )
                     await dweller_crud.update(
                         db_session=db_session,
@@ -241,7 +252,9 @@ class VaultService:
                     if i < len(created_training_rooms):
                         room = created_training_rooms[i]
                         dweller_data = DwellerCreateCommonOverride(special_boost=training_stat)
-                        dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                        dweller_obj = await dweller_crud.create_random(
+                            db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
+                        )
 
                         # Assign to training room with IDLE status (training service will update status)
 
@@ -257,7 +270,9 @@ class VaultService:
                 radio_room = next((r for r in created_misc_rooms if "radio" in r.name.lower()), None)
                 if radio_room:
                     dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.CHARISMA)
-                    dweller_obj = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    dweller_obj = await dweller_crud.create_random(
+                        db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
+                    )
                     await dweller_crud.update(
                         db_session=db_session,
                         id=dweller_obj.id,
@@ -273,7 +288,9 @@ class VaultService:
                         gender=gender,
                         special_boost=SPECIALEnum.CHARISMA if is_boosted else None,
                     )
-                    dweller = await dweller_crud.create_random(db_session, vault_id, dweller_data)
+                    dweller = await dweller_crud.create_random(
+                        db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
+                    )
                     await dweller_crud.update(
                         db_session=db_session,
                         id=dweller.id,
@@ -291,7 +308,9 @@ class VaultService:
                     if room.ability is None:
                         continue
                     youth_data = DwellerCreateCommonOverride(special_boost=room.ability)
-                    youth = await dweller_crud.create_random(db_session, vault_id, youth_data)
+                    youth = await dweller_crud.create_random(
+                        db_session, vault_id, youth_data, rarity=self._roll_initial_rarity(is_boosted)
+                    )
                     youth.is_adult = False
                     youth.age_group = AgeGroupEnum.TEEN
                     youth.birth_date = datetime.utcnow() - timedelta(hours=13)
@@ -636,10 +655,11 @@ class VaultService:
         created_misc_rooms = created.misc
         created_capacity_rooms = created.capacity
 
-        # Set initial resources to 50% of max capacity
-        initial_power = vault_db_obj.power_max // 2
-        initial_food = vault_db_obj.food_max // 2
-        initial_water = vault_db_obj.water_max // 2
+        # Set initial resources to the configured share of max capacity
+        vault_start = game_config.vault_start
+        initial_power = int(vault_db_obj.power_max * vault_start.initial_resource_pct)
+        initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct)
+        initial_water = int(vault_db_obj.water_max * vault_start.initial_resource_pct)
 
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
@@ -654,8 +674,8 @@ class VaultService:
         # Set initial medical supplies on Storage (computed from Medbay/Science Lab rooms)
         all_rooms = created_production_rooms + created_capacity_rooms + created_training_rooms + created_misc_rooms
         medical_capacity = compute_medical_capacity(all_rooms)
-        initial_stimpack = min(5, medical_capacity.get("stimpack", 0))
-        initial_radaway = min(5, medical_capacity.get("radaway", 0))
+        initial_stimpack = min(vault_start.initial_stimpaks, medical_capacity.get("stimpack", 0))
+        initial_radaway = min(vault_start.initial_radaways, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
             storage_obj = await storage_crud.get_by_vault(db_session, vault_db_obj.id)
             if storage_obj:

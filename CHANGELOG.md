@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.67.0 (2026-08-31)
+
+### Features
+
+* improve AI prompt observability ae54fc7
+
+### Bug Fixes
+
+* address AI review findings 908ab36
+* allow appearance regeneration 0a6e89e
+* cap generated dweller biographies 024c6fb
+* complete AI prompt observability d5c3bfc
+* improve dweller AI generation ac0b8ab
+* preserve AI generation metadata 143d4d4
+* seed prompt registry during migration 7a468bd
+* seed prompts for upgraded databases b8e4bf6
+* support PostgreSQL prompt seeding fdae7ab
+
 ## 2.66.0 (2026-08-31)
 
 ### Features

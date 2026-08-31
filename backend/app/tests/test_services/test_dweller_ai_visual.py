@@ -3,11 +3,7 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
-
-# --- _has_substantial_visual_attributes ---
 
 
 def test_substantial_none() -> None:
@@ -73,9 +69,6 @@ def test_substantial_full_ai_data() -> None:
     )
 
 
-# --- generate_visual_attributes ---
-
-
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.visual_attributes_agent")
 @patch("app.services.dweller_ai.dweller_crud")
@@ -108,10 +101,13 @@ async def test_generate_replaces_substantial_attrs(
     result.output = output
     result.usage.return_value = MagicMock(input_tokens=100, output_tokens=50, total_tokens=150)
     mock_agent.run = AsyncMock(return_value=result)
+    updated_dweller = MagicMock()
+    updated_dweller.visual_attributes = {"height": "average", "hair_color": "red"}
+    mock_crud.get_full_info = AsyncMock(return_value=updated_dweller)
 
     user = MagicMock()
     user.id = uuid.uuid4()
-    await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
+    generated = await dweller_ai.generate_visual_attributes(user=user, db_session=MagicMock(), dweller_info=mock_dweller)
 
     deps = mock_agent.run.call_args.kwargs["deps"]
     assert deps.race == "human"
@@ -122,9 +118,7 @@ async def test_generate_replaces_substantial_attrs(
     assert stored.height == "average"
     assert stored.hair_color == "red"
     assert stored.build is None
-
-
-# --- Options module ---
+    assert generated is updated_dweller
 
 
 def test_restrict_equipment_fields_removes_non_owned() -> None:
@@ -165,9 +159,6 @@ def test_restrict_equipment_fields_noop_when_fields_absent() -> None:
     attrs = {"height": "tall", "hair_color": "brown"}
     restrict_equipment_fields(attrs, ["Leather Armor"])
     assert attrs == {"height": "tall", "hair_color": "brown"}
-
-
-# --- Options module ---
 
 
 def test_race_options() -> None:

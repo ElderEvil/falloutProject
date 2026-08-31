@@ -10,9 +10,6 @@ from app.services.dweller_ai import BIO_MAX_LENGTH, dweller_ai
 pytestmark = pytest.mark.asyncio
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-
 def _make_dweller_mock(
     *,
     bio: str | None = None,
@@ -63,9 +60,6 @@ def _make_agent_result(output, input_tokens=50, output_tokens=30, total_tokens=8
     return result
 
 
-# ── Quota Exceeded Tests ────────────────────────────────────────────────
-
-
 @pytest.mark.parametrize(
     ("method_name", "method_kwargs"),
     [
@@ -95,9 +89,6 @@ async def test_quota_exceeded_raises(
 
     with pytest.raises(QuotaExceededException):
         await getattr(dweller_ai, method_name)(**kwargs)
-
-
-# ── generate_backstory edge cases ───────────────────────────────────────
 
 
 async def test_generate_backstory_passes_active_registry_prompt_to_agent() -> None:
@@ -312,6 +303,7 @@ async def test_generate_visual_usage_extraction_fails(
     mock_llm.create = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
     mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", hair_color="brown")
     mock_result = MagicMock()
     mock_result.output = mock_output
@@ -353,6 +345,7 @@ async def test_generate_visual_attributes_constrains_accessory_and_object_held(
     mock_dweller.weapon.name = "Laser Rifle"
     mock_dweller.outfit = MagicMock()
     mock_dweller.outfit.name = "Vault Suit"
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
     mock_output = dweller_schemas.DwellerVisualAttributes(
         height="tall", accessory="Bandolier", object_held="Laser Rifle"
@@ -393,6 +386,7 @@ async def test_generate_visual_attributes_drops_equipment_when_none_equipped(
     mock_llm.create = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
     mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", object_held="Laser Rifle")
     mock_result = MagicMock()

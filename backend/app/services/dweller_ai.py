@@ -319,7 +319,7 @@ class DwellerAIService:
             obj_in=llm_int_create,
         )
 
-        return dweller_obj
+        return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
     async def generate_photo(
         self,

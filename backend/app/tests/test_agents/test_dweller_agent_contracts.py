@@ -13,6 +13,7 @@ from app.agents.dweller_chat_agent import (
     DwellerChatDeps,
     DwellerChatOutput,
     build_dweller_social_context,
+    chat_instructions,
     dweller_chat_agent,
     parse_action_suggestion,
     validate_dweller_chat_output,
@@ -42,6 +43,7 @@ def _make_dweller() -> MagicMock:
     dweller.stimpack = 2
     dweller.radaway = 1
     dweller.happiness = 75
+    dweller.bio = "Casey keeps the water purifier running and avoids unnecessary risks."
     dweller.strength = 6
     dweller.perception = 5
     dweller.endurance = 4
@@ -71,6 +73,18 @@ def test_stateless_agents_use_instructions_not_system_prompts() -> None:
         assert agent._instructions
         assert agent._system_prompts == ()
         assert agent._system_prompt_functions == []
+
+
+def test_chat_instructions_ground_the_dweller_in_bio_and_keep_replies_brief() -> None:
+    """The canonical bio constrains chat identity and response length."""
+    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
+    ctx = MagicMock(deps=deps)
+
+    instructions = chat_instructions(ctx)
+
+    assert deps.dweller.bio in instructions
+    assert "Never contradict or invent biography details" in instructions
+    assert "80-120 words" in instructions
 
 
 def test_assignment_requires_complete_room_data() -> None:
@@ -210,6 +224,10 @@ async def test_test_model_invokes_social_context_for_family_questions() -> None:
 
     mock_context.assert_awaited_once_with(deps)
     assert result.usage.tool_calls == 1
+    social_tool = next(
+        tool for tool in model.last_model_request_parameters.function_tools if tool.name == "get_dweller_social_context"
+    )
+    assert social_tool.parameters_json_schema["properties"]["topic"]["default"] == "general"
 
 
 @pytest.mark.asyncio

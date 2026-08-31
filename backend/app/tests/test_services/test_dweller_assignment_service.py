@@ -412,6 +412,36 @@ class TestAssignAbilityDwellers:
         # d1 already in assigned set → filtered out from result
         assert len(result) == 0
 
+    @pytest.mark.asyncio
+    async def test_skips_dwellers_at_training_stat_maximum(self, svc, mock_db):
+        room = _make_room(
+            _id=_R_TRAIN,
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.PERCEPTION,
+            size=3,
+        )
+        capped_dweller = _make_dweller(_id=_D1, perception=10)
+        assignments: list[dict[str, str]] = []
+
+        mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
+
+        with patch(
+            "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
+        ) as mock_start_training:
+            result = await svc._assign_ability_dwellers(
+                SPECIALEnum.PERCEPTION,
+                [room],
+                mock_db,
+                [capped_dweller],
+                assignments,
+                set(),
+                1,
+            )
+
+        assert result == [capped_dweller]
+        assert assignments == []
+        mock_start_training.assert_not_awaited()
+
 
 # ===================================================================
 # _assign_to_rooms_proportional
@@ -669,6 +699,42 @@ class TestAutoAssignProductionRooms:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
 
         assert result["assigned_count"] == 4
+
+
+# ===================================================================
+# auto_assign_training_rooms
+# ===================================================================
+
+
+class TestAutoAssignTrainingRooms:
+    """Tests for auto_assign_training_rooms."""
+
+    @pytest.mark.asyncio
+    async def test_assigns_lowest_eligible_stat_first(self, svc, mock_db):
+        room = _make_room(
+            _id=_R_TRAIN,
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.STRENGTH,
+            size=3,
+        )
+        strong_dweller = _make_dweller(_id=_DSTRONG, strength=8)
+        weak_dweller = _make_dweller(_id=_DWEAK, strength=2)
+        mock_db.execute = AsyncMock(
+            side_effect=[
+                _make_exec_result([room]),
+                _make_exec_result([strong_dweller, weak_dweller]),
+                _make_exec_result([]),
+                _make_exec_result([]),
+            ]
+        )
+
+        with patch(
+            "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
+        ) as mock_start_training:
+            result = await svc.auto_assign_training_rooms(mock_db, "v1")
+
+        assert result["assigned_count"] == 2
+        assert [call.args[1] for call in mock_start_training.await_args_list] == [_DWEAK, _DSTRONG]
 
 
 # ===================================================================

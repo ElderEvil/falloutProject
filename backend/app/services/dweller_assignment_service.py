@@ -1,12 +1,11 @@
 """Service for intelligent dweller assignment to rooms."""
 
-import logging
-
 from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -14,8 +13,6 @@ from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SP
 from app.schemas.dweller import DwellerUpdate
 from app.services.room_assignment_policy import adult_assignment_conditions
 from app.services.training_service import training_service
-
-logger = logging.getLogger(__name__)
 
 ABILITY_TO_STAT_MAP = {
     SPECIALEnum.STRENGTH: "strength",
@@ -39,9 +36,6 @@ TRAINING_ABILITIES = list(SPECIALEnum)
 
 
 class DwellerAssignmentService:
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
     def _calculate_room_capacity(self, room: Room) -> int:
         """Calculate room capacity (2 dwellers per 3 size units)."""
         room_size = room.size if room.size is not None else room.size_min
@@ -113,28 +107,30 @@ class DwellerAssignmentService:
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
         dwellers_for_tier: int,
+        prefer_lowest_stat: bool = False,
     ) -> list[Dweller]:
         """Assign dwellers for a specific ability. Returns updated unassigned dwellers list."""
         ability_specific_rooms = [r for r in ability_rooms if r.ability == ability]
         if not ability_specific_rooms:
             return unassigned_dwellers
 
-        ability_slots = []
-        ability_total = 0
-        for room in ability_specific_rooms:
-            slots = await self._get_available_slots(room, db_session)
-            if slots > 0:
-                ability_slots.append((room, slots))
-                ability_total += slots
+        ability_slots, ability_total = await self._calculate_total_slots(ability_specific_rooms, db_session)
 
         if ability_total == 0:
             return unassigned_dwellers
 
         stat_name = ABILITY_TO_STAT_MAP[ability]
+        eligible_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
+        if all(room.category == RoomTypeEnum.TRAINING for room in ability_specific_rooms):
+            eligible_dwellers = [
+                dweller
+                for dweller in eligible_dwellers
+                if getattr(dweller, stat_name) < game_config.training.special_stat_max
+            ]
         sorted_dwellers = sorted(
-            [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
+            eligible_dwellers,
             key=lambda d: getattr(d, stat_name),
-            reverse=True,
+            reverse=not prefer_lowest_stat,
         )
 
         for room, slots in ability_slots:
@@ -161,6 +157,7 @@ class DwellerAssignmentService:
         unassigned_dwellers: list[Dweller],
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
+        prefer_lowest_stat: bool = False,
     ) -> list[Dweller]:
         """Assign dwellers to rooms with proportional fill within the tier."""
         if not unassigned_dwellers or not rooms:
@@ -188,6 +185,7 @@ class DwellerAssignmentService:
                 assignments,
                 assigned_dweller_ids,
                 dwellers_for_tier,
+                prefer_lowest_stat,
             )
 
         return unassigned_dwellers
@@ -316,6 +314,31 @@ class DwellerAssignmentService:
 
         return {"assigned_count": len(assignments), "assignments": assignments}
 
+    async def auto_assign_training_rooms(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        age_group: AgeGroupEnum | None = None,
+    ) -> dict[str, int | list[dict[str, str]]]:
+        """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
+        rooms_result = await db_session.execute(
+            select(Room).where(Room.vault_id == vault_id, Room.category == RoomTypeEnum.TRAINING)
+        )
+        training_rooms = list(rooms_result.scalars().all())
+        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
+        assignments: list[dict[str, str]] = []
+
+        await self._assign_to_rooms_proportional(
+            training_rooms,
+            TRAINING_ABILITIES,
+            db_session,
+            unassigned_dwellers,
+            assignments,
+            set(),
+            prefer_lowest_stat=True,
+        )
+        return {"assigned_count": len(assignments), "assignments": assignments}
+
     async def auto_assign_all_rooms(
         self,
         db_session: AsyncSession,
@@ -345,41 +368,21 @@ class DwellerAssignmentService:
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
 
-        unassigned_dwellers = await self._assign_to_rooms_proportional(
-            production_rooms,
-            PRODUCTION_ABILITIES,
-            db_session,
-            unassigned_dwellers,
-            assignments,
-            assigned_dweller_ids,
-        )
-
-        unassigned_dwellers = await self._assign_to_rooms_proportional(
-            medsci_rooms,
-            MEDSCI_ABILITIES,
-            db_session,
-            unassigned_dwellers,
-            assignments,
-            assigned_dweller_ids,
-        )
-
-        unassigned_dwellers = await self._assign_to_rooms_proportional(
-            radio_rooms,
-            RADIO_ABILITIES,
-            db_session,
-            unassigned_dwellers,
-            assignments,
-            assigned_dweller_ids,
-        )
-
-        unassigned_dwellers = await self._assign_to_rooms_proportional(
-            training_rooms,
-            TRAINING_ABILITIES,
-            db_session,
-            unassigned_dwellers,
-            assignments,
-            assigned_dweller_ids,
-        )
+        for rooms, abilities, prefer_lowest_stat in (
+            (production_rooms, PRODUCTION_ABILITIES, False),
+            (medsci_rooms, MEDSCI_ABILITIES, False),
+            (radio_rooms, RADIO_ABILITIES, False),
+            (training_rooms, TRAINING_ABILITIES, True),
+        ):
+            unassigned_dwellers = await self._assign_to_rooms_proportional(
+                rooms,
+                abilities,
+                db_session,
+                unassigned_dwellers,
+                assignments,
+                assigned_dweller_ids,
+                prefer_lowest_stat,
+            )
 
         return {"assigned_count": len(assignments), "assignments": assignments}
 

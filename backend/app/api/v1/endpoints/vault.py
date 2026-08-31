@@ -193,7 +193,7 @@ async def auto_assign_production_rooms(
         Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id, age_group=age_group)
-    return AutoAssignResponse(**result)
+    return AutoAssignResponse.model_validate(result)
 
 
 @router.post("/{vault_id}/dwellers/auto-assign-all", response_model=AutoAssignResponse)
@@ -217,4 +217,15 @@ async def auto_assign_all_rooms(
         Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id, age_group=age_group)
-    return AutoAssignResponse(**result)
+    return AutoAssignResponse.model_validate(result)
+
+
+@router.post("/{vault_id}/dwellers/auto-assign-training", response_model=AutoAssignResponse)
+async def auto_assign_training_rooms(
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    age_group: AgeGroupEnum | None = None,
+) -> AutoAssignResponse:
+    """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
+    result = await dweller_assignment_service.auto_assign_training_rooms(db_session, vault.id, age_group=age_group)
+    return AutoAssignResponse.model_validate(result)

@@ -15,8 +15,7 @@ const { filter: filterStore, management: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
 const unassigningAll = ref(false)
-const autoAssigningProduction = ref(false)
-const autoAssigning = ref(false)
+const autoAssigning = ref<'all' | 'production' | 'training' | null>(null)
 const showConfirmDialog = ref(false)
 
 /**
@@ -55,6 +54,12 @@ const allRoomsTooltip = computed(() =>
     : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} across all room types (production, med/science, radio, training) by best SPECIAL. Rooms can fill up, so fewer may be assigned.`
 )
 
+const trainingTooltip = computed(() =>
+  eligibleCount.value === 0
+    ? emptyHint
+    : `Assign ${eligibleCount.value} idle dweller${plural.value}${filterNote.value} to training rooms, prioritizing each room's lowest eligible SPECIAL stat.`
+)
+
 const handleUnassignAll = async () => {
   if (!authStore.token) return
 
@@ -67,29 +72,22 @@ const handleUnassignAll = async () => {
   }
 }
 
-const handleAutoAssignProduction = async () => {
+const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
   if (!authStore.token) return
 
-  autoAssigningProduction.value = true
+  autoAssigning.value = target
   try {
-    await dwellerStore.autoAssignProductionDwellers(props.vaultId, authStore.token, {
+    await dwellerStore[
+      target === 'all'
+        ? 'autoAssignAllDwellers'
+        : target === 'production'
+          ? 'autoAssignProductionDwellers'
+          : 'autoAssignTrainingDwellers'
+    ](props.vaultId, authStore.token, {
       ageGroup: activeAgeFilter.value,
     })
   } finally {
-    autoAssigningProduction.value = false
-  }
-}
-
-const handleAutoAssignAll = async () => {
-  if (!authStore.token) return
-
-  autoAssigning.value = true
-  try {
-    await dwellerStore.autoAssignAllDwellers(props.vaultId, authStore.token, {
-      ageGroup: activeAgeFilter.value,
-    })
-  } finally {
-    autoAssigning.value = false
+    autoAssigning.value = null
   }
 }
 </script>
@@ -100,8 +98,8 @@ const handleAutoAssignAll = async () => {
       <UButton
         variant="primary"
         size="sm"
-        @click="handleAutoAssignAll"
-        :loading="autoAssigning"
+        @click="handleAutoAssign('all')"
+        :loading="autoAssigning === 'all'"
         :disabled="eligibleCount === 0"
       >
         <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
@@ -114,12 +112,26 @@ const handleAutoAssignAll = async () => {
       <UButton
         variant="secondary"
         size="sm"
-        @click="handleAutoAssignProduction"
-        :loading="autoAssigningProduction"
+        @click="handleAutoAssign('production')"
+        :loading="autoAssigning === 'production'"
         :disabled="eligibleCount === 0"
       >
         <Icon icon="mdi:factory" class="h-4 w-4 mr-2" />
         Auto-Assign Production
+        <span class="action-count on-secondary">{{ eligibleCount }}</span>
+      </UButton>
+    </UTooltip>
+
+    <UTooltip :text="trainingTooltip">
+      <UButton
+        variant="secondary"
+        size="sm"
+        @click="handleAutoAssign('training')"
+        :loading="autoAssigning === 'training'"
+        :disabled="eligibleCount === 0"
+      >
+        <Icon icon="mdi:dumbbell" class="h-4 w-4 mr-2" />
+        Auto-Assign Training
         <span class="action-count on-secondary">{{ eligibleCount }}</span>
       </UButton>
     </UTooltip>

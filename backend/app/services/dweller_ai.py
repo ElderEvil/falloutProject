@@ -18,6 +18,7 @@ from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAtt
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.map_service import map_service
+from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
 from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
@@ -122,8 +123,13 @@ class DwellerAIService:
             location=location,
         )
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "backstory")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run the backstory agent
-        result = await backstory_agent.run(f"Tell me about yourself, {dweller_obj.first_name}.", deps=deps)
+        result = await backstory_agent.run(
+            f"Tell me about yourself, {dweller_obj.first_name}.", deps=deps, instructions=instructions
+        )
         backstory = result.output.bio
 
         # Safety check: truncate if exceeds max length (shouldn't happen with proper prompts)
@@ -153,6 +159,11 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -177,8 +188,13 @@ class DwellerAIService:
         # Create dependencies for the agent
         deps = ExtendBioDeps(current_bio=dweller_obj.bio)
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "extend_bio")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run the bio extension agent
-        result = await bio_extension_agent.run("Please extend this biography with more details.", deps=deps)
+        result = await bio_extension_agent.run(
+            "Please extend this biography with more details.", deps=deps, instructions=instructions
+        )
         extended_bio = result.output.extended_bio
 
         full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
@@ -209,6 +225,11 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,
@@ -257,9 +278,14 @@ class DwellerAIService:
             equipped_items=equipped_items,
         )
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "visual_attributes")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run the visual attributes agent
         result = await visual_attributes_agent.run(
-            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.", deps=deps
+            f"Create visual attributes for {dweller_obj.first_name} {dweller_obj.last_name}.",
+            deps=deps,
+            instructions=instructions,
         )
 
         # Convert Pydantic model to dict, excluding None values
@@ -285,6 +311,11 @@ class DwellerAIService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         await llm_interaction_crud.create(
             db_session,

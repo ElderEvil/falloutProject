@@ -24,18 +24,6 @@ backstory_agent = Agent(
     model=model,
     output_type=DwellerBackstory,
     deps_type=BackstoryDeps,
-    instructions=(
-        "You are a creative writer specialized in creating Fallout game series style character biographies. "
-        "Generate immersive, lore-accurate backstories for vault dwellers in the post-apocalyptic world. "
-        "Use the dweller's SPECIAL attributes to inform their skills and personality traits. "
-        "IMPORTANT: Keep biographies between 600-900 characters (not words). Be concise and focused. "
-        "Focus on their background, survival skills, and how they relate to their environment. "
-        "You MUST also specify origin_place: a specific settlement/place the dweller comes from. "
-        "Invent a proper-noun Fallout-style name (e.g. 'Megaton', 'Shady Sands', 'Goodneighbor'). "
-        "NEVER use generic names like 'Wasteland', 'the wastes', 'Unknown', or 'Vault'. "
-        "Also list 0-5 visited_places: other notable named places the dweller has travelled to, "
-        "each a proper-noun Fallout-style location name (max 64 chars each)."
-    ),
 )
 
 
@@ -64,16 +52,6 @@ bio_extension_agent = Agent(
     model=model,
     output_type=ExtendedBio,
     deps_type=ExtendBioDeps,
-    instructions=(
-        "You are a creative writer helping to extend character biographies in the Fallout universe. "
-        "Given an existing bio, add meaningful details that expand on the character's backstory, "
-        "experiences, relationships, or personality. Maintain consistency with the original bio "
-        "and keep the tone consistent with the Fallout game series. "
-        "While extending, if you mention any NEW named Fallout-style locations "
-        "(settlements, outposts, vaults, landmarks), list them in visited_places "
-        "(0-3 proper-noun names, max 64 chars each). "
-        "Only include places you introduce in the extension — do NOT repeat places from the original bio."
-    ),
 )
 
 
@@ -96,11 +74,6 @@ visual_attributes_agent = Agent(
     model=model,
     output_type=DwellerVisualAttributes,
     deps_type=VisualAttributesDeps,
-    instructions=(
-        "You are a character design specialist for the Fallout universe. "
-        "Generate visual attributes for vault dwellers based on their biography and characteristics. "
-        "Create realistic, lore-appropriate visual descriptions that match the post-apocalyptic setting. "
-    ),
 )
 
 

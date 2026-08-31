@@ -1,11 +1,9 @@
 """Service for handling chat operations between users and dwellers."""
 
-import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-from openai import AsyncOpenAI
 from pydantic import UUID4
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
@@ -19,22 +17,20 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     parse_action_suggestion,
 )
-from app.core.config import settings
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Dweller, User, Vault
 from app.models.chat_message import ChatMessageCreate
-from app.models.objective import ObjectiveBase
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, NoAction
-from app.schemas.common import ObjectiveKindEnum
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.conversation_service import conversation_service
+from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import QuotaCheckResult, quota_service
 from app.services.websocket_manager import manager
 from app.utils.exceptions import (
@@ -57,71 +53,15 @@ class _StreamBundle:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    provider: str | None = None
+    model: str | None = None
+    prompt_id: UUID4 | None = None
+    instructions_hash: str | None = None
+    instructions_snapshot: str | None = None
 
 
 class ChatService:
     """Service for chat-related business logic."""
-
-    async def generate_objectives(
-        self,
-        objective_kind: ObjectiveKindEnum,
-        objective_count: int = 3,
-    ) -> list[ObjectiveBase]:
-        """Generate game objectives using AI.
-
-        Args:
-            objective_kind: Type of objectives to generate
-            objective_count: Number of objectives to generate
-
-        Returns:
-            List of generated objectives
-
-        Raises:
-            ValueError: If AI response is empty or invalid
-        """
-        instructions = """
-        You are an assistant for Vault-Tec Overseer who is in charge of assigning objectives to vault dwellers.
-        Objectives and rewards should be in line with the Fallout universe.
-        Respond with JSON object containing the generated objectives and rewards.
-        Make sure to include various rewards such as caps, lunchboxes, Mr. Handy, and Nuka-Cola Quantum.
-        There must be 1 lunchbox/quantum/mr. handy reward maximum per set of objectives.
-
-        Example request: {"objective_kind": "Any", "objective_count": 4}
-        Example response:
-        [
-            {
-                "challenge": "Assign 3 dwellers in the right room",
-                "reward": "25 caps"
-            },
-            {
-                "challenge": "Collect 100 food",
-                "reward": "50 caps"
-            },
-            {
-                "challenge": "Craft 5 outfits",
-                "reward": "Nuka-Cola Quantum"
-            },
-            {
-                "challenge": "Kill 100 creatures in the Wasteland",
-                "reward": "	1 lunchbox"
-            }
-        ]
-        """
-
-        async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        response = await async_client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": instructions},
-                {"role": "user", "content": f"Give {objective_count} {objective_kind} objectives"},
-            ],
-        )
-        generated_objectives = response.choices[0].message.content
-        if not generated_objectives:
-            raise ValueError("Empty response from AI")
-
-        generated_objectives_json = json.loads(generated_objectives)
-        return [ObjectiveBase(**obj) for obj in generated_objectives_json]
 
     async def process_text_message(
         self,
@@ -164,6 +104,9 @@ class ChatService:
             detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
             raise QuotaExceededException(detail=detail, headers=quota_headers)
 
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+        provider, model = await get_provider_model_snapshot(db_session)
+
         # Run agent and get response
         (
             response_message,
@@ -176,6 +119,7 @@ class ChatService:
             db_session=db_session,
             dweller=dweller,
             message_text=message_text,
+            instructions=instructions,
         )
 
         # Save LLM interaction statistics
@@ -187,6 +131,11 @@ class ChatService:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         llm_interaction = await llm_interaction_crud.create(
             db_session,
@@ -271,14 +220,23 @@ class ChatService:
 
             self._validate_quota_allowed(quota_result, quota_headers)
 
+            instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+            provider, model = await get_provider_model_snapshot(db_session)
+
             deps = DwellerChatDeps(
                 db_session=db_session,
                 dweller=dweller,
                 vault_id=dweller.vault.id,
             )
 
-            bundle = _StreamBundle()
-            async for event in self._stream_with_fallback(deps, dweller, message_text, bundle):
+            bundle = _StreamBundle(
+                provider=provider,
+                model=model,
+                prompt_id=prompt_id,
+                instructions_hash=instructions_hash,
+                instructions_snapshot=instructions,
+            )
+            async for event in self._stream_with_fallback(deps, dweller, message_text, bundle, instructions):
                 yield event
 
             dweller_message_id = await self._persist_chat(
@@ -324,13 +282,14 @@ class ChatService:
         dweller: DwellerReadFull,
         message_text: str,
         bundle: _StreamBundle,
+        instructions: str,
     ) -> AsyncIterator[dict]:
         """Stream structured output tokens and collect the final output metadata into ``bundle``.
 
         Raises:
             UnexpectedModelBehavior: If the model's structured output fails validation.
         """
-        async with dweller_chat_agent.run_stream(message_text, deps=deps) as result:
+        async with dweller_chat_agent.run_stream(message_text, deps=deps, instructions=instructions) as result:
             # Structured output snapshots can revise previously emitted text.
             # Tell clients to replace their draft when that happens.
             previous_text = ""
@@ -373,6 +332,7 @@ class ChatService:
         dweller: DwellerReadFull,
         message_text: str,
         bundle: _StreamBundle,
+        instructions: str,
     ) -> AsyncIterator[dict]:
         """Stream structured output, falling back to a non-streaming run on validation failure.
 
@@ -382,7 +342,7 @@ class ChatService:
         The resolved values are written into ``bundle`` for later persistence.
         """
         try:
-            async for event in self._stream_structured(deps, dweller, message_text, bundle):
+            async for event in self._stream_structured(deps, dweller, message_text, bundle, instructions):
                 yield event
         except UnexpectedModelBehavior:
             logger.warning(
@@ -395,7 +355,7 @@ class ChatService:
                 bundle.prompt_tokens,
                 bundle.completion_tokens,
                 bundle.total_tokens,
-            ) = await self._run_chat_agent(deps.db_session, dweller, message_text)
+            ) = await self._run_chat_agent(deps.db_session, dweller, message_text, instructions)
             yield {"type": "token", "text": bundle.response_text, "replace": True}
 
     async def _persist_chat(
@@ -416,6 +376,11 @@ class ChatService:
             prompt_tokens=bundle.prompt_tokens,
             completion_tokens=bundle.completion_tokens,
             total_tokens=bundle.total_tokens,
+            provider=bundle.provider,
+            model=bundle.model,
+            prompt_id=bundle.prompt_id,
+            instructions_hash=bundle.instructions_hash,
+            instructions_snapshot=bundle.instructions_snapshot,
         )
         llm_interaction = await llm_interaction_crud.create(
             db_session,
@@ -509,6 +474,7 @@ class ChatService:
         db_session: AsyncSession,
         dweller: DwellerReadFull,
         message_text: str,
+        instructions: str | None = None,
     ) -> tuple[str, HappinessImpact | None, ActionSuggestion, int | None, int | None, int | None]:
         """Run the chat agent and process the response.
 
@@ -530,7 +496,7 @@ class ChatService:
 
         try:
             # Run PydanticAI agent with structured output
-            result = await dweller_chat_agent.run(message_text, deps=deps)
+            result = await dweller_chat_agent.run(message_text, deps=deps, instructions=instructions)
             output: DwellerChatOutput = result.output
 
             response_message = output.response_text
@@ -562,10 +528,10 @@ class ChatService:
             if self._provider_credits_are_exhausted(error):
                 raise AIProviderCreditsExhaustedException(detail=self._extract_provider_reason(error)) from error
             logger.exception("Dweller chat agent failed, using fallback")
-            return await self._run_fallback_chat_agent(dweller, message_text)
+            return await self._run_fallback_chat_agent(dweller, message_text, instructions)
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback")
-            return await self._run_fallback_chat_agent(dweller, message_text)
+            return await self._run_fallback_chat_agent(dweller, message_text, instructions)
         else:
             return response_message, happiness_impact, action_suggestion, prompt_tokens, completion_tokens, total_tokens
 
@@ -573,15 +539,17 @@ class ChatService:
         self,
         dweller: DwellerReadFull,
         message_text: str,
+        instructions: str | None = None,
     ) -> tuple[str, HappinessImpact, ActionSuggestion, int | None, int | None, int | None]:
         """Return a basic chat completion when structured agent processing fails."""
         ai_service = get_ai_service()
         dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
+        system_instructions = "\n\n".join(filter(None, (instructions, dweller_prompt.strip())))
 
         try:
             result = await ai_service.chat_completion_with_usage(
                 [
-                    {"role": "system", "content": dweller_prompt.strip()},
+                    {"role": "system", "content": system_instructions},
                     {"role": "user", "content": message_text},
                 ]
             )

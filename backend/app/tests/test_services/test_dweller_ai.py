@@ -100,6 +100,40 @@ async def test_quota_exceeded_raises(
 # ── generate_backstory edge cases ───────────────────────────────────────
 
 
+async def test_generate_backstory_passes_active_registry_prompt_to_agent() -> None:
+    """The configured prompt, not the legacy static string, drives the agent run."""
+    from app.schemas.dweller_ai import DwellerBackstory
+
+    active_instructions = "Use this active backstory prompt."
+    mock_dweller = _make_dweller_mock(bio=None)
+    mock_agent = MagicMock()
+    mock_agent.run = AsyncMock(
+        return_value=_make_agent_result(DwellerBackstory(bio="A valid backstory.", origin_place="Megaton"))
+    )
+
+    with (
+        patch(
+            "app.services.dweller_ai.quota_service.check_quota",
+            new=AsyncMock(return_value=MagicMock(allowed=True)),
+        ),
+        patch("app.services.dweller_ai.backstory_agent", mock_agent),
+        patch("app.services.dweller_ai.dweller_crud.update", new=AsyncMock()),
+        patch("app.services.dweller_ai.llm_interaction_crud.create", new=AsyncMock()),
+        patch("app.services.dweller_ai.map_service.register_bio_places", new=AsyncMock()),
+        patch(
+            "app.services.dweller_ai.get_instructions",
+            new=AsyncMock(return_value=(active_instructions, None, "a" * 64)),
+        ),
+        patch(
+            "app.services.dweller_ai.get_provider_model_snapshot",
+            new=AsyncMock(return_value=("openai", "gpt-test")),
+        ),
+    ):
+        await dweller_ai.generate_backstory(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
+
+    assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
+
+
 @patch("app.services.dweller_ai.quota_service")
 @patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_backstory_already_has_bio(mock_crud: MagicMock, mock_quota: MagicMock) -> None:

@@ -670,6 +670,21 @@ class TestProcessVaultIncidents:
         mock_process.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_paused_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
+        game_state = GameState(vault_id=vault.id, is_paused=True)
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
+            patch("app.services.incident_service.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
+
+        assert result["active_count"] == 1
+        mock_spawn.assert_not_awaited()
+        mock_process.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_spawn_returns_none(self, async_session: AsyncSession, vault: Vault):
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=True),

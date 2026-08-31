@@ -30,6 +30,7 @@ from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
+from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
 from app.utils.exceptions import DwellerNotFoundError, QuotaExceededException
@@ -56,6 +57,11 @@ class MessagePayload:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    provider: str | None = None
+    model: str | None = None
+    prompt_id: UUID4 | None = None
+    instructions_hash: str | None = None
+    instructions_snapshot: str | None = None
 
 
 @dataclass
@@ -146,19 +152,20 @@ class ConversationService:
             return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
     async def _generate_response_with_agent(
-        self, db_session: AsyncSession, dweller, transcribed_text: str
+        self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str
     ) -> ChatGenerationResult:
         deps = DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault.id)
 
         try:
             logger.info("Generating dweller response using PydanticAI agent")
-            result = await dweller_chat_agent.run(transcribed_text, deps=deps)
+            result = await dweller_chat_agent.run(transcribed_text, deps=deps, instructions=instructions)
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback for voice chat")
             dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
+            system_instructions = "\n\n".join((instructions, dweller_prompt.strip()))
             result = await self.ai_service.chat_completion_with_usage(
                 [
-                    {"role": "system", "content": dweller_prompt.strip()},
+                    {"role": "system", "content": system_instructions},
                     {"role": "user", "content": transcribed_text},
                 ]
             )
@@ -231,6 +238,11 @@ class ConversationService:
             prompt_tokens=payload.prompt_tokens,
             completion_tokens=payload.completion_tokens,
             total_tokens=payload.total_tokens,
+            provider=payload.provider,
+            model=payload.model,
+            prompt_id=payload.prompt_id,
+            instructions_hash=payload.instructions_hash,
+            instructions_snapshot=payload.instructions_snapshot,
         )
         llm_interaction = await llm_interaction_crud.create(db_session, obj_in=llm_int_create)
         await chat_message_crud.create_message(
@@ -292,7 +304,9 @@ class ConversationService:
             detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
             raise QuotaExceededException(detail=detail, headers=quota_headers)
 
-        response = await self._generate_response_with_agent(db_session, dweller, transcribed_text)
+        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+        provider, model = await get_provider_model_snapshot(db_session)
+        response = await self._generate_response_with_agent(db_session, dweller, transcribed_text, instructions)
         dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
             response.text, dweller.gender, user.id, dweller_id
         )
@@ -307,6 +321,11 @@ class ConversationService:
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
             total_tokens=response.total_tokens,
+            provider=provider,
+            model=model,
+            prompt_id=prompt_id,
+            instructions_hash=instructions_hash,
+            instructions_snapshot=instructions,
         )
         dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
 

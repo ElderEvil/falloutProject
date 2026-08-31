@@ -432,6 +432,9 @@ class IncidentService:
             active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
             stats["active_count"] = len(active_incidents)
 
+            if game_state and game_state.is_paused:
+                return stats
+
             # Incidents do not punish players for time away from the vault.
             if game_state and not game_state.is_user_online():
                 return stats

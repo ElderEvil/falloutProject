@@ -4,6 +4,7 @@ Usage:
     uv run fo-cli --help
     uv run fo-cli createsuperuser
     uv run fo-cli seed
+    uv run fo-cli seed-prompts
     uv run fo-cli family-scenario --help
     uv run fo-cli apprentice-scenario --help
     uv run fo-cli backfill --help
@@ -149,6 +150,20 @@ def seed() -> None:
 
     asyncio.run(_seed())
     typer.echo("✅ Seeding complete.")
+
+
+@cli.command(name="seed-prompts")
+def seed_prompts() -> None:
+    """Seed the prompt registry with v1 agent instructions (skips existing names)."""
+    from app.utils.seed_prompts import seed_prompts as seed_prompt_rows
+
+    async def _seed() -> int:
+        async with async_session_maker() as session:
+            return await seed_prompt_rows(session)
+
+    inserted = asyncio.run(_seed())
+    typer.echo(f"  Prompts seeded: {inserted}")
+    typer.echo("✅ Prompt seeding complete.")
 
 
 if __name__ == "__main__":

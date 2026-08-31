@@ -9,37 +9,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentSuperuser
 from app.db.session import get_async_session
-from app.models.objective import Objective, ObjectiveBase
+from app.models.objective import Objective
 from app.models.vault import Vault
-from app.schemas.common import ObjectiveKindEnum
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
-from app.services.chat_service import chat_service
 from app.services.objective_assignment_service import ObjectiveAssignmentService
 
 router = APIRouter(prefix="/objectives", tags=["Objective"])
-
-
-@router.get("/generate", response_model=list[ObjectiveBase])
-async def generate_objectives(
-    objective_kind: ObjectiveKindEnum,
-    objective_count: int = 3,
-) -> list[ObjectiveBase]:
-    """Generate game objectives using AI.
-
-    Returns:
-        List of generated objective templates.
-
-    Raises:
-        HTTPException: 400 if objective generation fails.
-    """
-    try:
-        return await chat_service.generate_objectives(
-            objective_kind=objective_kind,
-            objective_count=objective_count,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Failed to generate objectives") from e
 
 
 @router.post("/{vault_id}/", response_model=Objective)

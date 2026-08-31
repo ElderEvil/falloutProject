@@ -2051,32 +2051,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/objectives/generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Generate Objectives
-         * @description Generate game objectives using AI.
-         *
-         *     Returns:
-         *         List of generated objective templates.
-         *
-         *     Raises:
-         *         HTTPException: 400 if objective generation fails.
-         */
-        get: operations["generate_objectives_api_v1_objectives_generate_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/objectives/{vault_id}/": {
         parameters: {
             query?: never;
@@ -4382,6 +4356,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AIOperationStats
+         * @description Token breakdown for one operation tag (LLMInteraction.usage).
+         *
+         *     NULL usage is reported as "unknown"; legacy tags may also appear.
+         */
+        AIOperationStats: {
+            /** Operation */
+            operation: string;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Total Tokens
+             * @default 0
+             */
+            total_tokens: number;
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+            /**
+             * Is Operational
+             * @default false
+             */
+            is_operational: boolean;
+        };
         /** AISettingsEffective */
         AISettingsEffective: {
             /** Provider */
@@ -4454,13 +4463,29 @@ export interface components {
             /** Gateway Route */
             gateway_route?: string | null;
         };
-        /** AIUsageResponse */
+        /**
+         * AIUsageResponse
+         * @description Per-user AI usage with quota status.
+         *
+         *     by_operation covers the current month so operation shares align with
+         *     quota_used ("bio generation: 40% of quota"). Cost estimation is
+         *     intentionally deferred: honest pricing needs per-interaction provider/model
+         *     rates (input/output prices differ; image/audio are not token-priced).
+         *     LLMInteraction already snapshots provider/model to support that later.
+         */
         AIUsageResponse: {
             all_time: components["schemas"]["AIUsageStats"];
             current_month: components["schemas"]["AIUsageStats"];
             quota: components["schemas"]["QuotaInfo"];
             /** Month */
             month: string;
+            /** By Operation */
+            by_operation?: components["schemas"]["AIOperationStats"][];
+            /**
+             * Chat Heavy
+             * @default false
+             */
+            chat_heavy: boolean;
         };
         /** AIUsageStats */
         AIUsageStats: {
@@ -6919,33 +6944,6 @@ export interface components {
              */
             id?: string;
         };
-        /** ObjectiveBase */
-        ObjectiveBase: {
-            /** Challenge */
-            challenge: string;
-            /** Reward */
-            reward: string;
-            /** @description Objective category: daily, weekly, or achievement */
-            category: components["schemas"]["ObjectiveCategoryEnum"];
-            /**
-             * Objective Type
-             * @description Type of objective: collect, build, train, kill, assign, reach, expedition, level_up
-             */
-            objective_type?: string | null;
-            /**
-             * Target Entity
-             * @description What to track, e.g. {'resource_type': 'caps'} or {'room_type': 'power_plant'}
-             */
-            target_entity?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Target Amount
-             * @description How many/much needed to complete the objective
-             * @default 1
-             */
-            target_amount: number;
-        };
         /**
          * ObjectiveCategoryEnum
          * @enum {string}
@@ -6978,11 +6976,6 @@ export interface components {
              */
             target_amount: number;
         };
-        /**
-         * ObjectiveKindEnum
-         * @enum {string}
-         */
-        ObjectiveKindEnum: "Any" | "assign" | "collect";
         /** ObjectiveRead */
         ObjectiveRead: {
             /** Challenge */
@@ -11890,38 +11883,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_objectives_api_v1_objectives_generate_get: {
-        parameters: {
-            query: {
-                objective_kind: components["schemas"]["ObjectiveKindEnum"];
-                objective_count?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ObjectiveBase"][];
                 };
             };
             /** @description Validation Error */

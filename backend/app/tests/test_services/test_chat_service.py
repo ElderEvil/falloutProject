@@ -50,6 +50,40 @@ async def test_user_fixture(async_session: AsyncSession, vault: Vault) -> User:
 class TestChatServiceErrorHandling:
     """Tests for chat service resilience when AI provider fails."""
 
+    async def test_run_chat_agent_passes_active_registry_prompt(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: Dweller,
+    ) -> None:
+        """The active chat prompt is passed to the PydanticAI run."""
+        from app.agents.dweller_chat_agent import DwellerChatOutput
+
+        active_instructions = "Use this active chat prompt."
+        output = DwellerChatOutput(
+            response_text="Test response",
+            sentiment_score=0,
+            reason_text="Neutral",
+            action_type="no_action",
+        )
+        mock_result = MagicMock()
+        mock_result.output = output
+        mock_result.usage.return_value = MagicMock(input_tokens=1, output_tokens=1, total_tokens=2)
+
+        with (
+            patch("app.services.chat_service.dweller_chat_agent") as mock_agent,
+            patch("app.services.chat_service.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+        ):
+            mock_agent.run = AsyncMock(return_value=mock_result)
+
+            await chat_service._run_chat_agent(
+                db_session=async_session,
+                dweller=chat_dweller,
+                message_text="Hello",
+                instructions=active_instructions,
+            )
+
+        assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
+
     async def test_process_text_message_raises_not_found_for_missing_dweller(self) -> None:
         """A missing chat dweller is reported as the project's 404 exception."""
         dweller_id = uuid4()
@@ -255,6 +289,7 @@ class TestChatServiceErrorHandling:
                     db_session=async_session,
                     dweller=chat_dweller,
                     message_text="Hello",
+                    instructions="Use this active chat prompt.",
                 )
 
                 (
@@ -270,6 +305,8 @@ class TestChatServiceErrorHandling:
                 assert prompt_tokens == 10
                 assert completion_tokens == 20
                 assert total_tokens == 30
+                fallback_messages = mock_ai_service.chat_completion_with_usage.call_args.args[0]
+                assert fallback_messages[0]["content"].startswith("Use this active chat prompt.")
                 # Fallback should have neutral happiness
                 assert happiness_impact.delta == 0
                 assert happiness_impact.reason_code.value == "chat_neutral"

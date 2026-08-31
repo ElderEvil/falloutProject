@@ -136,17 +136,6 @@ dweller_chat_agent = Agent(
     output_type=DwellerChatOutput,
     deps_type=DwellerChatDeps,
     retries=2,
-    instructions=(
-        "You are a Vault-Tec Dweller in a post-apocalyptic world. "
-        "Respond in character, staying true to the Fallout universe. "
-        "Analyze the conversation sentiment and suggest helpful actions when appropriate. "
-        "Actions include: assigning to any room type in the vault "
-        "(production, training, crafting, capacity, misc, quests, or theme rooms), "
-        "sending dweller on wasteland exploration, or recalling dweller from exploration. "
-        "Only suggest actions when the conversation naturally leads to them (e.g., dweller mentions being bored, "
-        "wanting to work, wanting adventure, or wanting to come home). "
-        "When the user requests assignment to a specific room, follow their order strictly."
-    ),
 )
 
 

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
@@ -20,6 +21,14 @@ class LLMInteractionBase(SQLModel):
     prompt_tokens: int | None = Field(default=None, ge=0, description="Number of tokens in the prompt")
     completion_tokens: int | None = Field(default=None, ge=0, description="Number of tokens in the completion")
     total_tokens: int | None = Field(default=None, ge=0, description="Total tokens used (prompt + completion)")
+
+    # Provenance snapshots taken at call time (mutable config must not erase history)
+    provider: str | None = Field(default=None, max_length=32, description="Snapshot of provider at call time")
+    model: str | None = Field(default=None, max_length=128, description="Snapshot of model at call time")
+    instructions_hash: str | None = Field(
+        default=None, max_length=64, description="SHA256 of rendered instructions sent"
+    )
+    instructions_snapshot: str | None = Field(default=None, sa_column=sa.Column(sa.Text, nullable=True))
 
     prompt_id: UUID | None = Field(default=None, foreign_key="prompt.id")
     user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)

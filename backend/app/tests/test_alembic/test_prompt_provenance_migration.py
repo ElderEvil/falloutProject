@@ -8,12 +8,9 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 
-def _migration_module():
-    path = (
-        Path(__file__).parents[2]
-        / "alembic/versions/2026_08_31_0001-e6f7a8b9c0d1_add_prompt_versioning_and_llm_provenance.py"
-    )
-    spec = importlib.util.spec_from_file_location("prompt_provenance_migration", path)
+def _migration_module(filename: str):
+    path = Path(__file__).parents[2] / f"alembic/versions/{filename}"
+    spec = importlib.util.spec_from_file_location(filename.removesuffix(".py"), path)
     assert spec
     assert spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -24,7 +21,8 @@ def _migration_module():
 def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts() -> None:
     """Upgrade backfills distinct versions before adding SQLite-compatible constraints."""
     engine = sa.create_engine("sqlite://")
-    migration = _migration_module()
+    schema_migration = _migration_module("2026_08_31_0001-e6f7a8b9c0d1_add_prompt_versioning_and_llm_provenance.py")
+    seed_migration = _migration_module("2026_08_31_0002-f7a8b9c0d1e2_seed_prompt_registry.py")
     with engine.begin() as connection:
         connection.execute(
             sa.text(
@@ -42,7 +40,9 @@ def test_prompt_provenance_upgrade_supports_sqlite_and_duplicate_legacy_prompts(
         )
 
         with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
+            schema_migration.upgrade()
+        with Operations.context(MigrationContext.configure(connection)):
+            seed_migration.upgrade()
 
         rows = connection.execute(
             sa.text("SELECT version, is_active FROM prompt WHERE prompt_name = 'chat' ORDER BY id")

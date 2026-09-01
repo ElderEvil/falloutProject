@@ -275,8 +275,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         self, *, db_session: AsyncSession, vault_obj: Vault, amount: int, commit: bool = True, emit_event: bool = True
     ) -> None:
         """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
+        capped = min(vault_obj.bottle_caps + amount, 999_999)
         await self.update(
-            db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps + amount), commit=commit
+            db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=capped), commit=commit
         )
 
         if emit_event:

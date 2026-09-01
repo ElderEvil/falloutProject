@@ -200,7 +200,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         register their own places (e.g. pregen_service) pass False to avoid
         double registration.
         """
-        if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+        has_custom_name = bool(obj_in and (obj_in.first_name is not None or obj_in.last_name is not None))
+        if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY) and not has_custom_name:
             from app.utils.static_data import game_data_store
 
             rng = random.Random(seed) if seed is not None else None

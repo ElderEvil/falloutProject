@@ -36,7 +36,7 @@ class RewardService:
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
-            vault_obj.bottle_caps += amount
+            vault_obj.bottle_caps = min(vault_obj.bottle_caps + amount, 999_999)
             await persist_reward_change(db_session, vault_obj)
         else:
             await vault_crud.deposit_caps(

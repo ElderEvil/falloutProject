@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Known place lists mirror the template-based bio filler. They are used to
 # recover origin/visited places from free-text bios for existing vaults.
 # Expanded for lore dwellers (Rivet City, Tenpenny Tower, Paradise Falls,
-# Vault 101/32/33, The Citadel, GNR, Far Harbor, Shady Sands, Filly, etc.)
+# Vault 101/32/33, The Citadel, GNR, Shady Sands, Filly, etc.)
 _KNOWN_ORIGIN_PLACES: list[str] = [
     "Adams Air Force Base",
     "Arefu",
@@ -42,7 +42,6 @@ _KNOWN_ORIGIN_PLACES: list[str] = [
     "Covenant",
     "Diamond City",
     "Filly",
-    "Far Harbor",
     "Galaxy News Radio",
     "Goodneighbor",
     "Graygarden",
@@ -68,8 +67,6 @@ _KNOWN_ORIGIN_PLACES: list[str] = [
     "Tenpenny Tower",
     "The Boneyard",
     "The Citadel",
-    "The Institute",
-    "The Nucleus",
     "The Slog",
     "Vault 32",
     "Vault 33",
@@ -116,7 +113,6 @@ _KNOWN_VISITED_PLACES: list[str] = [
     "Tenpenny Tower",
     "The Boneyard",
     "The Citadel",
-    "The Commonwealth",
     "The Institute",
     "The Nucleus",
     "The Slog",
@@ -125,6 +121,7 @@ _KNOWN_VISITED_PLACES: list[str] = [
     "Vault 101",
     "Vault-Tec HQ",
     "the Capital Wasteland",
+    "the Commonwealth",
     "the Divide",
     "the Glowing Sea",
     "the Mojave desert",

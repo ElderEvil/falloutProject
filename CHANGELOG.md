@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.69.3 (2026-09-01)
+
+### Bug Fixes
+
+* reconcile quest rewards c715e3f
+* validate quest reward configuration b5abdae
+
 ## 2.69.2 (2026-08-31)
 
 ### Bug Fixes

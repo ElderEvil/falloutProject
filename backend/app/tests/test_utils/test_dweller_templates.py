@@ -72,6 +72,56 @@ def test_to_create_payload_preserves_metadata() -> None:
     assert payload.bio == "Grew up in Rivet City."
 
 
+def _template_payload(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "first_name": "Test",
+        "last_name": "Vault",
+        "template_id": "test-vault",
+        "gender": "Male",
+        "rarity": "Rare",
+        "strength": 5,
+        "perception": 5,
+        "endurance": 5,
+        "charisma": 5,
+        "intelligence": 5,
+        "agility": 5,
+        "luck": 5,
+        "origin_place": "Rivet City",
+        "visited_places": ["Megaton"],
+        "bio": "Grew up in Rivet City.",
+        "visual_attributes": {"race": "human", "faction": "vault_dweller"},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_template_trims_and_drops_blank_visited() -> None:
+    t = DwellerTemplate.model_validate(_template_payload(visited_places=["  Megaton  ", "   ", ""]))
+    assert t.visited_places == ["Megaton"]
+
+
+def test_template_rejects_duplicate_normalized_visited() -> None:
+    with pytest.raises(ValueError, match="duplicate"):
+        DwellerTemplate.model_validate(_template_payload(visited_places=["Megaton", "megaton"]))
+
+
+def test_template_rejects_visited_matching_origin() -> None:
+    with pytest.raises(ValueError, match="origin"):
+        DwellerTemplate.model_validate(_template_payload(visited_places=["rivet city"]))
+
+
+def test_template_rejects_more_than_four_visited() -> None:
+    with pytest.raises(ValueError, match="at most 4"):
+        DwellerTemplate.model_validate(
+            _template_payload(visited_places=["Megaton", "Arefu", "Big Town", "Concord", "Covenant"])
+        )
+
+
+def test_template_rejects_blank_origin() -> None:
+    with pytest.raises(ValueError, match="origin_place"):
+        DwellerTemplate.model_validate(_template_payload(origin_place="   "))
+
+
 def test_create_dweller_from_template_uses_curated_special() -> None:
     t = game_data_store.pick_template("legendary", rng=random.Random(0))
     assert t is not None
@@ -198,8 +248,12 @@ def test_backfill_registry_covers_template_places() -> None:
     origin_set = {normalize_place_name(p) for p in _KNOWN_ORIGIN_PLACES}
     visited_set = {normalize_place_name(p.strip()) for p in _KNOWN_VISITED_PLACES}
     for d in game_data_store.dwellers:
-        assert normalize_place_name(d.origin_place or "") in origin_set, (
-            f"{d.first_name} origin {d.origin_place!r} not in backfill origin registry"
+        origin_norm = normalize_place_name(d.origin_place or "")
+        # Template origins are registered explicitly at runtime; the registry only
+        # powers free-text backfill recovery. An origin may therefore also live in
+        # the visited list (e.g. Far Harbor, which backfill tests pin as visited-only).
+        assert origin_norm in origin_set or origin_norm in visited_set, (
+            f"{d.first_name} origin {d.origin_place!r} not in backfill registries"
         )
         for place in d.visited_places or []:
             assert normalize_place_name(place) in visited_set, (

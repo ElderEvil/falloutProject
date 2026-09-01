@@ -205,10 +205,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             from app.utils.static_data import game_data_store
 
             rng = random.Random(seed) if seed is not None else None
+            active_names = await self.lock_vault_for_template(db_session, vault_id)
             template = game_data_store.pick_template(
                 rarity.value,
                 rng=rng,
-                exclude_names=await self.get_active_template_names(db_session, vault_id),
+                exclude_names=active_names or None,
             )
             if template is not None:
                 return await self._create_template(
@@ -252,6 +253,20 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             )
         ).all()
         return {f"{first_name} {last_name or ''}".strip().casefold() for first_name, last_name in rows}
+
+    async def lock_vault_for_template(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Take a row lock on the vault so template reservation is atomic, then return active names.
+
+        The lock is held until the caller's next commit/rollback — the shared
+        persist path commits, which makes the check-then-insert reservation
+        atomic under concurrency (a second creator blocks on the lock and then
+        sees the committed dweller in its fresh name snapshot). SQLite test
+        engines ignore FOR UPDATE; PostgreSQL enforces it in production.
+        """
+        from app.models.vault import Vault
+
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+        return await self.get_active_template_names(db_session, vault_id)
 
     async def _create_template(
         self,

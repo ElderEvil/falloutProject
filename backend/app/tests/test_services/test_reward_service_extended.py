@@ -846,3 +846,25 @@ async def test_process_objective_reward_dweller(async_session: AsyncSession) -> 
 
     assert result is not None
     assert result["reward_type"] == RewardType.DWELLER
+
+
+@pytest.mark.asyncio
+async def test_template_reservation_conflict_grants_fallback(async_session: AsyncSession) -> None:
+    """A template already active in the vault reserves the slot: second grant falls back to common."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    template_id = "abraham-washington"
+    first = await reward_service.grant_dweller(async_session, vault.id, {"template_id": template_id})
+    second = await reward_service.grant_dweller(async_session, vault.id, {"template_id": template_id})
+
+    assert first["name"] == "Abraham Washington"
+    assert second["name"] != "Abraham Washington"
+
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id=vault.id)
+    curated = [d for d in dwellers if f"{d.first_name} {d.last_name or ''}".strip() == "Abraham Washington"]
+    assert len(curated) == 1
+    fallback = next(d for d in dwellers if str(d.id) == second["dweller_id"])
+    assert fallback.rarity == RarityEnum.COMMON

@@ -201,7 +201,7 @@ class RewardService:
             from app.crud.dweller import dweller as dweller_crud
 
             canonical = f"{template.first_name} {template.last_name or ''}".strip().casefold()
-            active = await dweller_crud.get_active_template_names(db_session, vault_id)
+            active = await dweller_crud.lock_vault_for_template(db_session, vault_id)
             if canonical in active:
                 fallback = await dweller_crud.create_random(
                     db_session, vault_id=vault_id, rarity=RarityEnum.COMMON, register_bio_places=True
@@ -450,13 +450,13 @@ class RewardService:
 
         from app.crud.dweller import dweller as dweller_crud
 
-        active_names = await dweller_crud.get_active_template_names(db_session, vault_id)
         lunchbox_rarity = random.choices(
             [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
         )[0]
         if lunchbox_rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
             from app.utils.static_data import game_data_store
 
+            active_names = await dweller_crud.get_active_template_names(db_session, vault_id)
             template = game_data_store.pick_template(lunchbox_rarity.value, exclude_names=active_names or None)
             if template is not None:
                 granted_dweller = await self.grant_dweller(

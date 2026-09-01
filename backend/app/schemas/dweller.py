@@ -25,6 +25,7 @@ from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
 from app.schemas.weapon import WeaponRead
 from app.utils.partial import optional
+from app.utils.places import normalize_place_name
 
 LETTER_TO_STAT = {
     "S": "strength",
@@ -151,16 +152,27 @@ class DwellerTemplate(DwellerCreateWithoutVaultID):
 
     template_id: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     origin_place: str = Field(min_length=1, max_length=64)
-    visited_places: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=5)
+    visited_places: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=4)
     visual_attributes: DwellerVisualAttributes | None = Field(default=None)
 
     @model_validator(mode="after")
     def _validate_template_places(self) -> "DwellerTemplate":
-        """Normalize empty visited_places and reject blank origin."""
+        """Enforce place invariants: trimmed, unique, origin-disjoint, capped."""
         if not self.origin_place.strip():
             raise ValueError("origin_place must not be blank")
         self.origin_place = self.origin_place.strip()
         self.visited_places = [place.strip() for place in self.visited_places if place.strip()]
+        if len(self.visited_places) > 4:
+            raise ValueError("visited_places must contain at most 4 places")
+        origin_norm = normalize_place_name(self.origin_place)
+        seen: set[str] = set()
+        for place in self.visited_places:
+            norm = normalize_place_name(place)
+            if norm == origin_norm:
+                raise ValueError(f"visited_places must not contain the origin place: {place}")
+            if norm in seen:
+                raise ValueError(f"visited_places contains duplicate place: {place}")
+            seen.add(norm)
         return self
 
     def to_create_payload(self) -> tuple[DwellerCreateWithoutVaultID, str | None, list[str]]:

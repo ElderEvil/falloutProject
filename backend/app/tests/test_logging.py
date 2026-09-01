@@ -2,8 +2,19 @@
 
 import logging
 
+import pytest
+from pydantic import ValidationError
+
 from app.core.config import Settings
 from app.core.logging import setup_logging
+
+
+def test_quest_duration_multiplier_is_local_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "staging")
+    monkeypatch.setenv("QUEST_DURATION_MULTIPLIER", "0.2")
+
+    with pytest.raises(ValidationError, match="QUEST_DURATION_MULTIPLIER"):
+        Settings()
 
 
 def test_production_uses_persistent_log_file_when_path_is_unset() -> None:

@@ -19,6 +19,7 @@ from app.admin.views import (
     ExplorationAdmin,
     GameStateAdmin,
     IncidentAdmin,
+    ItemAdmin,
     JunkAdmin,
     LLInteractionAdmin,
     NotificationAdmin,
@@ -228,6 +229,7 @@ admin.add_view(NotificationAdmin)
 admin.add_view(OutfitAdmin)
 admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)
+admin.add_view(ItemAdmin)
 admin.add_view(QuestAdmin)
 admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)

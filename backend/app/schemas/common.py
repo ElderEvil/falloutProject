@@ -160,9 +160,14 @@ class SuperMutantMutationEnum(CaseInsensitiveEnum):
 
 
 class ItemTypeEnum(CaseInsensitiveEnum):
+    MISC = "misc"
     WEAPON = "weapon"
     OUTFIT = "outfit"
     JUNK = "junk"
+    CONSUMABLE = "consumable"
+    LUNCHBOX = "lunchbox"
+    PET = "pet"
+    DWELLER = "dweller"
 
 
 class JunkTypeEnum(CaseInsensitiveEnum):

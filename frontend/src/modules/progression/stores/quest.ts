@@ -165,7 +165,12 @@ export const useQuestStore = defineStore('quest', () => {
 
       if (result.granted_rewards && result.granted_rewards.length > 0) {
         const rewardsText = result.granted_rewards
-          .map((r) => r.amount || r.name || r.type || '???')
+          .map((r) => {
+            if (r.name) return `${r.amount ? `${r.amount}× ` : ''}${r.name}`
+            const rewardType = r.reward_type ?? r.type
+            const label = typeof rewardType === 'string' ? rewardType.toLowerCase() : 'reward'
+            return `${r.amount ?? ''} ${label}`.trim()
+          })
           .join(', ')
         toast.success(`Rewards claimed: ${rewardsText}`)
       } else {

@@ -1,6 +1,7 @@
 """Tests for RewardService."""
 
-from uuid import UUID
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -232,9 +233,82 @@ async def test_process_quest_item_reward_uses_typed_item_data(async_session: Asy
 
     outfit = (await async_session.execute(select(Outfit).where(Outfit.name == "Vault Suit"))).scalar_one()
     assert rewards == [
-        {"reward_type": RewardType.ITEM, "item_type": "outfit", "name": "Vault Suit", "item_id": str(outfit.id)}
+        {
+            "reward_type": RewardType.ITEM,
+            "item_type": "outfit",
+            "name": "Vault Suit",
+            "amount": 1,
+            "item_id": str(outfit.id),
+            "item_ids": [str(outfit.id)],
+        }
     ]
     assert outfit.storage_id is not None
+
+
+@pytest.mark.asyncio
+async def test_process_quest_consumable_reward_creates_item(async_session: AsyncSession) -> None:
+    """Generic inventory rewards retain their category and authored identity."""
+    from app.models.item import Item
+    from app.models.storage import Storage
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    async_session.add(Storage(vault_id=vault.id, max_space=10))
+    quest = Quest(
+        title="Placeholder Reward",
+        short_description="A temporary inventory category.",
+        long_description="A quest that grants a placeholder consumable.",
+        requirements="None",
+        rewards="Nuka-Cola Quantum",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    async_session.add(
+        QuestReward(
+            quest_id=quest.id,
+            reward_type=RewardType.ITEM,
+            reward_data={"item_name": "Nuka-Cola Quantum", "quantity": 2},
+            item_data={"item_type": "consumable", "name": "Nuka-Cola Quantum", "rarity": "rare"},
+        )
+    )
+    await async_session.commit()
+    await async_session.refresh(quest, ["quest_rewards"])
+
+    rewards = await reward_service.process_quest_rewards(async_session, vault.id, quest)
+    items = (await async_session.execute(select(Item).where(Item.name == "Nuka-Cola Quantum"))).scalars().all()
+
+    assert rewards[0]["item_type"] == "consumable"
+    assert rewards[0]["amount"] == 2
+    assert len(items) == 2
+
+
+@pytest.mark.asyncio
+async def test_quest_claim_emits_item_reward_quantity(async_session: AsyncSession) -> None:
+    """Completion events use the quantity that was actually delivered."""
+    from app.crud.quest import quest_crud
+    from app.services.event_bus import GameEvent, event_bus
+
+    quest = Quest(
+        title="Quantity Event",
+        short_description="Emits the delivered quantity.",
+        long_description="A quest used to verify completion events.",
+        requirements="None",
+        rewards="3 junk",
+    )
+    vault_id = uuid4()
+
+    with patch.object(event_bus, "emit", new_callable=AsyncMock) as emit:
+        await quest_crud._after_completion_commit(
+            db_session=async_session,
+            db_obj=quest,
+            vault_id=vault_id,
+            granted_rewards=[{"reward_type": RewardType.ITEM, "item_type": "junk", "amount": 3}],
+        )
+
+    assert emit.await_args_list[0].args == (GameEvent.ITEM_COLLECTED, vault_id, {"item_type": "junk", "amount": 3})
 
 
 @pytest.mark.asyncio

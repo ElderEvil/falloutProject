@@ -248,8 +248,12 @@ class HappinessService:
 
         # Partner bonus
         if dweller.partner_id:
-            # Check if partner exists and is alive via CRUD
-            partner = await dweller_crud.get(db_session, dweller.partner_id) if dweller.partner_id else None
+            try:
+                partner = await dweller_crud.get(db_session, dweller.partner_id)
+            except ResourceNotFoundException:
+                logger.warning("Clearing stale partner reference for dweller %s", dweller.id)
+                dweller.partner_id = None
+                partner = None
             if partner:
                 # Base partner bonus
                 change += game_config.happiness.partner_nearby_bonus * tick_multiplier / 60.0  # Normalize bonus

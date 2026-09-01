@@ -43,8 +43,7 @@
   },
   {
     "label": "Fallout: Rebuild dramatiq worker",
-    "command": "sh",
-    "args": ["-c", "podman compose -f docker-compose.infra.yml down && podman compose -f docker-compose.infra.yml up -d --build dramatiq_worker"],
+    "command": "podman compose -f docker-compose.infra.yml up -d --build --force-recreate dramatiq_worker",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,

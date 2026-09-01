@@ -1,11 +1,14 @@
 """Additional tests for RewardService — uncovered paths."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.models.dweller import Dweller
+from app.models.item import Item
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
@@ -79,7 +82,13 @@ async def test_grant_item_outfit_success(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_grant_item_unknown_type_raises(async_session: AsyncSession) -> None:
+@pytest.mark.parametrize(
+    ("item_type", "name"),
+    [("consumable", "Nuka-Cola Quantum"), ("pet", "Dogmeat"), ("lunchbox", "Lunchbox")],
+)
+async def test_grant_item_supported_generic_type_creates_item(
+    async_session: AsyncSession, item_type: str, name: str
+) -> None:
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -89,15 +98,36 @@ async def test_grant_item_unknown_type_raises(async_session: AsyncSession) -> No
     async_session.add(storage)
     await async_session.commit()
 
-    with pytest.raises(ValueError, match="Unknown item_type"):
-        await reward_service.grant_item(
-            async_session,
-            vault.id,
-            {
-                "item_type": "armor",
-                "name": "Mystery Item",
-            },
-        )
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {
+            "item_type": item_type,
+            "name": name,
+        },
+    )
+    item = await async_session.get(Item, UUID(result["item_id"]))
+
+    assert result["item_type"] == item_type
+    assert result["name"] == name
+    assert result["amount"] == 1
+    assert item is not None
+    assert item.name == name
+    assert item.item_type == item_type
+
+
+@pytest.mark.asyncio
+async def test_grant_item_unknown_type_raises(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    with pytest.raises(ValueError, match="Unsupported item_type: armor"):
+        await reward_service.grant_item(async_session, vault.id, {"item_type": "armor", "name": "Mystery Item"})
 
 
 @pytest.mark.asyncio
@@ -179,6 +209,22 @@ async def test_grant_dweller_success(async_session: AsyncSession) -> None:
     assert result["reward_type"] == RewardType.DWELLER
     assert "dweller_id" in result
     assert "James" in result["name"]
+
+
+@pytest.mark.asyncio
+async def test_grant_dweller_item_uses_reward_name(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {"item_type": "dweller", "item_name": "Sarah Lyons", "rarity": "legendary"},
+    )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert (dweller.first_name, dweller.last_name) == ("Sarah", "Lyons")
 
 
 @pytest.mark.asyncio

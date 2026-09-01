@@ -11,6 +11,7 @@
       "quest_type": "main",
       "quest_category": "combat",
       "chain_order": 1,
+      "duration_minutes": 15,
       "quest_requirements": [
         {
           "requirement_type": "LEVEL",

@@ -7,6 +7,7 @@ from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
+from app.models.item import Item
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.storage import Storage, StorageBase
@@ -20,7 +21,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     """CRUD operations for Storage with utility methods."""
 
     async def count_items(self, db_session: AsyncSession, storage_id: UUID4) -> int:
-        """Count total items in storage (weapons + outfits + junk)."""
+        """Count total items in storage."""
         # Count weapons
         weapons_result = await db_session.execute(
             select(func.count()).select_from(Weapon).where(Weapon.storage_id == storage_id)
@@ -39,7 +40,12 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         )
         junk_count = junk_result.scalar() or 0
 
-        total = weapons_count + outfits_count + junk_count
+        items_result = await db_session.execute(
+            select(func.count()).select_from(Item).where(Item.storage_id == storage_id)
+        )
+        items_count = items_result.scalar() or 0
+
+        total = weapons_count + outfits_count + junk_count + items_count
 
         logger.debug(
             "Counted storage items",
@@ -48,6 +54,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
                 "weapons": weapons_count,
                 "outfits": outfits_count,
                 "junk": junk_count,
+                "items": items_count,
                 "total": total,
             },
         )
@@ -133,16 +140,18 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     async def get_all_items(
         self, db_session: AsyncSession, storage_id: UUID4
-    ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk]]:
-        """Get all items in storage (weapons, outfits, junk)."""
+    ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk] | list[Item]]:
+        """Get all items in storage."""
         weapons_result = await db_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))
         outfits_result = await db_session.execute(select(Outfit).where(Outfit.storage_id == storage_id))
         junk_result = await db_session.execute(select(Junk).where(Junk.storage_id == storage_id))
+        items_result = await db_session.execute(select(Item).where(Item.storage_id == storage_id))
 
         return {
             "weapons": list(weapons_result.scalars().all()),
             "outfits": list(outfits_result.scalars().all()),
             "junk": list(junk_result.scalars().all()),
+            "items": list(items_result.scalars().all()),
         }
 
 

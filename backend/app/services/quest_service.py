@@ -13,6 +13,7 @@ from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.utils.quest_duration import effective_quest_duration_minutes
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ class QuestService:
 
         link.started_at = datetime.utcnow()
         link.is_reward_ready = False
-        link.duration_minutes = quest.duration_minutes
+        link.duration_minutes = effective_quest_duration_minutes(quest.duration_minutes)
 
         await db_session.commit()
         await db_session.refresh(link)

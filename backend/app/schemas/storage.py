@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from app.schemas.item import ItemRead
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.weapon import WeaponRead
@@ -26,5 +27,6 @@ class StorageItemsResponse(BaseModel):
     weapons: list[WeaponRead] = Field(default_factory=list, description="Weapons in storage")
     outfits: list[OutfitRead] = Field(default_factory=list, description="Outfits in storage")
     junk: list[JunkRead] = Field(default_factory=list, description="Junk items in storage")
+    items: list[ItemRead] = Field(default_factory=list, description="Generic items in storage")
 
     model_config = {"from_attributes": True}

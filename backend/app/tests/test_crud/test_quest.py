@@ -235,7 +235,9 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     quest_dict = {q.title: q for q in quests}
     assert "Quest 1" in quest_dict
     assert quest_dict["Quest 1"].is_visible is True
-    assert quest_dict["Quest 1"].duration_minutes == quest1.duration_minutes
+    from app.utils.quest_duration import effective_quest_duration_minutes
+
+    assert quest_dict["Quest 1"].duration_minutes == effective_quest_duration_minutes(quest1.duration_minutes)
     assert "Quest 2" in quest_dict
     assert quest_dict["Quest 2"].is_visible is False  # Locked but still returned for Show All
     assert quest_dict["Quest 2"].previous_quest_id == quest1.id
@@ -468,9 +470,75 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
     assert link.started_at is not None
-    assert link.duration_minutes == quest.duration_minutes
+    from app.utils.quest_duration import effective_quest_duration_minutes
+
+    assert link.duration_minutes == effective_quest_duration_minutes(quest.duration_minutes)
     with pytest.raises(ResourceConflictException, match="already in progress"):
         await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_start_quest_snapshots_local_duration_multiplier(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import settings
+    from app.crud.quest_party import quest_party_crud
+    from app.models.dweller import Dweller
+    from app.services.quest_service import quest_service
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 0.1)
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Accelerated Quest",
+            short_description="Test local duration scaling",
+            long_description="A quest that snapshots the local duration multiplier.",
+            requirements="1 dweller",
+            rewards="100 caps",
+            duration_minutes=120,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True)
+    dweller_data = create_fake_dweller()
+    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.duration_minutes == 12
+
+
+@pytest.mark.asyncio
+async def test_unstarted_quest_uses_local_duration_multiplier(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 0.2)
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Pre-start accelerated quest",
+            short_description="Test displayed local duration scaling",
+            long_description="An unstarted quest displays its effective local duration.",
+            requirements="1 dweller",
+            rewards="100 caps",
+            duration_minutes=120,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True)
+
+    quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
+
+    assert quests[0].duration_minutes == 24
 
 
 @pytest.mark.asyncio
@@ -729,6 +797,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
             long_description="A party returns with caps and a weapon.",
             requirements="One adult dweller",
             rewards="50 caps and a laser pistol",
+            duration_minutes=120,
         ),
     )
     async_session.add_all(
@@ -770,9 +839,11 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
     await async_session.refresh(link)
     await async_session.refresh(vault)
+    await async_session.refresh(dweller)
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
     assert link.is_completed is True
     assert weapon.storage_id is not None
+    assert dweller.experience == dweller_data["experience"] + 1200
     assert events == [{"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value}]
 
     with pytest.raises(ResourceConflictException, match="Already completed"):

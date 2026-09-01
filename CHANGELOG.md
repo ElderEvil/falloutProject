@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.70.0 (2026-09-01)
+
+### Features
+
+* add lore dweller templates 768a5bf
+
+### Bug Fixes
+
+* address review - atomic template reservation, hardened place validator 8f24f89
+* backend CI - backfill registry, radio override, caps overflow 1139e13
+* centralize template reservation in shared flow, lock lunchbox pick, add Institute/Nucleus origins ff5acab
+
 ## 2.69.3 (2026-09-01)
 
 ### Bug Fixes

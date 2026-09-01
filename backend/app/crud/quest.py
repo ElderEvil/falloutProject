@@ -21,6 +21,7 @@ from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, Ques
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
+from app.utils.quest_duration import effective_quest_duration_minutes
 from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
@@ -101,7 +102,7 @@ class CRUDQuest(
                     quest_category=quest.quest_category,
                     chain_id=quest.chain_id,
                     chain_order=quest.chain_order,
-                    duration_minutes=quest.duration_minutes,
+                    duration_minutes=effective_quest_duration_minutes(quest.duration_minutes),
                     previous_quest_id=quest.previous_quest_id,
                     next_quest_id=quest.next_quest_id,
                     created_at=quest.created_at,
@@ -208,7 +209,7 @@ class CRUDQuest(
                     started_at=link.started_at if link else None,
                     duration_minutes=link.duration_minutes
                     if link and link.duration_minutes is not None
-                    else quest.duration_minutes,
+                    else effective_quest_duration_minutes(quest.duration_minutes),
                     quest_requirements=[
                         QuestRequirementRead(
                             id=req.id,
@@ -252,9 +253,20 @@ class CRUDQuest(
         self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4
     ) -> list[dict[str, Any]]:
         """Grant every quest reward within the completion transaction."""
+        from app.crud.quest_party import quest_party_crud
+
         async with defer_reward_delivery(db_session):
             await db_session.refresh(db_obj, ["quest_rewards"])
             granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, db_obj)
+            party = await quest_party_crud.get_party_for_quest(db_session, db_obj.id, vault_id)
+            if party:
+                experience_reward = await reward_service.grant_experience(
+                    db_session,
+                    [member.dweller_id for member in party],
+                    db_obj.duration_minutes * 10,
+                )
+                experience_reward["name"] = "Quest experience"
+                granted_rewards.append(experience_reward)
 
         if granted_rewards:
             reward_summary = ", ".join(
@@ -288,7 +300,7 @@ class CRUDQuest(
                 await event_bus.emit(
                     GameEvent.ITEM_COLLECTED,
                     vault_id,
-                    {"item_type": reward.get("item_type", "item"), "amount": 1},
+                    {"item_type": reward.get("item_type", "item"), "amount": reward.get("amount", 1)},
                 )
             elif reward["reward_type"] == "stimpak":
                 await event_bus.emit(

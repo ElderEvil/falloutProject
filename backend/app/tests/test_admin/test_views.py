@@ -16,6 +16,7 @@ from app.admin.views import (
     AISettingsAdmin,
     DwellerAdmin,
     GameStateAdmin,
+    ItemAdmin,
     LLInteractionAdmin,
     PromptAdmin,
     QuestAdmin,
@@ -48,6 +49,12 @@ def test_operational_and_quest_data_views_are_read_only() -> None:
         assert view.can_create is False
         assert view.can_edit is False
         assert view.can_delete is False
+
+
+def test_generic_item_admin_exposes_inventory_location() -> None:
+    from app.models import Item
+
+    assert {Item.name, Item.item_type, Item.storage} <= set(ItemAdmin.column_list)
 
 
 def test_llm_and_prompt_views_are_read_only() -> None:

@@ -43,38 +43,21 @@ const RESOURCE_META: Record<string, { icon: string; label: string }> = {
   water: { icon: 'mdi:water', label: 'Water' },
 }
 
-// Name-based fallback for rewards that lack an explicit item_type.
-const ITEM_NAME_PATTERNS: [RegExp, string][] = [
-  [/lunchbox|lunch box/, 'lunchbox'],
-  [/nuka|cola|bottle|drink|quantum|food|apple|meat|steak/, 'consumable'],
-  [/stimpak|stim|medkit|medical|first aid/, 'consumable'],
-  [/radaway|rad-away|radiation|rad /, 'consumable'],
-  [/suit|armor|armour|outfit|jacket|robe|dress|uniform|shirt|pants|boots|helmet|hat/, 'outfit'],
-  [/pistol|rifle|gun|blade|sword|cue|knife|bat|launcher|cannon|weapon|shotgun|smg|laser|plasma/, 'weapon'],
-  [/scrap|junk|cog|gear|part|duct tape|wonderglue/, 'junk'],
-  [/pet|dog|cat|bird|reptile/, 'pet'],
-]
-
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
 const rewardLabel = (reward: QuestReward): string => {
-  const data = reward.reward_data
-  if (reward.reward_type === 'item') return String(data.item_name || reward.item_data?.name || 'Item')
-  if (reward.reward_type === 'dweller') return String(data.template_id || data.name || 'New Dweller').replaceAll('-', ' ')
-  return String(data.amount ?? '—')
+  const data = reward.reward_data as Record<string, unknown>
+  const qtyRaw = (data.quantity ?? data.amount) as unknown
+  const qtyNum = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw ?? 0)
+  const qtyPrefix = qtyNum > 1 ? `${qtyNum}x ` : ''
+  if (reward.reward_type === 'item') return `${qtyPrefix}${String(data.item_name || reward.item_data?.name || 'Item')}`
+  if (reward.reward_type === 'dweller') return String((data.template_id as string) || (data.name as string) || 'New Dweller').replaceAll('-', ' ')
+  return String(data.amount ?? qtyRaw ?? '—')
 }
 
 const inferItemCategory = (reward: QuestReward): string => {
-  const explicit = String(reward.item_data?.item_type ?? reward.reward_data.item_type ?? '')
-  if (explicit && ITEM_META[explicit]) return explicit
-
-  const name = String(
-    reward.reward_data.item_name ?? reward.item_data?.name ?? ''
-  ).toLowerCase()
-  for (const [pattern, category] of ITEM_NAME_PATTERNS) {
-    if (pattern.test(name)) return category
-  }
-  return ''
+  const explicit = String(reward.item_data?.item_type ?? reward.reward_data.item_type ?? '').toLowerCase()
+  return explicit && ITEM_META[explicit] ? explicit : ''
 }
 
 const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {

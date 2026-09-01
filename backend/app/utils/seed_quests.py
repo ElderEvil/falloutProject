@@ -8,7 +8,6 @@ from uuid import UUID
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models import Item
 from app.models.quest import Quest, QuestType
 from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward, RewardType
@@ -70,6 +69,7 @@ def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> QuestMetadat
         "quest_category": quest_json.quest_category,
         "chain_id": chain_id,
         "chain_order": quest_json.chain_order,
+        "duration_minutes": quest_json.duration_minutes,
     }
 
 
@@ -98,6 +98,7 @@ async def _sync_existing_quest_rewards(
             (await db_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
         )
         for reward_json in quest_json.quest_rewards:
+            item_data = reward_json.item_data_json
             reward = next((candidate for candidate in rewards if _matches_reward_json(candidate, reward_json)), None)
             if reward is None:
                 reward_type = RewardType(reward_json.reward_type.lower())
@@ -109,7 +110,7 @@ async def _sync_existing_quest_rewards(
                         reward_type=RewardType(reward_json.reward_type.lower()),
                         reward_data=reward_json.reward_data,
                         reward_chance=reward_json.reward_chance,
-                        item_data=reward_json.item_data,
+                        item_data=item_data,
                     )
                 )
                 updated_count += 1
@@ -117,11 +118,11 @@ async def _sync_existing_quest_rewards(
             rewards.remove(reward)
             if (
                 reward.reward_data != reward_json.reward_data
-                or reward.item_data != reward_json.item_data
+                or reward.item_data != item_data
                 or reward.reward_chance != reward_json.reward_chance
             ):
                 reward.reward_data = reward_json.reward_data
-                reward.item_data = reward_json.item_data
+                reward.item_data = item_data
                 reward.reward_chance = reward_json.reward_chance
                 db_session.add(reward)
                 updated_count += 1
@@ -159,9 +160,6 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
         # Track seeded quests for requirement resolution
         quest_name_to_id: dict[str, str] = {}
         quests_to_commit: list[tuple[Quest, QuestJSON]] = []
-        # Track items created in this seeding run to avoid duplicate SELECTs and inserts
-        created_item_names: set[str] = set()
-
         # Seed quests that don't exist yet
         seeded_count = 0
         for quest_json in all_quest_jsons:
@@ -255,33 +253,15 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                 # Create quest rewards
                 for reward_json in quest_json.quest_rewards:
                     try:
+                        item_data = reward_json.item_data_json
                         reward = QuestReward(
                             quest_id=quest.id,
                             reward_type=RewardType(reward_json.reward_type.lower()),
                             reward_data=reward_json.reward_data,
                             reward_chance=reward_json.reward_chance,
-                            item_data=reward_json.item_data,
+                            item_data=item_data,
                         )
                         db_session.add(reward)
-
-                        # Create item from item_data if reward_type is ITEM and item_data is provided
-                        if reward_json.reward_type.upper() == "ITEM" and reward_json.item_data:
-                            item_name = reward_json.item_data.get("name")
-                            if item_name and item_name not in created_item_names:
-                                # Check if item already exists in database
-                                existing_item = await db_session.execute(select(Item).where(Item.name == item_name))
-                                existing = existing_item.scalars().first()
-                                if not existing:
-                                    # Create the item
-                                    item = Item(
-                                        name=item_name,
-                                        rarity=reward_json.item_data.get("rarity", "common"),
-                                        value=reward_json.item_data.get("value"),
-                                        image_url=reward_json.item_data.get("image_url"),
-                                    )
-                                    db_session.add(item)
-                                    created_item_names.add(item_name)
-                                    logger.debug(f"Created item '{item_name}' from quest reward")
 
                     except ValueError as e:
                         logger.warning(f"Failed to create reward for quest '{quest.title}': {e}")

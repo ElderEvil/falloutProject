@@ -6,6 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.models.base import BaseUUIDModel
 
 if TYPE_CHECKING:
+    from app.models.item import Item
     from app.models.junk import Junk
     from app.models.outfit import Outfit
     from app.models.vault import Vault
@@ -24,6 +25,7 @@ class Storage(BaseUUIDModel, StorageBase, table=True):
     vault: "Vault" = Relationship(back_populates="storage", sa_relationship_kwargs={"uselist": False})
 
     junk_items: list["Junk"] = Relationship(back_populates="storage")
+    items: list["Item"] = Relationship(back_populates="storage")
     outfits: list["Outfit"] = Relationship(back_populates="storage")
     weapons: list["Weapon"] = Relationship(back_populates="storage")
 

@@ -1,8 +1,14 @@
-from pydantic import model_validator
-from sqlmodel import Field, SQLModel
+from typing import TYPE_CHECKING
+
+import sqlalchemy as sa
+from pydantic import UUID4, model_validator
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
-from app.schemas.common import RarityEnum
+from app.schemas.common import ItemTypeEnum, RarityEnum
+
+if TYPE_CHECKING:
+    from app.models.storage import Storage
 
 
 class ItemBase(SQLModel):
@@ -38,4 +44,11 @@ class ItemBase(SQLModel):
 
 
 class Item(BaseUUIDModel, ItemBase, table=True):
-    """Generic item model for quest rewards and other miscellaneous items."""
+    """Generic inventory item for categories without dedicated equipment models."""
+
+    item_type: ItemTypeEnum = Field(
+        default=ItemTypeEnum.MISC,
+        sa_column=sa.Column(sa.String(length=32), nullable=False),
+    )
+    storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
+    storage: "Storage" = Relationship(back_populates="items")

@@ -408,6 +408,29 @@ class TestHappinessService:
         # Allow for some decrease due to base decay
         assert dweller1.happiness >= initial_happiness_1 - 5  # Allow up to 5 point decrease
 
+    async def test_soft_deleted_partner_is_cleared(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        test_room: Room,
+        working_dweller: Dweller,
+    ):
+        """A stale partner reference must not abort the vault game tick."""
+        partner_data = create_fake_dweller()
+        partner = await crud.dweller.create(
+            db_session=async_session,
+            obj_in=DwellerCreate(**partner_data, vault_id=vault.id, room_id=test_room.id),
+        )
+        partner.is_deleted = True
+        working_dweller.partner_id = partner.id
+        async_session.add_all([partner, working_dweller])
+        await async_session.commit()
+
+        await happiness_service.update_vault_happiness(async_session, vault.id)
+
+        await async_session.refresh(working_dweller)
+        assert working_dweller.partner_id is None
+
     async def test_happiness_bounds(
         self,
         async_session: AsyncSession,

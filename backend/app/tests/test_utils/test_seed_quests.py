@@ -5,14 +5,41 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
+from app.schemas.quest import QuestRewardJSON
 from app.utils.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
+
+
+def test_quest_item_reward_uses_typed_item_data() -> None:
+    reward = QuestRewardJSON.model_validate(
+        {
+            "reward_type": "ITEM",
+            "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+            "item_data": {"name": "Nuka-Cola Quantum", "rarity": "rare"},
+        }
+    )
+
+    assert reward.item_data is not None
+    assert reward.item_data.item_type == "consumable"
+    assert reward.item_data.name == "Nuka-Cola Quantum"
+
+
+def test_quest_item_reward_rejects_unknown_item_type() -> None:
+    with pytest.raises(ValidationError, match="item_type"):
+        QuestRewardJSON.model_validate(
+            {
+                "reward_type": "ITEM",
+                "reward_data": {"item_name": "Mystery Item"},
+                "item_data": {"item_type": "armor", "name": "Mystery Item"},
+            }
+        )
 
 
 @pytest.mark.asyncio

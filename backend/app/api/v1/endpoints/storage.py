@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.crud import storage as crud_storage
 from app.db.session import get_async_session
+from app.schemas.item import ItemRead
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
@@ -75,7 +76,7 @@ async def get_storage_items(
     """Get all items in a vault's storage.
 
     Returns:
-        Lists of weapons, outfits, and junk items in storage.
+        Lists of weapons, outfits, junk, and generic items in storage.
 
     Raises:
         HTTPException: 403 if user lacks access to the vault.
@@ -97,6 +98,7 @@ async def get_storage_items(
             "weapons_count": len(items["weapons"]),
             "outfits_count": len(items["outfits"]),
             "junk_count": len(items["junk"]),
+            "items_count": len(items["items"]),
         },
     )
 
@@ -104,6 +106,7 @@ async def get_storage_items(
         weapons=[WeaponRead.model_validate(w) for w in items["weapons"]],
         outfits=[OutfitRead.model_validate(o) for o in items["outfits"]],
         junk=[JunkRead.model_validate(j) for j in items["junk"]],
+        items=[ItemRead.model_validate(item) for item in items["items"]],
     )
 
 

@@ -202,6 +202,8 @@ class Settings(BaseSettings):
     # Quota Configuration
     QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)
 
+    QUEST_DURATION_MULTIPLIER: float = Field(default=1.0, gt=0, le=1)
+
     # SSE Configuration
     SSE_HEARTBEAT_INTERVAL: int = Field(
         default=30,

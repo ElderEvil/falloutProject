@@ -6,7 +6,7 @@ from sqlmodel import select
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from app.models import AISettings, LLMInteraction, Objective, Storage
+from app.models import AISettings, Item, LLMInteraction, Objective, Storage
 from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
@@ -141,6 +141,13 @@ class StorageAdmin(AdminModelView, model=Storage):
     icon = "fa-solid fa-box"
 
 
+class ItemAdmin(AdminModelView, model=Item):
+    column_list: ClassVar[list] = [Item.id, Item.name, Item.item_type, Item.rarity, Item.value, Item.storage]
+    column_searchable_list: ClassVar[list] = [Item.name]
+
+    icon = "fa-solid fa-boxes-stacked"
+
+
 class DwellerAdmin(AdminModelView, model=Dweller):
     column_list: ClassVar[list] = [
         Dweller.id,
@@ -205,6 +212,11 @@ class QuestAdmin(AdminModelView, model=Quest):
         Quest.short_description,
         Quest.requirements,
         Quest.rewards,
+        Quest.quest_type,
+        Quest.quest_category,
+        Quest.chain_id,
+        Quest.chain_order,
+        Quest.duration_minutes,
         Quest.created_at,
         Quest.updated_at,
     ]
@@ -349,7 +361,6 @@ class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
         LLMInteraction.prompt_tokens,
         LLMInteraction.completion_tokens,
         LLMInteraction.total_tokens,
-        LLMInteraction.instructions_hash,
         LLMInteraction.created_at,
     ]
     column_searchable_list: ClassVar[list] = [LLMInteraction.usage]

@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
+from app.models.item import Item
 from app.models.outfit import Outfit
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
@@ -44,61 +45,140 @@ class RewardService:
         logger.info(f"Granted {amount} caps to vault {vault_id}")
         return {"reward_type": RewardType.CAPS, "amount": amount}
 
-    async def grant_item(
-        self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
-    ) -> dict[str, Any]:
+    @staticmethod
+    def _parse_quantity(data: dict[str, Any]) -> int:
+        raw = data.get("quantity", data.get("amount", 1))
+        try:
+            qty = int(raw)
+        except (TypeError, ValueError):
+            qty = 1
+        return max(1, qty)
+
+    async def _ensure_storage(self, db_session: AsyncSession, vault_id: UUID4, quantity: int):
         from app.crud.storage import get_available_space
-        from app.schemas.common import OutfitTypeEnum
 
         storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage_obj:
-            msg = f"No storage found for vault {vault_id}"
-            logger.warning(msg)
             raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
-
         available = await get_available_space(db_session, storage_obj.id)
-        if available <= 0:
-            msg = f"Storage full for vault {vault_id}"
-            logger.warning(msg)
-            raise ResourceConflictException(msg)
+        if available < quantity:
+            raise ResourceConflictException(
+                f"Storage full for vault {vault_id}: need {quantity}, available {available}"
+            )
+        return storage_obj
 
-        item_type = item_data.get("item_type", "weapon")
-        item_name = item_data.get("name", "Unknown Item")
+    async def _grant_as_dweller(
+        self, db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
+    ) -> dict[str, Any]:
+        dweller_ids: list[str] = []
+        last_name: str | None = None
+        for _ in range(quantity):
+            result = await self.grant_dweller(
+                db_session, vault_id, {"rarity": rarity, "level": 1, "first_name": "Legendary", "last_name": "Dweller"}
+            )
+            dweller_ids.append(result["dweller_id"])
+            last_name = result["name"]
+        logger.info(f"Granted {quantity} dweller(s) '{item_name}' ({rarity}) to vault {vault_id}")
+        return {
+            "reward_type": RewardType.ITEM,
+            "item_type": "dweller",
+            "name": last_name or item_name,
+            "amount": quantity,
+            "dweller_ids": dweller_ids,
+            "dweller_id": dweller_ids[0] if dweller_ids else None,
+        }
+
+    def _build_weapon(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+        return Weapon(
+            name=name,
+            rarity=rarity,
+            weapon_type=data.get("weapon_type", "melee"),
+            weapon_subtype=data.get("weapon_subtype", "blunt"),
+            stat=data.get("stat", "strength"),
+            damage_min=data.get("damage_min", 1),
+            damage_max=data.get("damage_max", 3),
+            value=data.get("value"),
+            image_url=get_weapon_image_url(name),
+            storage_id=storage_id,
+        )
+
+    def _build_outfit(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+        from app.schemas.common import OutfitTypeEnum
+
+        return Outfit(
+            name=name,
+            rarity=rarity,
+            outfit_type=OutfitTypeEnum(data.get("outfit_type", OutfitTypeEnum.COMMON)),
+            gender=data.get("gender"),
+            value=data.get("value"),
+            image_url=get_outfit_image_url(name),
+            storage_id=storage_id,
+        )
+
+    def _build_junk(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+        from app.models.junk import Junk
+        from app.schemas.common import JunkTypeEnum
+
+        return Junk(
+            name=name,
+            rarity=rarity,
+            junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
+            description=data.get("description", name),
+            value=data.get("value"),
+            storage_id=storage_id,
+        )
+
+    async def grant_item(
+        self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
+    ) -> dict[str, Any]:
+        from app.schemas.quest import infer_item_type
+
+        quantity = self._parse_quantity(item_data)
+        item_name = item_data.get("item_name", item_data.get("name", "Unknown Item"))
         item_rarity = item_data.get("rarity", "common")
+        item_type = infer_item_type(str(item_name), item_data)
 
-        match item_type:
-            case "weapon":
-                item = Weapon(
-                    name=item_name,
-                    rarity=item_rarity,
-                    weapon_type=item_data.get("weapon_type", "melee"),
-                    weapon_subtype=item_data.get("weapon_subtype", "blunt"),
-                    stat=item_data.get("stat", "strength"),
-                    damage_min=item_data.get("damage_min", 1),
-                    damage_max=item_data.get("damage_max", 3),
+        if item_type == "dweller":
+            return await self._grant_as_dweller(db_session, vault_id, str(item_name), str(item_rarity), quantity)
+
+        if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
+            raise ValueError(f"Unsupported item_type: {item_type}")
+        storage_obj = await self._ensure_storage(db_session, vault_id, quantity)
+        created_ids: list[str] = []
+        for _ in range(quantity):
+            if item_type == "weapon":
+                item = self._build_weapon(str(item_name), str(item_rarity), item_data, storage_obj.id)
+            elif item_type == "outfit":
+                item = self._build_outfit(str(item_name), str(item_rarity), item_data, storage_obj.id)
+            elif item_type == "junk":
+                item = self._build_junk(str(item_name), str(item_rarity), item_data, storage_obj.id)
+            else:
+                item = Item(
+                    name=str(item_name),
+                    item_type=item_type,
+                    rarity=str(item_rarity),
                     value=item_data.get("value"),
-                    image_url=get_weapon_image_url(item_name),
+                    image_url=item_data.get("image_url"),
                     storage_id=storage_obj.id,
                 )
-            case "outfit":
-                item = Outfit(
-                    name=item_name,
-                    rarity=item_rarity,
-                    outfit_type=OutfitTypeEnum(item_data.get("outfit_type", OutfitTypeEnum.COMMON)),
-                    gender=item_data.get("gender"),
-                    value=item_data.get("value"),
-                    image_url=get_outfit_image_url(item_name),
-                    storage_id=storage_obj.id,
-                )
-            case _:
-                msg = f"Unknown item_type: {item_type}"
-                raise ValueError(msg)
+            db_session.add(item)
+            await db_session.flush()
+            await db_session.refresh(item)
+            created_ids.append(str(item.id))
 
-        await persist_reward_change(db_session, item, refresh=True)
+        await persist_reward_change(db_session)
+
         if emit_event and not reward_delivery_is_deferred(db_session):
-            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": item_type, "amount": 1})
-        logger.info(f"Granted {item_type} '{item_name}' ({item_rarity}) to vault {vault_id}")
-        return {"reward_type": RewardType.ITEM, "item_type": item_type, "name": item_name, "item_id": str(item.id)}
+            await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": item_type, "amount": quantity})
+        logger.info(f"Granted {quantity}x {item_type} '{item_name}' ({item_rarity}) to vault {vault_id}")
+        return {
+            "reward_type": RewardType.ITEM,
+            "item_type": item_type,
+            "name": item_name,
+            "amount": quantity,
+            "item_id": created_ids[0] if len(created_ids) == 1 else None,
+            "item_ids": created_ids,
+        }
 
     async def grant_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]

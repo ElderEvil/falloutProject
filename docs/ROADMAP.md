@@ -696,6 +696,9 @@ chains, and quiz/puzzle quests. Reuse-first: the quest model already has `chain_
 `previous_quest_id`/`next_quest_id` links, and `QuestRequirement`/`QuestReward` relations; the objectives system and
 room construction flow already emit state that quests can key off.
 
+- ⬜ **Authored quest ordering** — extend quest-chain JSON with explicit `chain_order` and each quest with an
+  explicit display/difficulty order. Validate uniqueness within the loaded content and sort from those fields; do
+  not infer difficulty from duration, UUIDs, or database insertion order.
 - ⬜ **Locked quest chains** — chain visibility/lock state in the UI: show the next chain quest as "locked"
   with its unlock requirement instead of hiding it. Blocker: chain unlocking today is purely linear
   (`previous_quest_id`); requirement-based unlocking (vault level, population, resource thresholds) needs a

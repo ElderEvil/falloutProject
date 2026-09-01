@@ -3351,7 +3351,7 @@ export interface paths {
          * @description Get all items in a vault's storage.
          *
          *     Returns:
-         *         Lists of weapons, outfits, and junk items in storage.
+         *         Lists of weapons, outfits, junk, and generic items in storage.
          *
          *     Raises:
          *         HTTPException: 403 if user lacks access to the vault.
@@ -6653,6 +6653,25 @@ export interface components {
             /** Build Date */
             build_date: string;
         };
+        /** ItemRead */
+        ItemRead: {
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /** Item Type */
+            item_type: string;
+            /** Storage Id */
+            storage_id: string | null;
+        };
         /** JunkCreate */
         JunkCreate: {
             /** Name */
@@ -8000,6 +8019,11 @@ export interface components {
              * @description Junk items in storage
              */
             junk?: components["schemas"]["JunkRead"][];
+            /**
+             * Items
+             * @description Generic items in storage
+             */
+            items?: components["schemas"]["ItemRead"][];
         };
         /**
          * StorageSpaceResponse

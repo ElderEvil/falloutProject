@@ -111,6 +111,17 @@ def test_extract_multiple_visited_deduped() -> None:
     assert visited == ["Far Harbor"]
 
 
+def test_extract_institute_and_nucleus_origins() -> None:
+    """Synth/Atom origin places are recovered from free-text bios."""
+    origin, visited = extract_places_from_bio("Built in The Institute, they escaped before the memory wipe.")
+    assert origin == "The Institute"
+    assert visited == []
+
+    origin, visited = extract_places_from_bio("Raised at The Nucleus, they carried Atom's glow to the mainland.")
+    assert origin == "The Nucleus"
+    assert visited == []
+
+
 # ---------------------------------------------------------------------------
 # BioPlaceBackfillService integration tests
 # ---------------------------------------------------------------------------

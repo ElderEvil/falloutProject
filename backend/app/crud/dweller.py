@@ -278,9 +278,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         seed: int | None = None,
         overrides: Mapping[str, Any] | None = None,
     ) -> Dweller:
-        """Persist a curated template while preserving its identity and SPECIAL."""
+        """Persist a curated template while preserving its identity and SPECIAL.
+
+        Reservation is enforced here: the vault row is locked and the template's
+        canonical name is checked against active dwellers before insert, so no
+        caller can bypass per-vault uniqueness. Raises ResourceConflictException
+        when the template is already active.
+        """
         from app.utils.dwellers import create_dweller_from_template
 
+        active_names = await self.lock_vault_for_template(db_session, vault_id)
+        canonical = f"{template.first_name} {template.last_name or ''}".strip().casefold()
+        if canonical in active_names:
+            raise ResourceConflictException(detail=f"Template dweller '{canonical}' is already active in this vault")
         data = create_dweller_from_template(template, seed=seed)
         if overrides:
             for field in ("level", "experience", "happiness", "health", "max_health"):

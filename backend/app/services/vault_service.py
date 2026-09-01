@@ -499,7 +499,11 @@ class VaultService:
         }
 
         for template_id, (weapon_name, outfit_name) in loadouts.items():
-            dweller = await dweller_crud.create_from_template(db_session, vault_id, template_id)
+            try:
+                dweller = await dweller_crud.create_from_template(db_session, vault_id, template_id)
+            except ResourceConflictException:
+                self.logger.info("Boosted template %s already active in vault %s, skipping", template_id, vault_id)
+                continue
             db_session.add(
                 Weapon(
                     name=weapon_name,

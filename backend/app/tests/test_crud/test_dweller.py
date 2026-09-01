@@ -697,3 +697,26 @@ async def test_dweller_status_on_room_reassignment(async_session: AsyncSession):
     await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=training_room.id)
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.TRAINING
+
+
+@pytest.mark.asyncio
+async def test_create_from_template_reservation_conflict(async_session: AsyncSession) -> None:
+    """Second create_from_template for the same vault raises ResourceConflictException.
+
+    The reservation lives in the shared _create_template flow (vault row lock +
+    active-name check), so direct callers cannot bypass per-vault uniqueness.
+    """
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    first = await crud.dweller.create_from_template(async_session, vault.id, "abraham-washington")
+    assert first.first_name == "Abraham"
+
+    with pytest.raises(ResourceConflictException, match="already active"):
+        await crud.dweller.create_from_template(async_session, vault.id, "abraham-washington")
+
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id=vault.id)
+    curated = [d for d in dwellers if d.first_name == "Abraham" and d.last_name == "Washington"]
+    assert len(curated) == 1

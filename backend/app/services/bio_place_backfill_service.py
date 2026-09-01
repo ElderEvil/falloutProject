@@ -67,6 +67,8 @@ _KNOWN_ORIGIN_PLACES: list[str] = [
     "Tenpenny Tower",
     "The Boneyard",
     "The Citadel",
+    "The Institute",
+    "The Nucleus",
     "The Slog",
     "Vault 32",
     "Vault 33",

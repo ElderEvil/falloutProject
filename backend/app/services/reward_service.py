@@ -200,9 +200,14 @@ class RewardService:
                 raise ValueError(msg)
             from app.crud.dweller import dweller as dweller_crud
 
-            canonical = f"{template.first_name} {template.last_name or ''}".strip().casefold()
-            active = await dweller_crud.lock_vault_for_template(db_session, vault_id)
-            if canonical in active:
+            try:
+                new_dweller = await dweller_crud.create_from_template(
+                    db_session,
+                    vault_id,
+                    template_id,
+                    overrides=dweller_template,
+                )
+            except ResourceConflictException:
                 fallback = await dweller_crud.create_random(
                     db_session, vault_id=vault_id, rarity=RarityEnum.COMMON, register_bio_places=True
                 )
@@ -214,12 +219,6 @@ class RewardService:
                     "dweller_id": str(fallback.id),
                     "name": f"{fallback.first_name} {fallback.last_name or ''}".strip(),
                 }
-            new_dweller = await dweller_crud.create_from_template(
-                db_session,
-                vault_id,
-                template_id,
-                overrides=dweller_template,
-            )
             logger.info(f"Granted dweller '{new_dweller.first_name}' ({new_dweller.rarity}) to vault {vault_id}")
             return {
                 "reward_type": RewardType.DWELLER,
@@ -456,7 +455,7 @@ class RewardService:
         if lunchbox_rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
             from app.utils.static_data import game_data_store
 
-            active_names = await dweller_crud.get_active_template_names(db_session, vault_id)
+            active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
             template = game_data_store.pick_template(lunchbox_rarity.value, exclude_names=active_names or None)
             if template is not None:
                 granted_dweller = await self.grant_dweller(

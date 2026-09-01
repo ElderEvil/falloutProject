@@ -560,11 +560,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm run build
 
-FROM node:22-alpine
-WORKDIR /app
-RUN npm install -g serve
-COPY --from=build /app/dist .
-CMD ["serve", "-s", ".", "-l", "3000"]
+FROM docker.io/library/caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/dist /srv
 ```
 
 **Layer Ordering:** Copy dependency manifests before source code to maximize cache hits:

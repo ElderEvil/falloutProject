@@ -65,7 +65,7 @@ test.describe('Responsive viewports', () => {
 test.describe('Side panel', () => {
   test('renders on dwellers page with all nav items', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const panel = page.locator('aside[aria-label="Game navigation panel"]')
+    const panel = page.locator('nav[aria-label="Game navigation panel"]')
     await expect(panel).toBeVisible({ timeout: 5000 })
     for (const label of [
       'Overview',
@@ -84,7 +84,7 @@ test.describe('Side panel', () => {
 
   test('shows coming soon section', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const panel = page.locator('aside[aria-label="Game navigation panel"]')
+    const panel = page.locator('nav[aria-label="Game navigation panel"]')
     await expect(panel).toContainText('Upcoming Features')
     await expect(panel).toContainText('Workshop')
     await expect(panel).toContainText('Trading Post')
@@ -106,7 +106,7 @@ test.describe('Side panel', () => {
 
   test('navigates to storage when clicking Storage nav item', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const panel = page.locator('aside[aria-label="Game navigation panel"]')
+    const panel = page.locator('nav[aria-label="Game navigation panel"]')
     const storageBtn = panel.locator('nav button:nth-child(9)')
     await expect(storageBtn).toContainText('Storage')
     await storageBtn.click()
@@ -122,7 +122,7 @@ test.describe('Keyboard shortcuts', () => {
   test('Ctrl+B toggles side panel on dwellers page', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
     await page.waitForTimeout(500)
-    const aside = page.locator('aside[aria-label="Game navigation panel"]')
+    const aside = page.locator('nav[aria-label="Game navigation panel"]')
     const initialClass = (await aside.getAttribute('class')) || ''
     const initialCollapsed = initialClass.includes('collapsed')
     await page.keyboard.press('Control+b')
@@ -254,7 +254,7 @@ test.describe('Visual effects', () => {
 
   test('side panel has scanline overlay', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const panel = page.locator('aside[aria-label="Game navigation panel"]')
+    const panel = page.locator('nav[aria-label="Game navigation panel"]')
     await expect(panel).toBeVisible()
     // Side panel has a CSS ::before pseudo-element for scanlines already
   })

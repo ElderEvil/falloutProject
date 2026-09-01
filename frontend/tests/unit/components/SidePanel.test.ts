@@ -40,6 +40,12 @@ describe('SidePanel', () => {
     await router.push('/vault/vault-1')
   })
 
+  it('uses a labelled navigation landmark', () => {
+    const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+
+    expect(wrapper.find('nav.side-panel').attributes('aria-label')).toBe('Game navigation panel')
+  })
+
   describe('navItems', () => {
     it('keeps vault shortcuts 1–9 available on the profile route', async () => {
       await router.push('/profile')

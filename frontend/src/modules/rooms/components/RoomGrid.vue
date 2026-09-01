@@ -315,6 +315,11 @@ const closeDetailModal = () => {
         @mouseleave="clearHover"
         role="button"
         tabindex="0"
+        :aria-label="
+          isLevelLocked(cell.y) && !isPlacingElevator
+            ? `Level ${cell.y + 1} is locked`
+            : `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
+        "
         @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
         @keydown.enter.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
         @keydown.space.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"

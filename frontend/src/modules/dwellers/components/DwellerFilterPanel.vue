@@ -135,7 +135,7 @@ const toggleSortDirection = () => {
           <span>Sort By</span>
         </div>
         <div class="sort-controls">
-          <select v-model="currentSortBy" class="sort-select">
+          <select v-model="currentSortBy" class="sort-select" aria-label="Sort dwellers">
             <option v-for="option in sortOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>

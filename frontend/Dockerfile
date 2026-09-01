@@ -37,17 +37,12 @@ ENV APP_VERSION=${VERSION}
 RUN pnpm run build
 
 # Production stage
-FROM node:26-alpine AS production
-WORKDIR /app
+FROM docker.io/library/caddy:2-alpine AS production
 
-# Install only serve for production
-RUN npm install -g serve
-
-# Copy built application from build stage
-COPY --from=build-stage /app/dist .
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=build-stage /app/dist /srv
 
 # Expose port
 EXPOSE 3000
 
 # Run the application
-CMD ["serve", "-s", ".", "-l", "3000"]

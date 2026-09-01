@@ -157,6 +157,19 @@ def normalize_item_reward(
         normalized_item_data.item_type = infer_item_type(item_name, normalized_item_data)
     if "quantity" not in normalized_reward_data and "amount" in normalized_reward_data:
         normalized_reward_data["quantity"] = normalized_reward_data["amount"]
+    if "quantity" in normalized_reward_data:
+        try:
+            quantity = int(normalized_reward_data["quantity"])
+        except (TypeError, ValueError) as error:
+            raise ValueError("Item reward quantity must be an integer") from error
+        if (
+            isinstance(normalized_reward_data["quantity"], float)
+            and not normalized_reward_data["quantity"].is_integer()
+        ):
+            raise ValueError("Item reward quantity must be an integer")
+        if quantity < 1:
+            raise ValueError("Item reward quantity must be positive")
+        normalized_reward_data["quantity"] = quantity
     return normalized_reward_data, normalized_item_data
 
 

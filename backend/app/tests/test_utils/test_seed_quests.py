@@ -31,6 +31,25 @@ def test_quest_item_reward_uses_typed_item_data() -> None:
     assert reward.item_data.name == "Nuka-Cola Quantum"
 
 
+def test_quest_item_reward_normalizes_quantity_to_integer() -> None:
+    reward = QuestRewardJSON.model_validate(
+        {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "amount": "2"}}
+    )
+
+    assert reward.reward_data["quantity"] == 2
+
+
+def test_quest_item_reward_rejects_invalid_quantity() -> None:
+    with pytest.raises(ValidationError, match="quantity"):
+        QuestRewardJSON.model_validate(
+            {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": "two"}}
+        )
+    with pytest.raises(ValidationError, match="quantity"):
+        QuestRewardJSON.model_validate(
+            {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2.5}}
+        )
+
+
 def test_quest_item_reward_rejects_unknown_item_type() -> None:
     with pytest.raises(ValidationError, match="item_type"):
         QuestRewardJSON.model_validate(

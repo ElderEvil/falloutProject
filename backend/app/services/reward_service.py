@@ -70,12 +70,17 @@ class RewardService:
     async def _grant_as_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
     ) -> dict[str, Any]:
+        first_name, _, last_name = item_name.strip().partition(" ")
+        dweller_template = {
+            "rarity": rarity,
+            "level": 1,
+            "first_name": first_name or "Legendary",
+            "last_name": last_name or None,
+        }
         dweller_ids: list[str] = []
         last_name: str | None = None
         for _ in range(quantity):
-            result = await self.grant_dweller(
-                db_session, vault_id, {"rarity": rarity, "level": 1, "first_name": "Legendary", "last_name": "Dweller"}
-            )
+            result = await self.grant_dweller(db_session, vault_id, dweller_template)
             dweller_ids.append(result["dweller_id"])
             last_name = result["name"]
         logger.info(f"Granted {quantity} dweller(s) '{item_name}' ({rarity}) to vault {vault_id}")

@@ -247,6 +247,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def ensure_frontend_origin(self) -> "Settings":
+        if self.ENVIRONMENT != "local" and self.QUEST_DURATION_MULTIPLIER != 1.0:
+            raise ValueError("QUEST_DURATION_MULTIPLIER must be 1.0 outside local development")
         if self.FRONTEND_URL and self.FRONTEND_URL not in self.BACKEND_CORS_ORIGINS:
             self.BACKEND_CORS_ORIGINS.append(self.FRONTEND_URL)
         return self

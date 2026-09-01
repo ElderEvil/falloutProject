@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.models.dweller import Dweller
 from app.models.item import Item
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
@@ -208,6 +209,22 @@ async def test_grant_dweller_success(async_session: AsyncSession) -> None:
     assert result["reward_type"] == RewardType.DWELLER
     assert "dweller_id" in result
     assert "James" in result["name"]
+
+
+@pytest.mark.asyncio
+async def test_grant_dweller_item_uses_reward_name(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {"item_type": "dweller", "item_name": "Sarah Lyons", "rarity": "legendary"},
+    )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert (dweller.first_name, dweller.last_name) == ("Sarah", "Lyons")
 
 
 @pytest.mark.asyncio

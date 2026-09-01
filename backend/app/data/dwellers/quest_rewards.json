@@ -1,58 +1,224 @@
 [
   {
     "first_name": "Lucy",
+    "template_id": "lucy-maclean",
     "last_name": "MacLean",
     "gender": "Female",
     "rarity": "Legendary",
-    "strength": 6, "perception": 7, "endurance": 6, "charisma": 8, "intelligence": 7, "agility": 8, "luck": 7,
-    "bio": "A determined vault dweller who never stops looking for her family."
+    "strength": 6,
+    "perception": 7,
+    "endurance": 6,
+    "charisma": 8,
+    "intelligence": 7,
+    "agility": 8,
+    "luck": 7,
+    "bio": "Vault 33 dweller Lucy MacLean grew up under Vault-Tec's sunny posters in Vault 33, trained as an historian and idealist. When her vault opened, she trekked through Filly and Shady Sands searching for her father Hank, her Vault 33 optimism colliding with the wasteland's barter and blood. She visited Vault 32's ruins and the ruins of Shady Sands before the vault took her story back underground.",
+    "origin_place": "Vault 33",
+    "visited_places": [
+      "Filly",
+      "Shady Sands",
+      "Vault 32"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 24,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "long",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "attractive",
+      "expression": "determined",
+      "clothing_style": "casual",
+      "background": "vault corridor"
+    }
   },
   {
     "first_name": "The",
+    "template_id": "the-ghoul",
     "last_name": "Ghoul",
     "gender": "Male",
     "rarity": "Legendary",
-    "strength": 7, "perception": 8, "endurance": 8, "charisma": 4, "intelligence": 5, "agility": 9, "luck": 7,
-    "bio": "A hardened wasteland gunslinger with two centuries of survival behind him."
+    "strength": 7,
+    "perception": 8,
+    "endurance": 8,
+    "charisma": 4,
+    "intelligence": 5,
+    "agility": 9,
+    "luck": 7,
+    "bio": "Cooper Howard, the Ghoul — two-hundred-year-old Hollywood star turned wasteland gunslinger. Ghoulified and sane, he rode through Filly, Shady Sands, and the Boneyard with a duster and a deadpan drawl, hunting bounties and his own past. He passed through Hollywood's bones and Novac's neon before the vault heard his boots.",
+    "origin_place": "Hollywood",
+    "visited_places": [
+      "Filly",
+      "Shady Sands",
+      "Novac",
+      "The Boneyard"
+    ],
+    "visual_attributes": {
+      "race": "ghoul",
+      "faction": "none",
+      "age": 60,
+      "state_of_being": "sane",
+      "height": "tall",
+      "build": "average",
+      "skin_tone": "pale",
+      "eye_color": "yellow",
+      "hair_style": "short",
+      "hair_color": "black",
+      "appearance": "unattractive",
+      "facial_hair": "stubble",
+      "expression": "grim",
+      "clothing_style": "rugged",
+      "background": "wasteland"
+    }
   },
   {
     "first_name": "Maximus",
+    "template_id": "maximus",
     "last_name": "",
     "gender": "Male",
     "rarity": "Legendary",
-    "strength": 8, "perception": 5, "endurance": 8, "charisma": 5, "intelligence": 5, "agility": 6, "luck": 4,
-    "bio": "A Brotherhood knight searching for a place where he belongs."
+    "strength": 8,
+    "perception": 5,
+    "endurance": 8,
+    "charisma": 5,
+    "intelligence": 5,
+    "agility": 6,
+    "luck": 4,
+    "bio": "Brotherhood aspirant Maximus was raised in Shady Sands, conscripted as a squire, and taught that the Brotherhood's armor is earned, not given. He marched through Filly and the Boneyard, guarded caravans to Primm, and fled the Brotherhood's shadow to find a vault that might be home. Loyal, earnest, and still learning what honor costs.",
+    "origin_place": "Shady Sands",
+    "visited_places": [
+      "Filly",
+      "Primm",
+      "The Boneyard"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "brotherhood_of_steel",
+      "age": 22,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "resolute",
+      "clothing_style": "military",
+      "background": "brotherhood outpost"
+    }
   },
   {
     "first_name": "Ma",
+    "template_id": "ma-june",
     "last_name": "June",
     "gender": "Female",
     "rarity": "Legendary",
-    "strength": 4, "perception": 5, "endurance": 5, "charisma": 8, "intelligence": 7, "agility": 5, "luck": 6,
-    "bio": "The pragmatic leader of Filly, whose kindness is backed by resolve."
+    "strength": 4,
+    "perception": 5,
+    "endurance": 5,
+    "charisma": 8,
+    "intelligence": 7,
+    "agility": 5,
+    "luck": 6,
+    "bio": "Ma June holds Filly together with a shotgun, a ledger, and kindness backed by resolve. She runs the town's supply hub, trades with Shady Sands caravans, and shelters strays in the Boneyard's shadow. Born in Filly, she visited Shady Sands and Novac to keep the trade lines alive before the vault offered a safer roof.",
+    "origin_place": "Filly",
+    "visited_places": [
+      "Shady Sands",
+      "Novac",
+      "The Boneyard"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 48,
+      "height": "average",
+      "build": "average",
+      "hair_style": "curly",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "warm",
+      "clothing_style": "rugged",
+      "background": "trading post"
+    }
   },
   {
     "first_name": "Snip",
+    "template_id": "snip-snip",
     "last_name": "Snip",
     "gender": "Male",
     "rarity": "Legendary",
-    "strength": 9, "perception": 5, "endurance": 9, "charisma": 2, "intelligence": 5, "agility": 6, "luck": 4,
-    "bio": "A brutal Mister Handy modified for the wasteland's worst work."
+    "strength": 9,
+    "perception": 5,
+    "endurance": 9,
+    "charisma": 2,
+    "intelligence": 5,
+    "agility": 6,
+    "luck": 4,
+    "bio": "Snip Snip — Filly's brutal Mister Handy, blades still humming. Reprogrammed for the wasteland's worst work, he hovered through Filly's scrapyards and Shady Sands' clinics, cutting where others hesitated. His chassis is scarred, his manners stripped, and his bio is short because a Handy doesn't need a hometown speech.",
+    "origin_place": "Filly",
+    "visited_places": [
+      "Shady Sands"
+    ],
+    "visual_attributes": null
   },
   {
     "first_name": "Snake",
+    "template_id": "snake-oil-salesman",
     "last_name": "Oil Salesman",
     "gender": "Male",
     "rarity": "Legendary",
-    "strength": 3, "perception": 5, "endurance": 4, "charisma": 8, "intelligence": 7, "agility": 5, "luck": 8,
-    "bio": "A charming traveling chem merchant with a dangerous remedy."
+    "strength": 3,
+    "perception": 5,
+    "endurance": 4,
+    "charisma": 8,
+    "intelligence": 7,
+    "agility": 5,
+    "luck": 8,
+    "bio": "The Snake Oil Salesman drifts into Filly with a case of cheerful chemistry and a smile that sells. His remedy lifts spirits and burns veins, peddled through Shady Sands, Novac, and Primm to anyone desperate enough to believe. Born near the Boneyard, he learned that charisma plus a little radiation sells anything.",
+    "origin_place": "The Boneyard",
+    "visited_places": [
+      "Filly",
+      "Shady Sands",
+      "Novac",
+      "Primm"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 38,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "green",
+      "appearance": "average",
+      "facial_hair": "mustache",
+      "expression": "smirking",
+      "clothing_style": "eclectic",
+      "background": "caravan"
+    }
   },
   {
     "first_name": "CX404",
+    "template_id": "cx404",
     "last_name": "",
     "gender": "Male",
     "rarity": "Legendary",
-    "strength": 5, "perception": 7, "endurance": 7, "charisma": 6, "intelligence": 4, "agility": 9, "luck": 6,
-    "bio": "A loyal canine companion who can sniff out danger before it arrives."
+    "strength": 5,
+    "perception": 7,
+    "endurance": 7,
+    "charisma": 6,
+    "intelligence": 4,
+    "agility": 9,
+    "luck": 6,
+    "bio": "CX404 — a German shepherd with more loyalty than most vault dwellers. Found near Filly, he tracked through Shady Sands and the Boneyard, sniffing danger before it arrived. He doesn't speak, but his bio is written in pawprints between Filly's market and the vault door.",
+    "origin_place": "Filly",
+    "visited_places": [
+      "Shady Sands",
+      "The Boneyard"
+    ],
+    "visual_attributes": null
   }
 ]

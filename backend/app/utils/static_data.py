@@ -1,10 +1,11 @@
 import json
 import logging
+import random
 from pathlib import Path
 
 from sqlmodel import SQLModel
 
-from app.schemas.dweller import DwellerCreateWithoutVaultID
+from app.schemas.dweller import DwellerTemplate
 from app.schemas.junk import JunkCreate
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.outfit import OutfitCreate
@@ -24,7 +25,7 @@ DATA_DIR = ROOT_DIR / "app" / "data"
 
 class StaticGameData:
     def __init__(self):
-        self._dwellers: list[DwellerCreateWithoutVaultID] | None = None
+        self._dwellers: list[DwellerTemplate] | None = None
         self._rooms: list[RoomCreateWithoutVaultID] | None = None
         self._junk_items: list[JunkCreate] | None = None
         self._outfits: list[OutfitCreate] | None = None
@@ -33,11 +34,11 @@ class StaticGameData:
         self._objectives: list[ObjectiveCreate] | None = None
 
     @property
-    def dwellers(self) -> list[DwellerCreateWithoutVaultID]:
+    def dwellers(self) -> list[DwellerTemplate]:
         if self._dwellers is None:
-            rare = self.load_data(DATA_DIR / "dwellers/rare.json", DwellerCreateWithoutVaultID)
-            legendary = self.load_data(DATA_DIR / "dwellers/legendary.json", DwellerCreateWithoutVaultID)
-            quest_rewards = self.load_data(DATA_DIR / "dwellers/quest_rewards.json", DwellerCreateWithoutVaultID)
+            rare = self.load_data(DATA_DIR / "dwellers/rare.json", DwellerTemplate)
+            legendary = self.load_data(DATA_DIR / "dwellers/legendary.json", DwellerTemplate)
+            quest_rewards = self.load_data(DATA_DIR / "dwellers/quest_rewards.json", DwellerTemplate)
             self._dwellers = rare + legendary + quest_rewards
             for dweller in legendary + quest_rewards:
                 portrait_url = get_legendary_dweller_image_url(f"{dweller.first_name} {dweller.last_name or ''}")
@@ -113,17 +114,34 @@ class StaticGameData:
         """Return the canonical template matching a room name."""
         return next((room for room in self.rooms if room.name.lower() == room_name.lower()), None)
 
-    def get_dweller(self, template_id: str) -> DwellerCreateWithoutVaultID | None:
+    def get_dweller(self, template_id: str) -> DwellerTemplate | None:
         """Return a canonical dweller template by its stable kebab-case identifier."""
-        normalized_id = template_id.casefold().replace("-", " ")
-        return next(
-            (
-                dweller
-                for dweller in self.dwellers
-                if f"{dweller.first_name} {dweller.last_name or ''}".strip().casefold() == normalized_id
-            ),
-            None,
-        )
+        return next((dweller for dweller in self.dwellers if dweller.template_id == template_id.casefold()), None)
+
+    def get_dwellers_by_rarity(self, rarity: str) -> list[DwellerTemplate]:
+        """Return templates filtered by rarity value (case-insensitive)."""
+        target = rarity.casefold()
+        return [d for d in self.dwellers if str(d.rarity).casefold() == target]
+
+    def pick_template(
+        self,
+        rarity: str,
+        rng: random.Random | None = None,
+        exclude_names: set[str] | None = None,
+    ) -> DwellerTemplate | None:
+        """Pick a random template for *rarity*, excluding *exclude_names*.
+
+        ``rng`` may be a ``random.Random`` instance for reproducibility; when
+        ``None`` the global ``random`` is used. Names are compared casefolded.
+        Returns ``None`` when no eligible template remains.
+        """
+        pool = self.get_dwellers_by_rarity(rarity)
+        if exclude_names:
+            excluded = {n.casefold() for n in exclude_names}
+            pool = [d for d in pool if f"{d.first_name} {d.last_name or ''}".strip().casefold() not in excluded]
+        if not pool:
+            return None
+        return rng.choice(pool) if rng is not None else random.choice(pool)
 
     @property
     def quests(self) -> list[QuestChainJSON]:

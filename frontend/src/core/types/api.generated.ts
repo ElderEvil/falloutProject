@@ -6667,11 +6667,15 @@ export interface components {
              * Format: uuid4
              */
             id: string;
-            /** Item Type */
-            item_type: string;
+            item_type: components["schemas"]["ItemTypeEnum"];
             /** Storage Id */
             storage_id: string | null;
         };
+        /**
+         * ItemTypeEnum
+         * @enum {string}
+         */
+        ItemTypeEnum: "misc" | "weapon" | "outfit" | "junk" | "consumable" | "lunchbox" | "pet" | "dweller";
         /** JunkCreate */
         JunkCreate: {
             /** Name */

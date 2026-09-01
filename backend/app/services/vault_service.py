@@ -484,37 +484,30 @@ class VaultService:
         self.logger.info(f"Created initial items for vault {vault_id}")
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Add a small, equipped legendary roster for boosted-vault testing."""
-        from app.models.dweller import Dweller
+        """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
+        from app.crud.dweller import dweller as dweller_crud
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
         from app.schemas.common import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
         from app.utils.outfit_assets import get_outfit_image_url
-        from app.utils.static_data import game_data_store
         from app.utils.weapon_assets import get_weapon_image_url
 
         loadouts = {
-            "Abraham Washington": ("Lever-action rifle", "Abraham's relaxedwear"),
-            "Allistair Tenpenny": ("Hunting rifle", "Eulogy Jones' suit"),
-            "Bittercup": ("10mm pistol", "Bittercup's outfit"),
-        }
-        templates = {
-            f"{dweller.first_name} {dweller.last_name or ''}".strip(): dweller
-            for dweller in game_data_store.dwellers
-            if dweller.rarity.lower() == RarityEnum.LEGENDARY.value
+            "abraham-washington": ("Lever-action rifle", "Abraham's relaxedwear"),
+            "allistair-tenpenny": ("Hunting rifle", "Eulogy Jones' suit"),
+            "bittercup": ("10mm pistol", "Bittercup's outfit"),
         }
 
-        for name, (weapon_name, outfit_name) in loadouts.items():
-            template = templates[name]
-            dweller = Dweller(**template.model_dump(exclude={"weapon", "outfit"}), vault_id=vault_id)
-            db_session.add(dweller)
-            await db_session.flush()
+        for template_id, (weapon_name, outfit_name) in loadouts.items():
+            dweller = await dweller_crud.create_from_template(db_session, vault_id, template_id)
             db_session.add(
                 Weapon(
                     name=weapon_name,
                     rarity=RarityEnum.LEGENDARY,
                     weapon_type=WeaponTypeEnum.GUN,
-                    weapon_subtype=WeaponSubtypeEnum.RIFLE if "rifle" in weapon_name else WeaponSubtypeEnum.PISTOL,
+                    weapon_subtype=WeaponSubtypeEnum.RIFLE
+                    if "rifle" in weapon_name.lower()
+                    else WeaponSubtypeEnum.PISTOL,
                     stat="perception",
                     damage_min=12,
                     damage_max=20,

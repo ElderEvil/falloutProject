@@ -11,7 +11,29 @@
     "agility": 8,
     "luck": 3,
     "first_name": "Akira",
-    "last_name": "Katana"
+    "template_id": "akira-katana",
+    "last_name": "Katana",
+    "bio": "Blade of Rivet City's midnight markets. Akira Katana grew up in Little Lamplight, ran messages through Canterbury Commons, and traded steel in Megaton before the vault opened. Ninja outfit, quiet focus, and an 8 Agility stride that leaves pursuers in dust.",
+    "origin_place": "Little Lamplight",
+    "visited_places": [
+      "Canterbury Commons",
+      "Megaton",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 24,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "long",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "attractive",
+      "expression": "focused",
+      "clothing_style": "rugged",
+      "background": "market"
+    }
   },
   {
     "gender": "Male",
@@ -25,7 +47,27 @@
     "agility": 7,
     "luck": 3,
     "first_name": "Alexander",
-    "last_name": "Miller"
+    "template_id": "alexander-miller",
+    "last_name": "Miller",
+    "bio": "Tunnel rat turned vault acrobat. Alexander Miller fled Big Town's raider squeeze, learned to move through Megaton's catwalks and Rivet City's vents, and found a home after a stint in Tenpenny Tower's servant stairwells. His Ninja outfit still smells of oil and vault air.",
+    "origin_place": "Big Town",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 27,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "average",
+      "clothing_style": "rugged"
+    }
   },
   {
     "gender": "Male",
@@ -39,7 +81,29 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Ameritus",
-    "last_name": "Jones"
+    "template_id": "ameritus-jones",
+    "last_name": "Jones",
+    "bio": "Professor of the Jefferson Memorial labs. Ameritus Jones catalogued pre-War science in Rivet City, lectured in Megaton's Brass Lantern, and debated Atom in Canterbury Commons. His Professor outfit carries chalk, RadAway stains, and an 8 Intelligence glare that quiets classrooms. Also visited Tenpenny Tower.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Canterbury Commons",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "the_institute",
+      "age": 52,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "scholarly",
+      "clothing_style": "formal",
+      "background": "laboratory"
+    }
   },
   {
     "gender": "Male",
@@ -53,7 +117,27 @@
     "agility": 8,
     "luck": 3,
     "first_name": "Andre",
-    "last_name": "Grande"
+    "template_id": "andre-grande",
+    "last_name": "Grande",
+    "bio": "Vault's strongman. Andre Grande pumped iron in Megaton's scrapyard gym, wrestled super mutants near Canterbury Commons, and once guarded Tenpenny Tower's gate for caps. His Wrestler outfit and 8 Agility footwork make him a living incident response. Also visited Rivet City.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Canterbury Commons",
+      "Tenpenny Tower",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 32,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "rugged"
+    }
   },
   {
     "gender": "Female",
@@ -67,7 +151,26 @@
     "agility": 4,
     "luck": 8,
     "first_name": "Brandy",
-    "last_name": "Valentino"
+    "template_id": "brandy-valentino",
+    "last_name": "Valentino",
+    "bio": "Movie fan with vault-wide luck. Brandy Valentino ran the lantern reels in Megaton, traded holotapes in Rivet City, and once charmed Tenpenny Tower's elite with a pre-War musical. Her 8 Luck and Movie fan outfit make every rush feel scripted.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 26,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "wavy",
+      "hair_color": "blonde",
+      "eye_color": "blue",
+      "appearance": "attractive",
+      "clothing_style": "eclectic"
+    }
   },
   {
     "gender": "Male",
@@ -81,7 +184,28 @@
     "agility": 6,
     "luck": 6,
     "first_name": "Carlos",
-    "last_name": "the Great"
+    "template_id": "carlos-the-great",
+    "last_name": "the Great",
+    "bio": "Self-crowned ruler of Republic of Dave. Carlos the Great levied taxes in Dave, paraded through Canterbury Commons, and negotiated water with Megaton and Rivet City. His Medieval ruler outfit hides a surprisingly balanced 42 SPECIAL spread — a king who learned every vault job.",
+    "origin_place": "Republic of Dave",
+    "visited_places": [
+      "Canterbury Commons",
+      "Megaton",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 38,
+      "height": "tall",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "regal",
+      "clothing_style": "formal"
+    }
   },
   {
     "gender": "Male",
@@ -95,7 +219,28 @@
     "agility": 4,
     "luck": 3,
     "first_name": "Danielle",
-    "last_name": "Hart"
+    "template_id": "danielle-hart",
+    "last_name": "Hart",
+    "bio": "Surgeon of Rivet City's clinic. Danielle Hart stitched raiders in Megaton, triaged Atom pilgrims in Canterbury Commons, and kept her Surgeon outfit spotless through Tenpenny Tower house calls. 8 Intelligence and steady hands keep the vault alive.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Canterbury Commons",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 34,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "green",
+      "appearance": "average",
+      "clothing_style": "formal",
+      "background": "clinic"
+    }
   },
   {
     "gender": "Male",
@@ -109,7 +254,26 @@
     "agility": 4,
     "luck": 8,
     "first_name": "Frank",
-    "last_name": "Blitzer"
+    "template_id": "frank-blitzer",
+    "last_name": "Blitzer",
+    "bio": "Sports fan with dice on his side. Frank Blitzer called plays in Diamond City's stands, gambled in Goodneighbor, and hauled water to Megaton. His Sports fan outfit and 8 Luck turn every exploration into an easy win.",
+    "origin_place": "Diamond City",
+    "visited_places": [
+      "Goodneighbor",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 29,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "average",
+      "clothing_style": "casual"
+    }
   },
   {
     "gender": "Male",
@@ -123,7 +287,27 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Galahad",
-    "last_name": "Swingsalot"
+    "template_id": "galahad-swingsalot",
+    "last_name": "Swingsalot",
+    "bio": "Knight of Canterbury Commons. Galahad Swingsalot swore to guard caravans between Canterbury Commons, Megaton, and Rivet City in Knight armor. His 8 Strength lets him carry the vault's power problems on his shoulders.",
+    "origin_place": "Canterbury Commons",
+    "visited_places": [
+      "Megaton",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 40,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "blonde",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "noble",
+      "clothing_style": "military"
+    }
   },
   {
     "gender": "Male",
@@ -137,7 +321,28 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Heywood",
-    "last_name": "Yalaff"
+    "template_id": "heywood-yalaff",
+    "last_name": "Yalaff",
+    "bio": "Vault comedian. Heywood Yalaff killed at Megaton's Brass Lantern, opened for Three Dog at Galaxy News Radio, and toured Tenpenny Tower's lounges. His Comedian outfit and 8 Charisma lift vault happiness faster than a charisma training room.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Galaxy News Radio",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 36,
+      "height": "average",
+      "build": "average",
+      "hair_style": "curly",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "cheerful",
+      "clothing_style": "eclectic",
+      "voice_line_text": "Hey, you hear the one about the radroach?"
+    }
   },
   {
     "gender": "Female",
@@ -151,7 +356,27 @@
     "agility": 7,
     "luck": 7,
     "first_name": "Laurel",
-    "last_name": "Divinitus"
+    "template_id": "laurel-divinitus",
+    "last_name": "Divinitus",
+    "bio": "Matriarch of the Republic of Dave in miniature. Laurel Divinitus ruled Republic robes evenly across all 7 SPECIAL, mediating between Megaton, Canterbury Commons, and Rivet City. Her balanced grace keeps any room humming — the rare dweller who never needs a boost.",
+    "origin_place": "Republic of Dave",
+    "visited_places": [
+      "Megaton",
+      "Canterbury Commons",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 33,
+      "height": "average",
+      "build": "average",
+      "hair_style": "long",
+      "hair_color": "brown",
+      "eye_color": "green",
+      "appearance": "attractive",
+      "clothing_style": "formal"
+    }
   },
   {
     "gender": "Female",
@@ -165,7 +390,27 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Martha",
-    "last_name": "Dewey"
+    "template_id": "martha-dewey",
+    "last_name": "Dewey",
+    "bio": "Librarian of Rivet City's archive. Martha Dewey catalogued the Capitol Preservation Society's overflow, filed holotapes in Megaton, and debated history with Abraham Washington in Canterbury Commons. Her 8 Perception spots misfiled junk before it hits the floor.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Canterbury Commons"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 55,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "formal",
+      "background": "library"
+    }
   },
   {
     "gender": "Male",
@@ -179,7 +424,26 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Max",
-    "last_name": "Throttle"
+    "template_id": "max-throttle",
+    "last_name": "Throttle",
+    "bio": "Greaser mechanic from the Commonwealth. Max Throttle tuned engines in Goodneighbor's chop shops, raced through Diamond City, and drifted south to Megaton. His Greaser outfit and 8 Perception catch a misfiring generator before it blows.",
+    "origin_place": "Goodneighbor",
+    "visited_places": [
+      "Diamond City",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "railroad",
+      "age": 28,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "blue",
+      "appearance": "average",
+      "clothing_style": "rugged"
+    }
   },
   {
     "gender": "Male",
@@ -193,7 +457,26 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Oscar",
-    "last_name": "Blood"
+    "template_id": "oscar-blood",
+    "last_name": "Blood",
+    "bio": "Horror fan of Megaton's late-night reels. Oscar Blood hosted double features in Megaton, hunted ghoultown lore near Rivet City, and recorded screams for his collection. His 8 Perception keeps water treatment clear — he spots contamination like a jump scare. Also visited Canterbury Commons.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Canterbury Commons"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 31,
+      "height": "average",
+      "build": "average",
+      "hair_style": "long",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "eclectic"
+    }
   },
   {
     "gender": "Male",
@@ -207,7 +490,27 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Rex",
-    "last_name": "Chessman"
+    "template_id": "rex-chessman",
+    "last_name": "Chessman",
+    "bio": "Preacher in Clergy outfit. Rex Chessman gave last rites in Megaton, counseled ghouls in Canterbury Commons, and debated Cromwell beside the bomb. His 8 Charisma turns a radio room into a revival tent. Also visited Rivet City.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Canterbury Commons",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "children_of_atom",
+      "age": 48,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "brown",
+      "appearance": "average",
+      "facial_hair": "beard",
+      "clothing_style": "formal"
+    }
   },
   {
     "gender": "Male",
@@ -221,7 +524,27 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Rock",
-    "last_name": "Hardscrabble"
+    "template_id": "rock-hardscrabble",
+    "last_name": "Hardscrabble",
+    "bio": "Survivor of the wastes outside Canterbury Commons. Rock Hardscrabble hauled scrap through Megaton, guarded Rivet City's bridge, and slept in Tenpenny Tower's underbelly once. His Survivor armor and 8 Endurance keep the vault breathing.",
+    "origin_place": "Canterbury Commons",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 37,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "bald",
+      "hair_color": "brown",
+      "eye_color": "green",
+      "appearance": "unattractive",
+      "clothing_style": "rugged"
+    }
   },
   {
     "gender": "Male",
@@ -235,7 +558,26 @@
     "agility": 4,
     "luck": 3,
     "first_name": "Shamus",
-    "last_name": "Rumple"
+    "template_id": "shamus-rumple",
+    "last_name": "Rumple",
+    "bio": "Mayor of a one-man town that became the vault. Shamus Rumple glad-handed in Megaton, filibustered in Rivet City, and learned diplomacy in Tenpenny Tower's lobby. His Mayor outfit and 8 Charisma make the radio sing.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 52,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "blue",
+      "appearance": "average",
+      "clothing_style": "formal"
+    }
   },
   {
     "gender": "Male",
@@ -249,7 +591,26 @@
     "agility": 5,
     "luck": 5,
     "first_name": "Tenderloin",
-    "last_name": "Fauntleroy"
+    "template_id": "tenderloin-fauntleroy",
+    "last_name": "Fauntleroy",
+    "bio": "Nobility with a common touch. Tenderloin Fauntleroy wintered in Tenpenny Tower, summered in Rivet City, and slummed in Megaton for authenticity. Perfectly balanced 5s across SPECIAL make him the rare aristocrat who can work any room without complaint.",
+    "origin_place": "Tenpenny Tower",
+    "visited_places": [
+      "Rivet City",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 35,
+      "height": "average",
+      "build": "average",
+      "hair_style": "wavy",
+      "hair_color": "blonde",
+      "eye_color": "blue",
+      "appearance": "attractive",
+      "clothing_style": "formal"
+    }
   },
   {
     "gender": "Female",
@@ -263,7 +624,27 @@
     "agility": 4,
     "luck": 3,
     "first_name": "Tina",
-    "last_name": "Wrenchley"
+    "template_id": "tina-wrenchley",
+    "last_name": "Wrenchley",
+    "bio": "Engineer of Rivet City's broken bows. Tina Wrenchley rewired the carrier's turbines, patched Megaton's purifier, and tuned Tenpenny Tower's generators. Her Engineer outfit and 8 Intelligence keep production humming.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 29,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "short",
+      "hair_color": "red",
+      "eye_color": "green",
+      "appearance": "average",
+      "clothing_style": "rugged",
+      "background": "workshop"
+    }
   },
   {
     "gender": "Female",
@@ -277,7 +658,26 @@
     "agility": 4,
     "luck": 3,
     "first_name": "Vera",
-    "last_name": "Majors"
+    "template_id": "vera-majors",
+    "last_name": "Majors",
+    "bio": "Soldier of the Megaton militia. Vera Majors stood watch on Megaton's walls, drilled in Rivet City's security, and escorted caravans to Tenpenny Tower. Her Soldier uniform and 8 Strength keep power plants honest.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 30,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "military"
+    }
   },
   {
     "gender": "Male",
@@ -291,7 +691,26 @@
     "agility": 3,
     "luck": 4,
     "first_name": "Prospero",
-    "last_name": "Leonard"
+    "template_id": "prospero-leonard",
+    "last_name": "Leonard",
+    "bio": "Sci-fi fan who believed the mothership would return. Prospero Leonard camped under Megaton's bomb, scanned Rivet City's skies, and broadcast theories from Galaxy News Radio. His 8 Endurance keeps him rooted when the vault shakes.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Galaxy News Radio"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 40,
+      "height": "average",
+      "build": "average",
+      "hair_style": "curly",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "eclectic"
+    }
   },
   {
     "gender": "Female",
@@ -305,7 +724,26 @@
     "agility": 2,
     "luck": 5,
     "first_name": "Amy",
-    "last_name": "Chandler"
+    "template_id": "amy-chandler",
+    "last_name": "Chandler",
+    "bio": "Battle armor tinkerer from Rivet City. Amy Chandler forged plates in Rivet City's hangar, tested them in Megaton's wastes, and traded in Tenpenny Tower. Her inventive, intelligence-driven work keeps the vault stitched together.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 28,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "green",
+      "appearance": "average",
+      "clothing_style": "rugged"
+    }
   },
   {
     "gender": "Male",
@@ -319,7 +757,26 @@
     "agility": 5,
     "luck": 3,
     "first_name": "Benjamin",
-    "last_name": "Price"
+    "template_id": "benjamin-price",
+    "last_name": "Price",
+    "bio": "Survivor turned scribe. Benjamin Price wandered from Megaton to Rivet City with notebooks, chronicling the wastes between Canterbury Commons and the vault. His calm intelligence steadies any science lab.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Canterbury Commons"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 44,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "clothing_style": "casual"
+    }
   },
   {
     "gender": "Male",
@@ -333,6 +790,28 @@
     "agility": 4,
     "luck": 3,
     "first_name": "Brian",
-    "last_name": "Drake"
+    "template_id": "brian-drake",
+    "last_name": "Drake",
+    "bio": "Sci-fi fan with a raider's spine. Brian Drake dreamed of aliens, survived Canterbury Commons' mutant hunts, and guarded Megaton's gate in patched Sci-fi fan outfit. His 7 Strength and scarred optimism keep the vault grounded. Also visited Rivet City.",
+    "origin_place": "Canterbury Commons",
+    "visited_places": [
+      "Megaton",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 36,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "red",
+      "eye_color": "blue",
+      "appearance": "average",
+      "clothing_style": "rugged",
+      "distinguishing_features": [
+        "scar"
+      ]
+    }
   }
 ]

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 from sqlmodel import SQLModel
@@ -24,6 +25,7 @@ from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead
 from app.schemas.weapon import WeaponRead
 from app.utils.partial import optional
+from app.utils.places import normalize_place_name
 
 LETTER_TO_STAT = {
     "S": "strength",
@@ -134,6 +136,56 @@ class DwellerVisualAttributes(BaseModel):
         if faction not in faction_restrictions[race]:
             raise ValueError(f"Faction '{faction.value}' is not valid for race '{race.value}'")
         return self
+
+    model_config = ConfigDict(use_enum_values=True)
+
+
+class DwellerTemplate(DwellerCreateWithoutVaultID):
+    """Loader schema for curated dweller JSON templates.
+
+    Extends the persistable dweller fields with creation-only map metadata.
+    ``origin_place`` / ``visited_places`` are not Dweller columns and must not
+    be persisted directly — callers pass them to ``map_service.register_bio_places``.
+    ``visual_attributes`` is typed so identity validation runs at load time; ``null``
+    is allowed for companion templates (CX404, Snip Snip).
+    """
+
+    template_id: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    origin_place: str = Field(min_length=1, max_length=64)
+    visited_places: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list, max_length=4)
+    visual_attributes: DwellerVisualAttributes | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def _validate_template_places(self) -> "DwellerTemplate":
+        """Enforce place invariants: trimmed, unique, origin-disjoint, capped."""
+        if not self.origin_place.strip():
+            raise ValueError("origin_place must not be blank")
+        self.origin_place = self.origin_place.strip()
+        self.visited_places = [place.strip() for place in self.visited_places if place.strip()]
+        if len(self.visited_places) > 4:
+            raise ValueError("visited_places must contain at most 4 places")
+        origin_norm = normalize_place_name(self.origin_place)
+        seen: set[str] = set()
+        for place in self.visited_places:
+            norm = normalize_place_name(place)
+            if norm == origin_norm:
+                raise ValueError(f"visited_places must not contain the origin place: {place}")
+            if norm in seen:
+                raise ValueError(f"visited_places contains duplicate place: {place}")
+            seen.add(norm)
+        return self
+
+    def to_create_payload(self) -> tuple[DwellerCreateWithoutVaultID, str | None, list[str]]:
+        """Return (persistable payload, origin_place, visited_places) for the shared creation flow.
+
+        The persistable payload excludes the two map-metadata fields so Pydantic
+        never silently drops them via ``DwellerCreateWithoutVaultID``.
+        """
+        origin = self.origin_place
+        visited = list(self.visited_places)
+        data = self.model_dump(exclude={"origin_place", "visited_places"})
+        payload = DwellerCreateWithoutVaultID.model_validate(data)
+        return payload, origin, visited
 
     model_config = ConfigDict(use_enum_values=True)
 

@@ -116,8 +116,6 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    # Procedurally generated dwellers represent wasteland recruits. Children
-    # enter the vault only through the breeding lifecycle.
     age_group = AgeGroupEnum.ADULT
     is_adult = True
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
@@ -143,11 +141,58 @@ def create_random_common_dweller(
         "radaway": 0,
         "visual_attributes": _roll_identity(rng),
         "bio": _render_template_bio(origin, visited),
-        # Reserved for the caller (crud.create_random) to register map places;
-        # never a Dweller column, so it must be popped before model construction.
         "_bio_places": (origin, visited),
         **stats,
     }
+
+
+def create_dweller_from_template(
+    template: Any,
+    seed: int | None = None,
+) -> dict[str, Any]:
+    """Build a persistable dweller dict from a curated ``DwellerTemplate``.
+
+    The template's SPECIAL, bio, visuals and map metadata are authoritative.
+    Birth date and health are synthesized so the row is immediately playable.
+    """
+    from app.schemas.dweller import DwellerTemplate
+
+    if not isinstance(template, DwellerTemplate):
+        raise TypeError("template must be a DwellerTemplate")
+    payload, origin, visited = template.to_create_payload()
+    data: dict[str, Any] = payload.model_dump(exclude_none=False)
+    # Weapon/outfit are template metadata for item creation, not Dweller columns.
+    data.pop("weapon", None)
+    data.pop("outfit", None)
+    # Visual attributes from DwellerTemplate may be a validated model; store as plain dict for JSONB.
+    va = data.get("visual_attributes")
+    if isinstance(va, dict):
+        data["visual_attributes"] = va
+    elif va is not None and hasattr(va, "model_dump"):
+        data["visual_attributes"] = va.model_dump(exclude_none=False)  # type: ignore[union-attr]
+    rng = random.Random(seed) if seed is not None else random
+    now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
+    oldest = _calendar_years_ago(now, 80)
+    youngest = _calendar_years_ago(now, 18)
+    if data.get("birth_date") is None:
+        data["birth_date"] = oldest + timedelta(days=rng.randint(0, (youngest - oldest).days))
+    data.setdefault("is_adult", True)
+    data.setdefault("age_group", AgeGroupEnum.ADULT)
+    data.setdefault("level", 1)
+    data.setdefault("experience", 0)
+    data.setdefault("max_health", 100)
+    data.setdefault("health", 100)
+    data.setdefault("radiation", 0)
+    data.setdefault("happiness", 50)
+    if data.get("visual_attributes") is None:
+        data["visual_attributes"] = None
+    data["_bio_places"] = (origin, visited) if origin or visited else None
+    if not data.get("bio"):
+        origin_fallback, visited_fallback = origin or "Vault 111", visited or []
+        data["bio"] = _render_template_bio(origin_fallback, visited_fallback)
+        if data["_bio_places"] is None:
+            data["_bio_places"] = (origin_fallback, visited_fallback)
+    return data
 
 
 def group_dwellers_by_room(dwellers: list[Any]) -> dict[str, list[Any]]:

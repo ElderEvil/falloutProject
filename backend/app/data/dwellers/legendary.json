@@ -12,7 +12,30 @@
     "agility": 4,
     "luck": 6,
     "first_name": "Abraham",
-    "last_name": "Washington"
+    "template_id": "abraham-washington",
+    "last_name": "Washington",
+    "bio": "Curator of the Capitol Preservation Society in Rivet City. Born in Rivet City to historian parents, Abraham spent his life hoarding pre-War documents — from the Constitution to Lincoln's artifacts. He hired the Lone Wanderer to recover the Declaration of Independence from the National Archives, paying with the Railway Rifle schematic. Eccentric, bookish, and utterly devoted to America’s past, he later traded through Rivet City and Canterbury Commons before tales of his archive reached Tenpenny Tower. Also visited Megaton.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "National Archives",
+      "Megaton",
+      "Canterbury Commons",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 45,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "focused",
+      "clothing_style": "formal",
+      "background": "museum"
+    }
   },
   {
     "gender": "Male",
@@ -27,7 +50,30 @@
     "agility": 2,
     "luck": 9,
     "first_name": "Allistair",
-    "last_name": "Tenpenny"
+    "template_id": "allistair-tenpenny",
+    "last_name": "Tenpenny",
+    "bio": "Reclusive owner of Tenpenny Tower. The 80-year-old pre-War British expatriate built his luxury spire overlooking the wastes and views the Capital Wasteland as a spectacle. He paid Mister Burke to erase Megaton for the view — a Very Evil act. He frequents Tenpenny Tower, trades with Rivet City, and once negotiated, coldly, with the ghouls of Wasteland hovels. Polished, venomously polite, and utterly detached from the world below his balcony. Also visited Paradise Falls.",
+    "origin_place": "Tenpenny Tower",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Paradise Falls"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 80,
+      "height": "tall",
+      "build": "average",
+      "hair_style": "wavy",
+      "hair_color": "light gray",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "smug",
+      "clothing_style": "formal",
+      "background": "luxury tower",
+      "voice_line_text": "What a grand display of fireworks!"
+    }
   },
   {
     "gender": "Female",
@@ -42,7 +88,29 @@
     "agility": 7,
     "luck": 6,
     "first_name": "Amata",
-    "last_name": ""
+    "template_id": "amata",
+    "last_name": "",
+    "bio": "Daughter of Vault 101 Overseer Alphonse Almodovar and childhood friend of the Lone Wanderer. Raised under strict Vault 101 isolation, Amata dreamed of the outside world while enforcing her father's order. She helped the Wanderer escape, later led rebels against the Overseer, and wrestled with whether Vault 101 should stay sealed or open. She passed through Megaton and Rivet City in tales of exile, carrying the weight of vault duty and teenage rebellion. Also visited Big Town.",
+    "origin_place": "Vault 101",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Big Town"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 20,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "long",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "attractive",
+      "expression": "worried",
+      "clothing_style": "casual",
+      "background": "vault corridor"
+    }
   },
   {
     "gender": "Female",
@@ -57,7 +125,30 @@
     "agility": 5,
     "luck": 5,
     "first_name": "Bittercup",
-    "last_name": ""
+    "template_id": "bittercup",
+    "last_name": "",
+    "bio": "Goth of Big Town. Bittercup fled Little Lamplight at sixteen, settled in Big Town, and turned bleakness into a brand — black eyeliner, bitter poetry, and a sharp tongue. She is charismatic but wounded, obsessed with dyes and dramatic heartbreak. She scavenged through Little Lamplight and Canterbury Commons before finding her stage among Big Town's walls, where her wit hides a surprisingly loyal heart. Also visited Megaton.",
+    "origin_place": "Big Town",
+    "visited_places": [
+      "Little Lamplight",
+      "Canterbury Commons",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 21,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "long",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "attractive",
+      "expression": "melancholic",
+      "makeup": "dark",
+      "clothing_style": "eclectic",
+      "background": "settlement"
+    }
   },
   {
     "gender": "Male",
@@ -72,7 +163,29 @@
     "agility": 6,
     "luck": 2,
     "first_name": "Butch",
-    "last_name": ""
+    "template_id": "butch",
+    "last_name": "",
+    "bio": "Head of the Tunnel Snakes in Vault 101. The leather-jacket greaser with a switchblade named Butch DeLoria ruled his gang of delinquents, idolized his mother Ellen, and clashed constantly with the Lone Wanderer. After the Vault 101 crisis he tried to go straight, passing through Megaton and Rivet City with his Tunnel Snakes' outfit still smelling of Vault polish and rebellion. Also visited Paradise Falls.",
+    "origin_place": "Vault 101",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Paradise Falls"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 22,
+      "height": "average",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "smirking",
+      "clothing_style": "rugged",
+      "background": "vault atrium"
+    }
   },
   {
     "gender": "Male",
@@ -87,7 +200,30 @@
     "agility": 5,
     "luck": 6,
     "first_name": "Colonel",
-    "last_name": "Autumn"
+    "template_id": "colonel-autumn",
+    "last_name": "Autumn",
+    "bio": "Colonel Augustus Autumn of the Enclave. Tall, rigid, and utterly loyal to President Eden and the Enclave cause, Autumn led operations from Raven Rock and later Adams Air Force Base to reclaim the Capital Wasteland for pure humanity. He faced the Lone Wanderer at Project Purity, refusing compromise. His Autumn's uniform and Smuggler's End mark his authority. He brokered passage through Tenpenny Tower and Rivet City while hunting the purifier. Also visited Megaton.",
+    "origin_place": "Raven Rock",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Tenpenny Tower",
+      "Adams Air Force Base"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "enclave",
+      "age": 42,
+      "height": "tall",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "stern",
+      "clothing_style": "military",
+      "background": "military base"
+    }
   },
   {
     "gender": "Male",
@@ -102,7 +238,30 @@
     "agility": 3,
     "luck": 5,
     "first_name": "Confessor",
-    "last_name": "Cromwell"
+    "template_id": "confessor-cromwell",
+    "last_name": "Cromwell",
+    "bio": "Confessor of the Children of Atom in Megaton. Cromwell preaches that Atom's glow is divine, shrouded in Confessor Cromwell's rags and radiation psalms. He tends to the crater bomb at Megaton's heart, offering irradiated water as sacrament. Pilgrims from Rivet City and Tenpenny Tower seek his sermons, though many whisper he is more showman than prophet. Devout, charismatic, and eerily at peace beside an undetonated bomb. Also visited Canterbury Commons.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Tenpenny Tower",
+      "Canterbury Commons"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "children_of_atom",
+      "age": 52,
+      "height": "average",
+      "build": "average",
+      "hair_style": "bald",
+      "hair_color": "gray",
+      "eye_color": "green",
+      "appearance": "unattractive",
+      "facial_hair": "beard",
+      "expression": "ecstatic",
+      "clothing_style": "rugged",
+      "background": "crater"
+    }
   },
   {
     "gender": "Female",
@@ -117,7 +276,29 @@
     "agility": 4,
     "luck": 4,
     "first_name": "Dr.",
-    "last_name": "Li"
+    "template_id": "dr-li",
+    "last_name": "Li",
+    "bio": "Doctor Madison Li, lead scientist of Project Purity. Brilliant and driven, Li worked with James to revive clean water for the Wasteland, first in Rivet City's Science Lab and later at the Jefferson Memorial. After James's death she fled to the Commonwealth to join the Institute, wrestling with the ethics of synth creation. Her Expert lab coat marks decades between Rivet City, Megaton, and the Institute's sterile halls. Also visited Tenpenny Tower.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Tenpenny Tower",
+      "The Institute"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "the_institute",
+      "age": 40,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "focused",
+      "clothing_style": "formal",
+      "background": "laboratory"
+    }
   },
   {
     "gender": "Male",
@@ -132,7 +313,29 @@
     "agility": 3,
     "luck": 7,
     "first_name": "Ed",
-    "last_name": "the Ghoul"
+    "template_id": "ed-the-ghoul",
+    "last_name": "the Ghoul",
+    "bio": "A custom RobCo R&D ghoul, prepped in a forgotten lab near Rivet City. Ed awoke feral-adjacent but sane, his skin leathery from two centuries of radiation, his mind still sharp enough to hack terminals and swing a power fist. He wandered through Canterbury Commons and Big Town as a curiosity before the vault recruited him — a reminder that ghouls can be brilliant, not just monsters. Also visited Megaton.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Canterbury Commons",
+      "Big Town",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "ghoul",
+      "faction": "none",
+      "age": 80,
+      "state_of_being": "sane",
+      "height": "average",
+      "build": "average",
+      "skin_tone": "pale",
+      "eye_color": "yellow",
+      "appearance": "unattractive",
+      "expression": "grim",
+      "clothing_style": "rugged",
+      "background": "wasteland"
+    }
   },
   {
     "gender": "Male",
@@ -147,7 +350,30 @@
     "agility": 3,
     "luck": 9,
     "first_name": "Elder",
-    "last_name": "Lyons"
+    "template_id": "elder-lyons",
+    "last_name": "Lyons",
+    "bio": "Elder Owyn Lyons, founder of the Capital Wasteland Brotherhood of Steel. Lyons led his chapter east from Lost Hills to the Citadel — the Pentagon — defying the Brotherhood's hoarding dogma to protect wastelanders. Father to Sarah Lyons, mentor to Scribe Rothchild and Star Paladin Cross, he clashed with the Outcasts and negotiated with Rivet City and Galaxy News Radio. Charismatic, idealistic, and controversial among his own knights. Also visited Megaton, and Tenpenny Tower.",
+    "origin_place": "The Citadel",
+    "visited_places": [
+      "Rivet City",
+      "Galaxy News Radio",
+      "Megaton",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "brotherhood_of_steel",
+      "age": 60,
+      "height": "tall",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "resolute",
+      "clothing_style": "military",
+      "background": "citadel"
+    }
   },
   {
     "gender": "Male",
@@ -162,7 +388,30 @@
     "agility": 4,
     "luck": 7,
     "first_name": "Eulogy",
-    "last_name": "Jones"
+    "template_id": "eulogy-jones",
+    "last_name": "Jones",
+    "bio": "Slaver king of Paradise Falls. Eulogy Jones runs the largest slave market in the Capital Wasteland in a tailored suit and a slaver's smile, flipping captives to super mutants, Tenpenny Tower, and anyone with caps. Charismatic and utterly remorseless, he expanded operations through Arefu and Megaton, where Sheriff Lucas Simms knows his name too well. His Blackhawk pistol is rarely holstered.",
+    "origin_place": "Paradise Falls",
+    "visited_places": [
+      "Megaton",
+      "Tenpenny Tower",
+      "Arefu"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "raiders",
+      "age": 45,
+      "height": "average",
+      "build": "stocky",
+      "hair_style": "short",
+      "hair_color": "dark brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "facial_hair": "stubble",
+      "expression": "smirking",
+      "clothing_style": "formal",
+      "background": "paradise falls"
+    }
   },
   {
     "gender": "Male",
@@ -177,7 +426,30 @@
     "agility": 6,
     "luck": 3,
     "first_name": "Harkness",
-    "last_name": ""
+    "template_id": "harkness",
+    "last_name": "",
+    "bio": "Chief of Rivet City Security — and secretly an escaped synth. Designation A3-21 fled the Institute via the Railroad, memories wiped and implanted as human Harkness to hide on the aircraft carrier. Strong, perceptive, and loyal, he protects Rivet City's upper and lower decks while wrestling with gaps in his memory. His Heavy battle armor and Infiltrator hint at the Commonwealth truth: he is gen-3, hunted, and profoundly human. Also visited Megaton, and Tenpenny Tower.",
+    "origin_place": "Rivet City",
+    "visited_places": [
+      "Megaton",
+      "Tenpenny Tower",
+      "The Institute"
+    ],
+    "visual_attributes": {
+      "race": "synth",
+      "faction": "railroad",
+      "age": 35,
+      "state_of_being": "gen_3",
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "stoic",
+      "clothing_style": "military",
+      "background": "rivet city"
+    }
   },
   {
     "gender": "Male",
@@ -192,7 +464,29 @@
     "agility": 4,
     "luck": 3,
     "first_name": "James",
-    "last_name": ""
+    "template_id": "james",
+    "last_name": "",
+    "bio": "Father of the Lone Wanderer and co-founder of Project Purity. Dr. James left Vault 101 with infant Wanderer, dreaming of free water for the Wasteland. Idealistic, soft-spoken, and brilliant, he recruited Madison Li at Rivet City and restarted the purifier at the Jefferson Memorial, sacrificing himself to keep Autumn's soldiers from taking it. His Expert lab coat and quiet hope connect Vault 101, Megaton, and Rivet City.",
+    "origin_place": "Vault 101",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Jefferson Memorial"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "vault_dweller",
+      "age": 45,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "kind",
+      "clothing_style": "formal",
+      "background": "laboratory"
+    }
   },
   {
     "gender": "Male",
@@ -207,7 +501,30 @@
     "agility": 7,
     "luck": 6,
     "first_name": "Jericho",
-    "last_name": ""
+    "template_id": "jericho",
+    "last_name": "",
+    "bio": "Disgraced ex-Raider turned Megaton merc. Jericho rode with raiders, anchored in Megaton as a hired gun with a foul mouth and a Infiltrator rifle. He lounges outside Moriarty's Saloon, charging caps for protection, but his Heavy leather armor still smells of the wastes between Paradise Falls and Tenpenny Tower. Tough, endurance-hardened, and surprisingly dependable when paid. Also visited Rivet City.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Paradise Falls",
+      "Tenpenny Tower",
+      "Rivet City"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "raiders",
+      "age": 55,
+      "height": "average",
+      "build": "stocky",
+      "hair_style": "bald",
+      "hair_color": "gray",
+      "eye_color": "green",
+      "appearance": "unattractive",
+      "facial_hair": "stubble",
+      "expression": "scowling",
+      "clothing_style": "rugged",
+      "background": "megaton"
+    }
   },
   {
     "gender": "Male",
@@ -222,7 +539,30 @@
     "agility": 6,
     "luck": 2,
     "first_name": "Lucas",
-    "last_name": "Simms"
+    "template_id": "lucas-simms",
+    "last_name": "Simms",
+    "bio": "Sheriff of Megaton, founder and law. Lucas Simms built Megaton around the bomb — literally — and polices its water, walls, and dials with a Sheriff's duster and an Infiltrator. Just, perceptive, and endlessly tired of Moriarty's scheming, he keeps peace between Rivet City traders and Tenpenny Tower elites. He once deputized the Lone Wanderer and remains Megaton's conscience. Also visited Canterbury Commons.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Tenpenny Tower",
+      "Canterbury Commons"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 40,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "facial_hair": "mustache",
+      "expression": "stern",
+      "clothing_style": "military",
+      "background": "megaton"
+    }
   },
   {
     "gender": "Female",
@@ -237,7 +577,29 @@
     "agility": 5,
     "luck": 5,
     "first_name": "Moira",
-    "last_name": "Brown"
+    "template_id": "moira-brown",
+    "last_name": "Brown",
+    "bio": "Proprietor of Craterside Supply in Megaton and author of the Wasteland Survival Guide. Moira is relentlessly cheerful, endlessly curious, and almost immune to fear — she once asked the Wanderer to nuke, cripple, and irradiate themselves for research. Born in Rivet City's shadow, she trekked through Megaton and Canterbury Commons testing myths. Her Expert jumpsuit is patched with optimism and radiation badges. Also visited Tenpenny Tower.",
+    "origin_place": "Megaton",
+    "visited_places": [
+      "Rivet City",
+      "Canterbury Commons",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 28,
+      "height": "average",
+      "build": "average",
+      "hair_style": "long",
+      "hair_color": "brown",
+      "eye_color": "blue",
+      "appearance": "cute",
+      "expression": "cheerful",
+      "clothing_style": "casual",
+      "background": "store"
+    }
   },
   {
     "gender": "Male",
@@ -252,7 +614,29 @@
     "agility": 2,
     "luck": 8,
     "first_name": "Mr.",
-    "last_name": "Burke"
+    "template_id": "mr-burke",
+    "last_name": "Burke",
+    "bio": "Mister Burke — Tenpenny's silken-voiced fixer. Impeccably dressed in Lucky formal wear, Burke drifts between Tenpenny Tower's balcony and Megaton's shadows, offering caps and a remote detonator for a little urban renewal. Charismatic, ice-cold, and unfailingly polite, he brokered with Rivet City merchants while planning to erase Megaton with one button press. Also visited Paradise Falls.",
+    "origin_place": "Tenpenny Tower",
+    "visited_places": [
+      "Megaton",
+      "Rivet City",
+      "Paradise Falls"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 45,
+      "height": "tall",
+      "build": "slim",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "smirking",
+      "clothing_style": "formal",
+      "background": "tenpenny tower"
+    }
   },
   {
     "gender": "Male",
@@ -267,7 +651,30 @@
     "agility": 3,
     "luck": 7,
     "first_name": "Old",
-    "last_name": "Longfellow"
+    "template_id": "old-longfellow",
+    "last_name": "Longfellow",
+    "bio": "Freeman of Far Harbor. Old Longfellow is the island's oldest hunter — grizzled, acid-wry, and the only soul who truly knows the fog. Born on Mount Desert Island, he guides lost wanderers through Far Harbor, Diamond City trade routes, and the Children of Atom's Nucleus, with a Tattered longcoat and a harpoon gun named Henrietta. He drinks hard and tells truer stories when the fog clears. Also visited Goodneighbor, and The Nucleus.",
+    "origin_place": "Far Harbor",
+    "visited_places": [
+      "Diamond City",
+      "Goodneighbor",
+      "The Nucleus"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 68,
+      "height": "average",
+      "build": "stocky",
+      "hair_style": "short",
+      "hair_color": "gray",
+      "eye_color": "blue",
+      "appearance": "unattractive",
+      "facial_hair": "beard",
+      "expression": "gruff",
+      "clothing_style": "rugged",
+      "background": "foggy island"
+    }
   },
   {
     "gender": "Female",
@@ -282,7 +689,29 @@
     "agility": 4,
     "luck": 4,
     "first_name": "Piper",
-    "last_name": ""
+    "template_id": "piper",
+    "last_name": "",
+    "bio": "Investigative reporter of Publick Occurrences in Diamond City. Piper Wright — sharp, fearless, and relentlessly nosy — exposes corruption with her sister Nat at her side and a battered Piper's outfit. She arrived from the outskirts of Diamond City, filing stories through Goodneighbor and Far Harbor, where her questions make mayors nervous. Her endurance in a fight surprises those who mistake wit for softness. Also visited Sanctuary Hills.",
+    "origin_place": "Diamond City",
+    "visited_places": [
+      "Goodneighbor",
+      "Far Harbor",
+      "Sanctuary Hills"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 23,
+      "height": "average",
+      "build": "slim",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "green",
+      "appearance": "attractive",
+      "expression": "determined",
+      "clothing_style": "casual",
+      "background": "diamond city"
+    }
   },
   {
     "gender": "Male",
@@ -297,7 +726,30 @@
     "agility": 6,
     "luck": 3,
     "first_name": "Preston",
-    "last_name": "Garvey"
+    "template_id": "preston-garvey",
+    "last_name": "Garvey",
+    "bio": "Last of the Commonwealth Minutemen. Preston Garvey stood at Quincy when the Minutemen fell, then led settlers through Lexington and Concord to Sanctuary Hills. Clad in his Minuteman uniform with a Laser musket, perceptive and tireless, he recruits every willing soul to protect Diamond City and Goodneighbor trade routes. His mantra — 'another settlement needs our help' — is both hope and haunting debt.",
+    "origin_place": "Quincy",
+    "visited_places": [
+      "Diamond City",
+      "Goodneighbor",
+      "Sanctuary Hills",
+      "Concord"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "minutemen",
+      "age": 30,
+      "height": "tall",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "resolute",
+      "clothing_style": "military",
+      "background": "minutemen outpost"
+    }
   },
   {
     "gender": "Female",
@@ -312,7 +764,30 @@
     "agility": 5,
     "luck": 2,
     "first_name": "Sarah",
-    "last_name": "Lyons"
+    "template_id": "sarah-lyons",
+    "last_name": "Lyons",
+    "bio": "Sentinel Sarah Lyons — heir to the Brotherhood. Daughter of Elder Owyn Lyons, she commands from the Citadel in T-51f power armor with a Wazer Wifle, leading shock patrols through Rivet City, Galaxy News Radio, and Megaton. Fiercely loyal, headstrong, and revered by her knights, she would die before abandoning the Wasteland her father swore to protect. Also visited Tenpenny Tower.",
+    "origin_place": "The Citadel",
+    "visited_places": [
+      "Rivet City",
+      "Galaxy News Radio",
+      "Megaton",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "brotherhood_of_steel",
+      "age": 27,
+      "height": "tall",
+      "build": "athletic",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "attractive",
+      "expression": "determined",
+      "clothing_style": "military",
+      "background": "citadel"
+    }
   },
   {
     "gender": "Male",
@@ -327,7 +802,29 @@
     "agility": 5,
     "luck": 5,
     "first_name": "Scribe",
-    "last_name": "Rothchild"
+    "template_id": "scribe-rothchild",
+    "last_name": "Rothchild",
+    "bio": "Senior Scribe Reginald Rothchild — keeper of the Brotherhood's tomes. From the Citadel's labyrinthine archives, Rothchild catalogs pre-War science, advises Elder Lyons, and trades cautiously with Rivet City and Galaxy News Radio. In Scribe Rothchild's robe with a Lone Wanderer pistol, charismatic but intellectually modest, he bridges the Brotherhood's past and its fragile idealism. Also visited Megaton.",
+    "origin_place": "The Citadel",
+    "visited_places": [
+      "Rivet City",
+      "Galaxy News Radio",
+      "Megaton"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "brotherhood_of_steel",
+      "age": 50,
+      "height": "average",
+      "build": "average",
+      "hair_style": "bald",
+      "hair_color": "gray",
+      "eye_color": "blue",
+      "appearance": "average",
+      "expression": "scholarly",
+      "clothing_style": "formal",
+      "background": "library"
+    }
   },
   {
     "gender": "Female",
@@ -342,7 +839,29 @@
     "agility": 6,
     "luck": 3,
     "first_name": "Star",
-    "last_name": "Paladin Cross"
+    "template_id": "star-paladin-cross",
+    "last_name": "Paladin Cross",
+    "bio": "Star Paladin Cross — Elder Lyons's personal guardian. Cross earned her star patrolling the wastes between the Citadel, Rivet City, and Megaton in T-51f power armor, Smuggler's End at her hip. Unflinching, perceptive, and charismatically stern, she was broken at Project Purity's steps and still stood. Her loyalty to the Lyons dynasty is absolute. Also visited Galaxy News Radio.",
+    "origin_place": "The Citadel",
+    "visited_places": [
+      "Rivet City",
+      "Megaton",
+      "Galaxy News Radio"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "brotherhood_of_steel",
+      "age": 38,
+      "height": "tall",
+      "build": "muscular",
+      "hair_style": "short",
+      "hair_color": "brown",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "stern",
+      "clothing_style": "military",
+      "background": "citadel"
+    }
   },
   {
     "gender": "Male",
@@ -357,6 +876,29 @@
     "agility": 5,
     "luck": 7,
     "first_name": "Three",
-    "last_name": "Dog"
+    "template_id": "three-dog",
+    "last_name": "Dog",
+    "bio": "Voice of Galaxy News Radio. Three Dog — born in the wastes, raised on vinyl — broadcasts truth, jazz, and rebellion from GNR Plaza, fighting Enclave propaganda with a boosted signal and a Three Dog's outfit. He amplifies Rivet City and Megaton news, mocks Tenpenny Tower's elite, and once declared the Lone Wanderer the savior or scourge of the Wastes. Charisma incarnate, and the Wasteland's loudest conscience.",
+    "origin_place": "Galaxy News Radio",
+    "visited_places": [
+      "Rivet City",
+      "Megaton",
+      "Tenpenny Tower"
+    ],
+    "visual_attributes": {
+      "race": "human",
+      "faction": "none",
+      "age": 32,
+      "height": "average",
+      "build": "average",
+      "hair_style": "short",
+      "hair_color": "black",
+      "eye_color": "brown",
+      "appearance": "average",
+      "expression": "charismatic",
+      "clothing_style": "casual",
+      "background": "radio station",
+      "voice_line_text": "Because one dog ain't enough, and three is too many!"
+    }
   }
 ]

@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+import random
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -179,8 +180,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return list((await db_session.execute(query)).scalars().all())
 
-    @staticmethod
     async def create_random(
+        self,
         db_session: AsyncSession,
         vault_id: UUID4,
         obj_in: DwellerCreateCommonOverride | None = None,
@@ -199,8 +200,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         register their own places (e.g. pregen_service) pass False to avoid
         double registration.
         """
+        has_custom_name = bool(obj_in and (obj_in.first_name is not None or obj_in.last_name is not None))
+        if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY) and not has_custom_name:
+            from app.utils.static_data import game_data_store
+
+            rng = random.Random(seed) if seed is not None else None
+            active_names = await self.lock_vault_for_template(db_session, vault_id)
+            template = game_data_store.pick_template(
+                rarity.value,
+                rng=rng,
+                exclude_names=active_names or None,
+            )
+            if template is not None:
+                return await self._create_template(
+                    db_session, vault_id, template, register_bio_places=register_bio_places, seed=seed
+                )
+            rarity = RarityEnum.COMMON
         dweller_data = create_random_common_dweller(seed=seed, rarity=rarity)
-        bio_places = dweller_data.pop("_bio_places", None)
         if obj_in:
             new_dweller_data = obj_in.model_dump(exclude_unset=True)
             if stat := new_dweller_data.get("special_boost"):
@@ -208,6 +224,89 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 new_dweller_data.pop("special_boost")
             dweller_data.update(new_dweller_data)
 
+        return await self._persist_with_bio_places(db_session, vault_id, dweller_data, register_bio_places)
+
+    async def create_from_template(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        template_id: str,
+        register_bio_places: bool = True,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> Dweller:
+        """Instantiate a dweller from a named template via the shared flow."""
+        from app.utils.exceptions import ResourceNotFoundException
+        from app.utils.static_data import game_data_store
+
+        template = game_data_store.get_dweller(template_id)
+        if template is None:
+            raise ResourceNotFoundException(template_id)
+        return await self._create_template(db_session, vault_id, template, register_bio_places, overrides=overrides)
+
+    async def get_active_template_names(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Return names that reserve curated templates in a vault."""
+        rows = (
+            await db_session.execute(
+                select(Dweller.first_name, Dweller.last_name)
+                .where(Dweller.vault_id == vault_id)
+                .where(~Dweller.is_deleted)
+            )
+        ).all()
+        return {f"{first_name} {last_name or ''}".strip().casefold() for first_name, last_name in rows}
+
+    async def lock_vault_for_template(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
+        """Take a row lock on the vault so template reservation is atomic, then return active names.
+
+        The lock is held until the caller's next commit/rollback — the shared
+        persist path commits, which makes the check-then-insert reservation
+        atomic under concurrency (a second creator blocks on the lock and then
+        sees the committed dweller in its fresh name snapshot). SQLite test
+        engines ignore FOR UPDATE; PostgreSQL enforces it in production.
+        """
+        from app.models.vault import Vault
+
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+        return await self.get_active_template_names(db_session, vault_id)
+
+    async def _create_template(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        template: Any,
+        register_bio_places: bool,
+        *,
+        seed: int | None = None,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> Dweller:
+        """Persist a curated template while preserving its identity and SPECIAL.
+
+        Reservation is enforced here: the vault row is locked and the template's
+        canonical name is checked against active dwellers before insert, so no
+        caller can bypass per-vault uniqueness. Raises ResourceConflictException
+        when the template is already active.
+        """
+        from app.utils.dwellers import create_dweller_from_template
+
+        active_names = await self.lock_vault_for_template(db_session, vault_id)
+        canonical = f"{template.first_name} {template.last_name or ''}".strip().casefold()
+        if canonical in active_names:
+            raise ResourceConflictException(detail=f"Template dweller '{canonical}' is already active in this vault")
+        data = create_dweller_from_template(template, seed=seed)
+        if overrides:
+            for field in ("level", "experience", "happiness", "health", "max_health"):
+                if (value := overrides.get(field)) is not None:
+                    data[field] = value
+        return await self._persist_with_bio_places(db_session, vault_id, data, register_bio_places)
+
+    @staticmethod
+    async def _persist_with_bio_places(
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        dweller_data: dict[str, Any],
+        register_bio_places: bool,
+    ) -> Dweller:
+        """Persist a dweller payload and register its explicit bio-place metadata once."""
+        bio_places = dweller_data.pop("_bio_places", None)
         db_obj = Dweller(**dweller_data, vault_id=vault_id)
         db_session.add(db_obj)
         await db_session.commit()
@@ -216,12 +315,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             from app.services.map_service import map_service
 
             origin, visited = bio_places
-            await map_service.register_bio_places(
-                db_session,
-                db_obj,
-                origin_place=origin,
-                visited_places=visited,
-            )
+            await map_service.register_bio_places(db_session, db_obj, origin_place=origin or "", visited_places=visited)
         return db_obj
 
     @staticmethod

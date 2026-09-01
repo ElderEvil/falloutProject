@@ -175,7 +175,7 @@ const isDead = (member: LineageMember) => member.is_dead
 }
 
 .tree-refresh:hover:not(:disabled) {
-  background: rgba(0, 255, 0, 0.18);
+  background: color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
 }
 
 .tree-refresh:disabled {
@@ -212,7 +212,7 @@ const isDead = (member: LineageMember) => member.is_dead
 }
 
 .tree-node {
-  background: rgba(0, 255, 0, 0.08);
+  background: color-mix(in srgb, var(--color-theme-primary) 8%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 0.375rem;
   padding: 0.4rem 0.75rem;
@@ -227,18 +227,18 @@ const isDead = (member: LineageMember) => member.is_dead
 
 .tree-node:hover {
   box-shadow: 0 0 12px var(--color-theme-glow);
-  background: rgba(0, 255, 0, 0.18);
+  background: color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
 }
 
 .tree-node-self {
   cursor: default;
   opacity: 0.85;
-  background: rgba(0, 255, 0, 0.2);
+  background: color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
 }
 
 .tree-node-partner {
-  border-color: #ff4d4d;
-  color: #ff6b6b;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .tree-node-dead {
@@ -255,11 +255,11 @@ const isDead = (member: LineageMember) => member.is_dead
   font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(255, 77, 77, 0.15);
-  border: 1px solid #ff4d4d;
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  border: 1px solid var(--color-danger);
   border-radius: 999px;
   padding: 0.05rem 0.4rem;
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .node-affinity {
@@ -283,7 +283,7 @@ const isDead = (member: LineageMember) => member.is_dead
 .family-tree-error {
   text-align: center;
   padding: 1.5rem;
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .tree-retry {
@@ -297,6 +297,6 @@ const isDead = (member: LineageMember) => member.is_dead
 }
 
 .tree-retry:hover {
-  background: rgba(0, 255, 0, 0.18);
+  background: color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
 }
 </style>

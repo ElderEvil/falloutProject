@@ -16,6 +16,7 @@ from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
+from app.schemas.common import GenderEnum, RarityEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.outfit_assets import get_outfit_image_url
@@ -35,7 +36,7 @@ class RewardService:
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
-            vault_obj.bottle_caps += amount
+            vault_obj.bottle_caps = min(vault_obj.bottle_caps + amount, 999_999)
             await persist_reward_change(db_session, vault_obj)
         else:
             await vault_crud.deposit_caps(
@@ -197,7 +198,33 @@ class RewardService:
             if template is None:
                 msg = f"Unknown dweller reward template: {template_id}"
                 raise ValueError(msg)
-            dweller_template = template.model_dump(exclude={"weapon", "outfit"})
+            from app.crud.dweller import dweller as dweller_crud
+
+            try:
+                new_dweller = await dweller_crud.create_from_template(
+                    db_session,
+                    vault_id,
+                    template_id,
+                    overrides=dweller_template,
+                )
+            except ResourceConflictException:
+                fallback = await dweller_crud.create_random(
+                    db_session, vault_id=vault_id, rarity=RarityEnum.COMMON, register_bio_places=True
+                )
+                logger.info(
+                    f"Template {template_id} already active in vault {vault_id}, granted fallback common {fallback.id}"
+                )
+                return {
+                    "reward_type": RewardType.DWELLER,
+                    "dweller_id": str(fallback.id),
+                    "name": f"{fallback.first_name} {fallback.last_name or ''}".strip(),
+                }
+            logger.info(f"Granted dweller '{new_dweller.first_name}' ({new_dweller.rarity}) to vault {vault_id}")
+            return {
+                "reward_type": RewardType.DWELLER,
+                "dweller_id": str(new_dweller.id),
+                "name": f"{new_dweller.first_name} {new_dweller.last_name or ''}".strip(),
+            }
 
         first_name = dweller_template.get("first_name", dweller_template.get("name", "Unknown"))
         last_name = dweller_template.get("last_name")
@@ -228,6 +255,7 @@ class RewardService:
             agility=dweller_template.get("agility", default_stat),
             luck=dweller_template.get("luck", default_stat),
             bio=dweller_template.get("bio"),
+            visual_attributes=dweller_template.get("visual_attributes"),
             vault_id=vault_id,
         )
         await persist_reward_change(db_session, new_dweller, refresh=True)
@@ -333,6 +361,32 @@ class RewardService:
         logger.info(f"Granted {amount} {reward_type}s to dweller {dweller.first_name} in vault {vault_id}")
         return {"reward_type": reward_type, "amount": amount, "dweller_id": str(dweller.id)}
 
+    @staticmethod
+    def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:
+        """Build the procedural fallback used for common lunchbox dwellers."""
+        return {
+            "first_name": random.choice(
+                [
+                    "Albert",
+                    "Brian",
+                    "Charles",
+                    "David",
+                    "Edward",
+                    "Frank",
+                    "Amy",
+                    "Betty",
+                    "Carol",
+                    "Donna",
+                    "Emily",
+                    "Fiona",
+                ]
+            ),
+            "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
+            "rarity": rarity,
+            "level": level,
+            "gender": random.choice([GenderEnum.MALE, GenderEnum.FEMALE]),
+        }
+
     async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:
         """Grant a lunchbox (gives random rare dwellers/items).
 
@@ -342,7 +396,7 @@ class RewardService:
         """
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
-        from app.schemas.common import GenderEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+        from app.schemas.common import OutfitTypeEnum, WeaponSubtypeEnum, WeaponTypeEnum
 
         # Generate 3 random items
         item_configs = [
@@ -393,30 +447,26 @@ class RewardService:
                     {"name": name, "type": "weapon" if isinstance(item, Weapon) else "outfit", "rarity": rarity.value}
                 )
 
-        # Generate random dweller
-        dweller_data = {
-            "first_name": random.choice(
-                [
-                    "Albert",
-                    "Brian",
-                    "Charles",
-                    "David",
-                    "Edward",
-                    "Frank",
-                    "Amy",
-                    "Betty",
-                    "Carol",
-                    "Donna",
-                    "Emily",
-                    "Fiona",
-                ]
-            ),
-            "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
-            "rarity": random.choice([RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY]),
-            "level": random.randint(1, 5),
-            "gender": random.choice([GenderEnum.MALE, GenderEnum.FEMALE]),
-        }
-        granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
+        from app.crud.dweller import dweller as dweller_crud
+
+        lunchbox_rarity = random.choices(
+            [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
+        )[0]
+        if lunchbox_rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
+            from app.utils.static_data import game_data_store
+
+            active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
+            template = game_data_store.pick_template(lunchbox_rarity.value, exclude_names=active_names or None)
+            if template is not None:
+                granted_dweller = await self.grant_dweller(
+                    db_session, vault_id, {"template_id": template.template_id, "level": random.randint(1, 5)}
+                )
+            else:
+                dweller_data = self._lunchbox_common_dweller_data(random.randint(1, 5), RarityEnum.COMMON)
+                granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
+        else:
+            dweller_data = self._lunchbox_common_dweller_data(random.randint(1, 5), lunchbox_rarity)
+            granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
 
         await persist_reward_change(db_session)
 

@@ -41,7 +41,12 @@ async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: di
         logger.warning("OBJECTIVE_COMPLETED event missing objective_id")
         return
 
-    async with async_session_maker() as db_session:
+    # Dramatiq ticks bind a loop-local maker so their handlers never reuse the
+    # module-global asyncpg connection across worker event loops.
+    from app.services.objective_evaluators import current_session_maker
+
+    session_maker = current_session_maker.get() or async_session_maker
+    async with session_maker() as db_session:
         try:
             # Get objective to fetch reward
             objective = await _get_objective(db_session, UUID4(objective_id))

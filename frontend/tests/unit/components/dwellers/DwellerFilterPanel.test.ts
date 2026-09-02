@@ -65,6 +65,7 @@ describe('DwellerFilterPanel', () => {
       const store = useDwellerStore().filter
 
       const sortSelect = wrapper.find('.sort-select')
+      expect(sortSelect.attributes('aria-label')).toBe('Sort dwellers')
       await sortSelect.setValue('level')
 
       expect(store.sortBy).toBe('level')

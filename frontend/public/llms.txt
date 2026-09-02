@@ -1,0 +1,5 @@
+# Fallout Shelter Management
+
+Fallout Shelter Management is a browser-based, Fallout-inspired vault management simulation.
+
+The application is a client-rendered game. Public visitors can register or sign in; gameplay data is private to each account and is available through the authenticated interface.

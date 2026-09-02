@@ -175,10 +175,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <aside
+  <nav
     class="side-panel"
     :class="{ collapsed: isCollapsed }"
-    role="navigation"
     aria-label="Game navigation panel"
   >
     <!-- Toggle Button -->
@@ -192,7 +191,7 @@ onUnmounted(() => {
     </button>
 
     <!-- Navigation Items -->
-    <nav class="nav-items">
+    <div class="nav-items">
       <button
         v-for="item in navItems"
         :key="item.id"
@@ -247,8 +246,8 @@ onUnmounted(() => {
           <Icon icon="mdi:lock" class="lock-icon" />
         </UTooltip>
       </div>
-    </nav>
-  </aside>
+    </div>
+  </nav>
 </template>
 
 <style scoped>

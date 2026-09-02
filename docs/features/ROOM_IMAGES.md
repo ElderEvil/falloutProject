@@ -189,16 +189,8 @@ server: {
 - `frontend/src/modules/rooms/components/RoomGrid.vue` (modified)
 - `frontend/src/modules/rooms/components/RoomDetailModal.vue` (modified)
 - `frontend/vite.config.ts` (modified)
-- `frontend/public/test-image.html` (new - for testing)
 
 ## Usage
-
-### For Developers
-
-**Testing Image Loading:**
-1. Navigate to `http://localhost:5173/test-image.html`
-2. Verify images load through both direct backend URL and Vite proxy
-3. Check console for success/failure messages
 
 **Adding New Room Images:**
 1. Place image in `backend/app/static/room_images/`

@@ -40,6 +40,13 @@ describe('RoomGrid', () => {
     await wrapper.vm.$nextTick()
   }
 
+  it('names empty room cells for screen-reader users', () => {
+    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+
+    expect(wrapper.find('.room.empty').attributes('aria-label')).toBe('Empty room cell at row 1, column 1')
+    expect(wrapper.find('.room.empty').attributes('role')).toBeUndefined()
+  })
+
   describe('Room Highlighting', () => {
     it('shows an attention count only on the Overseer’s Office', () => {
       const roomStore = useRoomStore()

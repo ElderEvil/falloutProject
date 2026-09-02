@@ -46,6 +46,13 @@ class ItemBase(SQLModel):
 class Item(BaseUUIDModel, ItemBase, table=True):
     """Generic inventory item for categories without dedicated equipment models."""
 
+    __table_args__ = (
+        sa.CheckConstraint(
+            "item_type IN ('misc', 'weapon', 'outfit', 'junk', 'consumable', 'lunchbox', 'pet', 'dweller')",
+            name="ck_item_item_type",
+        ),
+    )
+
     item_type: ItemTypeEnum = Field(
         default=ItemTypeEnum.MISC,
         sa_column=sa.Column(sa.String(length=32), nullable=False),

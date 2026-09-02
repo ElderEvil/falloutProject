@@ -1,6 +1,10 @@
 # Test Coverage Analysis & Optimization Plan
 
-## Current State
+> **Status (2026-09):** This is a **historical** analysis. Current coverage is **82.44%** and is enforced
+> at **80%** in CI via `backend-coverage.yml` (`--cov-fail-under=80`). See `docs/ROADMAP.md` for the
+> current state; the baseline numbers below predate the coverage push and are kept for reference only.
+
+## Baseline (Historical)
 
 | Metric | Value |
 |--------|-------|

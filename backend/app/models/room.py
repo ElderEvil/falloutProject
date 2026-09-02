@@ -39,8 +39,8 @@ class RoomBase(SQLModel):
         default=None,
         description="When the armed arena match was started by the player (fight button); NULL means waiting",
     )
-    arena_fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True)
-    arena_fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True)
+    arena_fighter_a_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
+    arena_fighter_b_id: UUID4 | None = Field(default=None, foreign_key="dweller.id", index=True, ondelete="SET NULL")
 
     @property
     def is_unique(self) -> bool:

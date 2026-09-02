@@ -156,12 +156,17 @@ const emptyHint = computed(() => {
 })
 
 function getDwellerName(dwellerId: string): string {
-  const dweller = dwellerStore.dwellers.find((d) => d.id === dwellerId)
+  const dweller =
+    dwellerStore.dwellers.find((d) => d.id === dwellerId) ??
+    dwellerStore.allDwellers.find((d) => d.id === dwellerId)
   return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
 }
 
 function getDweller(dwellerId: string): DwellerShort | undefined {
-  return dwellerStore.dwellers.find((d) => d.id === dwellerId)
+  return (
+    dwellerStore.dwellers.find((d) => d.id === dwellerId) ??
+    dwellerStore.allDwellers.find((d) => d.id === dwellerId)
+  )
 }
 
 function isPartnerLinked(relationship: Relationship): boolean {

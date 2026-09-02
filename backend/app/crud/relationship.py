@@ -107,13 +107,15 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         query = select(Relationship).where(Relationship.relationship_type == relationship_type)
 
         if vault_id is not None:
-            # Join on both dweller positions to catch all relationships in the vault
             dweller_1_alias = aliased(Dweller)
             dweller_2_alias = aliased(Dweller)
             query = (
                 query.join(dweller_1_alias, Relationship.dweller_1_id == dweller_1_alias.id)
                 .join(dweller_2_alias, Relationship.dweller_2_id == dweller_2_alias.id)
-                .where((dweller_1_alias.vault_id == vault_id) | (dweller_2_alias.vault_id == vault_id))
+                .where(dweller_1_alias.vault_id == vault_id)
+                .where(dweller_2_alias.vault_id == vault_id)
+                .where(~dweller_1_alias.is_deleted)
+                .where(~dweller_2_alias.is_deleted)
             )
 
         result = await db.execute(query)
@@ -182,14 +184,16 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
 
         from app.models.dweller import Dweller
 
-        # Join on both dweller positions to catch all relationships in the vault
         dweller_1_alias = aliased(Dweller)
         dweller_2_alias = aliased(Dweller)
         query = (
             select(Relationship)
             .join(dweller_1_alias, Relationship.dweller_1_id == dweller_1_alias.id)
             .join(dweller_2_alias, Relationship.dweller_2_id == dweller_2_alias.id)
-            .where((dweller_1_alias.vault_id == vault_id) | (dweller_2_alias.vault_id == vault_id))
+            .where(dweller_1_alias.vault_id == vault_id)
+            .where(dweller_2_alias.vault_id == vault_id)
+            .where(~dweller_1_alias.is_deleted)
+            .where(~dweller_2_alias.is_deleted)
         )
         result = await db.execute(query)
         return list(result.scalars().all())

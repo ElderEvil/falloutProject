@@ -31,6 +31,7 @@ from app.cli.simulate_exploration import simulate as simulate_exploration
 from app.cli.simulate_happiness import simulate as simulate_happiness
 from app.cli.simulate_incidents import simulate as simulate_incidents
 from app.cli.simulate_resources import run as simulate_resources
+from app.cli.transfer import app as transfer
 from app.cli.wiki_images import app as wiki_images
 from app.core.config import settings
 from app.db.session import async_session_maker
@@ -47,6 +48,7 @@ cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build famil
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
+cli.add_typer(transfer, name="transfer", help="Move dwellers between vaults safely")
 cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")
 cli.command(name="simulate-exploration", help="Run the multi-system balance simulator")(simulate_exploration)
 cli.command(name="simulate-happiness", help="Run the happiness balance simulator")(simulate_happiness)

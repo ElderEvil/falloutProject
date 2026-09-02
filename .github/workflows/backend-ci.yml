@@ -16,6 +16,8 @@ jobs:
   backend-ci:
     name: Backend Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     services:
       redis:

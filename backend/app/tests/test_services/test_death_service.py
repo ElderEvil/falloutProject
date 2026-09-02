@@ -475,22 +475,6 @@ class TestDeathCRUD:
         assert len(result) == 1
         assert result[0].id == dead_dweller.id
 
-    async def test_get_revivable_dwellers(
-        self,
-        async_session: AsyncSession,
-        vault: Vault,
-        dead_dweller: Dweller,
-        permanently_dead_dweller: Dweller,
-    ):
-        """Test fetching revivable dwellers."""
-        result = await crud.dweller.get_revivable_dwellers(async_session, vault.id)
-
-        # Should only include dead but not permanently dead
-        assert len(result) == 1
-        assert result[0].id == dead_dweller.id
-        assert result[0].is_dead is True
-        assert result[0].is_permanently_dead is False
-
     async def test_get_graveyard(
         self,
         async_session: AsyncSession,

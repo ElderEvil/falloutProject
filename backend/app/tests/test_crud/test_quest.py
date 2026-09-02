@@ -828,6 +828,10 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
     orig_level = dweller.level
     orig_exp = dweller_data["experience"]
+    total_exp = orig_exp + 1200
+    required_for_next = int(100 * 1.5 ** orig_level)
+    expected_level = orig_level + 1 if total_exp >= required_for_next else orig_level
+    expected_exp = total_exp - required_for_next if expected_level > orig_level else total_exp
 
     events = []
 
@@ -846,12 +850,8 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
     assert link.is_completed is True
     assert weapon.storage_id is not None
-    levels_gained = dweller.level - orig_level
-    if levels_gained:
-        required = sum(int(100 * 1.5 ** (orig_level + i)) for i in range(levels_gained))
-        assert dweller.experience == orig_exp + 1200 - required
-    else:
-        assert dweller.experience == orig_exp + 1200
+    assert dweller.level == expected_level
+    assert dweller.experience == expected_exp
     assert events == [{"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value}]
 
     with pytest.raises(ResourceConflictException, match="Already completed"):

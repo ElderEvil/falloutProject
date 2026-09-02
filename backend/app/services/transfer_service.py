@@ -43,12 +43,16 @@ class TransferService:
         db_session: AsyncSession, dweller: Dweller, transferring_ids: set[UUID4]
     ) -> None:
         pregnancies = (
-            await db_session.execute(
-                select(Pregnancy)
-                .where((Pregnancy.mother_id == dweller.id) | (Pregnancy.father_id == dweller.id))
-                .where(Pregnancy.status == "pregnant")
+            (
+                await db_session.execute(
+                    select(Pregnancy)
+                    .where((Pregnancy.mother_id == dweller.id) | (Pregnancy.father_id == dweller.id))
+                    .where(Pregnancy.status == "pregnant")
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for preg in pregnancies:
             other_parent = preg.father_id if preg.mother_id == dweller.id else preg.mother_id
             if other_parent not in transferring_ids:

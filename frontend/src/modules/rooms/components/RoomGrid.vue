@@ -15,7 +15,7 @@ import { Icon } from '@iconify/vue'
 import type { Incident } from '@/modules/combat/models/incident'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import type { Room } from '../models/room'
-import { getTrainingRoomCapacity, isLevelBuildable } from '@/modules/rooms/utils/room'
+import { getTrainingRoomCapacity, hasElevatorAbove, isLevelBuildable } from '@/modules/rooms/utils/room'
 import RoomGridCell from './RoomGridCell.vue'
 
 // Lazy load heavy modal

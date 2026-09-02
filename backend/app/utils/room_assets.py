@@ -119,11 +119,3 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3) -> str | No
     segment = math.ceil(size / 3)
     base_path = Path(__file__).parent.parent / "static" / "room_images"
     return _find_image_with_fallback(base_path, asset_key, tier, segment)
-
-
-def get_room_image(room_name: str) -> str | None:
-    """
-    Legacy function - get default tier 1, size 3 image.
-    Use get_room_image_url() for dynamic tier/size support.
-    """
-    return get_room_image_url(room_name, tier=1, size=3)

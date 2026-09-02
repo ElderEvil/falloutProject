@@ -291,6 +291,11 @@ class VaultService:
                     dweller = await dweller_crud.create_random(
                         db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
+                    if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
+                        dweller.charisma = game_config.dweller.boosted_stat_value
+                        db_session.add(dweller)
+                        await db_session.commit()
+                        await db_session.refresh(dweller)
                     await dweller_crud.update(
                         db_session=db_session,
                         id=dweller.id,

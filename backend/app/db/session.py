@@ -52,7 +52,7 @@ async def task_session() -> AsyncGenerator[AsyncSession]:
         pool_pre_ping=True,
         connect_args={"server_settings": {"timezone": "UTC"}},
     )
-    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:
         async with session_maker() as session:
             yield session

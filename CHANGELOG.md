@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.70.3 (2026-09-02)
+
+### Bug Fixes
+
+* cross-vault relationships, unknown dwellers and safe vault transfer 38ab2c7
+* deduplicate transfer ids and handle cleanup errors 85bb84f
+* keep changelog plain text for release artifact check c4c6846
+* update RelationshipsView test to expect fetchAllDwellers dafd517
+
+### Code Refactoring
+
+* deduplicate TransferService partner/pregnancy logic e64af6a
+
 ## 2.70.2 (2026-09-02)
 
 ### Bug Fixes

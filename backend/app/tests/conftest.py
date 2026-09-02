@@ -1,9 +1,8 @@
-import asyncio
 import sys
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
@@ -73,13 +72,6 @@ async def _flush_fake_redis(_shared_fake_redis: Any) -> AsyncGenerator[Any]:
     await _shared_fake_redis.flushall()
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest_asyncio.fixture(scope="session")
 async def db_connection() -> AsyncConnection:
     global _test_async_engine
@@ -108,27 +100,27 @@ async def db_connection() -> AsyncConnection:
 
 @pytest_asyncio.fixture
 async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type: ignore[override]
-    session = sessionmaker(
+    nested = await db_connection.begin_nested()
+
+    session_factory = sessionmaker(
         bind=db_connection,
         class_=AsyncSession,
         expire_on_commit=False,
         autoflush=False,
+        join_transaction_mode="create_savepoint",
     )
 
-    async with session() as s:
+    async with session_factory() as s:
         yield s
-        # Rollback any uncommitted changes
         with suppress(Exception):
             await s.rollback()
-        # Close the session to release connections
         with suppress(Exception):
             await s.close()
 
-    # Clean up the database after each test function
-    async with _test_async_engine.connect() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-        await conn.run_sync(SQLModel.metadata.create_all)
-        await conn.commit()
+    with suppress(Exception):
+        await nested.rollback()
+    with suppress(Exception):
+        await db_connection.rollback()
 
 
 @pytest_asyncio.fixture(name="superuser")

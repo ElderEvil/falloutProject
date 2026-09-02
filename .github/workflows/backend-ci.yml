@@ -27,13 +27,28 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: fallout_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           enable-cache: true
           cache-dependency-glob: "backend/uv.lock"
@@ -44,11 +59,23 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --locked
+        run: uv sync --group test --locked
 
       - name: Set up test environment
         working-directory: backend
         run: cp .env.example .env
+
+      - name: Apply migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Verify no pending model changes
+        working-directory: backend
+        run: uv run alembic check
+
+      - name: Verify head is applied
+        working-directory: backend
+        run: uv run alembic current --check-heads
 
       - name: Run linter (prek)
         working-directory: backend

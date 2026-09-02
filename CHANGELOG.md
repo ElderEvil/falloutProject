@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.70.2 (2026-09-02)
+
+### Bug Fixes
+
+* address CodeRabbit review for PR [#508](https://github.com/ElderEvil/falloutProject/issues/508) f0d7907
+* ensure boosted vault social dwellers have boosted charisma 8be1050
+* make timed quest XP assertion level-up aware a14edc3
+
 ## 2.70.1 (2026-09-02)
 
 ### Bug Fixes

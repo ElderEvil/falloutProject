@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 * align models with alembic DB to make backend-ci postgres check green 502c471
-* audit [#1](https://github.com/ElderEvil/falloutProject/issues/1) [#2](https://github.com/ElderEvil/falloutProject/issues/2) — ci postgres gate + task_session exec crash-loop 56c0524, closes #4 #508 #4 #4
+* audit #1 #2 — ci postgres gate + task_session exec crash-loop 56c0524
 * **ci:** add least-privilege permissions to backend-ci ebeec8e
 
 ## 2.70.3 (2026-09-02)

@@ -829,7 +829,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     orig_level = dweller.level
     orig_exp = dweller_data["experience"]
     total_exp = orig_exp + 1200
-    required_for_next = int(100 * 1.5 ** orig_level)
+    required_for_next = int(100 * 1.5**orig_level)
     expected_level = orig_level + 1 if total_exp >= required_for_next else orig_level
     expected_exp = total_exp - required_for_next if expected_level > orig_level else total_exp
 

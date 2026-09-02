@@ -75,7 +75,7 @@ describe('RelationshipsView', () => {
     // Mock store methods
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
     vi.spyOn(relationshipStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
-    vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue(undefined)
+    vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue(undefined)
 
     // Set up mock data
     relationshipStore.relationships = []
@@ -327,7 +327,7 @@ describe('RelationshipsView', () => {
 
       expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalledWith('test-vault-id')
       expect(relationshipStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
-      expect(dwellerStore.fetchDwellersByVault).toHaveBeenCalledWith('test-vault-id', 'mock-token')
+      expect(dwellerStore.fetchAllDwellers).toHaveBeenCalledWith('test-vault-id', 'mock-token')
     })
   })
 })

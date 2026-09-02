@@ -108,10 +108,8 @@ class RelationshipService:
             if relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE:
                 update_data["relationship_type"] = RelationshipTypeEnum.FRIEND
             elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
-                # Upgrade to romantic at 70+ affinity
                 update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
             elif relationship.relationship_type == RelationshipTypeEnum.ROMANTIC:
-                # Upgrade to partner at 70+ affinity
                 update_data["relationship_type"] = RelationshipTypeEnum.PARTNER
                 await RelationshipService._set_partner_ids(
                     db_session, relationship.dweller_1_id, relationship.dweller_2_id

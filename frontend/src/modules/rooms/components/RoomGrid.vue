@@ -313,12 +313,14 @@ const closeDetailModal = () => {
         }"
         @mouseenter="canInteractWithLevel(cell.y) && handleHover(cell.x, cell.y)"
         @mouseleave="clearHover"
-        role="button"
-        tabindex="0"
+        :role="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 'button' : undefined"
+        :tabindex="roomStore.isPlacingRoom && canInteractWithLevel(cell.y) ? 0 : undefined"
         :aria-label="
           isLevelLocked(cell.y) && !isPlacingElevator
             ? `Level ${cell.y + 1} is locked`
-            : `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
+            : roomStore.isPlacingRoom
+              ? `Build room at row ${cell.y + 1}, column ${cell.x + 1}`
+              : `Empty room cell at row ${cell.y + 1}, column ${cell.x + 1}`
         "
         @click="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"
         @keydown.enter.prevent="canInteractWithLevel(cell.y) && handleEmptyCellClick(cell.x, cell.y)"

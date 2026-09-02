@@ -19,6 +19,8 @@ async function loginAndGo(page: Page, url: string) {
   }, TEST_TOKEN)
   await page.goto(url)
   await page.waitForLoadState('networkidle')
+  const whatsNewDismiss = page.getByRole('button', { name: 'Got it!' })
+  if (await whatsNewDismiss.isVisible()) await whatsNewDismiss.click()
 }
 
 // ========================================
@@ -93,9 +95,9 @@ test.describe('Side panel', () => {
 
   test('collapse toggle button exists and toggles', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
-    const toggleBtn = page.locator(
-      'aside button[aria-label*="Collapse"], aside button[aria-label*="Expand"]'
-    )
+    const toggleBtn = page
+      .locator('nav[aria-label="Game navigation panel"]')
+      .getByRole('button', { name: /Collapse|Expand/ })
     await expect(toggleBtn.first()).toBeVisible()
     const initialLabel = (await toggleBtn.first().getAttribute('aria-label')) || ''
     await toggleBtn.first().click()
@@ -107,7 +109,7 @@ test.describe('Side panel', () => {
   test('navigates to storage when clicking Storage nav item', async ({ page }) => {
     await loginAndGo(page, '/vault/fake-id/dwellers')
     const panel = page.locator('nav[aria-label="Game navigation panel"]')
-    const storageBtn = panel.locator('nav button:nth-child(9)')
+    const storageBtn = panel.getByRole('button', { name: 'Storage' })
     await expect(storageBtn).toContainText('Storage')
     await storageBtn.click()
     await page.waitForTimeout(1000)

@@ -43,7 +43,8 @@ describe('RoomGrid', () => {
   it('names empty room cells for screen-reader users', () => {
     const wrapper = mount(RoomGrid, { props: { incidents: [] } })
 
-    expect(wrapper.find('.room.empty').attributes('aria-label')).toBe('Build room at row 1, column 1')
+    expect(wrapper.find('.room.empty').attributes('aria-label')).toBe('Empty room cell at row 1, column 1')
+    expect(wrapper.find('.room.empty').attributes('role')).toBeUndefined()
   })
 
   describe('Room Highlighting', () => {

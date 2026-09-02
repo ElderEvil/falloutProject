@@ -826,6 +826,9 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     assert vault.bottle_caps == vault_data["bottle_caps"]
     assert dweller.status == DwellerStatusEnum.IDLE
 
+    orig_level = dweller.level
+    orig_exp = dweller_data["experience"]
+
     events = []
 
     async def capture_event(_event_type, _vault_id, data) -> None:
@@ -843,7 +846,12 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     weapon = (await async_session.execute(select(Weapon).where(Weapon.name == "Laser Pistol"))).scalar_one()
     assert link.is_completed is True
     assert weapon.storage_id is not None
-    assert dweller.experience == dweller_data["experience"] + 1200
+    levels_gained = dweller.level - orig_level
+    if levels_gained:
+        required = sum(int(100 * 1.5 ** (orig_level + i)) for i in range(levels_gained))
+        assert dweller.experience == orig_exp + 1200 - required
+    else:
+        assert dweller.experience == orig_exp + 1200
     assert events == [{"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value}]
 
     with pytest.raises(ResourceConflictException, match="Already completed"):

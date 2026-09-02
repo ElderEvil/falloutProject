@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.70.1 (2026-09-02)
+
+### Bug Fixes
+
+* address lighthouse review findings 6c67e27
+* import hasElevatorAbove for typecheck ee4ab19
+* keyboard placement validation and pinned prod image 932af58
+* resolve production lighthouse findings b5004b8
+
 ## 2.70.0 (2026-09-01)
 
 ### Features

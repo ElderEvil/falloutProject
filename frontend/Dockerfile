@@ -1,5 +1,5 @@
 # Dependencies stage
-FROM node:26-alpine AS deps
+FROM node:26.13.0-alpine AS deps
 WORKDIR /app
 
 # Install pnpm first
@@ -12,7 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --prod
 
 # Build stage
-FROM node:26-alpine AS build-stage
+FROM node:26.13.0-alpine AS build-stage
 WORKDIR /app
 
 # Install pnpm directly
@@ -37,11 +37,11 @@ ENV APP_VERSION=${VERSION}
 RUN pnpm run build
 
 # Production stage
-FROM node:26-alpine AS production
+FROM node:26.13.0-alpine AS production
 WORKDIR /app
 
 # Install only serve for production
-RUN npm install -g serve
+RUN npm install -g serve@14.2.4
 
 COPY --from=build-stage /app/dist .
 

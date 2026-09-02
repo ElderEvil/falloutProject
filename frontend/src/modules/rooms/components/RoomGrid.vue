@@ -93,9 +93,31 @@ const placeRoom = async (x: number, y: number) => {
   }
 }
 
-// Handle click on empty cell
+const isValidPlacementAt = (x: number, y: number) => {
+  if (!roomStore.selectedRoom) return false
+  const selected = roomStore.selectedRoom
+  const isElevator = selected.name.toLowerCase() === 'elevator'
+  const roomSize = selected.size_min
+  const cellsCount = Math.ceil(roomSize / 3)
+  const startX = cellsCount === 1 ? x : x - Math.floor(cellsCount / 2)
+  const cells = Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
+  return cells.every((cell) => {
+    const inBounds = cell.x >= 0 && cell.x < GRID_COLS
+    if (!inBounds) return false
+    const occupied = roomStore.rooms.some(
+      (room: Room) =>
+        (room.coordinate_x ?? 0) <= cell.x &&
+        (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
+        (room.coordinate_y ?? 0) === cell.y,
+    )
+    if (occupied) return false
+    if (isElevator) return hasElevatorAbove(roomStore.rooms, cell.x, cell.y)
+    return isLevelBuildable(roomStore.rooms, cell.y)
+  })
+}
+
 const handleEmptyCellClick = (x: number, y: number) => {
-  if (roomStore.isPlacingRoom && isValidPlacement.value) {
+  if (roomStore.isPlacingRoom && isValidPlacementAt(x, y)) {
     placeRoom(x, y)
   }
 }

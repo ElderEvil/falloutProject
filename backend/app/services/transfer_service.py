@@ -43,9 +43,10 @@ class TransferService:
 
         dest_vault = await vault_crud.get(db_session, dest_vault_id)
 
-        transferring_ids = set(dweller_ids)
+        unique_ids = list(dict.fromkeys(dweller_ids))
+        transferring_ids = set(unique_ids)
         dwellers: list[Dweller] = []
-        for did in dweller_ids:
+        for did in unique_ids:
             d = await dweller_crud.get(db_session, did)
             if d.is_deleted:
                 msg = f"Dweller {did} is deleted and cannot be transferred"

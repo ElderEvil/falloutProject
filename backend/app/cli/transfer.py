@@ -89,7 +89,14 @@ def cleanup_vault(
 
     async def _run() -> None:
         async with async_session_maker() as session:
-            count = await transfer_service.cleanup_cross_vault_relationships(session, vault_id)
-            typer.echo(f"✓ Cleaned {count} cross-vault relationships for vault {vault_id}")
+            try:
+                count = await transfer_service.cleanup_cross_vault_relationships(session, vault_id)
+                typer.echo(f"✓ Cleaned {count} cross-vault relationships for vault {vault_id}")
+            except (ValidationException, ResourceNotFoundException) as exc:
+                typer.echo(f"Error: {exc.detail if hasattr(exc, 'detail') else exc}", err=True)
+                raise typer.Exit(code=1) from None
+            except Exception as exc:
+                typer.echo(f"Error: {exc}", err=True)
+                raise typer.Exit(code=1) from None
 
     asyncio.run(_run())

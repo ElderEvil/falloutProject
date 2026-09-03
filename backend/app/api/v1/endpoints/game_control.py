@@ -272,7 +272,7 @@ async def spawn_debug_incident(
 ) -> IncidentSpawnResponse:
     """[DEBUG] Manually spawn an incident for testing purposes.
 
-    If incident_type is not provided, a random type will be chosen.
+    If incident_type is not provided, a radscorpion incident will be spawned.
 
     Returns:
         IncidentSpawnResponse: Spawned incident details.

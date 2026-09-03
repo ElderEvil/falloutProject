@@ -33,6 +33,7 @@ _INCIDENT_NAMES: dict[IncidentType, str] = {
     IncidentType.DEATHCLAW_ATTACK: "👹 Deathclaw Attack",
     IncidentType.MOLE_RAT_ATTACK: "🐀 Mole Rat Attack",
     IncidentType.FERAL_GHOUL_ATTACK: "🧟 Feral Ghoul Attack",
+    IncidentType.RADSCORPION_ATTACK: "🦂 Radscorpion Attack",
 }
 
 
@@ -116,7 +117,7 @@ class IncidentService:
         Args:
             db_session: Database session
             vault_id: ID of the vault
-            incident_type: Type of incident (random if None)
+            incident_type: Type of incident (radscorpion if None)
 
         Returns:
             Incident or None if no suitable room found
@@ -144,16 +145,13 @@ class IncidentService:
 
         active_types = {incident.type for incident in active_incidents}
 
-        # If incident_type not specified, pick random or match existing type
-        if not incident_type:
-            if active_types:
-                # If vault already has incidents, use the same type
-                incident_type = next(iter(active_types))
-            else:
-                incident_types, weights = zip(*game_config.incident.get_spawn_weights().items(), strict=True)
-                incident_type = random.choices(incident_types, weights=weights, k=1)[0]
+        # Runtime spawns use radscorpions; explicit types remain available to
+        # administrative and test callers.
+        if incident_type is None:
+            incident_type = IncidentType.RADSCORPION_ATTACK
+
         # If type specified but vault has different type, don't spawn
-        elif active_types and incident_type not in active_types:
+        if active_types and incident_type not in active_types:
             self.logger.info(f"Cannot spawn {incident_type} in vault {vault_id} - vault already has {active_types}")
             return None
 
@@ -339,9 +337,14 @@ class IncidentService:
         # Apply damage to dwellers
         damaged_count = 0
         deaths_count = 0
+        damage_per_dweller = int(damage_to_dwellers / len(dwellers))
         for dweller in dwellers:
-            damage_per_dweller = damage_to_dwellers / len(dwellers)
-            new_health = max(0, dweller.health - int(damage_per_dweller))
+            new_health = max(0, dweller.health - damage_per_dweller)
+
+            if incident.type == IncidentType.RADSCORPION_ATTACK and damage_per_dweller > 1:
+                radiation_damage = min(damage_per_dweller - 1, damage_per_dweller // 2)
+                dweller.radiation = min(1_000, dweller.radiation + radiation_damage)
+                db_session.add(dweller)
 
             if new_health != dweller.health:
                 # Direct update - SQLAlchemy session tracks the object, no need to refresh
@@ -788,12 +791,13 @@ class IncidentService:
             game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
         )
 
-        # Internal threats (fire, radroach, mole rat) give caps only
+        # Internal threats (fire, radroach, mole rat, radscorpion) give caps only
         # External threats (raider, deathclaw, feral ghoul) give caps + items
         internal_threats = {
             IncidentType.FIRE,
             IncidentType.RADROACH_INFESTATION,
             IncidentType.MOLE_RAT_ATTACK,
+            IncidentType.RADSCORPION_ATTACK,
         }
 
         if incident_type in internal_threats:

@@ -4,6 +4,7 @@ export enum IncidentType {
   MOLE_RAT_ATTACK = 'mole_rat_attack',
   DEATHCLAW_ATTACK = 'deathclaw_attack',
   FERAL_GHOUL_ATTACK = 'feral_ghoul_attack',
+  RADSCORPION_ATTACK = 'radscorpion_attack',
   FIRE = 'fire',
 }
 
@@ -67,6 +68,7 @@ export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
   [IncidentType.MOLE_RAT_ATTACK]: 'mdi:paw',
   [IncidentType.DEATHCLAW_ATTACK]: 'mdi:claw-mark',
   [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:ghost',
+  [IncidentType.RADSCORPION_ATTACK]: 'mdi:spider',
 }
 
 export function getIncidentIcon(type: IncidentType): string {

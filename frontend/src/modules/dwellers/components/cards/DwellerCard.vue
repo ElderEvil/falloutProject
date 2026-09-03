@@ -12,6 +12,7 @@ import DwellerBadge from '../DwellerBadge.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/core/utils/image'
+import { getRadiationPercentage } from '../../models/dweller'
 
 type DwellerDetailRead = components['schemas']['DwellerReadFull']
 
@@ -50,6 +51,8 @@ const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
   return (props.dweller.health / props.dweller.max_health) * 100
 })
+
+const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
 
 const happinessLevel = computed(() => {
   const happiness = props.dweller.happiness || 50
@@ -159,7 +162,7 @@ const canUseRadaway = computed(
         <span class="stat-label">Health</span>
         <span class="stat-value">{{ dweller.health }} / {{ dweller.max_health }}</span>
       </div>
-      <UProgressBar :model-value="healthPercentage" :height="10" />
+      <UProgressBar :model-value="healthPercentage" :radiation="radiationPercentage" :height="10" />
 
       <div class="stat-row happiness-row">
         <span class="stat-label">Happiness</span>

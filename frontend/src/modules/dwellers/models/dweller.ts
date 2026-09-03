@@ -110,6 +110,12 @@ export function getAbilityConfig(ability: string | null | undefined): AbilityCon
 /** Visual attributes type — generated from backend OpenAPI schema. */
 export type VisualAttributes = components['schemas']['DwellerVisualAttributes']
 
+/** Radiation as a 0-100 share of a dweller's maximum health. */
+export function getRadiationPercentage(radiation: number | null | undefined, maxHealth: number): number {
+  if (!radiation || radiation <= 0 || maxHealth <= 0) return 0
+  return Math.min(100, (radiation / maxHealth) * 100)
+}
+
 /** Icon mapping for death causes */
 export const DEATH_CAUSE_ICON_MAP: Record<string, string> = {
   health: 'mdi:heart-broken',

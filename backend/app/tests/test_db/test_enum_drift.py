@@ -54,6 +54,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "MOLE_RAT_ATTACK",
         "DEATHCLAW_ATTACK",
         "FERAL_GHOUL_ATTACK",
+        "RADSCORPION_ATTACK",
         "FIRE",
     },
     "junktypeenum": {"CIRCUITRY", "LEATHER", "ADHESIVE", "CLOTH", "SCIENCE", "STEEL", "VALUABLES"},

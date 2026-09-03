@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 /**
  * UProgressBar - Terminal-themed progress bar
  *
@@ -7,6 +9,7 @@
  *
  * Features:
  * - Configurable value (0-100)
+ * - Optional radiation segment (0-100, stacked after the fill)
  * - Dynamic fill color
  * - Terminal glow border/shadow
  * - Optional pulse/shimmer/shine animations
@@ -14,6 +17,8 @@
 interface Props {
   /** Progress value 0-100 */
   modelValue?: number
+  /** Radiation segment 0-100, eats into the fill Shelter-style so it stays visible at full HP */
+  radiation?: number
   /** Bar height in px (default 10) */
   height?: number
   /** Fill color or gradient (CSS). Defaults to theme primary gradient */
@@ -26,11 +31,11 @@ interface Props {
   ariaLabel?: string
 }
 
-const { modelValue = 0, height = 10, glow = true, animation = 'none', color, ariaLabel } = defineProps<Props>()
-
-import { computed } from 'vue'
+const { modelValue = 0, radiation = 0, height = 10, glow = true, animation = 'none', color, ariaLabel } = defineProps<Props>()
 
 const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
+const visibleRadiation = computed(() => Math.min(clampedValue.value, Math.max(0, radiation)))
+const healthyWidth = computed(() => clampedValue.value - visibleRadiation.value)
 </script>
 
 <template>
@@ -56,17 +61,23 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
         'u-progress-bar__fill--shine': animation === 'shine',
       }"
       :style="{
-        width: `${clampedValue}%`,
+        width: `${healthyWidth}%`,
         ...(color ? { background: color } : {}),
       }"
     >
       <div v-if="animation === 'shine'" class="u-progress-bar__shine"></div>
     </div>
+    <div
+      v-if="visibleRadiation > 0"
+      class="u-progress-bar__radiation"
+      :style="{ width: `${visibleRadiation}%` }"
+    ></div>
   </div>
 </template>
 
 <style scoped>
 .u-progress-bar {
+  display: flex;
   width: 100%;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
@@ -91,6 +102,7 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
 }
 
 .u-progress-bar__fill {
+  flex: 0 0 auto;
   height: 100%;
   background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-accent) 100%);
   box-shadow: 0 0 8px var(--color-theme-glow);
@@ -113,6 +125,13 @@ const clampedValue = computed(() => Math.min(100, Math.max(0, modelValue)))
   overflow: hidden;
 }
 
+.u-progress-bar__radiation {
+  flex: 0 0 auto;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-danger, #ef4444) 0%, rgb(153 27 27) 100%);
+  box-shadow: 0 0 8px rgb(239 68 68 / 0.5);
+  transition: width 0.3s ease;
+}
 .u-progress-bar__shine {
   position: absolute;
   top: 0;

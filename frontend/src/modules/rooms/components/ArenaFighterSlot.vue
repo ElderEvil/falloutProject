@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -36,7 +37,7 @@ const healthPercent = (f: ArenaFighter | null) =>
       <div class="fighter-name">{{ fighter.name }}</div>
       <div class="fighter-meta">Lv {{ fighter.level }} &middot; POW {{ powerLabel }}</div>
       <div class="hp-track">
-        <div class="hp-fill" :style="{ width: `${healthPercent(fighter)}%` }"></div>
+        <UProgressBar :model-value="healthPercent(fighter)" :height="10" :glow="false" />
       </div>
       <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
       <button v-if="canChange" class="slot-swap" type="button" @click="emit('togglePicker', side)">SWAP</button>
@@ -232,17 +233,6 @@ const healthPercent = (f: ArenaFighter | null) =>
 
 .hp-track {
   width: 100%;
-  height: 10px;
-  background: var(--color-surface-canvas);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.hp-fill {
-  height: 100%;
-  background: var(--color-theme-primary);
-  transition: width 0.5s ease;
 }
 
 .hp-text {

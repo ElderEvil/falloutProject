@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerGridItem from '@/modules/dwellers/components/grid/DwellerGridItem.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 
 describe('DwellerGridItem', () => {
   beforeEach(() => {
@@ -156,6 +157,14 @@ describe('DwellerGridItem', () => {
         expect(jobStat.text()).toContain(stat.value.toString())
       })
     })
+  })
+
+  it('uses radiation as an absolute share of maximum health', () => {
+    const wrapper = mount(DwellerGridItem, {
+      props: { dweller: { ...mockDweller, max_health: 200, radiation: 25 } },
+    })
+
+    expect(wrapper.findComponent(UProgressBar).props('radiation')).toBe(12.5)
   })
 
   describe('Component Structure', () => {

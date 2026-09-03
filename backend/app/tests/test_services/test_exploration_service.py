@@ -11,7 +11,13 @@ from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.storage import Storage
 from app.models.vault import Vault
-from app.schemas.exploration_event import CombatEventSchema, ItemSchema, LootEventSchema, LootSchema
+from app.schemas.exploration_event import (
+    CombatEventSchema,
+    DangerEventSchema,
+    ItemSchema,
+    LootEventSchema,
+    LootSchema,
+)
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
 
@@ -385,3 +391,49 @@ async def test_process_event_no_event_returns_unchanged(
     # Exploration should be unchanged
     assert result.total_caps_found == 0
     # Note: Event collection tested separately
+
+
+def test_danger_rad_template_yields_radiation_gain() -> None:
+    """Radiation danger templates deal rads instead of HP damage."""
+    from types import SimpleNamespace
+
+    exploration = SimpleNamespace(dweller_endurance=1)
+    rad_template = "Caught in unexpected radiation burst. Took {damage} rads."
+
+    with patch(
+        "app.services.exploration.event_generator.data_loader.load_event_templates",
+        return_value={"danger": [rad_template]},
+    ):
+        event = event_generator._generate_danger_event(exploration)
+
+    assert event.health_loss == 0
+    assert event.radiation_gain > 0
+
+
+@pytest.mark.asyncio
+async def test_process_danger_radiation_applies_to_dweller(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """A radiation danger event raises dweller.radiation and logs it on the journey."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+    await async_session.refresh(dweller)
+    initial_radiation = dweller.radiation
+
+    mock_event = DangerEventSchema(
+        description="Caught in unexpected radiation burst. Took 11 rads.",
+        health_loss=0,
+        radiation_gain=11,
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.radiation == initial_radiation + 11
+    assert result.events[-1]["radiation_gain"] == 11

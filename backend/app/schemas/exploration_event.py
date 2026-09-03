@@ -91,6 +91,7 @@ class DangerEventSchema(BaseModel):
     type: Literal["danger"] = Field(default="danger", description="Event type")
     description: str = Field(..., description="Event description")
     health_loss: int = Field(..., ge=0, description="Health lost from danger")
+    radiation_gain: int = Field(default=0, ge=0, description="Radiation gained from danger")
 
 
 class RestEventSchema(BaseModel):

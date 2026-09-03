@@ -81,6 +81,7 @@ class EventService:
             coord_y=coord_y,
             health_loss=getattr(event, "health_loss", None),
             health_restored=getattr(event, "health_restored", None),
+            radiation_gain=getattr(event, "radiation_gain", None),
         )
         db_session.add(exploration)
         event_records = [event_record]
@@ -91,6 +92,9 @@ class EventService:
 
         if hasattr(event, "health_loss") and event.health_loss:
             await self._apply_health_loss(db_session, exploration, event.health_loss)
+
+        if getattr(event, "radiation_gain", 0):
+            await self._apply_radiation_gain(db_session, exploration, getattr(event, "radiation_gain", 0))
 
         if hasattr(event, "health_restored") and event.health_restored:
             await self._apply_health_restoration(db_session, exploration, event.health_restored)
@@ -194,6 +198,17 @@ class EventService:
             db_session.add(dweller_obj)
             # Flush so _handle_auto_heal sees updated health
             await db_session.flush()
+
+    async def _apply_radiation_gain(self, db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
+        """Apply radiation gain to dweller."""
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+
+        if dweller_obj.is_dead:
+            return
+
+        dweller_obj.radiation = min(1_000, dweller_obj.radiation + rads)
+        db_session.add(dweller_obj)
+        await db_session.flush()
 
     async def _apply_health_restoration(self, db_session: AsyncSession, exploration: Exploration, healing: int) -> None:
         """Apply health restoration to dweller."""

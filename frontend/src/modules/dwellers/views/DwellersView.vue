@@ -163,7 +163,16 @@ onMounted(async () => {
   }
   if (
     filterParam &&
-    ['idle', 'working', 'exploring', 'questing', 'training', 'resting', 'fighting', 'dead'].includes(filterParam)
+    [
+      'idle',
+      'working',
+      'exploring',
+      'questing',
+      'training',
+      'resting',
+      'fighting',
+      'dead',
+    ].includes(filterParam)
   ) {
     dwellerStore.setFilterStatus(filterParam)
   }

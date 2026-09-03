@@ -218,7 +218,7 @@ describe('UnassignedDwellers', () => {
     }
 
     const clickChip = async (wrapper: ReturnType<typeof mount>, label: string) => {
-      const chip = wrapper.findAll('.chip').find((c) => c.text() === label)
+      const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === label)
       expect(chip).toBeTruthy()
       await chip!.trigger('click')
     }
@@ -228,8 +228,10 @@ describe('UnassignedDwellers', () => {
 
       const wrapper = mount(UnassignedDwellers)
 
-      const labels = wrapper.findAll('.chip').map((c) => c.text())
+      const labels = wrapper.findAll('.filter-chip').map((c) => c.text())
       expect(labels).toContain('Legendary')
+      expect(wrapper.find('.filter-group .filter-group-label').exists()).toBe(true)
+      expect(wrapper.find('.filter-group .filter-options').exists()).toBe(true)
     })
 
     it('should filter cards by the shared age preference', () => {

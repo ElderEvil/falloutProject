@@ -10,6 +10,7 @@ import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
+import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
 type RarityFilter = 'all' | components['schemas']['RarityEnum']
@@ -24,18 +25,23 @@ const toast = useToast()
 // the shared preferences from the Dwellers view.
 const filterRarity = ref<RarityFilter>('all')
 
-const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string }[] = [
-  { value: 'all', label: 'All', icon: 'mdi:star-circle-outline' },
-  { value: 'common', label: 'Common', icon: 'mdi:star-outline' },
-  { value: 'rare', label: 'Rare', icon: 'mdi:star' },
-  { value: 'legendary', label: 'Legendary', icon: 'mdi:star-four-points' },
-]
-
 const RARITY_ACCENT: Record<string, string> = {
   common: 'var(--color-rarity-common)',
   rare: 'var(--color-rarity-rare)',
   legendary: 'var(--color-rarity-legendary)',
 }
+
+const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string; accent?: string }[] = [
+  { value: 'all', label: 'All', icon: 'mdi:star-circle-outline' },
+  { value: 'common', label: 'Common', icon: 'mdi:star-outline', accent: RARITY_ACCENT.common },
+  { value: 'rare', label: 'Rare', icon: 'mdi:star', accent: RARITY_ACCENT.rare },
+  {
+    value: 'legendary',
+    label: 'Legendary',
+    icon: 'mdi:star-four-points',
+    accent: RARITY_ACCENT.legendary,
+  },
+]
 
 const rarityColor = (rarity?: string | null): string =>
   RARITY_ACCENT[String(rarity ?? '').toLowerCase()] ?? 'var(--color-rarity-common)'
@@ -53,7 +59,8 @@ const unassignedDwellers = computed(() => {
   const filtered = dwellerStore.dwellersWithStatus.filter(
     (dweller) =>
       isUnassignable(dweller) &&
-      (dwellerStore.filterAgeGroup === 'all' || dweller.age_group === dwellerStore.filterAgeGroup) &&
+      (dwellerStore.filterAgeGroup === 'all' ||
+        dweller.age_group === dwellerStore.filterAgeGroup) &&
       (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
   )
 
@@ -133,7 +140,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
     toast.error('Failed to unassign dweller')
   }
 }
-
 </script>
 
 <template>
@@ -152,24 +158,13 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         <!-- Shared filter and sort controls -->
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
           <template #additional-filters>
-            <div class="chip-group" role="group" aria-label="Filter by rarity">
-              <div class="chip-group-label">
-                <Icon icon="mdi:star-four-points" class="chip-group-icon" />
-                <span>Rarity</span>
-              </div>
-              <button
-                v-for="option in RARITY_FILTERS"
-                :key="option.value"
-                class="chip"
-                :class="{ active: filterRarity === option.value }"
-                :style="option.value === 'all' ? undefined : { '--chip-accent': rarityColor(option.value) }"
-                :aria-pressed="filterRarity === option.value"
-                @click="filterRarity = option.value"
-              >
-                <Icon :icon="option.icon" class="chip-icon" />
-                {{ option.label }}
-              </button>
-            </div>
+            <DwellerFilterGroup
+              label="Rarity"
+              icon="mdi:star-four-points"
+              :options="RARITY_FILTERS"
+              :model-value="filterRarity"
+              @update:model-value="filterRarity = $event as RarityFilter"
+            />
           </template>
         </DwellerFilterPanel>
       </div>
@@ -343,67 +338,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   margin-top: 0.25rem;
 }
 
-.chip-group {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.chip-group-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--color-theme-primary);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.7;
-  white-space: nowrap;
-}
-
-.chip-group-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.7rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.chip:hover {
-  opacity: 0.8;
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.chip.active {
-  opacity: 1;
-  background: var(--color-surface-hover);
-  border-color: var(--chip-accent, var(--color-theme-primary));
-  box-shadow: 0 0 12px var(--color-theme-primary);
-  font-weight: 600;
-}
-
-.chip-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -527,7 +461,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   border-radius: 50%;
   border: 2px solid var(--rarity-ring, var(--color-theme-primary));
 }
-
 
 .dweller-heading {
   flex: 1;

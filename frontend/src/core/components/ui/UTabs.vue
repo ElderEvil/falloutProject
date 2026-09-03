@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
 
 export interface Tab {
   key: string
   label: string
+  icon?: string
   disabled?: boolean
 }
 
@@ -44,6 +46,7 @@ const selectTab = (key: string, disabled?: boolean) => {
         :disabled="tab.disabled"
         class="utabs-button"
       >
+        <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
         {{ tab.label }}
       </button>
     </div>

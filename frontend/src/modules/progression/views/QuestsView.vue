@@ -13,7 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
+import { UButton, UTabs } from '@/core/components/ui'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
@@ -27,8 +27,12 @@ const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
-const activeTab = ref<'active' | 'completed'>('active')
+const activeTab = ref('active')
 const showAllQuests = ref(false)
+const questTabs = [
+  { key: 'active', label: 'Active & Available', icon: 'mdi:play-circle' },
+  { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
+]
 
 // Check if a quest is unlocked (no previous quest or previous is completed)
 const isQuestUnlocked = (quest: VaultQuest): boolean => {
@@ -235,120 +239,104 @@ onMounted(async () => {
               subtitle="Deploy teams, track missions & collect rewards."
             />
 
-            <!-- Tabs -->
-            <div class="tabs">
-              <button
-                @click="activeTab = 'active'"
-                :class="{ active: activeTab === 'active' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:play-circle" class="inline mr-2" />
-                Active & Available
-              </button>
-              <button
-                @click="activeTab = 'completed'"
-                :class="{ active: activeTab === 'completed' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:check-circle" class="inline mr-2" />
-                Completed
-              </button>
-            </div>
+            <UTabs v-model="activeTab" :tabs="questTabs">
+              <template #default>
+                <!-- Active & Available Quests -->
+                <div v-if="activeTab === 'active'" class="tab-content">
+                  <div v-if="readyToClaimQuests.length > 0" class="quest-section">
+                    <h2 class="section-title">
+                      <Icon icon="mdi:treasure-chest" class="inline mr-2" />
+                      REWARDS READY TO CLAIM
+                    </h2>
+                    <div class="quest-grid">
+                      <QuestCard
+                        v-for="quest in readyToClaimQuests"
+                        :key="quest.id"
+                        :quest="quest"
+                        :vault-id="vaultId"
+                        status="ready"
+                        @claim="handleClaimRewards"
+                      />
+                    </div>
+                  </div>
 
-            <!-- Active & Available Quests -->
-            <div v-if="activeTab === 'active'" class="tab-content">
-              <div v-if="readyToClaimQuests.length > 0" class="quest-section">
-                <h2 class="section-title">
-                  <Icon icon="mdi:treasure-chest" class="inline mr-2" />
-                  REWARDS READY TO CLAIM
-                </h2>
-                <div class="quest-grid">
-                  <QuestCard
-                    v-for="quest in readyToClaimQuests"
-                    :key="quest.id"
-                    :quest="quest"
-                    :vault-id="vaultId"
-                    status="ready"
-                    @claim="handleClaimRewards"
-                  />
+                  <!-- Active Quests Section -->
+                  <div v-if="activeQuests.length > 0" class="quest-section">
+                    <h2 class="section-title">
+                      <Icon icon="mdi:progress-check" class="inline mr-2" />
+                      ACTIVE QUESTS
+                    </h2>
+                    <div class="quest-grid">
+                      <QuestCard
+                        v-for="quest in activeQuests"
+                        :key="quest.id"
+                        :quest="quest"
+                        :vault-id="vaultId"
+                        status="active"
+                        :party-members="questPartyMembersMap[quest.id] || []"
+                        @assign-party="handleAssignParty"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Available Quests Section -->
+                  <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
+                    <div class="section-header">
+                      <h2 class="section-title">
+                        <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
+                        AVAILABLE QUESTS
+                        <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
+                      </h2>
+                      <label class="toggle-label">
+                        <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
+                        <span class="toggle-text">Show All</span>
+                      </label>
+                    </div>
+                    <div class="quest-grid">
+                      <QuestCard
+                        v-for="quest in filteredAvailableQuests"
+                        :key="quest.id"
+                        :quest="quest"
+                        :vault-id="vaultId"
+                        :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
+                        :is-locked="!isQuestUnlocked(quest)"
+                        :party-members="questPartyMembersMap[quest.id] || []"
+                        @start="vaultId && questStore.startQuest(vaultId, $event)"
+                        @assign-party="handleAssignParty"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div
+                    v-if="readyToClaimQuests.length === 0 && activeQuests.length === 0 && filteredAvailableQuests.length === 0"
+                    class="empty-state"
+                  >
+                    <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
+                    <p v-if="showAllQuests">No quests available at the moment</p>
+                    <p v-else>No unlocked quests available. Complete previous quests to unlock more.</p>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Active Quests Section -->
-              <div v-if="activeQuests.length > 0" class="quest-section">
-                <h2 class="section-title">
-                  <Icon icon="mdi:progress-check" class="inline mr-2" />
-                  ACTIVE QUESTS
-                </h2>
-                <div class="quest-grid">
-                  <QuestCard
-                    v-for="quest in activeQuests"
-                    :key="quest.id"
-                    :quest="quest"
-                    :vault-id="vaultId"
-                    status="active"
-                    :party-members="questPartyMembersMap[quest.id] || []"
-                    @assign-party="handleAssignParty"
-                  />
+                <!-- Completed Quests -->
+                <div v-if="activeTab === 'completed'" class="tab-content">
+                  <div v-if="completedQuests.length === 0" class="empty-state">
+                    <Icon icon="mdi:checkbox-marked-circle-outline" class="text-8xl mb-6 opacity-30" />
+                    <p>No completed quests yet</p>
+                  </div>
+
+                  <div v-else class="quest-grid">
+                    <QuestCard
+                      v-for="quest in completedQuests"
+                      :key="quest.id"
+                      :quest="quest"
+                      :vault-id="vaultId"
+                      status="completed"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <!-- Available Quests Section -->
-              <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
-                <div class="section-header">
-                  <h2 class="section-title">
-                    <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
-                    AVAILABLE QUESTS
-                    <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
-                  </h2>
-                  <label class="toggle-label">
-                    <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
-                    <span class="toggle-text">Show All</span>
-                  </label>
-                </div>
-                <div class="quest-grid">
-                  <QuestCard
-                    v-for="quest in filteredAvailableQuests"
-                    :key="quest.id"
-                    :quest="quest"
-                    :vault-id="vaultId"
-                    :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
-                    :is-locked="!isQuestUnlocked(quest)"
-                    :party-members="questPartyMembersMap[quest.id] || []"
-                    @start="vaultId && questStore.startQuest(vaultId, $event)"
-                    @assign-party="handleAssignParty"
-                  />
-                </div>
-              </div>
-
-              <!-- Empty State -->
-              <div
-                v-if="readyToClaimQuests.length === 0 && activeQuests.length === 0 && filteredAvailableQuests.length === 0"
-                class="empty-state"
-              >
-                <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
-                <p v-if="showAllQuests">No quests available at the moment</p>
-                <p v-else>No unlocked quests available. Complete previous quests to unlock more.</p>
-              </div>
-            </div>
-
-            <!-- Completed Quests -->
-            <div v-if="activeTab === 'completed'" class="tab-content">
-              <div v-if="completedQuests.length === 0" class="empty-state">
-                <Icon icon="mdi:checkbox-marked-circle-outline" class="text-8xl mb-6 opacity-30" />
-                <p>No completed quests yet</p>
-              </div>
-
-              <div v-else class="quest-grid">
-                <QuestCard
-                  v-for="quest in completedQuests"
-                  :key="quest.id"
-                  :quest="quest"
-                  :vault-id="vaultId"
-                  status="completed"
-                />
-              </div>
-            </div>
+              </template>
+            </UTabs>
           </div>
 
           <!-- Party Selection Modal -->
@@ -461,41 +449,6 @@ onMounted(async () => {
   font-weight: bold;
   margin-bottom: 24px;
   text-align: center;
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  justify-content: flex-start;
-  gap: 0;
-  margin-bottom: 24px;
-  border-bottom: 2px solid var(--color-theme-glow);
-}
-
-.tab-button {
-  padding: 10px 24px;
-  background-color: transparent;
-  color: var(--color-theme-primary);
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-}
-
-.tab-button.active {
-  opacity: 1;
-  border-bottom-color: var(--color-theme-primary);
-  background-color: var(--color-theme-glow);
-}
-
-.tab-button:hover:not(.active) {
-  opacity: 0.8;
-  background-color: rgba(0, 0, 0, 0.2);
 }
 
 /* Section Title */

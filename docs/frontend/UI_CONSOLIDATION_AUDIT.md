@@ -46,7 +46,9 @@ References: `ExplorationView.vue:261`, `DwellerChatPage.vue:55`, `HappinessView.
 
 `UTabs` is used by Storage, Trading, Profile, Settings, and Dweller details. Quests and Objectives instead define their own `.tabs`, `.tab-button`, active state, spacing, and hover behavior; these two implementations are almost identical.
 
-**Next action:** migrate Quests and Objectives to `UTabs`. Add optional icon metadata or an icon slot so the existing tab icons can be retained without another tab implementation.
+**Result:** Quests and Objectives now use `UTabs` with optional icon metadata; their duplicate tab CSS was removed while preserving the existing labels, icons, active state, and content behavior.
+
+**Next action:** keep `UTabs` as the default for future tabs and audit any new stateful tab groups for URL-sync requirements separately.
 
 References: `UTabs.vue:33`, `QuestsView.vue:239`, `ObjectivesView.vue:62`.
 
@@ -167,6 +169,7 @@ Prefer browser DevTools, the production build output, and existing unit/manual c
 | Baseline | Audit only; no implementation yet | TBD | TBD | TBD | 0 / 0 | Populate before the first migration |
 | Modal behavior | Shared focus, Escape, body-scroll, and focus-restoration behavior for `UModal` and `RewardsModalShell` | Not measured for this behavior-only batch | Not measured for this behavior-only batch | CSS unchanged at 119.03 kB / 18.08 kB gzip; shared UI JS 37.13 → 37.27 kB | 1 lifecycle/accessibility behavior corrected / 0 | Focused Vitest tests, typecheck, lint, and production build passed |
 | Vault page shell | Shared sidebar offset/layout shell adopted by Trading Post, Training Center, and Relationships | Not measured for this structural batch | Not measured for this structural batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 kB / 13.44 kB gzip; new shell chunk 0.56 kB / 0.39 kB gzip | 0 / 0 | 2 new shell tests; full suite 1,424 passed / 1 skipped; typecheck, lint, and production build passed |
+| Tabs | Quests and Objectives adopted shared `UTabs` with optional icons; duplicate tab markup and CSS removed | Not measured for this UI-only batch | Not measured for this UI-only batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 → 37.38 kB / 13.44 → 13.46 kB gzip | 0 / 0 | Focused tab/view tests, full suite, typecheck, lint, and production build passed; behavior preserved |
 
 ### Bug-fix accounting
 

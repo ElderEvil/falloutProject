@@ -21,7 +21,10 @@ vi.mock('@/modules/dwellers/components/stats/DwellerStatusBadge.vue', () => ({
 }))
 
 vi.mock('@/modules/dwellers/components/DwellerFilterPanel.vue', () => ({
-  default: { template: '<div class="filter-panel-mock"></div>', props: ['showStatusFilter'] },
+  default: {
+    template: '<div class="filter-panel-mock"><slot name="additional-filters" /></div>',
+    props: ['showStatusFilter', 'showAgeFilter'],
+  },
 }))
 
 // Mock auth service to prevent network calls

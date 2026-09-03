@@ -129,6 +129,10 @@ const toggleSortDirection = () => {
         </div>
       </div>
 
+      <div v-if="$slots['additional-filters']" class="filter-section additional-filter-section">
+        <slot name="additional-filters"></slot>
+      </div>
+
       <div class="filter-section">
         <div class="section-header">
           <Icon icon="mdi:sort" />

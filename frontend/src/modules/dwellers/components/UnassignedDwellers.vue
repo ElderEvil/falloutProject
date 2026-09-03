@@ -150,28 +150,28 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         </div>
 
         <!-- Sort controls inline with header -->
-        <DwellerFilterPanel :show-status-filter="false" :show-age-filter="true" />
-      </div>
-
-      <div class="filter-chips" role="group" aria-label="Filter unassigned dwellers">
-        <div class="chip-group" role="group" aria-label="Filter by rarity">
-          <div class="chip-group-label">
-            <Icon icon="mdi:star-four-points" class="chip-group-icon" />
-            <span>Rarity</span>
-          </div>
-          <button
-            v-for="option in RARITY_FILTERS"
-            :key="option.value"
-            class="chip"
-            :class="{ active: filterRarity === option.value }"
-            :style="option.value === 'all' ? undefined : { '--chip-accent': rarityColor(option.value) }"
-            :aria-pressed="filterRarity === option.value"
-            @click="filterRarity = option.value"
-          >
-            <Icon :icon="option.icon" class="chip-icon" />
-            {{ option.label }}
-          </button>
-        </div>
+        <DwellerFilterPanel :show-status-filter="false" :show-age-filter="true">
+          <template #additional-filters>
+            <div class="chip-group" role="group" aria-label="Filter by rarity">
+              <div class="chip-group-label">
+                <Icon icon="mdi:star-four-points" class="chip-group-icon" />
+                <span>Rarity</span>
+              </div>
+              <button
+                v-for="option in RARITY_FILTERS"
+                :key="option.value"
+                class="chip"
+                :class="{ active: filterRarity === option.value }"
+                :style="option.value === 'all' ? undefined : { '--chip-accent': rarityColor(option.value) }"
+                :aria-pressed="filterRarity === option.value"
+                @click="filterRarity = option.value"
+              >
+                <Icon :icon="option.icon" class="chip-icon" />
+                {{ option.label }}
+              </button>
+            </div>
+          </template>
+        </DwellerFilterPanel>
       </div>
     </div>
 
@@ -341,13 +341,6 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   color: var(--color-theme-glow);
   font-size: 0.875rem;
   margin-top: 0.25rem;
-}
-
-.filter-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin-top: 0.75rem;
 }
 
 .chip-group {

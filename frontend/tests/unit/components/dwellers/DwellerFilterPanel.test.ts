@@ -101,5 +101,13 @@ describe('DwellerFilterPanel', () => {
       expect(controlsRow.text()).toContain('Filter by Age')
       expect(controlsRow.text()).toContain('Sort By')
     })
+
+    it('should render additional filters inside the controls panel', () => {
+      const wrapper = mount(DwellerFilterPanel, {
+        slots: { 'additional-filters': '<span data-test="additional-filter">Rarity</span>' },
+      })
+
+      expect(wrapper.find('.additional-filter-section [data-test="additional-filter"]').exists()).toBe(true)
+    })
   })
 })

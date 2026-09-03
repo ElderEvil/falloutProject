@@ -370,8 +370,9 @@ class BreedingService:
         child_rarity = BreedingService._calculate_inherited_rarity(mother, father)
         child_gender = random.choice(list(GenderEnum))
 
-        # Generate name (simplified - take from mother or father)
-        first_name = random.choice([mother.first_name, father.first_name])
+        from app.utils.dwellers import get_gender_based_name
+
+        first_name = get_gender_based_name(child_gender)
         # Father's last name by default; occasionally inherit the mother's instead
         if random.random() < game_config.breeding.maternal_last_name_chance:
             last_name = mother.last_name

@@ -151,7 +151,10 @@ class ResourceManager:
         workers = [dweller for dweller in dwellers if dweller.apprentice_stat is None]
         ability_sum = sum(getattr(dweller, ability.lower(), 0) for dweller in workers)
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
-        production = room.output * ability_sum * game_config.resource.base_production_rate * tier_mult * seconds_passed
+        rate = game_config.resource.base_production_rate
+        if MEDICAL_ROOM_PRODUCTION.get(room.name.lower()):
+            rate = game_config.resource.medical_production_rate
+        production = room.output * ability_sum * rate * tier_mult * seconds_passed
 
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "

@@ -379,6 +379,11 @@ class ResourceConfig(BaseSettings):
         description="Per SPECIAL point per second, calibrated for the 60-second game tick",
         ge=0.0,
     )
+    medical_production_rate: float = Field(
+        default=0.01,
+        description="Per INT point per second for Medbay/Science Lab only",
+        ge=0.0,
+    )
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)

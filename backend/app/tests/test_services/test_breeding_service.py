@@ -895,7 +895,7 @@ async def test_deliver_baby_inherits_name(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that baby inherits name from parents."""
+    """Test that baby gets a fresh first name and father's last name by default."""
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
@@ -905,16 +905,17 @@ async def test_deliver_baby_inherits_name(
     pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
     await async_session.commit()
 
-    with patch("random.random", return_value=0.99):
+    with (
+        patch("random.random", return_value=0.99),
+        patch("app.utils.dwellers.get_gender_based_name", return_value="Alex") as mock_name,
+    ):
         child = await BreedingService.deliver_baby(
             async_session,
             pregnancy.id,
         )
 
-    # First name should be from one of the parents
-    assert child.first_name in [male_dweller.first_name, female_dweller.first_name]
-
-    # Father's last name is the default inheritance
+    mock_name.assert_called_once_with(child.gender)
+    assert child.first_name == "Alex"
     assert child.last_name == male_dweller.last_name
 
 

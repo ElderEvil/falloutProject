@@ -533,6 +533,13 @@ async def test_grant_lunchbox(async_session: AsyncSession) -> None:
     assert len(result["items"]) >= 0
 
 
+def test_lunchbox_common_dweller_data_matches_gender() -> None:
+    with patch("app.utils.dwellers.get_gender_based_name", side_effect=lambda g: "M" if g == GenderEnum.MALE else "F"):
+        for _ in range(20):
+            data = reward_service._lunchbox_common_dweller_data(1, RarityEnum.COMMON)
+            assert data["first_name"] == ("M" if data["gender"] == GenderEnum.MALE else "F")
+
+
 @pytest.mark.asyncio
 async def test_process_quest_rewards_empty(async_session: AsyncSession) -> None:
     quest = Quest(

@@ -364,27 +364,15 @@ class RewardService:
     @staticmethod
     def _lunchbox_common_dweller_data(level: int, rarity: RarityEnum) -> dict[str, Any]:
         """Build the procedural fallback used for common lunchbox dwellers."""
+        from app.utils.dwellers import get_gender_based_name
+
+        gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])
         return {
-            "first_name": random.choice(
-                [
-                    "Albert",
-                    "Brian",
-                    "Charles",
-                    "David",
-                    "Edward",
-                    "Frank",
-                    "Amy",
-                    "Betty",
-                    "Carol",
-                    "Donna",
-                    "Emily",
-                    "Fiona",
-                ]
-            ),
+            "first_name": get_gender_based_name(gender),
             "last_name": random.choice(["Smith", "Johnson", "Williams", "Brown", "Jones", "Miller"]),
             "rarity": rarity,
             "level": level,
-            "gender": random.choice([GenderEnum.MALE, GenderEnum.FEMALE]),
+            "gender": gender,
         }
 
     async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:

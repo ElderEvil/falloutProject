@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.72.0 (2026-09-03)
+
+### Features
+
+* add radiation mechanics and radscorpion incidents 1667718
+
 ## 2.71.1 (2026-09-03)
 
 ### Bug Fixes

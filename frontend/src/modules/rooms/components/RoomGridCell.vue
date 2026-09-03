@@ -360,6 +360,8 @@ const attentionCount = computed(() =>
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  max-width: calc(100% - 1rem);
+  box-sizing: border-box;
   z-index: 8;
   display: flex;
   align-items: center;
@@ -381,11 +383,16 @@ const attentionCount = computed(() =>
 }
 
 .incident-badge-icon {
+  flex: 0 0 auto;
   width: 16px;
   height: 16px;
 }
 
 .incident-badge-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: 'Courier New', monospace;
   font-size: 0.7rem;
   font-weight: bold;

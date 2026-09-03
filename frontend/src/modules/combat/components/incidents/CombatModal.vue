@@ -280,6 +280,8 @@ const incidentIcon = computed(() => {
       return 'mdi:claw-mark'
     case IncidentType.FERAL_GHOUL_ATTACK:
       return 'mdi:ghost'
+    case IncidentType.RADSCORPION_ATTACK:
+      return 'mdi:spider'
     default:
       return 'mdi:alert-octagon'
   }

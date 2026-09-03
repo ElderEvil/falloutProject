@@ -109,7 +109,7 @@ async def test_process_events_wanderer_awards_caps_and_notifies(async_session: A
 
 @pytest.mark.asyncio
 async def test_process_events_raider_scout_spawns_incident(async_session: AsyncSession, vault: Vault):
-    """Raider scout events attempt to spawn a raider attack incident."""
+    """Raider scout events attempt to spawn a radscorpion incident."""
     await _create_dwellers(async_session, vault, count=3)
     incident_id = uuid4()
 
@@ -125,7 +125,9 @@ async def test_process_events_raider_scout_spawns_incident(async_session: AsyncS
 
     assert result["triggered"] == 1
     assert result["events"] == [{"type": "raider_scout", "incident_id": str(incident_id)}]
-    mock_incident_service.spawn_incident.assert_awaited_once_with(async_session, vault.id, IncidentType.RAIDER_ATTACK)
+    mock_incident_service.spawn_incident.assert_awaited_once_with(
+        async_session, vault.id, IncidentType.RADSCORPION_ATTACK
+    )
 
 
 @pytest.mark.asyncio

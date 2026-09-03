@@ -1,18 +1,24 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { getRadiationPercentage } from '@/modules/dwellers/models/dweller'
 
-defineProps<{
+const props = defineProps<{
   dwellerName: string
   dwellerImageUrl?: string | null
   dwellerThumbnailUrl?: string | null
   dwellerLevel: number
   health: number
   maxHealth: number
+  radiation?: number | null
   progressPercentage: number
   timeRemaining: string
   explorationDuration: number
 }>()
+
+const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
 </script>
 
 <template>
@@ -49,22 +55,13 @@ defineProps<{
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
-            <div
-              class="exploration-meter exploration-meter--health rounded-full"
-              role="progressbar"
-              aria-label="Health"
-              :aria-valuenow="health"
-              aria-valuemin="0"
-              :aria-valuemax="maxHealth"
-            >
-              <div
-                class="exploration-meter__fill rounded-full"
-                :style="{
-                  width: `${(health / maxHealth) * 100}%`,
-                }"
-              ></div>
-              <div class="exploration-meter__segments" aria-hidden="true"></div>
-            </div>
+            <UProgressBar
+              :model-value="(health / maxHealth) * 100"
+              :radiation="radiationPercentage"
+              :height="12"
+              :glow="false"
+              ariaLabel="Health"
+            />
             <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary"
               >{{ health }}/{{ maxHealth }}</span
             >
@@ -114,10 +111,6 @@ defineProps<{
   border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.65);
   background: var(--color-surface-sunken);
   box-shadow: inset 0 0 8px var(--color-surface-canvas);
-}
-
-.exploration-meter--health {
-  height: 0.75rem;
 }
 
 .exploration-meter--progress {

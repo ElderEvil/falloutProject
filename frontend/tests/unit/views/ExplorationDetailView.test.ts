@@ -244,7 +244,7 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).toContain('LVL 5')
     })
 
-    it('uses the terminal meter treatment for health and exploration progress', async () => {
+    it('uses the shared bar for health and the terminal meter for exploration progress', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {
           plugins: [router],
@@ -253,9 +253,9 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      expect(wrapper.findAll('.exploration-meter')).toHaveLength(2)
-      expect(wrapper.findAll('.exploration-meter.rounded-full')).toHaveLength(2)
-      expect(wrapper.findAll('.exploration-meter__fill.rounded-full')).toHaveLength(2)
+      expect(wrapper.findAll('.u-progress-bar').length).toBeGreaterThanOrEqual(1)
+      expect(wrapper.findAll('.exploration-meter')).toHaveLength(1)
+      expect(wrapper.findAll('.exploration-meter__fill.rounded-full')).toHaveLength(1)
     })
 
     it('renders stats grid with 6 stat boxes', async () => {

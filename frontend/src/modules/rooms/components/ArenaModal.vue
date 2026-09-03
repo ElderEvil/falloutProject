@@ -7,6 +7,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
@@ -243,6 +244,14 @@ const hpClass = (entry: ArenaRosterEntry) => {
   if (pct < 50) return 'hp-low'
   return 'hp-healthy'
 }
+
+const HP_FILL_COLOR: Record<string, string> = {
+  'hp-healthy': 'var(--color-success)',
+  'hp-low': 'var(--color-warning)',
+  'hp-critical': 'var(--color-danger)',
+}
+
+const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?? HP_FILL_COLOR['hp-healthy']!
 </script>
 
 <template>
@@ -320,7 +329,7 @@ const hpClass = (entry: ArenaRosterEntry) => {
               <span class="roster-hp" :class="hpClass(entry)">{{ entry.health }}/{{ entry.max_health }}</span>
             </div>
             <div class="roster-hp-bar">
-              <div class="roster-hp-fill" :class="hpClass(entry)" :style="{ width: hpPercent(entry) + '%' }"></div>
+              <UProgressBar :model-value="hpPercent(entry)" :height="4" :glow="false" :color="hpFillColor(entry)" />
             </div>
             <button
               v-if="!isFighting"
@@ -579,28 +588,6 @@ const hpClass = (entry: ArenaRosterEntry) => {
 
 .roster-hp-bar {
   width: 48px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(128, 128, 128, 0.25);
-  overflow: hidden;
-}
-
-.roster-hp-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
-.roster-hp-fill.hp-healthy {
-  background: var(--color-success);
-}
-
-.roster-hp-fill.hp-low {
-  background: var(--color-warning);
-}
-
-.roster-hp-fill.hp-critical {
-  background: var(--color-danger);
 }
 
 .roster-remove {

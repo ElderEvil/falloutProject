@@ -112,12 +112,14 @@ class IncidentConfig(BaseSettings):
     difficulty_mole_rat: tuple[int, int] = (2, 5)
     difficulty_raider: tuple[int, int] = (4, 7)
     difficulty_feral_ghoul: tuple[int, int] = (5, 8)
+    difficulty_radscorpion: tuple[int, int] = (3, 6)
     difficulty_deathclaw: tuple[int, int] = (8, 10)
 
     # Spawn weights (higher = more common)
     weight_fire: int = 20
     weight_radroach: int = 30
     weight_mole_rat: int = 25
+    weight_radscorpion: int = 12
     weight_raider: int = 10
     weight_feral_ghoul: int = 5
     weight_deathclaw: int = 2
@@ -128,6 +130,7 @@ class IncidentConfig(BaseSettings):
             IncidentType.FIRE: self.difficulty_fire,
             IncidentType.RADROACH_INFESTATION: self.difficulty_radroach,
             IncidentType.MOLE_RAT_ATTACK: self.difficulty_mole_rat,
+            IncidentType.RADSCORPION_ATTACK: self.difficulty_radscorpion,
             IncidentType.RAIDER_ATTACK: self.difficulty_raider,
             IncidentType.FERAL_GHOUL_ATTACK: self.difficulty_feral_ghoul,
             IncidentType.DEATHCLAW_ATTACK: self.difficulty_deathclaw,
@@ -140,6 +143,7 @@ class IncidentConfig(BaseSettings):
             IncidentType.FIRE: self.weight_fire,
             IncidentType.RADROACH_INFESTATION: self.weight_radroach,
             IncidentType.MOLE_RAT_ATTACK: self.weight_mole_rat,
+            IncidentType.RADSCORPION_ATTACK: self.weight_radscorpion,
             IncidentType.RAIDER_ATTACK: self.weight_raider,
             IncidentType.FERAL_GHOUL_ATTACK: self.weight_feral_ghoul,
             IncidentType.DEATHCLAW_ATTACK: self.weight_deathclaw,

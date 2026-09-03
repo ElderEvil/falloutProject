@@ -135,10 +135,17 @@ class EventGenerator:
     def _generate_danger_event(self, exploration: Exploration) -> DangerEventSchema:
         """Generate danger/hazard event."""
         endurance = exploration.dweller_endurance
-        damage = max(1, 10 - endurance)
 
         templates = data_loader.load_event_templates()
         template = random.choice(templates["danger"])
+        if "rad" in template.lower():
+            rads = max(2, 12 - endurance)
+            return DangerEventSchema(
+                description=template.format(damage=rads),
+                health_loss=0,
+                radiation_gain=rads,
+            )
+        damage = max(1, 10 - endurance)
         description = template.format(damage=damage)
 
         return DangerEventSchema(description=description, health_loss=damage)

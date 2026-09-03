@@ -6,7 +6,9 @@ import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { DwellerShort } from '../../models/dweller'
+import { getRadiationPercentage } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 
@@ -36,6 +38,8 @@ const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
   return (props.dweller.health / props.dweller.max_health) * 100
 })
+
+const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
 
 // Room stat is passed precomputed from the list view (DwellersList.getRoomStat)
 // so the grid and list render identical values (combat power for arena, else SPECIAL).
@@ -123,9 +127,7 @@ const getStatColorClass = (value: number) => {
       </div>
 
       <!-- Health Bar -->
-      <div class="health-bar">
-        <div class="health-fill" :style="{ width: `${healthPercentage}%` }"></div>
-      </div>
+      <UProgressBar :model-value="healthPercentage" :radiation="radiationPercentage" :height="6" :glow="false" />
 
       <!-- Job-relevant stat (matches list view: combat power for arena, else SPECIAL) -->
       <div v-if="roomStat" class="job-stat">
@@ -292,21 +294,6 @@ const getStatColorClass = (value: number) => {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--color-theme-primary);
-}
-
-.health-bar {
-  width: 100%;
-  height: 6px;
-  background: rgba(68, 68, 68, 0.8);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.health-fill {
-  height: 100%;
-  background: var(--color-theme-primary);
-  transition: width 0.3s ease;
 }
 
 .job-stat {

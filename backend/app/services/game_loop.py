@@ -586,7 +586,9 @@ class GameLoopService:
 
                 active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
                 if len(active_incidents) < game_config.incident.max_active_incidents:
-                    incident = await incident_service.spawn_incident(db_session, vault_id, IncidentType.RAIDER_ATTACK)
+                    incident = await incident_service.spawn_incident(
+                        db_session, vault_id, IncidentType.RADSCORPION_ATTACK
+                    )
                     if incident:
                         stats["triggered"] = 1
                         stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})

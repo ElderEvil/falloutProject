@@ -119,6 +119,14 @@ describe('IncidentAlert', () => {
       const icon = wrapper.find('.mock-icon')
       expect(icon.attributes('data-icon')).toBe('mdi:fire')
     })
+
+    it('should display the radscorpion icon', () => {
+      const wrapper = mount(IncidentAlert, {
+        props: { incidents: [{ ...mockIncident, type: IncidentType.RADSCORPION_ATTACK }] },
+      })
+
+      expect(wrapper.find('.mock-icon').attributes('data-icon')).toBe('mdi:spider')
+    })
   })
 
   describe('Multiple Incidents', () => {

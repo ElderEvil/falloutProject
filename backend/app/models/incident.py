@@ -19,6 +19,7 @@ class IncidentType(StrEnum):
     MOLE_RAT_ATTACK = "mole_rat_attack"
     DEATHCLAW_ATTACK = "deathclaw_attack"
     FERAL_GHOUL_ATTACK = "feral_ghoul_attack"
+    RADSCORPION_ATTACK = "radscorpion_attack"
     FIRE = "fire"
 
 

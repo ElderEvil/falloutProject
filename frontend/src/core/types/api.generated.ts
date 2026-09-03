@@ -1776,7 +1776,7 @@ export interface paths {
          * Spawn Debug Incident
          * @description [DEBUG] Manually spawn an incident for testing purposes.
          *
-         *     If incident_type is not provided, a random type will be chosen.
+         *     If incident_type is not provided, a radscorpion incident will be spawned.
          *
          *     Returns:
          *         IncidentSpawnResponse: Spawned incident details.
@@ -6636,7 +6636,7 @@ export interface components {
          * @description Types of incidents that can occur in the vault.
          * @enum {string}
          */
-        IncidentType: "raider_attack" | "radroach_infestation" | "mole_rat_attack" | "deathclaw_attack" | "feral_ghoul_attack" | "fire";
+        IncidentType: "raider_attack" | "radroach_infestation" | "mole_rat_attack" | "deathclaw_attack" | "feral_ghoul_attack" | "radscorpion_attack" | "fire";
         /**
          * InfoResponse
          * @description Application information response schema.

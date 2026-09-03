@@ -63,6 +63,15 @@ async def test_spawn_incident_success(async_session: AsyncSession, room_with_dwe
 
 
 @pytest.mark.asyncio
+async def test_spawn_incident_defaults_to_radscorpion(async_session: AsyncSession, room_with_dwellers: dict):
+    """Unspecified runtime incident spawns use the radscorpion encounter."""
+    incident = await incident_service.spawn_incident(async_session, room_with_dwellers["room"].vault_id)
+
+    assert incident is not None
+    assert incident.type == IncidentType.RADSCORPION_ATTACK
+
+
+@pytest.mark.asyncio
 async def test_spawn_incident_specific_type(async_session: AsyncSession, room_with_dwellers: dict):
     """Test spawning a specific incident type."""
     room = room_with_dwellers["room"]
@@ -90,6 +99,61 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
     # Verify incident was updated
     await async_session.refresh(incident)
     assert incident.damage_dealt >= 0
+
+
+@pytest.mark.asyncio
+async def test_radscorpion_deals_health_and_radiation_damage(async_session: AsyncSession, room_with_dwellers: dict):
+    """Radscorpions damage HP and add radiation during the same combat round."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADSCORPION_ATTACK)
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=20.0),
+        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+    ):
+        result = await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.refresh(dweller)
+    assert result.dwellers_damaged == 2
+    assert dweller.health == 90
+    assert dweller.radiation == 5
+    assert dweller.radiation < 10
+
+
+@pytest.mark.asyncio
+async def test_radscorpion_radiation_damage_is_strictly_less_than_hp_damage(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Small radscorpion hits never deal as much radiation as HP damage."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.radiation = 0
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADSCORPION_ATTACK)
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=2.0),
+        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+    ):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.refresh(dweller)
+    assert dweller.health == 99
+    assert dweller.radiation == 0
+    assert dweller.radiation < 1
 
 
 @pytest.mark.asyncio

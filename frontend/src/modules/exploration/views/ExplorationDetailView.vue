@@ -267,6 +267,7 @@ watch(
             :dweller-level="dweller.level"
             :health="dweller.health"
             :max-health="dweller.max_health"
+            :radiation="dweller.radiation"
             :progress-percentage="progressPercentage"
             :time-remaining="timeRemaining"
             :exploration-duration="exploration.duration"

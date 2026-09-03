@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { UCard, UBadge } from '@/core/components/ui'
+import { UBadge, UCard, UProgressBar } from '@/core/components/ui'
 
 interface Props {
   objective: Objective
@@ -80,13 +80,13 @@ const canClaim = computed(() => {
         <span class="progress-label">Progress</span>
         <span class="progress-values">{{ objective.progress }} / {{ objective.total }}</span>
       </div>
-      <div class="progress-bar-container">
-        <div
-          class="progress-bar"
-          :style="{ width: `${progressPercent}%` }"
-          :class="{ 'progress-complete': isCompleted }"
-        ></div>
-      </div>
+      <UProgressBar
+        :model-value="progressPercent"
+        :height="8"
+        :glow="false"
+        ariaLabel="Objective progress"
+        class="objective-progress-bar"
+      />
       <div class="progress-percent">{{ progressPercent }}%</div>
     </div>
 
@@ -214,23 +214,8 @@ const canClaim = computed(() => {
   font-weight: bold;
 }
 
-.progress-bar-container {
-  height: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  overflow: hidden;
+.objective-progress-bar {
   margin-bottom: 4px;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent));
-  transition: width 0.3s ease;
-  border-radius: 4px;
-}
-
-.progress-complete {
-  background: linear-gradient(90deg, var(--color-theme-primary), var(--color-theme-accent));
 }
 
 .progress-percent {

@@ -69,9 +69,14 @@
           <div class="progress-section">
             <div class="progress-item">
               <div class="progress-label">Threat Contained</div>
-              <div class="progress-bar">
-                <div class="progress-fill success" :style="{ width: `${combatProgress}%` }"></div>
-              </div>
+              <UProgressBar
+                :model-value="combatProgress"
+                :height="20"
+                :glow="false"
+                color="linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-glow) 100%)"
+                ariaLabel="Threat contained"
+                class="combat-progress-bar"
+              />
               <div class="progress-value">{{ combatProgress }}% · {{ expectedEnemies - incident.enemies_defeated }} enemies left</div>
             </div>
           </div>
@@ -162,6 +167,7 @@ import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -522,22 +528,13 @@ const bestResponders = computed(() =>
   text-transform: uppercase;
 }
 
-.progress-bar {
-  width: 100%;
-  height: 20px;
-  background: var(--color-surface-light);
-  border: 1px solid var(--color-theme-glow);
+.combat-progress-bar {
   border-radius: 4px;
-  overflow: hidden;
+  background: var(--color-surface-light);
 }
 
-.progress-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
-.progress-fill.success {
-  background: linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-glow) 100%);
+.combat-progress-bar :deep(.u-progress-bar__fill) {
+  box-shadow: none;
 }
 
 .progress-value {

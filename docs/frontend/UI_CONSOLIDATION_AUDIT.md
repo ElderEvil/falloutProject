@@ -56,7 +56,9 @@ References: `UTabs.vue:33`, `QuestsView.vue:239`, `ObjectivesView.vue:62`.
 
 `UProgressBar` exists, but simple progress bars are reimplemented in Objective cards, active explorations, combat, storage, room population, and SPECIAL stats. These copies differ in border radius, track color, fill color, and accessibility semantics.
 
-**Next action:** extend `UProgressBar` with configurable track/fill classes or colors and an optional value-label slot. Migrate simple percentage bars first; keep domain-specific wrappers such as resource readouts where they add meaningful information.
+**Result:** `ObjectiveCard`, the locked-room population meter, and the combat threat meter now use `UProgressBar` for simple percentage bars, including shared clamping and progress semantics. Their duplicate track/fill markup was removed while the room meter’s blue treatment and combat meter’s green treatment were preserved.
+
+**Next action:** migrate remaining simple percentage bars. Keep domain-specific wrappers such as resource readouts and combat meters where they add meaningful information, extending `UProgressBar` only when a shared variant is clearly justified.
 
 References: `UProgressBar.vue:41`, `ObjectiveCard.vue:83`, `ActiveExplorationList.vue:99`, `CombatModal.vue:72`, `StorageView.vue:239`, `RoomMenuItem.vue:106`.
 
@@ -170,6 +172,7 @@ Prefer browser DevTools, the production build output, and existing unit/manual c
 | Modal behavior | Shared focus, Escape, body-scroll, and focus-restoration behavior for `UModal` and `RewardsModalShell` | Not measured for this behavior-only batch | Not measured for this behavior-only batch | CSS unchanged at 119.03 kB / 18.08 kB gzip; shared UI JS 37.13 → 37.27 kB | 1 lifecycle/accessibility behavior corrected / 0 | Focused Vitest tests, typecheck, lint, and production build passed |
 | Vault page shell | Shared sidebar offset/layout shell adopted by Trading Post, Training Center, and Relationships | Not measured for this structural batch | Not measured for this structural batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 kB / 13.44 kB gzip; new shell chunk 0.56 kB / 0.39 kB gzip | 0 / 0 | 2 new shell tests; full suite 1,424 passed / 1 skipped; typecheck, lint, and production build passed |
 | Tabs | Quests and Objectives adopted shared `UTabs` with optional icons; duplicate tab markup and CSS removed | Not measured for this UI-only batch | Not measured for this UI-only batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 → 37.38 kB / 13.44 → 13.46 kB gzip | 0 / 0 | Focused tab/view tests, full suite, typecheck, lint, and production build passed; behavior preserved |
+| Simple progress bars | `ObjectiveCard`, the locked-room population meter, and the combat threat meter adopted shared `UProgressBar`; duplicate markup removed | Not measured for this UI-only batch | Not measured for this UI-only batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS unchanged at 37.38 kB / 13.46 kB gzip | 0 / 0 | Added ObjectiveCard coverage; focused checks and full suite 1,426 passed / 1 skipped; typecheck, lint, and production build passed |
 
 ### Bug-fix accounting
 

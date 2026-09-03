@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.73.0 (2026-09-03)
+
+### Features
+
+* add medical requests to dweller chat 8c0e323
+
+### Bug Fixes
+
+* align chat fixtures and worker shutdown 14fc401
+* preserve incident damage distribution e8a415c
+* prioritize dweller medical needs ddd12c2
+
+### Code Refactoring
+
+* separate dweller medical chat logic b64f19a
+* tidy dweller medical chat boundaries 0703514
+
 ## 2.72.1 (2026-09-03)
 
 ### Bug Fixes

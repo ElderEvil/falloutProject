@@ -12,16 +12,15 @@ from app.agents.dweller_chat_agent import (
     DwellerActivityBriefing,
     DwellerChatDeps,
     DwellerChatOutput,
-    MedicalAidStatus,
-    build_dweller_medical_status,
     build_dweller_social_context,
     chat_instructions,
     dweller_chat_agent,
     parse_action_suggestion,
     validate_dweller_chat_output,
 )
-from app.schemas.chat import NoAction, RequestRadawayAction, RequestStimpakAction
+from app.schemas.chat import MedicalAidStatus, NoAction, RequestRadawayAction, RequestStimpakAction
 from app.schemas.common import DwellerStatusEnum, SPECIALEnum
+from app.services.medical_service import get_dweller_medical_status
 
 
 def _make_dweller() -> MagicMock:
@@ -216,7 +215,7 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
     session = MagicMock(execute=AsyncMock(return_value=storage_result))
     deps = DwellerChatDeps(db_session=session, dweller=dweller, vault_id=uuid4())
 
-    status = await build_dweller_medical_status(deps)
+    status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
 
     assert isinstance(status, MedicalAidStatus)
     assert status.health_percent == 40

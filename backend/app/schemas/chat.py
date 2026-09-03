@@ -66,6 +66,19 @@ class RequestRadawayAction(BaseModel):
     reason: str = Field(..., max_length=200, description="Why the dweller needs RadAway")
 
 
+MedicalRecommendation = Literal["request_stimpak", "request_radaway", "none"]
+
+
+class MedicalAidStatus(BaseModel):
+    """Live health, radiation, and medical supply state for chat decisions."""
+
+    health_percent: float
+    radiation_percent: float
+    available_stimpaks: int
+    available_radaways: int
+    recommended_action: MedicalRecommendation
+
+
 class NoAction(BaseModel):
     """Indicates no action is suggested."""
 

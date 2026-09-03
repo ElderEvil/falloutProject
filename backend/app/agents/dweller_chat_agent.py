@@ -17,6 +17,7 @@ from app.models.relationship import Relationship
 from app.models.room import Room
 from app.schemas.chat import (
     AssignToRoomAction,
+    MedicalAidStatus,
     NoAction,
     RecallExplorationAction,
     RequestRadawayAction,
@@ -27,6 +28,10 @@ from app.schemas.chat import (
 from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
 from app.services.ai_service import get_model
+from app.services.medical_service import (
+    get_available_medical_supplies,
+    get_dweller_medical_status as fetch_dweller_medical_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -278,15 +283,13 @@ async def build_dweller_activity_briefing(deps: DwellerChatDeps) -> DwellerActiv
     """Read the activity state that determines safe chat-action suggestions."""
     from app.crud import exploration as exploration_crud
     from app.crud import training as training_crud
-    from app.models import Storage
     from app.services.training_service import training_service
 
     active_training = await training_crud.training.get_active_by_dweller(deps.db_session, deps.dweller.id)
     active_exploration = await exploration_crud.get_by_dweller(deps.db_session, dweller_id=deps.dweller.id)
-    storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
-    storage = storage_result.scalar_one_or_none()
-    available_stimpaks = (storage.stimpack if storage else 0) + deps.dweller.stimpack
-    available_radaways = (storage.radaway if storage else 0) + deps.dweller.radaway
+    available_stimpaks, available_radaways = await get_available_medical_supplies(
+        deps.db_session, deps.dweller, deps.vault_id
+    )
 
     briefing = DwellerActivityBriefing(
         active_training_stat=active_training.stat_being_trained if active_training else None,
@@ -423,48 +426,10 @@ async def get_dweller_activity_briefing(ctx: RunContext[DwellerChatDeps]) -> Dwe
     return await build_dweller_activity_briefing(ctx.deps)
 
 
-class MedicalAidStatus(BaseModel):
-    """Live health, radiation, and medical supply state for chat decisions."""
-
-    health_percent: float
-    radiation_percent: float
-    available_stimpaks: int
-    available_radaways: int
-    recommended_action: Literal["request_stimpak", "request_radaway", "none"]
-
-
-async def build_dweller_medical_status(deps: DwellerChatDeps) -> MedicalAidStatus:
-    """Read current medical thresholds and supplies from the dweller and vault."""
-    from app.models import Storage
-
-    storage_result = await deps.db_session.execute(select(Storage).where(Storage.vault_id == deps.vault_id))
-    storage = storage_result.scalar_one_or_none()
-    max_health = max(deps.dweller.max_health, 1)
-    health_percent = deps.dweller.health / max_health * 100
-    radiation_percent = deps.dweller.radiation / max_health * 100
-    available_stimpaks = deps.dweller.stimpack + (storage.stimpack if storage else 0)
-    available_radaways = deps.dweller.radaway + (storage.radaway if storage else 0)
-
-    if health_percent < 50 and available_stimpaks > 0:
-        recommended_action: Literal["request_stimpak", "request_radaway", "none"] = "request_stimpak"
-    elif radiation_percent >= 30 and available_radaways > 0:
-        recommended_action = "request_radaway"
-    else:
-        recommended_action = "none"
-
-    return MedicalAidStatus(
-        health_percent=round(health_percent, 1),
-        radiation_percent=round(radiation_percent, 1),
-        available_stimpaks=available_stimpaks,
-        available_radaways=available_radaways,
-        recommended_action=recommended_action,
-    )
-
-
 @dweller_chat_agent.tool
 async def get_dweller_medical_status(ctx: RunContext[DwellerChatDeps]) -> MedicalAidStatus:
     """Check whether this dweller should request a Stimpak or RadAway."""
-    return await build_dweller_medical_status(ctx.deps)
+    return await fetch_dweller_medical_status(ctx.deps.db_session, ctx.deps.dweller, ctx.deps.vault_id)
 
 
 @dweller_chat_agent.tool
@@ -528,9 +493,7 @@ async def parse_action_suggestion(
     - Medical needs take priority over every other action while supplies are available
     - Activity actions are re-checked against current server state before an action card is emitted
     """
-    medical_status = await build_dweller_medical_status(
-        DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
-    )
+    medical_status = await fetch_dweller_medical_status(db_session, dweller, dweller.vault_id)
     if medical_status.recommended_action == "request_stimpak":
         return RequestStimpakAction(reason="Health is below 50%")
     if medical_status.recommended_action == "request_radaway":

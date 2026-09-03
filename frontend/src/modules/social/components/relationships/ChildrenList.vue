@@ -11,12 +11,14 @@
         <div class="child-header">
           <div class="child-info">
             <h3 class="child-name">{{ child.first_name }} {{ child.last_name }}</h3>
-            <div class="child-age-badge">
-              <Icon icon="mdi:human-child" class="mr-1" />
-              {{ child.age_group }}
-            </div>
           </div>
           <Icon icon="mdi:human-child" class="child-avatar-icon" />
+        </div>
+
+        <div class="mb-4 flex items-center gap-1 whitespace-nowrap">
+          <DwellerBadge icon="mdi:human-child" color="var(--color-theme-primary)" :label="child.age_group" size="sm" />
+          <DwellerGenderBadge :gender="child.gender" :show-label="true" size="sm" />
+          <DwellerRarityBadge :rarity="child.rarity" :show-label="true" size="sm" />
         </div>
 
         <div class="child-details">
@@ -70,6 +72,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 interface Props {
@@ -155,19 +160,6 @@ const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group 
   color: var(--color-theme-primary);
   text-shadow: 0 0 8px var(--color-theme-glow);
   margin-bottom: 0.5rem;
-}
-
-.child-age-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid var(--color-theme-primary);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
 }
 
 .child-avatar-icon {

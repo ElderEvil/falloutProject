@@ -198,8 +198,8 @@ const toggleSortDirection = () => {
 .filter-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem;
   background: var(--color-surface-sunken);
   border-radius: 8px;
   border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
@@ -208,14 +208,14 @@ const toggleSortDirection = () => {
 .filter-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  gap: 0.375rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-theme-primary);
   text-transform: uppercase;
@@ -226,19 +226,19 @@ const toggleSortDirection = () => {
 .button-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .filter-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
   opacity: 0.6;
@@ -260,17 +260,17 @@ const toggleSortDirection = () => {
 
 .sort-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .sort-select {
   flex: 1;
-  padding: 0.5rem 1rem;
+  padding: 0.375rem 0.625rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -283,7 +283,7 @@ const toggleSortDirection = () => {
 }
 
 .sort-direction-button {
-  padding: 0.5rem;
+  padding: 0.375rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
@@ -302,25 +302,25 @@ const toggleSortDirection = () => {
 
 .filter-section-row {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .view-toggle-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .view-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;

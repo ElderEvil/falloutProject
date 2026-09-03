@@ -30,6 +30,8 @@ from app.schemas.dweller import DwellerReadFull
 from app.services.ai_service import get_model
 from app.services.medical_service import (
     get_available_medical_supplies,
+)
+from app.services.medical_service import (
     get_dweller_medical_status as fetch_dweller_medical_status,
 )
 

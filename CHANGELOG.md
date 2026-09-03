@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.73.1 (2026-09-03)
+
+### Bug Fixes
+
+* make modal dialog root focusable 5837357
+
+### Code Refactoring
+
+* consolidate progress indicators 662bad3
+* consolidate quest and objective tabs 06d908d
+* consolidate shared vault UI behavior 29d6b8a
+
 ## 2.73.0 (2026-09-03)
 
 ### Features

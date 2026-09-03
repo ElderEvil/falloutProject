@@ -426,6 +426,42 @@ describe('DwellerChat', () => {
       expect(confirmBtn.exists()).toBe(true)
     })
 
+    it('should use a carried stimpack when a medical request is confirmed', async () => {
+      const dwellerStore = useDwellerStore()
+      dwellerStore.filter.$patch({
+        detailedDwellers: {
+          'dweller-123': { id: 'dweller-123', stimpack: 1, radaway: 0 } as any,
+        },
+      })
+      const useStimpackSpy = vi.spyOn(dwellerStore.medical, 'useStimpack').mockResolvedValue({} as any)
+
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      ;(apiClient.post as Mock).mockResolvedValueOnce({
+        data: {
+          response: 'Please, Overseer. I need a Stimpak.',
+          happiness_impact: null,
+          action_suggestion: {
+            action_type: 'request_stimpak',
+            reason: 'Health is below 50%.',
+          },
+        },
+      })
+
+      const input = wrapper.find('.chat-input-field')
+      await input.setValue('I feel very weak.')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.action-suggestion-card').text()).toContain('Give Stimpak')
+      await wrapper.find('.action-confirm-btn').trigger('click')
+      await flushPromises()
+
+      expect(useStimpackSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
+    })
+
     it('should trigger startTraining when confirm button is clicked for start_training', async () => {
       const dwellerStore = useDwellerStore().filter
       // Add dweller with room_id to the store

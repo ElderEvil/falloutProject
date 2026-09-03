@@ -53,7 +53,7 @@ services:
       [
         "sh",
         "-c",
-        "uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$!; uv run dramatiq --processes 1 app.api.tasks & DRAMATIQ_PID=$!; wait -n; kill $PERIODIQ_PID $DRAMATIQ_PID 2>/dev/null; wait",
+        "uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$$!; uv run dramatiq --processes 1 app.api.tasks & DRAMATIQ_PID=$$!; trap 'kill $$PERIODIQ_PID $$DRAMATIQ_PID 2>/dev/null; wait; exit 0' TERM INT; while kill -0 $$PERIODIQ_PID 2>/dev/null && kill -0 $$DRAMATIQ_PID 2>/dev/null; do sleep 1; done; kill $$PERIODIQ_PID $$DRAMATIQ_PID 2>/dev/null; wait; exit 1",
       ]
 
   rustfs:

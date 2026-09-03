@@ -52,6 +52,20 @@ class RecallExplorationAction(BaseModel):
     reason: str = Field(..., max_length=200, description="Why recall is suggested")
 
 
+class RequestStimpakAction(BaseModel):
+    """Suggestion to give the dweller a Stimpak."""
+
+    action_type: Literal["request_stimpak"] = "request_stimpak"
+    reason: str = Field(..., max_length=200, description="Why the dweller needs a Stimpak")
+
+
+class RequestRadawayAction(BaseModel):
+    """Suggestion to give the dweller a RadAway."""
+
+    action_type: Literal["request_radaway"] = "request_radaway"
+    reason: str = Field(..., max_length=200, description="Why the dweller needs RadAway")
+
+
 class NoAction(BaseModel):
     """Indicates no action is suggested."""
 
@@ -60,7 +74,13 @@ class NoAction(BaseModel):
 
 
 ActionSuggestion = Annotated[
-    AssignToRoomAction | StartTrainingAction | StartExplorationAction | RecallExplorationAction | NoAction,
+    AssignToRoomAction
+    | StartTrainingAction
+    | StartExplorationAction
+    | RecallExplorationAction
+    | RequestStimpakAction
+    | RequestRadawayAction
+    | NoAction,
     Field(discriminator="action_type"),
 ]
 

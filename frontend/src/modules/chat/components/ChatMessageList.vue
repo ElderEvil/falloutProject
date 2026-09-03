@@ -182,9 +182,13 @@ const messageContentSegments = (
                 ? 'mdi:door-open'
                 : message.actionSuggestion.action_type === 'start_training'
                   ? 'mdi:dumbbell'
-                  : message.actionSuggestion.action_type === 'start_exploration'
-                    ? 'mdi:map-marker-radius'
-                    : 'mdi:arrow-u-left-top'
+                : message.actionSuggestion.action_type === 'start_exploration'
+                  ? 'mdi:map-marker-radius'
+                  : message.actionSuggestion.action_type === 'recall_exploration'
+                    ? 'mdi:arrow-u-left-top'
+                    : message.actionSuggestion.action_type === 'request_stimpak'
+                      ? 'mdi:medical-bag'
+                      : 'mdi:radiation'
             "
             class="h-4 w-4"
           />
@@ -197,9 +201,13 @@ const messageContentSegments = (
                 ? `Assign to ${message.actionSuggestion.room_name}`
                 : message.actionSuggestion.action_type === 'start_training'
                   ? `Train ${message.actionSuggestion.stat}`
-                  : message.actionSuggestion.action_type === 'start_exploration'
-                    ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
-                    : 'Recall from wasteland'
+                : message.actionSuggestion.action_type === 'start_exploration'
+                  ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
+                  : message.actionSuggestion.action_type === 'recall_exploration'
+                    ? 'Recall from wasteland'
+                    : message.actionSuggestion.action_type === 'request_stimpak'
+                      ? 'Give Stimpak'
+                      : 'Give RadAway'
             }}
           </p>
           <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
@@ -212,7 +220,17 @@ const messageContentSegments = (
           >
             <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
             <Icon v-else icon="mdi:check" class="h-4 w-4" />
-            <span>{{ isPerformingAction ? 'Processing...' : 'Confirm' }}</span>
+            <span>
+              {{
+                isPerformingAction
+                  ? 'Processing...'
+                  : message.actionSuggestion.action_type === 'request_stimpak'
+                    ? 'Give Stimpak'
+                    : message.actionSuggestion.action_type === 'request_radaway'
+                      ? 'Give RadAway'
+                      : 'Confirm'
+              }}
+            </span>
           </button>
           <button class="action-dismiss-btn" @click="emit('dismissAction', index)">
             <Icon icon="mdi:close" class="h-4 w-4" />

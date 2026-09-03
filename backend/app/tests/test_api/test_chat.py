@@ -99,9 +99,15 @@ class TestTextChat:
         mock_agent: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
+        async_session: AsyncSession,
         chat_dweller: Dweller,
     ):
         """Test sending a text message to a dweller."""
+        chat_dweller.health = chat_dweller.max_health
+        chat_dweller.radiation = 0
+        async_session.add(chat_dweller)
+        await async_session.commit()
+
         # Mock agent output
         mock_output = create_mock_agent_output()
         mock_result = MagicMock(spec=AgentRunResult)

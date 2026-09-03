@@ -55,6 +55,25 @@ describe('ChatMessageList', () => {
     expect(wrapper.emitted('confirmAction')?.[0]?.[1]).toBe(0)
   })
 
+  it.each([
+    ['request_stimpak', 'Give Stimpak', 'mdi:medical-bag'],
+    ['request_radaway', 'Give RadAway', 'mdi:radiation'],
+  ] as const)('renders the %s medical request action', (actionType, label, icon) => {
+    const wrapper = mountList(
+      [
+        {
+          type: 'dweller',
+          content: 'I need medical help.',
+          actionSuggestion: { action_type: actionType, reason: 'I am not feeling well.' },
+        },
+      ],
+      { latestActionSuggestionIndex: 0 }
+    )
+
+    expect(wrapper.text()).toContain(label)
+    expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
+  })
+
   it('renders dweller avatars via DwellerPortrait with the app-standard fallback', () => {
     const dwellerMessage = [{ type: 'dweller', content: 'Hi' }] as ChatMessageDisplay[]
 

@@ -381,13 +381,12 @@ const distributionPercentage = (count: number) => {
 
 .compact-dashboard {
   display: grid;
-  grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
+  grid-template-columns: minmax(6rem, 8rem) minmax(0, 1fr);
   align-items: center;
-  column-gap: 1.25rem;
-  row-gap: 1rem;
+  column-gap: 1rem;
+  row-gap: 0.75rem;
 }
 
-/* Happiness Gauge */
 .happiness-gauge {
   display: flex;
   justify-content: center;
@@ -396,8 +395,8 @@ const distributionPercentage = (count: number) => {
 
 .gauge-container {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 96px;
+  height: 96px;
 }
 
 .gauge-svg {
@@ -429,7 +428,7 @@ const distributionPercentage = (count: number) => {
 }
 
 .gauge-value {
-  font-size: 1.625rem;
+  font-size: 1.375rem;
   font-weight: 700;
   line-height: 1;
   text-shadow: 0 0 10px currentColor;
@@ -458,13 +457,13 @@ const distributionPercentage = (count: number) => {
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .distribution-bars {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .distribution-item {

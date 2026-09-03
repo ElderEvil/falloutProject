@@ -7,6 +7,7 @@ import {
   type DwellerSortBy,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
+import DwellerFilterGroup from './DwellerFilterGroup.vue'
 
 interface Props {
   showStatusFilter?: boolean
@@ -90,45 +91,27 @@ const toggleSortDirection = () => {
 
 <template>
   <div class="filter-panel">
-    <div v-if="showStatusFilter" class="filter-section">
-      <div class="section-header">
-        <Icon icon="mdi:filter" />
-        <span>Filter by Status</span>
-      </div>
-      <div class="button-group">
-        <button
-          v-for="option in statusOptions"
-          :key="option.value"
-          :class="{ active: currentFilterStatus === option.value }"
-          @click="currentFilterStatus = option.value as DwellerStatus | 'all'"
-          class="filter-button"
-        >
-          <Icon :icon="option.icon" />
-          <span>{{ option.label }}</span>
-        </button>
-      </div>
-    </div>
-
-    <div v-if="showAgeFilter" class="filter-section">
-      <div class="section-header">
-        <Icon icon="mdi:account-group" />
-        <span>Filter by Age</span>
-      </div>
-      <div class="button-group">
-        <button
-          v-for="option in ageGroupOptions"
-          :key="option.value"
-          :class="{ active: currentFilterAgeGroup === option.value }"
-          @click="currentFilterAgeGroup = option.value as DwellerAgeGroup"
-          class="filter-button"
-        >
-          <Icon :icon="option.icon" />
-          <span>{{ option.label }}</span>
-        </button>
-      </div>
-    </div>
+    <DwellerFilterGroup
+      v-if="showStatusFilter"
+      label="Filter by Status"
+      icon="mdi:filter"
+      :options="statusOptions"
+      :model-value="currentFilterStatus"
+      @update:model-value="currentFilterStatus = $event as DwellerStatus | 'all'"
+    />
 
     <div class="filter-section-row">
+      <DwellerFilterGroup
+        v-if="showAgeFilter"
+        label="Filter by Age"
+        icon="mdi:account-group"
+        :options="ageGroupOptions"
+        :model-value="currentFilterAgeGroup"
+        @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
+      />
+
+      <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
+
       <div class="filter-section">
         <div class="section-header">
           <Icon icon="mdi:sort" />
@@ -198,8 +181,8 @@ const toggleSortDirection = () => {
 .filter-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem;
   background: var(--color-surface-sunken);
   border-radius: 8px;
   border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
@@ -208,14 +191,14 @@ const toggleSortDirection = () => {
 .filter-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  gap: 0.375rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-theme-primary);
   text-transform: uppercase;
@@ -223,54 +206,19 @@ const toggleSortDirection = () => {
   text-shadow: 0 0 4px var(--color-theme-glow);
 }
 
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.filter-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0.6;
-}
-
-.filter-button:hover {
-  opacity: 0.8;
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.filter-button.active {
-  opacity: 1;
-  background: var(--color-surface-hover);
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 12px var(--color-theme-primary);
-  font-weight: 600;
-}
-
 .sort-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .sort-select {
   flex: 1;
-  padding: 0.5rem 1rem;
+  padding: 0.375rem 0.625rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -283,7 +231,7 @@ const toggleSortDirection = () => {
 }
 
 .sort-direction-button {
-  padding: 0.5rem;
+  padding: 0.375rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
@@ -302,25 +250,25 @@ const toggleSortDirection = () => {
 
 .filter-section-row {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .view-toggle-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .view-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;

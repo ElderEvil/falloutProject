@@ -21,7 +21,10 @@ vi.mock('@/modules/dwellers/components/stats/DwellerStatusBadge.vue', () => ({
 }))
 
 vi.mock('@/modules/dwellers/components/DwellerFilterPanel.vue', () => ({
-  default: { template: '<div class="filter-panel-mock"></div>', props: ['showStatusFilter'] },
+  default: {
+    template: '<div class="filter-panel-mock"><slot name="additional-filters" /></div>',
+    props: ['showStatusFilter', 'showAgeFilter'],
+  },
 }))
 
 // Mock auth service to prevent network calls
@@ -215,29 +218,27 @@ describe('UnassignedDwellers', () => {
     }
 
     const clickChip = async (wrapper: ReturnType<typeof mount>, label: string) => {
-      const chip = wrapper.findAll('.chip').find((c) => c.text() === label)
+      const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === label)
       expect(chip).toBeTruthy()
       await chip!.trigger('click')
     }
 
-    it('should render age and rarity filter chips', () => {
+    it('should render rarity filter chips', () => {
       dwellerStore.dwellers = [mockDweller]
 
       const wrapper = mount(UnassignedDwellers)
 
-      const labels = wrapper.findAll('.chip').map((c) => c.text())
-      expect(labels).toContain('All Ages')
-      expect(labels).toContain('Adult')
+      const labels = wrapper.findAll('.filter-chip').map((c) => c.text())
       expect(labels).toContain('Legendary')
+      expect(wrapper.find('.filter-group .filter-group-label').exists()).toBe(true)
+      expect(wrapper.find('.filter-group .filter-options').exists()).toBe(true)
     })
 
-    it('should filter cards by age group', async () => {
+    it('should filter cards by the shared age preference', () => {
       dwellerStore.dwellers = [adultDweller, childDweller]
+      dwellerStore.setFilterAgeGroup('adult')
 
       const wrapper = mount(UnassignedDwellers)
-      expect(wrapper.findAll('.dweller-card').length).toBe(2)
-
-      await clickChip(wrapper, 'Adult')
 
       const cards = wrapper.findAll('.dweller-card')
       expect(cards.length).toBe(1)
@@ -256,12 +257,11 @@ describe('UnassignedDwellers', () => {
       expect(cards[0].text()).toContain('Ada')
     })
 
-    it('should show a filtered-out message instead of the all-assigned state', async () => {
+    it('should show a filtered-out message instead of the all-assigned state', () => {
       dwellerStore.dwellers = [adultDweller]
+      dwellerStore.setFilterAgeGroup('child')
 
       const wrapper = mount(UnassignedDwellers)
-
-      await clickChip(wrapper, 'Child')
 
       expect(wrapper.text()).toContain('No dwellers match the filters')
       expect(wrapper.text()).not.toContain('All dwellers are assigned!')

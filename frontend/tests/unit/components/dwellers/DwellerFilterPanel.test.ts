@@ -29,7 +29,7 @@ describe('DwellerFilterPanel', () => {
       const store = useDwellerStore().filter
 
       // Find and click the "Working" filter button
-      const buttons = wrapper.findAll('.filter-button')
+      const buttons = wrapper.findAll('.filter-chip')
       const workingButton = buttons.find((btn) => btn.text().includes('Working'))
 
       expect(workingButton).toBeDefined()
@@ -46,7 +46,7 @@ describe('DwellerFilterPanel', () => {
       await wrapper.vm.$nextTick()
 
       // Check that the working filter has active class
-      const buttons = wrapper.findAll('.filter-button')
+      const buttons = wrapper.findAll('.filter-chip')
       const workingButton = buttons.find((btn) => btn.text().includes('Working'))
 
       expect(workingButton!.classes()).toContain('active')
@@ -90,8 +90,24 @@ describe('DwellerFilterPanel', () => {
     it('should have button group for status filters', () => {
       const wrapper = mount(DwellerFilterPanel)
 
-      const buttonGroup = wrapper.find('.button-group')
+      const buttonGroup = wrapper.find('.filter-options')
       expect(buttonGroup.exists()).toBe(true)
+    })
+
+    it('should place age filtering and sorting in the same row', () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
+      const controlsRow = wrapper.find('.filter-section-row')
+
+      expect(controlsRow.text()).toContain('Filter by Age')
+      expect(controlsRow.text()).toContain('Sort By')
+    })
+
+    it('should render additional filters inside the controls panel', () => {
+      const wrapper = mount(DwellerFilterPanel, {
+        slots: { 'additional-filters': '<span data-test="additional-filter">Rarity</span>' },
+      })
+
+      expect(wrapper.find('.filter-section-row [data-test="additional-filter"]').exists()).toBe(true)
     })
   })
 })

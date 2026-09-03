@@ -8,6 +8,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
+import UTabs from '@/core/components/ui/UTabs.vue'
 import { ObjectiveCard } from '../components'
 
 const route = useRoute()
@@ -15,6 +16,12 @@ const objectivesStore = useObjectivesStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const activeTab = ref('daily')
+const objectiveTabs = [
+  { key: 'daily', label: 'Daily', icon: 'mdi:calendar-today' },
+  { key: 'weekly', label: 'Weekly', icon: 'mdi:calendar-week' },
+  { key: 'achievement', label: 'Achievement', icon: 'mdi:trophy' },
+  { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
+]
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -59,92 +66,61 @@ const achievementObjectives = computed(() =>
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
             />
-            <div class="tabs">
-              <button
-                @click="activeTab = 'daily'"
-                :class="{ active: activeTab === 'daily' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:calendar-today" class="inline mr-2" />
-                Daily
-              </button>
-              <button
-                @click="activeTab = 'weekly'"
-                :class="{ active: activeTab === 'weekly' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:calendar-week" class="inline mr-2" />
-                Weekly
-              </button>
-              <button
-                @click="activeTab = 'achievement'"
-                :class="{ active: activeTab === 'achievement' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:trophy" class="inline mr-2" />
-                Achievement
-              </button>
-              <button
-                @click="activeTab = 'completed'"
-                :class="{ active: activeTab === 'completed' }"
-                class="tab-button"
-              >
-                <Icon icon="mdi:check-circle" class="inline mr-2" />
-                Completed
-              </button>
-            </div>
+            <UTabs v-model="activeTab" :tabs="objectiveTabs">
+              <template #default>
+                <div v-if="activeTab === 'daily'" class="tab-content">
+                  <div v-if="dailyObjectives.length === 0" class="empty-state">
+                    <p>No daily objectives available</p>
+                  </div>
+                  <div v-else class="objective-grid">
+                    <ObjectiveCard
+                      v-for="objective in dailyObjectives"
+                      :key="objective.id"
+                      :objective="objective"
+                    />
+                  </div>
+                </div>
 
-            <div v-if="activeTab === 'daily'" class="tab-content">
-              <div v-if="dailyObjectives.length === 0" class="empty-state">
-                <p>No daily objectives available</p>
-              </div>
-              <div v-else class="objective-grid">
-                <ObjectiveCard
-                  v-for="objective in dailyObjectives"
-                  :key="objective.id"
-                  :objective="objective"
-                />
-              </div>
-            </div>
+                <div v-if="activeTab === 'weekly'" class="tab-content">
+                  <div v-if="weeklyObjectives.length === 0" class="empty-state">
+                    <p>No weekly objectives available</p>
+                  </div>
+                  <div v-else class="objective-grid">
+                    <ObjectiveCard
+                      v-for="objective in weeklyObjectives"
+                      :key="objective.id"
+                      :objective="objective"
+                    />
+                  </div>
+                </div>
 
-            <div v-if="activeTab === 'weekly'" class="tab-content">
-              <div v-if="weeklyObjectives.length === 0" class="empty-state">
-                <p>No weekly objectives available</p>
-              </div>
-              <div v-else class="objective-grid">
-                <ObjectiveCard
-                  v-for="objective in weeklyObjectives"
-                  :key="objective.id"
-                  :objective="objective"
-                />
-              </div>
-            </div>
+                <div v-if="activeTab === 'achievement'" class="tab-content">
+                  <div v-if="achievementObjectives.length === 0" class="empty-state">
+                    <p>No achievement objectives available</p>
+                  </div>
+                  <div v-else class="objective-grid">
+                    <ObjectiveCard
+                      v-for="objective in achievementObjectives"
+                      :key="objective.id"
+                      :objective="objective"
+                    />
+                  </div>
+                </div>
 
-            <div v-if="activeTab === 'achievement'" class="tab-content">
-              <div v-if="achievementObjectives.length === 0" class="empty-state">
-                <p>No achievement objectives available</p>
-              </div>
-              <div v-else class="objective-grid">
-                <ObjectiveCard
-                  v-for="objective in achievementObjectives"
-                  :key="objective.id"
-                  :objective="objective"
-                />
-              </div>
-            </div>
-
-            <div v-if="activeTab === 'completed'" class="tab-content">
-              <div v-if="completedObjectives.length === 0" class="empty-state">
-                <p>No completed objectives yet</p>
-              </div>
-              <div v-else class="objective-grid">
-                <ObjectiveCard
-                  v-for="objective in completedObjectives"
-                  :key="objective.id"
-                  :objective="objective"
-                />
-              </div>
-            </div>
+                <div v-if="activeTab === 'completed'" class="tab-content">
+                  <div v-if="completedObjectives.length === 0" class="empty-state">
+                    <p>No completed objectives yet</p>
+                  </div>
+                  <div v-else class="objective-grid">
+                    <ObjectiveCard
+                      v-for="objective in completedObjectives"
+                      :key="objective.id"
+                      :objective="objective"
+                    />
+                  </div>
+                </div>
+              </template>
+            </UTabs>
           </div>
         </PageContentRail>
       </div>
@@ -204,40 +180,6 @@ const achievementObjectives = computed(() =>
   font-weight: bold;
   margin-bottom: 24px;
   text-align: center;
-}
-
-.tabs {
-  display: flex;
-  justify-content: flex-start;
-  gap: 0;
-  margin-bottom: 24px;
-  border-bottom: 2px solid var(--color-theme-glow);
-}
-
-.tab-button {
-  padding: 10px 24px;
-  background-color: transparent;
-  color: var(--color-theme-primary);
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 1rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-}
-
-.tab-button.active {
-  opacity: 1;
-  border-bottom-color: var(--color-theme-primary);
-  background-color: var(--color-theme-glow);
-}
-
-.tab-button:hover:not(.active) {
-  opacity: 0.8;
-  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .objective-grid {

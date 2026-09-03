@@ -2,14 +2,13 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useRelationshipStore } from '../stores/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import SidePanel from '@/core/components/common/SidePanel.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
@@ -17,7 +16,6 @@ import UTabs from '@/core/components/ui/UTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { isCollapsed } = useSidePanel()
 const relationshipStore = useRelationshipStore()
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
@@ -99,37 +97,32 @@ const navigateToDweller = (dwellerId: string) => {
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <!-- Main View -->
-    <div class="vault-layout">
-      <!-- Side Panel -->
-      <SidePanel />
+    <VaultPageShell>
+      <PageContentRail class="flex flex-col gap-6">
+        <PageHeader
+          title="Relationships &amp; Family"
+          icon="mdi:heart-multiple"
+          subtitle="Track relationships, pregnancies, and the next generation of your vault."
+        />
 
-      <!-- Main Content Area -->
-      <main class="main-content" :class="{ collapsed: isCollapsed }">
-        <PageContentRail class="flex flex-col gap-6">
-          <PageHeader
-            title="Relationships &amp; Family"
-            icon="mdi:heart-multiple"
-            subtitle="Track relationships, pregnancies, and the next generation of your vault."
-          />
-
-          <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div
-              v-for="metric in summaryMetrics"
-              :key="metric.label"
-              class="flex items-center gap-3 rounded border border-theme-primary/20 bg-transparent p-4 transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
-            >
-              <Icon
-                :icon="metric.icon"
-                class="h-7 w-7 shrink-0 text-theme-primary/70 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-              />
-              <div class="min-w-0">
+        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div
+            v-for="metric in summaryMetrics"
+            :key="metric.label"
+            class="flex items-center gap-3 rounded border border-theme-primary/20 bg-transparent p-4 transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
+          >
+            <Icon
+              :icon="metric.icon"
+              class="h-7 w-7 shrink-0 text-theme-primary/70 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
+            />
+            <div class="min-w-0">
                 <div class="stat-value text-2xl font-bold leading-none text-theme-primary">{{ metric.value }}</div>
                 <div class="mt-1 truncate text-[0.65rem] font-bold tracking-[0.1em] text-theme-primary/60">
-                  {{ metric.label }}
+                {{ metric.label }}
                 </div>
-              </div>
             </div>
-          </section>
+          </div>
+        </section>
 
           <UTabs
             :model-value="activeStage"
@@ -209,26 +202,7 @@ const navigateToDweller = (dwellerId: string) => {
               </section>
             </template>
           </UTabs>
-        </PageContentRail>
-      </main>
-    </div>
+      </PageContentRail>
+    </VaultPageShell>
   </div>
 </template>
-
-<style scoped>
-.vault-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-}
-
-.main-content.collapsed {
-  margin-left: 64px;
-}
-
-</style>

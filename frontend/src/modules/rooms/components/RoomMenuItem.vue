@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
 import { getRoomImageUrl } from '@/core/utils/image'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { RoomTemplate } from '../models/room'
 
 const props = defineProps<{
@@ -103,9 +104,15 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
             <Icon icon="mdi:account-group" class="w-4 h-4" />
             <span>{{ currentPopulation }}/{{ room.population_required }}</span>
           </div>
-          <div v-if="isLocked" class="population-progress">
-            <div class="progress-bar" :style="{ width: `${populationProgress}%` }"></div>
-          </div>
+          <UProgressBar
+            v-if="isLocked"
+            :model-value="populationProgress"
+            :height="4"
+            :glow="false"
+            color="var(--color-info)"
+            ariaLabel="Population requirement progress"
+            class="population-progress"
+          />
         </div>
 
         <div class="room-size">
@@ -249,17 +256,14 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
 }
 
 .population-progress {
-  height: 4px;
-  background: rgba(136, 204, 255, 0.2);
+  border: 0;
   border-radius: 2px;
-  overflow: hidden;
+  background: rgb(136 204 255 / 0.2);
+  box-shadow: none;
 }
 
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-info) 0%, var(--color-info) 100%);
+.population-progress :deep(.u-progress-bar__fill) {
   border-radius: 2px;
-  transition: width 0.3s ease;
   box-shadow: 0 0 4px rgba(136, 204, 255, 0.5);
 }
 </style>

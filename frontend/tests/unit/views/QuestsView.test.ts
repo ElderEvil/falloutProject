@@ -134,7 +134,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const tabs = wrapper.findAll('.tab-button')
+      const tabs = wrapper.findAll('.utabs-button')
       expect(tabs[0].classes()).toContain('active')
     })
 
@@ -150,7 +150,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completedTab = wrapper.findAll('.tab-button')[1]
+      const completedTab = wrapper.findAll('.utabs-button')[1]
       await completedTab.trigger('click')
 
       expect(completedTab.classes()).toContain('active')
@@ -351,7 +351,7 @@ describe('QuestsView', () => {
       await wrapper.vm.$nextTick()
 
       // Switch to completed tab
-      const completedTab = wrapper.findAll('.tab-button')[1]
+      const completedTab = wrapper.findAll('.utabs-button')[1]
       await completedTab.trigger('click')
 
       expect(wrapper.text()).toContain('Completed Quest')

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import UModal from '@/core/components/ui/UModal.vue'
 
 describe('UModal (Accessibility)', () => {
@@ -19,10 +20,10 @@ describe('UModal (Accessibility)', () => {
     return wrapper
   }
 
-  it('should have role="dialog" on the modal content', async () => {
+  it('should make the modal content a focusable dialog root', async () => {
     mountModal()
     const dialog = document.querySelector('[role="dialog"]')
-    expect(dialog).toBeTruthy()
+    expect([dialog?.getAttribute('role'), dialog?.getAttribute('tabindex')]).toEqual(['dialog', '-1'])
   })
 
   it('should have aria-modal="true" on the modal content', async () => {
@@ -44,5 +45,27 @@ describe('UModal (Accessibility)', () => {
     })
 
     expect(document.querySelector('[role="dialog"]')?.classList).toContain('bg-surface')
+  })
+
+  it('restores focus and existing body overflow when closed', async () => {
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+    document.body.style.overflow = 'auto'
+
+    wrapper = mount(UModal, {
+      props: { modelValue: true, title: 'Test Modal' },
+      attachTo: document.body,
+    })
+    await nextTick()
+
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await wrapper.setProps({ modelValue: false })
+
+    expect(document.body.style.overflow).toBe('auto')
+    expect(document.activeElement).toBe(trigger)
+    trigger.remove()
+    document.body.style.overflow = ''
   })
 })

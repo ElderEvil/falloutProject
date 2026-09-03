@@ -6,13 +6,12 @@ import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
-import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useTrainingStore } from '@/modules/progression/stores/training'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { getTrainingRoomCapacity } from '@/modules/rooms/utils/room'
 
@@ -21,7 +20,6 @@ const vaultStore = useVaultStore()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const trainingStore = useTrainingStore()
-const { isCollapsed } = useSidePanel()
 
 const vaultId = route.params.id as string
 
@@ -65,204 +63,182 @@ onMounted(async () => {
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
     <div class="scanlines"></div>
 
-    <div class="vault-layout">
-      <SidePanel />
+    <VaultPageShell flicker>
+      <PageContentRail class="flex flex-col gap-6">
+        <PageHeader
+          title="Training Center"
+          icon="mdi:dumbbell"
+          subtitle="Monitor and manage SPECIAL stat training across your vault"
+        />
 
-      <main class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <PageContentRail class="flex flex-col gap-6">
-          <PageHeader
-            title="Training Center"
-            icon="mdi:dumbbell"
-            subtitle="Monitor and manage SPECIAL stat training across your vault"
-          />
-
-          <section class="flex w-full flex-col gap-4">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-              <div class="flex items-center gap-3">
-                <Icon
-                  icon="mdi:office-building"
-                  class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-                />
-                <h3
-                  class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
-                >
-                  Training Rooms ({{ trainingRooms.length }})
-                </h3>
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <span
-                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
-                >
-                  <Icon icon="mdi:account-multiple" class="text-sm" />
-                  {{ activeTrainings.length }} training
-                </span>
-                <span
-                  class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
-                >
-                  <Icon icon="mdi:progress-clock" class="text-sm" />
-                  {{ roomsInUse }} / {{ trainingRooms.length }} in use
-                </span>
-              </div>
-            </div>
-
-            <div
-              v-if="trainingRooms.length === 0"
-              class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
-            >
-              <Icon icon="mdi:hammer-wrench" class="text-5xl text-theme-primary opacity-30" />
-              <p class="m-0 font-mono text-sm text-theme-primary opacity-70">
-                No training rooms built yet
-              </p>
-              <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
-                Build training rooms in the vault to train dwellers
-              </p>
-            </div>
-
-            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
-              <TrainingRoomCard
-                v-for="room in trainingRooms"
-                :key="room.id"
-                :room="room"
-                :active-count="getRoomActiveCount(room.id)"
+        <section class="flex w-full flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <Icon
+                icon="mdi:office-building"
+                class="text-2xl text-theme-primary [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
               />
+              <h3
+                class="m-0 font-mono text-xl font-bold uppercase tracking-[0.05em] text-theme-primary"
+              >
+                Training Rooms ({{ trainingRooms.length }})
+              </h3>
             </div>
-
-            <div
-              v-if="trainingRooms.length > 0"
-              class="flex flex-col gap-1.5 rounded-md border border-theme-glow bg-black/30 px-4 py-3"
-            >
-              <div class="flex items-center justify-between">
-                <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
-                  >Overall Capacity</span
-                >
-                <span class="font-mono text-xs font-bold text-theme-primary"
-                  >{{ activeTrainings.length }} / {{ totalCapacity }}</span
-                >
-              </div>
-              <UProgressBar
-                :model-value="capacityPercent"
-                :height="8"
-                color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
-                :glow="false"
-              />
+            <div class="flex flex-wrap items-center gap-2">
+              <span
+                class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+              >
+                <Icon icon="mdi:account-multiple" class="text-sm" />
+                {{ activeTrainings.length }} training
+              </span>
+              <span
+                class="flex items-center gap-1.5 rounded border border-theme-glow bg-black/30 px-2.5 py-1 font-mono text-xs text-theme-primary"
+              >
+                <Icon icon="mdi:progress-clock" class="text-sm" />
+                {{ roomsInUse }} / {{ trainingRooms.length }} in use
+              </span>
             </div>
-          </section>
-
-          <ApprenticeSection />
-
-          <div class="w-full">
-            <TrainingQueuePanel />
           </div>
 
-          <section class="training-reference">
-            <button class="info-toggle" @click="showInfo = !showInfo">
-              <div class="toggle-left">
-                <Icon icon="mdi:information-outline" class="toggle-icon" />
-                <span class="toggle-label">Training Reference</span>
-              </div>
-              <div class="toggle-right">
-                <span class="section-count">3 sections</span>
-                <Icon icon="mdi:chevron-down" class="chevron" :class="{ rotated: showInfo }" />
-              </div>
-            </button>
+          <div
+            v-if="trainingRooms.length === 0"
+            class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-theme-glow p-8 text-center"
+          >
+            <Icon icon="mdi:hammer-wrench" class="text-5xl text-theme-primary opacity-30" />
+            <p class="m-0 font-mono text-sm text-theme-primary opacity-70">
+              No training rooms built yet
+            </p>
+            <p class="m-0 font-mono text-xs text-theme-primary opacity-50">
+              Build training rooms in the vault to train dwellers
+            </p>
+          </div>
 
-            <template v-if="showInfo">
-              <div class="info-card">
-                <Icon icon="mdi:information" class="info-icon" />
-                <h3 class="info-title">About Training</h3>
-                <div class="info-text">
-                  <p>
+          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+            <TrainingRoomCard
+              v-for="room in trainingRooms"
+              :key="room.id"
+              :room="room"
+              :active-count="getRoomActiveCount(room.id)"
+            />
+          </div>
+
+          <div
+            v-if="trainingRooms.length > 0"
+            class="flex flex-col gap-1.5 rounded-md border border-theme-glow bg-black/30 px-4 py-3"
+          >
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs uppercase text-theme-primary opacity-70"
+                >Overall Capacity</span
+              >
+              <span class="font-mono text-xs font-bold text-theme-primary"
+                >{{ activeTrainings.length }} / {{ totalCapacity }}</span
+              >
+            </div>
+            <UProgressBar
+              :model-value="capacityPercent"
+              :height="8"
+              color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
+              :glow="false"
+            />
+          </div>
+        </section>
+
+        <ApprenticeSection />
+
+        <div class="w-full">
+          <TrainingQueuePanel />
+        </div>
+
+        <section class="training-reference">
+          <button class="info-toggle" @click="showInfo = !showInfo">
+            <div class="toggle-left">
+              <Icon icon="mdi:information-outline" class="toggle-icon" />
+              <span class="toggle-label">Training Reference</span>
+            </div>
+            <div class="toggle-right">
+              <span class="section-count">3 sections</span>
+              <Icon icon="mdi:chevron-down" class="chevron" :class="{ rotated: showInfo }" />
+            </div>
+          </button>
+
+          <template v-if="showInfo">
+            <div class="info-card">
+              <Icon icon="mdi:information" class="info-icon" />
+              <h3 class="info-title">About Training</h3>
+              <div class="info-text">
+                <p>
                     Dwellers can train their SPECIAL stats in dedicated training rooms. Each stat
                     has its own training room type:
-                  </p>
-                  <ul class="stat-list">
-                    <li><Icon icon="mdi:arm-flex" /> <strong>Strength</strong> - Weight Room</li>
-                    <li><Icon icon="mdi:eye" /> <strong>Perception</strong> - Armory</li>
-                    <li><Icon icon="mdi:heart" /> <strong>Endurance</strong> - Fitness Room</li>
-                    <li><Icon icon="mdi:account-voice" /> <strong>Charisma</strong> - Lounge</li>
-                    <li><Icon icon="mdi:brain" /> <strong>Intelligence</strong> - Classroom</li>
-                    <li><Icon icon="mdi:run-fast" /> <strong>Agility</strong> - Athletics Room</li>
-                    <li><Icon icon="mdi:clover" /> <strong>Luck</strong> - Game Room</li>
-                  </ul>
-                </div>
+                </p>
+                <ul class="stat-list">
+                  <li><Icon icon="mdi:arm-flex" /> <strong>Strength</strong> - Weight Room</li>
+                  <li><Icon icon="mdi:eye" /> <strong>Perception</strong> - Armory</li>
+                  <li><Icon icon="mdi:heart" /> <strong>Endurance</strong> - Fitness Room</li>
+                  <li><Icon icon="mdi:account-voice" /> <strong>Charisma</strong> - Lounge</li>
+                  <li><Icon icon="mdi:brain" /> <strong>Intelligence</strong> - Classroom</li>
+                  <li><Icon icon="mdi:run-fast" /> <strong>Agility</strong> - Athletics Room</li>
+                  <li><Icon icon="mdi:clover" /> <strong>Luck</strong> - Game Room</li>
+                </ul>
               </div>
+            </div>
 
-              <div class="info-card">
-                <Icon icon="mdi:clock-time-four" class="info-icon" />
-                <h3 class="info-title">Training Duration</h3>
-                <div class="info-text">
-                  <p>Training takes time based on the current stat level:</p>
-                  <ul class="duration-list">
-                    <li><strong>Base Duration:</strong> 2 hours</li>
-                    <li><strong>Scaling:</strong> +30 minutes per current stat level</li>
-                    <li><strong>Tier 2 Rooms:</strong> 25% faster</li>
-                    <li><strong>Tier 3 Rooms:</strong> 40% faster</li>
-                  </ul>
-                  <p class="example">
-                    <Icon icon="mdi:lightbulb" />
-                    <em
+            <div class="info-card">
+              <Icon icon="mdi:clock-time-four" class="info-icon" />
+              <h3 class="info-title">Training Duration</h3>
+              <div class="info-text">
+                <p>Training takes time based on the current stat level:</p>
+                <ul class="duration-list">
+                  <li><strong>Base Duration:</strong> 2 hours</li>
+                  <li><strong>Scaling:</strong> +30 minutes per current stat level</li>
+                  <li><strong>Tier 2 Rooms:</strong> 25% faster</li>
+                  <li><strong>Tier 3 Rooms:</strong> 40% faster</li>
+                </ul>
+                <p class="example">
+                  <Icon icon="mdi:lightbulb" />
+                  <em
                       >Example: Training from 5→6 takes 4.5 hours (or 2.7 hours in a Tier 3
                       room)</em
-                    >
-                  </p>
-                </div>
+                  >
+                </p>
               </div>
+            </div>
 
-              <div class="info-card">
-                <Icon icon="mdi:star" class="info-icon" />
-                <h3 class="info-title">Tips & Tricks</h3>
-                <div class="info-text">
-                  <ul class="tips-list">
-                    <li>
-                      <Icon icon="mdi:check-circle" class="tip-icon" />
-                      SPECIAL stats cap at 10 - can't train beyond maximum
-                    </li>
-                    <li>
-                      <Icon icon="mdi:check-circle" class="tip-icon" />
-                      Dwellers earn XP while training (50 XP per hour)
-                    </li>
-                    <li>
-                      <Icon icon="mdi:check-circle" class="tip-icon" />
-                      Higher tier rooms train faster - upgrade when possible
-                    </li>
-                    <li>
-                      <Icon icon="mdi:check-circle" class="tip-icon" />
-                      Training rooms have limited capacity - plan accordingly
-                    </li>
-                    <li>
-                      <Icon icon="mdi:check-circle" class="tip-icon" />
-                      You can cancel training anytime without penalty
-                    </li>
-                  </ul>
-                </div>
+            <div class="info-card">
+              <Icon icon="mdi:star" class="info-icon" />
+              <h3 class="info-title">Tips & Tricks</h3>
+              <div class="info-text">
+                <ul class="tips-list">
+                  <li>
+                    <Icon icon="mdi:check-circle" class="tip-icon" />
+                    SPECIAL stats cap at 10 - can't train beyond maximum
+                  </li>
+                  <li>
+                    <Icon icon="mdi:check-circle" class="tip-icon" />
+                    Dwellers earn XP while training (50 XP per hour)
+                  </li>
+                  <li>
+                    <Icon icon="mdi:check-circle" class="tip-icon" />
+                    Higher tier rooms train faster - upgrade when possible
+                  </li>
+                  <li>
+                    <Icon icon="mdi:check-circle" class="tip-icon" />
+                    Training rooms have limited capacity - plan accordingly
+                  </li>
+                  <li>
+                    <Icon icon="mdi:check-circle" class="tip-icon" />
+                    You can cancel training anytime without penalty
+                  </li>
+                </ul>
               </div>
-            </template>
-          </section>
-        </PageContentRail>
-      </main>
-    </div>
+            </div>
+          </template>
+        </section>
+      </PageContentRail>
+    </VaultPageShell>
   </div>
 </template>
 
 <style scoped>
-.vault-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 240px;
-  transition: margin-left 0.3s ease;
-  font-weight: 600;
-  letter-spacing: 0.025em;
-  line-height: 1.6;
-}
-
-.main-content.collapsed {
-  margin-left: 64px;
-}
-
 .training-reference {
   display: flex;
   flex-direction: column;

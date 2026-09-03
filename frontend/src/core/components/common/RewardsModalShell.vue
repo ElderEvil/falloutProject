@@ -9,8 +9,9 @@
  * Accessibility: renders as a dialog with focus trapped while open, Escape to
  * close, and focus restored to the previously focused element on close.
  */
-import { nextTick, onUnmounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useModalBehavior } from '@/core/composables/useModalBehavior'
 
 const props = withDefaults(
   defineProps<{
@@ -25,49 +26,8 @@ const props = withDefaults(
 const emit = defineEmits<{ close: [] }>()
 
 const modalRef = ref<HTMLElement | null>(null)
-let previouslyFocused: HTMLElement | null = null
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-
-const handleKeydown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape') {
-    emit('close')
-    return
-  }
-  if (event.key !== 'Tab' || !modalRef.value) return
-
-  const focusable = modalRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-  if (focusable.length === 0) return
-
-  const first = focusable[0]!
-  const last = focusable[focusable.length - 1]!
-
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault()
-    first.focus()
-  }
-}
-
-watch(
-  () => props.show,
-  async (show) => {
-    if (show) {
-      previouslyFocused = document.activeElement as HTMLElement | null
-      await nextTick()
-      modalRef.value?.focus()
-    } else {
-      previouslyFocused?.focus()
-      previouslyFocused = null
-    }
-  }
-)
-
-onUnmounted(() => {
-  previouslyFocused?.focus()
+const { handleKeydown } = useModalBehavior(() => props.show, () => emit('close'), {
+  focusTarget: modalRef,
 })
 </script>
 

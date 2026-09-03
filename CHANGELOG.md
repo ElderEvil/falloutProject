@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.71.1 (2026-09-03)
+
+### Bug Fixes
+
+* keep changelog plain text for release artifact check 3ce7ea9
+
 ## 2.71.0 (2026-09-03)
 
 ### Features

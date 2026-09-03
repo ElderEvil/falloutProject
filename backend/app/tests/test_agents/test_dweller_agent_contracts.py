@@ -316,6 +316,27 @@ async def test_medical_action_is_emitted_when_model_returns_no_action() -> None:
 
 
 @pytest.mark.asyncio
+async def test_medical_need_takes_priority_over_other_action_suggestions() -> None:
+    """Live medical needs suppress unrelated actions from the model."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.health = 40
+    output = _output(
+        action_type="assign_to_room",
+        action_room_id=uuid4(),
+        action_room_name="Medbay",
+    )
+    storage_result = MagicMock()
+    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=1, radaway=0)
+    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, RequestStimpakAction)
+
+
+@pytest.mark.asyncio
 async def test_test_model_invokes_social_context_for_family_questions() -> None:
     """The chat agent can ground status and family answers in current vault data."""
     deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())

@@ -525,16 +525,18 @@ async def parse_action_suggestion(
     Policy enforcement:
     - Training actions are only suggested for non-neutral sentiment (sentiment_score != 0)
     - Neutral messages should not suggest training, even if agent suggests it
+    - Medical needs take priority over every other action while supplies are available
     - Activity actions are re-checked against current server state before an action card is emitted
     """
+    medical_status = await build_dweller_medical_status(
+        DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
+    )
+    if medical_status.recommended_action == "request_stimpak":
+        return RequestStimpakAction(reason="Health is below 50%")
+    if medical_status.recommended_action == "request_radaway":
+        return RequestRadawayAction(reason="Radiation is at least 30% of maximum health")
+
     if output.action_type == "no_action":
-        medical_status = await build_dweller_medical_status(
-            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
-        )
-        if medical_status.recommended_action == "request_stimpak":
-            return RequestStimpakAction(reason="Health is below 50%")
-        if medical_status.recommended_action == "request_radaway":
-            return RequestRadawayAction(reason="Radiation is at least 30% of maximum health")
         return NoAction(reason=output.action_reason)
     if output.action_type == "assign_to_room" and output.action_room_id and output.action_room_name:
         return AssignToRoomAction(
@@ -601,9 +603,6 @@ async def parse_action_suggestion(
         # No active exploration found - return NoAction
         return NoAction(reason="Dweller is not currently exploring the wasteland")
     if output.action_type in {"request_stimpak", "request_radaway"}:
-        medical_status = await build_dweller_medical_status(
-            DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault_id)
-        )
         if output.action_type == "request_stimpak":
             if medical_status.health_percent >= 50:
                 return NoAction(reason="Dweller does not currently need a Stimpak")

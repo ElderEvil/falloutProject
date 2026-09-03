@@ -93,5 +93,13 @@ describe('DwellerFilterPanel', () => {
       const buttonGroup = wrapper.find('.button-group')
       expect(buttonGroup.exists()).toBe(true)
     })
+
+    it('should place age filtering and sorting in the same row', () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
+      const controlsRow = wrapper.find('.filter-section-row')
+
+      expect(controlsRow.text()).toContain('Filter by Age')
+      expect(controlsRow.text()).toContain('Sort By')
+    })
   })
 })

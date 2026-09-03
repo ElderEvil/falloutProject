@@ -109,26 +109,26 @@ const toggleSortDirection = () => {
       </div>
     </div>
 
-    <div v-if="showAgeFilter" class="filter-section">
-      <div class="section-header">
-        <Icon icon="mdi:account-group" />
-        <span>Filter by Age</span>
-      </div>
-      <div class="button-group">
-        <button
-          v-for="option in ageGroupOptions"
-          :key="option.value"
-          :class="{ active: currentFilterAgeGroup === option.value }"
-          @click="currentFilterAgeGroup = option.value as DwellerAgeGroup"
-          class="filter-button"
-        >
-          <Icon :icon="option.icon" />
-          <span>{{ option.label }}</span>
-        </button>
-      </div>
-    </div>
-
     <div class="filter-section-row">
+      <div v-if="showAgeFilter" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:account-group" />
+          <span>Filter by Age</span>
+        </div>
+        <div class="button-group">
+          <button
+            v-for="option in ageGroupOptions"
+            :key="option.value"
+            :class="{ active: currentFilterAgeGroup === option.value }"
+            @click="currentFilterAgeGroup = option.value as DwellerAgeGroup"
+            class="filter-button"
+          >
+            <Icon :icon="option.icon" />
+            <span>{{ option.label }}</span>
+          </button>
+        </div>
+      </div>
+
       <div class="filter-section">
         <div class="section-header">
           <Icon icon="mdi:sort" />

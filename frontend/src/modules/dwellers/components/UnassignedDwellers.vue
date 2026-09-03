@@ -149,8 +149,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           <p class="panel-subtitle">Drag dwellers here to unassign them from rooms</p>
         </div>
 
-        <!-- Sort controls inline with header -->
-        <DwellerFilterPanel :show-status-filter="false" :show-age-filter="true">
+        <!-- Shared filter and sort controls -->
+        <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
           <template #additional-filters>
             <div class="chip-group" role="group" aria-label="Filter by rarity">
               <div class="chip-group-label">
@@ -309,9 +309,9 @@ const handleDropZoneDrop = async (event: DragEvent) => {
 
 .header-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
 }
 
 .panel-title {

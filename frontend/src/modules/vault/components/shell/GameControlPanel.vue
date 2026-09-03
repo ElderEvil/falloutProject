@@ -50,7 +50,7 @@ const spawnIncident = async () => {
   if (!authStore.token) return
 
   try {
-    await incidentStore.spawnDebugIncident(props.vaultId, authStore.token)
+    await incidentStore.spawnDebugIncident(props.vaultId, authStore.token, 'radscorpion_attack')
   } catch (error) {
     handleStoreError(error, 'Failed to spawn incident')
   }
@@ -82,56 +82,58 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="flex items-center space-x-4 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
+    class="fixed bottom-4 right-4 z-50 flex min-w-0 max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
-    <div class="flex items-center space-x-2 text-theme-primary">
+    <div class="flex shrink-0 items-center gap-2 text-theme-primary">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>
 
-    <!-- Pause/Resume Button -->
-    <button
-      @click="togglePause"
-      :disabled="isLoading"
-      class="flex items-center space-x-2 rounded px-3 py-1 transition-all duration-200"
-      :class="{
-        'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
-        'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
-        'bg-gray-600 cursor-not-allowed': isLoading,
-      }"
-      :title="isPaused ? 'Resume game' : 'Pause game'"
-    >
-      <Icon v-if="!isPaused" icon="mdi:pause" class="h-4 w-4 text-white" />
-      <Icon v-else icon="mdi:play" class="h-4 w-4 text-white" />
-      <span class="text-sm font-semibold text-white">
-        {{ isPaused ? 'Resume' : 'Pause' }}
-      </span>
-    </button>
+    <div class="game-control-actions flex min-w-0 flex-wrap items-center gap-2">
+      <!-- Pause/Resume Button -->
+      <button
+        @click="togglePause"
+        :disabled="isLoading"
+        class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
+        :class="{
+          'bg-yellow-700 hover:bg-yellow-800': !isPaused && !isLoading,
+          'bg-green-600 hover:bg-green-700': isPaused && !isLoading,
+          'bg-gray-600 cursor-not-allowed': isLoading,
+        }"
+        :title="isPaused ? 'Resume game' : 'Pause game'"
+      >
+        <Icon v-if="!isPaused" icon="mdi:pause" class="h-4 w-4 text-white" />
+        <Icon v-else icon="mdi:play" class="h-4 w-4 text-white" />
+        <span class="text-sm font-semibold text-white">
+          {{ isPaused ? 'Resume' : 'Pause' }}
+        </span>
+      </button>
 
-    <!-- Paused Indicator -->
-    <div
-      v-if="isPaused"
-      class="flex items-center space-x-2 rounded bg-yellow-600/20 px-3 py-1 border border-yellow-600/50"
-    >
-      <div class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
-      <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
+      <!-- Paused Indicator -->
+      <div
+        v-if="isPaused"
+        class="flex shrink-0 items-center gap-2 rounded border border-yellow-600/50 bg-yellow-600/20 px-3 py-1"
+      >
+        <div class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
+        <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
+      </div>
+
+      <!-- Debug: Spawn Incident Button (Admin Only) -->
+      <button
+        v-if="isSuperuser"
+        @click="spawnIncident"
+        :disabled="isLoading"
+        class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
+        :class="{
+          'bg-red-600 hover:bg-red-700': !isLoading,
+          'bg-gray-600 cursor-not-allowed': isLoading,
+        }"
+        title="[ADMIN] Spawn a radscorpion incident"
+      >
+        <Icon icon="mdi:alert-octagon" class="h-4 w-4 text-white" />
+        <span class="text-sm font-semibold text-white">Spawn Radscorpion</span>
+      </button>
     </div>
-
-    <!-- Debug: Spawn Incident Button (Admin Only) -->
-    <button
-      v-if="isSuperuser"
-      @click="spawnIncident"
-      :disabled="isLoading"
-      class="flex items-center space-x-2 rounded px-3 py-1 transition-all duration-200"
-      :class="{
-        'bg-red-600 hover:bg-red-700': !isLoading,
-        'bg-gray-600 cursor-not-allowed': isLoading,
-      }"
-      title="[ADMIN] Spawn a random incident"
-    >
-      <Icon icon="mdi:alert-octagon" class="h-4 w-4 text-white" />
-      <span class="text-sm font-semibold text-white">Spawn Incident</span>
-    </button>
   </div>
 </template>

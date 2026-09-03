@@ -80,8 +80,6 @@ const populationUtilization = computed(() => {
   return (current / max) * 100
 })
 
-const populationWidthPercent = computed(() => `${Math.min(populationUtilization.value, 100)}%`)
-
 const populationColor = computed(() => {
   if (populationUtilization.value >= 90) return 'text-red-500'
   if (populationUtilization.value >= 75) return 'text-yellow-400'
@@ -379,21 +377,6 @@ const handleIncidentResponded = async () => {
                   <p :class="`whitespace-nowrap ${populationColor}`">
                     {{ dwellersCount }} / {{ populationMax }}
                   </p>
-                  <!-- Progress Bar -->
-                  <div
-                    class="h-1.5 w-24 rounded-full bg-gray-800 overflow-hidden border border-gray-700"
-                  >
-                    <div
-                      class="h-full transition-all duration-500 shadow-glow-sm"
-                      :style="{ width: populationWidthPercent }"
-                      :class="{
-                        'bg-red-500': populationUtilization >= 90,
-                        'bg-yellow-400': populationUtilization >= 75 && populationUtilization < 90,
-                        'bg-theme-primary': populationUtilization < 75,
-                      }"
-                      :title="`${populationUtilization.toFixed(1)}% capacity`"
-                    ></div>
-                  </div>
                 </div>
               </UTooltip>
               <UTooltip
@@ -433,7 +416,7 @@ const handleIncidentResponded = async () => {
             </div>
 
             <!-- Bottle Caps and Game Controls -->
-            <div class="flex items-center space-x-4">
+            <div class="flex min-w-0 items-center gap-2">
               <UTooltip
                 :text="`Bottle Caps: ${bottleCaps}\nVault currency for construction and upgrades`"
                 position="bottom"
@@ -443,9 +426,10 @@ const handleIncidentResponded = async () => {
                   <p>{{ bottleCaps }}</p>
                 </div>
               </UTooltip>
-              <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
             </div>
           </div>
+
+          <GameControlPanel v-if="vaultId" :vaultId="vaultId" />
 
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">

@@ -20,10 +20,10 @@ describe('UModal (Accessibility)', () => {
     return wrapper
   }
 
-  it('should have role="dialog" on the modal content', async () => {
+  it('should make the modal content a focusable dialog root', async () => {
     mountModal()
     const dialog = document.querySelector('[role="dialog"]')
-    expect(dialog).toBeTruthy()
+    expect([dialog?.getAttribute('role'), dialog?.getAttribute('tabindex')]).toEqual(['dialog', '-1'])
   })
 
   it('should have aria-modal="true" on the modal content', async () => {

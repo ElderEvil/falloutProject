@@ -84,6 +84,7 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
         <div
           ref="modalContent"
           role="dialog"
+          tabindex="-1"
           aria-modal="true"
           v-bind="modalLabel"
           :class="[

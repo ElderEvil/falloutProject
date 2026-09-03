@@ -495,9 +495,11 @@ async def parse_action_suggestion(
     """
     medical_status = await fetch_dweller_medical_status(db_session, dweller, dweller.vault_id)
     if medical_status.recommended_action == "request_stimpak":
-        return RequestStimpakAction(reason="Health is below 50%")
+        reason = output.action_reason if output.action_type == "request_stimpak" else None
+        return RequestStimpakAction(reason=reason or "Health is below 50%")
     if medical_status.recommended_action == "request_radaway":
-        return RequestRadawayAction(reason="Radiation is at least 30% of maximum health")
+        reason = output.action_reason if output.action_type == "request_radaway" else None
+        return RequestRadawayAction(reason=reason or "Radiation is at least 30% of maximum health")
 
     if output.action_type == "no_action":
         return NoAction(reason=output.action_reason)

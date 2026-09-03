@@ -69,6 +69,13 @@ def _output(**action_fields: object) -> DwellerChatOutput:
     return DwellerChatOutput(**fields)
 
 
+def _medical_session(stimpack: int = 0, radaway: int = 0) -> MagicMock:
+    """Return an async session mock with deterministic vault medical stock."""
+    storage_result = MagicMock()
+    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=stimpack, radaway=radaway)
+    return MagicMock(execute=AsyncMock(return_value=storage_result))
+
+
 def test_stateless_agents_use_instructions_not_system_prompts() -> None:
     """Instructions avoid retaining obsolete context when no message history is passed."""
     for agent in (dweller_chat_agent, backstory_agent, bio_extension_agent, visual_attributes_agent):
@@ -248,9 +255,7 @@ async def test_medical_action_requires_live_threshold_and_supply() -> None:
     dweller.vault_id = uuid4()
     dweller.health = 50
     output = _output(action_type="request_stimpak", action_reason="Please help.")
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=1, radaway=0)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    session = _medical_session(stimpack=1)
 
     result = await parse_action_suggestion(output, session, dweller)
 
@@ -265,15 +270,13 @@ async def test_stimpak_action_is_emitted_below_health_threshold() -> None:
     dweller.id = uuid4()
     dweller.vault_id = uuid4()
     dweller.health = 49
-    output = _output(action_type="request_stimpak")
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=1, radaway=0)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    output = _output(action_type="request_stimpak", action_reason=None)
+    session = _medical_session(stimpack=1)
 
     result = await parse_action_suggestion(output, session, dweller)
 
     assert isinstance(result, RequestStimpakAction)
-    assert result.reason == "No action needed."
+    assert result.reason == "Health is below 50%"
 
 
 @pytest.mark.asyncio
@@ -284,9 +287,7 @@ async def test_radaway_action_is_emitted_above_radiation_threshold() -> None:
     dweller.vault_id = uuid4()
     dweller.radiation = 30
     output = _output(action_type="request_radaway", action_reason="The radiation is getting dangerous.")
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=0, radaway=1)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    session = _medical_session(radaway=1)
 
     result = await parse_action_suggestion(output, session, dweller)
 
@@ -305,9 +306,7 @@ async def test_medical_action_is_emitted_when_model_returns_no_action() -> None:
     dweller.radiation = 16
     dweller.stimpack = 0
     output = _output(action_type="no_action")
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=0, radaway=1)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    session = _medical_session(radaway=1)
 
     result = await parse_action_suggestion(output, session, dweller)
 
@@ -326,9 +325,7 @@ async def test_medical_need_takes_priority_over_other_action_suggestions() -> No
         action_room_id=uuid4(),
         action_room_name="Medbay",
     )
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=1, radaway=0)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    session = _medical_session(stimpack=1)
 
     result = await parse_action_suggestion(output, session, dweller)
 
@@ -428,7 +425,7 @@ async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> N
         new_callable=AsyncMock,
         return_value=briefing,
     ):
-        result = await parse_action_suggestion(output, MagicMock(), dweller)
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.exploration_blocker
@@ -453,7 +450,7 @@ async def test_training_suggestion_requires_a_fresh_matching_training_option() -
         new_callable=AsyncMock,
         return_value=briefing,
     ):
-        result = await parse_action_suggestion(output, MagicMock(), dweller)
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.training_blocker

@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 * align models with alembic DB to make backend-ci postgres check green 4eb7b40
-* audit [#8](https://github.com/ElderEvil/falloutProject/issues/8) — conftest savepoint + fixture unification (save ~50% suite time) 7554f68, closes #510 #1 #2 #4 #510
+* audit #8 — conftest savepoint + fixture unification (save ~50% suite time) 7554f68, closes #510 #1 #2 #4 #510
 * **ci:** add least-privilege permissions to backend-ci ccd2435
 * keep changelog plain text for release artifact check 891546b, closes #1 #2 #1 #2
 

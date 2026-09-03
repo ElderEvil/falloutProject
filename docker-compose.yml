@@ -74,7 +74,17 @@ services:
       redis:
         condition: service_started
     working_dir: /app
-    command: [ "sh", "-c", "uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$$!; uv run dramatiq --processes 1 app.api.tasks & DRAMATIQ_PID=$$!; trap 'kill $$PERIODIQ_PID $$DRAMATIQ_PID 2>/dev/null; wait; exit 0' TERM INT; while kill -0 $$PERIODIQ_PID 2>/dev/null && kill -0 $$DRAMATIQ_PID 2>/dev/null; do sleep 1; done; kill $$PERIODIQ_PID $$DRAMATIQ_PID 2>/dev/null; wait; exit 1" ]
+    command:
+      - sh
+      - -c
+      - >-
+        PERIODIQ_PID=; DRAMATIQ_PID=;
+        shutdown() { exit_code=$${1:-0}; trap - TERM INT; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do [ -n "$$pid" ] && kill "$$pid" 2>/dev/null; done; elapsed=0; while [ "$$elapsed" -lt 30 ]; do alive=0; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do if [ -n "$$pid" ] && kill -0 "$$pid" 2>/dev/null; then alive=1; fi; done; [ "$$alive" -eq 0 ] && break; sleep 1; elapsed=$$((elapsed + 1)); done; for pid in "$$PERIODIQ_PID" "$$DRAMATIQ_PID"; do [ -n "$$pid" ] && kill -KILL "$$pid" 2>/dev/null; done; wait; exit "$$exit_code"; };
+        trap 'shutdown 0' TERM INT;
+        uv run periodiq app.core.dramatiq app.api.tasks & PERIODIQ_PID=$$!;
+        uv run dramatiq --processes 1 app.api.tasks & DRAMATIQ_PID=$$!;
+        while [ -n "$$PERIODIQ_PID" ] && kill -0 "$$PERIODIQ_PID" 2>/dev/null && [ -n "$$DRAMATIQ_PID" ] && kill -0 "$$DRAMATIQ_PID" 2>/dev/null; do sleep 1; done;
+        shutdown 1
 
   rustfs:
     image: rustfs/rustfs:latest

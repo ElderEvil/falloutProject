@@ -58,6 +58,11 @@ async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
             "is_adult": True,
             "level": 5,
             "happiness": 80,
+            "max_health": 100,
+            "health": 100,
+            "radiation": 0,
+            "stimpack": 0,
+            "radaway": 0,
         }
     )
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
@@ -463,6 +468,9 @@ class TestExplorationActions:
                 "is_adult": True,
                 "level": 10,
                 "happiness": 75,
+                "max_health": 100,
+                "health": 100,
+                "radiation": 0,
                 "stimpack": 5,
                 "radaway": 3,
             }
@@ -514,6 +522,9 @@ class TestExplorationActions:
                 "last_name": "Test",
                 "gender": GenderEnum.FEMALE,
                 "is_adult": True,
+                "max_health": 100,
+                "health": 100,
+                "radiation": 0,
                 "stimpack": 1,
                 "radaway": 0,
             }

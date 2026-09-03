@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.71.0 (2026-09-03)
+
+### Features
+
+* gender-based newborn and lunchbox names, medical production rate, children badges 84c3335
+
 ## 2.70.5 (2026-09-02)
 
 ### Bug Fixes

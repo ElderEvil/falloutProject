@@ -337,12 +337,14 @@ class IncidentService:
         # Apply damage to dwellers
         damaged_count = 0
         deaths_count = 0
-        damage_per_dweller = int(damage_to_dwellers / len(dwellers))
-        for dweller in dwellers:
-            new_health = max(0, dweller.health - damage_per_dweller)
+        total_damage = max(0, int(damage_to_dwellers))
+        damage_per_dweller, remainder = divmod(total_damage, len(dwellers))
+        for index, dweller in enumerate(dwellers):
+            dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
+            new_health = max(0, dweller.health - dweller_damage)
 
-            if incident.type == IncidentType.RADSCORPION_ATTACK and damage_per_dweller > 1:
-                radiation_damage = min(damage_per_dweller - 1, damage_per_dweller // 2)
+            if incident.type == IncidentType.RADSCORPION_ATTACK and dweller_damage > 1:
+                radiation_damage = min(dweller_damage - 1, dweller_damage // 2)
                 dweller.radiation = min(1_000, dweller.radiation + radiation_damage)
                 db_session.add(dweller)
 
@@ -362,7 +364,7 @@ class IncidentService:
                     self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
 
         # Track total damage dealt by raiders
-        incident.damage_dealt += int(damage_to_dwellers)
+        incident.damage_dealt += total_damage
 
         # Track enemies defeated — accumulate fractional kills so weak defenders
         # still make progress instead of stalling at int() == 0 every tick.

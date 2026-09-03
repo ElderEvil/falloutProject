@@ -9,6 +9,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
+import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -27,6 +28,7 @@ export function useChatActions(options: UseChatActionsOptions) {
   const vaultStore = useVaultStore()
   const roomStore = useRoomStore()
   const explorationStore = useExplorationStore()
+  const dwellerMedicalStore = useDwellerMedicalStore()
   const mapStore = useMapStore()
   const toast = useToast()
 
@@ -209,6 +211,42 @@ export function useChatActions(options: UseChatActionsOptions) {
     }
   }
 
+  const handleMedicalRequest = async (supply: 'stimpack' | 'radaway'): Promise<boolean> => {
+    if (!authStore.token) return false
+
+    isPerformingAction.value = true
+    try {
+      const dweller = dwellerStore.detailedDwellers[options.dwellerId]
+      const carried = supply === 'stimpack' ? dweller?.stimpack || 0 : dweller?.radaway || 0
+      const vaultId = options.vaultId ?? vaultStore.activeVaultId
+
+      if (!carried) {
+        if (!vaultId) {
+          toast.error('Unable to access vault medical supplies')
+          return false
+        }
+        const transfer = await dwellerMedicalStore.issueMedicalSupply(
+          vaultId,
+          options.dwellerId,
+          supply,
+          authStore.token
+        )
+        if (!transfer) return false
+      }
+
+      const result =
+        supply === 'stimpack'
+          ? await dwellerMedicalStore.useStimpack(options.dwellerId, authStore.token)
+          : await dwellerMedicalStore.useRadaway(options.dwellerId, authStore.token)
+      return result !== null
+    } catch {
+      toast.error(`Failed to use ${supply === 'stimpack' ? 'Stimpak' : 'RadAway'}`)
+      return false
+    } finally {
+      isPerformingAction.value = false
+    }
+  }
+
   const handleActionConfirm = async (action: ActionSuggestion, messageIndex: number) => {
     if (!action) return
 
@@ -223,6 +261,10 @@ export function useChatActions(options: UseChatActionsOptions) {
       success = await handleStartExploration(action)
     } else if (action.action_type === 'recall_exploration') {
       success = await handleRecallExploration(action)
+    } else if (action.action_type === 'request_stimpak') {
+      success = await handleMedicalRequest('stimpack')
+    } else if (action.action_type === 'request_radaway') {
+      success = await handleMedicalRequest('radaway')
     }
 
     if (success && options.messages.value[messageIndex]) {

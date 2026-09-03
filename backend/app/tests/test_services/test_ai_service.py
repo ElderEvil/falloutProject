@@ -150,6 +150,21 @@ def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
     assert svc.client is mock_client.return_value
 
 
+def test_lmstudio_adds_v1_to_base_url_when_omitted(monkeypatch) -> None:
+    """LM Studio's OpenAI-compatible endpoint requires the /v1 path."""
+    monkeypatch.setattr("app.services.ai_service.settings.LMSTUDIO_BASE_URL", "http://localhost:1234")
+    monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "local-model")
+    svc = _make_fresh_service()
+
+    with (
+        patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider,
+        patch("app.services.ai_service.OpenAIChatModel"),
+    ):
+        svc._initialize_lmstudio()
+
+    mock_provider.assert_called_once_with(base_url="http://localhost:1234/v1", api_key="lm-studio")
+
+
 # ============================================================================
 # Provider Initialization — Disabled
 # ============================================================================

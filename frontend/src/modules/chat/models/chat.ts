@@ -8,6 +8,8 @@ export type ActionSuggestion =
   | components['schemas']['StartTrainingAction']
   | components['schemas']['StartExplorationAction']
   | components['schemas']['RecallExplorationAction']
+  | components['schemas']['RequestStimpakAction']
+  | components['schemas']['RequestRadawayAction']
   | components['schemas']['NoAction']
 
 // Individual action types for type guards
@@ -15,6 +17,8 @@ export type AssignToRoomAction = components['schemas']['AssignToRoomAction']
 export type StartTrainingAction = components['schemas']['StartTrainingAction']
 export type StartExplorationAction = components['schemas']['StartExplorationAction']
 export type RecallExplorationAction = components['schemas']['RecallExplorationAction']
+export type RequestStimpakAction = components['schemas']['RequestStimpakAction']
+export type RequestRadawayAction = components['schemas']['RequestRadawayAction']
 export type NoAction = components['schemas']['NoAction']
 
 // Lightweight happiness data from chat history (only delta + reason stored)

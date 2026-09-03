@@ -18,8 +18,9 @@ from app.agents.dweller_chat_agent import (
     parse_action_suggestion,
     validate_dweller_chat_output,
 )
-from app.schemas.chat import NoAction
+from app.schemas.chat import MedicalAidStatus, NoAction, RequestRadawayAction, RequestStimpakAction
 from app.schemas.common import DwellerStatusEnum, SPECIALEnum
+from app.services.medical_service import get_dweller_medical_status
 
 
 def _make_dweller() -> MagicMock:
@@ -40,6 +41,7 @@ def _make_dweller() -> MagicMock:
     dweller.outfit = None
     dweller.weapon = None
     dweller.health = dweller.max_health = 100
+    dweller.radiation = 0
     dweller.stimpack = 2
     dweller.radaway = 1
     dweller.happiness = 75
@@ -67,6 +69,13 @@ def _output(**action_fields: object) -> DwellerChatOutput:
     return DwellerChatOutput(**fields)
 
 
+def _medical_session(stimpack: int = 0, radaway: int = 0) -> MagicMock:
+    """Return an async session mock with deterministic vault medical stock."""
+    storage_result = MagicMock()
+    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=stimpack, radaway=radaway)
+    return MagicMock(execute=AsyncMock(return_value=storage_result))
+
+
 def test_stateless_agents_use_instructions_not_system_prompts() -> None:
     """Instructions avoid retaining obsolete context when no message history is passed."""
     for agent in (dweller_chat_agent, backstory_agent, bio_extension_agent, visual_attributes_agent):
@@ -85,6 +94,17 @@ def test_chat_instructions_ground_the_dweller_in_bio_and_keep_replies_brief() ->
     assert deps.dweller.bio in instructions
     assert "Never contradict or invent biography details" in instructions
     assert "80-120 words" in instructions
+
+
+def test_chat_instructions_include_radiation_status() -> None:
+    """Dwellers receive their current radiation alongside health context."""
+    dweller = _make_dweller()
+    dweller.radiation = 16
+    deps = DwellerChatDeps(db_session=MagicMock(), dweller=dweller, vault_id=uuid4())
+
+    instructions = chat_instructions(MagicMock(deps=deps))
+
+    assert "Radiation: 16/100" in instructions
 
 
 def test_assignment_requires_complete_room_data() -> None:
@@ -192,6 +212,127 @@ async def test_test_model_invokes_activity_briefing_before_activity_suggestion()
 
 
 @pytest.mark.asyncio
+async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
+    """The AI medical tool exposes live percentages and vault inventory."""
+    dweller = _make_dweller()
+    dweller.health = 40
+    dweller.radiation = 35
+    storage_result = MagicMock()
+    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=3, radaway=4)
+    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    deps = DwellerChatDeps(db_session=session, dweller=dweller, vault_id=uuid4())
+
+    status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
+
+    assert isinstance(status, MedicalAidStatus)
+    assert status.health_percent == 40
+    assert status.radiation_percent == 35
+    assert status.available_stimpaks == 5
+    assert status.available_radaways == 5
+    assert status.recommended_action == "request_stimpak"
+
+    model = TestModel(
+        call_tools=["get_dweller_medical_status"],
+        custom_output_args={
+            "response_text": "I need medical attention, Overseer.",
+            "sentiment_score": -1,
+            "reason_text": "The dweller needs medical care.",
+            "action_type": "request_stimpak",
+            "action_reason": "Health is below 50%.",
+        },
+    )
+    with dweller_chat_agent.override(model=model):
+        result = await dweller_chat_agent.run("I feel weak.", deps=deps)
+
+    assert result.usage.tool_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_medical_action_requires_live_threshold_and_supply() -> None:
+    """Medical action cards are rejected when the live state no longer qualifies."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.health = 50
+    output = _output(action_type="request_stimpak", action_reason="Please help.")
+    session = _medical_session(stimpack=1)
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, NoAction)
+    assert result.reason == "Dweller does not currently need a Stimpak"
+
+
+@pytest.mark.asyncio
+async def test_stimpak_action_is_emitted_below_health_threshold() -> None:
+    """Stimpak requests are available below 50% health when supplies exist."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.health = 49
+    output = _output(action_type="request_stimpak", action_reason=None)
+    session = _medical_session(stimpack=1)
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, RequestStimpakAction)
+    assert result.reason == "Health is below 50%"
+
+
+@pytest.mark.asyncio
+async def test_radaway_action_is_emitted_above_radiation_threshold() -> None:
+    """RadAway requests are available at 30% radiation when supplies exist."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.radiation = 30
+    output = _output(action_type="request_radaway", action_reason="The radiation is getting dangerous.")
+    session = _medical_session(radaway=1)
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, RequestRadawayAction)
+    assert result.reason == "The radiation is getting dangerous."
+
+
+@pytest.mark.asyncio
+async def test_medical_action_is_emitted_when_model_returns_no_action() -> None:
+    """Live medical thresholds produce a request even when the model omits the action."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.max_health = 50
+    dweller.health = 28
+    dweller.radiation = 16
+    dweller.stimpack = 0
+    output = _output(action_type="no_action")
+    session = _medical_session(radaway=1)
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, RequestRadawayAction)
+
+
+@pytest.mark.asyncio
+async def test_medical_need_takes_priority_over_other_action_suggestions() -> None:
+    """Live medical needs suppress unrelated actions from the model."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    dweller.health = 40
+    output = _output(
+        action_type="assign_to_room",
+        action_room_id=uuid4(),
+        action_room_name="Medbay",
+    )
+    session = _medical_session(stimpack=1)
+
+    result = await parse_action_suggestion(output, session, dweller)
+
+    assert isinstance(result, RequestStimpakAction)
+
+
+@pytest.mark.asyncio
 async def test_test_model_invokes_social_context_for_family_questions() -> None:
     """The chat agent can ground status and family answers in current vault data."""
     deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
@@ -284,7 +425,7 @@ async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> N
         new_callable=AsyncMock,
         return_value=briefing,
     ):
-        result = await parse_action_suggestion(output, MagicMock(), dweller)
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.exploration_blocker
@@ -309,7 +450,7 @@ async def test_training_suggestion_requires_a_fresh_matching_training_option() -
         new_callable=AsyncMock,
         return_value=briefing,
     ):
-        result = await parse_action_suggestion(output, MagicMock(), dweller)
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.training_blocker

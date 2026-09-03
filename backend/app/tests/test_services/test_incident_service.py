@@ -102,6 +102,47 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("damage", "expected_health"),
+    [
+        (5.0, [98, 97]),
+        (1.0, [99, 100]),
+    ],
+)
+async def test_process_incident_distributes_all_integer_damage(
+    async_session: AsyncSession,
+    room_with_dwellers: dict,
+    damage: float,
+    expected_health: list[int],
+):
+    """Each integer point of a damage tick is assigned to a dweller."""
+    room = room_with_dwellers["room"]
+    dwellers = room_with_dwellers["dwellers"]
+    for dweller in dwellers:
+        dweller.health = 100
+        dweller.max_health = 100
+        async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=damage),
+        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+    ):
+        result = await incident_service.process_incident(async_session, incident, 2)
+
+    for dweller in dwellers:
+        await async_session.refresh(dweller)
+    await async_session.refresh(incident)
+
+    assert sorted(dweller.health for dweller in dwellers) == sorted(expected_health)
+    assert result.dwellers_damaged == min(int(damage), len(dwellers))
+    assert incident.damage_dealt == int(damage)
+
+
+@pytest.mark.asyncio
 async def test_radscorpion_deals_health_and_radiation_damage(async_session: AsyncSession, room_with_dwellers: dict):
     """Radscorpions damage HP and add radiation during the same combat round."""
     room = room_with_dwellers["room"]

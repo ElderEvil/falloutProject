@@ -32,6 +32,12 @@ from app.utils.image_processing import image_url_to_bytes
 logger = logging.getLogger(__name__)
 
 
+def _ensure_openai_v1_base_url(base_url: str) -> str:
+    """Add the OpenAI-compatible API prefix when a local server omits it."""
+    normalized = base_url.rstrip("/")
+    return normalized if normalized.endswith("/v1") else f"{normalized}/v1"
+
+
 @dataclass
 class ChatCompletionResult:
     text: str
@@ -180,9 +186,10 @@ class AIService:
         if config.LMSTUDIO_BASE_URL:
             from pydantic_ai.providers.openai import OpenAIProvider
 
-            provider = OpenAIProvider(base_url=config.LMSTUDIO_BASE_URL, api_key="lm-studio")
+            base_url = _ensure_openai_v1_base_url(config.LMSTUDIO_BASE_URL)
+            provider = OpenAIProvider(base_url=base_url, api_key="lm-studio")
             self._model = OpenAIChatModel(model_name=config.AI_MODEL, provider=provider)
-            logger.info(f"AI initialized with LM Studio ({config.AI_MODEL}) at {config.LMSTUDIO_BASE_URL}")
+            logger.info(f"AI initialized with LM Studio ({config.AI_MODEL}) at {base_url}")
         self._initialize_openai_native_client(config)
 
     def _initialize_openai_native_client(self, config: Settings) -> None:
@@ -545,7 +552,10 @@ def build_test_model(
                 if base_url:
                     from pydantic_ai.providers.openai import OpenAIProvider
 
-                    provider_obj = OpenAIProvider(base_url=base_url, api_key="lm-studio")
+                    provider_obj = OpenAIProvider(
+                        base_url=_ensure_openai_v1_base_url(base_url),
+                        api_key="lm-studio",
+                    )
                     return OpenAIChatModel(model_name=model, provider=provider_obj)
                 return None
     except Exception:

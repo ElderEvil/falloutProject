@@ -5080,7 +5080,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion based on conversation context
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -6135,7 +6135,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -7751,6 +7751,38 @@ export interface components {
          * @enum {string}
          */
         RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "MARRIED" | "ex";
+        /**
+         * RequestRadawayAction
+         * @description Suggestion to give the dweller a RadAway.
+         */
+        RequestRadawayAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "request_radaway";
+            /**
+             * Reason
+             * @description Why the dweller needs RadAway
+             */
+            reason: string;
+        };
+        /**
+         * RequestStimpakAction
+         * @description Suggestion to give the dweller a Stimpak.
+         */
+        RequestStimpakAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "request_stimpak";
+            /**
+             * Reason
+             * @description Why the dweller needs a Stimpak
+             */
+            reason: string;
+        };
         /**
          * ResourceLevelWarning
          * @description A resource level that requires player attention.

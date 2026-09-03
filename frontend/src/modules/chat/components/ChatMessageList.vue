@@ -34,6 +34,53 @@ const mapDiscoveryTitle = (places: MapDiscovery[]) =>
 const mapPlaceHref = (vaultId: string | null | undefined, locationId: string) =>
   vaultId ? `/vault/${vaultId}/map?place=${locationId}` : undefined
 
+const actionIcon = (action: ActionSuggestion) => {
+  switch (action.action_type) {
+    case 'assign_to_room':
+      return 'mdi:door-open'
+    case 'start_training':
+      return 'mdi:dumbbell'
+    case 'start_exploration':
+      return 'mdi:map-marker-radius'
+    case 'recall_exploration':
+      return 'mdi:arrow-u-left-top'
+    case 'request_stimpak':
+      return 'mdi:medical-bag'
+    case 'request_radaway':
+      return 'mdi:radiation'
+    case 'no_action':
+      return 'mdi:help-circle-outline'
+  }
+}
+
+const actionLabel = (action: ActionSuggestion) => {
+  switch (action.action_type) {
+    case 'assign_to_room':
+      return `Assign to ${action.room_name}`
+    case 'start_training':
+      return `Train ${action.stat}`
+    case 'start_exploration':
+      return `Explore wasteland for ${action.duration_hours}h`
+    case 'recall_exploration':
+      return 'Recall from wasteland'
+    case 'request_stimpak':
+      return 'Give Stimpak'
+    case 'request_radaway':
+      return 'Give RadAway'
+    case 'no_action':
+      return 'No action'
+  }
+}
+
+const actionConfirmLabel = (action: ActionSuggestion, isPerformingAction: boolean) =>
+  isPerformingAction
+    ? 'Processing...'
+    : action.action_type === 'request_stimpak'
+      ? 'Give Stimpak'
+      : action.action_type === 'request_radaway'
+        ? 'Give RadAway'
+        : 'Confirm'
+
 const messageContentSegments = (
   content: string,
   type: ChatMessageDisplay['type'],
@@ -177,30 +224,14 @@ const messageContentSegments = (
       >
         <div class="action-suggestion-header">
           <Icon
-            :icon="
-              message.actionSuggestion.action_type === 'assign_to_room'
-                ? 'mdi:door-open'
-                : message.actionSuggestion.action_type === 'start_training'
-                  ? 'mdi:dumbbell'
-                  : message.actionSuggestion.action_type === 'start_exploration'
-                    ? 'mdi:map-marker-radius'
-                    : 'mdi:arrow-u-left-top'
-            "
+            :icon="actionIcon(message.actionSuggestion)"
             class="h-4 w-4"
           />
           <span class="text-xs font-bold uppercase tracking-wider">Suggested Action</span>
         </div>
         <div class="action-suggestion-body">
           <p class="action-suggestion-text">
-            {{
-              message.actionSuggestion.action_type === 'assign_to_room'
-                ? `Assign to ${message.actionSuggestion.room_name}`
-                : message.actionSuggestion.action_type === 'start_training'
-                  ? `Train ${message.actionSuggestion.stat}`
-                  : message.actionSuggestion.action_type === 'start_exploration'
-                    ? `Explore wasteland for ${message.actionSuggestion.duration_hours}h`
-                    : 'Recall from wasteland'
-            }}
+            {{ actionLabel(message.actionSuggestion) }}
           </p>
           <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
         </div>
@@ -212,7 +243,7 @@ const messageContentSegments = (
           >
             <Icon v-if="isPerformingAction" icon="mdi:loading" class="h-4 w-4 spinning" />
             <Icon v-else icon="mdi:check" class="h-4 w-4" />
-            <span>{{ isPerformingAction ? 'Processing...' : 'Confirm' }}</span>
+            <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
           </button>
           <button class="action-dismiss-btn" @click="emit('dismissAction', index)">
             <Icon icon="mdi:close" class="h-4 w-4" />

@@ -58,6 +58,11 @@ async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
             "is_adult": True,
             "level": 5,
             "happiness": 80,
+            "max_health": 100,
+            "health": 100,
+            "radiation": 0,
+            "stimpack": 0,
+            "radaway": 0,
         }
     )
     dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
@@ -99,9 +104,15 @@ class TestTextChat:
         mock_agent: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
+        async_session: AsyncSession,
         chat_dweller: Dweller,
     ):
         """Test sending a text message to a dweller."""
+        chat_dweller.health = chat_dweller.max_health
+        chat_dweller.radiation = 0
+        async_session.add(chat_dweller)
+        await async_session.commit()
+
         # Mock agent output
         mock_output = create_mock_agent_output()
         mock_result = MagicMock(spec=AgentRunResult)
@@ -457,6 +468,9 @@ class TestExplorationActions:
                 "is_adult": True,
                 "level": 10,
                 "happiness": 75,
+                "max_health": 100,
+                "health": 100,
+                "radiation": 0,
                 "stimpack": 5,
                 "radaway": 3,
             }
@@ -508,6 +522,9 @@ class TestExplorationActions:
                 "last_name": "Test",
                 "gender": GenderEnum.FEMALE,
                 "is_adult": True,
+                "max_health": 100,
+                "health": 100,
+                "radiation": 0,
                 "stimpack": 1,
                 "radaway": 0,
             }

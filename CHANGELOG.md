@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.72.1 (2026-09-03)
+
+### Bug Fixes
+
+* keep vault controls out of the header 8b58b8e
+
 ## 2.72.0 (2026-09-03)
 
 ### Features

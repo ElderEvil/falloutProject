@@ -12,7 +12,6 @@ import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
-type AgeFilter = 'all' | components['schemas']['AgeGroupEnum']
 type RarityFilter = 'all' | components['schemas']['RarityEnum']
 
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
@@ -21,17 +20,9 @@ const toast = useToast()
 
 // Filter preferences are now automatically loaded via useLocalStorage in the store
 
-// Local (non-persisted) filters: the shared dweller filter store would leak
-// into the main Dwellers view, so this panel filters client-side only.
-const filterAge = ref<AgeFilter>('all')
+// Rarity is specific to this compact assignment panel; age and sorting use
+// the shared preferences from the Dwellers view.
 const filterRarity = ref<RarityFilter>('all')
-
-const AGE_FILTERS: { value: AgeFilter; label: string; icon: string }[] = [
-  { value: 'all', label: 'All Ages', icon: 'mdi:account-multiple' },
-  { value: 'child', label: 'Child', icon: 'mdi:baby' },
-  { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
-  { value: 'adult', label: 'Adult', icon: 'mdi:account' },
-]
 
 const RARITY_FILTERS: { value: RarityFilter; label: string; icon: string }[] = [
   { value: 'all', label: 'All', icon: 'mdi:star-circle-outline' },
@@ -62,7 +53,7 @@ const unassignedDwellers = computed(() => {
   const filtered = dwellerStore.dwellersWithStatus.filter(
     (dweller) =>
       isUnassignable(dweller) &&
-      (filterAge.value === 'all' || dweller.age_group === filterAge.value) &&
+      (dwellerStore.filterAgeGroup === 'all' || dweller.age_group === dwellerStore.filterAgeGroup) &&
       (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
   )
 
@@ -159,27 +150,10 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         </div>
 
         <!-- Sort controls inline with header -->
-        <DwellerFilterPanel :show-status-filter="false" />
+        <DwellerFilterPanel :show-status-filter="false" :show-age-filter="true" />
       </div>
 
       <div class="filter-chips" role="group" aria-label="Filter unassigned dwellers">
-        <div class="chip-group" role="group" aria-label="Filter by age">
-          <div class="chip-group-label">
-            <Icon icon="mdi:account-group" class="chip-group-icon" />
-            <span>Age</span>
-          </div>
-          <button
-            v-for="option in AGE_FILTERS"
-            :key="option.value"
-            class="chip"
-            :class="{ active: filterAge === option.value }"
-            :aria-pressed="filterAge === option.value"
-            @click="filterAge = option.value"
-          >
-            <Icon :icon="option.icon" class="chip-icon" />
-            {{ option.label }}
-          </button>
-        </div>
         <div class="chip-group" role="group" aria-label="Filter by rarity">
           <div class="chip-group-label">
             <Icon icon="mdi:star-four-points" class="chip-group-icon" />

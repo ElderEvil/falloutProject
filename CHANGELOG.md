@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.74.0 (2026-09-03)
+
+### Features
+
+* add compact dweller happiness summary 7736cc5
+* consolidate dweller filters and improve screen density f12d45b
+
+### Bug Fixes
+
+* align overview dweller age filtering e80a56e
+
+### Code Refactoring
+
+* align dweller age and sort controls e418842
+* compact dweller filter controls e09ea5c
+* group overview dweller filters 765b268
+* tighten dweller happiness dashboard 4a54790
+
 ## 2.73.1 (2026-09-03)
 
 ### Bug Fixes

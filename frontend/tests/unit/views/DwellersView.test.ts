@@ -262,6 +262,8 @@ describe('DwellersView', () => {
 
       const filterPanel = wrapper.findComponent({ name: 'DwellerFilterPanel' })
       expect(filterPanel.exists()).toBe(true)
+      expect(wrapper.find('.happiness-overview summary').text()).toContain('Happiness Overview')
+      expect((wrapper.find('.happiness-overview').element as HTMLDetailsElement).open).toBe(false)
     })
   })
 })

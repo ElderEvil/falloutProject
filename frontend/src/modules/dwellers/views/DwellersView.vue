@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -324,20 +325,46 @@ const handleViewLowHappiness = () => {
               rounded="lg"
             />
             <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
-            <HappinessDashboard
-              v-else-if="happinessDashboardData"
-              :loading="isDashboardLoading"
-              :vaultHappiness="happinessDashboardData.vaultHappiness"
-              :dwellerCount="happinessDashboardData.dwellerCount"
-              :distribution="happinessDashboardData.distribution"
-              :idleDwellerCount="happinessDashboardData.idleDwellerCount"
-              :activeIncidentCount="happinessDashboardData.activeIncidentCount"
-              :lowResourceCount="happinessDashboardData.lowResourceCount"
-              :radioHappinessMode="happinessDashboardData.radioHappinessMode"
-              @assign-idle="handleAssignIdle"
-              @activate-radio="handleActivateRadio"
-              @view-low-happiness="handleViewLowHappiness"
-            />
+            <details v-else-if="happinessDashboardData" class="happiness-overview">
+              <summary
+                class="flex cursor-pointer flex-wrap items-center justify-between gap-4 rounded-lg border-2 border-theme-primary/20 bg-surface-sunken px-4 py-3 text-theme-primary"
+              >
+                <span class="text-xs font-bold uppercase tracking-[0.12em] text-theme-primary/70">
+                  Happiness Overview
+                </span>
+                <span class="flex flex-wrap items-center justify-end gap-3 text-sm font-bold">
+                  <span>{{ happinessDashboardData.vaultHappiness }}% happiness</span>
+                  <span class="text-theme-primary/60"
+                    >{{ happinessDashboardData.dwellerCount }} dwellers</span
+                  >
+                  <span
+                    v-if="
+                      happinessDashboardData.lowResourceCount ||
+                      happinessDashboardData.activeIncidentCount ||
+                      happinessDashboardData.idleDwellerCount >= 3 ||
+                      happinessDashboardData.vaultHappiness < 50
+                    "
+                    class="text-warning"
+                  >
+                    Attention needed
+                  </span>
+                  <Icon icon="mdi:chevron-down" class="h-5 w-5" :ariaHidden="true" />
+                </span>
+              </summary>
+              <HappinessDashboard
+                :loading="isDashboardLoading"
+                :vaultHappiness="happinessDashboardData.vaultHappiness"
+                :dwellerCount="happinessDashboardData.dwellerCount"
+                :distribution="happinessDashboardData.distribution"
+                :idleDwellerCount="happinessDashboardData.idleDwellerCount"
+                :activeIncidentCount="happinessDashboardData.activeIncidentCount"
+                :lowResourceCount="happinessDashboardData.lowResourceCount"
+                :radioHappinessMode="happinessDashboardData.radioHappinessMode"
+                @assign-idle="handleAssignIdle"
+                @activate-radio="handleActivateRadio"
+                @view-low-happiness="handleViewLowHappiness"
+              />
+            </details>
           </div>
 
           <!-- Filter Panel with View Toggle -->
@@ -411,6 +438,19 @@ const handleViewLowHappiness = () => {
 
 .main-content.collapsed {
   margin-left: 64px;
+}
+
+.happiness-overview > summary {
+  list-style: none;
+}
+
+.happiness-overview > summary::-webkit-details-marker {
+  display: none;
+}
+
+.happiness-overview > summary:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 
 /* Enhanced text styles */

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.74.1 (2026-09-04)
+
+### Bug Fixes
+
+* decouple smtp from deploy gate and backend health check 63f89c1
+* make Hetzner deployments release-safe 3e39201
+
+### Continuous Integration
+
+* cache pnpm binary and skip fe checks on infra-only changes 1942584
+
 ## 2.74.0 (2026-09-03)
 
 ### Features

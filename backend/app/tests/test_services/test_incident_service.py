@@ -137,9 +137,7 @@ async def test_combat_round_records_damage_even_when_no_one_is_hit(
 ):
     """Every combat round belongs in the battle log, including a zero-damage exchange."""
     room = room_with_dwellers["room"]
-    incident = await incident_service.spawn_incident(
-        async_session, room.vault_id, IncidentType.RADROACH_INFESTATION
-    )
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
     assert incident is not None
 
     with (

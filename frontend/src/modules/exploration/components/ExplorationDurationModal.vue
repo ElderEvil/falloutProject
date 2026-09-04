@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { USlider } from '@/core/components/ui'
+import { UModal, USlider } from '@/core/components/ui'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 
 interface Props {
@@ -39,10 +39,6 @@ watch(
   { immediate: true }
 )
 
-const handleCancel = () => {
-  emit('cancel')
-}
-
 const handleConfirm = () => {
   emit('confirm', {
     duration: selectedDuration.value,
@@ -53,12 +49,15 @@ const handleConfirm = () => {
 </script>
 
 <template>
-  <div v-if="show" class="modal-overlay fixed inset-0 z-[2000] flex items-center justify-center bg-surface-canvas/90 animate-[fade-in_0.2s_ease-out]" @click="handleCancel">
-    <div class="modal-content w-[90%] max-w-[500px] rounded-xl border-2 border-theme-primary/40 bg-surface-raised p-8 font-mono shadow-glow-lg animate-[slide-up_0.3s_ease-out]" @click.stop>
-      <h3 class="mb-2 flex items-center gap-2 text-2xl font-bold text-theme-primary terminal-glow">
+  <UModal :model-value="show" title="Select Exploration Duration" size="wide" @close="emit('cancel')">
+    <template #header="{ titleId }">
+      <div class="flex items-center gap-2">
         <Icon icon="mdi:clock-outline" class="inline h-6 w-6" />
-        Select Exploration Duration
-      </h3>
+        <h2 :id="titleId" class="text-2xl font-bold text-theme-primary terminal-glow">Select Exploration Duration</h2>
+      </div>
+    </template>
+
+    <div class="pt-5">
       <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
       <div class="mb-6 grid grid-cols-3 gap-3">
         <button
@@ -115,14 +114,10 @@ const handleConfirm = () => {
         </p>
       </div>
 
-      <TerminalModalActions
-        cancel-label="Cancel"
-        confirm-label="Send to Wasteland"
-        @cancel="handleCancel"
-        @confirm="handleConfirm"
-      />
     </div>
-  </div>
-</template>
 
-<style src="./ExplorationDurationModal.css" scoped></style>
+    <template #footer>
+      <TerminalModalActions cancel-label="Cancel" confirm-label="Send to Wasteland" @cancel="emit('cancel')" @confirm="handleConfirm" />
+    </template>
+  </UModal>
+</template>

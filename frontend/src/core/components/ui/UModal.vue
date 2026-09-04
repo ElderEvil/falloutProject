@@ -107,7 +107,7 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
             </slot>
             <button
               @click="close"
-              class="flex-shrink-0 cursor-pointer p-1 text-theme-primary/60 transition-all hover:text-theme-primary hover:scale-110"
+              class="flex-shrink-0 cursor-pointer p-1 text-theme-primary/60 transition-[color,transform] hover:text-theme-primary hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
               aria-label="Close modal"
             >
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

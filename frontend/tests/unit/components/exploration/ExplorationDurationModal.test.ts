@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { config, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
-import { UButton, USlider } from '@/core/components/ui'
+import { UButton, UModal, USlider } from '@/core/components/ui'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -12,6 +12,17 @@ vi.mock('@iconify/vue', () => ({
     props: ['icon'],
   },
 }))
+
+let originalTeleportStub: unknown
+
+beforeEach(() => {
+  originalTeleportStub = config.global.stubs.Teleport
+  config.global.stubs.Teleport = { template: '<div><slot /></div>' }
+})
+
+afterEach(() => {
+  config.global.stubs.Teleport = originalTeleportStub as never
+})
 
 describe('ExplorationDurationModal', () => {
   describe('rendering', () => {
@@ -25,7 +36,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      expect(wrapper.find('.modal-overlay').exists()).toBe(false)
+      expect(wrapper.findComponent(UModal).props('modelValue')).toBe(false)
       expect(wrapper.text()).toBe('')
     })
 
@@ -39,7 +50,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      expect(wrapper.find('.modal-overlay').exists()).toBe(true)
+      expect(wrapper.findComponent(UModal).props('modelValue')).toBe(true)
       expect(wrapper.text()).toContain('Select Exploration Duration')
       expect(wrapper.text()).toContain('Amata')
       expect(wrapper.text()).toContain('Send to Wasteland')
@@ -181,7 +192,7 @@ describe('ExplorationDurationModal', () => {
   })
 
   describe('emits', () => {
-    it('emits cancel on overlay click', async () => {
+    it('emits cancel when the shared modal closes', async () => {
       const wrapper = mount(ExplorationDurationModal, {
         props: {
           show: true,
@@ -191,7 +202,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      await wrapper.find('.modal-overlay').trigger('click')
+      wrapper.findComponent(UModal).vm.$emit('close')
 
       expect(wrapper.emitted('cancel')).toHaveLength(1)
     })
@@ -253,20 +264,4 @@ describe('ExplorationDurationModal', () => {
     })
   })
 
-  describe('content click does not close', () => {
-    it('does not emit cancel when clicking modal content', async () => {
-      const wrapper = mount(ExplorationDurationModal, {
-        props: {
-          show: true,
-          dwellerName: 'TestDweller',
-          maxStimpaks: 10,
-          maxRadaways: 10,
-        },
-      })
-
-      await wrapper.find('.modal-content').trigger('click')
-
-      expect(wrapper.emitted('cancel')).toBeUndefined()
-    })
-  })
 })

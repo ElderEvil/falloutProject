@@ -6,7 +6,12 @@ withDefaults(defineProps<{ message: string; fullHeight?: boolean }>(), { fullHei
 </script>
 
 <template>
-  <div class="flex items-center justify-center p-8" :class="{ 'min-h-[60vh]': fullHeight }">
+  <div
+    role="status"
+    aria-live="polite"
+    class="flex items-center justify-center p-8"
+    :class="{ 'min-h-[60vh]': fullHeight }"
+  >
     <UCard glow crt padding="lg">
       <div class="flex flex-col items-center gap-6">
         <Icon icon="mdi:loading" class="h-16 w-16 animate-spin text-theme-primary terminal-glow" />

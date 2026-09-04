@@ -18,6 +18,7 @@ import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -335,12 +336,7 @@ const handleIncidentResponded = async () => {
     <div v-if="scanlinesEnabled" class="scanlines"></div>
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="flex min-h-screen items-center justify-center">
-      <div class="text-center">
-        <div class="mb-4 text-6xl animate-pulse">⚙️</div>
-        <p class="text-xl text-terminal-green">Loading Vault Data...</p>
-      </div>
-    </div>
+    <TerminalLoadingState v-if="isLoading" full-height message="Loading vault data..." />
 
     <!-- Error State -->
     <div v-else-if="errorMessage" class="flex min-h-screen items-center justify-center">

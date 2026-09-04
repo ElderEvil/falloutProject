@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.74.2 (2026-09-04)
+
+### Bug Fixes
+
+* correct profile statistic accounting 641a0ec
+* tolerate unowned vault statistics 7261189
+* track profile lifetime statistics 4d282b4
+
 ## 2.74.1 (2026-09-04)
 
 ### Bug Fixes

@@ -238,22 +238,7 @@ const closeRewardsModal = () => {
           title="Wasteland Exploration"
           icon="mdi:compass"
           subtitle="Monitor active explorations and quest parties"
-        >
-          <template #actions>
-            <div class="flex gap-3">
-              <div class="stat-badge">
-                <Icon icon="mdi:account-search" class="stat-icon" />
-                <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-                <span class="stat-label">Explorations</span>
-              </div>
-              <div class="stat-badge">
-                <Icon icon="mdi:sword-cross" class="stat-icon" />
-                <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
-                <span class="stat-label">Quests</span>
-              </div>
-            </div>
-          </template>
-        </PageHeader>
+        />
 
         <!-- Main Content -->
         <div class="exploration-content">
@@ -391,37 +376,6 @@ const closeRewardsModal = () => {
 
 .exploration-view.collapsed {
   margin-left: 64px;
-}
-
-.stat-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-}
-
-.stat-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-theme-primary);
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .exploration-content {

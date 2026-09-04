@@ -123,6 +123,22 @@ describe('Profile Store', () => {
     })
   })
 
+  describe('refreshProfile Action', () => {
+    it('refreshes the record without entering the page-loading state', async () => {
+      const store = useProfileStore()
+      vi.mocked(axios.get).mockImplementation(() => {
+        expect(store.profileRefreshing).toBe(true)
+        expect(store.loading).toBe(false)
+        return Promise.resolve({ data: mockProfile })
+      })
+
+      await store.refreshProfile()
+
+      expect(store.profile).toEqual(mockProfile)
+      expect(store.profileRefreshing).toBe(false)
+    })
+  })
+
   describe('updateProfile Action', () => {
     const updateData: ProfileUpdate = {
       bio: 'Updated bio',

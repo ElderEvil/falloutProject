@@ -5,7 +5,6 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import ProfileView from '@/modules/profile/views/ProfileView.vue'
 import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
-import { UCard } from '@/core/components/ui'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -322,18 +321,6 @@ describe('ProfileView', () => {
       const prefsText = wrapper.text()
       expect(prefsText).toContain('Manage display preferences')
       expect(prefsText).not.toContain('"theme": "dark"')
-      expect(prefsText).toContain('VAULT RECORD')
-    })
-
-    it('keeps the vault record on the same base surface as the dossier', async () => {
-      const wrapper = mount(ProfileView, { global: { plugins: [router] } })
-      await flushPromises()
-
-      const vaultRecord = wrapper
-        .findAllComponents(UCard)
-        .find((card) => card.props('title') === 'VAULT RECORD')
-
-      expect(vaultRecord?.props('surface')).toBe('base')
     })
 
     it('should display created and updated timestamps', async () => {

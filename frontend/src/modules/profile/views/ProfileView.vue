@@ -12,10 +12,10 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
-import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { useProfileStore } from '../stores/profile'
 import ProfileEditor from '../components/ProfileEditor.vue'
 import AIUsageCard from '../components/AIUsageCard.vue'
+import VaultOperationsCard from '../components/VaultOperationsCard.vue'
 import AISettingsPanel from '@/modules/ai-settings/components/AISettingsPanel.vue'
 import type { ProfileUpdate } from '../models/profile'
 
@@ -63,7 +63,7 @@ const { connect, on, disconnect } = useWebSocket()
 // automatically pauses when this view's scope is disposed.
 usePolling(
   async () => {
-    await Promise.all([profileStore.fetchProfile(), profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
+    await Promise.all([profileStore.refreshProfile(), profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
   },
   { interval: 30_000, immediate: false }
 )
@@ -169,16 +169,6 @@ const breadcrumbs = computed(() => [
   { label: 'Overseer Profile' },
 ])
 
-const hasVaultRecord = computed(() => {
-  const p = profileStore.profile
-  if (!p) return false
-  return (
-    p.total_dwellers_created > 0 ||
-    p.total_caps_earned > 0 ||
-    p.total_explorations > 0 ||
-    p.total_rooms_built > 0
-  )
-})
 </script>
 
 <template>
@@ -231,7 +221,7 @@ const hasVaultRecord = computed(() => {
             <template v-else>
               <UTabs v-model="activeTab" :tabs="tabs" class="mb-6" />
 
-              <div v-show="activeTab === 'dossier'" class="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
+              <section v-show="activeTab === 'dossier'">
                 <UCard glow crt class="profile-dossier">
                   <template #header>
                     <div class="flex items-center justify-between gap-3">
@@ -301,19 +291,14 @@ const hasVaultRecord = computed(() => {
                   </div>
                 </UCard>
 
-                <UCard title="VAULT RECORD" glow crt>
-                  <p class="mb-4 text-sm leading-5 text-theme-primary/70">Lifetime results associated with this overseer account.</p>
-                  <div v-if="hasVaultRecord" class="grid grid-cols-2 gap-3">
-                    <TerminalMetric icon="mdi:account-group" label="Dwellers" :value="profileStore.profile.total_dwellers_created" compact />
-                    <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="profileStore.profile.total_caps_earned" tone="caps" compact />
-                    <TerminalMetric icon="mdi:compass" label="Explorations" :value="profileStore.profile.total_explorations" compact />
-                    <TerminalMetric icon="mdi:office-building" label="Rooms built" :value="profileStore.profile.total_rooms_built" compact />
-                  </div>
-                  <p v-else class="py-6 text-center text-sm text-theme-primary/70">No activity recorded yet.</p>
-                </UCard>
-              </div>
+              </section>
 
               <section v-show="activeTab === 'analytics'" aria-label="Vault analytics" class="grid gap-6 xl:grid-cols-2">
+                <VaultOperationsCard
+                  class="xl:col-span-2"
+                  :record="profileStore.profile"
+                  :refreshing="profileStore.profileRefreshing"
+                />
                 <AIUsageCard :stats="profileStore.aiUsageStats" :loading="profileStore.aiUsageLoading" />
                 <LifeDeathStatistics :statistics="profileStore.deathStatistics" :loading="profileStore.deathStatsLoading" />
               </section>

@@ -98,6 +98,7 @@ export const useExplorationStore = defineStore('exploration', () => {
   const activeExplorations = ref<Record<string, Exploration>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
   const pendingSseRewards = ref<{ rewards: RewardsSummary; dwellerId: string } | null>(null)
+  const acknowledgedSseRewards = new Map<string, ReturnType<typeof setTimeout>>()
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   let sseInstance: ReturnType<typeof useSse> | null = null
@@ -181,6 +182,20 @@ export const useExplorationStore = defineStore('exploration', () => {
 
   function clearPendingSseRewards(): void {
     pendingSseRewards.value = null
+  }
+
+  function acknowledgeSseReward(dwellerId: string): void {
+    const existingTimer = acknowledgedSseRewards.get(dwellerId)
+    if (existingTimer) clearTimeout(existingTimer)
+    acknowledgedSseRewards.set(dwellerId, setTimeout(() => acknowledgedSseRewards.delete(dwellerId), 30_000))
+  }
+
+  function consumeAcknowledgedSseReward(dwellerId: string): boolean {
+    const timer = acknowledgedSseRewards.get(dwellerId)
+    if (!timer) return false
+    clearTimeout(timer)
+    acknowledgedSseRewards.delete(dwellerId)
+    return true
   }
 
   // Actions
@@ -399,6 +414,8 @@ export const useExplorationStore = defineStore('exploration', () => {
     startSseSubscription,
     stopSseSubscription,
     clearPendingSseRewards,
+    acknowledgeSseReward,
+    consumeAcknowledgedSseReward,
     clearError,
   }
 })

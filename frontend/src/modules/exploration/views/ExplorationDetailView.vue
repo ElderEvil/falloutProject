@@ -120,13 +120,16 @@ const { healthJourney, totalDamage, totalHealed, healthTrendPoints } = useExplor
 )
 
 // Actions
-const handleCompleteExploration = async () => {
+type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
+
+const finishExploration = async (action: ExplorationFinishAction, errorMessage: string) => {
   if (!authStore.token || !exploration.value) return
 
   try {
-    const result = await explorationStore.completeExploration(exploration.value.id, authStore.token)
+    const result = await action(exploration.value.id, authStore.token)
 
     if (result?.rewards_summary) {
+      explorationStore.acknowledgeSseReward(exploration.value.dweller_id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = dwellerName.value
       showRewardsModal.value = true
@@ -137,34 +140,15 @@ const handleCompleteExploration = async () => {
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
 
-    // Don't auto-navigate - let user close modal first
   } catch (_error) {
-    toast.error('Failed to complete exploration')
+    toast.error(errorMessage)
   }
 }
 
-const handleRecallExploration = async () => {
-  if (!authStore.token || !exploration.value) return
+const handleCompleteExploration = () =>
+  finishExploration(explorationStore.completeExploration, 'Failed to complete exploration')
 
-  try {
-    const result = await explorationStore.recallDweller(exploration.value.id, authStore.token)
-
-    if (result?.rewards_summary) {
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = dwellerName.value
-      showRewardsModal.value = true
-    }
-
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-
-    // Don't auto-navigate - let user close modal first
-  } catch (_error) {
-    toast.error('Failed to recall dweller')
-  }
-}
+const handleRecallExploration = () => finishExploration(explorationStore.recallDweller, 'Failed to recall dweller')
 
 const closeRewardsModal = () => {
   showRewardsModal.value = false
@@ -209,6 +193,10 @@ watch(
   (pending) => {
     if (!pending) return
     if (pending.dwellerId !== exploration.value?.dweller_id) return
+    if (explorationStore.consumeAcknowledgedSseReward(pending.dwellerId)) {
+      explorationStore.clearPendingSseRewards()
+      return
+    }
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dwellerName.value
     showRewardsModal.value = true

@@ -90,6 +90,10 @@ watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {
     if (!pending) return
+    if (explorationStore.consumeAcknowledgedSseReward(pending.dwellerId)) {
+      explorationStore.clearPendingSseRewards()
+      return
+    }
     activeQueuedReportId.value = null
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
@@ -145,7 +149,13 @@ const activeQuestsWithParty = computed(() => {
   })
 })
 
-const handleCompleteExploration = async (explorationId: string) => {
+type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
+
+const finishExploration = async (
+  explorationId: string,
+  action: ExplorationFinishAction,
+  errorMessage: string
+) => {
   if (!authStore.token) return
 
   try {
@@ -155,63 +165,31 @@ const handleCompleteExploration = async (explorationId: string) => {
     const dweller = getDwellerById(exploration.dweller_id)
     if (!dweller) return
 
-    const result = await explorationStore.completeExploration(explorationId, authStore.token)
+    const result = await action(explorationId, authStore.token)
 
-    // Show rewards modal
     if (result?.rewards_summary) {
+      explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
       showRewardsModal.value = true
     }
 
-    // Refresh data
     if (vaultId.value) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
 
-    // Clear selection if completed explorer was selected
-    if (selectedExplorerId.value === explorationId) {
-      selectedExplorerId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to complete exploration')
+    if (selectedExplorerId.value === explorationId) selectedExplorerId.value = null
+  } catch (_error) {
+    toast.error(errorMessage)
   }
 }
 
-const handleRecallExploration = async (explorationId: string) => {
-  if (!authStore.token) return
+const handleCompleteExploration = (explorationId: string) =>
+  finishExploration(explorationId, explorationStore.completeExploration, 'Failed to complete exploration')
 
-  try {
-    const exploration = explorationStore.activeExplorations[explorationId]
-    if (!exploration) return
-
-    const dweller = getDwellerById(exploration.dweller_id)
-    if (!dweller) return
-
-    const result = await explorationStore.recallDweller(explorationId, authStore.token)
-
-    // Show rewards modal
-    if (result?.rewards_summary) {
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
-      showRewardsModal.value = true
-    }
-
-    // Refresh data
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-
-    // Clear selection if recalled explorer was selected
-    if (selectedExplorerId.value === explorationId) {
-      selectedExplorerId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to recall dweller')
-  }
-}
+const handleRecallExploration = (explorationId: string) =>
+  finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
 
 const closeRewardsModal = () => {
   if (activeQueuedReportId.value) {

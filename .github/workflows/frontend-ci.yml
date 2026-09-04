@@ -60,7 +60,7 @@ jobs:
         run: |
           for d in "$HOME/setup-pnpm/node_modules/.bin" "$HOME/setup-pnpm"; do
             if [ -x "$d/pnpm" ]; then
-              echo "$d" >> "$GITHUB_PATH"
+              export PATH="$d:$PATH"; echo "$d" >> "$GITHUB_PATH"
               break
             fi
           done

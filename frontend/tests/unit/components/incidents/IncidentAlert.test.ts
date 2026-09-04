@@ -157,6 +157,12 @@ describe('IncidentAlert', () => {
   })
 
   describe('Interactions', () => {
+    it('uses a native button with a descriptive label', () => {
+      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+
+      expect(wrapper.get('button').attributes('aria-label')).toBe('Open RAIDER ATTACK incident')
+    })
+
     it('should emit click event with incident id', async () => {
       const wrapper = mount(IncidentAlert, {
         props: {

@@ -200,24 +200,7 @@ async def get_incident(
 
     room = await db_session.get(Room, incident.room_id)
 
-    return IncidentRead(
-        id=incident.id,
-        vault_id=incident.vault_id,
-        room_id=incident.room_id,
-        room_name=room.name if room else None,
-        type=incident.type,
-        status=incident.status,
-        difficulty=incident.difficulty,
-        start_time=incident.start_time.isoformat(),
-        end_time=incident.end_time.isoformat() if incident.end_time else None,
-        elapsed_time=incident.elapsed_time(),
-        duration=incident.duration,
-        damage_dealt=incident.damage_dealt,
-        enemies_defeated=incident.enemies_defeated,
-        rooms_affected=incident.rooms_affected,
-        spread_count=incident.spread_count,
-        loot=incident.loot,
-    )
+    return await incident_service.get_incident_read(db_session, incident, room.name if room else None)
 
 
 @router.post("/vaults/{vault_id}/tick", status_code=200)

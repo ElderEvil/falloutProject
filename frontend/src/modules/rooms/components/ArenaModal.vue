@@ -8,6 +8,9 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import ArenaFighterSlot from './ArenaFighterSlot.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import UIconButton from '@/core/components/ui/UIconButton.vue'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import UAlert from '@/core/components/ui/UAlert.vue'
 import { useArenaStore } from '../stores/arena'
 import { useDwellerMedicalStore } from '@/modules/dwellers/stores/dwellerMedical'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
@@ -15,13 +18,9 @@ import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 interface Props {
   vaultId: string
   roomId: string
-  isDestroying?: boolean
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  destroy: []
-}>()
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -30,6 +29,7 @@ const medicalStore = useDwellerMedicalStore()
 const arenaStore = useArenaStore()
 
 const isLoading = ref(true)
+const loadFailed = ref(false)
 const damageNumbers = ref<Array<{ id: number; side: 'A' | 'B'; amount: number }>>([])
 const previousHp = ref<Record<string, number>>({})
 const openPicker = ref<'A' | 'B' | null>(null)
@@ -75,7 +75,8 @@ const applyState = () => {
 
 const load = async (silent = false) => {
   if (!authStore.token) return
-  await arenaStore.fetchState(props.vaultId, authStore.token, silent)
+  const loaded = await arenaStore.fetchState(props.vaultId, authStore.token, silent)
+  loadFailed.value = !loaded
   applyState()
   isLoading.value = false
 }
@@ -187,25 +188,6 @@ const healInjured = async () => {
   }
 }
 
-const isUnassigningAll = ref(false)
-const unassignAll = async () => {
-  if (!authStore.token || isUnassigningAll.value || !roster.value.length) return
-  isUnassigningAll.value = true
-  try {
-    for (const entry of roster.value) {
-      try {
-        await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
-      } catch {
-        toast.error(`Failed to remove ${entry.name} from the Arena`)
-      }
-    }
-    previousHp.value = {}
-    await load(true)
-  } finally {
-    isUnassigningAll.value = false
-  }
-}
-
 const clearJournal = async () => {
   if (!authStore.token) return
   await arenaStore.clearEvents(props.vaultId, props.roomId, authStore.token)
@@ -267,10 +249,12 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
       </span>
     </div>
 
-    <div v-if="isLoading" class="loading">
-      <Icon icon="mdi:sword-cross" class="loading-icon spin" />
-      <p>Loading arena...</p>
-    </div>
+    <ComponentLoader v-if="isLoading" label="Loading arena…" />
+
+    <UAlert v-else-if="loadFailed" variant="danger" title="Arena unavailable">
+      <p>Unable to load Arena status.</p>
+      <UButton class="mt-3" variant="secondary" size="sm" @click="load()">RETRY</UButton>
+    </UAlert>
 
     <div v-else class="arena-content">
       <!-- Fighters -->
@@ -331,16 +315,14 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <div class="roster-hp-bar">
               <UProgressBar :model-value="hpPercent(entry)" :height="4" :glow="false" :color="hpFillColor(entry)" />
             </div>
-            <button
+            <UIconButton
               v-if="!isFighting"
               class="roster-remove"
-              type="button"
-              :aria-label="`Remove ${entry.name} from Arena`"
-              title="Remove from Arena"
+              icon="mdi:close"
+              :label="`Remove ${entry.name} from Arena`"
+              variant="danger"
               @click="unassign(entry)"
-            >
-              ✕
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -379,7 +361,7 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
             Battle Journal
           </h3>
-          <button class="journal-clear" type="button" @click="clearJournal">CLEAR</button>
+          <UButton variant="ghost" size="xs" @click="clearJournal">CLEAR</UButton>
         </div>
         <div class="journal-list">
           <div v-for="event in roomState.events" :key="event.id" class="journal-entry" :class="event.kind">
@@ -398,26 +380,7 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
           new match.
         </span>
       </div>
-    </div>
 
-    <div class="arena-footer">
-      <span class="footer-note">Fights resolve automatically — watch the HP bars.</span>
-      <div class="footer-actions">
-        <UButton
-          variant="secondary"
-          size="sm"
-          :loading="isUnassigningAll"
-          :disabled="isFighting || !roster.length"
-          @click="unassignAll"
-        >
-          <Icon icon="mdi:account-remove" class="destroy-icon" />
-          UNASSIGN ALL
-        </UButton>
-        <UButton variant="secondary" size="sm" class="arena-destroy-btn" :disabled="isDestroying" @click="emit('destroy')">
-          <Icon icon="mdi:delete" class="destroy-icon" />
-          DESTROY
-        </UButton>
-      </div>
     </div>
   </div>
 </template>
@@ -481,33 +444,6 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 .arena-badge.done {
   border-color: var(--color-warning);
   color: var(--color-warning);
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 3rem;
-  color: var(--color-theme-primary);
-}
-
-.loading-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-}
-
-.spin {
-  animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* Section pattern shared with the other room-modal sections */
@@ -591,15 +527,7 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 }
 
 .roster-remove {
-  border: none;
-  background: transparent;
-  color: var(--color-gray-500);
-  font-size: 0.7rem;
-  cursor: pointer;
-}
-
-.roster-remove:hover {
-  color: var(--color-danger);
+  margin: -0.25rem;
 }
 
 .fighters-row {
@@ -668,23 +596,6 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-}
-
-.journal-clear {
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  padding: 0.1rem 0.5rem;
-  background: transparent;
-  font-size: 0.6rem;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  color: var(--color-gray-400);
-  cursor: pointer;
-}
-
-.journal-clear:hover {
-  color: var(--color-theme-primary);
-  border-color: var(--color-theme-primary);
 }
 
 .journal-list {
@@ -793,32 +704,4 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
   color: var(--color-theme-primary);
 }
 
-.arena-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.footer-note {
-  font-size: 0.75rem;
-  color: var(--color-gray-500);
-}
-
-.arena-destroy-btn {
-  margin-left: auto;
-}
-
-.destroy-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 0.3rem;
-}
 </style>

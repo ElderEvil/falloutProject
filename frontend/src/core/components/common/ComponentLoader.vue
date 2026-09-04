@@ -1,14 +1,14 @@
 <template>
-  <div class="component-loader" role="status" aria-live="polite" aria-label="Loading component">
+  <div class="component-loader" role="status" aria-live="polite" :aria-label="label">
     <div class="loader-content">
       <div class="spinner" aria-hidden="true"></div>
-      <p class="loading-text">Loading...</p>
+      <p class="loading-text">{{ label }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Simple loading component for async component loading
+withDefaults(defineProps<{ label?: string }>(), { label: 'Loading…' })
 </script>
 
 <style scoped>

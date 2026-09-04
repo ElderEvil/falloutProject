@@ -132,8 +132,15 @@ watch(
         :assigned-dwellers="assignedDwellers"
         :dweller-capacity="dwellerCapacity"
         :room-image-url="roomImageUrl ?? null"
+        :upgrade-info="upgradeInfo"
+        :is-upgrading="isUpgrading"
         :is-destroying="isDestroying"
+        :is-rushing="isRushing"
+        :is-vault-door="isVaultDoor"
+        @upgrade="handleUpgrade"
         @destroy="handleDestroy"
+        @rush-production="handleRushProduction"
+        @unassign-all="handleUnassignAll"
       />
 
       <template v-else>
@@ -170,6 +177,16 @@ watch(
           @dweller-click="openDwellerDetails"
         />
 
+        <RadioControls
+          v-if="has('radioControls')"
+          :local-radio-mode="localRadioMode"
+          :is-recruiting="isRecruiting"
+          :manual-recruit-cost="manualRecruitCost"
+          :assigned-dwellers="assignedDwellers"
+          @switch-mode="handleSwitchRadioMode"
+          @recruit="handleRecruitDweller"
+        />
+
         <RoomActions
           v-if="has('actions')"
           :room="room"
@@ -184,18 +201,7 @@ watch(
           @destroy="handleDestroy"
           @rush-production="handleRushProduction"
           @unassign-all="handleUnassignAll"
-        >
-          <template v-if="has('radioControls')" #radio-controls>
-            <RadioControls
-              :local-radio-mode="localRadioMode"
-              :is-recruiting="isRecruiting"
-              :manual-recruit-cost="manualRecruitCost"
-              :assigned-dwellers="assignedDwellers"
-              @switch-mode="handleSwitchRadioMode"
-              @recruit="handleRecruitDweller"
-            />
-          </template>
-        </RoomActions>
+        />
       </template>
     </div>
   </UModal>

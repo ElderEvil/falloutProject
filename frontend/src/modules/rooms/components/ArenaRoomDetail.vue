@@ -3,6 +3,14 @@ import type { Room } from '../models/room'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import ArenaModal from './ArenaModal.vue'
+import RoomActions from './RoomActions.vue'
+
+interface UpgradeInfo {
+  canUpgrade: boolean
+  upgradeCost: number
+  nextTier: number
+  maxTier: number
+}
 
 interface Props {
   room: Room
@@ -10,13 +18,20 @@ interface Props {
   assignedDwellers: DwellerShort[]
   dwellerCapacity: number
   roomImageUrl: string | null
+  upgradeInfo: UpgradeInfo | null
+  isUpgrading: boolean
   isDestroying: boolean
+  isRushing: boolean
+  isVaultDoor: boolean
 }
 
 defineProps<Props>()
 
 const emit = defineEmits<{
+  upgrade: []
   destroy: []
+  rushProduction: []
+  unassignAll: []
 }>()
 </script>
 
@@ -32,8 +47,20 @@ const emit = defineEmits<{
     <ArenaModal
       :vault-id="vaultId"
       :room-id="room.id"
+    />
+    <RoomActions
+      :room="room"
+      :upgrade-info="upgradeInfo"
+      :is-upgrading="isUpgrading"
       :is-destroying="isDestroying"
+      :is-rushing="isRushing"
+      :is-vault-door="isVaultDoor"
+      :has-production-info="false"
+      :assigned-dweller-count="assignedDwellers.length"
+      @upgrade="emit('upgrade')"
       @destroy="emit('destroy')"
+      @rush-production="emit('rushProduction')"
+      @unassign-all="emit('unassignAll')"
     />
   </div>
 </template>

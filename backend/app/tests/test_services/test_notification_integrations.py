@@ -222,6 +222,31 @@ class TestIncidentNotifications:
         assert "loot" in call_args.kwargs["meta_data"]
 
     @pytest.mark.asyncio
+    async def test_fire_victory_notification_uses_containment_copy(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        room_in_vault,
+    ):
+        """A contained fire must not be described as defeated attackers."""
+        _, vault = user_with_vault
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_in_vault.id,
+            incident_type=IncidentType.FIRE,
+            difficulty=1,
+        )
+
+        with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+            mock_notify.return_value = AsyncMock()
+            await IncidentService()._notify_resolution(async_session, incident, success=True)
+
+        message = mock_notify.call_args.kwargs["message"].lower()
+        assert "contained" in message
+        assert "attackers" not in message
+
+    @pytest.mark.asyncio
     async def test_incident_defeat_sends_notification(
         self,
         async_session: AsyncSession,

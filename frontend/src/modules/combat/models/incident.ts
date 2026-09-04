@@ -15,6 +15,15 @@ export enum IncidentStatus {
   FAILED = 'failed',
 }
 
+export type IncidentFamily = 'hazard' | 'infestation' | 'intrusion'
+export type IncidentObjective = 'contain' | 'defeat'
+
+export interface IncidentProgress {
+  current: number
+  target: number
+  label: string
+}
+
 export interface Incident {
   id: string
   vault_id: string
@@ -42,6 +51,22 @@ export interface Incident {
   spread_count: number
   created_at: string
   updated_at: string
+  family: IncidentFamily
+  objective: IncidentObjective
+  progress: IncidentProgress
+  risk: {
+    kind: string
+    rooms_affected: number
+  }
+  response: {
+    label: string
+  }
+  events: Array<{
+    id: string
+    kind: string
+    message: string
+    data: Record<string, number | string> | null
+  }>
 }
 
 export interface IncidentListResponse {

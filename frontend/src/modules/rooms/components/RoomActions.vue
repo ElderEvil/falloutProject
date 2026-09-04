@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -23,11 +22,7 @@ interface Props {
   assignedDwellerCount: number
 }
 
-const props = defineProps<Props>()
-
-const maxTierText = computed(
-  () => `Max tier reached (${props.room.tier}/${props.upgradeInfo?.maxTier ?? 'N/A'})`
-)
+defineProps<Props>()
 
 const emit = defineEmits<{
   upgrade: []
@@ -44,9 +39,6 @@ const emit = defineEmits<{
       Management
     </h3>
     <div class="actions-grid">
-      <!-- Radio controls slot: rendered above the action buttons for radio rooms -->
-      <slot name="radio-controls" />
-
       <!-- Upgrade Button -->
       <UButton
         v-if="upgradeInfo?.canUpgrade"
@@ -60,10 +52,16 @@ const emit = defineEmits<{
         <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
         <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
       </UButton>
-      <div v-else class="disabled-action">
-        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4 opacity-50" />
-        <span> {{ maxTierText }} </span>
-      </div>
+      <UButton
+        v-else-if="upgradeInfo && upgradeInfo.maxTier > 1"
+        disabled
+        variant="secondary"
+        size="sm"
+        class="action-btn action-btn--upgrade"
+      >
+        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
+        <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
+      </UButton>
 
       <!-- Rush Production Button -->
       <UButton
@@ -186,15 +184,4 @@ const emit = defineEmits<{
   font-style: italic;
 }
 
-.disabled-action {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  color: var(--color-gray-500);
-  font-size: 0.875rem;
-}
 </style>

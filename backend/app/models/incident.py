@@ -1,5 +1,6 @@
 """Incident models for combat events and vault disasters."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
@@ -30,6 +31,60 @@ class IncidentStatus(StrEnum):
     SPREADING = "spreading"
     RESOLVED = "resolved"
     FAILED = "failed"
+
+
+class IncidentFamily(StrEnum):
+    """Operational family used to present an incident truthfully."""
+
+    HAZARD = "hazard"
+    INFESTATION = "infestation"
+    INTRUSION = "intrusion"
+
+
+class IncidentObjective(StrEnum):
+    """The single action outcome the player is working toward."""
+
+    CONTAIN = "contain"
+    DEFEAT = "defeat"
+
+
+@dataclass(frozen=True)
+class IncidentDefinition:
+    family: IncidentFamily
+    objective: IncidentObjective
+    progress_label: str
+    response_label: str
+    risk_kind: str
+
+
+INCIDENT_DEFINITIONS: dict[IncidentType, IncidentDefinition] = {
+    IncidentType.FIRE: IncidentDefinition(
+        IncidentFamily.HAZARD, IncidentObjective.CONTAIN, "Fire contained", "Send responders", "spread"
+    ),
+    IncidentType.RADROACH_INFESTATION: IncidentDefinition(
+        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "spread"
+    ),
+    IncidentType.MOLE_RAT_ATTACK: IncidentDefinition(
+        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "spread"
+    ),
+    IncidentType.RADSCORPION_ATTACK: IncidentDefinition(
+        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "radiation"
+    ),
+    IncidentType.RAIDER_ATTACK: IncidentDefinition(
+        IncidentFamily.INTRUSION, IncidentObjective.DEFEAT, "Intruders neutralized", "Send defenders", "breach"
+    ),
+    IncidentType.DEATHCLAW_ATTACK: IncidentDefinition(
+        IncidentFamily.INTRUSION, IncidentObjective.DEFEAT, "Intruders neutralized", "Send defenders", "breach"
+    ),
+    IncidentType.FERAL_GHOUL_ATTACK: IncidentDefinition(
+        IncidentFamily.INTRUSION, IncidentObjective.DEFEAT, "Intruders neutralized", "Send defenders", "breach"
+    ),
+}
+
+
+def get_incident_definition(incident_type: IncidentType) -> IncidentDefinition:
+    """Return the UI and rules contract for an incident type."""
+    return INCIDENT_DEFINITIONS[incident_type]
 
 
 class IncidentBase(SQLModel):

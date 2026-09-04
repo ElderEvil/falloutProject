@@ -14,10 +14,12 @@
       </div>
     </template>
 
-    <div v-if="isLoading" class="loading">
-      <div class="spinner">⚙️</div>
-      <p>Loading incident data...</p>
-    </div>
+    <ComponentLoader v-if="isLoading" label="Loading incident data…" />
+
+    <UAlert v-else-if="loadFailed" variant="danger" title="Incident unavailable">
+      <p>Unable to load incident data.</p>
+      <UButton class="mt-3" variant="secondary" size="sm" @click="loadIncident">RETRY</UButton>
+    </UAlert>
 
     <div v-else-if="incident" class="combat-modal-content">
       <!-- Room Info Section -->
@@ -30,9 +32,9 @@
           </div>
           <div class="info-row">
             <span class="info-label">Status</span>
-            <span class="status-badge" :class="`status-${incident.status}`">
+            <UBadge :variant="statusVariant" size="sm">
               {{ incident.status.toUpperCase() }}
-            </span>
+            </UBadge>
           </div>
           <div v-if="incident.rooms_affected.length > 1" class="info-row">
             <span class="info-label">Spreading</span>
@@ -44,9 +46,11 @@
         </div>
       </div>
 
+      <IncidentStage :incident="incident" :dwellers="dwellers" />
+
       <!-- Combat Status Section -->
       <div class="section">
-        <h3 class="section-title">&gt;&gt; COMBAT STATUS</h3>
+        <h3 class="section-title">&gt;&gt; {{ incident.objective === 'contain' ? 'CONTAINMENT STATUS' : 'COMBAT STATUS' }}</h3>
         <div class="section-content">
           <div class="combat-stats">
             <div class="stat">
@@ -54,30 +58,30 @@
               <div class="stat-value">{{ formatElapsedTime(incident.elapsed_time) }}</div>
             </div>
             <div class="stat">
-              <div class="stat-label">Damage Dealt</div>
+              <div class="stat-label">Dweller Damage</div>
               <div class="stat-value danger">{{ incident.damage_dealt }} HP</div>
             </div>
             <div class="stat">
-              <div class="stat-label">Enemies Down</div>
-              <div class="stat-value success">
-                {{ incident.enemies_defeated }} / {{ expectedEnemies }}
-              </div>
+              <div class="stat-label">{{ incident.objective === 'contain' ? 'Containment' : 'Enemies Down' }}</div>
+              <div class="stat-value success">{{ incident.progress.current }} / {{ incident.progress.target }}</div>
             </div>
           </div>
 
           <!-- Progress bars -->
           <div class="progress-section">
             <div class="progress-item">
-              <div class="progress-label">Threat Contained</div>
+              <div class="progress-label">{{ incident.progress.label }}</div>
               <UProgressBar
-                :model-value="combatProgress"
+                :model-value="progressPercent"
                 :height="20"
                 :glow="false"
-                color="linear-gradient(90deg, var(--color-theme-primary) 0%, var(--color-theme-glow) 100%)"
+                color="var(--color-theme-primary)"
                 ariaLabel="Threat contained"
                 class="combat-progress-bar"
               />
-              <div class="progress-value">{{ combatProgress }}% · {{ expectedEnemies - incident.enemies_defeated }} enemies left</div>
+              <div class="progress-value">
+                {{ progressPercent }}% · {{ remainingProgress }} {{ incident.objective === 'contain' ? 'to contain' : 'enemies left' }}
+              </div>
             </div>
           </div>
         </div>
@@ -110,7 +114,8 @@
         <div class="section-content">
           <div class="expected-loot">
             <p>Estimated caps: {{ estimatedCaps }}</p>
-            <p>Possible items: Weapons, Outfits, or Junk</p>
+            <p v-if="incident.objective === 'defeat'">Possible items: Weapons, Outfits, or Junk</p>
+            <p v-else>Containment incidents award caps only.</p>
           </div>
         </div>
       </div>
@@ -126,7 +131,7 @@
               :loading="isSendingBest"
               @click="sendBestDefenders"
             >
-              SEND {{ bestResponders.length }} BEST DEFENDERS
+              {{ incident.response.label.toUpperCase() }}: {{ bestResponders.length }} BEST
             </UButton>
             <span class="responder-quick-note">
               {{ bestResponders.map((d) => d.first_name).join(', ') }}
@@ -154,6 +159,15 @@
           <p v-else class="expected-loot">All available adults are already defending or away.</p>
         </div>
       </div>
+
+      <div v-if="incident.events.length" class="section">
+        <h3 class="section-title">&gt;&gt; INCIDENT JOURNAL</h3>
+        <div class="journal-list">
+          <div v-for="event in incident.events" :key="event.id" class="journal-entry">
+            {{ event.message }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Scanline overlay -->
@@ -168,13 +182,17 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import UBadge from '@/core/components/ui/UBadge.vue'
+import UAlert from '@/core/components/ui/UAlert.vue'
+import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
+import IncidentStage from './IncidentStage.vue'
 import { usePolling } from '@/core/composables/usePolling'
 import { useToast } from '@/core/composables/useToast'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import { useIncidentStore } from '../../stores/incident'
 import type { Incident } from '../../models/incident'
-import { IncidentType } from '../../models/incident'
+import { getIncidentIcon } from '../../models/incident'
 
 interface Props {
   incidentId: string
@@ -195,6 +213,7 @@ const toast = useToast()
 
 const incident = ref<Incident | null>(null)
 const isLoading = ref(true)
+const loadFailed = ref(false)
 const assigningDwellerId = ref<string | null>(null)
 // Lifecycle
 onMounted(async () => {
@@ -208,9 +227,12 @@ async function loadIncident() {
   try {
     await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     incident.value = incidentStore.getIncidentById(props.incidentId) || null
-    isLoading.value = false
+    loadFailed.value = false
   } catch {
+    loadFailed.value = true
     toast.error('Failed to load incident')
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -270,32 +292,22 @@ function getItemIcon(type: string): string {
 }
 
 // Computed
-const incidentIcon = computed(() => {
-  if (!incident.value) return 'mdi:alert-octagon'
-
-  switch (incident.value.type) {
-    case IncidentType.RAIDER_ATTACK:
-      return 'mdi:skull'
-    case IncidentType.RADROACH_INFESTATION:
-      return 'mdi:bug'
-    case IncidentType.FIRE:
-      return 'mdi:fire'
-    case IncidentType.MOLE_RAT_ATTACK:
-      return 'mdi:paw'
-    case IncidentType.DEATHCLAW_ATTACK:
-      return 'mdi:claw-mark'
-    case IncidentType.FERAL_GHOUL_ATTACK:
-      return 'mdi:ghost'
-    case IncidentType.RADSCORPION_ATTACK:
-      return 'mdi:spider'
-    default:
-      return 'mdi:alert-octagon'
-  }
-})
+const incidentIcon = computed(() => (incident.value ? getIncidentIcon(incident.value.type) : 'mdi:alert-octagon'))
 
 const incidentTitle = computed(() => {
   if (!incident.value) return 'INCIDENT'
   return incident.value.type.replace(/_/g, ' ').toUpperCase()
+})
+
+const statusVariant = computed(() => {
+  switch (incident.value?.status) {
+    case 'spreading':
+      return 'warning' as const
+    case 'resolved':
+      return 'success' as const
+    default:
+      return 'danger' as const
+  }
 })
 
 const difficultyStars = computed(() => {
@@ -303,16 +315,14 @@ const difficultyStars = computed(() => {
   return '★'.repeat(incident.value.difficulty)
 })
 
-const combatProgress = computed(() => {
-  if (!incident.value) return 0
-  const expectedEnemies = incident.value.difficulty * 2
-  return Math.min(100, Math.floor((incident.value.enemies_defeated / expectedEnemies) * 100))
+const progressPercent = computed(() => {
+  if (!incident.value || incident.value.progress.target <= 0) return 0
+  return Math.min(100, Math.floor((incident.value.progress.current / incident.value.progress.target) * 100))
 })
 
-const expectedEnemies = computed(() => {
-  if (!incident.value) return 0
-  return incident.value.difficulty * 2
-})
+const remainingProgress = computed(() =>
+  incident.value ? Math.max(0, incident.value.progress.target - incident.value.progress.current) : 0
+)
 
 const estimatedCaps = computed(() => {
   if (!incident.value) return '0-0'
@@ -376,57 +386,6 @@ const bestResponders = computed(() =>
   color: var(--color-theme-primary);
   opacity: 0.7;
   margin-top: 0.25rem;
-}
-
-.status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-}
-
-.status-active {
-  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-  border: 1px solid var(--color-danger);
-  color: var(--color-danger);
-}
-
-.status-spreading {
-  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
-  border: 1px solid var(--color-warning);
-  color: var(--color-warning);
-}
-
-.status-resolved {
-  background: rgba(var(--color-theme-primary-rgb), 0.2);
-  border: 1px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 3rem;
-  color: var(--color-theme-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.spinner {
-  font-size: 3rem;
-  animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .combat-modal-content {
@@ -542,6 +501,24 @@ const bestResponders = computed(() =>
   font-size: 0.875rem;
   color: var(--color-theme-primary);
   text-align: right;
+}
+
+.journal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 0.6rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-surface-hover);
+  border-radius: 4px;
+}
+
+.journal-entry {
+  font-size: 0.75rem;
+  color: var(--color-theme-primary);
+  opacity: 0.75;
 }
 
 .responder-quick {

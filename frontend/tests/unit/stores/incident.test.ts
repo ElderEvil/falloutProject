@@ -7,19 +7,17 @@ import type { IncidentListResponse, Incident } from '@/modules/combat/models/inc
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 
 vi.mock('@/modules/combat/api/incident')
-const sseMock = vi.hoisted(() => ({ instance: null as any }))
+const sseMock = vi.hoisted(() => ({
+  instance: null as any,
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}))
 
 vi.mock('@/core/composables/useEventStream', () => ({
   useSse: () => sseMock.instance,
 }))
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  }),
+  useToast: () => sseMock.toast,
 }))
 
 describe('Incident Store', () => {
@@ -422,6 +420,28 @@ describe('Incident Store', () => {
       expect(store.activeIncidentIds).toHaveLength(1)
       expect(store.activeIncidentIds).toContain('incident-1')
       expect(store.activeIncidentIds).not.toContain('incident-2')
+    })
+  })
+
+  describe('SSE notifications', () => {
+    it('announces a successful incident resolution', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true },
+      }
+      await nextTick()
+
+      expect(store.activeIncidentIds).toEqual([])
+      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident contained — vault secure.')
+      store.stopPolling()
     })
   })
 })

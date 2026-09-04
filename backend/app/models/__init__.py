@@ -5,6 +5,7 @@ from .dweller import Dweller
 from .exploration import Exploration
 from .game_state import GameState
 from .incident import Incident, IncidentStatus, IncidentType
+from .incident_event import IncidentEvent
 from .item import Item
 from .junk import Junk
 from .llm_interaction import LLMInteraction

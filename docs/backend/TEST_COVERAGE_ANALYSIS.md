@@ -107,13 +107,12 @@ uv run pytest -q  # ~2:30 with xdist
 ```python
 # Instead of per-test engine
 @pytest_asyncio.fixture
-async def engine():
-    ...
+async def engine(): ...
+
 
 # Use session-scoped engine
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def engine():
-    ...
+async def engine(): ...
 ```
 
 ### 2. Coverage Improvements (Expected: 70.93% → 82%+)
@@ -202,7 +201,9 @@ async def engine():
 async def db_session(engine):
     async with engine.connect() as conn:
         txn = await conn.begin()
-        async with AsyncSession(bind=conn, join_transaction_mode="create_savepoint") as session:
+        async with AsyncSession(
+            bind=conn, join_transaction_mode="create_savepoint"
+        ) as session:
             yield session
         await txn.rollback()  # No cleanup needed
 ```

@@ -120,6 +120,7 @@ await crud.dweller.delete(db_session, dweller_id, soft=False)
 from app import crud
 from app.db.session import get_async_session
 
+
 async def soft_delete_dweller_example(dweller_id: UUID4):
     async with get_async_session() as db:
         # Soft delete

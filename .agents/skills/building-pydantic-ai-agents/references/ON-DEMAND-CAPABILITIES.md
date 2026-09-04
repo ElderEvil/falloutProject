@@ -35,9 +35,9 @@ from pydantic_ai import Agent
 from pydantic_ai.capabilities import Capability
 
 refunds = Capability(
-    id='refunds',
-    description='Refund policy tools and instructions.',
-    instructions='Use the refund policy before answering refund questions.',
+    id="refunds",
+    description="Refund policy tools and instructions.",
+    instructions="Use the refund policy before answering refund questions.",
     defer_loading=True,
 )
 
@@ -45,12 +45,12 @@ refunds = Capability(
 @refunds.tool_plain
 def lookup_refund_policy(order_id: str) -> str:
     """Look up whether an order is eligible for a refund."""
-    return f'{order_id} is eligible for a refund for 30 days after purchase.'
+    return f"{order_id} is eligible for a refund for 30 days after purchase."
 
 
 agent = Agent(
-    'anthropic:claude-sonnet-4-6',
-    instructions='Answer as a support assistant.',
+    "anthropic:claude-sonnet-4-6",
+    instructions="Answer as a support assistant.",
     capabilities=[refunds],
 )
 ```
@@ -97,18 +97,18 @@ class SupportDeps:
 class AccountCapability(AbstractCapability[SupportDeps]):
     def get_description(self):
         def describe(ctx: RunContext[SupportDeps]) -> str:
-            return f'Account-management tools for {ctx.deps.plan} plan customers.'
+            return f"Account-management tools for {ctx.deps.plan} plan customers."
 
         return describe
 
     def get_instructions(self):
         def load_instructions(ctx: RunContext[SupportDeps]) -> str:
-            return f'Use account ID {ctx.deps.account_id} for account-management tools.'
+            return f"Use account ID {ctx.deps.account_id} for account-management tools."
 
         return load_instructions
 
 
-account_capability = AccountCapability(id='account-management', defer_loading=True)
+account_capability = AccountCapability(id="account-management", defer_loading=True)
 ```
 
 ## Composition Rules

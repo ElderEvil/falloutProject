@@ -1,65 +1,63 @@
-# Radiation System — Mechanics + UI (Red Health Segment)
+# Radiation System — Current Mechanics & Follow-up
 
-> **Status:** Plan — branch `feat/radiation-mechanics-ui`. Full slice: mechanics + UI.
+> **Status:** Implemented in v2.72.0; RadAway normalization remains proposed.
 > Related: `EXPLORATION_SYSTEM.md`, `RESOURCE_ECONOMY_BALANCE.md`, `DWELLER_TEMPLATES.md`
-> Shelter reference: rads eat max HP from the right (red segment), healed only by RadAway.
 
-## 1. Goal
+## Current mechanics
 
-Make radiation a real system instead of a vestigial field:
+Radiation is a dweller value capped at 1,000. It is gained through wasteland radiation events and Radscorpion incident damage; it reduces happiness above 50 rads and causes death at the configurable `death.radiation_death_threshold` (1,000 by default).
 
-- **Mechanics:** something actually adds rads; effects and tuning are deliberate and tested.
-- **UI:** every health bar shows radiation as a red segment (no more yellow-number-only display).
+| Area | Behavior |
+|---|---|
+| Wasteland | Danger templates containing `rad` create `radiation_gain`, mitigated by Endurance (`max(2, 12 - endurance)`). The exploration event is recorded and live explorer updates include radiation. |
+| Incidents | A Radscorpion attack adds radiation alongside its health damage. |
+| Health bars | `UProgressBar` renders radiation as a red segment that replaces the rightmost healthy portion. It is used by the dweller card/grid and explorer summary/detail views. |
+| Consequences | Happiness loses 1 point per tick when radiation is above 50. The game loop records a radiation death once radiation reaches the configured threshold. |
+| Manual treatment | `POST /dwellers/{id}/use_radaway` consumes one carried RadAway. The detail UI can issue RadAway from vault storage before use. |
+| Exploration treatment | An explorer consumes one carried RadAway automatically when radiation is above the exploration threshold; its event log records the removal. |
 
-## 2. Current State (verified on master @ 2.71.1)
+## RadAway behavior
 
-| Area | What exists | Gap |
-|---|---|---|
-| Field | `Dweller.radiation` (int, default 0); newborns/recycled 0 | — |
-| Healing | `crud.dweller.use_radaway` removes 50% (`crud/dweller.py:514`); `POST /dwellers/{id}/use_radaway`; exploration auto-uses RadAway when rads > 30 (`exploration/event_service.py:214`) | Works, keep |
-| Effects | Happiness penalty when rads > 50 (`happiness_service.py:216,360`); death at `death.radiation_death_threshold` (`game_loop.py:398`); death-cause tracking | Works, needs tuning decision (§4.1) |
-| Sources | **None found.** Exploration danger templates mention "rads" (`data/exploration/event_templates.json`) but `event_generator.py` emits only `health_loss`. No incident / water-shortage path adds rads | **Core gap (Unit 1)** |
-| UI | `DwellerCard.vue` shows rads as numeric yellow stat-row + RadAway button; `DwellerGridItem.vue` green-only `.health-fill`; `ExplorerSummaryCard.vue` health-width bar | **No red segment anywhere (Units 3–4)** |
-| Frontend logic | `useDwellerMedicalStore.useRadaway` wired and working | Keep |
+### Current behavior
 
-## 3. Plan
+Both manual and exploration paths remove half of the *current* radiation:
 
-### Unit 1 — Radiation sources (core gap)
+```text
+radiation_removed = floor(current_radiation * 0.5)
+```
 
-- Exploration rad events add `dweller.radiation` (endurance-mitigated, mirroring combat damage formula `max(1, base - endurance*2)` style). Touch: `exploration/event_generator.py`, `exploration/event_service.py` (`_apply_health_loss` area).
-- One vault-side source: water shortage and/or incidents (owner decision, §4.2). Candidate: `resource_manager.py` (water == 0 tick) or incident service.
-- Tuning via `game_config.py` (new `RadiationConfig` or extend `DeathConfig`): per-event rad range, vault-source rate.
-- Tests first (repo bugfix workflow): rad event raises `radiation`; endurance reduces it.
-- Success: an explorer can return glowing; a vault can accumulate rads without exploring.
+This halves the remaining amount each time, so multiple uses approach zero without necessarily clearing it. The paths duplicate this calculation and do not use the same threshold unit:
 
-### Unit 2 — Effect model (decision, §4.1)
+- Chat recommends RadAway at `radiation / max_health >= 30%`.
+- Exploration auto-use checks the raw radiation value `> 30`.
 
-- Recommended: keep threshold-death + happiness penalty, tune numbers only. Full Shelter model (rads eat effective max HP) rejected for now — it ripples into combat/exploration/death math.
-- Success: documented thresholds + boundary tests (below/at/above death threshold, happiness at 50).
+### Proposed normalization
 
-### Unit 3 — Shared `RadiationHealthBar` component
+Adopt a fixed RadAway capacity: one item removes up to 50% of the dweller's maximum health worth of radiation, clearing a smaller remaining amount.
 
-- One component: green HP fill + red rad segment, theme tokens only (no hardcoded colors; follow `DwellerBadge` `--badge-color` / `color-mix` pattern used in ChildrenList fix).
-- Props: `health`, `maxHealth`, `radiation` (+ `size` if needed). Reuse, don't duplicate.
-- Success: unit tests for 0 / partial / full rads; replaces ad-hoc fills (net-LOC negative).
+```text
+radiation_removed = min(current_radiation, floor(max_health * 0.5))
+new_radiation = current_radiation - radiation_removed
+```
 
-### Unit 4 — UI integration
+For a dweller with `max_health = 130`, one RadAway removes at most 65 radiation. The same max-health-relative threshold should govern chat recommendations and exploration auto-use.
 
-- `DwellerGridItem.vue` (`.health-fill`), `ExplorerSummaryCard.vue` (health width bar), `DwellerCard.vue`/detail view. Keep numeric rad readout + RadAway button in `DwellerCard` (already coherent).
-- Success: red segment visible wherever HP shows; `pnpm run lint && pnpm run typecheck`; component tests green.
+## Implementation checklist
 
-### Unit 5 — Balance + verification
+1. Add one backend medical helper/service for RadAway removal; use it from the manual endpoint/CRUD path and exploration auto-use. Inventory ownership stays separate: a dweller carries manual supplies, while an exploration carries its own supplies.
+2. Define one shared RadAway threshold as a percentage of `max_health`; use it for chat medical recommendations (including deterministic action validation) and exploration auto-use. Expose it as configuration if tuning requires it.
+3. Write regression tests before changing behavior: low radiation clears; high radiation removes exactly half of max health; repeated uses remove fixed chunks; radiation never becomes negative; manual and exploration removal paths agree; and changing the shared threshold changes both chat and exploration decisions together.
+4. Keep the existing health-bar contract: red radiation consumes visible healthy width and remains visible even at full health.
+5. Recheck medical production against the changed RadAway demand, then run the full backend and frontend suites plus an end-to-end exploration flow.
 
-- Re-check `RESOURCE_MEDICAL_PRODUCTION_RATE` (0.01) against new RadAway demand; adjust if explorers burn through stock.
-- Full backend suite + frontend suite; manual end-to-end: trigger rad event → red segment → use RadAway → segment shrinks.
+## Decisions still needed
 
-## 4. Open Decisions (owner)
+1. Should passive decay exist, or should only RadAway remove radiation? Recommendation: RadAway only, so the system retains a meaningful inventory decision.
+2. Should water shortage become a separate vault-wide radiation source? It is not part of the implemented system today.
+3. Is a direct-use audit event needed, so player-initiated use can be distinguished from a chat recommendation or exploration auto-use?
 
-1. **Effect model:** (a) threshold-death + happiness (recommended) vs (b) rads-eat-max-HP.
-2. **Vault-side source:** water shortage vs incidents vs both.
-3. **Passive decay:** do rads fade slowly over time, or only via RadAway? (Recommend: RadAway only — gives the stat purpose.)
+## Non-goals
 
-## 5. Non-Goals
-
-- No new rooms/items (no RadAway crafting); no ghoul-immunity mechanics; no changes to death-claim flow beyond thresholds.
-- No endpoint shape changes (`use_radaway` contract stays).
+- No new rooms, crafting recipes, or ghoul-immunity mechanics.
+- No API shape change for `use_radaway`.
+- No replacement of the current threshold-death model with effective-max-health damage without a dedicated design decision.

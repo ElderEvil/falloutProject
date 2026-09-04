@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.76.0 (2026-09-04)
+
+### Features
+
+* extend shared terminal loading states 5403ac1
+
+### Bug Fixes
+
+* preserve dweller loading height d8e27f9
+
 ## 2.75.1 (2026-09-04)
 
 ### Bug Fixes

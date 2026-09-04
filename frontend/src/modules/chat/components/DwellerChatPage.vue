@@ -4,12 +4,12 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { UButton, UCard } from '@/core/components/ui'
-import { Icon } from '@iconify/vue'
+import { UButton } from '@/core/components/ui'
 import DwellerChat from './DwellerChat.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
+import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -52,19 +52,7 @@ onMounted(async () => {
 <template>
   <div class="dweller-chat-page">
     <!-- Loading State -->
-    <div v-if="isLoading" class="loading-state">
-      <UCard glow crt padding="lg">
-        <div class="loading-content">
-          <Icon icon="mdi:loading" class="loading-spinner" />
-          <p class="loading-text">Establishing connection to dweller...</p>
-          <div class="loading-bars">
-            <div class="loading-bar flicker" />
-            <div class="loading-bar flicker-slow" />
-            <div class="loading-bar flicker-random" />
-          </div>
-        </div>
-      </UCard>
-    </div>
+    <TerminalLoadingState v-if="isLoading" full-height message="Establishing connection to dweller..." />
 
     <!-- Content -->
     <template v-else-if="dweller">
@@ -112,63 +100,6 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-/* Loading State */
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  padding: 2rem;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.loading-spinner {
-  width: 4rem;
-  height: 4rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 10px var(--color-theme-glow));
-  animation: spin 1.5s linear infinite;
-}
-
-.loading-text {
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
-.loading-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 300px;
-}
-
-.loading-bar {
-  height: 4px;
-  background: var(--color-theme-primary);
-  border-radius: 2px;
-  opacity: 0.3;
-}
-
-.loading-bar:nth-child(1) {
-  width: 100%;
-}
-
-.loading-bar:nth-child(2) {
-  width: 75%;
-}
-
-.loading-bar:nth-child(3) {
-  width: 50%;
-}
-
 /* Empty / No Data State */
 .empty-state {
   display: flex;
@@ -180,12 +111,4 @@ onMounted(async () => {
   opacity: 0.6;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 </style>

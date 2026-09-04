@@ -17,7 +17,7 @@ jobs:
     name: Frontend Tests
     runs-on: ubuntu-latest
     env:
-      PNPM_CONFIG_STORE_DIR: ${{ runner.home }}/.pnpm-store
+      PNPM_CONFIG_STORE_DIR: ~/.pnpm-store
 
     steps:
       - name: Checkout code

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
+import { UButton, USlider } from '@/core/components/ui'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -58,6 +59,38 @@ describe('ExplorationDurationModal', () => {
       expect(buttons).toHaveLength(6)
       expect(buttons[0].text()).toBe('1h')
       expect(buttons[5].text()).toBe('24h')
+    })
+
+    it('uses theme-primary accents for both medical supply sliders', () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+        },
+      })
+
+      expect(wrapper.findAllComponents(USlider)).toHaveLength(2)
+      expect(wrapper.findAllComponents(USlider).every((slider) => slider.props('accent') === 'primary')).toBe(true)
+      expect(wrapper.html()).not.toMatch(/bg-black|rgba\(|text-orange/)
+    })
+
+    it('uses matched terminal actions for cancellation and departure', () => {
+      const wrapper = mount(ExplorationDurationModal, {
+        props: {
+          show: true,
+          dwellerName: 'TestDweller',
+          maxStimpaks: 10,
+          maxRadaways: 10,
+        },
+      })
+
+      const actions = wrapper.findAllComponents(UButton)
+
+      expect(actions).toHaveLength(2)
+      expect(actions[0].props()).toMatchObject({ variant: 'secondary', size: 'lg' })
+      expect(actions[1].props()).toMatchObject({ variant: 'primary', size: 'lg' })
     })
   })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { USlider } from '@/core/components/ui'
+import { UButton, USlider } from '@/core/components/ui'
 
 interface Props {
   show: boolean
@@ -52,37 +52,37 @@ const handleConfirm = () => {
 </script>
 
 <template>
-  <div v-if="show" class="modal-overlay fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 animate-[fade-in_0.2s_ease-out]" @click="handleCancel">
-    <div class="modal-content w-[90%] max-w-[500px] rounded-xl border-2 border-[rgba(205,133,63,0.6)] bg-[rgba(20,20,20,0.95)] p-8 font-mono animate-[slide-up_0.3s_ease-out]" @click.stop>
-      <h3 class="mb-2 flex items-center gap-2 text-2xl font-bold text-[rgba(205,133,63,1)]">
+  <div v-if="show" class="modal-overlay fixed inset-0 z-[2000] flex items-center justify-center bg-surface-canvas/90 animate-[fade-in_0.2s_ease-out]" @click="handleCancel">
+    <div class="modal-content w-[90%] max-w-[500px] rounded-xl border-2 border-theme-primary/40 bg-surface-raised p-8 font-mono shadow-glow-lg animate-[slide-up_0.3s_ease-out]" @click.stop>
+      <h3 class="mb-2 flex items-center gap-2 text-2xl font-bold text-theme-primary terminal-glow">
         <Icon icon="mdi:clock-outline" class="inline h-6 w-6" />
         Select Exploration Duration
       </h3>
-      <p class="mb-6 text-sm text-[rgba(205,133,63,0.7)]">How long should {{ dwellerName }} explore?</p>
+      <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
       <div class="mb-6 grid grid-cols-3 gap-3">
         <button
           v-for="duration in [1, 2, 4, 8, 12, 24]"
           :key="duration"
           @click="selectedDuration = duration"
-          class="duration-button cursor-pointer rounded-md border-2 border-[rgba(205,133,63,0.4)] bg-[rgba(205,133,63,0.2)] p-3 font-mono text-base font-bold text-[rgba(205,133,63,1)] transition-all duration-200 hover:border-[rgba(205,133,63,0.6)] hover:bg-[rgba(205,133,63,0.3)]"
+          class="duration-button cursor-pointer rounded-md border-2 border-theme-primary/30 bg-theme-primary/10 p-3 font-mono text-base font-bold text-theme-primary transition-all duration-200 hover:border-theme-primary/60 hover:bg-theme-primary/20"
           :class="selectedDuration === duration
-            ? 'active border-[rgba(205,133,63,1)] bg-[rgba(205,133,63,0.5)] shadow-[0_0_15px_rgba(205,133,63,0.4)]'
+            ? 'active border-theme-primary bg-theme-primary/25 shadow-glow-md'
             : ''"
         >
           {{ duration }}h
         </button>
       </div>
 
-      <div class="mb-8 rounded-lg border border-[rgba(205,133,63,0.3)] bg-black/40 p-4">
-        <h4 class="mb-4 flex items-center gap-2 text-base font-bold text-[rgba(205,133,63,1)]">
+      <div class="mb-8 rounded-lg border border-theme-primary/25 bg-surface-sunken p-4">
+        <h4 class="mb-4 flex items-center gap-2 text-base font-bold text-theme-primary">
           <Icon icon="mdi:medical-bag" class="inline h-5 w-5" />
           Medical Supplies
         </h4>
         <div class="flex flex-col gap-5">
           <div class="flex flex-col">
             <div class="flex items-center justify-between mb-1">
-              <label class="text-xs">Stimpaks (Heals HP)</label>
-              <span class="text-xs font-bold"
+              <label class="text-xs text-theme-primary/80">Stimpaks (Heals HP)</label>
+              <span class="text-xs font-bold text-theme-primary"
                 >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
               >
             </div>
@@ -90,14 +90,13 @@ const handleConfirm = () => {
               v-model="selectedStimpaks"
               :min="0"
               :max="Math.min(maxStimpaks, 15)"
-              accent="success"
               aria-label="Stimpaks to carry"
             />
           </div>
           <div class="flex flex-col">
             <div class="flex items-center justify-between mb-1">
-              <label class="text-xs">RadAway (Removes Rads)</label>
-              <span class="text-xs font-bold"
+              <label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</label>
+              <span class="text-xs font-bold text-theme-primary"
                 >{{ selectedRadaways }} / {{ maxRadaways }}</span
               >
             </div>
@@ -105,32 +104,34 @@ const handleConfirm = () => {
               v-model="selectedRadaways"
               :min="0"
               :max="Math.min(maxRadaways, 15)"
-              accent="caps"
               aria-label="RadAway to carry"
             />
           </div>
         </div>
-        <p class="text-[10px] text-orange-400 mt-2">
+        <p class="mt-2 text-[10px] text-theme-primary/55">
           * Selected items will be removed from vault storage and used automatically in the
           wasteland.
         </p>
       </div>
 
       <div class="flex justify-end gap-3">
-        <button
+        <UButton
           @click="handleCancel"
-          class="modal-button cancel flex cursor-pointer items-center gap-2 rounded-md border-2 border-[rgba(128,128,128,0.5)] bg-[rgba(128,128,128,0.2)] px-6 py-3 font-mono font-bold text-[rgba(200,200,200,1)] transition-all duration-200 hover:border-[rgba(128,128,128,0.8)] hover:bg-[rgba(128,128,128,0.3)]"
+          class="modal-button cancel"
+          variant="secondary"
+          size="lg"
         >
           <Icon icon="mdi:close" class="h-5 w-5" />
           Cancel
-        </button>
-        <button
+        </UButton>
+        <UButton
           @click="handleConfirm"
-          class="modal-button confirm flex cursor-pointer items-center gap-2 rounded-md border-2 border-theme-primary bg-theme-glow px-6 py-3 font-mono font-bold text-theme-primary transition-all duration-200 hover:shadow-[0_0_15px_var(--color-theme-glow)]"
+          class="modal-button confirm"
+          size="lg"
         >
           <Icon icon="mdi:check" class="h-5 w-5" />
           Send to Wasteland
-        </button>
+        </UButton>
       </div>
     </div>
   </div>

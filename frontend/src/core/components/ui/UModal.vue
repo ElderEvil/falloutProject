@@ -15,7 +15,7 @@ import { useModalBehavior } from '@/core/composables/useModalBehavior'
 interface Props {
   modelValue: boolean
   title?: string
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  size?: 'sm' | 'md' | 'wide' | 'lg' | 'xl' | 'full'
   surface?: 'base' | 'raised' | 'sunken'
   closeOnEscape?: boolean
   closeOnClickOutside?: boolean
@@ -38,6 +38,7 @@ const emit = defineEmits<{
 const sizeClasses = {
   sm: 'max-w-sm max-h-[60vh]',
   md: 'max-w-md max-h-[65vh]',
+  wide: 'max-w-xl max-h-[75vh]',
   lg: 'max-w-5xl max-h-[80vh]',
   xl: 'max-w-6xl max-h-[90vh]',
   full: 'max-w-full mx-4 max-h-[90vh]',
@@ -77,7 +78,7 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
     <Transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 bg-surface-canvas/85 flex items-center justify-center z-modal"
+        class="fixed inset-0 z-modal flex items-center justify-center bg-surface-canvas/85"
         @click="handleBackdropClick"
       >
         <!-- Modal Content -->
@@ -88,8 +89,8 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
           aria-modal="true"
           v-bind="modalLabel"
           :class="[
-            'border-2 rounded-lg w-full crt-screen flex flex-col overflow-hidden',
-            'border-terminal-green',
+            'flex w-full flex-col overflow-hidden rounded-lg border-2 crt-screen',
+            'border-theme-primary',
             surfaceClasses[surface],
             sizeClasses[size],
           ]"
@@ -99,12 +100,16 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
           <!-- Header -->
           <div
             v-if="$slots.header || title"
-            class="flex items-center justify-between p-6 pb-4 flex-shrink-0"
+            class="flex flex-shrink-0 items-center justify-between border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
           >
-            <slot name="header">
-              <h2 :id="modalTitleId" class="text-2xl font-bold terminal-glow">{{ title }}</h2>
+            <slot name="header" :title-id="modalTitleId">
+              <h2 :id="modalTitleId" class="text-2xl font-bold text-theme-primary terminal-glow">{{ title }}</h2>
             </slot>
-            <button @click="close" class="modal-close-btn flex-shrink-0" aria-label="Close modal">
+            <button
+              @click="close"
+              class="flex-shrink-0 cursor-pointer p-1 text-theme-primary/60 transition-all hover:text-theme-primary hover:scale-110"
+              aria-label="Close modal"
+            >
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
@@ -122,7 +127,7 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
           </div>
 
           <!-- Footer -->
-          <div v-if="$slots.footer" class="flex justify-end space-x-4 px-5 pt-3 pb-5 flex-shrink-0">
+          <div v-if="$slots.footer" class="flex flex-shrink-0 justify-end border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5">
             <slot name="footer">
               <UButton variant="secondary" @click="close">Cancel</UButton>
               <UButton variant="primary">Confirm</UButton>
@@ -145,17 +150,4 @@ const { handleKeydown } = useModalBehavior(() => modelValue, close, {
   opacity: 0;
 }
 
-.modal-close-btn {
-  background: none;
-  border: none;
-  color: var(--color-gray-500);
-  cursor: pointer;
-  padding: 0.25rem;
-  transition: all 0.2s;
-}
-
-.modal-close-btn:hover {
-  color: var(--color-terminal-green);
-  transform: scale(1.1);
-}
 </style>

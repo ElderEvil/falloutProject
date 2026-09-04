@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { UButton, UModal } from '@/core/components/ui'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -34,6 +35,19 @@ const quest = {
 } as VaultQuest
 
 describe('QuestRewardsModal', () => {
+  it('uses a compact terminal modal frame without redundant status text', () => {
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.findComponent(UModal).props('size')).toBe('wide')
+    expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
+    expect(wrapper.get('.quest-return-banner').classes()).toContain('border-theme-primary/30')
+    expect(wrapper.get('.quest-return-banner').classes()).toContain('mt-5')
+    expect(wrapper.get('.quest-return-banner').classes()).not.toContain('terminal-glow')
+  })
+
   it('uses the shared terminal actions for reviewing and claiming rewards', () => {
     const wrapper = mount(QuestRewardsModal, {
       props: { show: true, quest },
@@ -43,6 +57,12 @@ describe('QuestRewardsModal', () => {
     const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
 
     expect(actions.exists()).toBe(true)
+    expect(actions.props('alignment')).toBe('between')
+    expect(actions.classes()).toContain('w-full')
+    expect(actions.classes()).toContain('flex-nowrap')
+    expect(actions.classes()).toContain('justify-between')
+    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('shrink-0'))).toBe(true)
+    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
     expect(actions.text()).toContain('Review Later')
     expect(actions.text()).toContain('Confirm & Claim')
   })

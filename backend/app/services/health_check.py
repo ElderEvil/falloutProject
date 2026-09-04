@@ -358,11 +358,15 @@ class HealthCheckService:
         engine: AsyncEngine,
         *,
         include_dramatiq: bool = True,
-        include_smtp: bool = True,
+        include_smtp: bool = False,
         include_ollama: bool = False,
         include_rustfs: bool = True,
     ) -> dict[str, HealthCheckResult]:
-        """Check all services and return results."""
+        """Check all services and return results.
+
+        SMTP is opt-in (no mail provider in production yet); pass
+        include_smtp=True to probe it explicitly via check_smtp().
+        """
         results = {}
 
         # Check PostgreSQL

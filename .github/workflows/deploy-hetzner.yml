@@ -4,14 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Image tag to deploy (e.g., latest, sha-abc123)'
-        required: false
-        default: 'latest'
+        description: 'Versioned image tag to deploy (e.g., v2.74.1)'
+        required: true
       run_migrations:
         description: 'Run database migrations'
         required: false
         type: boolean
         default: true
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -41,8 +43,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           set -euo pipefail
-          if [[ "$IMAGE_TAG" != "latest" && ! "$IMAGE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::image_tag must be 'latest' or a full SemVer tag (e.g. v2.42.0); build.yml only pushes those tags. Got: $IMAGE_TAG"
+          if [[ ! "$IMAGE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::image_tag must be a full SemVer tag (e.g. v2.42.0); latest is not deployable. Got: $IMAGE_TAG"
             exit 1
           fi
           for image in fo-shelter-be fo-shelter-fe; do
@@ -60,6 +62,15 @@ jobs:
           PYDANTIC_AI_GATEWAY_ROUTE: ${{ secrets.PYDANTIC_AI_GATEWAY_ROUTE }}
           PYDANTIC_AI_GATEWAY_BASE_URL: ${{ secrets.PYDANTIC_AI_GATEWAY_BASE_URL }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_TLS: ${{ secrets.SMTP_TLS }}
+          SMTP_SSL: ${{ secrets.SMTP_SSL }}
+          EMAIL_FROM_ADDRESS: ${{ secrets.EMAIL_FROM_ADDRESS }}
+          EMAIL_FROM_NAME: ${{ secrets.EMAIL_FROM_NAME }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           set -euo pipefail
           for name in PYDANTIC_AI_GATEWAY_API_KEY PYDANTIC_AI_GATEWAY_ROUTE PYDANTIC_AI_GATEWAY_BASE_URL LOGFIRE_TOKEN; do
@@ -74,31 +85,29 @@ jobs:
             --arg gateway_route "$PYDANTIC_AI_GATEWAY_ROUTE" \
             --arg gateway_base_url "$PYDANTIC_AI_GATEWAY_BASE_URL" \
             --arg logfire_token "$LOGFIRE_TOKEN" \
-            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token}}' \
+            --arg smtp_host "${SMTP_HOST:-localhost}" \
+            --arg smtp_port "${SMTP_PORT:-1025}" \
+            --arg smtp_user "${SMTP_USER:-}" \
+            --arg smtp_password "${SMTP_PASSWORD:-}" \
+            --arg smtp_tls "${SMTP_TLS:-false}" \
+            --arg smtp_ssl "${SMTP_SSL:-false}" \
+            --arg email_from_address "${EMAIL_FROM_ADDRESS:-noreply@falloutshelter.com}" \
+            --arg email_from_name "${EMAIL_FROM_NAME:-Fallout Shelter}" \
+            --arg frontend_url "${FRONTEND_URL:-https://fallout.evillab.tech}" \
+            '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url}}' \
             | ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 
       - name: Update images
         run: |
-          TAG="${{ inputs.image_tag }}"
-          echo "Deploying tag: $TAG"
-
-          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << EOF
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
-
-            echo "Updating backend..."
             kubectl set image deployment/backend -n fallout \
-              backend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:$TAG
-
-            echo "Updating dramatiq-worker..."
+              backend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
             kubectl set image deployment/dramatiq-worker -n fallout \
-              dramatiq-worker=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:$TAG
-
-            echo "Updating frontend..."
+              dramatiq-worker=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
             kubectl set image deployment/frontend -n fallout \
-              frontend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:$TAG
-
-            echo "Updated all images. Waiting for rollouts..."
+              frontend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ inputs.image_tag }}
           EOF
 
       - name: Configure persistent application logs
@@ -123,23 +132,15 @@ jobs:
           ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
 
-            echo "Restarting backend..."
-            kubectl rollout restart deployment/backend -n fallout
+            for deployment in backend dramatiq-worker frontend; do
+              echo "Restarting $deployment..."
+              kubectl rollout restart "deployment/$deployment" -n fallout
+            done
 
-            echo "Restarting dramatiq-worker..."
-            kubectl rollout restart deployment/dramatiq-worker -n fallout
-
-            echo "Restarting frontend..."
-            kubectl rollout restart deployment/frontend -n fallout
-
-            echo "Waiting for backend..."
-            kubectl rollout status deployment/backend -n fallout --timeout=300s
-
-            echo "Waiting for dramatiq-worker..."
-            kubectl rollout status deployment/dramatiq-worker -n fallout --timeout=300s
-
-            echo "Waiting for frontend..."
-            kubectl rollout status deployment/frontend -n fallout --timeout=300s
+            for deployment in backend dramatiq-worker frontend; do
+              echo "Waiting for $deployment..."
+              kubectl rollout status "deployment/$deployment" -n fallout --timeout=300s
+            done
 
             echo "All rollouts complete."
           EOF
@@ -174,7 +175,7 @@ jobs:
             while [ "$n" -lt "$MAX_RETRIES" ]; do
               n=$((n + 1))
               echo "  attempt $n/$MAX_RETRIES..."
-              if kubectl exec deployment/backend -n fallout -- python3 -c "import urllib.request,sys;r=urllib.request.urlopen('http://localhost:8000/healthcheck',timeout=10);b=r.read().decode();import json;d=json.loads(b);assert d.get('status')=='ok' or d.get('ok') is True" 2>/dev/null; then
+              if kubectl exec deployment/backend -n fallout -- python3 -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://localhost:8000/healthcheck?detailed=true',timeout=10));assert d.get('status') == 'ok', d" 2>/dev/null; then
                 echo "  Health check passed."
                 exit 0
               fi
@@ -217,21 +218,3 @@ jobs:
 
             echo "Cleanup done."
           EOF
-
-      - name: Deployment summary
-        run: |
-          echo "## Deploy to Hetzner k3s" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Image tag | \`${{ inputs.image_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Migrations | ${{ inputs.run_migrations }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Host | ${{ secrets.HETZNER_HOST }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Namespace | \`fallout\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Backend: \`${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - Deployment: \`backend\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - Deployment: \`dramatiq-worker\`" >> $GITHUB_STEP_SUMMARY
-          echo "Frontend: \`${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Deployment completed" >> $GITHUB_STEP_SUMMARY

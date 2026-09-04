@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
 import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
@@ -95,15 +96,13 @@ const getDwellerOutfit = (dwellerId: string) => {
               <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
             </div>
           </div>
-          <!-- Progress Bar -->
-          <div class="progress-bar-container">
-            <div
-              class="progress-bar"
-              :style="{
-                width: `${getProgressPercentage(exploration)}%`,
-              }"
-            ></div>
-          </div>
+          <UProgressBar
+            :model-value="getProgressPercentage(exploration)"
+            :height="8"
+            :glow="false"
+            color="linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))"
+            :ariaLabel="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
+          />
           <div class="text-xs text-wasteland-dim mt-1">
             {{ Math.round(getProgressPercentage(exploration)) }}% complete
           </div>
@@ -221,22 +220,6 @@ const getDwellerOutfit = (dwellerId: string) => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 0.5rem;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(205, 133, 63, 0.6), rgba(205, 133, 63, 1));
-  border-radius: 4px;
-  transition: width 0.3s ease;
 }
 
 .explorer-actions {

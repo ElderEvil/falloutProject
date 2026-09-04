@@ -1,7 +1,7 @@
 # UI Consolidation Audit
 
-**Status:** Audit complete; first modal behavior batch complete; further consolidation pending
-**Date:** 2026-09-03
+**Status:** Audit complete; modal, page-shell, tabs, progress, and exploration-summary batches complete; further consolidation pending
+**Date:** 2026-09-04
 **Scope:** Vue UI components, views, shared UI primitives, and terminal-theme patterns
 
 ## Objective
@@ -56,7 +56,7 @@ References: `UTabs.vue:33`, `QuestsView.vue:239`, `ObjectivesView.vue:62`.
 
 `UProgressBar` exists, but simple progress bars are reimplemented in Objective cards, active explorations, combat, storage, room population, and SPECIAL stats. These copies differ in border radius, track color, fill color, and accessibility semantics.
 
-**Result:** `ObjectiveCard`, the locked-room population meter, and the combat threat meter now use `UProgressBar` for simple percentage bars, including shared clamping and progress semantics. Their duplicate track/fill markup was removed while the room meter’s blue treatment and combat meter’s green treatment were preserved.
+**Result:** `ObjectiveCard`, the locked-room population meter, the combat threat meter, and `ActiveExplorationList` now use `UProgressBar` for simple percentage bars, including shared clamping and progress semantics. Their duplicate track/fill markup was removed while the room meter’s blue treatment, combat meter’s green treatment, and exploration meter’s wasteland-amber treatment were preserved.
 
 **Next action:** migrate remaining simple percentage bars. Keep domain-specific wrappers such as resource readouts and combat meters where they add meaningful information, extending `UProgressBar` only when a shared variant is clearly justified.
 
@@ -76,7 +76,7 @@ The explorer and quest-team card placement is intentional and useful. The incons
 
 Quest status is already refreshed by the exploration page polling cycle. Detailed quest management should remain in `/quests`; this summary should be read-only unless the badges become links to the relevant content.
 
-**Next action:** remove the duplicated header badges and retain the section-level counts. If a quick page summary is still desired, replace them with a compact shared `TerminalMetric` group using the labels `EXPEDITIONS` and `QUEST PARTIES`, the same definitions as the section counters, and optional links/scroll targets. Do not change the placement of explorer or quest-party cards.
+**Result:** The duplicated header badges were removed. The section-level `deployed` and `in progress` counts remain the single source of activity status; explorer and quest-party card placement is unchanged.
 
 References: `ExplorationView.vue:237`, `ExplorationView.vue:303`, `ExplorationView.vue:326`, `ExplorationView.vue:102`, `TerminalMetric.vue:22`.
 
@@ -84,7 +84,9 @@ References: `ExplorationView.vue:237`, `ExplorationView.vue:303`, `ExplorationVi
 
 `UButton` is the project action primitive, but common actions still use local button CSS: retry, refresh, vault load/delete, explorer complete/recall, and several modal actions. This produces different padding, borders, hover behavior, loading behavior, and focus states for equivalent actions.
 
-**Next action:** migrate standard text actions to `UButton`. Add a small `UIconButton` primitive for icon-only controls, with required accessible labels and consistent focus treatment. Add a contextual variant only where the wasteland/amber styling is intentional.
+**Result:** `ActiveExplorationList` completion and recall actions now use `UButton` primary and secondary variants; their local button CSS was removed.
+
+**Next action:** migrate remaining standard text actions to `UButton`. Add a small `UIconButton` primitive for icon-only controls, with required accessible labels and consistent focus treatment. Add a contextual variant only where the wasteland/amber styling is intentional.
 
 References: `UButton.vue:14`, `HappinessView.vue:120`, `VaultList.vue:73`, `TrainingQueuePanel.vue:123`, `ExplorerCard.vue:122`.
 
@@ -173,6 +175,7 @@ Prefer browser DevTools, the production build output, and existing unit/manual c
 | Vault page shell | Shared sidebar offset/layout shell adopted by Trading Post, Training Center, and Relationships | Not measured for this structural batch | Not measured for this structural batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 kB / 13.44 kB gzip; new shell chunk 0.56 kB / 0.39 kB gzip | 0 / 0 | 2 new shell tests; full suite 1,424 passed / 1 skipped; typecheck, lint, and production build passed |
 | Tabs | Quests and Objectives adopted shared `UTabs` with optional icons; duplicate tab markup and CSS removed | Not measured for this UI-only batch | Not measured for this UI-only batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS 37.27 → 37.38 kB / 13.44 → 13.46 kB gzip | 0 / 0 | Focused tab/view tests, full suite, typecheck, lint, and production build passed; behavior preserved |
 | Simple progress bars | `ObjectiveCard`, the locked-room population meter, and the combat threat meter adopted shared `UProgressBar`; duplicate markup removed | Not measured for this UI-only batch | Not measured for this UI-only batch | CSS 119.03 kB / 18.08 kB gzip; shared UI JS unchanged at 37.38 kB / 13.46 kB gzip | 0 / 0 | Added ObjectiveCard coverage; focused checks and full suite 1,426 passed / 1 skipped; typecheck, lint, and production build passed |
+| Exploration activity summary | Removed duplicate header badges; adopted shared progress and action primitives; deduplicated manually acknowledged completion reports from delayed SSE events | Not measured | Not measured | Not measured | 1 popup-reopen regression fixed / 0 | Regression test plus full suite: 1,441 passed / 1 skipped; lint and typecheck passed |
 
 ### Bug-fix accounting
 

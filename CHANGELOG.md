@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.77.0 (2026-09-04)
+
+### Features
+
+* improve dweller chat experience b8a731b
+
 ## 2.76.0 (2026-09-04)
 
 ### Features

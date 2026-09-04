@@ -15,6 +15,12 @@ import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
+const { usePollingMock } = vi.hoisted(() => ({ usePollingMock: vi.fn() }))
+
+vi.mock('@/core/composables/usePolling', () => ({
+  usePolling: usePollingMock,
+}))
+
 describe('ProfileView', () => {
   let router: any
   let authStore: any
@@ -74,6 +80,7 @@ describe('ProfileView', () => {
     })
 
     vi.clearAllMocks()
+    usePollingMock.mockReturnValue({})
   })
 
   // Helper to mock both API calls
@@ -135,6 +142,25 @@ describe('ProfileView', () => {
       await flushPromises()
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+    })
+
+    it('refreshes the vault record while the profile is open', async () => {
+      mockBothApis()
+
+      mount(ProfileView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+
+      expect(vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')).toHaveLength(1)
+
+      const refresh = usePollingMock.mock.calls[0]?.[0]
+      expect(refresh).toBeTypeOf('function')
+      await refresh?.()
+
+      expect(vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')).toHaveLength(2)
     })
 
     it('should fetch death statistics on mount', async () => {

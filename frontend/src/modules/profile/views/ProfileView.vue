@@ -63,7 +63,7 @@ const { connect, on, disconnect } = useWebSocket()
 // automatically pauses when this view's scope is disposed.
 usePolling(
   async () => {
-    await Promise.all([profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
+    await Promise.all([profileStore.fetchProfile(), profileStore.fetchDeathStatistics(), profileStore.fetchAIUsage()])
   },
   { interval: 30_000, immediate: false }
 )

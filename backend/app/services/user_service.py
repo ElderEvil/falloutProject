@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.email import send_verification_email
 from app.crud.user_profile import profile_crud
 from app.models.user import User
+from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserWithTokens
 from app.utils.exceptions import AccessDeniedException, ResourceAlreadyExistsException
 
@@ -110,8 +111,8 @@ class UserService:
         if amount <= 0:
             return
 
-        vault = await crud.vault.get(db_session, vault_id)
-        if vault.user_id:
+        vault = await db_session.get(Vault, vault_id)
+        if isinstance(vault, Vault) and vault.user_id:
             await profile_crud.increment_statistic(db_session, vault.user_id, statistic, amount, commit=commit)
 
 

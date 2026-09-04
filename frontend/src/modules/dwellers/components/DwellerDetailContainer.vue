@@ -44,7 +44,6 @@ const ctx = useDwellerDetail(dwellerId, vaultId)
 provide(dwellerDetailKey, ctx)
 
 const dweller = computed(() => ctx.dweller.value)
-// Local refs aliasing the context flags so v-model binds to the same underlying state.
 const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
@@ -55,7 +54,7 @@ const wastelandModalOpen = ctx.wastelandModalOpen
 
 <template>
   <div>
-    <TerminalLoadingState v-if="ctx.loading.value" message="Loading dweller details..." />
+    <TerminalLoadingState v-if="ctx.loading.value" full-height message="Loading dweller details..." />
 
     <div v-else-if="!dweller" class="error-container">
       <Icon icon="mdi:alert-circle" class="error-icon" />

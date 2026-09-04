@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import apiClient from '@/core/plugins/axios'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -20,14 +19,14 @@ import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
 
-const router = useRouter()
-
 const props = defineProps<{
   dwellerId: string
   dwellerName: string
   username: string
   dwellerAvatar?: string
   vaultId?: string | null
+  dwellerStatus?: string
+  roomName?: string | null
 }>()
 
 const authStore = useAuthStore()
@@ -38,6 +37,15 @@ const isSendingAudio = ref(false)
 const audioMode = ref(false)
 
 const userAvatarUrl = computed(() => profileStore.profile?.avatar_url ?? undefined)
+const dwellerActivity = computed(() => {
+  if (props.dwellerStatus === 'exploring') return 'EXPLORING'
+  if (props.dwellerStatus === 'questing') return 'ON QUEST'
+  if (props.roomName) {
+    const activity = props.dwellerStatus === 'working' ? 'ON DUTY' : props.dwellerStatus?.toUpperCase()
+    return `${activity ?? 'ON DUTY'} · ${props.roomName.toUpperCase()}`
+  }
+  return props.dwellerStatus && props.dwellerStatus !== 'idle' ? props.dwellerStatus.toUpperCase() : 'AVAILABLE'
+})
 
 // Quota exceeded state
 const isQuotaExceeded = computed(() => profileStore.quotaExceeded)
@@ -59,15 +67,9 @@ const chatBudgetSummary = computed(() => {
   return `${stats.quota_remaining.toLocaleString()} tokens remaining`
 })
 
-const placeLinks = computed(() =>
-  mapStore.locations
-    .filter((location) => location.dwellers?.some((dweller) => dweller.dweller_id === props.dwellerId))
-    .map((location): MapPlaceLink => ({ name: location.name, locationId: location.id }))
-)
-
-const goToProfile = () => {
-  router.push('/profile')
-}
+const placeLinks = computed(() => mapStore.locations
+  .filter((location) => location.dwellers?.some((dweller) => dweller.dweller_id === props.dwellerId))
+  .map((location): MapPlaceLink => ({ name: location.name, locationId: location.id })))
 
 const {
   recordingState,
@@ -95,6 +97,7 @@ const {
   latestActionSuggestionIndex,
   loadChatHistory,
   sendMessage,
+  retryMessage,
   dismissAction,
   getHappinessColor,
   getHappinessIcon,
@@ -110,6 +113,14 @@ const { currentlyPlayingUrl, stopAudio, playAudio } = useChatAudio()
 const { playSound } = useSound()
 
 const { handleTyping } = useTypingIndicator(chatWs)
+
+const conversationStarters = computed(() =>
+  messages.value.length ? [] : placeLinks.value.slice(0, 3).map(({ name }) => `What can you tell me about ${name}?`)
+)
+const prefillConversationStarter = (message: string) => {
+  userMessage.value = message
+  chatInputRef.value?.focus()
+}
 
 const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatActions({
   dwellerId: props.dwellerId,
@@ -261,11 +272,27 @@ onUnmounted(() => {
       </div>
       <div class="identity-info">
         <span class="identity-name">{{ dwellerName }}</span>
-        <span class="identity-status">Online</span>
+        <span class="identity-status">{{ dwellerActivity }}</span>
       </div>
     </div>
 
     <div ref="chatMessages" class="chat-messages">
+      <div
+        v-if="conversationStarters.length"
+        class="mb-5 flex flex-wrap gap-2 border-b border-theme-primary/15 pb-4"
+        aria-label="Conversation starters"
+      >
+        <p class="w-full text-xs tracking-[0.12em] text-theme-primary/60">VAULT-TEC PROMPTS</p>
+        <button
+          v-for="starter in conversationStarters"
+          :key="starter"
+          type="button"
+          class="conversation-starter border border-theme-primary/35 bg-theme-primary/5 px-2.5 py-1.5 text-left text-xs text-theme-primary transition-colors hover:bg-theme-primary/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary"
+          @click="prefillConversationStarter(starter)"
+        >
+          {{ starter }}
+        </button>
+      </div>
       <ChatMessageList
         :messages="messages"
         :vault-id="vaultId"
@@ -284,6 +311,7 @@ onUnmounted(() => {
         @stop-audio="stopAudio"
         @confirm-action="handleActionConfirm"
         @dismiss-action="dismissAction"
+        @retry-message="retryMessage"
       />
     </div>
 
@@ -292,9 +320,9 @@ onUnmounted(() => {
         <Icon icon="mdi:robot-outline" class="h-4 w-4 text-theme-primary/70" />
         {{ chatBudgetSummary }}
       </span>
-      <button class="text-theme-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary" @click="goToProfile">
+      <RouterLink to="/profile" class="text-theme-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary">
         Usage details
-      </button>
+      </RouterLink>
     </div>
 
     <div v-if="isQuotaExceeded" class="chat-input quota-exceeded">
@@ -304,7 +332,7 @@ onUnmounted(() => {
           <span class="quota-title">Monthly quota exceeded</span>
           <span class="quota-reset">Resets on {{ resetDate }}</span>
         </div>
-        <button class="quota-profile-btn" @click="goToProfile">View Profile</button>
+        <RouterLink to="/profile" class="quota-profile-btn">View Profile</RouterLink>
       </div>
     </div>
 
@@ -312,6 +340,7 @@ onUnmounted(() => {
       <button
         class="mode-toggle-btn"
         :title="audioMode ? 'Switch to text' : 'Switch to voice'"
+        :aria-label="audioMode ? 'Switch to text input' : 'Switch to voice input'"
         @click="audioMode = !audioMode"
       >
         <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
@@ -330,6 +359,7 @@ onUnmounted(() => {
           class="chat-send-btn"
           :class="{ disabled: !canSend }"
           :disabled="!canSend"
+          aria-label="Send message"
           @click="handleSendMessage"
         >
           <Icon icon="mdi:send" class="h-5 w-5" />
@@ -352,16 +382,17 @@ onUnmounted(() => {
           v-if="!isRecording"
           class="record-btn"
           title="Start recording"
+          aria-label="Start recording"
           :disabled="isSendingAudio"
           @click="startRecording"
         >
           <Icon icon="mdi:microphone" class="h-6 w-6" />
         </button>
         <template v-else>
-          <button class="cancel-btn" title="Cancel" @click="cancelRecording">
+          <button class="cancel-btn" title="Cancel" aria-label="Cancel recording" @click="cancelRecording">
             <Icon icon="mdi:close" class="h-5 w-5" />
           </button>
-          <button class="send-audio-btn" title="Send" @click="sendAudioMessage">
+          <button class="send-audio-btn" title="Send recording" aria-label="Send recording" @click="sendAudioMessage">
             <Icon icon="mdi:send" class="h-5 w-5" />
           </button>
         </template>

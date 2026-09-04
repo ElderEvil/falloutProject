@@ -90,6 +90,10 @@ watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {
     if (!pending) return
+    if (explorationStore.consumeAcknowledgedSseReward(pending.dwellerId)) {
+      explorationStore.clearPendingSseRewards()
+      return
+    }
     activeQueuedReportId.value = null
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
@@ -145,7 +149,13 @@ const activeQuestsWithParty = computed(() => {
   })
 })
 
-const handleCompleteExploration = async (explorationId: string) => {
+type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
+
+const finishExploration = async (
+  explorationId: string,
+  action: ExplorationFinishAction,
+  errorMessage: string
+) => {
   if (!authStore.token) return
 
   try {
@@ -155,63 +165,31 @@ const handleCompleteExploration = async (explorationId: string) => {
     const dweller = getDwellerById(exploration.dweller_id)
     if (!dweller) return
 
-    const result = await explorationStore.completeExploration(explorationId, authStore.token)
+    const result = await action(explorationId, authStore.token)
 
-    // Show rewards modal
     if (result?.rewards_summary) {
+      explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
       showRewardsModal.value = true
     }
 
-    // Refresh data
     if (vaultId.value) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
 
-    // Clear selection if completed explorer was selected
-    if (selectedExplorerId.value === explorationId) {
-      selectedExplorerId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to complete exploration')
+    if (selectedExplorerId.value === explorationId) selectedExplorerId.value = null
+  } catch (_error) {
+    toast.error(errorMessage)
   }
 }
 
-const handleRecallExploration = async (explorationId: string) => {
-  if (!authStore.token) return
+const handleCompleteExploration = (explorationId: string) =>
+  finishExploration(explorationId, explorationStore.completeExploration, 'Failed to complete exploration')
 
-  try {
-    const exploration = explorationStore.activeExplorations[explorationId]
-    if (!exploration) return
-
-    const dweller = getDwellerById(exploration.dweller_id)
-    if (!dweller) return
-
-    const result = await explorationStore.recallDweller(explorationId, authStore.token)
-
-    // Show rewards modal
-    if (result?.rewards_summary) {
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
-      showRewardsModal.value = true
-    }
-
-    // Refresh data
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-
-    // Clear selection if recalled explorer was selected
-    if (selectedExplorerId.value === explorationId) {
-      selectedExplorerId.value = null
-    }
-  } catch (error) {
-    toast.error('Failed to recall dweller')
-  }
-}
+const handleRecallExploration = (explorationId: string) =>
+  finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
 
 const closeRewardsModal = () => {
   if (activeQueuedReportId.value) {
@@ -238,22 +216,7 @@ const closeRewardsModal = () => {
           title="Wasteland Exploration"
           icon="mdi:compass"
           subtitle="Monitor active explorations and quest parties"
-        >
-          <template #actions>
-            <div class="flex gap-3">
-              <div class="stat-badge">
-                <Icon icon="mdi:account-search" class="stat-icon" />
-                <span class="stat-value">{{ activeExplorationsArray.length }}</span>
-                <span class="stat-label">Explorations</span>
-              </div>
-              <div class="stat-badge">
-                <Icon icon="mdi:sword-cross" class="stat-icon" />
-                <span class="stat-value">{{ activeQuestsWithParty.length }}</span>
-                <span class="stat-label">Quests</span>
-              </div>
-            </div>
-          </template>
-        </PageHeader>
+        />
 
         <!-- Main Content -->
         <div class="exploration-content">
@@ -391,37 +354,6 @@ const closeRewardsModal = () => {
 
 .exploration-view.collapsed {
   margin-left: 64px;
-}
-
-.stat-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-}
-
-.stat-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-theme-primary);
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .exploration-content {

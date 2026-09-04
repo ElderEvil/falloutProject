@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { nextTick } from 'vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -217,5 +218,40 @@ describe('WastelandPanel', () => {
 
       expect(mockToast.error).toHaveBeenCalledWith('Failed to send dweller to wasteland')
     })
+  })
+
+  it('does not reopen a manually acknowledged completion report from its SSE event', async () => {
+    const rewards = { caps: 100, items: [], experience: 25, distance: 8 }
+    explorationStore.activeExplorations = { 'exploration-1': { id: 'exploration-1', dweller_id: 'dweller-1' } as never }
+    dwellerStore.dwellers = [{ id: 'dweller-1', first_name: 'Test', last_name: 'Dweller' }] as never
+    vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({ rewards_summary: rewards })
+    const wrapper = mount(WastelandPanel, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ActiveExplorationList: {
+            emits: ['complete'],
+            template: '<button class="complete-exploration" @click="$emit(\'complete\', \'exploration-1\')" />',
+          },
+          ExplorationRewardsModal: {
+            props: ['show', 'rewards', 'dwellerName'],
+            emits: ['close'],
+            template: '<button class="rewards-mock" :data-show="show" @click="$emit(\'close\')" />',
+          },
+        },
+      },
+    })
+    await flushPromises()
+    await wrapper.find('.complete-exploration').trigger('click')
+    await flushPromises()
+    const rewardsModal = wrapper.find('.rewards-mock')
+    expect(rewardsModal.attributes('data-show')).toBe('true')
+    await rewardsModal.trigger('click')
+    await nextTick()
+    expect(rewardsModal.attributes('data-show')).toBe('false')
+    explorationStore.pendingSseRewards = { rewards, dwellerId: 'dweller-1' }
+    await nextTick()
+
+    expect(rewardsModal.attributes('data-show')).toBe('false')
   })
 })

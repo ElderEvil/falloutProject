@@ -77,6 +77,10 @@ watch(
   () => explorationStore.pendingSseRewards,
   (pending) => {
     if (!pending) return
+    if (explorationStore.consumeAcknowledgedSseReward(pending.dwellerId)) {
+      explorationStore.clearPendingSseRewards()
+      return
+    }
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
@@ -159,7 +163,13 @@ const handleSendWastelandConfirm = (payload: {
 
 // --- Explorer actions ---
 
-const recallDweller = async (explorationId: string) => {
+type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
+
+const finishExploration = async (
+  explorationId: string,
+  action: ExplorationFinishAction,
+  errorMessage: string
+) => {
   if (!authStore.token) return
 
   try {
@@ -175,66 +185,35 @@ const recallDweller = async (explorationId: string) => {
       return
     }
 
-    const result = await explorationStore.recallDweller(explorationId, authStore.token)
+    const result = await action(explorationId, authStore.token)
 
-    // Show rewards modal
     if (result?.rewards_summary) {
+      explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
       showRewardsModal.value = true
     }
 
-    // Refresh vault and dweller data
     if (vaultId.value) {
       await vaultStore.refreshVault(vaultId.value, authStore.token)
       await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
     }
   } catch (error) {
-    toast.error('Failed to recall dweller')
+    toast.error(errorMessage)
   }
 }
 
+const recallDweller = (explorationId: string) =>
+  finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
+
 const handleCompleteExploration = async (explorationId: string) => {
   if (!authStore.token) return
-
-  // Prevent duplicate calls
-  if (completingExplorations.value.has(explorationId)) {
-    return
-  }
+  if (completingExplorations.value.has(explorationId)) return
 
   completingExplorations.value.add(explorationId)
 
   try {
-    const exploration = explorationStore.activeExplorations[explorationId]
-    if (!exploration) {
-      toast.error('Exploration not found')
-      completingExplorations.value.delete(explorationId)
-      return
-    }
-
-    const dweller = getDwellerById(exploration.dweller_id)
-    if (!dweller) {
-      toast.error('Dweller not found')
-      completingExplorations.value.delete(explorationId)
-      return
-    }
-
-    const result = await explorationStore.completeExploration(explorationId, authStore.token)
-
-    // Show rewards modal
-    if (result?.rewards_summary) {
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
-      showRewardsModal.value = true
-    }
-
-    // Refresh vault and dweller data
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-  } catch (error) {
-    toast.error('Failed to complete exploration')
+    await finishExploration(explorationId, explorationStore.completeExploration, 'Failed to complete exploration')
   } finally {
     completingExplorations.value.delete(explorationId)
   }

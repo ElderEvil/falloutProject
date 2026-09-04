@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import UButton from '@/core/components/ui/UButton.vue'
+import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
 import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
@@ -95,37 +97,36 @@ const getDwellerOutfit = (dwellerId: string) => {
               <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
             </div>
           </div>
-          <!-- Progress Bar -->
-          <div class="progress-bar-container">
-            <div
-              class="progress-bar"
-              :style="{
-                width: `${getProgressPercentage(exploration)}%`,
-              }"
-            ></div>
-          </div>
+          <UProgressBar
+            :model-value="getProgressPercentage(exploration)"
+            :height="8"
+            :glow="false"
+            color="linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))"
+            :ariaLabel="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
+          />
           <div class="text-xs text-wasteland-dim mt-1">
             {{ Math.round(getProgressPercentage(exploration)) }}% complete
           </div>
         </div>
         <div class="explorer-actions">
-          <button
+          <UButton
             v-if="getProgressPercentage(exploration) >= 100"
             @click="emit('complete', exploration.id)"
-            class="complete-button"
+            size="sm"
             title="Complete Exploration"
           >
             <Icon icon="mdi:check-circle" class="h-5 w-5" />
             Complete
-          </button>
-          <button
+          </UButton>
+          <UButton
             @click="emit('recall', exploration.id)"
-            class="recall-button"
+            variant="secondary"
+            size="sm"
             title="Recall Dweller"
           >
             <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
             Recall
-          </button>
+          </UButton>
         </div>
       </div>
     </div>
@@ -223,71 +224,10 @@ const getDwellerOutfit = (dwellerId: string) => {
   gap: 0.25rem;
 }
 
-.progress-bar-container {
-  width: 100%;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 0.5rem;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(205, 133, 63, 0.6), rgba(205, 133, 63, 1));
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
 .explorer-actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.complete-button {
-  background: rgba(0, 180, 0, 0.2);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-theme-primary);
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  font-family: 'Courier New', monospace;
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
-
-.complete-button:hover {
-  background: rgba(0, 220, 0, 0.3);
-  border-color: var(--color-theme-primary);
-  transform: scale(1.05);
-  box-shadow: 0 0 10px var(--color-theme-glow);
-}
-
-.recall-button {
-  background: rgba(205, 133, 63, 0.2);
-  border: 1px solid rgba(205, 133, 63, 0.5);
-  color: rgba(205, 133, 63, 1);
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  font-family: 'Courier New', monospace;
-}
-
-.recall-button:hover {
-  background: rgba(205, 133, 63, 0.3);
-  border-color: rgba(205, 133, 63, 0.8);
-  transform: scale(1.05);
-}
 </style>

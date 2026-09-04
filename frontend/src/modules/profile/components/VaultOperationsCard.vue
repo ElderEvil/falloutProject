@@ -23,28 +23,24 @@ const metrics = computed(() => [
     value: props.record.total_dwellers_created,
     detail: 'Dwellers welcomed',
     icon: 'mdi:account-group',
-    iconClass: 'text-theme-primary',
   },
   {
     label: 'Economy',
     value: props.record.total_caps_earned,
     detail: 'Caps earned',
     icon: 'mdi:currency-usd',
-    iconClass: 'text-caps',
   },
   {
     label: 'Exploration',
     value: props.record.total_explorations,
     detail: 'Wasteland deployments',
     icon: 'mdi:compass',
-    iconClass: 'text-info',
   },
   {
     label: 'Construction',
     value: props.record.total_rooms_built,
     detail: 'Rooms commissioned',
     icon: 'mdi:office-building',
-    iconClass: 'text-warning',
   },
 ])
 
@@ -85,7 +81,7 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
         <article v-for="metric in metrics" :key="metric.label" class="bg-surface-sunken p-4 transition-colors duration-200 hover:bg-surface-hover">
           <div class="flex items-start justify-between gap-3">
             <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/65">{{ metric.label }}</p>
-            <Icon :icon="metric.icon" class="h-5 w-5 shrink-0" :class="metric.iconClass" />
+            <Icon :icon="metric.icon" class="h-5 w-5 shrink-0 text-theme-accent" />
           </div>
           <p class="mt-5 font-mono text-4xl font-bold tracking-tight text-theme-primary">{{ metric.value.toLocaleString('en-US') }}</p>
           <p class="mt-2 text-xs leading-5 text-theme-primary/55">{{ metric.detail }}</p>

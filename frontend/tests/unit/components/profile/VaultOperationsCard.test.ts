@@ -19,6 +19,7 @@ describe('VaultOperationsCard', () => {
     expect(wrapper.text()).toContain('8')
     expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('RECORD LINK ACTIVE')
+    expect(wrapper.html()).not.toMatch(/text-(caps|info|warning)/)
   })
 
   it('explains why an empty operation record has no values yet', () => {

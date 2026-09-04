@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.75.1 (2026-09-04)
+
+### Bug Fixes
+
+* prevent duplicate exploration rewards f480473
+
+### Documentation
+
+* clarify RadAway threshold contract 61ad20e
+* refresh radiation system reference 1accb08
+
 ## 2.75.0 (2026-09-04)
 
 ### Features

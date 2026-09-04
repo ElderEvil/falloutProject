@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import RewardsModalShell from '@/core/components/common/RewardsModalShell.vue'
+import { UModal } from '@/core/components/ui'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
 
 interface Props {
@@ -79,119 +80,48 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
 </script>
 
 <template>
-  <RewardsModalShell
-    :show="show && !!quest"
+  <UModal
+    :model-value="show && !!quest"
     title="Quest Complete!"
-    header-icon="mdi:treasure-chest"
-    max-width="600px"
+    size="wide"
     @close="emit('close')"
   >
-    <template #default>
-      <div v-if="quest" class="quest-name">
-        <Icon icon="mdi:flag-checkered" class="quest-name-icon" />
-        {{ quest.title }} has returned. Confirm delivery to your vault.
-      </div>
-
-      <div v-if="rewards.length > 0" class="rewards-grid">
-        <RewardCard
-          v-for="reward in rewards"
-          :key="reward.id"
-          :icon="rewardMeta(reward).icon"
-          :label="rewardMeta(reward).label"
-          :value="rewardLabel(reward)"
-        />
-      </div>
-
-      <div v-else class="no-items">
-        <Icon icon="mdi:package-variant-closed" class="no-items-icon" />
-        <p>No rewards listed for this quest</p>
+    <template #header="{ titleId }">
+      <div class="quest-complete-header flex items-center gap-3">
+        <Icon icon="mdi:treasure-chest" class="h-8 w-8 text-theme-primary terminal-glow" />
+        <h2 :id="titleId" class="text-2xl font-bold text-theme-primary terminal-glow">Quest Complete!</h2>
       </div>
     </template>
+
+    <div v-if="quest" class="quest-return-banner mt-5 mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
+      <Icon icon="mdi:flag-checkered" class="h-6 w-6 shrink-0 text-theme-accent" />
+      {{ quest.title }} has returned. Confirm delivery to your vault.
+    </div>
+
+    <div v-if="rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <RewardCard
+        v-for="reward in rewards"
+        :key="reward.id"
+        :icon="rewardMeta(reward).icon"
+        :label="rewardMeta(reward).label"
+        :value="rewardLabel(reward)"
+      />
+    </div>
+
+    <div v-else class="flex flex-col items-center gap-3 p-8 text-theme-primary/60">
+      <Icon icon="mdi:package-variant-closed" class="h-12 w-12" />
+      <p>No rewards listed for this quest</p>
+    </div>
 
     <template #footer>
-      <button class="cancel-btn" @click="emit('close')">Review Later</button>
-      <button class="collect-btn" @click="emit('confirm')">
-        <Icon icon="mdi:check-bold" class="mr-2" />
-        Confirm & Claim
-      </button>
+      <TerminalModalActions
+        cancel-label="Review Later"
+        confirm-label="Confirm & Claim"
+        confirm-icon="mdi:check-bold"
+        alignment="between"
+        @cancel="emit('close')"
+        @confirm="emit('confirm')"
+      />
     </template>
-  </RewardsModalShell>
+  </UModal>
 </template>
-
-<style scoped>
-.quest-name {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1.1rem;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-  margin-bottom: 1.5rem;
-}
-
-.quest-name-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  flex-shrink: 0;
-  color: var(--color-theme-accent);
-  filter: drop-shadow(0 0 4px var(--color-theme-glow));
-}
-
-.rewards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.no-items {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 2rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-}
-
-.no-items-icon {
-  width: 3rem;
-  height: 3rem;
-}
-
-.cancel-btn {
-  background: transparent;
-  border: 2px solid color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
-  color: var(--color-theme-primary);
-  padding: 0.6rem 1.25rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all 0.2s ease;
-}
-
-.cancel-btn:hover {
-  background: color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
-}
-
-.collect-btn {
-  background: var(--color-theme-accent);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  padding: 0.6rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-  transition: all 0.2s ease;
-}
-
-.collect-btn:hover {
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-}
-</style>

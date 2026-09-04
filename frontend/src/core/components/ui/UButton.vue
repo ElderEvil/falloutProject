@@ -65,8 +65,8 @@ const sizeClasses = {
 
 const buttonClasses = [
   'inline-flex items-center justify-center gap-2',
-  'font-bold rounded transition-all duration-200',
-  'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
+  'font-bold rounded transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200',
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary disabled:opacity-50 disabled:cursor-not-allowed',
   variantClasses[variant],
   sizeClasses[size],
   block ? 'w-full' : '',

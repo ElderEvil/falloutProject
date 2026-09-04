@@ -38,6 +38,11 @@ describe('UModal (Accessibility)', () => {
     expect(dialog?.getAttribute('style')).toBeFalsy()
   })
 
+  it('gives the close button a visible keyboard focus style', () => {
+    mountModal()
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Close modal"]')?.classList).toContain('focus-visible:outline-2')
+  })
+
   it('uses the requested warm surface role', () => {
     wrapper = mount(UModal, {
       props: { modelValue: true, title: 'Map marker', surface: 'base' },

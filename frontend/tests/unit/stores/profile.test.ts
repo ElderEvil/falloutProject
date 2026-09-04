@@ -123,6 +123,38 @@ describe('Profile Store', () => {
     })
   })
 
+  describe('refreshProfile Action', () => {
+    it('refreshes the record without entering the page-loading state', async () => {
+      const store = useProfileStore()
+      vi.mocked(axios.get).mockImplementation(() => {
+        expect(store.profileRefreshing).toBe(true)
+        expect(store.loading).toBe(false)
+        return Promise.resolve({ data: mockProfile })
+      })
+
+      await store.refreshProfile()
+
+      expect(store.profile).toEqual(mockProfile)
+      expect(store.profileRefreshing).toBe(false)
+    })
+
+    it('does not overwrite a saved profile with an older refresh response', async () => {
+      const store = useProfileStore()
+      let resolveRefresh!: (value: { data: UserProfile }) => void
+      vi.mocked(axios.get).mockReturnValueOnce(new Promise((resolve) => { resolveRefresh = resolve }))
+
+      const refresh = store.refreshProfile()
+      const savedProfile = { ...mockProfile, bio: 'Saved bio' }
+      vi.mocked(axios.put).mockResolvedValueOnce({ data: savedProfile })
+      await store.updateProfile({ bio: savedProfile.bio })
+
+      resolveRefresh({ data: mockProfile })
+      await refresh
+
+      expect(store.profile).toEqual(savedProfile)
+    })
+  })
+
   describe('updateProfile Action', () => {
     const updateData: ProfileUpdate = {
       bio: 'Updated bio',

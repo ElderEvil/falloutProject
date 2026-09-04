@@ -15,9 +15,11 @@ export const useProfileStore = defineStore('profile', () => {
   const deathStatistics = ref<DeathStatistics | null>(null)
   const aiUsageStats = ref<AIUsageStats | null>(null)
   const loading = ref(false)
+  const profileRefreshing = ref(false)
   const deathStatsLoading = ref(false)
   const aiUsageLoading = ref(false)
   const error = ref<string | null>(null)
+  let profileVersion = 0
 
   // Getters
   const hasProfile = computed(() => profile.value !== null)
@@ -35,19 +37,22 @@ export const useProfileStore = defineStore('profile', () => {
     }
   })
 
-  // Actions
+  function applyProfile(nextProfile: UserProfile): void {
+    profile.value = nextProfile
+    const { loadUserTheme } = useTheme()
+    if (profile.value.preferences?.theme) loadUserTheme(profile.value.preferences.theme as ThemeName)
+  }
+
+  async function loadProfile(): Promise<UserProfile> {
+    const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
+    return response.data
+  }
+
   async function fetchProfile(): Promise<void> {
     loading.value = true
     error.value = null
     try {
-      const response = await axios.get<UserProfile>('/api/v1/users/me/profile')
-      profile.value = response.data
-
-      // Load user's preferred theme if available
-      const { loadUserTheme } = useTheme()
-      if (profile.value.preferences?.theme) {
-        loadUserTheme(profile.value.preferences.theme as ThemeName)
-      }
+      applyProfile(await loadProfile())
     } catch (err: unknown) {
       error.value = handleStoreError(err, 'Failed to fetch profile')
       throw err
@@ -56,18 +61,26 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function refreshProfile(): Promise<void> {
+    profileRefreshing.value = true
+    const version = profileVersion
+    try {
+      const nextProfile = await loadProfile()
+      if (version === profileVersion) applyProfile(nextProfile)
+    } catch (err: unknown) {
+      handleStoreError(err, 'Failed to refresh profile')
+    } finally {
+      profileRefreshing.value = false
+    }
+  }
+
   async function updateProfile(data: ProfileUpdate): Promise<void> {
     loading.value = true
     error.value = null
     try {
       const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
-      profile.value = response.data
-
-      // Update theme if it changed
-      const { loadUserTheme } = useTheme()
-      if (profile.value.preferences?.theme) {
-        loadUserTheme(profile.value.preferences.theme as ThemeName)
-      }
+      profileVersion += 1
+      applyProfile(response.data)
     } catch (err: unknown) {
       error.value = handleStoreError(err, 'Failed to update profile')
       throw err
@@ -118,6 +131,7 @@ export const useProfileStore = defineStore('profile', () => {
     deathStatistics,
     aiUsageStats,
     loading,
+    profileRefreshing,
     deathStatsLoading,
     aiUsageLoading,
     error,
@@ -126,6 +140,7 @@ export const useProfileStore = defineStore('profile', () => {
     quotaExceeded,
     quotaWarning,
     fetchProfile,
+    refreshProfile,
     updateProfile,
     fetchDeathStatistics,
     fetchAIUsage,

@@ -87,6 +87,15 @@
         </div>
       </div>
 
+      <div v-if="incident.events.length" class="section">
+        <h3 class="section-title">&gt;&gt; INCIDENT JOURNAL</h3>
+        <div class="journal-list">
+          <div v-for="event in incident.events" :key="event.id" class="journal-entry">
+            {{ event.message }}
+          </div>
+        </div>
+      </div>
+
       <!-- Loot Preview Section -->
       <div v-if="incident.loot" class="section">
         <h3 class="section-title">&gt;&gt; REWARDS</h3>
@@ -160,14 +169,6 @@
         </div>
       </div>
 
-      <div v-if="incident.events.length" class="section">
-        <h3 class="section-title">&gt;&gt; INCIDENT JOURNAL</h3>
-        <div class="journal-list">
-          <div v-for="event in incident.events" :key="event.id" class="journal-entry">
-            {{ event.message }}
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Scanline overlay -->

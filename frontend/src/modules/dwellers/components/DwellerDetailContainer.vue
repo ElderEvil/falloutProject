@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
+import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import { UButton, UInput, UModal } from '@/core/components/ui'
 import DwellerDetailPane from './DwellerDetailPane.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
@@ -43,7 +44,6 @@ const ctx = useDwellerDetail(dwellerId, vaultId)
 provide(dwellerDetailKey, ctx)
 
 const dweller = computed(() => ctx.dweller.value)
-// Local refs aliasing the context flags so v-model binds to the same underlying state.
 const appearanceEditorOpen = ctx.appearanceEditorOpen
 const trainingModalOpen = ctx.trainingModalOpen
 const renameDialogOpen = ctx.renameDialogOpen
@@ -54,10 +54,7 @@ const wastelandModalOpen = ctx.wastelandModalOpen
 
 <template>
   <div>
-    <div v-if="ctx.loading.value" class="loading-container">
-      <Icon icon="mdi:loading" class="loading-icon animate-spin" />
-      <p class="loading-text">Loading dweller details...</p>
-    </div>
+    <TerminalLoadingState v-if="ctx.loading.value" full-height message="Loading dweller details..." />
 
     <div v-else-if="!dweller" class="error-container">
       <Icon icon="mdi:alert-circle" class="error-icon" />
@@ -123,7 +120,6 @@ const wastelandModalOpen = ctx.wastelandModalOpen
   line-height: 1.6;
 }
 
-.loading-container,
 .error-container {
   display: flex;
   flex-direction: column;
@@ -133,7 +129,6 @@ const wastelandModalOpen = ctx.wastelandModalOpen
   min-height: 400px;
 }
 
-.loading-icon,
 .error-icon {
   width: 4rem;
   height: 4rem;
@@ -141,7 +136,6 @@ const wastelandModalOpen = ctx.wastelandModalOpen
   filter: drop-shadow(0 0 10px var(--color-theme-glow));
 }
 
-.loading-text,
 .error-text {
   font-size: 1.25rem;
   color: var(--color-theme-primary);

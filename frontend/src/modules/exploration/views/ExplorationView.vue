@@ -13,6 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
 import ExplorationEventLog from '@/modules/exploration/components/ExplorationEventLog.vue'
@@ -221,19 +222,7 @@ const closeRewardsModal = () => {
         <!-- Main Content -->
         <div class="exploration-content">
         <!-- Loading State -->
-        <div v-if="explorationLoading" class="loading-state">
-          <UCard glow crt padding="lg">
-            <div class="loading-content">
-              <Icon icon="mdi:loading" class="loading-spinner" />
-              <p class="loading-text">Scanning wasteland frequencies...</p>
-              <div class="loading-bars">
-                <div class="loading-bar flicker" />
-                <div class="loading-bar flicker-slow" />
-                <div class="loading-bar flicker-random" />
-              </div>
-            </div>
-          </UCard>
-        </div>
+        <TerminalLoadingState v-if="explorationLoading" message="Scanning wasteland frequencies..." />
 
         <!-- Error State -->
         <div v-else-if="explorationError" class="error-state">
@@ -410,62 +399,6 @@ const closeRewardsModal = () => {
   opacity: 0.7;
 }
 
-/* Loading State */
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.loading-spinner {
-  width: 4rem;
-  height: 4rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 10px var(--color-theme-glow));
-  animation: spin 1.5s linear infinite;
-}
-
-.loading-text {
-  font-size: 1rem;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
-.loading-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 300px;
-}
-
-.loading-bar {
-  height: 4px;
-  background: var(--color-theme-primary);
-  border-radius: 2px;
-  opacity: 0.3;
-}
-
-.loading-bar:nth-child(1) {
-  width: 100%;
-}
-
-.loading-bar:nth-child(2) {
-  width: 75%;
-}
-
-.loading-bar:nth-child(3) {
-  width: 50%;
-}
-
 /* Error State */
 .error-state {
   display: flex;
@@ -502,15 +435,6 @@ const closeRewardsModal = () => {
   font-size: 0.875rem;
   color: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.7);
   max-width: 400px;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .empty-state {

@@ -10,6 +10,7 @@ import {
   type ItemStat,
 } from '@/core/models/items'
 import { useItemImage } from '@/core/composables/useItemImage'
+import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   item: Weapon | Outfit
@@ -84,22 +85,24 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
     </div>
 
     <div v-if="showActions" class="flex gap-2">
-      <button
+      <UButton
         v-if="!equipped"
-        class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded border-2 border-[var(--color-theme-primary)] bg-black/30 px-4 py-2 text-sm font-semibold text-[var(--color-theme-primary)] transition-all duration-200 hover:bg-black/50 hover:shadow-[0_0_12px_var(--color-theme-glow)]"
+        block
+        variant="secondary"
         @click="emit('equip')"
       >
         <Icon icon="mdi:check" />
         Equip
-      </button>
-      <button
+      </UButton>
+      <UButton
         v-else
-        class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded border-2 border-[var(--color-danger)] bg-red-900/30 px-4 py-2 text-sm font-semibold text-[var(--color-danger)] transition-all duration-200 hover:bg-red-900/50 hover:shadow-[0_0_12px_color-mix(in_srgb,var(--color-danger)_40%,transparent)]"
+        block
+        variant="danger"
         @click="emit('unequip')"
       >
         <Icon icon="mdi:close" />
         Unequip
-      </button>
+      </UButton>
     </div>
   </div>
 </template>

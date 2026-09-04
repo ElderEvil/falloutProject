@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useEquipmentStore } from '@/modules/combat/stores/equipment'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import EquipmentCard from '@/modules/combat/components/equipment/EquipmentCard.vue'
+import UModal from '@/core/components/ui/UModal.vue'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -73,25 +74,6 @@ const openOutfitInventory = () => {
   showInventoryModal.value = true
 }
 
-// Close modal on Escape key
-const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape') {
-    showInventoryModal.value = false
-  }
-}
-
-watch(showInventoryModal, (isOpen) => {
-  if (isOpen) {
-    document.addEventListener('keydown', handleKeydown)
-  } else {
-    document.removeEventListener('keydown', handleKeydown)
-  }
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
-
 const modalTitle = computed(() =>
   inventoryMode.value === 'weapon' ? 'Select Weapon' : 'Select Outfit'
 )
@@ -121,18 +103,15 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipWeapon"
         />
 
-        <div
+        <button
           v-else
+          type="button"
           class="empty-slot"
-          role="button"
-          tabindex="0"
           @click="openWeaponInventory"
-          @keydown.enter.prevent="openWeaponInventory"
-          @keydown.space.prevent="openWeaponInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
-        </div>
+        </button>
       </div>
 
       <!-- Outfit Slot -->
@@ -151,86 +130,59 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipOutfit"
         />
 
-        <div
+        <button
           v-else
+          type="button"
           class="empty-slot"
-          role="button"
-          tabindex="0"
           @click="openOutfitInventory"
-          @keydown.enter.prevent="openOutfitInventory"
-          @keydown.space.prevent="openOutfitInventory"
         >
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
-        </div>
+        </button>
       </div>
     </div>
 
     <!-- Inventory Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showInventoryModal"
-        class="modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Equipment inventory"
-        @click="showInventoryModal = false"
-      >
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">
-              <Icon :icon="modalIcon" />
-              {{ modalTitle }}
-            </h3>
-            <button
-              @click="showInventoryModal = false"
-              class="close-btn"
-              aria-label="Close inventory"
-            >
-              <Icon icon="mdi:close" />
-            </button>
-          </div>
+    <UModal v-model="showInventoryModal" :title="modalTitle" size="wide">
+      <template #header="{ titleId }">
+        <h3 :id="titleId" class="modal-title">
+          <Icon :icon="modalIcon" />
+          {{ modalTitle }}
+        </h3>
+      </template>
 
-          <div class="modal-body">
-            <!-- Weapons Section (only when mode is weapon) -->
-            <div v-if="inventoryMode === 'weapon'" class="inventory-section">
-              <div class="items-list">
-                <EquipmentCard
-                  v-for="weapon in availableWeapons"
-                  :key="weapon.id"
-                  :item="weapon"
-                  type="weapon"
-                  :show-actions="true"
-                  @equip="handleEquipWeapon(weapon.id)"
-                />
-                <div v-if="availableWeapons.length === 0" class="empty-state">
-                  <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                  <p>No weapons available</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Outfits Section (only when mode is outfit) -->
-            <div v-if="inventoryMode === 'outfit'" class="inventory-section">
-              <div class="items-list">
-                <EquipmentCard
-                  v-for="outfit in availableOutfits"
-                  :key="outfit.id"
-                  :item="outfit"
-                  type="outfit"
-                  :show-actions="true"
-                  @equip="handleEquipOutfit(outfit.id)"
-                />
-                <div v-if="availableOutfits.length === 0" class="empty-state">
-                  <Icon icon="mdi:package-variant" class="empty-state-icon" />
-                  <p>No outfits available</p>
-                </div>
-              </div>
-            </div>
+      <div class="items-list pt-5">
+        <template v-if="inventoryMode === 'weapon'">
+          <EquipmentCard
+            v-for="weapon in availableWeapons"
+            :key="weapon.id"
+            :item="weapon"
+            type="weapon"
+            :show-actions="true"
+            @equip="handleEquipWeapon(weapon.id)"
+          />
+          <div v-if="availableWeapons.length === 0" class="empty-state">
+            <Icon icon="mdi:package-variant" class="empty-state-icon" />
+            <p>No weapons available</p>
           </div>
-        </div>
+        </template>
+
+        <template v-else>
+          <EquipmentCard
+            v-for="outfit in availableOutfits"
+            :key="outfit.id"
+            :item="outfit"
+            type="outfit"
+            :show-actions="true"
+            @equip="handleEquipOutfit(outfit.id)"
+          />
+          <div v-if="availableOutfits.length === 0" class="empty-state">
+            <Icon icon="mdi:package-variant" class="empty-state-icon" />
+            <p>No outfits available</p>
+          </div>
+        </template>
       </div>
-    </Teleport>
+    </UModal>
   </div>
 </template>
 
@@ -315,41 +267,6 @@ const modalIcon = computed(() =>
   font-size: 0.875rem;
 }
 
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  backdrop-filter: blur(4px);
-}
-
-.modal-content {
-  background: var(--color-surface-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 40px var(--color-theme-glow);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 2px solid var(--color-theme-glow);
-}
-
 .modal-title {
   display: flex;
   align-items: center;
@@ -358,67 +275,6 @@ const modalIcon = computed(() =>
   font-weight: 700;
   color: var(--color-theme-primary);
   text-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.close-btn {
-  background: transparent;
-  border: 2px solid var(--color-theme-glow);
-  color: var(--color-theme-primary);
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.close-btn:hover {
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.15);
-  border-color: var(--color-theme-primary);
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.inventory-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-theme-glow);
-}
-
-.section-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--color-theme-primary);
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 4px var(--color-theme-glow);
-}
-
-.section-count {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
 }
 
 .items-list {
@@ -445,22 +301,4 @@ const modalIcon = computed(() =>
   height: 2.5rem;
 }
 
-/* Scrollbar styling */
-.modal-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.modal-body::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.modal-body::-webkit-scrollbar-thumb {
-  background: var(--color-theme-primary);
-  border-radius: 4px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover {
-  background: var(--color-theme-accent);
-}
 </style>

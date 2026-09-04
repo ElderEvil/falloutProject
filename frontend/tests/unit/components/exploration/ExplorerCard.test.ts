@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { UProgressBar } from '@/core/components/ui'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
+import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
@@ -119,5 +120,21 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.progress-percentage').text()).toBe('0%')
 
     wrapper.unmount()
+  })
+
+  it('uses compact shared actions to complete or recall the explorer', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T09:00:00Z'))
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    const actions = wrapper.findComponent(ExplorerActions)
+    expect(actions.props('compact')).toBe(true)
+    expect(actions.findAll('button')).toHaveLength(2)
+
+    await actions.findAll('button')[0].trigger('click')
+    await actions.findAll('button')[1].trigger('click')
+
+    expect(wrapper.emitted('complete')).toEqual([['exploration-1']])
+    expect(wrapper.emitted('recall')).toEqual([['exploration-1']])
   })
 })

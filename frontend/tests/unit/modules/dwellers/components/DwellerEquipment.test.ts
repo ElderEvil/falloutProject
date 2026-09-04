@@ -3,6 +3,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
+import UModal from '@/core/components/ui/UModal.vue'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
@@ -89,6 +90,16 @@ describe('DwellerEquipment', () => {
     const wrapper = mountEquip(makeDweller())
     expect(wrapper.text()).toContain('Click to equip weapon')
     expect(wrapper.text()).toContain('Click to equip outfit')
+  })
+
+  it('opens the shared modal when an empty slot is selected', async () => {
+    const wrapper = mountEquip(makeDweller())
+
+    await wrapper.get('button.empty-slot').trigger('click')
+
+    const modal = wrapper.findComponent(UModal)
+    expect(modal.props('modelValue')).toBe(true)
+    expect(modal.props('title')).toBe('Select Weapon')
   })
 
   it('calls the refresh action when a weapon is unequipped', async () => {

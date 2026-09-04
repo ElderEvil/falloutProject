@@ -41,4 +41,13 @@ describe('GameControlPanel', () => {
     expect(panel.classes()).toContain('fixed')
     expect(wrapper.find('.game-control-actions').exists()).toBe(true)
   })
+
+  it('offers each incident type to superusers for targeted UI testing', async () => {
+    const wrapper = mount(GameControlPanel, { props: { vaultId: 'vault-1' } })
+
+    expect(wrapper.findAll('.admin-incident-button')).toHaveLength(7)
+    await wrapper.get('[title="Spawn Fire incident"]').trigger('click')
+
+    expect(incidentStore.spawnDebugIncident).toHaveBeenCalledWith('vault-1', 'test-token', 'fire')
+  })
 })

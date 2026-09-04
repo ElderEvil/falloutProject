@@ -132,10 +132,11 @@ vi.mock('@/modules/exploration/stores/exploration', () => ({
 const { mockRefreshMap } = vi.hoisted(() => ({
   mockRefreshMap: vi.fn(),
 }))
+const mockMapLocations = ref<any[]>([])
 
 vi.mock('@/modules/map/stores/map', () => ({
   useMapStore: () => ({
-    locations: [],
+    locations: mockMapLocations.value,
     unlockedPlacesCount: ref(0),
     fetchMap: mockRefreshMap,
     refreshMap: mockRefreshMap,
@@ -178,6 +179,7 @@ describe('DwellerChat', () => {
         max_capacity: 3,
       },
     ]
+    mockMapLocations.value = []
 
     const authStore = useAuthStore()
     authStore.$patch({
@@ -201,6 +203,31 @@ describe('DwellerChat', () => {
       },
     })
   }
+
+  describe('Conversation starters', () => {
+    it('prefills the composer from a known place without sending a message', async () => {
+      mockMapLocations.value = [
+        { id: 'megaton', name: 'Megaton', dwellers: [{ dweller_id: 'dweller-123' }] },
+      ]
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await wrapper.get('.conversation-starter').trigger('click')
+
+      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).value).toBe(
+        'What can you tell me about Megaton?'
+      )
+      expect(apiClient.post).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Dweller activity', () => {
+    it('shows the dweller assignment in the chat header', () => {
+      const wrapper = mountComponent({ dwellerStatus: 'working', roomName: 'Power Plant' })
+
+      expect(wrapper.get('.identity-status').text()).toBe('ON DUTY · POWER PLANT')
+    })
+  })
 
   describe('Scenario D: Happiness Impact Display', () => {
     it('should render happiness impact badge when response includes happiness_impact', async () => {
@@ -2175,6 +2202,21 @@ describe('DwellerChat', () => {
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
       expect(wrapper.text()).toContain('AI quota exceeded')
       expect(wrapper.find('.message-error').attributes()).toMatchObject({ role: 'alert', 'aria-live': 'polite' })
+    })
+
+    it('retries a failed message', async () => {
+      mockWsState.value = 'connected'
+      const wrapper = mountComponent()
+      await flushPromises()
+
+      await wrapper.find('.chat-input-field').setValue('Status report')
+      await wrapper.find('.chat-send-btn').trigger('click')
+      mockWebSocketHandlers['error'].at(-1)({ detail: 'Connection lost' })
+      await flushPromises()
+      await wrapper.get('.message-error button').trigger('click')
+      await flushPromises()
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(2)
     })
   })
 

@@ -69,6 +69,8 @@ onMounted(async () => {
           :username="username"
           :dweller-avatar="dweller.thumbnail_url ?? undefined"
           :vault-id="vaultId"
+          :dweller-status="dweller.status"
+          :room-name="dweller.room?.name"
         />
       </div>
     </template>

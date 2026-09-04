@@ -165,7 +165,7 @@
   background-color: rgba(var(--color-theme-primary-rgb), 0.05);
   color: var(--color-theme-primary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, opacity 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -304,7 +304,7 @@
   color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   font-size: 0.95rem;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   box-shadow: inset 0 0 10px rgba(var(--color-theme-primary-rgb), 0.1);
 }
 
@@ -321,19 +321,33 @@
   opacity: 0.5;
 }
 
-.chat-send-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
+.chat-send-btn,
+.mode-toggle-btn,
+.record-btn,
+.send-audio-btn,
+.cancel-btn {
   border: 1px solid var(--color-theme-primary);
   background-color: rgba(var(--color-theme-primary-rgb), 0.1);
   color: var(--color-theme-primary);
   cursor: pointer;
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, opacity 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.chat-send-btn,
+.record-btn,
+.send-audio-btn,
+.cancel-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+}
+
+.chat-send-btn {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
 }
 
 .chat-send-btn:hover {
@@ -375,19 +389,9 @@
   background: var(--color-theme-primary);
 }
 
-/* Mode toggle button */
 .mode-toggle-btn {
   padding: 0.5rem;
   border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .mode-toggle-btn:hover {
@@ -440,23 +444,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Audio control buttons */
-.record-btn,
-.send-audio-btn,
-.cancel-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-theme-primary);
-  background-color: rgba(var(--color-theme-primary-rgb), 0.1);
-  color: var(--color-theme-primary);
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .record-btn:hover,
@@ -518,17 +505,7 @@
   opacity: 0.7;
 }
 
-.map-discovery-link {
-  color: var(--color-theme-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transition: text-shadow 0.2s ease;
-}
-
-.map-discovery-link:hover {
-  text-shadow: 0 0 6px var(--color-theme-glow);
-}
-
+.map-discovery-link,
 .chat-place-link {
   color: var(--color-theme-primary);
   text-decoration: underline;
@@ -536,6 +513,7 @@
   transition: text-shadow 0.2s ease;
 }
 
+.map-discovery-link:hover,
 .chat-place-link:hover {
   text-shadow: 0 0 6px var(--color-theme-glow);
 }
@@ -595,7 +573,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .action-confirm-btn:hover:not(:disabled) {
@@ -619,7 +597,7 @@
   background-color: transparent;
   color: var(--color-theme-primary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
   opacity: 0.6;
 }
 
@@ -683,7 +661,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
 }
 

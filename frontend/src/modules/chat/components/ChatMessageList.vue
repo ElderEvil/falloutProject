@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { UButton } from '@/core/components/ui'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
 import type { ActionSuggestion, ChatMessageDisplay, MapDiscovery } from '../models/chat'
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   stopAudio: []
   confirmAction: [action: ActionSuggestion, index: number]
   dismissAction: [index: number]
+  retryMessage: [index: number]
 }>()
 
 const mapDiscoveryTitle = (places: MapDiscovery[]) =>
@@ -167,6 +169,11 @@ const messageContentSegments = (
                 ? 'Stop audio'
                 : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
             "
+            :aria-label="
+              currentlyPlayingUrl === message.audioUrl
+                ? 'Stop audio playback'
+                : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
+            "
             @click="
               currentlyPlayingUrl === message.audioUrl
                 ? emit('stopAudio')
@@ -211,6 +218,14 @@ const messageContentSegments = (
       <div v-if="message.error" class="message-error" role="alert" aria-live="polite">
         <Icon icon="mdi:alert-circle-outline" class="message-error-icon" />
         <span>{{ message.error }}</span>
+        <UButton
+          v-if="message.type === 'user'"
+          variant="ghost"
+          size="xs"
+          @click="emit('retryMessage', index)"
+        >
+          Retry
+        </UButton>
       </div>
 
       <div
@@ -245,7 +260,7 @@ const messageContentSegments = (
             <Icon v-else icon="mdi:check" class="h-4 w-4" />
             <span>{{ actionConfirmLabel(message.actionSuggestion, isPerformingAction) }}</span>
           </button>
-          <button class="action-dismiss-btn" @click="emit('dismissAction', index)">
+          <button class="action-dismiss-btn" aria-label="Dismiss suggested action" @click="emit('dismissAction', index)">
             <Icon icon="mdi:close" class="h-4 w-4" />
           </button>
         </div>

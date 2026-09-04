@@ -206,6 +206,15 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     }
   }
 
+  const retryMessage = (index: number) => {
+    const message = messages.value[index]
+    if (!message?.error || message.type !== 'user') return
+
+    userMessage.value = message.content
+    messages.value.splice(index, 1)
+    void sendMessage()
+  }
+
   const chatInputRef = ref<HTMLInputElement | null>(null)
 
   onKeyStroke(
@@ -279,6 +288,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     // Methods
     loadChatHistory,
     sendMessage,
+    retryMessage,
     dismissAction,
     getHappinessColor,
     getHappinessIcon,

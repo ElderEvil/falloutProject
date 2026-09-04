@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.schemas.room import RoomBuild, RoomCreate, RoomRead
+from app.services.user_service import user_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,
@@ -54,11 +55,14 @@ class RoomService:
                     "coordinate_y": room_request.coordinate_y,
                 }
             )
-            return await crud.room.build(db_session=db_session, obj_in=room_data)
+            room = await crud.room.build(db_session=db_session, obj_in=room_data)
         except (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException):
             raise
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
+        else:
+            await user_service.record_vault_statistic(db_session, room.vault_id, "total_rooms_built")
+            return room
 
     async def destroy_room(
         self,

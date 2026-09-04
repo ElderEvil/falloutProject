@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
+from app.crud.user_profile import profile_crud
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
@@ -50,6 +51,10 @@ async def test_create_dweller(async_session: AsyncSession) -> None:
     assert dweller.radiation == dweller_data["radiation"]
     assert dweller.happiness == dweller_data["happiness"]
     assert dweller.status.value == "idle"  # Default status should be IDLE
+
+    profile = await profile_crud.get_by_user_id(async_session, user.id)
+    assert profile is not None
+    assert profile.total_dwellers_created == 1
 
 
 @pytest.mark.asyncio

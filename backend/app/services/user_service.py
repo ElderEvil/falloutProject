@@ -1,8 +1,9 @@
 """User registration and profile business logic."""
 
 import logging
+from typing import Literal
 
-from pydantic import EmailStr
+from pydantic import UUID4, EmailStr
 from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -10,11 +11,19 @@ from app import crud
 from app.core import security
 from app.core.config import settings
 from app.core.email import send_verification_email
+from app.crud.user_profile import profile_crud
 from app.models.user import User
 from app.schemas.user import UserCreate, UserWithTokens
 from app.utils.exceptions import AccessDeniedException, ResourceAlreadyExistsException
 
 logger = logging.getLogger(__name__)
+
+ProfileStatistic = Literal[
+    "total_dwellers_created",
+    "total_caps_earned",
+    "total_explorations",
+    "total_rooms_built",
+]
 
 
 class UserService:
@@ -87,6 +96,23 @@ class UserService:
         data = result.model_dump(mode="json")
         await redis_client.setex(cache_key, 300, json.dumps(data))
         return data
+
+    async def record_vault_statistic(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        statistic: ProfileStatistic,
+        amount: int = 1,
+        *,
+        commit: bool = True,
+    ) -> None:
+        """Record a positive lifetime statistic for a vault's overseer."""
+        if amount <= 0:
+            return
+
+        vault = await crud.vault.get(db_session, vault_id)
+        if vault.user_id:
+            await profile_crud.increment_statistic(db_session, vault.user_id, statistic, amount, commit=commit)
 
 
 user_service = UserService()

@@ -1,6 +1,7 @@
 import logging
 
 from pydantic import UUID4
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -57,30 +58,24 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         user_id: UUID4,
         stat_name: str,
         amount: int = 1,
+        *,
+        commit: bool = True,
     ) -> UserProfile | None:
-        """Increment a statistics field."""
-        profile = await self.get_by_user_id(db_session, user_id)
-        if not profile:
+        """Atomically increment an allowlisted statistics field."""
+        if stat_name not in ProfileUpdateStatistics.model_fields:
+            raise ValueError(f"Unsupported profile statistic: {stat_name}")
+
+        column = getattr(self.model, stat_name)
+        result = await db_session.execute(
+            update(self.model).where(self.model.user_id == user_id).values({column: column + amount})
+        )
+        if result.rowcount == 0:
             return None
 
-        current_value = getattr(profile, stat_name, 0)
-        new_value = current_value + amount
-        update_data = {stat_name: new_value}
-
-        return await self.update(db_session, id=profile.id, obj_in=ProfileUpdateStatistics(**update_data))
-
-    async def update_fields(
-        self,
-        db_session: AsyncSession,
-        user_id: UUID4,
-        **kwargs,
-    ) -> UserProfile | None:
-        """Update multiple profile fields at once."""
-        profile = await self.get_by_user_id(db_session, user_id)
-        if not profile:
-            return None
-
-        return await self.update(db_session, id=profile.id, obj_in=ProfileUpdateStatistics(**kwargs))
+        if commit:
+            await db_session.commit()
+            return await self.get_by_user_id(db_session, user_id)
+        return None
 
 
 profile_crud = CRUDUserProfile(UserProfile)

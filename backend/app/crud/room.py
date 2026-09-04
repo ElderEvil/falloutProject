@@ -294,7 +294,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         refund = int(refundable_total * game_config.resource.destroy_room_refund_rate)
 
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund)
+        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False)
 
         if self.requires_recalculation(db_obj):
             await vault_crud.recalculate_vault_attributes(

@@ -36,8 +36,12 @@ class RewardService:
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
-            vault_obj.bottle_caps = min(vault_obj.bottle_caps + amount, 999_999)
+            credited = min(vault_obj.bottle_caps + amount, 999_999) - vault_obj.bottle_caps
+            vault_obj.bottle_caps += credited
             await persist_reward_change(db_session, vault_obj)
+            from app.services.user_service import user_service
+
+            await user_service.record_vault_statistic(db_session, vault_id, "total_caps_earned", credited, commit=False)
         else:
             await vault_crud.deposit_caps(
                 db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event

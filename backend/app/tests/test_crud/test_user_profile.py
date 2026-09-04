@@ -119,6 +119,17 @@ async def test_increment_multiple_statistics(async_session: AsyncSession) -> Non
 
 
 @pytest.mark.asyncio
+async def test_increment_life_and_death_statistic(async_session: AsyncSession) -> None:
+    """Life and death counters use the same protected increment path."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+
+    updated_profile = await profile_crud.increment_statistic(async_session, user.id, "total_dwellers_born")
+
+    assert updated_profile is not None
+    assert updated_profile.total_dwellers_born == 1
+
+
+@pytest.mark.asyncio
 async def test_profile_preferences_json(async_session: AsyncSession) -> None:
     """Test that preferences are stored as JSON/dict."""
     user_data = create_fake_user()

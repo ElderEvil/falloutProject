@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
@@ -108,6 +109,10 @@ async def test_build_room_uses_backend_template(
     assert room["tier"] == 1
     assert room["size"] == 3
     assert room["image_url"]
+
+    profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
+    assert profile is not None
+    assert profile.total_rooms_built == 1
 
     response = await async_client.post(
         "/rooms/build/", json=payload | {"base_cost": 1}, headers=superuser_token_headers

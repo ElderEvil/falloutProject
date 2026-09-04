@@ -6,6 +6,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.crud.user_profile import profile_crud
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
@@ -48,6 +49,10 @@ async def test_dweller_status_exploring_on_send(async_session: AsyncSession):
 
     # Send dweller to exploration
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    profile = await profile_crud.get_by_user_id(async_session, user.id)
+    assert profile is not None
+    assert profile.total_explorations == 1
 
     # Refresh dweller and check status is now EXPLORING
     await async_session.refresh(dweller)

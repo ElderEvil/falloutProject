@@ -28,3 +28,10 @@ class ProfileUpdateStatistics(SQLModel):
     total_caps_earned: int | None = None
     total_explorations: int | None = None
     total_rooms_built: int | None = None
+    total_dwellers_born: int | None = None
+    total_dwellers_died: int | None = None
+    deaths_by_health: int | None = None
+    deaths_by_radiation: int | None = None
+    deaths_by_incident: int | None = None
+    deaths_by_exploration: int | None = None
+    deaths_by_combat: int | None = None

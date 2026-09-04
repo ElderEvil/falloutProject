@@ -20,6 +20,7 @@ from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
+from app.services.user_service import user_service
 
 
 class ExplorationService:
@@ -198,6 +199,7 @@ class ExplorationService:
 
         await db_session.commit()
         await db_session.refresh(exploration)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_explorations")
         return exploration
 
     async def get_exploration_progress(self, db_session: AsyncSession, exploration_id: UUID4) -> ExplorationProgress:

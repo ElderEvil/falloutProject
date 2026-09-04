@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.crud.room import room as room_crud
+from app.crud.user_profile import profile_crud
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
@@ -21,6 +22,12 @@ async def test_create_vault_with_user(async_session: AsyncSession) -> None:
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
     assert vault.user_id == user.id
+
+    await crud.vault.deposit_caps(db_session=async_session, vault_obj=vault, amount=125)
+
+    profile = await profile_crud.get_by_user_id(async_session, user.id)
+    assert profile is not None
+    assert profile.total_caps_earned == 125
 
 
 async def _add_elevator_on_level(async_session, vault_id, y):

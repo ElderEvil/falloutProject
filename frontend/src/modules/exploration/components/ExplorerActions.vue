@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import UButton from '@/core/components/ui/UButton.vue'
 
-defineProps<{
+withDefaults(defineProps<{
   canComplete: boolean
-  isRecalling?: boolean
-}>()
+  compact?: boolean
+}>(), {
+  compact: false,
+})
 
 const emit = defineEmits<{
   complete: []
@@ -13,21 +16,29 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-    <button
+  <div
+    :class="compact ? 'flex gap-2 border-t border-theme-primary/20 pt-2' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'"
+    @click.stop
+  >
+    <UButton
       v-if="canComplete"
       @click="emit('complete')"
-      class="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-rarity-legendary bg-rarity-legendary/10 p-3.5 font-mono text-base font-bold text-rarity-legendary [text-shadow:0_0_10px_rgba(255,215,0,0.6)] transition-all duration-300 hover:scale-105 hover:bg-rarity-legendary/20 hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]"
+      :size="compact ? 'sm' : 'lg'"
+      :block="!compact"
+      class="flex-1"
     >
-      <Icon icon="mdi:check-circle" class="h-6 w-6" />
-      Complete Exploration
-    </button>
-    <button
+      <Icon :class="compact ? 'h-5 w-5' : 'h-6 w-6'" icon="mdi:check-circle" />
+      {{ compact ? 'Complete' : 'Complete Exploration' }}
+    </UButton>
+    <UButton
       @click="emit('recall')"
-      class="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-[#ff4444] bg-[#ff4444]/10 p-3.5 font-mono text-base font-bold text-[#ff4444] [text-shadow:0_0_10px_rgba(255,68,68,0.6)] transition-all duration-300 hover:scale-105 hover:bg-[#ff4444]/20 hover:shadow-[0_0_30px_rgba(255,68,68,0.5)]"
+      :variant="compact ? 'secondary' : 'danger'"
+      :size="compact ? 'sm' : 'lg'"
+      :block="!compact"
+      class="flex-1"
     >
-      <Icon icon="mdi:arrow-u-left-top" class="h-6 w-6" />
-      Recall Dweller
-    </button>
+      <Icon :class="compact ? 'h-5 w-5' : 'h-6 w-6'" icon="mdi:arrow-u-left-top" />
+      {{ compact ? 'Recall' : 'Recall Dweller' }}
+    </UButton>
   </div>
 </template>

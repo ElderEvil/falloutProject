@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
 import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
+import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
   explorations: Exploration[]
@@ -108,26 +108,13 @@ const getDwellerOutfit = (dwellerId: string) => {
             {{ Math.round(getProgressPercentage(exploration)) }}% complete
           </div>
         </div>
-        <div class="explorer-actions">
-          <UButton
-            v-if="getProgressPercentage(exploration) >= 100"
-            @click="emit('complete', exploration.id)"
-            size="sm"
-            title="Complete Exploration"
-          >
-            <Icon icon="mdi:check-circle" class="h-5 w-5" />
-            Complete
-          </UButton>
-          <UButton
-            @click="emit('recall', exploration.id)"
-            variant="secondary"
-            size="sm"
-            title="Recall Dweller"
-          >
-            <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5" />
-            Recall
-          </UButton>
-        </div>
+        <ExplorerActions
+          compact
+          class="explorer-actions"
+          :can-complete="getProgressPercentage(exploration) >= 100"
+          @complete="emit('complete', exploration.id)"
+          @recall="emit('recall', exploration.id)"
+        />
       </div>
     </div>
   </div>

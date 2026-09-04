@@ -9,6 +9,7 @@ import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { UCard, UProgressBar } from '@/core/components/ui'
+import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
   exploration: Exploration
@@ -118,20 +119,12 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     </div>
 
     <!-- Actions -->
-    <div class="card-actions">
-      <button
-        v-if="progressPercentage >= 100"
-        @click.stop="emit('complete', exploration.id)"
-        class="action-btn complete-btn"
-      >
-        <Icon icon="mdi:check-circle" />
-        Complete
-      </button>
-      <button @click.stop="emit('recall', exploration.id)" class="action-btn recall-btn">
-        <Icon icon="mdi:arrow-u-left-top" />
-        Recall Early
-      </button>
-    </div>
+    <ExplorerActions
+      compact
+      :can-complete="progressPercentage >= 100"
+      @complete="emit('complete', exploration.id)"
+      @recall="emit('recall', exploration.id)"
+    />
   </UCard>
 </template>
 
@@ -318,50 +311,4 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   line-height: 1.3;
 }
 
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Courier New', monospace;
-  border: 2px solid;
-}
-
-.complete-btn {
-  background: rgba(255, 215, 0, 0.1);
-  border-color: var(--color-rarity-legendary);
-  color: var(--color-rarity-legendary);
-}
-
-.complete-btn:hover {
-  background: rgba(255, 215, 0, 0.2);
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-  transform: scale(1.02);
-}
-
-.recall-btn {
-  background: rgba(205, 133, 63, 0.1);
-  border-color: rgba(205, 133, 63, 0.5);
-  color: rgba(205, 133, 63, 1);
-}
-
-.recall-btn:hover {
-  background: rgba(205, 133, 63, 0.2);
-  border-color: rgba(205, 133, 63, 0.8);
-  transform: scale(1.02);
-}
 </style>

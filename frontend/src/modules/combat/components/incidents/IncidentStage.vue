@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import type { Incident } from '../../models/incident'
 import { getIncidentIcon } from '../../models/incident'
 
@@ -31,7 +32,8 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
         <div v-for="dweller in responders" :key="dweller.id" class="combatant">
           <span class="combatant-portrait">{{ dweller.first_name[0] }}</span>
           <span class="combatant-name">{{ dweller.first_name }}</span>
-          <UProgressBar :model-value="(dweller.health / dweller.max_health) * 100" :height="5" :glow="false" />
+          <span class="combatant-power">POW {{ getCombatPower(dweller) }}</span>
+          <UProgressBar :model-value="(dweller.health / dweller.max_health) * 100" :height="7" :glow="false" />
         </div>
         <span v-if="!responders.length" class="stage-empty">No responders assigned</span>
       </div>
@@ -74,8 +76,9 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
 .floating-effect { position: absolute; top: -.9rem; z-index: 2; font-size: .85rem; font-weight: 700; animation: float-effect .9s ease-out both; }
 .floating-effect--damage { color: var(--color-danger); }
 .floating-effect--containment { color: var(--color-success); }
-.combatant { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: .15rem .4rem; align-items: center; min-width: 6rem; color: var(--color-theme-primary); font-size: .7rem; }
-.combatant-portrait { grid-row: span 2; display: grid; place-items: center; width: 1.5rem; aspect-ratio: 1; border: 1px solid var(--color-theme-primary); border-radius: 50%; }
+.combatant { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .15rem .5rem; align-items: center; min-width: 7rem; color: var(--color-theme-primary); font-size: .75rem; }
+.combatant-portrait { grid-row: span 3; display: grid; place-items: center; width: 2rem; aspect-ratio: 1; border: 1px solid var(--color-theme-primary); border-radius: 50%; font-size: .85rem; }
+.combatant-power { color: var(--color-warning); font-size: .65rem; font-variant-numeric: tabular-nums; }
 .combatant-name, .stage-empty, .enemy-count, .hazard-state span { color: var(--color-theme-primary); opacity: .7; }
 .stage-axis { display: grid; place-items: center; color: var(--color-danger); font-size: 1.5rem; }
 .stage-side--threat { text-align: right; }

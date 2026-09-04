@@ -42,7 +42,15 @@ const baseIncident: Incident = {
 }
 
 const dwellers = [
-  { id: 'dweller-1', first_name: 'Nora', room_id: 'room-1', health: 80, max_health: 100 },
+  {
+    id: 'dweller-1',
+    first_name: 'Nora',
+    room_id: 'room-1',
+    health: 80,
+    max_health: 100,
+    level: 8,
+    combat_power: 42,
+  },
 ] as never
 
 describe('IncidentStage', () => {
@@ -50,6 +58,7 @@ describe('IncidentStage', () => {
     const wrapper = mount(IncidentStage, { props: { incident: baseIncident, dwellers } })
 
     expect(wrapper.text()).toContain('RESPONDERS')
+    expect(wrapper.text()).toContain('POW 42')
     expect(wrapper.text()).toContain('THREAT')
     expect(wrapper.text()).toContain('2 remaining')
     expect(wrapper.text()).toContain('-4')

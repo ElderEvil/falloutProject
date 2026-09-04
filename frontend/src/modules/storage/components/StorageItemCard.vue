@@ -38,13 +38,9 @@ const itemTypeDisplay = computed(() => {
   return (item as any).rarity || 'common'
 })
 
-const itemStats = computed(() => {
-  if (itemType === 'weapon') return getWeaponStats(item as any)
-  if (itemType === 'outfit') return getOutfitStats(item as any)
-  return []
-})
-
-const canScrap = computed(() => itemType === 'weapon' || itemType === 'outfit')
+const itemStats = computed(() =>
+  itemType === 'weapon' ? getWeaponStats(item as any) : itemType === 'outfit' ? getOutfitStats(item as any) : []
+)
 
 const showSellAll = computed(() => count > 1 && itemType === 'junk')
 </script>
@@ -101,15 +97,18 @@ const showSellAll = computed(() => count > 1 && itemType === 'junk')
         {{ item.description || 'No description available' }}
       </p>
 
-      <!-- Item stats -->
       <div
         v-if="itemStats.length > 0"
-        class="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded border border-theme-primary/15 bg-surface-sunken p-2 text-xs text-(--color-theme-primary)"
+        class="grid gap-1 rounded border border-theme-primary/15 bg-surface-sunken p-1.5 text-xs text-(--color-theme-primary)"
       >
-        <div v-for="stat in itemStats" :key="stat.label" class="flex min-w-0 items-center gap-1.5">
+        <div
+          v-for="stat in itemStats"
+          :key="stat.label"
+          class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1.5 rounded-sm bg-surface-raised/40 px-2 py-1.5"
+        >
           <Icon :icon="stat.icon" class="h-4 w-4 shrink-0" />
-          <span class="truncate opacity-70">{{ stat.label }}:</span>
-          <span class="font-bold">{{ stat.value }}</span>
+          <span class="truncate uppercase tracking-wide opacity-70">{{ stat.label }}:</span>
+          <span class="whitespace-nowrap text-right font-bold tabular-nums">{{ stat.value }}</span>
         </div>
       </div>
 
@@ -133,7 +132,7 @@ const showSellAll = computed(() => count > 1 && itemType === 'junk')
             Sell
           </UButton>
           <UButton
-            v-if="canScrap"
+            v-if="itemType !== 'junk'"
             variant="secondary"
             size="sm"
             @click="emit('scrap')"

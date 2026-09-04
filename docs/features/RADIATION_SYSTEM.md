@@ -45,8 +45,8 @@ For a dweller with `max_health = 130`, one RadAway removes at most 65 radiation.
 ## Implementation checklist
 
 1. Add one backend medical helper/service for RadAway removal; use it from the manual endpoint/CRUD path and exploration auto-use. Inventory ownership stays separate: a dweller carries manual supplies, while an exploration carries its own supplies.
-2. Express the auto-use threshold as a percentage of `max_health` and expose it as configuration if tuning requires it.
-3. Write regression tests before changing behavior: low radiation clears; high radiation removes exactly half of max health; repeated uses remove fixed chunks; radiation never becomes negative; manual and exploration paths agree.
+2. Define one shared RadAway threshold as a percentage of `max_health`; use it for chat medical recommendations (including deterministic action validation) and exploration auto-use. Expose it as configuration if tuning requires it.
+3. Write regression tests before changing behavior: low radiation clears; high radiation removes exactly half of max health; repeated uses remove fixed chunks; radiation never becomes negative; manual and exploration removal paths agree; and changing the shared threshold changes both chat and exploration decisions together.
 4. Keep the existing health-bar contract: red radiation consumes visible healthy width and remains visible even at full health.
 5. Recheck medical production against the changed RadAway demand, then run the full backend and frontend suites plus an end-to-end exploration flow.
 

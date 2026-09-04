@@ -91,7 +91,7 @@
         <h3 class="section-title">&gt;&gt; INCIDENT JOURNAL</h3>
         <div class="journal-list">
           <div v-for="event in incident.events" :key="event.id" class="journal-entry">
-            {{ event.message }}
+            {{ journalMessage(event) }}
           </div>
         </div>
       </div>
@@ -290,6 +290,14 @@ function getItemIcon(type: string): string {
     default:
       return 'mdi:package-variant'
   }
+}
+
+function journalMessage(event: Incident['events'][number]): string {
+  if (event.kind !== 'round' || !event.data) return event.message
+  const dealt = event.data.damage_to_threat
+  const taken = event.data.damage_to_dwellers
+  if (typeof dealt !== 'number' || typeof taken !== 'number') return event.message
+  return `Damage dealt: ${dealt} · Damage taken: ${taken}`
 }
 
 // Computed

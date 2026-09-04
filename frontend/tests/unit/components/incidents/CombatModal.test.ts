@@ -53,7 +53,14 @@ describe('CombatModal', () => {
       progress: { current: 1, target: 6, label: 'Intruders neutralized' },
       risk: { kind: 'breach', rooms_affected: 1 },
       response: { label: 'Send defenders' },
-      events: [{ id: 'event-1', kind: 'round', message: 'Responders exchanged fire.', data: null }],
+      events: [
+        {
+          id: 'event-1',
+          kind: 'round',
+          message: 'Responders exchanged fire.',
+          data: { damage_to_threat: 12, damage_to_dwellers: 3 },
+        },
+      ],
     })
     const wrapper = mount(CombatModal, {
       props: { incidentId: 'incident-1', vaultId: 'vault-1', dwellers: [] },
@@ -64,5 +71,6 @@ describe('CombatModal', () => {
     await flushPromises()
 
     expect(wrapper.text().indexOf('INCIDENT JOURNAL')).toBeLessThan(wrapper.text().indexOf('EXPECTED REWARDS'))
+    expect(wrapper.text()).toContain('Damage dealt: 12 · Damage taken: 3')
   })
 })

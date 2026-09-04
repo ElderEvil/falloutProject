@@ -114,6 +114,13 @@ async def test_build_room_uses_backend_template(
     assert profile is not None
     assert profile.total_rooms_built == 1
 
+    expansion = await async_client.post("/rooms/build/", json=payload, headers=superuser_token_headers)
+    assert expansion.status_code == 200
+
+    profile = await profile_crud.get_by_user_id(async_session, vault.user_id)
+    assert profile is not None
+    assert profile.total_rooms_built == 1
+
     response = await async_client.post(
         "/rooms/build/", json=payload | {"base_cost": 1}, headers=superuser_token_headers
     )

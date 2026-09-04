@@ -55,13 +55,14 @@ class RoomService:
                     "coordinate_y": room_request.coordinate_y,
                 }
             )
-            room = await crud.room.build(db_session=db_session, obj_in=room_data)
+            room, created = await crud.room.build(db_session=db_session, obj_in=room_data, include_created=True)
         except (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException):
             raise
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
         else:
-            await user_service.record_vault_statistic(db_session, room.vault_id, "total_rooms_built")
+            if created:
+                await user_service.record_vault_statistic(db_session, room.vault_id, "total_rooms_built")
             return room
 
     async def destroy_room(

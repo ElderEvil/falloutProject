@@ -1,6 +1,7 @@
 import ast
 import logging
 import operator
+from typing import Literal, overload
 
 from pydantic import UUID4
 from sqlalchemy import func
@@ -160,7 +161,19 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"
         )
 
-    async def build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> Room:
+    @overload
+    async def build(
+        self, *, db_session: AsyncSession, obj_in: RoomCreate, include_created: Literal[False] = False
+    ) -> Room: ...
+
+    @overload
+    async def build(
+        self, *, db_session: AsyncSession, obj_in: RoomCreate, include_created: Literal[True]
+    ) -> tuple[Room, bool]: ...
+
+    async def build(
+        self, *, db_session: AsyncSession, obj_in: RoomCreate, include_created: bool = False
+    ) -> Room | tuple[Room, bool]:
         """Implements the objectives to build a room checking for business logic constraints."""
         vault = await vault_crud.get(db_session, id=obj_in.vault_id)
 
@@ -220,7 +233,8 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
         if existing_room:
             if existing_room.name == obj_in.name and existing_room.tier == obj_in.tier:
-                return await self.expand_room(db_session, existing_room, obj_in.size_min)
+                room = await self.expand_room(db_session, existing_room, obj_in.size_min)
+                return (room, False) if include_created else room
             raise NoSpaceAvailableException(space_needed=obj_in.size_min)
 
         if room_template := game_data_store.get_room(obj_in.name):
@@ -261,7 +275,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             {"room_type": obj_in_db.name, "tier": obj_in_db.tier, "room_id": str(obj_in_db.id)},
         )
 
-        return obj_in_db
+        return (obj_in_db, True) if include_created else obj_in_db
 
     async def destroy(self, db_session: AsyncSession, id: int | UUID4) -> Room:
         # Get room before deletion to check if it's a vault door

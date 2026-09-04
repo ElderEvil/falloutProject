@@ -30,6 +30,40 @@ async def test_create_vault_with_user(async_session: AsyncSession) -> None:
     assert profile.total_caps_earned == 125
 
 
+@pytest.mark.asyncio
+async def test_destroying_room_refunds_caps_without_increasing_earned_caps(async_session: AsyncSession) -> None:
+    """Room refunds restore caps but must not count as earnings."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            vault_id=vault.id,
+            name="Diner",
+            category=RoomTypeEnum.PRODUCTION,
+            ability=SPECIALEnum.AGILITY,
+            base_cost=200,
+            incremental_cost=0,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=3,
+            size_max=9,
+            size=3,
+            coordinate_x=1,
+            coordinate_y=1,
+        ),
+    )
+
+    initial_caps = vault.bottle_caps
+    await crud.room.destroy(async_session, room.id)
+    await async_session.refresh(vault)
+
+    profile = await profile_crud.get_by_user_id(async_session, user.id)
+    assert profile is not None
+    assert vault.bottle_caps == initial_caps + 100
+    assert profile.total_caps_earned == 0
+
+
 async def _add_elevator_on_level(async_session, vault_id, y):
     """Create an elevator row directly so a room build passes elevator gating."""
     elevator = RoomCreate(

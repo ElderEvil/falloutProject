@@ -20,34 +20,88 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect source changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            src:
+              - 'frontend/src/**'
+              - 'frontend/tests/**'
+              - 'frontend/e2e/**'
+              - 'frontend/scripts/**'
+              - 'frontend/public/**'
+              - 'frontend/index.html'
+              - 'frontend/package.json'
+              - 'frontend/pnpm-lock.yaml'
+              - 'frontend/pnpm-workspace.yaml'
+              - 'frontend/.npmrc'
+              - 'frontend/vite.config.*'
+              - 'frontend/vitest.config.*'
+              - 'frontend/vitest.setup.*'
+              - 'frontend/tsconfig*.json'
+              - 'frontend/playwright.config.*'
+              - 'frontend/oxlint.json'
+              - 'frontend/components.d.ts'
+              - '.github/workflows/frontend-ci.yml'
+
+      - name: Restore pnpm binary
+        id: pnpm-bin
+        uses: actions/cache@v4
+        with:
+          path: ~/setup-pnpm
+          key: pnpm-bin-11.9.0-${{ runner.os }}
+
+      - name: Add cached pnpm to PATH
+        if: steps.pnpm-bin.outputs.cache-hit == 'true'
+        run: |
+          for d in "$HOME/setup-pnpm/node_modules/.bin" "$HOME/setup-pnpm"; do
+            if [ -x "$d/pnpm" ]; then
+              echo "$d" >> "$GITHUB_PATH"
+              break
+            fi
+          done
+          command -v pnpm
+
+      - name: Install pnpm
+        if: steps.pnpm-bin.outputs.cache-hit != 'true'
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+          dest: ~/setup-pnpm
+          run_install: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 11.9.0
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
       - name: Run linter
+        if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: pnpm run lint
 
       - name: Run typecheck
+        if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: pnpm run typecheck
 
       - name: Check module boundaries
+        if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: node scripts/check-boundaries.mjs
 
       - name: Run tests
+        if: steps.filter.outputs.src == 'true'
         working-directory: frontend
         run: pnpm run test -- --run
 

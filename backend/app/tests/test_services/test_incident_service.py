@@ -106,7 +106,9 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
 
 
 @pytest.mark.asyncio
-async def test_fire_uses_containment_progress_and_records_a_journal(async_session: AsyncSession, room_with_dwellers: dict):
+async def test_fire_uses_containment_progress_and_records_a_journal(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
     """Fire is a hazard: responders suppress it instead of defeating enemies."""
     room = room_with_dwellers["room"]
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
@@ -180,9 +182,7 @@ async def test_process_incident_distributes_all_integer_damage(
         async_session.add(dweller)
     await async_session.commit()
 
-    incident = await incident_service.spawn_incident(
-        async_session, room.vault_id, IncidentType.RADROACH_INFESTATION
-    )
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
     assert incident is not None
 
     with (

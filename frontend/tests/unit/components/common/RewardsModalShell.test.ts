@@ -18,6 +18,12 @@ describe('RewardsModalShell', () => {
     expect(wrapper.get('.modal-body').text()).toBe('Reward body content')
   })
 
+  it('uses the active theme for its reward header icon', () => {
+    const wrapper = mountShell({}, { default: '<p>body</p>' })
+
+    expect(wrapper.get('.header-icon').classes()).toContain('text-theme-primary')
+  })
+
   it('renders nothing when show is false', () => {
     const wrapper = mount(RewardsModalShell, {
       props: { show: false, title: 'Hidden' },

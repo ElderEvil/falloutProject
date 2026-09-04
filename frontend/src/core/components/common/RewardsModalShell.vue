@@ -47,7 +47,7 @@ const { handleKeydown } = useModalBehavior(() => props.show, () => emit('close')
       >
         <div class="modal-header">
           <div class="header-title">
-            <Icon :icon="headerIcon" class="header-icon" />
+            <Icon :icon="headerIcon" class="header-icon text-theme-primary" />
             <h2 class="title">{{ title }}</h2>
           </div>
           <button class="close-btn" aria-label="Close" @click="emit('close')">
@@ -71,7 +71,7 @@ const { handleKeydown } = useModalBehavior(() => props.show, () => emit('close')
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: color-mix(in srgb, var(--color-surface-canvas) 90%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,8 +133,7 @@ const { handleKeydown } = useModalBehavior(() => props.show, () => emit('close')
 .header-icon {
   width: 2rem;
   height: 2rem;
-  color: var(--color-rarity-legendary);
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  filter: drop-shadow(0 0 8px var(--color-theme-glow));
 }
 
 .title {

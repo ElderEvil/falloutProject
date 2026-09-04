@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton, USlider } from '@/core/components/ui'
+import { USlider } from '@/core/components/ui'
+import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 
 interface Props {
   show: boolean
@@ -114,25 +115,12 @@ const handleConfirm = () => {
         </p>
       </div>
 
-      <div class="flex justify-end gap-3">
-        <UButton
-          @click="handleCancel"
-          class="modal-button cancel"
-          variant="secondary"
-          size="lg"
-        >
-          <Icon icon="mdi:close" class="h-5 w-5" />
-          Cancel
-        </UButton>
-        <UButton
-          @click="handleConfirm"
-          class="modal-button confirm"
-          size="lg"
-        >
-          <Icon icon="mdi:check" class="h-5 w-5" />
-          Send to Wasteland
-        </UButton>
-      </div>
+      <TerminalModalActions
+        cancel-label="Cancel"
+        confirm-label="Send to Wasteland"
+        @cancel="handleCancel"
+        @confirm="handleConfirm"
+      />
     </div>
   </div>
 </template>

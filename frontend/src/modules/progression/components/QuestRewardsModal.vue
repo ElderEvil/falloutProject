@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import RewardsModalShell from '@/core/components/common/RewardsModalShell.vue'
 import RewardCard from '@/core/components/common/RewardCard.vue'
+import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 import type { QuestReward, VaultQuest } from '../models/quest'
 
 interface Props {
@@ -109,11 +110,13 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
     </template>
 
     <template #footer>
-      <button class="cancel-btn" @click="emit('close')">Review Later</button>
-      <button class="collect-btn" @click="emit('confirm')">
-        <Icon icon="mdi:check-bold" class="mr-2" />
-        Confirm & Claim
-      </button>
+      <TerminalModalActions
+        cancel-label="Review Later"
+        confirm-label="Confirm & Claim"
+        confirm-icon="mdi:check-bold"
+        @cancel="emit('close')"
+        @confirm="emit('confirm')"
+      />
     </template>
   </RewardsModalShell>
 </template>
@@ -158,40 +161,4 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
   height: 3rem;
 }
 
-.cancel-btn {
-  background: transparent;
-  border: 2px solid color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
-  color: var(--color-theme-primary);
-  padding: 0.6rem 1.25rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all 0.2s ease;
-}
-
-.cancel-btn:hover {
-  background: color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
-}
-
-.collect-btn {
-  background: var(--color-theme-accent);
-  border: 2px solid var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  padding: 0.6rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-  transition: all 0.2s ease;
-}
-
-.collect-btn:hover {
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-}
 </style>

@@ -76,7 +76,7 @@ describe('ExplorationDurationModal', () => {
       expect(wrapper.html()).not.toMatch(/bg-black|rgba\(|text-orange/)
     })
 
-    it('uses matched terminal actions for cancellation and departure', () => {
+    it('uses shared terminal actions for cancellation and departure', () => {
       const wrapper = mount(ExplorationDurationModal, {
         props: {
           show: true,
@@ -86,11 +86,12 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      const actions = wrapper.findAllComponents(UButton)
+      const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
 
-      expect(actions).toHaveLength(2)
-      expect(actions[0].props()).toMatchObject({ variant: 'secondary', size: 'lg' })
-      expect(actions[1].props()).toMatchObject({ variant: 'primary', size: 'lg' })
+      expect(actions.exists()).toBe(true)
+      expect(actions.findAllComponents(UButton)).toHaveLength(2)
+      expect(actions.findAllComponents(UButton)[0]?.props()).toMatchObject({ variant: 'secondary', size: 'lg' })
+      expect(actions.findAllComponents(UButton)[1]?.props()).toMatchObject({ variant: 'primary', size: 'lg' })
     })
   })
 

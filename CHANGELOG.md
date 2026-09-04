@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.75.0 (2026-09-04)
+
+### Features
+
+* build overseer command console ed6bfe8
+
+### Bug Fixes
+
+* align exploration dialog with theme 06347a2
+* align pnpm store cache in ci c573858
+* expose cached pnpm in ci 4830cda
+* improve profile and modal behavior f2e181b
+* keep profile operations theme-driven 394a807
+* refine quest completion modal cc77d08
+* refresh profile statistics e1bbcce
+* resolve pnpm cache store path 8e53b1e
+* unify terminal dialog actions bb8ee23
+
 ## 2.74.2 (2026-09-04)
 
 ### Bug Fixes

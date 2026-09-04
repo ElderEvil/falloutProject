@@ -272,11 +272,30 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return current_assigned_population + space_required <= population_max
 
     async def deposit_caps(
-        self, *, db_session: AsyncSession, vault_obj: Vault, amount: int, commit: bool = True, emit_event: bool = True
+        self,
+        *,
+        db_session: AsyncSession,
+        vault_obj: Vault,
+        amount: int,
+        commit: bool = True,
+        emit_event: bool = True,
+        track_earnings: bool = True,
     ) -> None:
         """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
         capped = min(vault_obj.bottle_caps + amount, 999_999)
+        credited = capped - vault_obj.bottle_caps
         await self.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=capped), commit=commit)
+
+        if track_earnings:
+            from app.services.user_service import user_service
+
+            await user_service.record_vault_statistic(
+                db_session,
+                vault_obj.id,
+                "total_caps_earned",
+                credited,
+                commit=commit,
+            )
 
         if emit_event:
             from app.services.event_bus import GameEvent, event_bus

@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.crud.user_profile import profile_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
 from app.models.quest import Quest
@@ -209,6 +210,10 @@ async def test_grant_dweller_success(async_session: AsyncSession) -> None:
     assert result["reward_type"] == RewardType.DWELLER
     assert "dweller_id" in result
     assert "James" in result["name"]
+
+    profile = await profile_crud.get_by_user_id(async_session, user.id)
+    assert profile is not None
+    assert profile.total_dwellers_created == 1
 
 
 @pytest.mark.asyncio

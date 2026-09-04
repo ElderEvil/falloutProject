@@ -53,6 +53,15 @@ def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str
 
 
 class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
+    async def create(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
+        """Create a dweller and record the overseer's lifetime total."""
+        dweller = await super().create(db_session, obj_in)
+
+        from app.services.user_service import user_service
+
+        await user_service.record_vault_statistic(db_session, dweller.vault_id, "total_dwellers_created")
+        return dweller
+
     async def get(self, db_session: AsyncSession, id: UUID4, include_deleted: bool = False) -> Dweller:
         """Override to eager load weapon and outfit relationships."""
         from app.utils.exceptions import ResourceNotFoundException
@@ -311,6 +320,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         db_session.add(db_obj)
         await db_session.commit()
         await db_session.refresh(db_obj)
+        from app.services.user_service import user_service
+
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
         if bio_places and register_bio_places:
             from app.services.map_service import map_service
 

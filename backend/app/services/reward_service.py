@@ -18,6 +18,7 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, RarityEnum
 from app.services.event_bus import GameEvent, event_bus
+from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
@@ -36,8 +37,10 @@ class RewardService:
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
-            vault_obj.bottle_caps = min(vault_obj.bottle_caps + amount, 999_999)
+            credited = min(vault_obj.bottle_caps + amount, 999_999) - vault_obj.bottle_caps
+            vault_obj.bottle_caps += credited
             await persist_reward_change(db_session, vault_obj)
+            await user_service.record_vault_statistic(db_session, vault_id, "total_caps_earned", credited, commit=False)
         else:
             await vault_crud.deposit_caps(
                 db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
@@ -259,6 +262,9 @@ class RewardService:
             vault_id=vault_id,
         )
         await persist_reward_change(db_session, new_dweller, refresh=True)
+        await user_service.record_vault_statistic(
+            db_session, vault_id, "total_dwellers_created", commit=not reward_delivery_is_deferred(db_session)
+        )
 
         logger.info(f"Granted dweller '{first_name}' ({rarity}) to vault {vault_id}")
         return {

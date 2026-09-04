@@ -468,7 +468,7 @@ class IncidentService:
                 f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
                 {"target": "hazard", "amount": response_progress},
             )
-        elif damage_to_raiders > 0 or total_damage > 0:
+        else:
             self._record_event(
                 db_session,
                 incident,
@@ -504,7 +504,7 @@ class IncidentService:
 
         if transitioned:
             await self._notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
-            await self._publish_event(incident, "incident_resolved", success=True)
+            await self._publish_event(incident, "incident_resolved", success=True, caps_earned=caps_earned)
 
         return IncidentRoundResult(
             damage_to_dwellers=damage_to_dwellers,
@@ -821,7 +821,9 @@ class IncidentService:
 
         return False
 
-    async def _publish_event(self, incident: Incident, event_type: str, success: bool | None = None) -> None:
+    async def _publish_event(
+        self, incident: Incident, event_type: str, success: bool | None = None, caps_earned: int | None = None
+    ) -> None:
         """Publish a non-critical incident event."""
         try:
             await sse_manager.publish(
@@ -838,6 +840,7 @@ class IncidentService:
                     room_name=None,
                     difficulty=incident.difficulty,
                     success=success,
+                    caps_earned=caps_earned,
                 ).model_dump(),
             )
         except Exception:

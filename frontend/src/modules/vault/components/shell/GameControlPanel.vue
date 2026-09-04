@@ -97,15 +97,15 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-4 right-4 z-50 flex min-w-0 max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
+    class="fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-nowrap items-center gap-2 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
-    <div class="flex shrink-0 items-center gap-2 text-theme-primary">
+    <div class="hidden shrink-0 items-center gap-2 text-theme-primary sm:flex">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>
 
-    <div class="game-control-actions flex min-w-0 flex-wrap items-center gap-2">
+    <div class="game-control-actions flex min-w-max flex-nowrap items-center gap-2">
       <!-- Pause/Resume Button -->
       <button
         @click="togglePause"
@@ -134,8 +134,8 @@ onUnmounted(() => {
         <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
       </div>
 
-      <div v-if="isSuperuser" class="admin-incident-controls flex min-w-0 flex-wrap items-center gap-1">
-        <span class="mr-1 text-xs font-semibold text-red-400">TEST INCIDENTS</span>
+      <div v-if="isSuperuser" class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1">
+        <span class="mr-1 hidden text-xs font-semibold text-red-400 lg:inline">TEST INCIDENTS</span>
         <button
           v-for="incident in testIncidents"
           :key="incident.type"
@@ -145,7 +145,7 @@ onUnmounted(() => {
           @click="spawnIncident(incident.type)"
         >
           <Icon :icon="incident.icon" class="h-3.5 w-3.5" />
-          {{ incident.label }}
+          <span class="hidden sm:inline">{{ incident.label }}</span>
         </button>
       </div>
     </div>

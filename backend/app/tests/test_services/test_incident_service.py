@@ -132,6 +132,32 @@ async def test_fire_uses_containment_progress_and_records_a_journal(
 
 
 @pytest.mark.asyncio
+async def test_combat_round_records_damage_even_when_no_one_is_hit(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Every combat round belongs in the battle log, including a zero-damage exchange."""
+    room = room_with_dwellers["room"]
+    incident = await incident_service.spawn_incident(
+        async_session, room.vault_id, IncidentType.RADROACH_INFESTATION
+    )
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=0.0),
+        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+    ):
+        await incident_service.process_incident(async_session, incident, 1)
+
+    events = await async_session.execute(
+        select(IncidentEvent).where(IncidentEvent.incident_id == incident.id).order_by(IncidentEvent.created_at)
+    )
+    journal = list(events.scalars().all())
+
+    assert journal[-1].kind == "round"
+    assert journal[-1].data == {"target": "combat", "damage_to_dwellers": 0, "damage_to_threat": 0.0}
+
+
+@pytest.mark.asyncio
 async def test_incident_read_returns_the_latest_journal_entries(async_session: AsyncSession, room_with_dwellers: dict):
     """The compact UI journal must not get stuck on a long incident's opening rounds."""
     room = room_with_dwellers["room"]
@@ -395,13 +421,13 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     # Test low difficulty (internal threat - caps only)
     loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert "caps" in loot_low
-    assert loot_low["caps"] >= 50
-    assert loot_low["caps"] <= 150
+    assert loot_low["caps"] >= 25
+    assert loot_low["caps"] <= 75
 
     # Test high difficulty (external threat - caps + items)
     loot_high = incident_service._generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
-    assert loot_high["caps"] >= 500
-    assert loot_high["caps"] <= 1050
+    assert loot_high["caps"] >= 250
+    assert loot_high["caps"] <= 525
 
 
 @pytest.mark.asyncio

@@ -435,12 +435,12 @@ describe('Incident Store', () => {
 
       sseMock.instance.event.value = {
         event: 'incident',
-        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true },
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true, caps_earned: 50 },
       }
       await nextTick()
 
       expect(store.activeIncidentIds).toEqual([])
-      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident contained — vault secure.')
+      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
       store.stopPolling()
     })
   })

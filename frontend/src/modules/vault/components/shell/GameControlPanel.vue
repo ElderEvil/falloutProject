@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { IncidentType } from '@/modules/combat/models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
 const vaultStore = useVaultStore()
@@ -18,6 +19,17 @@ const props = defineProps<{
 
 const isPaused = computed(() => vaultStore.gameState?.is_paused ?? false)
 const isLoading = computed(() => vaultStore.isLoading)
+const isSpawningIncident = ref(false)
+
+const testIncidents = [
+  { type: IncidentType.FIRE, label: 'Fire', icon: 'mdi:fire' },
+  { type: IncidentType.RADROACH_INFESTATION, label: 'Radroach', icon: 'mdi:bug' },
+  { type: IncidentType.MOLE_RAT_ATTACK, label: 'Mole Rat', icon: 'mdi:paw' },
+  { type: IncidentType.RADSCORPION_ATTACK, label: 'Radscorpion', icon: 'mdi:spider' },
+  { type: IncidentType.RAIDER_ATTACK, label: 'Raider', icon: 'mdi:robber' },
+  { type: IncidentType.FERAL_GHOUL_ATTACK, label: 'Feral Ghoul', icon: 'mdi:biohazard' },
+  { type: IncidentType.DEATHCLAW_ATTACK, label: 'Deathclaw', icon: 'mdi:axe-battle' },
+]
 
 const formatGameTime = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600)
@@ -46,13 +58,16 @@ const togglePause = async () => {
   }
 }
 
-const spawnIncident = async () => {
-  if (!authStore.token) return
+const spawnIncident = async (type: IncidentType) => {
+  if (!authStore.token || isSpawningIncident.value) return
 
+  isSpawningIncident.value = true
   try {
-    await incidentStore.spawnDebugIncident(props.vaultId, authStore.token, 'radscorpion_attack')
+    await incidentStore.spawnDebugIncident(props.vaultId, authStore.token, type)
   } catch (error) {
     handleStoreError(error, 'Failed to spawn incident')
+  } finally {
+    isSpawningIncident.value = false
   }
 }
 
@@ -82,15 +97,15 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-4 right-4 z-50 flex min-w-0 max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
+    class="fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-nowrap items-center gap-2 overflow-x-auto rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
-    <div class="flex shrink-0 items-center gap-2 text-theme-primary">
+    <div class="hidden shrink-0 items-center gap-2 text-theme-primary sm:flex">
       <Icon icon="mdi:clock-outline" class="h-5 w-5" />
       <span class="font-mono text-sm">{{ totalGameTime }}</span>
     </div>
 
-    <div class="game-control-actions flex min-w-0 flex-wrap items-center gap-2">
+    <div class="game-control-actions flex min-w-max flex-nowrap items-center gap-2">
       <!-- Pause/Resume Button -->
       <button
         @click="togglePause"
@@ -119,21 +134,20 @@ onUnmounted(() => {
         <span class="text-xs font-semibold text-yellow-500">PAUSED</span>
       </div>
 
-      <!-- Debug: Spawn Incident Button (Admin Only) -->
-      <button
-        v-if="isSuperuser"
-        @click="spawnIncident"
-        :disabled="isLoading"
-        class="flex shrink-0 items-center gap-2 rounded px-3 py-1 transition-all duration-200"
-        :class="{
-          'bg-red-600 hover:bg-red-700': !isLoading,
-          'bg-gray-600 cursor-not-allowed': isLoading,
-        }"
-        title="[ADMIN] Spawn a radscorpion incident"
-      >
-        <Icon icon="mdi:alert-octagon" class="h-4 w-4 text-white" />
-        <span class="text-sm font-semibold text-white">Spawn Radscorpion</span>
-      </button>
+      <div v-if="isSuperuser" class="admin-incident-controls flex shrink-0 flex-nowrap items-center gap-1">
+        <span class="mr-1 hidden text-xs font-semibold text-red-400 lg:inline">TEST INCIDENTS</span>
+        <button
+          v-for="incident in testIncidents"
+          :key="incident.type"
+          class="admin-incident-button flex shrink-0 items-center gap-1 rounded border border-red-500/50 px-2 py-1 text-xs font-semibold text-red-100 transition-colors hover:bg-red-700/60 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="isLoading || isSpawningIncident"
+          :title="`Spawn ${incident.label} incident`"
+          @click="spawnIncident(incident.type)"
+        >
+          <Icon :icon="incident.icon" class="h-3.5 w-3.5" />
+          <span class="hidden sm:inline">{{ incident.label }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

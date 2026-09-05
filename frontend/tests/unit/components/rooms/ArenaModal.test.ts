@@ -102,6 +102,31 @@ describe('ArenaModal', () => {
     expect(wrapper.text()).toContain('READY')
   })
 
+  it('keeps room-management actions out of the battle panel', async () => {
+    const wrapper = mount(ArenaModal, {
+      props: { vaultId: 'vault-1', roomId: 'room-1' },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.arena-management').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Unassign All Dwellers')
+    expect(wrapper.text()).not.toContain('Destroy Room')
+  })
+
+  it('shows a retry state when loading the arena fails', async () => {
+    storeMock.fetchState.mockResolvedValueOnce(false)
+    const wrapper = mount(ArenaModal, {
+      props: { vaultId: 'vault-1', roomId: 'room-1' },
+      global: { plugins: [createPinia()] },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unable to load Arena status.')
+    await wrapper.get('button').trigger('click')
+    expect(storeMock.fetchState).toHaveBeenCalledTimes(2)
+  })
+
   it('shows the winner banner when a match is done', async () => {
     storeMock.currentRoom = { ...storeMock.readyRoom, match_done: true, winner_name: 'Alpha Dweller' }
     const wrapper = mount(ArenaModal, {

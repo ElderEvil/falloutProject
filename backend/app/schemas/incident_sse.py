@@ -22,3 +22,4 @@ class IncidentSseEvent(BaseModel):
     room_name: str | None = None
     difficulty: int
     success: bool | None = None
+    caps_earned: int | None = None

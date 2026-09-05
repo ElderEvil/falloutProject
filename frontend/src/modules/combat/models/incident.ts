@@ -15,6 +15,15 @@ export enum IncidentStatus {
   FAILED = 'failed',
 }
 
+export type IncidentFamily = 'hazard' | 'infestation' | 'intrusion'
+export type IncidentObjective = 'contain' | 'defeat'
+
+export interface IncidentProgress {
+  current: number
+  target: number
+  label: string
+}
+
 export interface Incident {
   id: string
   vault_id: string
@@ -42,6 +51,22 @@ export interface Incident {
   spread_count: number
   created_at: string
   updated_at: string
+  family: IncidentFamily
+  objective: IncidentObjective
+  progress: IncidentProgress
+  risk: {
+    kind: string
+    rooms_affected: number
+  }
+  response: {
+    label: string
+  }
+  events: Array<{
+    id: string
+    kind: string
+    message: string
+    data: Record<string, number | string> | null
+  }>
 }
 
 export interface IncidentListResponse {
@@ -62,12 +87,12 @@ export interface IncidentListResponse {
 }
 
 export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
-  [IncidentType.RAIDER_ATTACK]: 'mdi:skull',
+  [IncidentType.RAIDER_ATTACK]: 'mdi:robber',
   [IncidentType.RADROACH_INFESTATION]: 'mdi:bug',
   [IncidentType.FIRE]: 'mdi:fire',
   [IncidentType.MOLE_RAT_ATTACK]: 'mdi:paw',
-  [IncidentType.DEATHCLAW_ATTACK]: 'mdi:claw-mark',
-  [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:ghost',
+  [IncidentType.DEATHCLAW_ATTACK]: 'mdi:axe-battle',
+  [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:biohazard',
   [IncidentType.RADSCORPION_ATTACK]: 'mdi:spider',
 }
 

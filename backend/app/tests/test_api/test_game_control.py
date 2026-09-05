@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.models.incident import IncidentType
+from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber
 from app.services.vault_service import vault_service
 from app.tests.factory.rooms import create_fake_room
@@ -225,7 +227,6 @@ async def test_spawn_incident_debug(
     )
 
     # Get a room from the initialized vault
-    from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -459,6 +460,44 @@ async def test_get_incident_details(
     assert data["status"] == "active"
     assert "damage_dealt" in data
     assert "enemies_defeated" in data
+    assert data["family"] == "intrusion"
+    assert data["objective"] == "defeat"
+    assert data["progress"]["label"] == "Intruders neutralized"
+
+
+@pytest.mark.asyncio
+async def test_fire_incident_details_describe_containment(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Fire must not be presented as an attacker encounter."""
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    vault = await vault_service.initiate_vault(
+        db_session=async_session, obj_in=VaultNumber(number=989), user_id=user.id
+    )
+    room = await crud.room.create(
+        async_session,
+        obj_in=RoomCreate(**create_fake_room(), vault_id=vault.id),
+    )
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=3,
+    )
+
+    response = await async_client.get(
+        f"/game/vaults/{vault.id}/incidents/{incident.id}", headers=normal_user_token_headers
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["family"] == "hazard"
+    assert data["objective"] == "contain"
+    assert data["progress"]["label"] == "Fire contained"
+    assert data["response"]["label"] == "Send responders"
 
 
 @pytest.mark.asyncio

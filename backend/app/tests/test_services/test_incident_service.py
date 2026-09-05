@@ -5,12 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.incident import IncidentStatus, IncidentType
+from app.models.incident_event import IncidentEvent
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
@@ -51,7 +53,9 @@ async def test_spawn_incident_success(async_session: AsyncSession, room_with_dwe
     """Test successful incident spawning."""
     room = room_with_dwellers["room"]
     # Use FIRE type which spawns in occupied rooms (not at vault door)
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    # Radroaches remain an internal combat incident; Fire has its own
+    # containment calculation and is covered separately above.
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
 
     assert incident is not None
     assert incident.vault_id == room.vault_id
@@ -102,6 +106,84 @@ async def test_process_incident_combat(async_session: AsyncSession, room_with_dw
 
 
 @pytest.mark.asyncio
+async def test_fire_uses_containment_progress_and_records_a_journal(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Fire is a hazard: responders suppress it instead of defeating enemies."""
+    room = room_with_dwellers["room"]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_fire_damage", return_value=0.0),
+        patch.object(incident_service, "_calculate_fire_suppression", return_value=0.5),
+    ):
+        await incident_service.process_incident(async_session, incident, 1)
+
+    await async_session.refresh(incident)
+    events = await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
+
+    assert incident.status == IncidentStatus.ACTIVE
+    assert incident.combat_progress == 0.5
+    assert incident.enemies_defeated == 0
+    journal = list(events.scalars().all())
+    assert [event.kind for event in journal] == ["spawned", "containment"]
+    assert journal[-1].data == {"target": "hazard", "amount": 0.5}
+
+
+@pytest.mark.asyncio
+async def test_combat_round_records_damage_even_when_no_one_is_hit(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """Every combat round belongs in the battle log, including a zero-damage exchange."""
+    room = room_with_dwellers["room"]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    assert incident is not None
+
+    with (
+        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=0.0),
+        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+    ):
+        await incident_service.process_incident(async_session, incident, 1)
+
+    events = await async_session.execute(
+        select(IncidentEvent).where(IncidentEvent.incident_id == incident.id).order_by(IncidentEvent.created_at)
+    )
+    journal = list(events.scalars().all())
+
+    assert journal[-1].kind == "round"
+    assert journal[-1].data == {"target": "combat", "damage_to_dwellers": 0, "damage_to_threat": 0.0}
+
+
+@pytest.mark.asyncio
+async def test_incident_read_returns_the_latest_journal_entries(async_session: AsyncSession, room_with_dwellers: dict):
+    """The compact UI journal must not get stuck on a long incident's opening rounds."""
+    room = room_with_dwellers["room"]
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=3,
+    )
+    started = datetime.utcnow()
+    for index in range(25):
+        async_session.add(
+            IncidentEvent(
+                incident_id=incident.id,
+                kind="round",
+                message=f"Round {index}",
+                created_at=started + timedelta(seconds=index),
+            )
+        )
+    await async_session.commit()
+
+    read = await incident_service.get_incident_read(async_session, incident, room.name)
+
+    assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 25)]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("damage", "expected_health"),
     [
@@ -124,7 +206,7 @@ async def test_process_incident_distributes_all_integer_damage(
         async_session.add(dweller)
     await async_session.commit()
 
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
     assert incident is not None
 
     with (
@@ -309,6 +391,8 @@ async def test_undefended_incident_without_spread_target_fails(async_session: As
 
     await async_session.refresh(incident)
     assert incident.status == IncidentStatus.FAILED
+    events = await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
+    assert [event.kind for event in events.scalars().all()] == ["failed"]
 
 
 @pytest.mark.asyncio
@@ -335,13 +419,13 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     # Test low difficulty (internal threat - caps only)
     loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert "caps" in loot_low
-    assert loot_low["caps"] >= 50
-    assert loot_low["caps"] <= 150
+    assert loot_low["caps"] >= 25
+    assert loot_low["caps"] <= 75
 
     # Test high difficulty (external threat - caps + items)
     loot_high = incident_service._generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
-    assert loot_high["caps"] >= 500
-    assert loot_high["caps"] <= 1050
+    assert loot_high["caps"] >= 250
+    assert loot_high["caps"] <= 525
 
 
 @pytest.mark.asyncio

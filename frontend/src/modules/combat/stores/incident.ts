@@ -134,6 +134,14 @@ export const useIncidentStore = defineStore('incident', () => {
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
             }
+            if (data.success === true) {
+              const capsEarned = data.caps_earned
+              showSuccess(
+                typeof capsEarned === 'number'
+                  ? `Incident victory — recovered ${capsEarned} caps.`
+                  : 'Incident contained — vault secure.'
+              )
+            }
             break
           }
 

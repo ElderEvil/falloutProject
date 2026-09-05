@@ -2,7 +2,29 @@
 
 from pydantic import UUID4, BaseModel, Field
 
-from app.models.incident import IncidentStatus, IncidentType
+from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
+
+
+class IncidentProgress(BaseModel):
+    current: int
+    target: int
+    label: str
+
+
+class IncidentRisk(BaseModel):
+    kind: str
+    rooms_affected: int
+
+
+class IncidentResponse(BaseModel):
+    label: str
+
+
+class IncidentEventRead(BaseModel):
+    id: str
+    kind: str
+    message: str
+    data: dict | None
 
 
 class IncidentRead(BaseModel):
@@ -24,6 +46,12 @@ class IncidentRead(BaseModel):
     rooms_affected: list[str]
     spread_count: int
     loot: dict | None
+    family: IncidentFamily
+    objective: IncidentObjective
+    progress: IncidentProgress
+    risk: IncidentRisk
+    response: IncidentResponse
+    events: list[IncidentEventRead]
 
 
 class IncidentListItem(BaseModel):

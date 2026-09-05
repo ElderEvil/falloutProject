@@ -22,7 +22,7 @@ const emit = defineEmits<{
 <template>
   <div class="radio-controls">
     <div class="radio-header">
-      <h4 class="radio-title">Radio Studio</h4>
+      <h3 class="radio-title">Broadcast Controls</h3>
       <div class="radio-status">
         <span
           class="status-dot"
@@ -82,11 +82,7 @@ const emit = defineEmits<{
 .radio-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 8px;
+  gap: 0.5rem;
   width: 100%;
 }
 

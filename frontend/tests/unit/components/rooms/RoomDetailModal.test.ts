@@ -488,7 +488,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('500 caps')
     })
 
-    it('should show max tier message when room is at max tier', () => {
+    it('should show a disabled standard button when room is at max tier', () => {
       const maxTierRoom = {
         ...mockRoom,
         tier: 3,
@@ -503,6 +503,20 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Max tier reached')
       expect(wrapper.text()).toContain('(3/3)')
+      const maxTierButton = wrapper.findAll('.mock-button').find((button) => button.text().includes('Max tier reached'))
+      expect(maxTierButton?.attributes('disabled')).toBeDefined()
+    })
+
+    it('should omit upgrade controls for rooms without an upgrade path', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, category: 'SPECIAL', t2_upgrade_cost: null, t3_upgrade_cost: null },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.text()).not.toContain('Max tier reached')
+      expect(wrapper.text()).not.toContain('Upgrade to Tier')
     })
 
     it('should show tier 3 upgrade cost at tier 2', () => {
@@ -669,7 +683,9 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Radio Studio')
+      expect(wrapper.text()).toContain('Broadcast Controls')
       expect(wrapper.find('.radio-controls').exists()).toBe(true)
+      expect(wrapper.find('.actions-grid').find('.radio-controls').exists()).toBe(false)
     })
 
     it('should not show radio controls for non-radio rooms', () => {

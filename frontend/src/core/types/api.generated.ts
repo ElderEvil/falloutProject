@@ -6498,6 +6498,25 @@ export interface components {
          * @enum {string}
          */
         HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
+        /** IncidentEventRead */
+        IncidentEventRead: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * IncidentFamily
+         * @description Operational family used to present an incident truthfully.
+         * @enum {string}
+         */
+        IncidentFamily: "hazard" | "infestation" | "intrusion";
         /**
          * IncidentListItem
          * @description Summary incident info for list view.
@@ -6533,6 +6552,21 @@ export interface components {
             incident_count: number;
             /** Incidents */
             incidents: components["schemas"]["IncidentListItem"][];
+        };
+        /**
+         * IncidentObjective
+         * @description The single action outcome the player is working toward.
+         * @enum {string}
+         */
+        IncidentObjective: "contain" | "defeat";
+        /** IncidentProgress */
+        IncidentProgress: {
+            /** Current */
+            current: number;
+            /** Target */
+            target: number;
+            /** Label */
+            label: string;
         };
         /**
          * IncidentRead
@@ -6580,6 +6614,13 @@ export interface components {
             loot: {
                 [key: string]: unknown;
             } | null;
+            family: components["schemas"]["IncidentFamily"];
+            objective: components["schemas"]["IncidentObjective"];
+            progress: components["schemas"]["IncidentProgress"];
+            risk: components["schemas"]["IncidentRisk"];
+            response: components["schemas"]["IncidentResponse"];
+            /** Events */
+            events: components["schemas"]["IncidentEventRead"][];
         };
         /**
          * IncidentRespondersRequest
@@ -6606,6 +6647,18 @@ export interface components {
             room_id: string;
             /** Assigned Dweller Ids */
             assigned_dweller_ids: string[];
+        };
+        /** IncidentResponse */
+        IncidentResponse: {
+            /** Label */
+            label: string;
+        };
+        /** IncidentRisk */
+        IncidentRisk: {
+            /** Kind */
+            kind: string;
+            /** Rooms Affected */
+            rooms_affected: number;
         };
         /**
          * IncidentSpawnResponse

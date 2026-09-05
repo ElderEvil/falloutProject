@@ -1,7 +1,10 @@
 <template>
-  <div
+  <button
+    type="button"
     class="incident-alert"
     :class="{ pulsing: hasActiveIncidents }"
+    :disabled="!primaryIncident"
+    :aria-label="primaryIncident ? `Open ${incidentTitle} incident` : 'No active incidents'"
     @click="incidents[0]?.id && $emit('click', incidents[0].id)"
   >
     <div class="alert-content">
@@ -31,14 +34,14 @@
 
     <!-- Scanline overlay -->
     <div class="scanline"></div>
-  </div>
+  </button>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '../../models/incident'
-import { IncidentType } from '../../models/incident'
+import { getIncidentIcon } from '../../models/incident'
 
 interface Props {
   incidents: Incident[]
@@ -69,28 +72,7 @@ const hasActiveIncidents = computed(() => props.incidents.length > 0)
 
 const primaryIncident = computed(() => props.incidents[0])
 
-const incidentIcon = computed(() => {
-  if (!primaryIncident.value) return 'mdi:alert-octagon'
-
-  switch (primaryIncident.value.type) {
-    case IncidentType.RAIDER_ATTACK:
-      return 'mdi:skull'
-    case IncidentType.RADROACH_INFESTATION:
-      return 'mdi:bug'
-    case IncidentType.FIRE:
-      return 'mdi:fire'
-    case IncidentType.MOLE_RAT_ATTACK:
-      return 'mdi:paw'
-    case IncidentType.DEATHCLAW_ATTACK:
-      return 'mdi:claw-mark'
-    case IncidentType.FERAL_GHOUL_ATTACK:
-      return 'mdi:ghost'
-    case IncidentType.RADSCORPION_ATTACK:
-      return 'mdi:spider'
-    default:
-      return 'mdi:alert-octagon'
-  }
-})
+const incidentIcon = computed(() => (primaryIncident.value ? getIncidentIcon(primaryIncident.value.type) : 'mdi:alert-octagon'))
 
 const incidentTitle = computed(() => {
   if (!primaryIncident.value) return 'INCIDENT ALERT'
@@ -134,6 +116,8 @@ const elapsedTime = computed(() => {
   background: linear-gradient(180deg, var(--color-surface-dark) 0%, var(--color-surface-dark) 100%);
   border: 2px solid var(--color-danger);
   border-radius: 4px;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   overflow: hidden;
   transition: all 0.3s ease;

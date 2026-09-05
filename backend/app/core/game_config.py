@@ -245,8 +245,8 @@ class CombatConfig(BaseSettings):
         return merged
 
     # Loot
-    loot_caps_min: int = Field(default=50, ge=0)
-    loot_caps_max_per_difficulty: int = Field(default=100, ge=0)
+    loot_caps_min: int = Field(default=25, ge=0)
+    loot_caps_max_per_difficulty: int = Field(default=50, ge=0)
     caps_reward_base: int = Field(default=50, ge=0)
     caps_reward_per_difficulty: int = Field(default=20, ge=0)
 

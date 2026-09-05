@@ -138,6 +138,7 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
         assert payload["type"] == "incident_resolved"
         assert payload["success"] is True
         assert payload["incident_id"] == str(incident_resolve.id)
+        assert payload["caps_earned"] == result.caps_earned
 
     # --- Part C: Undefended incidents fail without spreading ---
     # Move dweller out of room1 to room2 so room1 has no dwellers

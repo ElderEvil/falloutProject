@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import UIconButton from '@/core/components/ui/UIconButton.vue'
+import UButton from '@/core/components/ui/UButton.vue'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -29,7 +31,14 @@ const healthPercent = (f: ArenaFighter | null) =>
 <template>
   <div class="fighter-slot">
     <div v-if="fighter" class="fighter-card">
-      <button v-if="canChange" class="slot-clear" type="button" aria-label="Clear fighter" @click="emit('clear', side)">✕</button>
+      <UIconButton
+        v-if="canChange"
+        class="slot-clear"
+        icon="mdi:close"
+        label="Clear fighter"
+        variant="danger"
+        @click="emit('clear', side)"
+      />
       <div class="damage-layer">
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
@@ -40,7 +49,7 @@ const healthPercent = (f: ArenaFighter | null) =>
         <UProgressBar :model-value="healthPercent(fighter)" :height="10" :glow="false" />
       </div>
       <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
-      <button v-if="canChange" class="slot-swap" type="button" @click="emit('togglePicker', side)">SWAP</button>
+      <UButton v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)">SWAP</UButton>
     </div>
     <button v-else class="fighter-slot-empty" type="button" @click="emit('togglePicker', side)">
       <span>+ PICK FIGHTER</span>
@@ -67,28 +76,6 @@ const healthPercent = (f: ArenaFighter | null) =>
   top: 4px;
   right: 6px;
   z-index: 3;
-  border: none;
-  background: transparent;
-  color: var(--color-gray-500);
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.slot-clear:hover {
-  color: var(--color-danger);
-}
-
-.slot-swap {
-  margin-top: 0.35rem;
-  padding: 0.2rem 0.6rem;
-  border: 1px solid var(--color-surface-hover);
-  border-radius: 4px;
-  background: transparent;
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  cursor: pointer;
 }
 
 .fighter-slot-empty {

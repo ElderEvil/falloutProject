@@ -13,11 +13,19 @@ from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
-from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.models.incident_event import IncidentEvent
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.room import Room
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
-from app.schemas.incident import IncidentRoundResult
+from app.schemas.incident import (
+    IncidentEventRead,
+    IncidentProgress,
+    IncidentRead,
+    IncidentResponse,
+    IncidentRisk,
+    IncidentRoundResult,
+)
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
 from app.services.stream_manager import sse_manager
@@ -42,6 +50,63 @@ class IncidentService:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+
+    @staticmethod
+    def _record_event(
+        db_session: AsyncSession, incident: Incident, kind: str, message: str, data: dict | None = None
+    ) -> None:
+        """Append a meaningful lifecycle event; callers commit with their state change."""
+        db_session.add(IncidentEvent(incident_id=incident.id, kind=kind, message=message, data=data))
+
+    async def get_incident_read(
+        self, db_session: AsyncSession, incident: Incident, room_name: str | None
+    ) -> IncidentRead:
+        """Build the stable, type-aware incident contract consumed by the UI."""
+        definition = get_incident_definition(incident.type)
+        if incident.type == IncidentType.FIRE:
+            progress = IncidentProgress(
+                current=min(100, int(incident.combat_progress * 100)), target=100, label=definition.progress_label
+            )
+        else:
+            progress = IncidentProgress(
+                current=incident.enemies_defeated,
+                target=incident.difficulty * 2,
+                label=definition.progress_label,
+            )
+        events_result = await db_session.execute(
+            select(IncidentEvent)
+            .where(IncidentEvent.incident_id == incident.id)
+            .order_by(IncidentEvent.created_at.desc())
+            .limit(20)
+        )
+        events = [
+            IncidentEventRead(id=str(event.id), kind=event.kind, message=event.message, data=event.data)
+            for event in reversed(events_result.scalars().all())
+        ]
+        return IncidentRead(
+            id=incident.id,
+            vault_id=incident.vault_id,
+            room_id=incident.room_id,
+            room_name=room_name,
+            type=incident.type,
+            status=incident.status,
+            difficulty=incident.difficulty,
+            start_time=incident.start_time.isoformat(),
+            end_time=incident.end_time.isoformat() if incident.end_time else None,
+            elapsed_time=incident.elapsed_time(),
+            duration=incident.duration,
+            damage_dealt=incident.damage_dealt,
+            enemies_defeated=incident.enemies_defeated,
+            rooms_affected=incident.rooms_affected,
+            spread_count=incident.spread_count,
+            loot=incident.loot,
+            family=definition.family,
+            objective=definition.objective,
+            progress=progress,
+            risk=IncidentRisk(kind=definition.risk_kind, rooms_affected=len(incident.rooms_affected)),
+            response=IncidentResponse(label=definition.response_label),
+            events=events,
+        )
 
     async def should_spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
@@ -205,6 +270,8 @@ class IncidentService:
 
         difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
 
+        incident_name = _INCIDENT_NAMES.get(incident_type, str(incident_type))
+
         # Create incident
         incident = await incident_crud.create(
             db_session,
@@ -214,13 +281,14 @@ class IncidentService:
             difficulty=difficulty,
             duration=game_config.incident.spread_duration,
         )
+        self._record_event(db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}.")
+        await db_session.commit()
 
         self.logger.info(
             f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}"
         )
 
         # Send notification (non-critical, don't break incident creation on failure)
-        incident_name = _INCIDENT_NAMES.get(incident_type, str(incident_type))
         await notification_service.notify_owner(
             db_session,
             vault_id,
@@ -320,19 +388,30 @@ class IncidentService:
                 or incident.elapsed_time() >= incident.duration
             ):
                 incident.resolve(success=False)
+                self._record_event(
+                    db_session,
+                    incident,
+                    "failed",
+                    f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
+                )
                 db_session.add(incident)
                 await db_session.commit()
                 await self._publish_event(incident, "incident_resolved", success=False)
                 await self._notify_resolution(db_session, incident, success=False)
             return IncidentRoundResult(no_defenders=True)
 
-        # Calculate combat power
+        # Fire is a containment operation: responders suppress a hazard rather
+        # than defeat enemies. Other types retain the combat loop.
         dweller_power = self._calculate_dweller_combat_power(dwellers)
-        raider_power = self._calculate_raider_power(incident.difficulty)
-
-        # Apply damage over time
-        damage_to_dwellers = self._calculate_damage_to_dwellers(raider_power, seconds_passed)
-        damage_to_raiders = self._calculate_damage_to_raiders(dweller_power, seconds_passed)
+        threat_power = self._calculate_raider_power(incident.difficulty)
+        if incident.type == IncidentType.FIRE:
+            damage_to_dwellers = self._calculate_fire_damage(threat_power, seconds_passed)
+            response_progress = self._calculate_fire_suppression(dweller_power, threat_power, seconds_passed)
+            damage_to_raiders = 0.0
+        else:
+            damage_to_dwellers = self._calculate_damage_to_dwellers(threat_power, seconds_passed)
+            response_progress = self._calculate_damage_to_raiders(dweller_power, seconds_passed) / threat_power
+            damage_to_raiders = response_progress * threat_power
 
         # Apply damage to dwellers
         damaged_count = 0
@@ -368,10 +447,11 @@ class IncidentService:
 
         # Track enemies defeated — accumulate fractional kills so weak defenders
         # still make progress instead of stalling at int() == 0 every tick.
-        if raider_power > 0:
+        if threat_power > 0:
             previous_kills = incident.enemies_defeated
-            incident.combat_progress += damage_to_raiders / raider_power
-            incident.enemies_defeated = int(incident.combat_progress)
+            incident.combat_progress += response_progress
+            if incident.type != IncidentType.FIRE:
+                incident.enemies_defeated = int(incident.combat_progress)
             enemies_this_tick = incident.enemies_defeated - previous_kills
         else:
             enemies_this_tick = 0
@@ -380,7 +460,29 @@ class IncidentService:
         expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
         caps_earned = 0
 
-        if incident.enemies_defeated >= expected_raider_count:
+        if incident.type == IncidentType.FIRE and response_progress > 0:
+            self._record_event(
+                db_session,
+                incident,
+                "containment",
+                f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
+                {"target": "hazard", "amount": response_progress},
+            )
+        else:
+            self._record_event(
+                db_session,
+                incident,
+                "round",
+                f"Responders dealt {int(damage_to_raiders)} damage; took {total_damage}.",
+                {"target": "combat", "damage_to_dwellers": total_damage, "damage_to_threat": damage_to_raiders},
+            )
+
+        resolved = (
+            incident.combat_progress >= 1
+            if incident.type == IncidentType.FIRE
+            else incident.enemies_defeated >= expected_raider_count
+        )
+        if resolved:
             # Victory! Generate loot and resolve
             transitioned = True
             incident.loot = self._generate_loot(incident.difficulty, incident.type)
@@ -393,13 +495,16 @@ class IncidentService:
             await self._award_combat_xp(db_session, incident, dwellers)
 
             self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
+            self._record_event(
+                db_session, incident, "resolved", f"{get_incident_definition(incident.type).progress_label}."
+            )
 
         db_session.add(incident)
         await db_session.commit()
 
         if transitioned:
             await self._notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
-            await self._publish_event(incident, "incident_resolved", success=True)
+            await self._publish_event(incident, "incident_resolved", success=True, caps_earned=caps_earned)
 
         return IncidentRoundResult(
             damage_to_dwellers=damage_to_dwellers,
@@ -558,9 +663,14 @@ class IncidentService:
     ) -> None:
         """Best-effort: notify the owner that an incident was resolved."""
         incident_name = _INCIDENT_NAMES.get(incident.type, str(incident.type))
+        definition = get_incident_definition(incident.type)
         if success:
-            title = f"Victory: {incident_name}"
-            message = f"Your dwellers defeated the attackers and recovered {caps_earned} caps!"
+            if definition.objective.value == "contain":
+                title = f"Contained: {incident_name}"
+                message = f"Your dwellers contained {incident_name} and recovered {caps_earned} caps!"
+            else:
+                title = f"Victory: {incident_name}"
+                message = f"Your dwellers defeated the attackers and recovered {caps_earned} caps!"
             notification_type = NotificationType.COMBAT_VICTORY
         else:
             title = f"Incident Lost: {incident_name}"
@@ -629,6 +739,8 @@ class IncidentService:
 
         for dweller in dwellers:
             await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
+        self._record_event(db_session, incident, "responders_assigned", f"{len(unique_ids)} responder(s) assigned.")
+        await db_session.commit()
         return unique_ids
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
@@ -699,6 +811,7 @@ class IncidentService:
             # Update original incident spread tracking
             incident.spread_to_room(str(new_room.id))
             db_session.add(incident)
+            self._record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
 
             self.logger.warning(
                 f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "
@@ -708,7 +821,9 @@ class IncidentService:
 
         return False
 
-    async def _publish_event(self, incident: Incident, event_type: str, success: bool | None = None) -> None:
+    async def _publish_event(
+        self, incident: Incident, event_type: str, success: bool | None = None, caps_earned: int | None = None
+    ) -> None:
         """Publish a non-critical incident event."""
         try:
             await sse_manager.publish(
@@ -725,6 +840,7 @@ class IncidentService:
                     room_name=None,
                     difficulty=incident.difficulty,
                     success=success,
+                    caps_earned=caps_earned,
                 ).model_dump(),
             )
         except Exception:
@@ -753,6 +869,14 @@ class IncidentService:
         """Calculate damage dealt to raiders per tick."""
         damage_per_second = dweller_power / 5  # Dwellers deal 20% of their power per second
         return damage_per_second * seconds
+
+    def _calculate_fire_damage(self, hazard_power: float, seconds: int) -> float:
+        """Fire harms occupants more slowly than an armed attack."""
+        return hazard_power / 20 * seconds
+
+    def _calculate_fire_suppression(self, dweller_power: float, hazard_power: float, seconds: int) -> float:
+        """Return fractional containment progress, where one fully extinguishes a fire."""
+        return dweller_power / max(1, hazard_power) * seconds / 5
 
     async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list["Dweller"]) -> None:
         """Award experience to dwellers who participated in combat.

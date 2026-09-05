@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.78.0 (2026-09-05)
+
+### Features
+
+* add admin incident test controls 9aaf778
+* consolidate incident and arena interfaces cce13f3
+* improve incident responder readability e24a52a
+* prioritize incident journal b710009
+* show incident journal damage 120ed62
+
+### Bug Fixes
+
+* align incident event migration metadata c1cead4
+* resolve CodeRabbit review findings on incident and arena UI 834421b
+* surface incident rewards and damage 948dc3b
+
 ## 2.77.0 (2026-09-04)
 
 ### Features

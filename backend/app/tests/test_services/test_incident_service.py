@@ -128,7 +128,7 @@ async def test_fire_uses_containment_progress_and_records_a_journal(
     assert incident.enemies_defeated == 0
     journal = list(events.scalars().all())
     assert [event.kind for event in journal] == ["spawned", "containment"]
-    assert journal[-1].data == {"target": "hazard", "amount": 0.5}
+    assert journal[-1].data == {"target": "hazard", "amount": 0.5, "total": 50, "rooms": 1}
 
 
 @pytest.mark.asyncio
@@ -152,7 +152,12 @@ async def test_combat_round_records_damage_even_when_no_one_is_hit(
     journal = list(events.scalars().all())
 
     assert journal[-1].kind == "round"
-    assert journal[-1].data == {"target": "combat", "damage_to_dwellers": 0, "damage_to_threat": 0.0}
+    assert journal[-1].data["target"] == "combat"
+    assert journal[-1].data["damage_to_dwellers"] == 0
+    assert journal[-1].data["damage_to_threat"] == 0.0
+    await async_session.refresh(incident)
+    assert journal[-1].data["enemies_defeated"] == incident.enemies_defeated
+    assert journal[-1].data["expected_threat"] == incident.difficulty * 2
 
 
 @pytest.mark.asyncio
@@ -181,6 +186,48 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
     read = await incident_service.get_incident_read(async_session, incident, room.name)
 
     assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 25)]
+    assert all(event.created_at for event in read.events)
+
+
+@pytest.mark.asyncio
+async def test_incident_journal_entries_carry_actionable_detail(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Journal entries state difficulty, responder names, and cumulative progress."""
+    room = room_with_dwellers["room"]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADSCORPION_ATTACK)
+    assert incident is not None
+
+    events = await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
+    spawned = [event for event in events.scalars().all() if event.kind == "spawned"]
+    assert len(spawned) == 1
+    assert f"difficulty {incident.difficulty}/10" in spawned[0].message
+    assert f"~{incident.difficulty * 2} hostiles" in spawned[0].message
+    assert spawned[0].data == {"difficulty": incident.difficulty, "expected_threat": incident.difficulty * 2}
+
+    responder = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id),
+    )
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    events = await async_session.execute(
+        select(IncidentEvent).where(
+            IncidentEvent.incident_id == incident.id, IncidentEvent.kind == "responders_assigned"
+        )
+    )
+    assigned = list(events.scalars().all())
+    assert len(assigned) == 1
+    assert responder.first_name in assigned[0].message
+
+    await incident_service.process_incident(async_session, incident, 60)
+    await async_session.refresh(incident)
+    events = await async_session.execute(
+        select(IncidentEvent).where(IncidentEvent.incident_id == incident.id, IncidentEvent.kind == "round")
+    )
+    rounds = list(events.scalars().all())
+    assert rounds
+    assert f"{incident.enemies_defeated}/{incident.difficulty * 2} down" in rounds[-1].message
 
 
 @pytest.mark.asyncio
@@ -481,6 +528,13 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, room_wi
     active_incidents = await crud.incident_crud.get_active_by_vault(async_session, room.vault_id)
     room_ids = [str(inc.room_id) for inc in active_incidents]
     assert str(room2.id) in room_ids
+
+    events = await async_session.execute(
+        select(IncidentEvent).where(IncidentEvent.incident_id == incident.id, IncidentEvent.kind == "spread")
+    )
+    spread_event = events.scalar_one()
+    assert spread_event.data == {"rooms_affected": incident.spread_count + 1}
+    assert f"{incident.spread_count + 1} rooms affected" in spread_event.message
 
 
 @pytest.mark.asyncio

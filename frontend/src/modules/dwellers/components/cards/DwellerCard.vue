@@ -52,7 +52,9 @@ const healthPercentage = computed(() => {
   return (props.dweller.health / props.dweller.max_health) * 100
 })
 
-const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
+const radiationPercentage = computed(() =>
+  getRadiationPercentage(props.dweller.radiation, props.dweller.max_health)
+)
 
 const happinessLevel = computed(() => {
   const happiness = props.dweller.happiness || 50
@@ -82,7 +84,9 @@ const GENDER_META = {
   female: { icon: 'mdi:gender-female', color: '#f472b6' },
 } as const
 
-const genderMeta = computed(() => GENDER_META[props.dweller.gender as keyof typeof GENDER_META] ?? GENDER_META.male)
+const genderMeta = computed(
+  () => GENDER_META[props.dweller.gender as keyof typeof GENDER_META] ?? GENDER_META.male
+)
 
 const RARITY_META: Record<string, { icon: string; color: string }> = {
   legendary: { icon: 'mdi:star', color: '#fbbf24' },
@@ -91,21 +95,42 @@ const RARITY_META: Record<string, { icon: string; color: string }> = {
   common: { icon: 'mdi:star', color: '#9ca3af' },
 }
 
-const rarityMeta = computed(() => RARITY_META[props.dweller.rarity?.toLowerCase() ?? ''] ?? RARITY_META.common)
+const rarityMeta = computed(
+  () => RARITY_META[props.dweller.rarity?.toLowerCase() ?? ''] ?? RARITY_META.common
+)
 const rarityLabel = computed(() => props.dweller.rarity || 'Common')
 
-
-const canIssueStimpack = computed(() => (props.dweller.stimpack || 0) < 15 && (props.availableStimpaks ?? 0) > 0)
-const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (props.availableRadaways ?? 0) > 0)
+const canIssueStimpack = computed(
+  () => (props.dweller.stimpack || 0) < 15 && (props.availableStimpaks ?? 0) > 0
+)
+const canIssueRadaway = computed(
+  () => (props.dweller.radaway || 0) < 15 && (props.availableRadaways ?? 0) > 0
+)
 
 const availableStimpaksCount = computed(() => props.availableStimpaks ?? 0)
 const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
 
-const canUseStimpak = computed(
-  () => (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health
-)
+const canUseStimpak = computed(() => {
+  const healCap = Math.max(0, props.dweller.max_health - Math.max(0, props.dweller.radiation || 0))
+  return (
+    (props.dweller.stimpack || 0) > 0 &&
+    props.dweller.health / Math.max(1, props.dweller.max_health) < 0.6 &&
+    props.dweller.health < healCap
+  )
+})
+const stimpakTitle = computed(() => {
+  if ((props.dweller.stimpack || 0) <= 0) return 'No Stimpaks to use'
+  const healCap = Math.max(0, props.dweller.max_health - Math.max(0, props.dweller.radiation || 0))
+  if (props.dweller.health >= healCap && props.dweller.health < props.dweller.max_health)
+    return `Radiation caps healing at ${healCap} — use RadAway first`
+  if (props.dweller.health / Math.max(1, props.dweller.max_health) >= 0.6)
+    return 'Stimpak available below 60% health'
+  return 'Use one Stimpack (heals dweller)'
+})
 const canUseRadaway = computed(
-  () => (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
+  () =>
+    (props.dweller.radaway || 0) > 0 &&
+    (props.dweller.radiation || 0) / Math.max(1, props.dweller.max_health) >= 0.3
 )
 </script>
 
@@ -140,14 +165,26 @@ const canUseRadaway = computed(
             :class="{ 'animate-spin': generatingPortrait }"
             style="color: var(--color-theme-primary); opacity: 0.3"
           />
-          <span class="placeholder-hint">{{ generatingPortrait ? 'Generating portrait…' : 'Generate portrait' }}</span>
+          <span class="placeholder-hint">{{
+            generatingPortrait ? 'Generating portrait…' : 'Generate portrait'
+          }}</span>
         </button>
       </template>
     </div>
 
     <div class="info-badges">
-      <DwellerBadge :icon="genderMeta.icon" :color="genderMeta.color" :label="dweller.gender" size="md" />
-      <DwellerBadge :icon="rarityMeta.icon" :color="rarityMeta.color" :label="rarityLabel" size="md" />
+      <DwellerBadge
+        :icon="genderMeta.icon"
+        :color="genderMeta.color"
+        :label="dweller.gender"
+        size="md"
+      />
+      <DwellerBadge
+        :icon="rarityMeta.icon"
+        :color="rarityMeta.color"
+        :label="rarityLabel"
+        size="md"
+      />
       <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" size="md" />
     </div>
     <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
@@ -190,7 +227,7 @@ const canUseRadaway = computed(
               variant="secondary"
               size="sm"
               aria-label="Use Stimpack"
-              :title="canUseStimpak ? 'Use one Stimpack (heals dweller)' : 'No Stimpaks to use'"
+              :title="stimpakTitle"
               :disabled="!canUseStimpak || usingStimpak"
               :loading="usingStimpak"
               @click="emit('use-stimpak')"
@@ -204,7 +241,11 @@ const canUseRadaway = computed(
               variant="ghost"
               size="xs"
               aria-label="Issue Stimpack from vault"
-              :title="canIssueStimpack ? `Issue one Stimpack from vault (${availableStimpaksCount} available)` : 'Dweller at capacity (15)'"
+              :title="
+                canIssueStimpack
+                  ? `Issue one Stimpack from vault (${availableStimpaksCount} available)`
+                  : 'Dweller at capacity (15)'
+              "
               :disabled="!canIssueStimpack || issuingMedicalSupply"
               :loading="issuingMedicalSupply"
               @click="emit('issue-medical-supply', 'stimpack')"
@@ -241,7 +282,11 @@ const canUseRadaway = computed(
               variant="ghost"
               size="xs"
               aria-label="Issue RadAway from vault"
-              :title="canIssueRadaway ? `Issue one RadAway from vault (${availableRadawaysCount} available)` : 'Dweller at capacity (15)'"
+              :title="
+                canIssueRadaway
+                  ? `Issue one RadAway from vault (${availableRadawaysCount} available)`
+                  : 'Dweller at capacity (15)'
+              "
               :disabled="!canIssueRadaway || issuingMedicalSupply"
               :loading="issuingMedicalSupply"
               @click="emit('issue-medical-supply', 'radaway')"
@@ -312,7 +357,9 @@ const canUseRadaway = computed(
   border-radius: 8px;
   color: inherit;
   cursor: pointer;
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .portrait-placeholder:hover:not(:disabled),

@@ -1,5 +1,12 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-// Note: Combat doesn't have its own views - it's part of VaultView
-// This routes file is for future expansion
-export const combatRoutes: RouteRecordRaw[] = []
+export const combatRoutes: RouteRecordRaw[] = import.meta.env.DEV
+  ? [
+      {
+        path: '/playground/incidents',
+        name: 'incidentPlayground',
+        component: () => import('../views/IncidentPlaygroundView.vue'),
+        meta: { requiresAuth: true, hideFromNav: true },
+      },
+    ]
+  : []

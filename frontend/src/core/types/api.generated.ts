@@ -1136,7 +1136,7 @@ export interface paths {
         put?: never;
         /**
          * Use Stimpack
-         * @description Use a stimpack to heal the dweller (restores 40% of max health).
+         * @description Use a stimpack to heal the dweller (restores 40% of max health, capped by radiation).
          *
          *     Returns:
          *         DwellerRead: The healed dweller.
@@ -6510,6 +6510,8 @@ export interface components {
             data: {
                 [key: string]: unknown;
             } | null;
+            /** Created At */
+            created_at: string;
         };
         /**
          * IncidentFamily

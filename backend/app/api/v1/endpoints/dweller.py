@@ -353,7 +353,7 @@ async def use_stimpack(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerRead:
-    """Use a stimpack to heal the dweller (restores 40% of max health).
+    """Use a stimpack to heal the dweller (restores 40% of max health, capped by radiation).
 
     Returns:
         DwellerRead: The healed dweller.
@@ -368,7 +368,7 @@ async def use_radaway(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerRead:
-    """Use a radaway to remove radiation from the dweller (removes 50% of radiation).
+    """Use a RadAway to remove up to 50% of max health in radiation from the dweller.
 
     Returns:
         DwellerRead: The dweller with reduced radiation.

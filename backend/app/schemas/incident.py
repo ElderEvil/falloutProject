@@ -25,6 +25,7 @@ class IncidentEventRead(BaseModel):
     kind: str
     message: str
     data: dict | None
+    created_at: str
 
 
 class IncidentRead(BaseModel):

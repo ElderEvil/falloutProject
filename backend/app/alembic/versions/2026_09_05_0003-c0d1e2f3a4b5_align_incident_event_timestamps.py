@@ -21,5 +21,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(
+        "UPDATE incident_event SET created_at = COALESCE(created_at, now()), "
+        "updated_at = COALESCE(updated_at, now()) "
+        "WHERE created_at IS NULL OR updated_at IS NULL"
+    )
     op.alter_column("incident_event", "updated_at", existing_type=sa.DateTime(), nullable=False)
     op.alter_column("incident_event", "created_at", existing_type=sa.DateTime(), nullable=False)

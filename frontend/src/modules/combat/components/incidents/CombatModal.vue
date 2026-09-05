@@ -228,7 +228,7 @@ async function loadIncident() {
   try {
     await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     incident.value = incidentStore.getIncidentById(props.incidentId) || null
-    loadFailed.value = false
+    loadFailed.value = incident.value === null
   } catch {
     loadFailed.value = true
     toast.error('Failed to load incident')

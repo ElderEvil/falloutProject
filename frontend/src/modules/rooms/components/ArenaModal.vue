@@ -35,6 +35,7 @@ const previousHp = ref<Record<string, number>>({})
 const openPicker = ref<'A' | 'B' | null>(null)
 const isStarting = ref(false)
 let damageSeq = 0
+let loadSequence = 0
 const pendingDamageTimers = new Set<ReturnType<typeof setTimeout>>()
 
 onUnmounted(() => {
@@ -75,7 +76,9 @@ const applyState = () => {
 
 const load = async (silent = false) => {
   if (!authStore.token) return
+  const sequence = ++loadSequence
   const loaded = await arenaStore.fetchState(props.vaultId, authStore.token, silent)
+  if (sequence !== loadSequence) return
   loadFailed.value = !loaded
   applyState()
   isLoading.value = false

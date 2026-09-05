@@ -87,12 +87,12 @@ export interface IncidentListResponse {
 }
 
 export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
-  [IncidentType.RAIDER_ATTACK]: 'mdi:skull',
+  [IncidentType.RAIDER_ATTACK]: 'mdi:robber',
   [IncidentType.RADROACH_INFESTATION]: 'mdi:bug',
   [IncidentType.FIRE]: 'mdi:fire',
   [IncidentType.MOLE_RAT_ATTACK]: 'mdi:paw',
-  [IncidentType.DEATHCLAW_ATTACK]: 'mdi:claw-mark',
-  [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:ghost',
+  [IncidentType.DEATHCLAW_ATTACK]: 'mdi:axe-battle',
+  [IncidentType.FERAL_GHOUL_ATTACK]: 'mdi:biohazard',
   [IncidentType.RADSCORPION_ATTACK]: 'mdi:spider',
 }
 

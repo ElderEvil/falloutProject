@@ -62,13 +62,13 @@ INCIDENT_DEFINITIONS: dict[IncidentType, IncidentDefinition] = {
         IncidentFamily.HAZARD, IncidentObjective.CONTAIN, "Fire contained", "Send responders", "spread"
     ),
     IncidentType.RADROACH_INFESTATION: IncidentDefinition(
-        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "spread"
+        IncidentFamily.INFESTATION, IncidentObjective.DEFEAT, "Infestation contained", "Send responders", "spread"
     ),
     IncidentType.MOLE_RAT_ATTACK: IncidentDefinition(
-        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "spread"
+        IncidentFamily.INFESTATION, IncidentObjective.DEFEAT, "Infestation contained", "Send responders", "spread"
     ),
     IncidentType.RADSCORPION_ATTACK: IncidentDefinition(
-        IncidentFamily.INFESTATION, IncidentObjective.CONTAIN, "Infestation contained", "Send responders", "radiation"
+        IncidentFamily.INFESTATION, IncidentObjective.DEFEAT, "Infestation contained", "Send responders", "radiation"
     ),
     IncidentType.RAIDER_ATTACK: IncidentDefinition(
         IncidentFamily.INTRUSION, IncidentObjective.DEFEAT, "Intruders neutralized", "Send defenders", "breach"

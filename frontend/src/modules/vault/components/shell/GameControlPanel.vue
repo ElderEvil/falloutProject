@@ -26,9 +26,9 @@ const testIncidents = [
   { type: IncidentType.RADROACH_INFESTATION, label: 'Radroach', icon: 'mdi:bug' },
   { type: IncidentType.MOLE_RAT_ATTACK, label: 'Mole Rat', icon: 'mdi:paw' },
   { type: IncidentType.RADSCORPION_ATTACK, label: 'Radscorpion', icon: 'mdi:spider' },
-  { type: IncidentType.RAIDER_ATTACK, label: 'Raider', icon: 'mdi:skull' },
-  { type: IncidentType.FERAL_GHOUL_ATTACK, label: 'Feral Ghoul', icon: 'mdi:ghost' },
-  { type: IncidentType.DEATHCLAW_ATTACK, label: 'Deathclaw', icon: 'mdi:claw-mark' },
+  { type: IncidentType.RAIDER_ATTACK, label: 'Raider', icon: 'mdi:robber' },
+  { type: IncidentType.FERAL_GHOUL_ATTACK, label: 'Feral Ghoul', icon: 'mdi:biohazard' },
+  { type: IncidentType.DEATHCLAW_ATTACK, label: 'Deathclaw', icon: 'mdi:axe-battle' },
 ]
 
 const formatGameTime = (seconds: number): string => {
@@ -97,7 +97,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-nowrap items-center gap-2 rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
+    class="fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-nowrap items-center gap-2 overflow-x-auto rounded border border-theme-primary/30 bg-surface-warm/90 px-4 py-2 shadow-lg"
   >
     <!-- Game Time -->
     <div class="hidden shrink-0 items-center gap-2 text-theme-primary sm:flex">

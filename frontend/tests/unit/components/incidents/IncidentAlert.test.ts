@@ -101,7 +101,7 @@ describe('IncidentAlert', () => {
       })
 
       const icon = wrapper.find('.mock-icon')
-      expect(icon.attributes('data-icon')).toBe('mdi:skull')
+      expect(icon.attributes('data-icon')).toBe('mdi:robber')
     })
 
     it('should display correct icon for fire', () => {
@@ -253,12 +253,12 @@ describe('IncidentAlert', () => {
 
   describe('All Incident Types', () => {
     const incidentTypes = [
-      { type: IncidentType.RAIDER_ATTACK, icon: 'mdi:skull' },
+      { type: IncidentType.RAIDER_ATTACK, icon: 'mdi:robber' },
       { type: IncidentType.FIRE, icon: 'mdi:fire' },
       { type: IncidentType.RADROACH_INFESTATION, icon: 'mdi:bug' },
       { type: IncidentType.MOLE_RAT_ATTACK, icon: 'mdi:paw' },
-      { type: IncidentType.DEATHCLAW_ATTACK, icon: 'mdi:claw-mark' },
-      { type: IncidentType.FERAL_GHOUL_ATTACK, icon: 'mdi:ghost' },
+      { type: IncidentType.DEATHCLAW_ATTACK, icon: 'mdi:axe-battle' },
+      { type: IncidentType.FERAL_GHOUL_ATTACK, icon: 'mdi:biohazard' },
     ]
 
     incidentTypes.forEach(({ type, icon }) => {

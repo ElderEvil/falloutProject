@@ -37,7 +37,7 @@ describe('GameControlPanel', () => {
     const panel = wrapper.find('div')
 
     expect(panel.classes()).toContain('flex-nowrap')
-    expect(panel.classes()).not.toContain('overflow-x-auto')
+    expect(panel.classes()).toContain('overflow-x-auto')
     expect(panel.classes()).toContain('max-w-[calc(100vw-2rem)]')
     expect(panel.classes()).toContain('fixed')
     expect(panel.classes()).toContain('left-1/2')

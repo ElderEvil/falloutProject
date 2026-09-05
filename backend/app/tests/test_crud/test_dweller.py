@@ -19,6 +19,7 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (
+    ContentNoChangeException,
     InvalidVaultTransferException,
     ResourceConflictException,
     ValidationException,
@@ -725,3 +726,66 @@ async def test_create_from_template_reservation_conflict(async_session: AsyncSes
     dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id=vault.id)
     curated = [d for d in dwellers if d.first_name == "Abraham" and d.last_name == "Washington"]
     assert len(curated) == 1
+
+
+async def _make_medical_dweller(async_session: AsyncSession, **overrides):
+    """Create a vault dweller with deterministic medical fields."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    dweller_data = create_fake_dweller()
+    dweller_data.update(
+        {
+            "max_health": 100,
+            "health": 50,
+            "radiation": 0,
+            "stimpack": 2,
+            "radaway": 2,
+            **overrides,
+        }
+    )
+    return await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=str(vault.id)))
+
+
+@pytest.mark.asyncio
+async def test_use_stimpack_respects_radiation_cap(async_session: AsyncSession) -> None:
+    """A 40% heal stops at max_health minus radiation."""
+    dweller = await _make_medical_dweller(async_session, health=50, radiation=20)
+
+    healed = await crud.dweller.use_stimpack(async_session, dweller.id)
+
+    assert healed.health == 80
+    assert healed.stimpack == 1
+
+
+@pytest.mark.asyncio
+async def test_use_stimpack_at_radiation_cap_is_no_change(async_session: AsyncSession) -> None:
+    """At the radiation cap the stimpack is kept and RadAway is prescribed."""
+    dweller = await _make_medical_dweller(async_session, health=80, radiation=20)
+
+    with pytest.raises(ContentNoChangeException, match="RadAway"):
+        await crud.dweller.use_stimpack(async_session, dweller.id)
+
+    await async_session.refresh(dweller)
+    assert dweller.stimpack == 2
+
+
+@pytest.mark.asyncio
+async def test_use_radaway_removes_half_max_health_without_healing(async_session: AsyncSession) -> None:
+    """RadAway capacity is fixed off max health and never restores health."""
+    dweller = await _make_medical_dweller(async_session, health=60, radiation=80)
+
+    treated = await crud.dweller.use_radaway(async_session, dweller.id)
+
+    assert treated.radiation == 30
+    assert treated.health == 60
+    assert treated.radaway == 1
+
+
+@pytest.mark.asyncio
+async def test_use_radaway_clears_single_rad(async_session: AsyncSession) -> None:
+    """Low radiation always clears so the item is never wasted."""
+    dweller = await _make_medical_dweller(async_session, radiation=1)
+
+    treated = await crud.dweller.use_radaway(async_session, dweller.id)
+
+    assert treated.radiation == 0

@@ -101,11 +101,25 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 const availableStimpaksCount = computed(() => props.availableStimpaks ?? 0)
 const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
 
-const canUseStimpak = computed(
-  () => (props.dweller.stimpack || 0) > 0 && props.dweller.health < props.dweller.max_health
-)
+const canUseStimpak = computed(() => {
+  const healCap = Math.max(0, props.dweller.max_health - Math.max(0, props.dweller.radiation || 0))
+  return (
+    (props.dweller.stimpack || 0) > 0 &&
+    props.dweller.health / Math.max(1, props.dweller.max_health) < 0.6 &&
+    props.dweller.health < healCap
+  )
+})
+const stimpakTitle = computed(() => {
+  if ((props.dweller.stimpack || 0) <= 0) return 'No Stimpaks to use'
+  const healCap = Math.max(0, props.dweller.max_health - Math.max(0, props.dweller.radiation || 0))
+  if (props.dweller.health >= healCap && props.dweller.health < props.dweller.max_health)
+    return `Radiation caps healing at ${healCap} — use RadAway first`
+  return 'Use one Stimpack (heals dweller)'
+})
 const canUseRadaway = computed(
-  () => (props.dweller.radaway || 0) > 0 && (props.dweller.radiation || 0) > 0
+  () =>
+    (props.dweller.radaway || 0) > 0 &&
+    (props.dweller.radiation || 0) / Math.max(1, props.dweller.max_health) > 0.4
 )
 </script>
 
@@ -190,7 +204,7 @@ const canUseRadaway = computed(
               variant="secondary"
               size="sm"
               aria-label="Use Stimpack"
-              :title="canUseStimpak ? 'Use one Stimpack (heals dweller)' : 'No Stimpaks to use'"
+              :title="stimpakTitle"
               :disabled="!canUseStimpak || usingStimpak"
               :loading="usingStimpak"
               @click="emit('use-stimpak')"

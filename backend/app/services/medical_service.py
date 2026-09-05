@@ -32,8 +32,9 @@ async def get_dweller_medical_status(
     max_health = max(dweller.max_health, 1)
     health_percent = dweller.health / max_health * 100
     radiation_percent = dweller.radiation / max_health * 100
+    heal_cap_percent = max(0, max_health - max(0, dweller.radiation)) / max_health * 100
 
-    if health_percent < 50 and available_stimpaks > 0:
+    if health_percent < min(50, heal_cap_percent) and available_stimpaks > 0:
         recommended_action: MedicalRecommendation = "request_stimpak"
     elif radiation_percent >= 30 and available_radaways > 0:
         recommended_action = "request_radaway"

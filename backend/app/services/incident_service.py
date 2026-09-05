@@ -80,7 +80,13 @@ class IncidentService:
             .limit(20)
         )
         events = [
-            IncidentEventRead(id=str(event.id), kind=event.kind, message=event.message, data=event.data)
+            IncidentEventRead(
+                id=str(event.id),
+                kind=event.kind,
+                message=event.message,
+                data=event.data,
+                created_at=event.created_at.isoformat(),
+            )
             for event in reversed(events_result.scalars().all())
         ]
         return IncidentRead(
@@ -271,6 +277,7 @@ class IncidentService:
         difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
 
         incident_name = _INCIDENT_NAMES.get(incident_type, str(incident_type))
+        definition = get_incident_definition(incident_type)
 
         # Create incident
         incident = await incident_crud.create(
@@ -281,7 +288,19 @@ class IncidentService:
             difficulty=difficulty,
             duration=game_config.incident.spread_duration,
         )
-        self._record_event(db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}.")
+        expected_threat = 0 if incident_type == IncidentType.FIRE else difficulty * 2
+        spawn_detail = (
+            f"difficulty {difficulty}/10"
+            if incident_type == IncidentType.FIRE
+            else f"difficulty {difficulty}/10, ~{expected_threat} hostiles incoming"
+        )
+        self._record_event(
+            db_session,
+            incident,
+            "spawned",
+            f"{incident_name} detected in {target_room.name} — {spawn_detail}. {definition.response_label}.",
+            {"difficulty": difficulty, "expected_threat": expected_threat},
+        )
         await db_session.commit()
 
         self.logger.info(
@@ -392,7 +411,8 @@ class IncidentService:
                     db_session,
                     incident,
                     "failed",
-                    f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
+                    f"Failed to {get_incident_definition(incident.type).objective.value} before escalation"
+                    f" ({incident.damage_dealt} dweller damage taken).",
                 )
                 db_session.add(incident)
                 await db_session.commit()
@@ -461,20 +481,30 @@ class IncidentService:
         caps_earned = 0
 
         if incident.type == IncidentType.FIRE and response_progress > 0:
+            containment_gain = max(1, int(response_progress * 100))
+            containment_total = min(100, int(incident.combat_progress * 100))
+            rooms_burning = max(1, len(incident.rooms_affected))
             self._record_event(
                 db_session,
                 incident,
                 "containment",
-                f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
-                {"target": "hazard", "amount": response_progress},
+                f"Fire containment +{containment_gain}% ({containment_total}% total, {rooms_burning} room(s) burning).",
+                {"target": "hazard", "amount": response_progress, "total": containment_total, "rooms": rooms_burning},
             )
         else:
             self._record_event(
                 db_session,
                 incident,
                 "round",
-                f"Responders dealt {int(damage_to_raiders)} damage; took {total_damage}.",
-                {"target": "combat", "damage_to_dwellers": total_damage, "damage_to_threat": damage_to_raiders},
+                f"Round: dealt {int(damage_to_raiders)} damage"
+                f" ({incident.enemies_defeated}/{expected_raider_count} down); took {total_damage}.",
+                {
+                    "target": "combat",
+                    "damage_to_dwellers": total_damage,
+                    "damage_to_threat": damage_to_raiders,
+                    "enemies_defeated": incident.enemies_defeated,
+                    "expected_threat": expected_raider_count,
+                },
             )
 
         resolved = (
@@ -496,7 +526,11 @@ class IncidentService:
 
             self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
             self._record_event(
-                db_session, incident, "resolved", f"{get_incident_definition(incident.type).progress_label}."
+                db_session,
+                incident,
+                "resolved",
+                f"{get_incident_definition(incident.type).progress_label}. Recovered {caps_earned} caps.",
+                {"caps_earned": caps_earned},
             )
 
         db_session.add(incident)
@@ -739,7 +773,14 @@ class IncidentService:
 
         for dweller in dwellers:
             await dweller_service.update_dweller(db_session, dweller.id, {"room_id": incident.room_id})
-        self._record_event(db_session, incident, "responders_assigned", f"{len(unique_ids)} responder(s) assigned.")
+        responder_names = [dweller.first_name for dweller in dwellers]
+        self._record_event(
+            db_session,
+            incident,
+            "responders_assigned",
+            f"{', '.join(responder_names)} responding ({len(unique_ids)} defender(s)).",
+            {"count": len(unique_ids), "names": responder_names},
+        )
         await db_session.commit()
         return unique_ids
 
@@ -811,7 +852,13 @@ class IncidentService:
             # Update original incident spread tracking
             incident.spread_to_room(str(new_room.id))
             db_session.add(incident)
-            self._record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
+            self._record_event(
+                db_session,
+                incident,
+                "spread",
+                f"Spread to {new_room.name} ({incident.spread_count} rooms affected).",
+                {"rooms_affected": incident.spread_count},
+            )
 
             self.logger.warning(
                 f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "

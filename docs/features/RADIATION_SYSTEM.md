@@ -1,11 +1,11 @@
 # Radiation System — Current Mechanics & Follow-up
 
-> **Status:** Implemented in v2.72.0; RadAway normalization remains proposed.
+> **Status:** Implemented in v2.72.0; fixed RadAway capacity and the radiation healing cap landed after.
 > Related: `EXPLORATION_SYSTEM.md`, `RESOURCE_ECONOMY_BALANCE.md`, `DWELLER_TEMPLATES.md`
 
 ## Current mechanics
 
-Radiation is a dweller value capped at 1,000. It is gained through wasteland radiation events and Radscorpion incident damage; it reduces happiness above 50 rads and causes death at the configurable `death.radiation_death_threshold` (1,000 by default).
+Radiation is a dweller value capped at 1,000. It is gained through wasteland radiation events and Radscorpion incident damage; it reduces happiness above 50 rads, caps healing at `max_health - radiation`, and causes death at the configurable `death.radiation_death_threshold` (1,000 by default).
 
 | Area | Behavior |
 |---|---|
@@ -13,17 +13,17 @@ Radiation is a dweller value capped at 1,000. It is gained through wasteland rad
 | Incidents | A Radscorpion attack adds radiation alongside its health damage. |
 | Health bars | `UProgressBar` renders radiation as a red segment that replaces the rightmost healthy portion. It is used by the dweller card/grid and explorer summary/detail views. |
 | Consequences | Happiness loses 1 point per tick when radiation is above 50. The game loop records a radiation death once radiation reaches the configured threshold. |
-| Manual treatment | `POST /dwellers/{id}/use_radaway` consumes one carried RadAway. The detail UI can issue RadAway from vault storage before use. |
+| Manual treatment | `POST /dwellers/{id}/use_stimpack` heals 40% of max health but never past `max_health - radiation`; at the cap it reports that RadAway must unlock the rest. `POST /dwellers/{id}/use_radaway` halves current radiation (minimum 1) without healing. The detail UI can issue supplies from vault storage before use. |
 | Exploration treatment | An explorer consumes one carried RadAway automatically when radiation is above the exploration threshold; its event log records the removal. |
 
 ## RadAway behavior
 
 ### Current behavior
 
-Both manual and exploration paths remove half of the *current* radiation:
+Both manual and exploration paths remove up to 50% of the dweller's maximum health worth of radiation, clearing a smaller remaining amount:
 
 ```text
-radiation_removed = floor(current_radiation * 0.5)
+radiation_removed = min(current_radiation, floor(max_health * 0.5))
 ```
 
 This halves the remaining amount each time, so multiple uses approach zero without necessarily clearing it. The paths duplicate this calculation and do not use the same threshold unit:
@@ -31,9 +31,9 @@ This halves the remaining amount each time, so multiple uses approach zero witho
 - Chat recommends RadAway at `radiation / max_health >= 30%`.
 - Exploration auto-use checks the raw radiation value `> 30`.
 
-### Proposed normalization
+### Normalization (implemented)
 
-Adopt a fixed RadAway capacity: one item removes up to 50% of the dweller's maximum health worth of radiation, clearing a smaller remaining amount.
+One RadAway removes a fixed capacity — up to 50% of max health — clearing a smaller remaining amount.
 
 ```text
 radiation_removed = min(current_radiation, floor(max_health * 0.5))

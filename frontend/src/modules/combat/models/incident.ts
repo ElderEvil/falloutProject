@@ -66,6 +66,7 @@ export interface Incident {
     kind: string
     message: string
     data: Record<string, number | string> | null
+    created_at?: string
   }>
 }
 
@@ -98,4 +99,50 @@ export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
 
 export function getIncidentIcon(type: IncidentType): string {
   return INCIDENT_ICON_MAP[type] ?? 'mdi:alert-octagon'
+}
+
+export type MedicalSupply = 'stimpack' | 'radaway'
+
+export interface VaultMedicalStocks {
+  stimpack: number
+  radaway: number
+}
+
+export interface TreatmentState {
+  need: boolean
+  title: string
+}
+
+interface TreatableDweller {
+  health: number
+  max_health: number
+  radiation: number
+  first_name: string
+}
+
+export function getTreatmentState(
+  dweller: TreatableDweller,
+  vaultStocks: VaultMedicalStocks,
+  supply: MedicalSupply
+): TreatmentState {
+  const maxHealth = Math.max(1, dweller.max_health)
+  const radiation = dweller.radiation ?? 0
+  if (supply === 'radaway') {
+    const need = radiation / maxHealth > 0.4
+    return {
+      need,
+      title: need
+        ? `Treat ${dweller.first_name} radiation with RadAway (vault: ${vaultStocks.radaway})`
+        : '',
+    }
+  }
+  const healCap = Math.max(0, dweller.max_health - Math.max(0, radiation))
+  const need = dweller.health > 0 && dweller.health / maxHealth < 0.6 && dweller.health < healCap
+  return {
+    need,
+    title: need
+      ? `Heal ${dweller.first_name} with stimpak (vault: ${vaultStocks.stimpack})`
+        + (healCap < dweller.max_health ? ` — capped at ${healCap} by radiation` : '')
+      : '',
+  }
 }

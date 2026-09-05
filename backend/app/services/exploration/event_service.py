@@ -213,7 +213,8 @@ class EventService:
     async def _apply_health_restoration(self, db_session: AsyncSession, exploration: Exploration, healing: int) -> None:
         """Apply health restoration to dweller."""
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-        dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
+        heal_cap = max(0, dweller_obj.max_health - max(0, dweller_obj.radiation))
+        dweller_obj.health = min(heal_cap, dweller_obj.health + healing)
         db_session.add(dweller_obj)
 
     async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
@@ -228,8 +229,7 @@ class EventService:
 
         # Auto-use RadAway if radiation > 30
         if exploration.radaways > 0 and dweller_obj.radiation > 30:
-            # Radiation removal logic (50% of radiation)
-            reduction = int(dweller_obj.radiation * 0.5)
+            reduction = min(dweller_obj.radiation, int(dweller_obj.max_health * 0.5))
             dweller_obj.radiation = max(0, dweller_obj.radiation - reduction)
             exploration.radaways -= 1
             records.append(
@@ -241,12 +241,13 @@ class EventService:
             db_session.add(dweller_obj)
             db_session.add(exploration)
 
-        # Auto-use Stimpak if health < 50%
+        # Auto-use Stimpak if health < 50% and radiation permits more healing
         health_percentage = (dweller_obj.health / dweller_obj.max_health) * 100
-        if exploration.stimpaks > 0 and health_percentage < 50:
+        heal_cap = max(0, dweller_obj.max_health - max(0, dweller_obj.radiation))
+        if exploration.stimpaks > 0 and health_percentage < 50 and dweller_obj.health < heal_cap:
             # Heal logic (40% of max health)
             healing = int(dweller_obj.max_health * 0.4)
-            dweller_obj.health = min(dweller_obj.max_health, dweller_obj.health + healing)
+            dweller_obj.health = min(heal_cap, dweller_obj.health + healing)
             exploration.stimpaks -= 1
             records.append(
                 exploration.add_event(

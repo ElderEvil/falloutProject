@@ -505,19 +505,27 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         return DwellerReadFull.model_validate(dweller_obj)
 
+    @staticmethod
+    def effective_max_health(max_health: int, radiation: int) -> int:
+        """Highest health radiation permits; RadAway must unlock the rest."""
+        return max(0, max_health - max(0, radiation))
+
     async def use_stimpack(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
-        """Use a stimpack to heal the dweller."""
+        """Use a stimpack to heal the dweller, capped by radiation."""
         dweller_obj = await self.get(db_session, dweller_id)
 
         if dweller_obj.stimpack <= 0:
             raise ResourceConflictException(detail="No stimpacks available to use.")
 
-        if dweller_obj.health >= dweller_obj.max_health:
+        heal_cap = self.effective_max_health(dweller_obj.max_health, dweller_obj.radiation)
+        if dweller_obj.health >= heal_cap:
+            if dweller_obj.radiation > 0 and dweller_obj.health < dweller_obj.max_health:
+                raise ContentNoChangeException(detail="Radiation blocks further healing. Use RadAway first.")
             raise ContentNoChangeException(detail="Dweller is already at full health.")
 
         # Heal for 40% of max health (rounded)
         heal_amount = int(dweller_obj.max_health * 0.4)
-        new_health = min(dweller_obj.health + heal_amount, dweller_obj.max_health)
+        new_health = min(dweller_obj.health + heal_amount, heal_cap)
 
         return await self.update(
             db_session, dweller_id, DwellerUpdate(health=new_health, stimpack=dweller_obj.stimpack - 1)
@@ -533,8 +541,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if dweller_obj.radiation <= 0:
             raise ContentNoChangeException(detail="Dweller has no radiation to remove.")
 
-        # Remove 50% of radiation (rounded)
-        radiation_removal = int(dweller_obj.radiation * 0.5)
+        radiation_removal = min(dweller_obj.radiation, int(dweller_obj.max_health * 0.5))
         new_radiation = max(dweller_obj.radiation - radiation_removal, 0)
 
         return await self.update(

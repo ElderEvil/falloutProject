@@ -571,7 +571,8 @@ async def parse_action_suggestion(
         return NoAction(reason="Dweller is not currently exploring the wasteland")
     if output.action_type in {"request_stimpak", "request_radaway"}:
         if output.action_type == "request_stimpak":
-            if medical_status.health_percent >= 50:
+            heal_cap_percent = max(0, 100 - medical_status.radiation_percent)
+            if medical_status.health_percent >= min(50, heal_cap_percent):
                 return NoAction(reason="Dweller does not currently need a Stimpak")
             if medical_status.available_stimpaks <= 0:
                 return NoAction(reason="No Stimpaks are available")

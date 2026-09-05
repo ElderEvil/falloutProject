@@ -297,10 +297,10 @@ describe('DwellerCard', () => {
   })
 
   describe('Item Usage', () => {
-    it('should enable stimpack use button when stimpack available and health not full', () => {
+    it('should enable stimpack use button when stimpack available and health below 60%', () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: mockDweller,
+          dweller: { ...mockDweller, health: 40 },
           imageUrl: null,
         },
       })
@@ -324,6 +324,21 @@ describe('DwellerCard', () => {
       expect(useStimpakBtn.attributes('disabled')).toBeDefined()
     })
 
+    it('should disable stimpack use button when radiation caps health', () => {
+      const dwellerAtCap = { ...mockDweller, radiation: 20 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: dwellerAtCap,
+          imageUrl: null,
+        },
+      })
+
+      const useStimpakBtn = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(useStimpakBtn.exists()).toBe(true)
+      expect(useStimpakBtn.attributes('disabled')).toBeDefined()
+      expect(useStimpakBtn.attributes('title')).toContain('RadAway')
+    })
+
     it('should disable radaway use button when no radiation', () => {
       const wrapper = mount(DwellerCard, {
         props: {
@@ -337,8 +352,8 @@ describe('DwellerCard', () => {
       expect(useRadAwayBtn.attributes('disabled')).toBeDefined()
     })
 
-    it('should enable radaway use button when radiation exists', () => {
-      const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
+    it('should enable radaway use button when radiation exceeds 40% of max health', () => {
+      const dwellerWithRadiation = { ...mockDweller, radiation: 45 }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerWithRadiation,
@@ -354,7 +369,7 @@ describe('DwellerCard', () => {
     it('emits use-stimpak when the Use button is clicked', async () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: mockDweller,
+          dweller: { ...mockDweller, health: 40 },
           imageUrl: null,
         },
       })
@@ -364,7 +379,7 @@ describe('DwellerCard', () => {
     })
 
     it('emits use-radaway when the Use button is clicked', async () => {
-      const dwellerWithRadiation = { ...mockDweller, radiation: 10 }
+      const dwellerWithRadiation = { ...mockDweller, radiation: 45 }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerWithRadiation,

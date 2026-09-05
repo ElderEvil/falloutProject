@@ -324,6 +324,18 @@ describe('DwellerCard', () => {
       expect(useStimpakBtn.attributes('disabled')).toBeDefined()
     })
 
+    it('explains the health threshold when stimpack use is disabled above 60%', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null,
+        },
+      })
+
+      const useStimpakBtn = wrapper.find('[aria-label="Use Stimpack"]')
+      expect(useStimpakBtn.attributes('title')).toContain('below 60% health')
+    })
+
     it('should disable stimpack use button when radiation caps health', () => {
       const dwellerAtCap = { ...mockDweller, radiation: 20 }
       const wrapper = mount(DwellerCard, {
@@ -352,8 +364,8 @@ describe('DwellerCard', () => {
       expect(useRadAwayBtn.attributes('disabled')).toBeDefined()
     })
 
-    it('should enable radaway use button when radiation exceeds 40% of max health', () => {
-      const dwellerWithRadiation = { ...mockDweller, radiation: 45 }
+    it('should enable radaway use button at 30% of max health radiation', () => {
+      const dwellerWithRadiation = { ...mockDweller, radiation: 30 }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerWithRadiation,

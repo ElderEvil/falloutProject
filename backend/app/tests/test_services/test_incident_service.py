@@ -529,6 +529,13 @@ async def test_incident_spreading_mechanics(async_session: AsyncSession, room_wi
     room_ids = [str(inc.room_id) for inc in active_incidents]
     assert str(room2.id) in room_ids
 
+    events = await async_session.execute(
+        select(IncidentEvent).where(IncidentEvent.incident_id == incident.id, IncidentEvent.kind == "spread")
+    )
+    spread_event = events.scalar_one()
+    assert spread_event.data == {"rooms_affected": incident.spread_count + 1}
+    assert f"{incident.spread_count + 1} rooms affected" in spread_event.message
+
 
 @pytest.mark.asyncio
 async def test_get_active_incidents(async_session: AsyncSession, room_with_dwellers: dict):

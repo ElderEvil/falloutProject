@@ -368,7 +368,7 @@ async def use_radaway(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerRead:
-    """Use a radaway to remove radiation from the dweller (removes 50% of radiation).
+    """Use a RadAway to remove up to 50% of max health in radiation from the dweller.
 
     Returns:
         DwellerRead: The dweller with reduced radiation.

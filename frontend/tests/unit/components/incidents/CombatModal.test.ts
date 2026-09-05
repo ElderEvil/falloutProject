@@ -5,15 +5,23 @@ import CombatModal from '@/modules/combat/components/incidents/CombatModal.vue'
 
 const incidentStore = vi.hoisted(() => ({ fetchIncidents: vi.fn(), getIncidentById: vi.fn() }))
 const incidentApiMock = vi.hoisted(() => ({ getIncident: vi.fn() }))
-const medicalStore = vi.hoisted(() => ({ useStimpack: vi.fn(), useRadaway: vi.fn(), issueMedicalSupply: vi.fn() }))
-const vaultStore = vi.hoisted(() => ({ loadedVaults: {} as Record<string, { stimpack: number; radaway: number }> }))
+const medicalStore = vi.hoisted(() => ({
+  useStimpack: vi.fn(),
+  useRadaway: vi.fn(),
+  issueMedicalSupply: vi.fn(),
+}))
+const vaultStore = vi.hoisted(() => ({
+  loadedVaults: {} as Record<string, { stimpack: number; radaway: number }>,
+}))
 const routerPush = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
 
 vi.mock('@/modules/auth/stores/auth', () => ({ useAuthStore: () => ({ token: 'test-token' }) }))
 vi.mock('@/modules/combat/stores/incident', () => ({ useIncidentStore: () => incidentStore }))
 vi.mock('@/modules/combat/api/incident', () => ({ incidentApi: incidentApiMock }))
-vi.mock('@/modules/dwellers/stores/dwellerMedical', () => ({ useDwellerMedicalStore: () => medicalStore }))
+vi.mock('@/modules/dwellers/stores/dwellerMedical', () => ({
+  useDwellerMedicalStore: () => medicalStore,
+}))
 vi.mock('@/modules/vault/stores/vault', () => ({ useVaultStore: () => vaultStore }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => ({ error: toastError }) }))
@@ -42,12 +50,20 @@ const baseIncident = {
 
 function mountModal(dwellers: unknown[] = [], extraProps: Record<string, unknown> = {}) {
   return mount(CombatModal, {
-    props: { incidentId: 'incident-1', vaultId: 'vault-1', dwellers: dwellers as never[], ...extraProps },
+    props: {
+      incidentId: 'incident-1',
+      vaultId: 'vault-1',
+      dwellers: dwellers as never[],
+      ...extraProps,
+    },
     global: {
       stubs: {
         UModal: { template: '<div><slot name="header" /><slot /></div>' },
         UAlert: { template: '<div><slot /></div>' },
-        UButton: { emits: ['click'], template: '<button @click="$emit(\'click\')"><slot /></button>' },
+        UButton: {
+          emits: ['click'],
+          template: '<button @click="$emit(\'click\')"><slot /></button>',
+        },
         UProgressBar: true,
         ComponentLoader: true,
         IncidentStage: true,
@@ -116,7 +132,9 @@ describe('CombatModal', () => {
     expect(sections[0].find('summary').text()).toContain('Response team (0)')
     expect(sections[1].find('summary').text()).toContain('Incident journal')
     expect(sections[2].find('summary').text()).toContain('Rewards')
-    expect(wrapper.text().indexOf('Incident journal')).toBeLessThan(wrapper.text().indexOf('Rewards'))
+    expect(wrapper.text().indexOf('Incident journal')).toBeLessThan(
+      wrapper.text().indexOf('Rewards')
+    )
     expect(wrapper.text()).toContain('Damage dealt: 12 · Damage taken: 3')
     expect(wrapper.text()).not.toContain('EXPECTED REWARDS')
   })
@@ -130,7 +148,12 @@ describe('CombatModal', () => {
           id: 'event-1',
           kind: 'round',
           message: 'Round: dealt 12 damage (2/8 down); took 3.',
-          data: { damage_to_threat: 12, damage_to_dwellers: 3, enemies_defeated: 2, expected_threat: 8 },
+          data: {
+            damage_to_threat: 12,
+            damage_to_dwellers: 3,
+            enemies_defeated: 2,
+            expected_threat: 8,
+          },
           created_at: '2026-09-05T00:01:30',
         },
       ],
@@ -152,7 +175,12 @@ describe('CombatModal', () => {
           id: 'event-1',
           kind: 'round',
           message: 'Round.',
-          data: { damage_to_threat: 1.7600000000000002, damage_to_dwellers: 6, enemies_defeated: 2, expected_threat: 6 },
+          data: {
+            damage_to_threat: 1.7600000000000002,
+            damage_to_dwellers: 6,
+            enemies_defeated: 2,
+            expected_threat: 6,
+          },
         },
       ],
     })
@@ -197,7 +225,12 @@ describe('CombatModal', () => {
     expect(healButton).toBeTruthy()
     await healButton!.trigger('click')
 
-    expect(medicalStore.issueMedicalSupply).toHaveBeenCalledWith('vault-1', 'dweller-9', 'stimpack', 'test-token')
+    expect(medicalStore.issueMedicalSupply).toHaveBeenCalledWith(
+      'vault-1',
+      'dweller-9',
+      'stimpack',
+      'test-token'
+    )
     expect(medicalStore.useStimpack).toHaveBeenCalledWith('dweller-9', 'test-token')
   })
 
@@ -225,7 +258,12 @@ describe('CombatModal', () => {
     expect(radButton).toBeTruthy()
     await radButton!.trigger('click')
 
-    expect(medicalStore.issueMedicalSupply).toHaveBeenCalledWith('vault-1', 'dweller-9', 'radaway', 'test-token')
+    expect(medicalStore.issueMedicalSupply).toHaveBeenCalledWith(
+      'vault-1',
+      'dweller-9',
+      'radaway',
+      'test-token'
+    )
     expect(medicalStore.useRadaway).toHaveBeenCalledWith('dweller-9', 'test-token')
   })
 
@@ -239,6 +277,20 @@ describe('CombatModal', () => {
 
     expect(incidentStore.fetchIncidents).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('DEATHCLAW ATTACK')
+  })
+
+  it.each([
+    ['resolved', 'INCIDENT RESOLVED'],
+    ['failed', 'INCIDENT FAILED'],
+  ])('renders %s preview incidents in the terminal result view', async (status, result) => {
+    const wrapper = mountModal([], {
+      previewIncident: { ...baseIncident, status } as never,
+      preview: true,
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(result)
+    expect(wrapper.text()).not.toContain('Response team')
   })
 
   it('disables treatments in preview mode', async () => {
@@ -281,7 +333,11 @@ describe('CombatModal', () => {
 
   it('shows the defeat state when the incident fails', async () => {
     incidentStore.getIncidentById.mockReturnValue(undefined)
-    incidentApiMock.getIncident.mockResolvedValue({ ...baseIncident, status: 'failed', damage_dealt: 180 })
+    incidentApiMock.getIncident.mockResolvedValue({
+      ...baseIncident,
+      status: 'failed',
+      damage_dealt: 180,
+    })
     const wrapper = mountModal()
     await flushPromises()
 

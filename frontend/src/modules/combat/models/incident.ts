@@ -128,7 +128,7 @@ export function getTreatmentState(
   const maxHealth = Math.max(1, dweller.max_health)
   const radiation = dweller.radiation ?? 0
   if (supply === 'radaway') {
-    const need = radiation / maxHealth > 0.4
+    const need = radiation / maxHealth >= 0.3
     return {
       need,
       title: need
@@ -141,8 +141,8 @@ export function getTreatmentState(
   return {
     need,
     title: need
-      ? `Heal ${dweller.first_name} with stimpak (vault: ${vaultStocks.stimpack})`
-        + (healCap < dweller.max_health ? ` — capped at ${healCap} by radiation` : '')
+      ? `Heal ${dweller.first_name} with stimpak (vault: ${vaultStocks.stimpack})` +
+        (healCap < dweller.max_health ? ` — capped at ${healCap} by radiation` : '')
       : '',
   }
 }

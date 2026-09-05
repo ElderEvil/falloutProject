@@ -92,170 +92,179 @@
       </div>
 
       <template v-else>
-      <IncidentStage
-        :incident="incident"
-        :dwellers="dwellers"
-        :treating-dweller-id="treatingDwellerId"
-        :vault-medical="vaultMedical"
-        :preview="preview"
-        @dweller-click="openDweller"
-        @heal="healDwellerById"
-        @treat-radiation="treatRadawayById"
-      />
-
-      <!-- Status -->
-      <div class="section">
-        <h3 class="section-title">
-          <Icon
-            :icon="incident.objective === 'contain' ? 'mdi:shield-check' : 'mdi:sword-cross'"
-            class="section-title-icon"
-          />
-          {{ incident.objective === 'contain' ? 'Containment status' : 'Combat status' }}
-        </h3>
-        <div class="stat-row">
-          <div class="stat">
-            <span class="stat-label">Elapsed</span>
-            <span class="stat-value">{{ formatElapsedTime(incident.elapsed_time) }}</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">Dweller damage</span>
-            <span class="stat-value danger">{{ incident.damage_dealt }} HP</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">{{
-              incident.objective === 'contain' ? 'Contained' : 'Enemies down'
-            }}</span>
-            <span class="stat-value">{{ incident.progress.current }} / {{ incident.progress.target }}</span>
-          </div>
-        </div>
-        <UProgressBar
-          :model-value="progressPercent"
-          :height="10"
-          :glow="false"
-          color="var(--color-theme-primary)"
-          ariaLabel="Incident progress"
+        <IncidentStage
+          :incident="incident"
+          :dwellers="dwellers"
+          :treating-dweller-id="treatingDwellerId"
+          :vault-medical="vaultMedical"
+          :preview="preview"
+          @dweller-click="openDweller"
+          @heal="healDwellerById"
+          @treat-radiation="treatRadawayById"
         />
-        <div class="progress-value">
-          {{ progressPercent }}% &middot; {{ remainingProgress }}
-          {{ incident.objective === 'contain' ? 'to contain' : 'enemies left' }}
-        </div>
-      </div>
 
-      <!-- Response team -->
-      <details class="section">
-        <summary class="section-title collapsible-summary">
-          <Icon icon="mdi:account-group" class="section-title-icon" />
-          Response team ({{ availableResponders.length }})
-        </summary>
-        <div v-if="bestResponders.length" class="responder-quick">
-          <UButton variant="primary" size="sm" :loading="isSendingBest" @click="sendBestDefenders">
-            {{ incident.response.label.toUpperCase() }}: {{ bestResponders.length }} BEST
-          </UButton>
-          <span class="responder-quick-note">
-            {{ bestResponders.map((d) => d.first_name).join(', ') }}
-          </span>
-        </div>
-        <div v-if="availableResponders.length" class="responder-rows">
-          <div v-for="dweller in availableResponders" :key="dweller.id" class="responder-row">
-            <DwellerPortrait
-              :thumbnail-url="dweller.thumbnail_url"
-              :alt="`${dweller.first_name} ${dweller.last_name ?? ''}`"
-              image-class="responder-portrait"
-              fallback-class="h-10 w-10 icon-primary"
+        <!-- Status -->
+        <div class="section">
+          <h3 class="section-title">
+            <Icon
+              :icon="incident.objective === 'contain' ? 'mdi:shield-check' : 'mdi:sword-cross'"
+              class="section-title-icon"
             />
-            <div class="responder-main">
-              <button
-                type="button"
-                class="responder-name"
-                :title="`Open ${dweller.first_name} details`"
-                @click="openDweller(dweller.id)"
-              >
-                {{ dweller.first_name }}
-              </button>
-              <span class="responder-meta">Lv. {{ dweller.level }} &middot; POW {{ getCombatPower(dweller) }}</span>
-              <UProgressBar
-                :model-value="hpPercent(dweller)"
-                :height="5"
-                :glow="false"
-                :color="hpFillColor(dweller)"
-              />
+            {{ incident.objective === 'contain' ? 'Containment status' : 'Combat status' }}
+          </h3>
+          <div class="stat-row">
+            <div class="stat">
+              <span class="stat-label">Elapsed</span>
+              <span class="stat-value">{{ formatElapsedTime(incident.elapsed_time) }}</span>
             </div>
-            <span class="responder-hp" :class="hpClass(dweller)"
-              >{{ dweller.health }}/{{ dweller.max_health }}</span
-            >
-            <div class="responder-actions">
-              <UButton
-                v-if="heal(dweller).need"
-                variant="secondary"
-                size="sm"
-                :loading="treatingDwellerId === dweller.id"
-                :disabled="preview || treatingDwellerId !== null"
-                :title="preview ? 'Preview mode — treatment disabled' : heal(dweller).title"
-                @click="healDwellerById(dweller.id)"
+            <div class="stat">
+              <span class="stat-label">Dweller damage</span>
+              <span class="stat-value danger">{{ incident.damage_dealt }} HP</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">{{
+                incident.objective === 'contain' ? 'Contained' : 'Enemies down'
+              }}</span>
+              <span class="stat-value"
+                >{{ incident.progress.current }} / {{ incident.progress.target }}</span
               >
-                HEAL
-              </UButton>
-              <UButton
-                v-if="rad(dweller).need"
-                variant="secondary"
-                size="sm"
-                :loading="treatingDwellerId === dweller.id"
-                :disabled="preview || treatingDwellerId !== null"
-                :title="preview ? 'Preview mode — treatment disabled' : rad(dweller).title"
-                @click="treatRadawayById(dweller.id)"
-              >
-                RAD
-              </UButton>
-              <UButton
-                variant="secondary"
-                size="sm"
-                :disabled="assigningDwellerId === dweller.id"
-                @click="assignResponder(dweller.id)"
-              >
-                {{ assigningDwellerId === dweller.id ? 'ASSIGNING...' : 'SEND' }}
-              </UButton>
             </div>
           </div>
+          <UProgressBar
+            :model-value="progressPercent"
+            :height="10"
+            :glow="false"
+            color="var(--color-theme-primary)"
+            ariaLabel="Incident progress"
+          />
+          <div class="progress-value">
+            {{ progressPercent }}% &middot; {{ remainingProgress }}
+            {{ incident.objective === 'contain' ? 'to contain' : 'enemies left' }}
+          </div>
         </div>
-        <p v-else class="empty-note">All available adults are already defending or away.</p>
-      </details>
 
-      <!-- Journal -->
-      <details v-if="incident.events.length" class="section">
-        <summary class="section-title collapsible-summary">
-          <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
-          Incident journal ({{ incident.events.length }})
-        </summary>
-        <div class="journal-list">
+        <!-- Response team -->
+        <details class="section">
+          <summary class="section-title collapsible-summary">
+            <Icon icon="mdi:account-group" class="section-title-icon" />
+            Response team ({{ availableResponders.length }})
+          </summary>
+          <div v-if="bestResponders.length" class="responder-quick">
+            <UButton
+              variant="primary"
+              size="sm"
+              :loading="isSendingBest"
+              @click="sendBestDefenders"
+            >
+              {{ incident.response.label.toUpperCase() }}: {{ bestResponders.length }} BEST
+            </UButton>
+            <span class="responder-quick-note">
+              {{ bestResponders.map((d) => d.first_name).join(', ') }}
+            </span>
+          </div>
+          <div v-if="availableResponders.length" class="responder-rows">
+            <div v-for="dweller in availableResponders" :key="dweller.id" class="responder-row">
+              <DwellerPortrait
+                :thumbnail-url="dweller.thumbnail_url"
+                :alt="`${dweller.first_name} ${dweller.last_name ?? ''}`"
+                image-class="responder-portrait"
+                fallback-class="h-10 w-10 icon-primary"
+              />
+              <div class="responder-main">
+                <button
+                  type="button"
+                  class="responder-name"
+                  :title="`Open ${dweller.first_name} details`"
+                  @click="openDweller(dweller.id)"
+                >
+                  {{ dweller.first_name }}
+                </button>
+                <span class="responder-meta"
+                  >Lv. {{ dweller.level }} &middot; POW {{ getCombatPower(dweller) }}</span
+                >
+                <UProgressBar
+                  :model-value="hpPercent(dweller)"
+                  :height="5"
+                  :glow="false"
+                  :color="hpFillColor(dweller)"
+                />
+              </div>
+              <span class="responder-hp" :class="hpClass(dweller)"
+                >{{ dweller.health }}/{{ dweller.max_health }}</span
+              >
+              <div class="responder-actions">
+                <UButton
+                  v-if="heal(dweller).need"
+                  variant="secondary"
+                  size="sm"
+                  :loading="treatingDwellerId === dweller.id"
+                  :disabled="preview || treatingDwellerId !== null"
+                  :title="preview ? 'Preview mode — treatment disabled' : heal(dweller).title"
+                  @click="healDwellerById(dweller.id)"
+                >
+                  HEAL
+                </UButton>
+                <UButton
+                  v-if="rad(dweller).need"
+                  variant="secondary"
+                  size="sm"
+                  :loading="treatingDwellerId === dweller.id"
+                  :disabled="preview || treatingDwellerId !== null"
+                  :title="preview ? 'Preview mode — treatment disabled' : rad(dweller).title"
+                  @click="treatRadawayById(dweller.id)"
+                >
+                  RAD
+                </UButton>
+                <UButton
+                  variant="secondary"
+                  size="sm"
+                  :disabled="assigningDwellerId === dweller.id"
+                  @click="assignResponder(dweller.id)"
+                >
+                  {{ assigningDwellerId === dweller.id ? 'ASSIGNING...' : 'SEND' }}
+                </UButton>
+              </div>
+            </div>
+          </div>
+          <p v-else class="empty-note">All available adults are already defending or away.</p>
+        </details>
+
+        <!-- Journal -->
+        <details v-if="incident.events.length" class="section">
+          <summary class="section-title collapsible-summary">
+            <Icon icon="mdi:clipboard-text-clock-outline" class="section-title-icon" />
+            Incident journal ({{ incident.events.length }})
+          </summary>
+          <div class="journal-list">
             <div v-for="event in incident.events" :key="event.id" class="journal-entry">
               <Icon :icon="journalIcon(event.kind)" class="journal-entry-icon" />
               <span v-if="eventTime(event)" class="journal-time">{{ eventTime(event) }}</span>
               <span>{{ journalMessage(event) }}</span>
             </div>
-        </div>
-      </details>
+          </div>
+        </details>
 
-      <!-- Rewards -->
-      <details v-if="incident.loot" class="section">
-        <summary class="section-title collapsible-summary">
-          <Icon icon="mdi:treasure-chest" class="section-title-icon" />
-          Rewards
-        </summary>
-        <div class="loot-items">
-          <div v-if="incident.loot.caps" class="loot-item">
-            <Icon icon="mdi:bottle-cap" class="loot-icon" />
-            <span class="loot-text">{{ incident.loot.caps }} Caps</span>
+        <!-- Rewards -->
+        <details v-if="incident.loot" class="section">
+          <summary class="section-title collapsible-summary">
+            <Icon icon="mdi:treasure-chest" class="section-title-icon" />
+            Rewards
+          </summary>
+          <div class="loot-items">
+            <div v-if="incident.loot.caps" class="loot-item">
+              <Icon icon="mdi:bottle-cap" class="loot-icon" />
+              <span class="loot-text">{{ incident.loot.caps }} Caps</span>
+            </div>
+            <div v-for="(item, idx) in incident.loot.items ?? []" :key="idx" class="loot-item">
+              <Icon :icon="getItemIcon(item.type)" class="loot-icon" />
+              <span class="loot-text">
+                {{ item.name }}
+                <span v-if="item.rarity" class="loot-rarity">({{ item.rarity }})</span>
+                <span v-if="item.quantity">(x{{ item.quantity }})</span>
+              </span>
+            </div>
           </div>
-          <div v-for="(item, idx) in incident.loot.items ?? []" :key="idx" class="loot-item">
-            <Icon :icon="getItemIcon(item.type)" class="loot-icon" />
-            <span class="loot-text">
-              {{ item.name }}
-              <span v-if="item.rarity" class="loot-rarity">({{ item.rarity }})</span>
-              <span v-if="item.quantity">(x{{ item.quantity }})</span>
-            </span>
-          </div>
-        </div>
-      </details>
+        </details>
       </template>
     </div>
 
@@ -331,6 +340,11 @@ const vaultMedical = computed<VaultMedicalStocks>(
     }
 )
 
+const resolutionForStatus = (status: IncidentStatus) =>
+  status === IncidentStatus.RESOLVED || status === IncidentStatus.FAILED
+    ? { success: status === IncidentStatus.RESOLVED }
+    : null
+
 // Lifecycle
 onMounted(async () => {
   await loadIncident()
@@ -340,6 +354,7 @@ onMounted(async () => {
 async function loadIncident() {
   if (props.previewIncident) {
     incident.value = props.previewIncident
+    resolution.value = resolutionForStatus(props.previewIncident.status)
     loadFailed.value = false
     isLoading.value = false
     return
@@ -349,27 +364,17 @@ async function loadIncident() {
   try {
     await incidentStore.fetchIncidents(props.vaultId, authStore.token)
     const lookup = incidentStore.getIncidentById(props.incidentId)
-    if (lookup && lookup.status !== IncidentStatus.RESOLVED && lookup.status !== IncidentStatus.FAILED) {
-      incident.value = lookup
-      resolution.value = null
-      loadFailed.value = false
-      return
-    }
     if (lookup) {
       incident.value = lookup
-      resolution.value = { success: lookup.status === IncidentStatus.RESOLVED }
+      resolution.value = resolutionForStatus(lookup.status)
       loadFailed.value = false
-      polling.pause()
+      if (resolution.value) polling.pause()
       return
     }
     const final = await incidentApi.getIncident(props.vaultId, props.incidentId, authStore.token)
     incident.value = final
-    if (final.status === IncidentStatus.RESOLVED || final.status === IncidentStatus.FAILED) {
-      resolution.value = { success: final.status === IncidentStatus.RESOLVED }
-      polling.pause()
-    } else {
-      resolution.value = null
-    }
+    resolution.value = resolutionForStatus(final.status)
+    if (resolution.value) polling.pause()
     loadFailed.value = false
   } catch {
     if (!incident.value && !resolution.value) {
@@ -393,7 +398,12 @@ async function assignResponder(dwellerId: string) {
   if (!authStore.token || assigningDwellerId.value) return
   assigningDwellerId.value = dwellerId
   try {
-    await incidentStore.assignResponders(props.vaultId, props.incidentId, [dwellerId], authStore.token)
+    await incidentStore.assignResponders(
+      props.vaultId,
+      props.incidentId,
+      [dwellerId],
+      authStore.token
+    )
     emit('responded')
   } catch {
     toast.error('Failed to assign responder')
@@ -537,7 +547,9 @@ function eventTime(event: Incident['events'][number]): string {
 }
 
 // Computed
-const incidentIcon = computed(() => (incident.value ? getIncidentIcon(incident.value.type) : 'mdi:alert-octagon'))
+const incidentIcon = computed(() =>
+  incident.value ? getIncidentIcon(incident.value.type) : 'mdi:alert-octagon'
+)
 
 const incidentTitle = computed(() => {
   if (!incident.value) return 'INCIDENT'
@@ -573,7 +585,10 @@ const resolutionSubtitle = computed(() => {
 
 const progressPercent = computed(() => {
   if (!incident.value || incident.value.progress.target <= 0) return 0
-  return Math.min(100, Math.floor((incident.value.progress.current / incident.value.progress.target) * 100))
+  return Math.min(
+    100,
+    Math.floor((incident.value.progress.current / incident.value.progress.target) * 100)
+  )
 })
 
 const remainingProgress = computed(() =>
@@ -596,7 +611,8 @@ const HP_FILL_COLOR: Record<string, string> = {
   'hp-critical': 'var(--color-danger)',
 }
 
-const hpFillColor = (dweller: DwellerShort) => HP_FILL_COLOR[hpClass(dweller)] ?? HP_FILL_COLOR['hp-healthy']!
+const hpFillColor = (dweller: DwellerShort) =>
+  HP_FILL_COLOR[hpClass(dweller)] ?? HP_FILL_COLOR['hp-healthy']!
 
 const availableResponders = computed(() =>
   props.dwellers.filter(

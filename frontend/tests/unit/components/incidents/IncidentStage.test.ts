@@ -67,7 +67,16 @@ describe('IncidentStage', () => {
     expect(wrapper.text()).toContain('-7')
   })
 
-  it('renders a containment state instead of enemy combatants for hazards', () => {    const wrapper = mount(IncidentStage, {
+  it('renders zero health progress when max health is invalid', () => {
+    const wrapper = mount(IncidentStage, {
+      props: { incident: baseIncident, dwellers: [{ ...dwellers[0], max_health: 0 } as never] },
+    })
+
+    expect(wrapper.find('.combatant-bar').attributes('aria-valuenow')).toBe('0')
+  })
+
+  it('renders a containment state instead of enemy combatants for hazards', () => {
+    const wrapper = mount(IncidentStage, {
       props: {
         incident: {
           ...baseIncident,
@@ -75,7 +84,14 @@ describe('IncidentStage', () => {
           family: 'hazard',
           objective: 'contain',
           progress: { current: 0.4, target: 1, label: 'Fire contained' },
-          events: [{ id: 'event-2', kind: 'containment', message: 'Fire contained.', data: { amount: 0.2 } }],
+          events: [
+            {
+              id: 'event-2',
+              kind: 'containment',
+              message: 'Fire contained.',
+              data: { amount: 0.2 },
+            },
+          ],
         },
         dwellers,
       },
@@ -121,7 +137,9 @@ describe('IncidentStage', () => {
     })
 
     expect(
-      treatmentButtons(wrapper).some((button) => (button.attributes('aria-label') ?? '').startsWith('Heal'))
+      treatmentButtons(wrapper).some((button) =>
+        (button.attributes('aria-label') ?? '').startsWith('Heal')
+      )
     ).toBe(false)
   })
 
@@ -159,8 +177,25 @@ describe('IncidentStage', () => {
     const wrapper = mount(IncidentStage, { props: { incident: baseIncident, dwellers } })
 
     expect(
-      treatmentButtons(wrapper).some((button) => (button.attributes('aria-label') ?? '').startsWith('Treat'))
+      treatmentButtons(wrapper).some((button) =>
+        (button.attributes('aria-label') ?? '').startsWith('Treat')
+      )
     ).toBe(false)
+  })
+
+  it('offers RadAway at 30% of max health radiation', () => {
+    const wrapper = mount(IncidentStage, {
+      props: {
+        incident: baseIncident,
+        dwellers: [{ ...dwellers[0], radiation: 30 } as never],
+      },
+    })
+
+    expect(
+      treatmentButtons(wrapper).some((button) =>
+        (button.attributes('aria-label') ?? '').startsWith('Treat')
+      )
+    ).toBe(true)
   })
 
   it('disables treatments in preview mode', () => {

@@ -214,7 +214,8 @@ class EventService:
         """Apply health restoration to dweller."""
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         heal_cap = max(0, dweller_obj.max_health - max(0, dweller_obj.radiation))
-        dweller_obj.health = min(heal_cap, dweller_obj.health + healing)
+        if dweller_obj.health < heal_cap:
+            dweller_obj.health = min(heal_cap, dweller_obj.health + healing)
         db_session.add(dweller_obj)
 
     async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
@@ -227,8 +228,9 @@ class EventService:
 
         records: list[dict] = []
 
-        # Auto-use RadAway if radiation > 30
-        if exploration.radaways > 0 and dweller_obj.radiation > 30:
+        # Auto-use RadAway at 30% of max health radiation.
+        max_health = max(dweller_obj.max_health, 1)
+        if exploration.radaways > 0 and dweller_obj.radiation / max_health >= 0.3:
             reduction = min(dweller_obj.radiation, int(dweller_obj.max_health * 0.5))
             dweller_obj.radiation = max(0, dweller_obj.radiation - reduction)
             exploration.radaways -= 1
@@ -242,18 +244,19 @@ class EventService:
             db_session.add(exploration)
 
         # Auto-use Stimpak if health < 50% and radiation permits more healing
-        health_percentage = (dweller_obj.health / dweller_obj.max_health) * 100
+        health_percentage = (dweller_obj.health / max_health) * 100
         heal_cap = max(0, dweller_obj.max_health - max(0, dweller_obj.radiation))
         if exploration.stimpaks > 0 and health_percentage < 50 and dweller_obj.health < heal_cap:
             # Heal logic (40% of max health)
             healing = int(dweller_obj.max_health * 0.4)
-            dweller_obj.health = min(heal_cap, dweller_obj.health + healing)
+            health_restored = min(healing, heal_cap - dweller_obj.health)
+            dweller_obj.health += health_restored
             exploration.stimpaks -= 1
             records.append(
                 exploration.add_event(
                     event_type=ExplorationEventType.ITEM_USE,
-                    description=f"Dweller used a Stimpak. Healed {healing} HP. {exploration.stimpaks} left.",
-                    health_restored=healing,
+                    description=f"Dweller used a Stimpak. Healed {health_restored} HP. {exploration.stimpaks} left.",
+                    health_restored=health_restored,
                 )
             )
             db_session.add(dweller_obj)

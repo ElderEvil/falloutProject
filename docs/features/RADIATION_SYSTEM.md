@@ -13,7 +13,7 @@ Radiation is a dweller value capped at 1,000. It is gained through wasteland rad
 | Incidents | A Radscorpion attack adds radiation alongside its health damage. |
 | Health bars | `UProgressBar` renders radiation as a red segment that replaces the rightmost healthy portion. It is used by the dweller card/grid and explorer summary/detail views. |
 | Consequences | Happiness loses 1 point per tick when radiation is above 50. The game loop records a radiation death once radiation reaches the configured threshold. |
-| Manual treatment | `POST /dwellers/{id}/use_stimpack` heals 40% of max health but never past `max_health - radiation`; at the cap it reports that RadAway must unlock the rest. `POST /dwellers/{id}/use_radaway` halves current radiation (minimum 1) without healing. The detail UI can issue supplies from vault storage before use. |
+| Manual treatment | `POST /dwellers/{id}/use_stimpack` heals 40% of max health but never past `max_health - radiation`; at the cap it reports that RadAway must unlock the rest. `POST /dwellers/{id}/use_radaway` removes up to 50% of max health in radiation without healing. The detail UI can issue supplies from vault storage before use. |
 | Exploration treatment | An explorer consumes one carried RadAway automatically when radiation is above the exploration threshold; its event log records the removal. |
 
 ## RadAway behavior
@@ -26,10 +26,10 @@ Both manual and exploration paths remove up to 50% of the dweller's maximum heal
 radiation_removed = min(current_radiation, floor(max_health * 0.5))
 ```
 
-This halves the remaining amount each time, so multiple uses approach zero without necessarily clearing it. The paths duplicate this calculation and do not use the same threshold unit:
+The same fixed-capacity calculation is used by both manual and exploration treatment. Treatment starts at 30% radiation relative to max health:
 
 - Chat recommends RadAway at `radiation / max_health >= 30%`.
-- Exploration auto-use checks the raw radiation value `> 30`.
+- Exploration auto-use checks `radiation / max_health >= 30%`.
 
 ### Normalization (implemented)
 

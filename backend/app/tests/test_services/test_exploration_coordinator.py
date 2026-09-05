@@ -25,6 +25,7 @@ from app.schemas.exploration_event import (
     LootEventSchema,
     LootSchema,
     OutfitSchema,
+    RestEventSchema,
     WeaponSchema,
 )
 from app.services.exploration.coordinator import exploration_coordinator
@@ -864,6 +865,89 @@ async def test_medicine_loot_adds_single_log_entry(
     assert len(exploration.events) == 1
     assert exploration.events[0]["type"] == "loot"
     assert exploration.loot_collected[-1]["item_type"] == "stimpak"
+
+
+@pytest.mark.asyncio
+async def test_health_restoration_does_not_lower_health_above_radiation_cap(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Radiation limits future healing but does not damage existing health."""
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.radiation = 40
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    rest_event = RestEventSchema(description="Took a short rest.", health_restored=20)
+
+    with (
+        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=rest_event),
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock),
+    ):
+        await event_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.health == 100
+
+
+@pytest.mark.asyncio
+async def test_auto_heal_logs_actual_capped_restoration(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Auto-heal logs the amount actually restored after the radiation cap."""
+    dweller.health = 40
+    dweller.max_health = 100
+    dweller.radiation = 30
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1)
+    rest_event = RestEventSchema(description="Took a short rest.", health_restored=0)
+
+    with (
+        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=rest_event),
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock),
+    ):
+        await event_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.health == 70
+    item_use = exploration.events[-1]
+    assert item_use["type"] == "item_use"
+    assert item_use["health_restored"] == 30
+    assert "Healed 30 HP" in item_use["description"]
+
+
+@pytest.mark.asyncio
+async def test_auto_radaway_uses_relative_radiation_threshold(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """Exploration auto-treatment uses the same 30% max-health threshold as chat."""
+    dweller.health = 50
+    dweller.max_health = 50
+    dweller.radiation = 15
+    async_session.add(dweller)
+    await async_session.flush()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, radaways=1)
+    rest_event = RestEventSchema(description="Took a short rest.", health_restored=0)
+
+    with (
+        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=rest_event),
+        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock),
+    ):
+        await event_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.radiation == 0
+    assert exploration.radaways == 0
 
 
 @pytest.mark.asyncio

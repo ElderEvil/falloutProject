@@ -856,8 +856,8 @@ class IncidentService:
                 db_session,
                 incident,
                 "spread",
-                f"Spread to {new_room.name} ({incident.spread_count} rooms affected).",
-                {"rooms_affected": incident.spread_count},
+                f"Spread to {new_room.name} ({incident.spread_count + 1} rooms affected).",
+                {"rooms_affected": incident.spread_count + 1},
             )
 
             self.logger.warning(

@@ -48,7 +48,7 @@ const emit = defineEmits<{
     <template #footer>
       <TerminalModalActions
         cancel-label="Close"
-        confirm-label="Collect Reward"
+        confirm-label="Continue"
         confirm-icon="mdi:check-bold"
         alignment="between"
         @cancel="emit('close')"

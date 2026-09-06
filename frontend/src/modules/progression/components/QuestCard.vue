@@ -237,14 +237,13 @@ const getRequirementCount = (requirementData: Record<string, unknown>): number =
   return typeof count === 'number' ? count : 0
 }
 
-const maxDwellerLevel = computed(() =>
-  dwellerFilterStore.dwellers.reduce((max, d) => Math.max(max, d.level ?? 0), 0)
-)
-
 function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
-  if (typeof requirementData.level !== 'number') return false
+  const level = requirementData.level
+  if (typeof level !== 'number') return false
   if (dwellerFilterStore.dwellers.length === 0) return false
-  return maxDwellerLevel.value >= requirementData.level
+  const required = getRequirementCount(requirementData) || 1
+  const qualified = dwellerFilterStore.dwellers.filter((d) => (d.level ?? 0) >= level).length
+  return qualified >= required
 }
 
 function isQuestRequirementMet(requirementData: Record<string, unknown>): boolean {

@@ -191,7 +191,7 @@ respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds)
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent
 coordinates — all test-backed.
 
-### Next Big Feature — Family Relations (future — not started)
+### Next Big Feature — Family Relations (future phases — foundation shipped)
 
 **Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,
 relationship depth, and legacy that persists across generations. This is the natural successor to the breeding
@@ -227,14 +227,6 @@ lineage/tree helpers instead of duplicating map-marker logic.
 
 **Success criteria:** a player can open any dweller's family graph, gets a visible celebration on stage
 changes, and can identify multi-generation lineage from the detail view — with backend coverage for the tree and
-stage-transition logic.
-
-**Guardrails:** delegate to the service layer (never CRUD directly) so events, notifications, and game-loop side
-effects fire exactly as they do for REST calls; respect the v2.35+ net-LOC-reduction constraint by extracting shared
-lineage/tree helpers instead of duplicating map-marker logic.
-
-**Success criteria:** a player can open any dweller's family tree, see relationship stage progression with
-notifications, and identify multi-generation lineage from the detail view — with backend coverage for the tree and
 stage-transition logic.
 
 ---

@@ -60,13 +60,13 @@ describe('DwellerFilterPanel', () => {
 
       expect(wrapper.text()).toContain('Sort By')
       expect(filterPanelSource).toMatch(
-        /\.sort-select \{[\s\S]*?padding: 0.5rem 0.75rem;[\s\S]*?font-size: 0.8125rem;/
+        /\.sort-select \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
       )
       expect(filterPanelSource).toMatch(
-        /\.sort-direction-button \{[\s\S]*?padding: 0.5rem 0.75rem;/
+        /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
       )
       expect(filterPanelSource).toMatch(
-        /\.view-toggle-btn \{[\s\S]*?padding: 0.5rem 0.75rem;[\s\S]*?font-size: 0.8125rem;/
+        /\.view-toggle-btn \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
       )
     })
 

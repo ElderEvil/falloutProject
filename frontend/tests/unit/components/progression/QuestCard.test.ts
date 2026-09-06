@@ -309,4 +309,61 @@ describe('QuestCard', () => {
     expect(icons).not.toContain('mdi:lock-open')
     expect(icons).toContain('mdi:lock')
   })
+
+  it('keeps the locked lock when fewer dwellers meet the level than required', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [{ id: 'd1', level: 10 } as DwellerShort]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 10, count: 3 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).not.toContain('mdi:lock-open')
+    expect(icons).toContain('mdi:lock')
+  })
+
+  it('shows an unlocked lock when enough dwellers meet the level', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [
+      { id: 'd1', level: 10 } as DwellerShort,
+      { id: 'd2', level: 12 } as DwellerShort,
+      { id: 'd3', level: 3 } as DwellerShort,
+    ]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 10, count: 2 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:lock-open')
+  })
 })

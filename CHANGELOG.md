@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.79.1 (2026-09-06)
+
+### Bug Fixes
+
+* align exploration loot column metadata 66ae3cc
+* allow closing legacy exploration reports eb0cc06
+* defer exploration overflow resolution aefe659
+* preserve exploration overflow rewards d142398
+* preserve queued exploration overflow 299dcb3
+* resolve exploration storage overflow 524dff9
+* retain invalid loot skip behavior f4ab3f5
+
 ## 2.79.0 (2026-09-06)
 
 ### Features

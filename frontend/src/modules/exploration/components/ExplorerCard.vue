@@ -8,7 +8,7 @@ import { useExplorationProgress } from '@/modules/exploration/composables/useExp
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import { UCard, UProgressBar } from '@/core/components/ui'
+import { UBadge, UCard, UProgressBar } from '@/core/components/ui'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -36,6 +36,21 @@ const dwellerName = computed(() =>
 
 const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => props.exploration)
 
+const isReady = computed(() => progressPercentage.value >= 100)
+
+// Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
+const isAtRisk = computed(() => {
+  const d = props.dweller
+  if (!d || !d.max_health) return false
+  return d.health / d.max_health <= 0.3 || d.radiation / d.max_health >= 0.5
+})
+
+const riskTitle = computed(() =>
+  props.dweller
+    ? `Health ${props.dweller.health}/${props.dweller.max_health}, radiation ${props.dweller.radiation}`
+    : ''
+)
+
 const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse() ?? [])
 </script>
 
@@ -49,12 +64,23 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
           :thumbnail-url="dweller?.thumbnail_url"
           prefer-thumbnail
           :alt="`${dwellerName} portrait`"
-          image-class="dweller-icon dweller-portrait rounded-full border border-theme-primary object-cover"
-          fallback-class="dweller-icon"
+          image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
+          fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
         />
         <div>
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
+          <div v-if="isReady || isAtRisk" class="badge-row">
+            <span v-if="isReady" title="Expedition finished — ready to collect">
+              <UBadge size="sm" variant="primary">READY</UBadge>
+            </span>
+            <span v-if="isAtRisk" :title="riskTitle" aria-label="Dweller at risk">
+              <UBadge size="sm" variant="warning">
+                <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
+                AT RISK
+              </UBadge>
+            </span>
+          </div>
           <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
         </div>
       </div>
@@ -80,7 +106,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
       <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" tone="caps" />
       <TerminalMetric icon="mdi:medical-bag" label="Stimpaks" :value="exploration.stimpaks || 0" />
       <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" tone="caps" />
-      <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" tone="danger" />
+      <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" />
     </div>
 
     <!-- Equipment Slots -->
@@ -147,6 +173,13 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   box-shadow: 0 0 16px var(--color-theme-glow);
 }
 
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -157,13 +190,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.dweller-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  color: var(--color-theme-primary);
-  filter: drop-shadow(0 0 6px var(--color-theme-glow));
 }
 
 .dweller-name {
@@ -231,14 +257,14 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 
 .equipment-section {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
   margin-top: 0.25rem;
 }
 

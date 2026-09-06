@@ -93,7 +93,7 @@ const rewardMeta = (reward: QuestReward): { icon: string; label: string } => {
       </div>
     </template>
 
-    <div v-if="quest" class="quest-return-banner mt-5 mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
+    <div v-if="quest" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
       <Icon icon="mdi:flag-checkered" class="h-6 w-6 shrink-0 text-theme-accent" />
       {{ quest.title }} has returned. Confirm delivery to your vault.
     </div>

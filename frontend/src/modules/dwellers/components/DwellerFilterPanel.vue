@@ -213,12 +213,12 @@ const toggleSortDirection = () => {
 
 .sort-select {
   flex: 1;
-  padding: 0.375rem 0.625rem;
+  padding: 0.5rem 0.75rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -231,7 +231,7 @@ const toggleSortDirection = () => {
 }
 
 .sort-direction-button {
-  padding: 0.375rem;
+  padding: 0.5rem 0.75rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
@@ -263,12 +263,12 @@ const toggleSortDirection = () => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.375rem 0.625rem;
+  padding: 0.5rem 0.75rem;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;

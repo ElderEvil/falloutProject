@@ -90,5 +90,6 @@ now.
 
 ## Deferred outside the map plan
 
-- Exploration events with player choices.
-- Persisted radiation deltas and an absolute radiation trend.
+- Exploration events with player choices — now planned in phases, see the roadmap's World Map focus list.
+- Absolute radiation trend — deltas are persisted (`radiation_gain` on event records); charting them in the
+  journal is the remaining step (see roadmap).

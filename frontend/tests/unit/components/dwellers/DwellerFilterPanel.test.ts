@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
+import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 describe('DwellerFilterPanel', () => {
@@ -58,6 +59,15 @@ describe('DwellerFilterPanel', () => {
       const wrapper = mount(DwellerFilterPanel)
 
       expect(wrapper.text()).toContain('Sort By')
+      expect(filterPanelSource).toMatch(
+        /\.sort-select \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
+      )
+      expect(filterPanelSource).toMatch(
+        /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
+      )
+      expect(filterPanelSource).toMatch(
+        /\.view-toggle-btn \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
+      )
     })
 
     it('should update store when sort option is changed', async () => {
@@ -107,7 +117,9 @@ describe('DwellerFilterPanel', () => {
         slots: { 'additional-filters': '<span data-test="additional-filter">Rarity</span>' },
       })
 
-      expect(wrapper.find('.filter-section-row [data-test="additional-filter"]').exists()).toBe(true)
+      expect(wrapper.find('.filter-section-row [data-test="additional-filter"]').exists()).toBe(
+        true
+      )
     })
   })
 })

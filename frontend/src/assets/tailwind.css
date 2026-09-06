@@ -67,7 +67,7 @@
 
     /* Quest Type Colors */
     --color-quest-main: #ffb000;
-    --color-quest-side: #c0c0c0;
+    --color-quest-side: var(--color-gray-800);
     --color-quest-daily: #00d9ff;
     --color-quest-event: #9b59b6;
     --color-quest-locked: #ff6600;

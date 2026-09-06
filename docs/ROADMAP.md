@@ -154,12 +154,28 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
   fix), quest party-roster rendering, and the discovery-unlock fix (`register_discovery` links the exploring
   dweller; v2.46.1 backfill script repairs pre-fix rows).
 
-**Current focus — World Map + exploration polish:**
+**Current focus — World Map + exploration polish (easy first, hard planned):**
 
+- ✅ **Shipped** — locked-marker discoverability hint. The locked modal (`MarkerDetailModal.vue`) shows
+  "Unknown Location", explains that chatting with a dweller who has been there unlocks it, and lists KNOWN
+  CONTACTS with chat deep-links (shipped in #412; the map API returns dweller refs for locked places).
+  Follow-up: regression test for the zero-contacts edge (hint text only, no contact list).
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
   discoveries unlock live (the currently deployed worker runs pre-fix code).
-- 🔧 **Polish candidates** — locked-marker discoverability hints (who to chat with to unlock a bio place),
-  exploration detail UX, journal edge cases, and any map/exploration bugs surfaced by play.
+- 🔧 **Easy: radiation trend in the journal** — `radiation_gain` is already persisted as a structured event
+  field (`Exploration.add_event`, `event_service`), but the journal ignores it (`useExplorationHealthJourney`
+  parses damage/healing out of description text), and RadAway auto-use records removal only in description
+  text — unlike Stimpak's structured `health_restored`. Steps: add `radiation_removed` to `add_event` and pass
+  it from `_handle_auto_heal`, extend the journey composable with a radiation series from structured fields,
+  no migration (JSONB). Tests first, per the bugfix workflow.
+- 🔧 **Easy: Celldweller landmark** — one seeded discoverable location with one-time loot, reusing the
+  existing easter-egg pattern (`GaryOverlay`, `FakeCrashOverlay`, rename trigger). Optional, non-gating,
+  never blocks progress.
+- 📋 **Planned (harder): exploration events with player choices** — phases: (1) `ChoiceEventSchema`
+  (prompt + options with previewed trade-offs); generator emits, journal renders, resolution is deterministic
+  under the exploration seed; (2) 2–3 choice templates reusing existing combat/loot/danger outcomes — no new
+  mechanics in phase 1; (3) SSE delivery plus auto-resolve with a documented default on recall/complete.
+  Out: branching chains, live multiplayer effects.
 
 Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
 `docs/WORLD_MAP_PLAN.md`.
@@ -175,27 +191,42 @@ respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds)
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent
 coordinates — all test-backed.
 
-### Next Big Feature — Family Relations (Target: TBD)
+### Next Big Feature — Family Relations (future phases — foundation shipped)
 
 **Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,
 relationship depth, and legacy that persists across generations. This is the natural successor to the breeding
 cooldown and naming fixes.
 
-- 🔄 **Family tree visualization** — graph view of parents, children, siblings, and partners per dweller, building on
-  the existing `parent_1_id`/`parent_2_id`/`partner_id` fields and the world-map marker system.
-- 🔄 **Relationship depth** — affinity already gates conception; add visible relationship stages (acquaintance →
-  friends → partners → married) with event/notification hooks and stat bonuses.
-- 🔄 **Legacy & lineage** — surface generational data on dweller detail (house/family name, generation number,
-  inherited traits from `_calculate_inherited_stats`), and consider a "founder's vault" distinction.
-- 🔄 **Postpartum cooldown tuning** — after the cooldown ships, play-test the 6h default against high-affinity
-  couples and adjust `birth_cooldown_hours` before building on top of it.
+**Already shipped (v2.42.0+ — foundation, do not rebuild):**
+
+- ✅ Lineage API (`GET /dwellers/{id}/lineage`: parents, children, siblings, partners, generation) +
+  `FamilyTreePanel` rows view in the dweller detail Family tab (generation badge, dead markers, partner
+  stage + affinity, cross-navigation).
+- ✅ Relationship stages through MARRIED (auto-upgrade at affinity threshold, partner + marriage happiness
+  bonuses, marry concurrency guard).
+- ✅ Relationships view (relationships, pregnancies, next generation) with per-card next-milestone hint
+  (`useRelationshipMilestone`).
+
+**Remaining phases:**
+
+- 🔲 **Phase 1 — graph visualization.** Replace/augment the rows panel with a real graph (parents →
+  dweller + partners → children, multi-generation). Reuse lineage API as-is; no backend change. Extract
+  shared lineage/tree helpers instead of duplicating traversal logic.
+- 🔲 **Phase 2 — stage-change celebration.** Relationship stage upgrades (especially MARRIED) currently pass
+  silently except happiness math. Surface them under the progression-visibility red line: modal/toast +
+  notification, same as quest/objective completion. Backend already emits the transitions; this is frontend
+  surfacing + regression tests.
+- 🔲 **Phase 3 — legacy & lineage.** Surface generation number, house/family name, and inherited traits
+  (`_calculate_inherited_stats`) on dweller detail; consider a "founder's vault" distinction.
+- 🔲 **Phase 4 — postpartum tuning.** Play-test the 6h `birth_cooldown_hours` default against high-affinity
+  couples and adjust before building on top of it.
 
 **Guardrails:** delegate to the service layer (never CRUD directly) so events, notifications, and game-loop side
 effects fire exactly as they do for REST calls; respect the v2.35+ net-LOC-reduction constraint by extracting shared
 lineage/tree helpers instead of duplicating map-marker logic.
 
-**Success criteria:** a player can open any dweller's family tree, see relationship stage progression with
-notifications, and identify multi-generation lineage from the detail view — with backend coverage for the tree and
+**Success criteria:** a player can open any dweller's family graph, gets a visible celebration on stage
+changes, and can identify multi-generation lineage from the detail view — with backend coverage for the tree and
 stage-transition logic.
 
 ---
@@ -443,7 +474,13 @@ update reduce net source LOC (features that add code must first offset it by rem
       (removed), notification click-through navigation (`NotificationBell` routes by `notification_type`), resource
       trend alerts (`ResourceBar` draining-critical warning + `useResourceWarnings` toasts), vault-level event system
       (`game_loop._process_events`: raider scout / resource cache / wanderer), exploration rewards
-      (`coordinator._apply_rewards`: caps, XP, loot transfer, SSE summary).
+      (`coordinator._apply_rewards`: caps, XP, loot transfer, SSE summary), objective claim pop-up
+      (`ObjectiveCompleteModal` mirrors `QuestRewardsModal`; the previously unwired ObjectiveCard claim button now
+      calls `completeObjective` with an inline error banner; regression-tested).
+
+**Red line (AGENTS.md guardrail):** every player-facing progression event — level-up, loot, training completion,
+quest/objective completion — must surface via modal/pop-up or toast **in addition to** the notification bell
+entry, never notification-only.
 
 ### P1 — Combat Power Overhaul (all stats + weapon type) — ✅ Done
 

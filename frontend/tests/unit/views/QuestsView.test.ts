@@ -6,9 +6,14 @@ import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
+const routerPushMock = vi.hoisted(() => vi.fn())
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     params: { id: 'vault-123' },
+  }),
+  useRouter: () => ({
+    push: routerPushMock,
   }),
 }))
 
@@ -502,6 +507,76 @@ describe('QuestsView', () => {
       expect(claimSpy).not.toHaveBeenCalled()
       await wrapper.find('.confirm-claim-btn').trigger('click')
       expect(claimSpy).toHaveBeenCalledWith('vault-123', 'quest-1')
+    })
+  })
+
+  describe('Completed Quest Navigation', () => {
+    beforeEach(() => {
+      roomStore.rooms = [
+        {
+          id: 'room-1',
+          name: "Overseer's Office",
+          category: 'quests',
+          ability: null,
+          level: 1,
+          max_level: 3,
+          capacity: 2,
+          x: 0,
+          y: 0,
+          width: 2,
+          height: 1,
+          power_cost: 10,
+          dweller_ids: [],
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          vault_id: 'vault-123',
+          under_construction: false,
+          build_time: 60,
+          upgrade_cost: 100,
+        },
+      ]
+    })
+
+    it('routes a completed quest to its detail page on View Details', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Finished Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestCard: {
+              template:
+                '<div><button class="view-btn" @click="$emit(\'view\', quest.id)">View Details</button></div>',
+              props: ['quest', 'vaultId', 'status', 'partyMembers'],
+              emits: ['view'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+
+      const completedTab = wrapper.findAll('.utabs-button')[1]
+      await completedTab.trigger('click')
+      await wrapper.find('.view-btn').trigger('click')
+
+      expect(routerPushMock).toHaveBeenCalledWith('/vault/vault-123/quests/quest-9')
     })
   })
 

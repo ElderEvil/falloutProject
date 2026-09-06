@@ -4,6 +4,9 @@ import { createPinia, setActivePinia } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { UProgressBar } from '@/core/components/ui'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { useQuestStore } from '@/modules/progression/stores/quest'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
 const quest = {
@@ -126,5 +129,241 @@ describe('QuestCard', () => {
     })
 
     expect(wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')).toBe(true)
+  })
+
+  it('shows a room requirement by display name instead of slug', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'room',
+              requirement_data: { room_type: 'living_quarter', count: 1 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Build 1 Living Quarter')
+    expect(wrapper.text()).not.toContain('living_quarter')
+  })
+
+  it('shows an unlocked lock when a dweller meets the level requirement', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [{ id: 'd1', level: 7 } as DwellerShort]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 5 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:lock-open')
+  })
+
+  it('keeps the locked lock when no dweller meets the level requirement', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [{ id: 'd1', level: 2 } as DwellerShort]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 5 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).not.toContain('mdi:lock-open')
+    expect(icons).toContain('mdi:lock')
+  })
+
+  it('names the exact prerequisite quest instead of a generic label', () => {
+    setActivePinia(createPinia())
+    const questStore = useQuestStore()
+    questStore.quests = [{ id: 'quest-1', title: 'Room to Grow' }]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'quest_completed',
+              requirement_data: { quest_id: 'quest-1' },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Room to Grow')
+    expect(wrapper.text()).not.toContain('Previous quest')
+  })
+
+  it('falls back to a generic label when the prerequisite quest is unknown', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'quest_completed',
+              requirement_data: { quest_id: 'quest-missing' },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Previous quest')
+  })
+
+  it('shows an unlocked lock when the prerequisite quest is completed', () => {
+    setActivePinia(createPinia())
+    const questStore = useQuestStore()
+    questStore.vaultQuests = [{ id: 'quest-1', title: 'Room to Grow', is_completed: true }]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'quest_completed',
+              requirement_data: { quest_id: 'quest-1' },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:lock-open')
+  })
+
+  it('keeps the locked lock when the prerequisite quest is not completed', () => {
+    setActivePinia(createPinia())
+    const questStore = useQuestStore()
+    questStore.vaultQuests = [{ id: 'quest-1', title: 'Room to Grow', is_completed: false }]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'quest_completed',
+              requirement_data: { quest_id: 'quest-1' },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).not.toContain('mdi:lock-open')
+    expect(icons).toContain('mdi:lock')
+  })
+
+  it('keeps the locked lock when fewer dwellers meet the level than required', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [{ id: 'd1', level: 10 } as DwellerShort]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 10, count: 3 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).not.toContain('mdi:lock-open')
+    expect(icons).toContain('mdi:lock')
+  })
+
+  it('shows an unlocked lock when enough dwellers meet the level', () => {
+    setActivePinia(createPinia())
+    const filterStore = useDwellerFilterStore()
+    filterStore.dwellers = [
+      { id: 'd1', level: 10 } as DwellerShort,
+      { id: 'd2', level: 12 } as DwellerShort,
+      { id: 'd3', level: 3 } as DwellerShort,
+    ]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_requirements: [
+            {
+              id: 'req-1',
+              requirement_type: 'level',
+              requirement_data: { level: 10, count: 2 },
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'available',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:lock-open')
   })
 })

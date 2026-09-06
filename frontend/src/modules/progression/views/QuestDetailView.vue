@@ -70,7 +70,7 @@ onMounted(async () => {
 // Type badge colors
 const typeColors: Record<string, { bg: string; text: string }> = {
   main: { bg: 'bg-quest-main!', text: 'text-black!' },
-  side: { bg: 'bg-quest-side!', text: 'text-black!' },
+  side: { bg: 'bg-quest-side!', text: 'text-terminal-green!' },
   daily: { bg: 'bg-quest-daily!', text: 'text-black!' },
   event: { bg: 'bg-quest-event!', text: 'text-white!' },
   repeatable: { bg: 'bg-theme-primary!', text: 'text-black!' },
@@ -94,6 +94,18 @@ const chainPosition = computed(() => {
   if (!isChainQuest.value || !quest.value) return null
   return quest.value.chain_order > 0 ? `Quest ${quest.value.chain_order}` : 'Chain Quest'
 })
+
+const previousQuest = computed(() =>
+  quest.value?.previous_quest_id
+    ? (questStore.vaultQuests.find((q) => q.id === quest.value?.previous_quest_id) ?? null)
+    : null
+)
+
+const nextQuest = computed(() =>
+  quest.value?.next_quest_id
+    ? (questStore.vaultQuests.find((q) => q.id === quest.value?.next_quest_id) ?? null)
+    : null
+)
 
 const hasPrerequisites = computed(() => {
   return quest.value?.quest_requirements && quest.value.quest_requirements.length > 0
@@ -243,11 +255,13 @@ const goBack = () => {
                     </p>
                     <div v-if="quest.previous_quest_id" class="chain-link">
                       <Icon icon="mdi:arrow-left" />
-                      Previous quest must be completed first
+                      <span v-if="previousQuest">Complete '{{ previousQuest.title }}' first</span>
+                      <span v-else>Previous quest must be completed first</span>
                     </div>
                     <div v-if="quest.next_quest_id" class="chain-link">
                       <Icon icon="mdi:arrow-right" />
-                      Unlocks next quest upon completion
+                      <span v-if="nextQuest">Unlocks '{{ nextQuest.title }}' upon completion</span>
+                      <span v-else>Unlocks next quest upon completion</span>
                     </div>
                   </div>
                 </UCard>

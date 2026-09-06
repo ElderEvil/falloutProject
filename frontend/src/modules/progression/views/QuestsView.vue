@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -20,6 +20,7 @@ import type { VaultQuest } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
+const router = useRouter()
 const questStore = useQuestStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
@@ -184,6 +185,11 @@ const confirmClaimRewards = async () => {
   claimQuest.value = null
 }
 
+const goToQuestDetail = (questId: string) => {
+  if (!vaultId.value) return
+  router.push(`/vault/${vaultId.value}/quests/${questId}`)
+}
+
 
 
 // Fetch quests on mount
@@ -332,6 +338,7 @@ onMounted(async () => {
                       :quest="quest"
                       :vault-id="vaultId"
                       status="completed"
+                      @view="goToQuestDetail"
                     />
                   </div>
                 </div>

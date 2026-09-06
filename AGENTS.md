@@ -118,6 +118,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 6. **DRY / KISS / YAGNI:** one source of truth per fact; the simplest thing that works; no speculative abstractions, no "we might need this later" code. A new abstraction must pay for itself by removing more than it adds.
 7. **Fail fast, minimize try-except (soft but binding):** the codebase favors fail-fast — let errors propagate to a single handler, don't wrap every call. Keep try-except blocks few and shallow: one per operation boundary at most, never nested; extract inner blocks into helpers. Prefer returning early / raising over defensive wrapping.
 8. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
+9. **Progression visibility (red line):** every player-facing progression event — level-up, loot, training completion, quest/objective completion — must surface via modal/pop-up or toast **in addition to** the notification bell entry, never notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing intact when touching these flows.
 
 ## Dev Environment (Agent Quick-Start)
 

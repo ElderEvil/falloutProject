@@ -15,7 +15,8 @@ expedition. Loot is shown by item and rarity rather than only as a counter. The 
 shown as total damage, total healing, and a cumulative health-change trail.
 
 The health trail is intentionally a record of changes, not an invented reconstruction of absolute historic
-health. Radiation is not charted until exploration events persist radiation deltas.
+health. Radiation deltas are persisted on event records (`radiation_gain`); charting them in the journal is
+the remaining step (see roadmap).
 
 ### Discovery to map
 

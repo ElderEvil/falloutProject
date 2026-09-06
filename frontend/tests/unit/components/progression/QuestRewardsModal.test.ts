@@ -44,7 +44,8 @@ describe('QuestRewardsModal', () => {
     expect(wrapper.findComponent(UModal).props('size')).toBe('wide')
     expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
     expect(wrapper.get('.quest-return-banner').classes()).toContain('border-theme-primary/30')
-    expect(wrapper.get('.quest-return-banner').classes()).toContain('mt-5')
+    expect(wrapper.get('.quest-return-banner').classes()).toContain('mb-6')
+    expect(wrapper.get('.quest-return-banner').classes()).not.toContain('mt-5')
     expect(wrapper.get('.quest-return-banner').classes()).not.toContain('terminal-glow')
   })
 

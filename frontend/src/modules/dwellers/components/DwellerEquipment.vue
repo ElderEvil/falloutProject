@@ -151,7 +151,7 @@ const modalIcon = computed(() =>
         </h3>
       </template>
 
-      <div class="items-list pt-5">
+      <div class="items-list">
         <template v-if="inventoryMode === 'weapon'">
           <EquipmentCard
             v-for="weapon in availableWeapons"

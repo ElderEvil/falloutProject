@@ -141,17 +141,6 @@ withDefaults(
 .experience-value {
   color: var(--color-rarity-legendary);
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -161,10 +150,6 @@ withDefaults(
 
   .reward-card:hover {
     transform: none;
-  }
-
-  .experience-value {
-    animation: none;
   }
 }
 </style>

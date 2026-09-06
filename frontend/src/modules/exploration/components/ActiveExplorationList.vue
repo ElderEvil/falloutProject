@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { UBadge } from '@/core/components/ui'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
@@ -39,6 +41,29 @@ const getDwellerOutfit = (dwellerId: string) => {
   if (detailed?.outfit) return detailed.outfit
   return null
 }
+
+// Ready-to-collect first, then highest progress — keeps the actionable cards on top.
+const sortedExplorations = computed(() =>
+  [...props.explorations].sort((a, b) => getProgressPercentage(b) - getProgressPercentage(a))
+)
+
+const isReady = (exploration: Exploration) => getProgressPercentage(exploration) >= 100
+
+// Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
+const isAtRisk = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (!detailed || !detailed.max_health) return false
+  return (
+    detailed.health / detailed.max_health <= 0.3 ||
+    detailed.radiation / detailed.max_health >= 0.5
+  )
+}
+
+const riskTitle = (dwellerId: string) => {
+  const detailed = getDetailedDweller(dwellerId)
+  if (!detailed) return ''
+  return `Health ${detailed.health}/${detailed.max_health}, radiation ${detailed.radiation}`
+}
 </script>
 
 <template>
@@ -58,54 +83,89 @@ const getDwellerOutfit = (dwellerId: string) => {
       </router-link>
     </div>
     <div class="explorer-list">
-      <div v-for="exploration in explorations" :key="exploration.id" class="explorer-card">
+      <div
+        v-for="exploration in sortedExplorations"
+        :key="exploration.id"
+        class="explorer-card"
+      >
         <div class="explorer-info">
-          <div class="flex items-center gap-2 mb-1">
-            <Icon icon="mdi:account" class="h-5 w-5 text-wasteland" />
-            <span class="font-bold text-sm"
-              >{{ getDwellerById(exploration.dweller_id)?.first_name }}
-              {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
-            >
-          </div>
-          <div class="explorer-stats">
-            <div class="stat-item">
-              <Icon icon="mdi:map-marker-distance" class="h-4 w-4" />
-              <span>{{ exploration.total_distance || 0 }} miles</span>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-1.5">
+              <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-wasteland" />
+              <span class="truncate text-xs font-bold text-wasteland"
+                >{{ getDwellerById(exploration.dweller_id)?.first_name }}
+                {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
+              >
+              <span v-if="isAtRisk(exploration.dweller_id)" :title="riskTitle(exploration.dweller_id)" aria-label="Dweller at risk">
+                <UBadge size="sm" variant="warning">
+                  <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
+                  AT RISK
+                </UBadge>
+              </span>
             </div>
-            <div class="stat-item">
-              <Icon icon="mdi:treasure-chest" class="h-4 w-4" />
-              <span>{{ exploration.loot_collected?.length || 0 }} items</span>
-            </div>
-            <div class="stat-item">
-              <Icon icon="mdi:currency-usd" class="h-4 w-4" />
-              <span>{{ exploration.total_caps_found || 0 }} caps</span>
-            </div>
-          </div>
-          <!-- Equipped Items -->
-          <div
-            v-if="
-              getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)
-            "
-            class="equipped-items mt-2"
-          >
-            <div v-if="getDwellerWeapon(exploration.dweller_id)" class="stat-item text-amber-400">
-              <Icon icon="mdi:sword" class="h-4 w-4" />
-              <span class="text-xs">{{ getDwellerWeapon(exploration.dweller_id)?.name }}</span>
-            </div>
-            <div v-if="getDwellerOutfit(exploration.dweller_id)" class="stat-item text-blue-400">
-              <Icon icon="mdi:tshirt-crew" class="h-4 w-4" />
-              <span class="text-xs">{{ getDwellerOutfit(exploration.dweller_id)?.name }}</span>
-            </div>
+            <span class="flex shrink-0 items-center gap-1">
+              <span v-if="isReady(exploration)" title="Expedition finished — ready to collect">
+                <UBadge size="sm" variant="primary">READY</UBadge>
+              </span>
+              <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
+                >{{ Math.round(getProgressPercentage(exploration)) }}%</span
+              >
+            </span>
           </div>
           <UProgressBar
             :model-value="getProgressPercentage(exploration)"
-            :height="8"
+            :height="6"
             :glow="false"
             color="linear-gradient(90deg, rgb(205 133 63 / 0.6), rgb(205 133 63))"
             :ariaLabel="`Exploration progress for ${getDwellerById(exploration.dweller_id)?.first_name ?? 'dweller'}`"
           />
-          <div class="text-xs text-wasteland-dim mt-1">
-            {{ Math.round(getProgressPercentage(exploration)) }}% complete
+          <div class="explorer-stats">
+            <div class="stat-item">
+              <Icon icon="mdi:map-marker-distance" class="h-3.5 w-3.5" />
+              <span>{{ exploration.total_distance || 0 }}mi</span>
+            </div>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <div class="stat-item">
+              <Icon icon="mdi:treasure-chest" class="h-3.5 w-3.5" />
+              <span>{{ exploration.loot_collected?.length || 0 }}</span>
+            </div>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <div class="stat-item">
+              <Icon icon="mdi:currency-usd" class="h-3.5 w-3.5" />
+              <span>{{ exploration.total_caps_found || 0 }}</span>
+            </div>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <div class="stat-item" :title="`${exploration.enemies_encountered || 0} enemies killed`">
+              <Icon icon="mdi:skull" class="h-3.5 w-3.5" />
+              <span>{{ exploration.enemies_encountered || 0 }}</span>
+            </div>
+          </div>
+          <div
+            v-if="
+              getDwellerWeapon(exploration.dweller_id) || getDwellerOutfit(exploration.dweller_id)
+            "
+            class="flex min-w-0 flex-col gap-0.5 text-[0.7rem] leading-tight"
+          >
+            <span
+              v-if="getDwellerWeapon(exploration.dweller_id)"
+              class="stat-item min-w-0 text-amber-400"
+              :title="getDwellerWeapon(exploration.dweller_id)?.name"
+            >
+              <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
+              <span class="min-w-0 flex-1 truncate">{{
+                getDwellerWeapon(exploration.dweller_id)?.name
+              }}</span>
+            </span>
+            <span
+              v-if="getDwellerOutfit(exploration.dweller_id)"
+              class="stat-item min-w-0 text-blue-400"
+              :title="getDwellerOutfit(exploration.dweller_id)?.name"
+            >
+              <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
+              <span class="min-w-0 flex-1 truncate">{{
+                getDwellerOutfit(exploration.dweller_id)?.name
+              }}</span>
+            </span>
           </div>
         </div>
         <ExplorerActions
@@ -129,10 +189,6 @@ const getDwellerOutfit = (dwellerId: string) => {
 <style scoped>
 .text-wasteland {
   color: rgba(205, 133, 63, 1);
-}
-
-.text-wasteland-dim {
-  color: rgba(205, 133, 63, 0.7);
 }
 
 .exploring-dwellers {
@@ -172,8 +228,8 @@ const getDwellerOutfit = (dwellerId: string) => {
 }
 
 .explorer-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.75rem;
 }
 
@@ -181,10 +237,10 @@ const getDwellerOutfit = (dwellerId: string) => {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(205, 133, 63, 0.3);
   border-radius: 6px;
-  padding: 0.75rem;
+  padding: 0.5rem 0.625rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.375rem;
   transition: all 0.2s ease;
 }
 
@@ -194,27 +250,43 @@ const getDwellerOutfit = (dwellerId: string) => {
 }
 
 .explorer-info {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .explorer-stats {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
   color: rgba(205, 133, 63, 0.8);
 }
 
 .stat-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
 }
 
 .explorer-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  gap: 0.375rem;
+  margin-top: auto;
+  padding-top: 0.125rem;
 }
 
+.explorer-actions :deep(button) {
+  flex: 1;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+@media (max-width: 639px) {
+  .explorer-list {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

@@ -57,7 +57,7 @@ const handleConfirm = () => {
       </div>
     </template>
 
-    <div class="pt-5">
+    <div>
       <p class="mb-6 text-sm text-theme-primary/70">How long should {{ dwellerName }} explore?</p>
       <div class="mb-6 grid grid-cols-3 gap-3">
         <button

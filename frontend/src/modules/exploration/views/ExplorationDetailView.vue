@@ -44,6 +44,8 @@ const breadcrumbs = computed(() => [
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const completedExplorationId = ref('')
+const rewardsDirty = ref(false)
 
 const exploration = computed(() => {
   return (
@@ -132,6 +134,7 @@ const finishExploration = async (action: ExplorationFinishAction, errorMessage: 
       explorationStore.acknowledgeSseReward(exploration.value.dweller_id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = dwellerName.value
+      completedExplorationId.value = exploration.value.id
       showRewardsModal.value = true
     }
 
@@ -152,10 +155,15 @@ const handleRecallExploration = () => finishExploration(explorationStore.recallD
 
 const closeRewardsModal = () => {
   showRewardsModal.value = false
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    vaultStore.refreshVault(vaultId.value, authStore.token)
+    rewardsDirty.value = false
+  }
   completedExplorationRewards.value = null
   // Navigate back when modal is closed
   goBack()
   completedDwellerName.value = ''
+  completedExplorationId.value = ''
 }
 
 const refreshExploration = async () => {
@@ -199,6 +207,7 @@ watch(
     }
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dwellerName.value
+    completedExplorationId.value = pending.explorationId ?? ''
     showRewardsModal.value = true
     explorationStore.clearPendingSseRewards()
   }
@@ -328,7 +337,9 @@ watch(
             :show="showRewardsModal"
             :rewards="completedExplorationRewards"
             :dweller-name="completedDwellerName"
+            :exploration-id="completedExplorationId"
             @close="closeRewardsModal"
+            @resolved="rewardsDirty = true"
           />
         </PageContentRail>
         </div>

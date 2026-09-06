@@ -1528,6 +1528,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/{exploration_id}/overflow/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take Overflow Item
+         * @description Store one unclaimed overflow item. 409 when storage is still full.
+         */
+        post: operations["take_overflow_item_api_v1_explorations__exploration_id__overflow_take_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/explorations/{exploration_id}/overflow/sell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sell Overflow Item
+         * @description Sell one unclaimed overflow item for caps. Needs no storage space.
+         */
+        post: operations["sell_overflow_item_api_v1_explorations__exploration_id__overflow_sell_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/{exploration_id}/generate_event": {
         parameters: {
             query?: never;
@@ -7224,6 +7264,36 @@ export interface components {
             storage_id?: string | null;
         };
         /**
+         * OverflowActionRequest
+         * @description Schema for resolving one unclaimed overflow item by list index.
+         */
+        OverflowActionRequest: {
+            /**
+             * Index
+             * @description Position in the exploration's unclaimed loot list
+             */
+            index: number;
+        };
+        /**
+         * OverflowActionResponse
+         * @description Schema for overflow resolution responses.
+         */
+        OverflowActionResponse: {
+            /**
+             * Caps Granted
+             * @description Caps granted (sell only)
+             * @default 0
+             */
+            caps_granted: number;
+            /**
+             * Unclaimed Loot
+             * @description Remaining unclaimed loot
+             */
+            unclaimed_loot?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * PauseResumeResponse
          * @description Response for pause/resume vault operations.
          */
@@ -11258,6 +11328,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationCompleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    take_overflow_item_api_v1_explorations__exploration_id__overflow_take_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverflowActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverflowActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sell_overflow_item_api_v1_explorations__exploration_id__overflow_sell_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverflowActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverflowActionResponse"];
                 };
             };
             /** @description Validation Error */

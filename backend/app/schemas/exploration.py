@@ -124,3 +124,16 @@ class ExplorationCompleteResponse(SQLModel):
 
     exploration: ExplorationRead
     rewards_summary: dict = Field(description="Summary of rewards: {caps: int, items: list, experience: int}")
+
+
+class OverflowActionRequest(SQLModel):
+    """Schema for resolving one unclaimed overflow item by list index."""
+
+    index: int = Field(ge=0, description="Position in the exploration's unclaimed loot list")
+
+
+class OverflowActionResponse(SQLModel):
+    """Schema for overflow resolution responses."""
+
+    caps_granted: int = Field(default=0, ge=0, description="Caps granted (sell only)")
+    unclaimed_loot: list[dict] = Field(default_factory=list, description="Remaining unclaimed loot")

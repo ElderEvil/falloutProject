@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import UUID4, BaseModel, Field
 
 
 class ExplorationEventType(StrEnum):
@@ -113,6 +113,7 @@ class CombatOutcomeSchema(BaseModel):
 class RewardsSchema(BaseModel):
     """Schema for exploration completion rewards."""
 
+    exploration_id: UUID4 | None = Field(None, description="Exploration these rewards came from")
     caps: int = Field(..., ge=0, description="Total caps earned")
     items: list[dict] = Field(default_factory=list, description="Items collected and transferred to storage")
     overflow_items: list[dict] = Field(default_factory=list, description="Items dropped due to storage being full")

@@ -42,6 +42,8 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const completedExplorationId = ref('')
+const rewardsDirty = ref(false)
 const activeQueuedReportId = ref<string | null>(null)
 
 const { pendingReports } = usePendingReports(vaultId)
@@ -52,6 +54,7 @@ function showNextPendingReport(): void {
     activeQueuedReportId.value = next.id
     completedExplorationRewards.value = next.rewards
     completedDwellerName.value = next.dwellerName
+    completedExplorationId.value = next.explorationId
     showRewardsModal.value = true
   }
 }
@@ -99,6 +102,7 @@ watch(
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+    completedExplorationId.value = pending.explorationId ?? ''
     showRewardsModal.value = true
     explorationStore.clearPendingSseRewards()
   }
@@ -118,9 +122,7 @@ const pollExplorations = async () => {
 
 usePolling(pollExplorations, { interval: 15_000, immediate: false })
 
-const activeExplorationsArray = computed(() => {
-  return Object.values(explorationStore.activeExplorations)
-})
+const activeExplorationsArray = computed(() => Object.values(explorationStore.activeExplorations))
 
 const selectedExploration = computed(() => {
   if (!selectedExplorerId.value) return null
@@ -172,6 +174,7 @@ const finishExploration = async (
       explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
+      completedExplorationId.value = explorationId
       showRewardsModal.value = true
     }
 
@@ -202,8 +205,13 @@ const closeRewardsModal = () => {
     }
   }
   showRewardsModal.value = false
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    vaultStore.refreshVault(vaultId.value, authStore.token)
+    rewardsDirty.value = false
+  }
   completedExplorationRewards.value = null
   completedDwellerName.value = ''
+  completedExplorationId.value = ''
 }
 </script>
 
@@ -318,7 +326,9 @@ const closeRewardsModal = () => {
         :show="showRewardsModal"
         :rewards="completedExplorationRewards"
         :dweller-name="completedDwellerName"
+        :exploration-id="completedExplorationId"
         @close="closeRewardsModal"
+        @resolved="rewardsDirty = true"
       />
     </div>
   </div>

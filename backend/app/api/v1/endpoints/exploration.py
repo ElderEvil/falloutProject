@@ -15,7 +15,10 @@ from app.schemas.exploration import (
     ExplorationRead,
     ExplorationReadShort,
     ExplorationSendRequest,
+    OverflowActionRequest,
+    OverflowActionResponse,
 )
+from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.utils.exceptions import ValidationException
 
@@ -149,6 +152,32 @@ async def complete_exploration(
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
+
+
+@router.post("/{exploration_id}/overflow/take", response_model=OverflowActionResponse)
+async def take_overflow_item(
+    exploration_id: UUID4,
+    request: OverflowActionRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> OverflowActionResponse:
+    """Store one unclaimed overflow item. 409 when storage is still full."""
+    await verify_exploration_access(exploration_id, user, db_session)
+    remaining = await rewards_service.take_unclaimed_item(db_session, exploration_id, request.index)
+    return OverflowActionResponse(unclaimed_loot=remaining)
+
+
+@router.post("/{exploration_id}/overflow/sell", response_model=OverflowActionResponse)
+async def sell_overflow_item(
+    exploration_id: UUID4,
+    request: OverflowActionRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> OverflowActionResponse:
+    """Sell one unclaimed overflow item for caps. Needs no storage space."""
+    await verify_exploration_access(exploration_id, user, db_session)
+    caps, remaining = await rewards_service.sell_unclaimed_item(db_session, exploration_id, request.index)
+    return OverflowActionResponse(caps_granted=caps, unclaimed_loot=remaining)
 
 
 @router.post("/{exploration_id}/generate_event", response_model=ExplorationRead)

@@ -70,7 +70,9 @@ class RewardsService:
         except (KeyError, AttributeError):
             return RarityEnum.COMMON
 
-    def _create_weapon_from_loot(self, weapon_data: dict | None, rarity: RarityEnum, storage_id: UUID4) -> Weapon | None:
+    def _create_weapon_from_loot(
+        self, weapon_data: dict | None, rarity: RarityEnum, storage_id: UUID4
+    ) -> Weapon | None:
         """Create a Weapon model from loot data.
 
         :param weapon_data: Weapon data dict from data_loader
@@ -104,7 +106,9 @@ class RewardsService:
             )
             return None
 
-    def _create_outfit_from_loot(self, outfit_data: dict | None, rarity: RarityEnum, storage_id: UUID4) -> Outfit | None:
+    def _create_outfit_from_loot(
+        self, outfit_data: dict | None, rarity: RarityEnum, storage_id: UUID4
+    ) -> Outfit | None:
         """Create an Outfit model from loot data.
 
         :param outfit_data: Outfit data dict from data_loader

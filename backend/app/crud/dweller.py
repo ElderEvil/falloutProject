@@ -480,7 +480,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if self.is_alive(dweller_obj):
             raise ContentNoChangeException(detail="Dweller is already alive")
         await self.update(
-            db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.effective_max_health, status=DwellerStatusEnum.IDLE)
+            db_session,
+            dweller_obj.id,
+            DwellerUpdate(health=dweller_obj.effective_max_health, status=DwellerStatusEnum.IDLE),
         )
         return dweller_obj
 

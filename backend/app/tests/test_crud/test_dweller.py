@@ -44,9 +44,7 @@ def test_radiation_reduces_effective_max_health() -> None:
 @pytest.mark.asyncio
 async def test_stimpack_caps_health_at_radiation_reduced_maximum(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
-    )
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     dweller_data = create_fake_dweller() | {
         "max_health": 120,
         "health": 50,

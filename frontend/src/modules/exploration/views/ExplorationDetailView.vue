@@ -153,12 +153,17 @@ const handleCompleteExploration = () =>
 
 const handleRecallExploration = () => finishExploration(explorationStore.recallDweller, 'Failed to recall dweller')
 
-const closeRewardsModal = () => {
-  showRewardsModal.value = false
+const closeRewardsModal = async () => {
   if (rewardsDirty.value && vaultId.value && authStore.token) {
-    vaultStore.refreshVault(vaultId.value, authStore.token)
-    rewardsDirty.value = false
+    try {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      rewardsDirty.value = false
+    } catch {
+      toast.error('Failed to refresh vault rewards')
+      return
+    }
   }
+  showRewardsModal.value = false
   completedExplorationRewards.value = null
   // Navigate back when modal is closed
   goBack()

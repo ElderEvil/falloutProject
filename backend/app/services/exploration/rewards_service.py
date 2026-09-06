@@ -10,7 +10,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import compute_medical_capacity, game_config
 from app.crud import dweller as dweller_crud
-from app.crud import exploration as crud_exploration
 from app.crud import outfit as crud_outfit
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
@@ -347,7 +346,10 @@ class RewardsService:
         }
 
     async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
-        exploration = await crud_exploration.get(db_session, exploration_id)
+        result = await db_session.execute(
+            select(Exploration).where(Exploration.id == exploration_id).with_for_update()
+        )
+        exploration = result.scalar_one_or_none()
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)
         if exploration.is_active():
@@ -367,15 +369,18 @@ class RewardsService:
         if loot_item.get("item_type") in {"stimpak", "radaway"}:
             raise ValidationException("Medical supplies are returned automatically")
         storage = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
-        if not storage or await crud_storage.get_available_space(db_session, storage.id) < 1:
+        quantity = loot_item.get("quantity", 1) or 1
+        if not isinstance(quantity, int) or quantity < 1:
+            raise ValidationException("Loot quantity must be a positive integer")
+        if not storage or await crud_storage.get_available_space(db_session, storage.id) < quantity:
             raise ResourceConflictException("Storage is full")
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
         rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-        item = self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data)
-        if item is None:
+        items = [self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data) for _ in range(quantity)]
+        if any(item is None for item in items):
             raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
-        db_session.add(item)
+        db_session.add_all(items)
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.flush()
@@ -395,7 +400,7 @@ class RewardsService:
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
         value = self._loot_caps_value(loot_item, weapons_data, outfits_data)
         vault = await crud_vault.get(db_session, exploration.vault_id)
-        await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=value)
+        await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()

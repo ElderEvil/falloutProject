@@ -40,9 +40,9 @@ const rewardsWithOverflow = {
   events_encountered: 3,
 } as RewardsSummary
 
-const mountModal = (rewards: RewardsSummary | null = rewardsWithOverflow) =>
+const mountModal = (rewards: RewardsSummary | null = rewardsWithOverflow, explorationId = 'exp-1') =>
   mount(ExplorationRewardsModal, {
-    props: { show: true, rewards, dwellerName: 'Lucy MacLean', explorationId: 'exp-1' },
+    props: { show: true, rewards, dwellerName: 'Lucy MacLean', explorationId },
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -104,6 +104,18 @@ describe('ExplorationRewardsModal', () => {
     await sellButtons[0]!.trigger('click')
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'sell', 0, 'test-token')
     expect(wrapper.text()).not.toContain('Dropped A')
+  })
+
+  it('uses the rewards exploration ID when a stale caller ID is supplied', async () => {
+    mockResolve.mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })
+    const wrapper = mountModal({ ...rewardsWithOverflow, exploration_id: 'authoritative-exp' }, 'stale-exp')
+
+    await wrapper
+      .findAll('.overflow-actions button')
+      .find((button) => button.text() === 'Sell')!
+      .trigger('click')
+
+    expect(mockResolve).toHaveBeenCalledWith('authoritative-exp', 'sell', 0, 'test-token')
   })
 
   it('sells every overflow item without relying on a delayed prop update', async () => {

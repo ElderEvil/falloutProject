@@ -49,7 +49,7 @@ watch(
 )
 
 const hasOverflow = computed(() => unclaimed.value.length > 0)
-const resolvedExplorationId = computed(() => props.explorationId || safeRewards.value.exploration_id || '')
+const resolvedExplorationId = computed(() => safeRewards.value.exploration_id || props.explorationId)
 const busyIndex = ref<number | null>(null)
 
 const resolveOverflow = async (action: 'take' | 'sell', index: number) => {

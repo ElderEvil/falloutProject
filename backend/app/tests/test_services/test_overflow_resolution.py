@@ -114,6 +114,35 @@ async def test_take_unclaimed_item_stores_it(
 
 
 @pytest.mark.asyncio
+async def test_take_unclaimed_item_preserves_every_stacked_unit(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Taking stacked overflow creates one storage row for every unit."""
+    storage = await make_vault_storage(1)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[
+            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+            {"item_name": "Item B", "quantity": 2, "rarity": "Common", "item_type": "junk"},
+        ],
+    )
+    storage.max_space = 3
+    async_session.add(storage)
+    await async_session.flush()
+
+    remaining = await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+
+    assert remaining == []
+    stored = (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
+    assert [item.name for item in stored].count("Item B") == 2
+
+
+@pytest.mark.asyncio
 async def test_take_unclaimed_item_conflicts_when_full(
     async_session: AsyncSession,
     vault: Vault,

@@ -195,7 +195,16 @@ const handleCompleteExploration = (explorationId: string) =>
 const handleRecallExploration = (explorationId: string) =>
   finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
 
-const closeRewardsModal = () => {
+const closeRewardsModal = async () => {
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    try {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      rewardsDirty.value = false
+    } catch {
+      toast.error('Failed to refresh vault rewards')
+      return
+    }
+  }
   if (activeQueuedReportId.value) {
     removePendingReport(activeQueuedReportId.value)
     activeQueuedReportId.value = null
@@ -205,10 +214,6 @@ const closeRewardsModal = () => {
     }
   }
   showRewardsModal.value = false
-  if (rewardsDirty.value && vaultId.value && authStore.token) {
-    vaultStore.refreshVault(vaultId.value, authStore.token)
-    rewardsDirty.value = false
-  }
   completedExplorationRewards.value = null
   completedDwellerName.value = ''
   completedExplorationId.value = ''

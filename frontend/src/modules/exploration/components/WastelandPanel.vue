@@ -42,6 +42,8 @@ watch(vaultId, () => sendWasteland.cancel())
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const completedExplorationId = ref('')
+const rewardsDirty = ref(false)
 
 // Track explorations being completed to prevent duplicate calls
 const completingExplorations = ref<Set<string>>(new Set())
@@ -84,6 +86,7 @@ watch(
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+    completedExplorationId.value = pending.explorationId ?? ''
     showRewardsModal.value = true
     explorationStore.clearPendingSseRewards()
   }
@@ -191,6 +194,7 @@ const finishExploration = async (
       explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
+      completedExplorationId.value = explorationId
       showRewardsModal.value = true
     }
 
@@ -219,10 +223,20 @@ const handleCompleteExploration = async (explorationId: string) => {
   }
 }
 
-const closeRewardsModal = () => {
+const closeRewardsModal = async () => {
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    try {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      rewardsDirty.value = false
+    } catch {
+      toast.error('Failed to refresh vault rewards')
+      return
+    }
+  }
   showRewardsModal.value = false
   completedExplorationRewards.value = null
   completedDwellerName.value = ''
+  completedExplorationId.value = ''
 }
 
 // Type assertion: dwellerStore.dwellers is DwellerShort[] at runtime but
@@ -268,7 +282,9 @@ const detailedDwellerMap = computed(() =>
       :show="showRewardsModal"
       :rewards="completedExplorationRewards"
       :dweller-name="completedDwellerName"
+      :exploration-id="completedExplorationId"
       @close="closeRewardsModal"
+      @resolved="rewardsDirty = true"
     />
   </div>
 </template>

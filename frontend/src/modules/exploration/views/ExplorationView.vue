@@ -21,7 +21,7 @@ import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import { useExplorationStore } from '../stores/exploration'
-import type { RewardsSummary } from '../stores/exploration'
+import type { PendingOverflow, RewardsSummary } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
 
 const route = useRoute()
@@ -42,7 +42,11 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const completedExplorationId = ref('')
+const rewardsDirty = ref(false)
 const activeQueuedReportId = ref<string | null>(null)
+const isPendingOverflowModal = ref(false)
+const pendingOverflow = ref<PendingOverflow[]>([])
 
 const { pendingReports } = usePendingReports(vaultId)
 
@@ -52,8 +56,36 @@ function showNextPendingReport(): void {
     activeQueuedReportId.value = next.id
     completedExplorationRewards.value = next.rewards
     completedDwellerName.value = next.dwellerName
+    completedExplorationId.value = next.explorationId
+    isPendingOverflowModal.value = false
     showRewardsModal.value = true
   }
+}
+
+function showPendingOverflow(pending: PendingOverflow): void {
+  activeQueuedReportId.value = pending.exploration_id
+  completedExplorationRewards.value = {
+    caps: 0,
+    items: [],
+    overflow_items: pending.unclaimed_loot,
+    experience: 0,
+    distance: 0,
+    enemies_defeated: 0,
+    events_encountered: 0,
+    exploration_id: pending.exploration_id,
+  }
+  const dweller = getDwellerById(pending.dweller_id)
+  completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+  completedExplorationId.value = pending.exploration_id
+  isPendingOverflowModal.value = true
+  showRewardsModal.value = true
+}
+
+function showNextPendingOverflow(): boolean {
+  const next = pendingOverflow.value.shift()
+  if (!next) return false
+  showPendingOverflow(next)
+  return true
 }
 
 const loadData = async () => {
@@ -77,6 +109,8 @@ onMounted(async () => {
   await loadData()
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
+    pendingOverflow.value = await explorationStore.fetchPendingOverflow(vaultId.value, authStore.token)
+    if (showNextPendingOverflow()) return
   }
   if (pendingReports.value.length > 0) {
     showNextPendingReport()
@@ -95,10 +129,12 @@ watch(
       explorationStore.clearPendingSseRewards()
       return
     }
-    activeQueuedReportId.value = null
+    activeQueuedReportId.value = pending.explorationId ?? null
     const dweller = getDwellerById(pending.dwellerId)
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
+    completedExplorationId.value = pending.explorationId ?? ''
+    isPendingOverflowModal.value = false
     showRewardsModal.value = true
     explorationStore.clearPendingSseRewards()
   }
@@ -118,9 +154,7 @@ const pollExplorations = async () => {
 
 usePolling(pollExplorations, { interval: 15_000, immediate: false })
 
-const activeExplorationsArray = computed(() => {
-  return Object.values(explorationStore.activeExplorations)
-})
+const activeExplorationsArray = computed(() => Object.values(explorationStore.activeExplorations))
 
 const selectedExploration = computed(() => {
   if (!selectedExplorerId.value) return null
@@ -172,6 +206,8 @@ const finishExploration = async (
       explorationStore.acknowledgeSseReward(dweller.id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
+      completedExplorationId.value = explorationId
+      isPendingOverflowModal.value = false
       showRewardsModal.value = true
     }
 
@@ -192,10 +228,20 @@ const handleCompleteExploration = (explorationId: string) =>
 const handleRecallExploration = (explorationId: string) =>
   finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
 
-const closeRewardsModal = () => {
-  if (activeQueuedReportId.value) {
-    removePendingReport(activeQueuedReportId.value)
+const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    try {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      rewardsDirty.value = false
+    } catch {
+      toast.error('Failed to refresh vault rewards')
+      return
+    }
+  }
+  if (!hasUnresolvedOverflow) {
+    removePendingReport(completedExplorationId.value)
     activeQueuedReportId.value = null
+    if (isPendingOverflowModal.value && showNextPendingOverflow()) return
     if (pendingReports.value.length > 0) {
       showNextPendingReport()
       return
@@ -204,6 +250,8 @@ const closeRewardsModal = () => {
   showRewardsModal.value = false
   completedExplorationRewards.value = null
   completedDwellerName.value = ''
+  completedExplorationId.value = ''
+  isPendingOverflowModal.value = false
 }
 </script>
 
@@ -318,7 +366,10 @@ const closeRewardsModal = () => {
         :show="showRewardsModal"
         :rewards="completedExplorationRewards"
         :dweller-name="completedDwellerName"
+        :exploration-id="completedExplorationId"
+        :pending-only="isPendingOverflowModal"
         @close="closeRewardsModal"
+        @resolved="rewardsDirty = true"
       />
     </div>
   </div>

@@ -44,6 +44,8 @@ const breadcrumbs = computed(() => [
 const showRewardsModal = ref(false)
 const completedExplorationRewards = ref<RewardsSummary | null>(null)
 const completedDwellerName = ref('')
+const completedExplorationId = ref('')
+const rewardsDirty = ref(false)
 
 const exploration = computed(() => {
   return (
@@ -132,6 +134,7 @@ const finishExploration = async (action: ExplorationFinishAction, errorMessage: 
       explorationStore.acknowledgeSseReward(exploration.value.dweller_id)
       completedExplorationRewards.value = result.rewards_summary
       completedDwellerName.value = dwellerName.value
+      completedExplorationId.value = exploration.value.id
       showRewardsModal.value = true
     }
 
@@ -150,12 +153,22 @@ const handleCompleteExploration = () =>
 
 const handleRecallExploration = () => finishExploration(explorationStore.recallDweller, 'Failed to recall dweller')
 
-const closeRewardsModal = () => {
+const closeRewardsModal = async () => {
+  if (rewardsDirty.value && vaultId.value && authStore.token) {
+    try {
+      await vaultStore.refreshVault(vaultId.value, authStore.token)
+      rewardsDirty.value = false
+    } catch {
+      toast.error('Failed to refresh vault rewards')
+      return
+    }
+  }
   showRewardsModal.value = false
   completedExplorationRewards.value = null
   // Navigate back when modal is closed
   goBack()
   completedDwellerName.value = ''
+  completedExplorationId.value = ''
 }
 
 const refreshExploration = async () => {
@@ -199,6 +212,7 @@ watch(
     }
     completedExplorationRewards.value = pending.rewards
     completedDwellerName.value = dwellerName.value
+    completedExplorationId.value = pending.explorationId ?? ''
     showRewardsModal.value = true
     explorationStore.clearPendingSseRewards()
   }
@@ -328,7 +342,9 @@ watch(
             :show="showRewardsModal"
             :rewards="completedExplorationRewards"
             :dweller-name="completedDwellerName"
+            :exploration-id="completedExplorationId"
             @close="closeRewardsModal"
+            @resolved="rewardsDirty = true"
           />
         </PageContentRail>
         </div>

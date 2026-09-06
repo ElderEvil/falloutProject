@@ -36,6 +36,11 @@ class ExplorationBase(SQLModel):
     # Journey log and events
     events: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
     loot_collected: list[dict] = Field(default_factory=list, sa_column=sa.Column(JSONB))
+    # Overflow loot awaiting a per-item take/sell decision on the return screen.
+    unclaimed_loot: list[dict] = Field(
+        default_factory=list,
+        sa_column=sa.Column(JSONB, nullable=False),
+    )
 
     # Stats at start (for calculations)
     dweller_strength: int = Field(ge=1, le=10)

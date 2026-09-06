@@ -21,11 +21,13 @@ from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.weapon_assets import get_weapon_image_url
 
@@ -68,7 +70,9 @@ class RewardsService:
         except (KeyError, AttributeError):
             return RarityEnum.COMMON
 
-    def _create_weapon_from_loot(self, weapon_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Weapon | None:
+    def _create_weapon_from_loot(
+        self, weapon_data: dict | None, rarity: RarityEnum, storage_id: UUID4
+    ) -> Weapon | None:
         """Create a Weapon model from loot data.
 
         :param weapon_data: Weapon data dict from data_loader
@@ -102,7 +106,9 @@ class RewardsService:
             )
             return None
 
-    def _create_outfit_from_loot(self, outfit_data: dict, rarity: RarityEnum, storage_id: UUID4) -> Outfit | None:
+    def _create_outfit_from_loot(
+        self, outfit_data: dict | None, rarity: RarityEnum, storage_id: UUID4
+    ) -> Outfit | None:
         """Create an Outfit model from loot data.
 
         :param outfit_data: Outfit data dict from data_loader
@@ -150,6 +156,45 @@ class RewardsService:
             storage_id=storage_id,
         )
 
+    def _build_item_from_loot(
+        self,
+        loot_item: dict,
+        rarity: RarityEnum,
+        storage_id: UUID4,
+        weapons_data: list[dict],
+        outfits_data: list[dict],
+    ) -> Weapon | Outfit | Junk | None:
+        """Build a storage item from a loot dict. Shared by transfer and overflow-take."""
+        item_name = loot_item.get("item_name", "Unknown Item")
+        match loot_item.get("item_type", "junk"):
+            case "weapon":
+                weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
+                return self._create_weapon_from_loot(weapon_data, rarity, storage_id)
+            case "outfit":
+                outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
+                return self._create_outfit_from_loot(outfit_data, rarity, storage_id)
+            case _:
+                return self._create_junk_from_loot(item_name, rarity, storage_id)
+
+    def _loot_caps_value(self, loot_item: dict, weapons_data: list[dict], outfits_data: list[dict]) -> int:
+        """Caps granted for selling an unclaimed loot dict. Never silent-zeroes unknown items."""
+        quantity = loot_item.get("quantity", 1) or 1
+        item_name = loot_item.get("item_name", "Unknown Item")
+        rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
+        match loot_item.get("item_type", "junk"):
+            case "weapon":
+                weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
+                if not weapon_data:
+                    raise ValidationException(f"Unknown weapon loot: {item_name}")
+                return (weapon_data.get("value") or 0) * quantity
+            case "outfit":
+                outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
+                if not outfit_data:
+                    raise ValidationException(f"Unknown outfit loot: {item_name}")
+                return (outfit_data.get("value") or 0) * quantity
+            case _:
+                return game_config.exploration.get_junk_value(rarity.value) * quantity
+
     async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
         """Transfer loot items from exploration to vault storage with space validation.
 
@@ -162,12 +207,14 @@ class RewardsService:
         :returns: TransferResult with transferred/overflow item lists and storage_id
         """
         if not exploration.loot_collected:
+            exploration.unclaimed_loot = []
             return {"transferred": [], "overflow": [], "auto_equip_ids": [], "storage_id": None}
 
         vault = await crud_vault.get(db_session, exploration.vault_id)
         storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
         if not storage:
             logger.error("Storage not found for vault", extra={"vault_id": str(vault.id)})
+            exploration.unclaimed_loot = exploration.loot_collected
             return {
                 "transferred": [],
                 "overflow": exploration.loot_collected,
@@ -212,6 +259,7 @@ class RewardsService:
             item_name = loot_item.get("item_name", "Unknown Item")
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
+            quantity = loot_item.get("quantity", 1) or 1
 
             if item_type in {"stimpak", "radaway"}:
                 # Medical loot is returned via the stimpack/radaway counters in
@@ -219,55 +267,52 @@ class RewardsService:
                 # burn storage space.
                 continue
 
-            # Check if space available
-            if items_added >= available_space:
-                overflow.append(loot_item)
-                logger.warning(
-                    "Storage full - item dropped",
+            # Convert rarity string to enum
+            rarity = self._parse_rarity_to_enum(rarity_str)
+            stored_quantity = 0
+            item_unavailable = False
+            while stored_quantity < quantity and items_added < available_space:
+                item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
+                if item is None:
+                    item_unavailable = True
+                    break
+
+                db_session.add(item)
+
+                if item_type in {"weapon", "outfit"}:
+                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
+                    if loot_item.get("auto_equip"):
+                        await db_session.flush()
+                        auto_equip_ids.append({"item_type": item_type, "id": item.id})
+
+                items_added += 1
+                stored_quantity += 1
+
+            if stored_quantity:
+                transferred.append({**loot_item, "quantity": stored_quantity})
+                logger.info(
+                    "Item transferred to storage",
                     extra={
                         "vault_id": str(vault.id),
                         "item_name": item_name,
                         "item_type": item_type,
                         "rarity": rarity_str,
-                        "items_in_storage": items_added,
-                        "max_space": storage.max_space,
                     },
                 )
+
+            if stored_quantity == quantity or item_unavailable:
                 continue
 
-            # Convert rarity string to enum
-            rarity = self._parse_rarity_to_enum(rarity_str)
-
-            match item_type:
-                case "weapon":
-                    weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                    item = self._create_weapon_from_loot(weapon_data, rarity, storage_id)
-                case "outfit":
-                    outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                    item = self._create_outfit_from_loot(outfit_data, rarity, storage_id)
-                case _:
-                    item = self._create_junk_from_loot(item_name, rarity, storage_id)
-
-            if item is None:
-                continue
-
-            db_session.add(item)
-
-            if item_type in {"weapon", "outfit"}:
-                await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
-                if loot_item.get("auto_equip"):
-                    await db_session.flush()
-                    auto_equip_ids.append({"item_type": item_type, "id": item.id})
-
-            items_added += 1
-            transferred.append(loot_item)
-            logger.info(
-                "Item transferred to storage",
+            overflow.append({**loot_item, "quantity": quantity - stored_quantity})
+            logger.warning(
+                "Storage full - item dropped",
                 extra={
                     "vault_id": str(vault.id),
                     "item_name": item_name,
                     "item_type": item_type,
                     "rarity": rarity_str,
+                    "items_in_storage": items_added,
+                    "max_space": storage.max_space,
                 },
             )
 
@@ -298,12 +343,89 @@ class RewardsService:
                 },
             )
 
+        exploration.unclaimed_loot = overflow
+
         return {
             "transferred": transferred,
             "overflow": overflow,
             "auto_equip_ids": auto_equip_ids,
             "storage_id": storage_id,
         }
+
+    async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
+        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
+        exploration = result.scalar_one_or_none()
+        if not exploration:
+            raise ResourceNotFoundException(Exploration, exploration_id)
+        if exploration.is_active():
+            raise ValidationException("Exploration is still in progress")
+        return exploration, list(exploration.unclaimed_loot or [])
+
+    async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID4) -> list[PendingOverflowRead]:
+        """Return every completed exploration with loot still awaiting a player decision."""
+        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        return [
+            PendingOverflowRead(
+                exploration_id=exploration.id,
+                dweller_id=exploration.dweller_id,
+                unclaimed_loot=exploration.unclaimed_loot,
+            )
+            for exploration in result.scalars()
+            if not exploration.is_active() and exploration.unclaimed_loot
+        ]
+
+    @staticmethod
+    def _pop_unclaimed(exploration: Exploration, unclaimed: list[dict], index: int) -> dict:
+        if index < 0 or index >= len(unclaimed):
+            raise ResourceNotFoundException(Exploration, f"{exploration.id} unclaimed item {index}")
+        return unclaimed.pop(index)
+
+    async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
+        """Store one overflow item. 409 when storage is still full."""
+        exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
+        loot_item = self._pop_unclaimed(exploration, unclaimed, index)
+        if loot_item.get("item_type") in {"stimpak", "radaway"}:
+            raise ValidationException("Medical supplies are returned automatically")
+        storage = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
+        quantity = loot_item.get("quantity", 1) or 1
+        if not isinstance(quantity, int) or quantity < 1:
+            raise ValidationException("Loot quantity must be a positive integer")
+        if not storage or await crud_storage.get_available_space(db_session, storage.id) < quantity:
+            raise ResourceConflictException("Storage is full")
+        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
+        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
+        rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
+        items = [
+            self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data)
+            for _ in range(quantity)
+        ]
+        if any(item is None for item in items):
+            raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
+        db_session.add_all(items)
+        exploration.unclaimed_loot = unclaimed
+        db_session.add(exploration)
+        await db_session.flush()
+        await crud_storage.update_used_space(db_session, storage.id)
+        await db_session.commit()
+        return unclaimed
+
+    async def sell_unclaimed_item(
+        self, db_session: AsyncSession, exploration_id: UUID4, index: int
+    ) -> tuple[int, list[dict]]:
+        """Sell one overflow item for caps. Needs no storage space."""
+        exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
+        loot_item = self._pop_unclaimed(exploration, unclaimed, index)
+        if loot_item.get("item_type") in {"stimpak", "radaway"}:
+            raise ValidationException("Medical supplies are returned automatically")
+        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
+        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
+        value = self._loot_caps_value(loot_item, weapons_data, outfits_data)
+        vault = await crud_vault.get(db_session, exploration.vault_id)
+        await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        exploration.unclaimed_loot = unclaimed
+        db_session.add(exploration)
+        await db_session.commit()
+        return value, unclaimed
 
     async def apply_rewards(
         self, db_session: AsyncSession, exploration: Exploration, progress_multiplier: float = 1.0
@@ -386,6 +508,7 @@ class RewardsService:
             )
 
         return RewardsSchema(
+            exploration_id=exploration.id,
             caps=total_caps,
             items=transfer_result["transferred"],
             overflow_items=transfer_result["overflow"],

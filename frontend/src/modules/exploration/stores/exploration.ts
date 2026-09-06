@@ -88,6 +88,18 @@ export interface RewardsSummary {
   overflow_items?: LootItem[]
   progress_percentage?: number
   recalled_early?: boolean
+  exploration_id?: string
+}
+
+export interface OverflowResolution {
+  caps_granted: number
+  unclaimed_loot: LootItem[]
+}
+
+export interface PendingOverflow {
+  exploration_id: string
+  dweller_id: string
+  unclaimed_loot: LootItem[]
 }
 
 export const useExplorationStore = defineStore('exploration', () => {
@@ -97,7 +109,7 @@ export const useExplorationStore = defineStore('exploration', () => {
   const explorations = ref<Exploration[]>([])
   const activeExplorations = ref<Record<string, Exploration>>({})
   const lastRewards = ref<RewardsSummary | null>(null)
-  const pendingSseRewards = ref<{ rewards: RewardsSummary; dwellerId: string } | null>(null)
+  const pendingSseRewards = ref<{ rewards: RewardsSummary; dwellerId: string; explorationId?: string } | null>(null)
   const acknowledgedSseRewards = new Map<string, ReturnType<typeof setTimeout>>()
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -134,7 +146,11 @@ export const useExplorationStore = defineStore('exploration', () => {
         if (data.type === 'exploration_complete' || data.type === 'exploration_recalled') {
           const rewards = (data.rewards ?? { caps: 0, items: [], experience: 0, distance: 0 }) as RewardsSummary
           const dwellerId = (data.dweller_id as string) ?? ''
-          pendingSseRewards.value = { rewards, dwellerId }
+          pendingSseRewards.value = {
+            rewards,
+            dwellerId,
+            ...(explorationId ? { explorationId } : {}),
+          }
 
           if (dwellerId && explorationId) {
             const dweller = dwellerFilter.dwellers.find((d) => d.id === dwellerId)
@@ -393,6 +409,39 @@ export const useExplorationStore = defineStore('exploration', () => {
     error.value = null
   }
 
+  async function resolveOverflowItem(
+    explorationId: string,
+    action: 'take' | 'sell',
+    index: number,
+    token: string
+  ): Promise<OverflowResolution> {
+    try {
+      const response = await axios.post(
+        `/api/v1/explorations/${explorationId}/overflow/${action}`,
+        { index },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      return response.data as OverflowResolution
+    } catch (err) {
+      handleStoreError(err, action === 'take' ? 'Could not take item' : 'Could not sell item')
+      throw err
+    }
+  }
+
+  async function fetchPendingOverflow(vaultId: string, token: string): Promise<PendingOverflow[]> {
+    try {
+      const response = await axios.get(`/api/v1/explorations/vault/${vaultId}/pending-overflow`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data as PendingOverflow[]
+    } catch (err) {
+      handleStoreError(err, 'Could not load pending exploration loot')
+      throw err
+    }
+  }
+
   return {
     // State
     explorations,
@@ -411,6 +460,8 @@ export const useExplorationStore = defineStore('exploration', () => {
     fetchExplorationProgress,
     recallDweller,
     completeExploration,
+    fetchPendingOverflow,
+    resolveOverflowItem,
     startSseSubscription,
     stopSseSubscription,
     clearPendingSseRewards,

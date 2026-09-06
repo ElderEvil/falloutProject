@@ -118,6 +118,18 @@ describe('ExplorationRewardsModal', () => {
     expect(mockResolve).toHaveBeenCalledWith('authoritative-exp', 'sell', 0, 'test-token')
   })
 
+  it('allows a legacy overflow report to close after the missing record is reported', async () => {
+    mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
+    const wrapper = mountModal()
+
+    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+
+    expect(wrapper.text()).toContain('This report predates overflow resolution')
+    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeUndefined()
+    await wrapper.get('.collect-btn').trigger('click')
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
   it('sells every overflow item without relying on a delayed prop update', async () => {
     mockResolve
       .mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })

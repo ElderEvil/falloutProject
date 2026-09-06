@@ -51,6 +51,8 @@ watch(
 const hasOverflow = computed(() => unclaimed.value.length > 0)
 const resolvedExplorationId = computed(() => safeRewards.value.exploration_id || props.explorationId)
 const busyIndex = ref<number | null>(null)
+const legacyOverflow = ref(false)
+const requiresResolution = computed(() => hasOverflow.value && !legacyOverflow.value)
 
 const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
   if (!resolvedExplorationId.value || !authStore.token || busyIndex.value !== null) return undefined
@@ -67,6 +69,13 @@ const resolveOverflow = async (action: 'take' | 'sell', index: number) => {
     emit('resolved')
     toast.success(action === 'take' ? `Stored ${name}` : `Sold ${name} for +${result.caps_granted} caps`)
     return result
+  } catch (error) {
+    if ((error as { response?: { status?: number } }).response?.status === 404) {
+      legacyOverflow.value = true
+      toast.info('These items were left behind before overflow resolution was available')
+      return undefined
+    }
+    throw error
   } finally {
     busyIndex.value = null
   }
@@ -79,7 +88,7 @@ const sellAll = async () => {
 }
 
 const tryClose = () => {
-  if (hasOverflow.value) {
+  if (requiresResolution.value) {
     toast.info('Storage is full — Take or Sell each item above first')
     return
   }
@@ -154,7 +163,7 @@ const tryClose = () => {
       <div v-if="safeRewards.items && safeRewards.items.length > 0" class="items-section">
         <h3 class="section-title">
           <Icon icon="mdi:package-variant" class="mr-2" />
-          {{ hasOverflow ? 'Stored in Vault' : 'Items Found' }}
+          {{ requiresResolution ? 'Stored in Vault' : 'Items Found' }}
         </h3>
         <div class="items-list">
           <div
@@ -191,9 +200,12 @@ const tryClose = () => {
       >
         <h3 class="section-title overflow-title">
           <Icon icon="mdi:package-variant-closed-remove" class="mr-2" />
-          Storage Full — Needs Decision
+          {{ legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision' }}
         </h3>
-        <div class="items-list">
+        <p v-if="legacyOverflow" class="text-sm text-theme-primary/70">
+          This report predates overflow resolution. These items were left behind.
+        </p>
+        <div v-else class="items-list">
           <div
             v-for="(item, index) in unclaimed"
             :key="`${item.item_name}-${index}`"
@@ -227,8 +239,8 @@ const tryClose = () => {
       <button
         @click="tryClose"
         class="collect-btn"
-        :disabled="hasOverflow"
-        :title="hasOverflow ? 'Take or Sell each item above first' : undefined"
+        :disabled="requiresResolution"
+        :title="requiresResolution ? 'Take or Sell each item above first' : undefined"
       >
         <Icon icon="mdi:check-bold" class="mr-2" />
         Collect Rewards

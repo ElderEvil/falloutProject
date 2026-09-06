@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.0 (2026-09-06)
+
+### Features
+
+* improve exploration status visibility 39a7ef2
+
+### Bug Fixes
+
+* clarify exploration enemy tooltip cfc3117
+
 ## 2.79.1 (2026-09-06)
 
 ### Bug Fixes

@@ -151,6 +151,17 @@ describe('DwellerCard', () => {
       expect(wrapper.text()).toContain('80 / 100')
     })
 
+    it('shows radiation-reduced maximum health', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, health: 82, max_health: 120, radiation: 35 },
+          imageUrl: null,
+        },
+      })
+
+      expect(wrapper.text()).toContain('82 / 85 (120)')
+    })
+
     it('should display happiness percentage', () => {
       const wrapper = mount(DwellerCard, {
         props: {

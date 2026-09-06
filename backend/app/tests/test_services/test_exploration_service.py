@@ -262,7 +262,7 @@ async def test_complete_exploration_transfers_caps(
     expected_xp = base_xp
 
     # Add survival bonus if dweller has >70% health
-    if dweller.health / dweller.max_health > 0.7:
+    if dweller.health / dweller.effective_max_health > 0.7:
         expected_xp += int(base_xp * 0.2)  # 20% survival bonus
 
     # Add luck bonus (2% per luck point)

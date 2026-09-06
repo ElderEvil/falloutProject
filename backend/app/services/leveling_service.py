@@ -118,8 +118,8 @@ class LevelingService:
         health_increase = actual_levels * game_config.leveling.hp_gain_per_level
         new_max_health = dweller.max_health + health_increase
 
-        # Always fully heal on level-up (rewarding mechanic)
-        new_health = new_max_health
+        # Always fully heal on level-up, up to the radiation-reduced maximum.
+        new_health = max(1, new_max_health - dweller.radiation)
 
         # Update dweller
         from app.crud.dweller import dweller as dweller_crud

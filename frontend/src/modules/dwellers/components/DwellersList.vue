@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
-import { getCombatPower, getAbilityConfig } from '@/modules/dwellers/models/dweller'
+import { getCombatPower, getAbilityConfig, getHealthDisplay } from '@/modules/dwellers/models/dweller'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -77,7 +77,7 @@ const getRoomStat = (
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-1.5">
             <Icon icon="mdi:heart" class="h-4 w-4 text-red-400" />
-            <span class="text-sm font-semibold">{{ dweller.health }} / {{ dweller.max_health }}</span>
+            <span class="text-sm font-semibold">{{ getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation) }}</span>
           </div>
           <div class="flex items-center gap-1">
             <Icon icon="mdi:emoticon-happy" class="h-4 w-4 text-yellow-400" />

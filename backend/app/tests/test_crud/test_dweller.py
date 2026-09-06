@@ -10,7 +10,7 @@ from app.crud.user_profile import profile_crud
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
-from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
+from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerCreateWithoutVaultID
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -26,6 +26,39 @@ from app.utils.exceptions import (
 from backend.app.tests.factory.dwellers import create_fake_dweller
 
 RACE_VALUES = {race.value for race in RaceOption}
+
+
+def test_radiation_reduces_effective_max_health() -> None:
+    dweller = DwellerCreateWithoutVaultID(
+        first_name="Rad",
+        gender="male",
+        rarity="common",
+        max_health=120,
+        health=82,
+        radiation=35,
+    )
+
+    assert dweller.effective_max_health == 85
+
+
+@pytest.mark.asyncio
+async def test_stimpack_caps_health_at_radiation_reduced_maximum(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
+    )
+    dweller_data = create_fake_dweller() | {
+        "max_health": 120,
+        "health": 50,
+        "radiation": 35,
+        "stimpack": 1,
+    }
+    dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=str(vault.id)))
+
+    healed_dweller = await crud.dweller.use_stimpack(async_session, dweller.id)
+
+    assert healed_dweller.health == 85
+    assert healed_dweller.stimpack == 0
 
 
 @pytest.mark.asyncio

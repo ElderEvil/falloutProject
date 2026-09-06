@@ -114,7 +114,7 @@ class ArenaService:
             await db_session.delete(event)
 
         for fighter in fighters:
-            fighter.health = fighter.max_health
+            fighter.health = fighter.effective_max_health
             db_session.add(fighter)
 
         db_session.add(room)

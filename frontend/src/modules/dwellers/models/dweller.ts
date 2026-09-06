@@ -116,6 +116,19 @@ export function getRadiationPercentage(radiation: number | null | undefined, max
   return Math.min(100, (radiation / maxHealth) * 100)
 }
 
+/** Health ceiling after radiation damage, kept at one so existing death rules still apply. */
+export function getEffectiveMaxHealth(radiation: number | null | undefined, maxHealth: number): number {
+  return Math.max(1, maxHealth - Math.max(0, radiation ?? 0))
+}
+
+/** Shows the radiation-reduced maximum while retaining the base maximum for context. */
+export function getHealthDisplay(health: number, maxHealth: number, radiation: number | null | undefined): string {
+  const effectiveMaxHealth = getEffectiveMaxHealth(radiation, maxHealth)
+  return radiation && radiation > 0
+    ? `${Math.min(health, effectiveMaxHealth)} / ${effectiveMaxHealth} (${maxHealth})`
+    : `${health} / ${maxHealth}`
+}
+
 /** Icon mapping for death causes */
 export const DEATH_CAUSE_ICON_MAP: Record<string, string> = {
   health: 'mdi:heart-broken',

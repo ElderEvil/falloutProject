@@ -60,6 +60,11 @@ class DwellerBaseWithoutStats(SQLModel):
     radiation: int = Field(default=0, ge=0, le=1_000)
     happiness: int = Field(default=50, ge=10, le=100)
 
+    @property
+    def effective_max_health(self) -> int:
+        """Maximum health available after radiation damage."""
+        return max(1, self.max_health - self.radiation)
+
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)
     radaway: int = Field(default=0, ge=0, le=15)

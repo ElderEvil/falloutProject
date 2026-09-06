@@ -42,6 +42,7 @@ def _make_dweller() -> MagicMock:
     dweller.weapon = None
     dweller.health = dweller.max_health = 100
     dweller.radiation = 0
+    dweller.effective_max_health = 100
     dweller.stimpack = 2
     dweller.radaway = 1
     dweller.happiness = 75
@@ -217,6 +218,7 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
     dweller = _make_dweller()
     dweller.health = 40
     dweller.radiation = 35
+    dweller.effective_max_health = 65
     storage_result = MagicMock()
     storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=3, radaway=4)
     session = MagicMock(execute=AsyncMock(return_value=storage_result))
@@ -225,11 +227,11 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
     status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
 
     assert isinstance(status, MedicalAidStatus)
-    assert status.health_percent == 40
+    assert status.health_percent == 61.5
     assert status.radiation_percent == 35
     assert status.available_stimpaks == 5
     assert status.available_radaways == 5
-    assert status.recommended_action == "request_stimpak"
+    assert status.recommended_action == "request_radaway"
 
     model = TestModel(
         call_tools=["get_dweller_medical_status"],

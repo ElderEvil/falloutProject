@@ -206,7 +206,7 @@ class HappinessService:
             change -= game_config.happiness.idle_decay * tick_multiplier
 
         # Low health penalty
-        health_ratio = dweller.health / dweller.max_health if dweller.max_health > 0 else 0
+        health_ratio = dweller.health / dweller.effective_max_health
         if health_ratio < 0.3:  # Below 30% health
             change -= 2.0 * tick_multiplier
         elif health_ratio < 0.5:  # Below 50% health
@@ -331,7 +331,7 @@ class HappinessService:
                 {"name": "Has Partner", "value": game_config.happiness.partner_nearby_bonus / 60.0}
             )
 
-        health_ratio = dweller.health / dweller.max_health if dweller.max_health > 0 else 0
+        health_ratio = dweller.health / dweller.effective_max_health
         if health_ratio > game_config.happiness.high_health_threshold:
             modifiers["positive"].append({"name": "High Health", "value": game_config.happiness.high_health_bonus})
         elif health_ratio < 0.5:

@@ -744,6 +744,7 @@ class TestHappinessService:
                 "happiness": 60,
                 "health": 25,
                 "max_health": 100,
+                "radiation": 0,
             }
         )
         dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)

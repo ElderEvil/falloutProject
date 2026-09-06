@@ -325,8 +325,8 @@ class TestArenaService:
         assert room.arena_fight_started_at is None
         await async_session.refresh(fighter_a)
         await async_session.refresh(fighter_b)
-        assert fighter_a.health == fighter_a.max_health
-        assert fighter_b.health == fighter_b.max_health
+        assert fighter_a.health == fighter_a.effective_max_health
+        assert fighter_b.health == fighter_b.effective_max_health
 
     @pytest.mark.asyncio
     async def test_set_fighters_rejects_dweller_not_in_room(self, async_session, arena_room, fighter_a, fighter_b):

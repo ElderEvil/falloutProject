@@ -33,7 +33,7 @@ class RewardsCalculator:
 
         # Survival bonus (returned with >70% health)
         survival_bonus = 0
-        if dweller.health / dweller.max_health > 0.7:
+        if dweller.health / dweller.effective_max_health > 0.7:
             survival_bonus = int(base_xp * cfg.exploration_survival_bonus)
 
         # Luck bonus (2% per luck point)

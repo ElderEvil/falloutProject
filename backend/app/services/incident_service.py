@@ -427,6 +427,8 @@ class IncidentService:
                 dweller.radiation = min(1_000, dweller.radiation + radiation_damage)
                 db_session.add(dweller)
 
+            new_health = min(new_health, dweller.effective_max_health)
+
             if new_health != dweller.health:
                 # Direct update - SQLAlchemy session tracks the object, no need to refresh
                 dweller.health = new_health

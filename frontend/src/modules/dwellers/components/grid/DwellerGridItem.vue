@@ -8,7 +8,7 @@ import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { DwellerShort } from '../../models/dweller'
-import { getRadiationPercentage } from '../../models/dweller'
+import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '../../models/dweller'
 import DwellerPortrait from '../DwellerPortrait.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 
@@ -36,7 +36,11 @@ const emit = defineEmits<{
 
 const healthPercentage = computed(() => {
   if (!props.dweller.max_health) return 0
-  return (props.dweller.health / props.dweller.max_health) * 100
+  return (
+    (Math.min(props.dweller.health, getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)) /
+      props.dweller.max_health) *
+    100
+  )
 })
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
@@ -118,7 +122,7 @@ const getStatColorClass = (value: number) => {
         </div>
         <div class="stat-item">
           <span class="stat-label">HP</span>
-          <span class="stat-value">{{ dweller.health }}/{{ dweller.max_health }}</span>
+          <span class="stat-value">{{ getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">😊</span>

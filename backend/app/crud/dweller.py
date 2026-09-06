@@ -480,7 +480,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if self.is_alive(dweller_obj):
             raise ContentNoChangeException(detail="Dweller is already alive")
         await self.update(
-            db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.max_health, status=DwellerStatusEnum.IDLE)
+            db_session, dweller_obj.id, DwellerUpdate(health=dweller_obj.effective_max_health, status=DwellerStatusEnum.IDLE)
         )
         return dweller_obj
 
@@ -512,12 +512,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if dweller_obj.stimpack <= 0:
             raise ResourceConflictException(detail="No stimpacks available to use.")
 
-        if dweller_obj.health >= dweller_obj.max_health:
+        if dweller_obj.health >= dweller_obj.effective_max_health:
             raise ContentNoChangeException(detail="Dweller is already at full health.")
 
         # Heal for 40% of max health (rounded)
         heal_amount = int(dweller_obj.max_health * 0.4)
-        new_health = min(dweller_obj.health + heal_amount, dweller_obj.max_health)
+        new_health = min(dweller_obj.health + heal_amount, dweller_obj.effective_max_health)
 
         return await self.update(
             db_session, dweller_id, DwellerUpdate(health=new_health, stimpack=dweller_obj.stimpack - 1)

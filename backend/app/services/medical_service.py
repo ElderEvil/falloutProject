@@ -29,9 +29,9 @@ async def get_dweller_medical_status(
 ) -> MedicalAidStatus:
     """Read live health, radiation, and supply state for a dweller."""
     available_stimpaks, available_radaways = await get_available_medical_supplies(db_session, dweller, vault_id)
-    max_health = max(dweller.max_health, 1)
-    health_percent = dweller.health / max_health * 100
-    radiation_percent = dweller.radiation / max_health * 100
+    effective_max_health = dweller.effective_max_health
+    health_percent = dweller.health / effective_max_health * 100
+    radiation_percent = dweller.radiation / max(dweller.max_health, 1) * 100
 
     if health_percent < 50 and available_stimpaks > 0:
         recommended_action: MedicalRecommendation = "request_stimpak"

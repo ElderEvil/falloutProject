@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.79.0 (2026-09-06)
+
+### Features
+
+* progression visibility pop-ups, quest names, and filter chip sizing 81af0c6
+
+### Bug Fixes
+
+* address CodeRabbit review findings on progression PR 74bce42
+
 ## 2.78.0 (2026-09-05)
 
 ### Features

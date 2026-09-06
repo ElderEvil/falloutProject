@@ -135,7 +135,7 @@ const riskTitle = (dwellerId: string) => {
               <span>{{ exploration.total_caps_found || 0 }}</span>
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
-            <div class="stat-item" :title="`${exploration.enemies_encountered || 0} enemies killed`">
+            <div class="stat-item" :title="`${exploration.enemies_encountered || 0} enemies encountered`">
               <Icon icon="mdi:skull" class="h-3.5 w-3.5" />
               <span>{{ exploration.enemies_encountered || 0 }}</span>
             </div>

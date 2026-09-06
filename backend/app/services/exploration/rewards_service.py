@@ -270,9 +270,11 @@ class RewardsService:
             # Convert rarity string to enum
             rarity = self._parse_rarity_to_enum(rarity_str)
             stored_quantity = 0
+            item_unavailable = False
             while stored_quantity < quantity and items_added < available_space:
                 item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
                 if item is None:
+                    item_unavailable = True
                     break
 
                 db_session.add(item)
@@ -298,7 +300,7 @@ class RewardsService:
                     },
                 )
 
-            if stored_quantity == quantity:
+            if stored_quantity == quantity or item_unavailable:
                 continue
 
             overflow.append({**loot_item, "quantity": quantity - stored_quantity})

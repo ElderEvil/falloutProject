@@ -346,9 +346,7 @@ class RewardsService:
         }
 
     async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
-        result = await db_session.execute(
-            select(Exploration).where(Exploration.id == exploration_id).with_for_update()
-        )
+        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
         exploration = result.scalar_one_or_none()
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)
@@ -377,7 +375,10 @@ class RewardsService:
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
         rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-        items = [self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data) for _ in range(quantity)]
+        items = [
+            self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data)
+            for _ in range(quantity)
+        ]
         if any(item is None for item in items):
             raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
         db_session.add_all(items)

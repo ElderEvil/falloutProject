@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useObjectivesStore } from '@/modules/progression/stores/objectives'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import type { Objective } from '@/modules/progression/models/objective'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
@@ -10,6 +11,7 @@ import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import UTabs from '@/core/components/ui/UTabs.vue'
 import { ObjectiveCard } from '../components'
+import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
 const route = useRoute()
 const objectivesStore = useObjectivesStore()
@@ -35,7 +37,6 @@ onMounted(() => {
 const completedObjectives = computed(() =>
   objectivesStore.objectives.filter((objective) => objective.is_completed === true)
 )
-
 const dailyObjectives = computed(() =>
   objectivesStore.objectives.filter((obj) => obj.category === 'daily' && !obj.is_completed)
 )
@@ -47,6 +48,27 @@ const weeklyObjectives = computed(() =>
 const achievementObjectives = computed(() =>
   objectivesStore.objectives.filter((obj) => obj.category === 'achievement' && !obj.is_completed)
 )
+
+// Claim + celebration modal (mirrors the quest claim flow)
+const claimedObjective = ref<Objective | null>(null)
+const showClaimModal = ref(false)
+const claimError = ref<string | null>(null)
+
+async function handleClaimObjective(objectiveId: string): Promise<void> {
+  claimError.value = null
+  if (!vaultId.value) return
+  try {
+    claimedObjective.value = await objectivesStore.completeObjective(vaultId.value, objectiveId)
+    showClaimModal.value = claimedObjective.value !== null
+  } catch (err) {
+    claimError.value = err instanceof Error ? err.message : 'Failed to claim objective reward'
+  }
+}
+
+function closeClaimModal(): void {
+  showClaimModal.value = false
+  claimedObjective.value = null
+}
 </script>
 
 <template>
@@ -66,6 +88,7 @@ const achievementObjectives = computed(() =>
               icon="mdi:target"
               subtitle="Complete Vault-Tec directives to earn rewards."
             />
+            <p v-if="claimError" class="claim-error" role="alert">{{ claimError }}</p>
             <UTabs v-model="activeTab" :tabs="objectiveTabs">
               <template #default>
                 <div v-if="activeTab === 'daily'" class="tab-content">
@@ -77,6 +100,7 @@ const achievementObjectives = computed(() =>
                       v-for="objective in dailyObjectives"
                       :key="objective.id"
                       :objective="objective"
+                      @claim="handleClaimObjective"
                     />
                   </div>
                 </div>
@@ -90,6 +114,7 @@ const achievementObjectives = computed(() =>
                       v-for="objective in weeklyObjectives"
                       :key="objective.id"
                       :objective="objective"
+                      @claim="handleClaimObjective"
                     />
                   </div>
                 </div>
@@ -103,6 +128,7 @@ const achievementObjectives = computed(() =>
                       v-for="objective in achievementObjectives"
                       :key="objective.id"
                       :objective="objective"
+                      @claim="handleClaimObjective"
                     />
                   </div>
                 </div>
@@ -125,6 +151,13 @@ const achievementObjectives = computed(() =>
         </PageContentRail>
       </div>
     </div>
+
+    <ObjectiveCompleteModal
+      :objective="claimedObjective"
+      :show="showClaimModal"
+      @close="closeClaimModal"
+      @confirm="closeClaimModal"
+    />
   </div>
 </template>
 
@@ -175,88 +208,19 @@ const achievementObjectives = computed(() =>
   width: 100%;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-bottom: 24px;
-  text-align: center;
+.claim-error {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--color-danger, #ff5555);
+  border-radius: 4px;
+  color: var(--color-danger, #ff5555);
+  font-size: 0.9rem;
 }
 
 .objective-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 16px;
-}
-
-.objective-list {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 16px;
-}
-
-.objective-item {
-  background: var(--color-surface-warm-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 6px;
-  padding: 16px;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-.objective-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.objective-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--color-theme-glow);
-}
-
-.objective-details {
-  flex: 1;
-}
-
-.objective-title {
-  font-size: 1.1rem;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: var(--color-theme-primary);
-}
-
-.objective-reward,
-.objective-progress,
-.objective-status {
-  font-size: 0.9rem;
-  font-weight: normal;
-  color: var(--color-theme-primary);
-  opacity: 0.85;
-  margin: 4px 0;
-  line-height: 1.5;
-}
-
-.completed-objective {
-  border-color: var(--color-gray-500);
-  opacity: 0.75;
-  background: var(--color-surface-warm-dark);
-}
-
-.completed-objective::before {
-  background: var(--color-gray-500);
-}
-
-.completed-objective .objective-details {
-  color: var(--color-gray-500);
 }
 
 .empty-state {

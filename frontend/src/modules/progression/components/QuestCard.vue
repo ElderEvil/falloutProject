@@ -3,11 +3,13 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UBadge, UButton, UCard, UProgressBar } from '@/core/components/ui'
 import { useQuestStore } from '@/modules/progression/stores/quest'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
-import type { QuestPartyMember, VaultQuest } from '../models/quest'
+import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
 
 const questStore = useQuestStore()
+const dwellerFilterStore = useDwellerFilterStore()
 
 interface Props {
   quest: VaultQuest
@@ -112,7 +114,7 @@ const isStateQuest = computed(() => ['building', 'population', 'training'].inclu
 
 const typeColors: Record<string, { bg: string; text: string; border: string }> = {
   main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
-  side: { bg: 'var(--color-quest-side)', text: '#000000', border: 'var(--color-quest-side)' },
+  side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
   daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
   event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
   repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
@@ -235,6 +237,62 @@ const getRequirementCount = (requirementData: Record<string, unknown>): number =
   return typeof count === 'number' ? count : 0
 }
 
+const maxDwellerLevel = computed(() =>
+  dwellerFilterStore.dwellers.reduce((max, d) => Math.max(max, d.level ?? 0), 0)
+)
+
+function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
+  if (typeof requirementData.level !== 'number') return false
+  if (dwellerFilterStore.dwellers.length === 0) return false
+  return maxDwellerLevel.value >= requirementData.level
+}
+
+function isQuestRequirementMet(requirementData: Record<string, unknown>): boolean {
+  if (typeof requirementData.quest_id !== 'string') return false
+  const found = questStore.vaultQuests.find((q) => q.id === requirementData.quest_id)
+  if (!found) return false
+  return found.is_completed === true
+}
+
+function isRequirementMet(req: QuestRequirement): boolean {
+  if (req.requirement_type === 'level' && req.requirement_data) {
+    return isLevelRequirementMet(req.requirement_data)
+  }
+  if (req.requirement_type === 'quest_completed' && req.requirement_data) {
+    return isQuestRequirementMet(req.requirement_data)
+  }
+  return prerequisitesMet.value
+}
+
+function requirementIcon(req: QuestRequirement): string {
+  if (!isRequirementMet(req)) return 'mdi:lock'
+  return req.requirement_type === 'level' || req.requirement_type === 'quest_completed'
+    ? 'mdi:lock-open'
+    : 'mdi:check-circle'
+}
+
+const roomDisplayName = (requirementData: Record<string, unknown>): string => {
+  const slug = requirementData.room_type
+  if (typeof slug !== 'string' || slug.length === 0) return 'room'
+  return slug
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function questRequirementName(requirementData: Record<string, unknown>): string {
+  if (typeof requirementData.quest_name === 'string' && requirementData.quest_name.length > 0) {
+    return requirementData.quest_name
+  }
+  if (typeof requirementData.quest_id === 'string') {
+    const found =
+      questStore.vaultQuests.find((q) => q.id === requirementData.quest_id) ??
+      questStore.quests.find((q) => q.id === requirementData.quest_id)
+    if (found?.title) return found.title
+  }
+  return 'Previous quest'
+}
+
 const actionButtonText = computed(() => {
   if (isLocked) return 'Locked'
   return {
@@ -341,16 +399,16 @@ const handleAction = () => {
         REQUIREMENTS
       </div>
       <ul class="prerequisites-list">
-        <li
-          v-for="req in quest.quest_requirements"
-          :key="req.id"
-          class="prerequisite-item"
-          :class="{ met: prerequisitesMet, unmet: !prerequisitesMet }"
-        >
-          <Icon
-            :icon="prerequisitesMet ? 'mdi:check-circle' : 'mdi:lock'"
-            class="prerequisite-icon"
-          />
+          <li
+            v-for="req in quest.quest_requirements"
+            :key="req.id"
+            class="prerequisite-item"
+            :class="{ met: isRequirementMet(req), unmet: !isRequirementMet(req) }"
+          >
+            <Icon
+              :icon="requirementIcon(req)"
+              class="prerequisite-icon"
+            />
           <span class="prerequisite-text">
             <template v-if="req.requirement_type === 'level' && req.requirement_data">
               Requires Level {{ req.requirement_data.level || 1 }}+ dweller
@@ -364,8 +422,8 @@ const handleAction = () => {
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>
             </template>
-            <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
-              Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ req.requirement_data.room_type || 'room' }}
+                  <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
+                    Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ roomDisplayName(req.requirement_data) }}
             </template>
             <template v-else-if="req.requirement_type === 'dweller_count' && req.requirement_data">
               Reach {{ getRequirementCount(req.requirement_data) }} dwellers
@@ -373,7 +431,7 @@ const handleAction = () => {
             <template
               v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"
             >
-              Complete: {{ req.requirement_data.quest_name || 'Previous quest' }}
+              Complete: {{ questRequirementName(req.requirement_data) }}
             </template>
             <template v-else>
               {{ req.requirement_type }}

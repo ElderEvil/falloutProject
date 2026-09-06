@@ -141,13 +141,13 @@ const canClaim = computed(() => {
 }
 
 .completed-card {
-  border-color: var(--color-gray-500);
-  opacity: 0.9;
+  border-color: var(--color-quest-muted);
+  opacity: 0.75;
   background: var(--color-surface-warm-dark);
 }
 
 .completed-card::before {
-  background: var(--color-theme-primary);
+  background: var(--color-quest-muted);
 }
 
 .objective-header {
@@ -284,8 +284,8 @@ const canClaim = computed(() => {
   margin-top: 12px;
   text-align: center;
   padding: 8px;
-  background: rgba(0, 255, 0, 0.1);
-  border: 2px dashed var(--color-theme-primary);
+  background: color-mix(in srgb, var(--color-theme-primary) 10%, transparent);
+  border: 2px dashed var(--color-quest-muted);
   border-radius: 4px;
   color: var(--color-theme-primary);
   font-weight: bold;

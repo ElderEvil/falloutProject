@@ -46,6 +46,7 @@ watch(
   () => props.rewards,
   (rewards) => {
     unclaimed.value = [...(rewards?.overflow_items ?? [])]
+    legacyOverflow.value = false
   }
 )
 

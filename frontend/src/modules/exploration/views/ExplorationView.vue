@@ -46,6 +46,7 @@ const completedExplorationId = ref('')
 const rewardsDirty = ref(false)
 const activeQueuedReportId = ref<string | null>(null)
 const isPendingOverflowModal = ref(false)
+const pendingOverflow = ref<PendingOverflow[]>([])
 
 const { pendingReports } = usePendingReports(vaultId)
 
@@ -80,6 +81,13 @@ function showPendingOverflow(pending: PendingOverflow): void {
   showRewardsModal.value = true
 }
 
+function showNextPendingOverflow(): boolean {
+  const next = pendingOverflow.value.shift()
+  if (!next) return false
+  showPendingOverflow(next)
+  return true
+}
+
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
 
@@ -101,11 +109,8 @@ onMounted(async () => {
   await loadData()
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
-    const [pending] = await explorationStore.fetchPendingOverflow(vaultId.value, authStore.token)
-    if (pending) {
-      showPendingOverflow(pending)
-      return
-    }
+    pendingOverflow.value = await explorationStore.fetchPendingOverflow(vaultId.value, authStore.token)
+    if (showNextPendingOverflow()) return
   }
   if (pendingReports.value.length > 0) {
     showNextPendingReport()
@@ -236,6 +241,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
   if (!hasUnresolvedOverflow) {
     removePendingReport(completedExplorationId.value)
     activeQueuedReportId.value = null
+    if (isPendingOverflowModal.value && showNextPendingOverflow()) return
     if (pendingReports.value.length > 0) {
       showNextPendingReport()
       return

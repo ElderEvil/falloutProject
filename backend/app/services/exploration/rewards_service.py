@@ -259,6 +259,7 @@ class RewardsService:
             item_name = loot_item.get("item_name", "Unknown Item")
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
+            quantity = loot_item.get("quantity", 1) or 1
 
             if item_type in {"stimpak", "radaway"}:
                 # Medical loot is returned via the stimpack/radaway counters in
@@ -266,47 +267,50 @@ class RewardsService:
                 # burn storage space.
                 continue
 
-            # Check if space available
-            if items_added >= available_space:
-                overflow.append(loot_item)
-                logger.warning(
-                    "Storage full - item dropped",
+            # Convert rarity string to enum
+            rarity = self._parse_rarity_to_enum(rarity_str)
+            stored_quantity = 0
+            while stored_quantity < quantity and items_added < available_space:
+                item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
+                if item is None:
+                    break
+
+                db_session.add(item)
+
+                if item_type in {"weapon", "outfit"}:
+                    await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
+                    if loot_item.get("auto_equip"):
+                        await db_session.flush()
+                        auto_equip_ids.append({"item_type": item_type, "id": item.id})
+
+                items_added += 1
+                stored_quantity += 1
+
+            if stored_quantity:
+                transferred.append({**loot_item, "quantity": stored_quantity})
+                logger.info(
+                    "Item transferred to storage",
                     extra={
                         "vault_id": str(vault.id),
                         "item_name": item_name,
                         "item_type": item_type,
                         "rarity": rarity_str,
-                        "items_in_storage": items_added,
-                        "max_space": storage.max_space,
                     },
                 )
+
+            if stored_quantity == quantity:
                 continue
 
-            # Convert rarity string to enum
-            rarity = self._parse_rarity_to_enum(rarity_str)
-
-            item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
-
-            if item is None:
-                continue
-
-            db_session.add(item)
-
-            if item_type in {"weapon", "outfit"}:
-                await event_bus.emit(GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1})
-                if loot_item.get("auto_equip"):
-                    await db_session.flush()
-                    auto_equip_ids.append({"item_type": item_type, "id": item.id})
-
-            items_added += 1
-            transferred.append(loot_item)
-            logger.info(
-                "Item transferred to storage",
+            overflow.append({**loot_item, "quantity": quantity - stored_quantity})
+            logger.warning(
+                "Storage full - item dropped",
                 extra={
                     "vault_id": str(vault.id),
                     "item_name": item_name,
                     "item_type": item_type,
                     "rarity": rarity_str,
+                    "items_in_storage": items_added,
+                    "max_space": storage.max_space,
                 },
             )
 

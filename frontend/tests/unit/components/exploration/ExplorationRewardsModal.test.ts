@@ -130,6 +130,17 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  it('restores overflow actions when the next report is not legacy', async () => {
+    mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
+    const wrapper = mountModal()
+
+    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+    await wrapper.setProps({ rewards: { ...rewardsWithOverflow, overflow_items: [item('Dropped C')] } })
+
+    expect(wrapper.find('.overflow-actions').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('This report predates overflow resolution')
+  })
+
   it('sells every overflow item without relying on a delayed prop update', async () => {
     mockResolve
       .mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })

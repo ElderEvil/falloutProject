@@ -83,6 +83,29 @@ async def test_complete_persists_unclaimed_loot(
 
 
 @pytest.mark.asyncio
+async def test_complete_splits_a_loot_stack_between_storage_and_overflow(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Completion preserves every stacked unit when storage can hold only part of it."""
+    storage = await make_vault_storage(2)
+    exploration, rewards = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[{"item_name": "Stacked Item", "quantity": 3, "rarity": "Common", "item_type": "junk"}],
+    )
+
+    stored = (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
+
+    assert len(stored) == 2
+    assert [(item["item_name"], item["quantity"]) for item in rewards.overflow_items] == [("Stacked Item", 1)]
+    assert exploration.unclaimed_loot == rewards.overflow_items
+
+
+@pytest.mark.asyncio
 async def test_pending_overflow_is_available_after_returning_to_exploration(
     async_session: AsyncSession,
     vault: Vault,

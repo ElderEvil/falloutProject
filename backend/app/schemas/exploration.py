@@ -137,3 +137,11 @@ class OverflowActionResponse(SQLModel):
 
     caps_granted: int = Field(default=0, ge=0, description="Caps granted (sell only)")
     unclaimed_loot: list[dict] = Field(default_factory=list, description="Remaining unclaimed loot")
+
+
+class PendingOverflowRead(SQLModel):
+    """Unresolved exploration loot that should be shown on the return screen."""
+
+    exploration_id: UUID4
+    dweller_id: UUID4
+    unclaimed_loot: list[dict]

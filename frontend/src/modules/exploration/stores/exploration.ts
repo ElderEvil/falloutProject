@@ -96,6 +96,12 @@ export interface OverflowResolution {
   unclaimed_loot: LootItem[]
 }
 
+export interface PendingOverflow {
+  exploration_id: string
+  dweller_id: string
+  unclaimed_loot: LootItem[]
+}
+
 export const useExplorationStore = defineStore('exploration', () => {
   const toast = useToast()
   const { filter: dwellerFilter } = useDwellerStore()
@@ -424,6 +430,18 @@ export const useExplorationStore = defineStore('exploration', () => {
     }
   }
 
+  async function fetchPendingOverflow(vaultId: string, token: string): Promise<PendingOverflow[]> {
+    try {
+      const response = await axios.get(`/api/v1/explorations/vault/${vaultId}/pending-overflow`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data as PendingOverflow[]
+    } catch (err) {
+      handleStoreError(err, 'Could not load pending exploration loot')
+      throw err
+    }
+  }
+
   return {
     // State
     explorations,
@@ -442,6 +460,7 @@ export const useExplorationStore = defineStore('exploration', () => {
     fetchExplorationProgress,
     recallDweller,
     completeExploration,
+    fetchPendingOverflow,
     resolveOverflowItem,
     startSseSubscription,
     stopSseSubscription,

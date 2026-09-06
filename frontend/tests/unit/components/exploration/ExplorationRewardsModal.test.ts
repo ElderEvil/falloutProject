@@ -77,21 +77,21 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.text()).toContain('No items found during this exploration')
   })
 
-  it('resolves overflow per item and unblocks collecting when empty', async () => {
+  it('allows deferring overflow resolution so storage can be managed first', async () => {
     mockResolve.mockResolvedValueOnce({ caps_granted: 0, unclaimed_loot: [item('Dropped B')] })
     const wrapper = mountModal()
     const takeButtons = wrapper.findAll('.overflow-actions button')
 
-    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
 
     await takeButtons[0]!.trigger('click')
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'take', 0, 'test-token')
     expect(wrapper.text()).not.toContain('Dropped A')
     expect(wrapper.text()).toContain('Dropped B')
-    expect(wrapper.get('.collect-btn').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.collect-btn').text()).toContain('Resolve Later')
 
     await wrapper.get('.collect-btn').trigger('click')
-    expect(wrapper.emitted('close')).toBeUndefined()
+    expect(wrapper.emitted('close')).toEqual([[true]])
   })
 
   it('sells a single overflow item for caps', async () => {

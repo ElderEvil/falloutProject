@@ -83,6 +83,32 @@ async def test_complete_persists_unclaimed_loot(
 
 
 @pytest.mark.asyncio
+async def test_pending_overflow_is_available_after_returning_to_exploration(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Pending overflow remains discoverable after the completion modal is closed."""
+    await make_vault_storage(1)
+    exploration, _ = await _completed_with_overflow(
+        async_session,
+        vault,
+        dweller,
+        loots=[
+            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
+        ],
+    )
+
+    pending = await rewards_service.get_pending_overflow(async_session, vault.id)
+
+    assert [(entry.exploration_id, entry.unclaimed_loot) for entry in pending] == [
+        (exploration.id, exploration.unclaimed_loot)
+    ]
+
+
+@pytest.mark.asyncio
 async def test_take_unclaimed_item_stores_it(
     async_session: AsyncSession,
     vault: Vault,

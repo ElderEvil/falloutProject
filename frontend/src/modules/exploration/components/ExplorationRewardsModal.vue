@@ -13,9 +13,10 @@ interface Props {
   dwellerName: string
   show: boolean
   explorationId?: string
+  pendingOnly?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { explorationId: '' })
+const props = withDefaults(defineProps<Props>(), { explorationId: '', pendingOnly: false })
 const toast = useToast()
 const authStore = useAuthStore()
 const explorationStore = useExplorationStore()
@@ -34,7 +35,7 @@ const safeRewards = computed(
     }
 )
 const emit = defineEmits<{
-  close: []
+  close: [hasUnresolvedOverflow: boolean]
   resolved: []
 }>()
 
@@ -87,13 +88,7 @@ const sellAll = async () => {
   }
 }
 
-const tryClose = () => {
-  if (requiresResolution.value) {
-    toast.info('Storage is full — Take or Sell each item above first')
-    return
-  }
-  emit('close')
-}
+const tryClose = () => emit('close', requiresResolution.value)
 </script>
 
 <template>
@@ -124,7 +119,7 @@ const tryClose = () => {
       </div>
 
       <!-- Rewards Grid -->
-      <div class="rewards-grid">
+      <div v-if="!pendingOnly" class="rewards-grid">
         <RewardCard
           icon="mdi:star"
           label="Experience Gained"
@@ -239,11 +234,9 @@ const tryClose = () => {
       <button
         @click="tryClose"
         class="collect-btn"
-        :disabled="requiresResolution"
-        :title="requiresResolution ? 'Take or Sell each item above first' : undefined"
       >
-        <Icon icon="mdi:check-bold" class="mr-2" />
-        Collect Rewards
+        <Icon :icon="hasOverflow ? 'mdi:clock-outline' : 'mdi:check-bold'" class="mr-2" />
+        {{ hasOverflow ? 'Resolve Later' : 'Collect Rewards' }}
       </button>
     </template>
   </UModal>

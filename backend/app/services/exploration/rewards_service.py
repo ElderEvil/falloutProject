@@ -21,6 +21,7 @@ from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
@@ -353,6 +354,19 @@ class RewardsService:
         if exploration.is_active():
             raise ValidationException("Exploration is still in progress")
         return exploration, list(exploration.unclaimed_loot or [])
+
+    async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID4) -> list[PendingOverflowRead]:
+        """Return every completed exploration with loot still awaiting a player decision."""
+        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        return [
+            PendingOverflowRead(
+                exploration_id=exploration.id,
+                dweller_id=exploration.dweller_id,
+                unclaimed_loot=exploration.unclaimed_loot,
+            )
+            for exploration in result.scalars()
+            if not exploration.is_active() and exploration.unclaimed_loot
+        ]
 
     @staticmethod
     def _pop_unclaimed(exploration: Exploration, unclaimed: list[dict], index: int) -> dict:

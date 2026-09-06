@@ -1430,6 +1430,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/explorations/vault/{vault_id}/pending-overflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Overflow
+         * @description List overflow loot that still needs a take or sell decision.
+         */
+        get: operations["list_pending_overflow_api_v1_explorations_vault__vault_id__pending_overflow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/{exploration_id}": {
         parameters: {
             query?: never;
@@ -7310,6 +7330,26 @@ export interface components {
             resumed_at?: string | null;
         };
         /**
+         * PendingOverflowRead
+         * @description Unresolved exploration loot that should be shown on the return screen.
+         */
+        PendingOverflowRead: {
+            /**
+             * Exploration Id
+             * Format: uuid4
+             */
+            exploration_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Unclaimed Loot */
+            unclaimed_loot: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * PregnancyRead
          * @description Schema for reading a pregnancy.
          */
@@ -11204,6 +11244,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExplorationReadShort"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pending_overflow_api_v1_explorations_vault__vault_id__pending_overflow_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingOverflowRead"][];
                 };
             };
             /** @description Validation Error */

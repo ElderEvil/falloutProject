@@ -17,6 +17,7 @@ from app.schemas.exploration import (
     ExplorationSendRequest,
     OverflowActionRequest,
     OverflowActionResponse,
+    PendingOverflowRead,
 )
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
@@ -72,6 +73,17 @@ async def list_explorations_by_vault(
         vault_id=vault_id,
         active_only=active_only,
     )
+
+
+@router.get("/vault/{vault_id}/pending-overflow", response_model=list[PendingOverflowRead])
+async def list_pending_overflow(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[PendingOverflowRead]:
+    """List overflow loot that still needs a take or sell decision."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await rewards_service.get_pending_overflow(db_session, vault_id)
 
 
 @router.get("/{exploration_id}", response_model=ExplorationRead)

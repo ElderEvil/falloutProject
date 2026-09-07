@@ -12,19 +12,32 @@ Usage:
 """
 
 import logging
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.grid_config import (
+    GRID_BUILD_X_MAX,
+    GRID_BUILD_Y_MAX,
+    GRID_X_MAX,
+    GRID_X_MIN,
+    GRID_Y_MAX,
+    GRID_Y_MIN,
+)
 from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
 from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
-if TYPE_CHECKING:
-    from app.models.room import Room
+__all__ = [
+    "GRID_BUILD_X_MAX",
+    "GRID_BUILD_Y_MAX",
+    "GRID_X_MAX",
+    "GRID_X_MIN",
+    "GRID_Y_MAX",
+    "GRID_Y_MIN",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -903,32 +916,6 @@ class GameConfig(BaseSettings):
     bio: BioConfig = Field(default_factory=BioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
-
-
-# Medical room production mapping (room name lowercase → product type)
-# Used to replace fragile string matching like "medbay" in room.name.lower()
-MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
-    "medbay": "stimpack",
-    "science lab": "radaway",
-}
-
-
-def compute_medical_capacity(rooms: Sequence["Room"]) -> dict[str, int]:
-    """Compute max stimpack/radaway capacity from Medbay/Science Lab rooms.
-
-    Args:
-        rooms: All rooms in the vault.
-
-    Returns:
-        Dict with keys "stimpack" and "radaway" mapping to summed capacities.
-    """
-
-    capacities: dict[str, int] = {"stimpack": 0, "radaway": 0}
-    for room in rooms:
-        product = MEDICAL_ROOM_PRODUCTION.get(room.name.lower())
-        if product and room.capacity is not None:
-            capacities[product] += room.capacity
-    return capacities
 
 
 # Singleton instance

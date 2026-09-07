@@ -8,15 +8,15 @@ from sqlalchemy import func
 from sqlmodel import and_, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.constants import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.core.game_config import game_config
+from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
-from app.services import room_rules
 from app.services.event_bus import GameEvent, event_bus
+from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,

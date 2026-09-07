@@ -99,7 +99,7 @@ jobs:
               else "orange" if p >= 50
               else "red"
           )
-          badge = {"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color}
+          badge = {"schemaVersion": 1, "label": "coverage:be", "message": f"{pct}%", "color": color}
           with open("coverage-badge.json", "w") as f:
               json.dump(badge, f)
           PY

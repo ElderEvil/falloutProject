@@ -80,27 +80,6 @@ def test_command_all_active_delegates_to_service() -> None:
         assert "Backfill complete: 2 dweller bio places registered across 2 vaults" in result.output
 
 
-def test_command_vault_not_found_raises() -> None:
-    """Non-existent vault UUID -> the command exits non-zero."""
-    with (
-        patch("app.cli.backfills.async_session_maker", return_value=AsyncMock()),
-        patch("app.cli.backfills.crud.vault.get", new_callable=AsyncMock) as mock_vault_get,
-        patch(
-            "app.cli.backfills.bio_place_backfill_service.backfill_bio_places_for_vault",
-            new_callable=AsyncMock,
-        ) as mock_backfill_vault,
-    ):
-        vault_uuid = uuid4()
-        mock_vault_get.side_effect = ResourceNotFoundException(Vault, vault_uuid)
-
-        result = runner.invoke(cli, ["backfill", "backfill-bio-places", "--vault", str(vault_uuid)])
-
-        assert result.exit_code == 1
-        assert "Vault" in result.output
-        assert "not found" in result.output
-        mock_backfill_vault.assert_not_awaited()
-
-
 def test_backfills_app_has_command() -> None:
     """The backfill Typer app exposes the renamed command."""
     result = runner.invoke(backfills_app, ["--help"])

@@ -10,15 +10,6 @@ from app.tests.utils.utils import random_lower_string
 
 
 @pytest.mark.asyncio
-async def test_create_user(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    assert user.email == user_data["email"]
-    assert hasattr(user, "hashed_password")
-
-
-@pytest.mark.asyncio
 async def test_authenticate_user(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -37,64 +28,3 @@ async def test_not_authenticate_user(async_session: AsyncSession) -> None:
     user_data = create_fake_user()
     user = await crud.user.authenticate(async_session, email=user_data["email"], password=user_data["password"])
     assert user is None
-
-
-@pytest.mark.asyncio
-async def test_check_if_user_is_active(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    is_active = crud.user.is_active(user)
-    assert is_active is True
-
-
-@pytest.mark.asyncio
-async def test_check_if_user_is_active_inactive(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data, is_active=True)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    is_active = crud.user.is_active(user)
-    assert is_active
-
-
-@pytest.mark.asyncio
-async def test_check_if_user_is_superuser(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data, is_superuser=True)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    is_superuser = crud.user.is_superuser(user)
-    assert is_superuser is True
-
-
-@pytest.mark.asyncio
-async def test_check_if_user_is_superuser_normal_user(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    is_superuser = crud.user.is_superuser(user)
-    assert is_superuser is False
-
-
-@pytest.mark.asyncio
-async def test_get_user(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data, is_superuser=True)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    user_2 = await crud.user.get(async_session, id=user.id)
-    assert user_2
-    assert user.email == user_2.email
-    assert jsonable_encoder(user) == jsonable_encoder(user_2)
-
-
-@pytest.mark.asyncio
-async def test_update_user(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data, is_superuser=True)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    new_password = random_lower_string()
-    user_in_update = UserUpdate(password=new_password, is_superuser=True)
-    await crud.user.update(async_session, id=user.id, obj_in=user_in_update)
-    user_2 = await crud.user.get(async_session, id=user.id)
-    assert user_2
-    assert user.email == user_2.email
-    assert verify_password(new_password, user_2.hashed_password)

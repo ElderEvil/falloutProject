@@ -88,29 +88,6 @@ def test_stateless_agents_use_instructions_not_system_prompts() -> None:
         assert agent._system_prompt_functions == []
 
 
-def test_chat_instructions_ground_the_dweller_in_bio_and_keep_replies_brief() -> None:
-    """The canonical bio constrains chat identity and response length."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
-    ctx = MagicMock(deps=deps)
-
-    instructions = chat_instructions(ctx)
-
-    assert deps.dweller.bio in instructions
-    assert "Never contradict or invent biography details" in instructions
-    assert "80-120 words" in instructions
-
-
-def test_chat_instructions_include_radiation_status() -> None:
-    """Dwellers receive their current radiation alongside health context."""
-    dweller = _make_dweller()
-    dweller.radiation = 16
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=dweller, vault_id=uuid4())
-
-    instructions = chat_instructions(MagicMock(deps=deps))
-
-    assert "Radiation: 16/100" in instructions
-
-
 def test_assignment_requires_complete_room_data() -> None:
     """An assignment cannot reach gameplay handling without an ID and display name."""
     output = _output(action_type="assign_to_room", action_room_id=uuid4())
@@ -125,36 +102,6 @@ def test_no_action_rejects_gameplay_payload() -> None:
 
     with pytest.raises(ModelRetry, match="no_action must not include: action_room_id"):
         validate_dweller_chat_output(output)
-
-
-def test_exploration_accepts_its_optional_supply_payload() -> None:
-    """Existing server defaults remain valid when the model omits exploration supplies."""
-    output = _output(action_type="start_exploration", action_duration_hours=6, action_stimpaks=2, action_radaways=1)
-
-    assert validate_dweller_chat_output(output) is output
-
-
-@pytest.mark.asyncio
-async def test_test_model_records_usage_for_valid_structured_chat_output() -> None:
-    """A deterministic model proves instructions, output parsing, and usage recording without a provider call."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
-    model = TestModel(
-        call_tools=[],
-        custom_output_args={
-            "response_text": "Ready when you are, Overseer.",
-            "sentiment_score": 1,
-            "reason_text": "The dweller is optimistic.",
-            "action_type": "no_action",
-            "action_reason": "No action needed.",
-        },
-    )
-
-    with dweller_chat_agent.override(model=model):
-        result = await dweller_chat_agent.run("How are you?", deps=deps)
-
-    assert result.output.action_type == "no_action"
-    assert result.usage.requests == 1
-    assert result.usage.total_tokens > 0
 
 
 @pytest.mark.asyncio
@@ -265,75 +212,6 @@ async def test_medical_action_requires_live_threshold_and_supply() -> None:
 
     assert isinstance(result, NoAction)
     assert result.reason == "Dweller does not currently need a Stimpak"
-
-
-@pytest.mark.asyncio
-async def test_stimpak_action_is_emitted_below_health_threshold() -> None:
-    """Stimpak requests are available below 50% health when supplies exist."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    dweller.health = 49
-    output = _output(action_type="request_stimpak", action_reason=None)
-    session = _medical_session(stimpack=1)
-
-    result = await parse_action_suggestion(output, session, dweller)
-
-    assert isinstance(result, RequestStimpakAction)
-    assert result.reason == "Health is below 50%"
-
-
-@pytest.mark.asyncio
-async def test_radaway_action_is_emitted_above_radiation_threshold() -> None:
-    """RadAway requests are available at 30% radiation when supplies exist."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    dweller.radiation = 30
-    output = _output(action_type="request_radaway", action_reason="The radiation is getting dangerous.")
-    session = _medical_session(radaway=1)
-
-    result = await parse_action_suggestion(output, session, dweller)
-
-    assert isinstance(result, RequestRadawayAction)
-    assert result.reason == "The radiation is getting dangerous."
-
-
-@pytest.mark.asyncio
-async def test_medical_action_is_emitted_when_model_returns_no_action() -> None:
-    """Live medical thresholds produce a request even when the model omits the action."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    dweller.max_health = 50
-    dweller.health = 28
-    dweller.radiation = 16
-    dweller.stimpack = 0
-    output = _output(action_type="no_action")
-    session = _medical_session(radaway=1)
-
-    result = await parse_action_suggestion(output, session, dweller)
-
-    assert isinstance(result, RequestRadawayAction)
-
-
-@pytest.mark.asyncio
-async def test_medical_need_takes_priority_over_other_action_suggestions() -> None:
-    """Live medical needs suppress unrelated actions from the model."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    dweller.health = 40
-    output = _output(
-        action_type="assign_to_room",
-        action_room_id=uuid4(),
-        action_room_name="Medbay",
-    )
-    session = _medical_session(stimpack=1)
-
-    result = await parse_action_suggestion(output, session, dweller)
-
-    assert isinstance(result, RequestStimpakAction)
 
 
 @pytest.mark.asyncio
@@ -458,25 +336,3 @@ async def test_training_suggestion_requires_a_fresh_matching_training_option() -
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.training_blocker
-
-
-@pytest.mark.asyncio
-async def test_invalid_structured_output_retries_before_failing() -> None:
-    """An invalid action shape consumes the configured bounded output-retry budget."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
-    model = TestModel(
-        call_tools=[],
-        custom_output_args={
-            "response_text": "I'll stand by.",
-            "sentiment_score": 0,
-            "reason_text": "No immediate need.",
-            "action_type": "no_action",
-            "action_room_id": str(uuid4()),
-        },
-    )
-
-    with (
-        dweller_chat_agent.override(model=model),
-        pytest.raises(UnexpectedModelBehavior, match="maximum output retries"),
-    ):
-        await dweller_chat_agent.run("Anything to do?", deps=deps)

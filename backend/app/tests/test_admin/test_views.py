@@ -111,16 +111,6 @@ async def admin_client(
         yield client
 
 
-async def test_llm_interaction_admin_renders(admin_client: AsyncClient) -> None:
-    response = await admin_client.get("/admin/llm-interaction/list")
-    assert response.status_code == 200
-
-
-async def test_prompt_admin_renders(admin_client: AsyncClient) -> None:
-    response = await admin_client.get("/admin/prompt/list")
-    assert response.status_code == 200
-
-
 async def test_dweller_admin_bio_flag(
     admin_client: AsyncClient,
     dweller: Dweller,

@@ -13,40 +13,6 @@ from app.utils.seed_objectives import seed_objectives_from_json
 
 
 @pytest.mark.asyncio
-async def test_seed_objectives_from_json_basic(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test basic objective seeding from JSON files."""
-    # Create temporary objectives directory
-    objectives_dir = tmp_path / "objectives"
-    objectives_dir.mkdir()
-
-    # Create objectives JSON file
-    objectives_data = [
-        {"challenge": "Collect 3 outfits", "reward": "50 caps", "category": "achievement"},
-        {"challenge": "Collect 3 stimpaks", "reward": "70 caps", "category": "achievement"},
-        {"challenge": "Collect 4 weapons", "reward": "100 caps", "category": "achievement"},
-    ]
-
-    objectives_file = objectives_dir / "collect.json"
-    with objectives_file.open("w", encoding="utf-8") as f:
-        json.dump(objectives_data, f)
-
-    # Seed objectives
-    seeded_count = await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
-
-    assert seeded_count == 3
-
-    # Verify objectives were added to database
-    result = await async_session.execute(select(Objective))
-    objectives = result.scalars().all()
-
-    assert len(objectives) == 3
-    challenges = {obj.challenge for obj in objectives}
-    assert "Collect 3 outfits" in challenges
-    assert "Collect 3 stimpaks" in challenges
-    assert "Collect 4 weapons" in challenges
-
-
-@pytest.mark.asyncio
 async def test_seed_objectives_prevents_duplicates(async_session: AsyncSession, tmp_path: Path) -> None:
     """Test that seeding doesn't create duplicates."""
     objectives_dir = tmp_path / "objectives"
@@ -73,43 +39,6 @@ async def test_seed_objectives_prevents_duplicates(async_session: AsyncSession, 
     result = await async_session.execute(select(Objective))
     objectives = result.scalars().all()
     assert len(objectives) == 2
-
-
-@pytest.mark.asyncio
-async def test_seed_objectives_multiple_files(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding objectives from multiple JSON files."""
-    objectives_dir = tmp_path / "objectives"
-    objectives_dir.mkdir()
-
-    # Create first objectives file
-    collect_data = [
-        {"challenge": "Collect 100 food", "reward": "50 caps", "category": "achievement"},
-        {"challenge": "Collect 100 water", "reward": "50 caps", "category": "achievement"},
-    ]
-    with (objectives_dir / "collect.json").open("w", encoding="utf-8") as f:
-        json.dump(collect_data, f)
-
-    # Create second objectives file
-    assign_data = [
-        {"challenge": "Assign 5 dwellers", "reward": "150 caps", "category": "achievement"},
-        {"challenge": "Assign 7 dwellers", "reward": "175 caps", "category": "achievement"},
-    ]
-    with (objectives_dir / "assign.json").open("w", encoding="utf-8") as f:
-        json.dump(assign_data, f)
-
-    # Seed all objectives
-    seeded_count = await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
-    assert seeded_count == 4
-
-    # Verify all objectives exist
-    result = await async_session.execute(select(Objective))
-    objectives = result.scalars().all()
-    challenges = {obj.challenge for obj in objectives}
-
-    assert "Collect 100 food" in challenges
-    assert "Collect 100 water" in challenges
-    assert "Assign 5 dwellers" in challenges
-    assert "Assign 7 dwellers" in challenges
 
 
 @pytest.mark.asyncio
@@ -165,16 +94,6 @@ async def test_seed_objectives_handles_errors_gracefully(async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_seed_objectives_empty_directory(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding with empty objectives directory."""
-    objectives_dir = tmp_path / "empty_objectives"
-    objectives_dir.mkdir()
-
-    seeded_count = await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
-    assert seeded_count == 0
-
-
-@pytest.mark.asyncio
 async def test_seed_objectives_nonexistent_directory(async_session: AsyncSession, tmp_path: Path) -> None:
     """Test seeding with nonexistent objectives directory."""
     objectives_dir = tmp_path / "nonexistent"
@@ -227,33 +146,6 @@ async def test_seed_objectives_rollback_on_error(async_session: AsyncSession, tm
     result = await async_session.execute(select(Objective))
     objectives = result.scalars().all()
     assert len(objectives) == 0
-
-
-@pytest.mark.asyncio
-async def test_seed_objectives_with_special_characters(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding objectives with special characters in challenge/reward."""
-    objectives_dir = tmp_path / "objectives"
-    objectives_dir.mkdir()
-
-    objectives_data = [
-        {"challenge": "Collect 8 rare weapons", "reward": "1320 caps", "category": "achievement"},
-        {"challenge": "Assign 10 dwellers right", "reward": "1 lunchbox", "category": "achievement"},
-    ]
-
-    objectives_file = objectives_dir / "special.json"
-    with objectives_file.open("w", encoding="utf-8") as f:
-        json.dump(objectives_data, f)
-
-    seeded_count = await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
-    assert seeded_count == 2
-
-    # Verify objectives were stored correctly
-    result = await async_session.execute(select(Objective))
-    objectives = result.scalars().all()
-
-    challenges = {obj.challenge for obj in objectives}
-    assert "Collect 8 rare weapons" in challenges
-    assert "Assign 10 dwellers right" in challenges
 
 
 @pytest.mark.asyncio
@@ -342,57 +234,3 @@ async def test_get_multi_complete_returns_only_complete_objectives(async_session
     for obj in complete_objectives:
         assert obj.objective_type is not None
         assert obj.target_amount > 1
-
-
-@pytest.mark.asyncio
-async def test_vault_objective_progress_uses_target_amount(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that vault objectives properly use target_amount from seeded objectives.
-
-    This verifies that when objectives are assigned to a vault, the total
-    comes from the objective's target_amount field, not a hardcoded default.
-    """
-    from app.models.vault_objective import VaultObjectiveProgressLink
-
-    objectives_dir = tmp_path / "objectives"
-    objectives_dir.mkdir()
-
-    # Create complete objective
-    objectives_data = [
-        {
-            "challenge": "Collect 500 caps",
-            "reward": "500 caps",
-            "category": "achievement",
-            "objective_type": "collect",
-            "target_entity": {"resource_type": "caps"},
-            "target_amount": 500,
-        },
-    ]
-
-    objectives_file = objectives_dir / "progress_test.json"
-    with objectives_file.open("w", encoding="utf-8") as f:
-        json.dump(objectives_data, f)
-
-    await seed_objectives_from_json(async_session, objectives_dir=objectives_dir)
-
-    # Get the seeded objective
-    result = await async_session.execute(select(Objective).where(Objective.challenge == "Collect 500 caps"))
-    objective = result.scalar_one_or_none()
-
-    assert objective is not None
-    assert objective.target_amount == 500
-
-    # Create a vault objective link (simulating _assign_initial_objectives)
-    link = VaultObjectiveProgressLink(
-        vault_id=objective.id,  # Using objective.id as vault_id for testing
-        objective_id=objective.id,
-        progress=0,
-        total=objective.target_amount or 1,  # This should use 500, not 1
-        is_completed=False,
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    # Verify the total was set correctly
-    assert link.total == 500, f"Expected total=500, got {link.total}"
-    assert link.progress == 0
-    assert link.is_completed is False

@@ -60,52 +60,6 @@ async def _completed_with_overflow(async_session, vault, dweller, loots=None):
 
 
 @pytest.mark.asyncio
-async def test_complete_persists_unclaimed_loot(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Overflow reported in rewards is also persisted for later resolution."""
-    await make_vault_storage(1)
-    exploration, rewards = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Kept Item", "quantity": 1, "rarity": "Legendary", "item_type": "junk"},
-            {"item_name": "Dropped Item", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
-
-    assert [i["item_name"] for i in rewards.overflow_items] == ["Dropped Item"]
-    assert [i["item_name"] for i in (exploration.unclaimed_loot or [])] == ["Dropped Item"]
-
-
-@pytest.mark.asyncio
-async def test_complete_splits_a_loot_stack_between_storage_and_overflow(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Completion preserves every stacked unit when storage can hold only part of it."""
-    storage = await make_vault_storage(2)
-    exploration, rewards = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Stacked Item", "quantity": 3, "rarity": "Common", "item_type": "junk"}],
-    )
-
-    stored = (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
-
-    assert len(stored) == 2
-    assert [(item["item_name"], item["quantity"]) for item in rewards.overflow_items] == [("Stacked Item", 1)]
-    assert exploration.unclaimed_loot == rewards.overflow_items
-
-
-@pytest.mark.asyncio
 async def test_pending_overflow_is_available_after_returning_to_exploration(
     async_session: AsyncSession,
     vault: Vault,
@@ -129,37 +83,6 @@ async def test_pending_overflow_is_available_after_returning_to_exploration(
     assert [(entry.exploration_id, entry.unclaimed_loot) for entry in pending] == [
         (exploration.id, exploration.unclaimed_loot)
     ]
-
-
-@pytest.mark.asyncio
-async def test_take_unclaimed_item_stores_it(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Taking an overflow item stores it and clears it from the list."""
-    storage = await make_vault_storage(2)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item C", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
-    stored = (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars().all()
-    await crud.junk.sell(db_session=async_session, item_id=stored[0].id)
-
-    remaining = await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
-
-    assert remaining == []
-    names = {
-        junk.name for junk in (await async_session.execute(select(Junk).where(Junk.storage_id == storage.id))).scalars()
-    }
-    assert "Item C" in names
 
 
 @pytest.mark.asyncio

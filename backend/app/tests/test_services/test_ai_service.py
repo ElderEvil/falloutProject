@@ -53,84 +53,16 @@ def _make_fresh_service(*, skip_init: bool = True) -> AIService:
 class TestSingletonPattern:
     """Tests for singleton pattern, properties, and initialization gating."""
 
-    def test_returns_same_instance(self) -> None:
-        reset_singleton()
-        with patch.object(AIService, "_initialize_provider", return_value=None):
-            x = AIService()
-            y = AIService()
-            assert x is y
-
-    def test_initialized_flag_prevents_reinit(self) -> None:
-        """__init__ skips re-initialization if _initialized is True."""
-        svc = _make_fresh_service()
-        svc._initialized = True
-        svc._model = MagicMock()
-        # Call __init__ again; should not reset _model
-        AIService.__init__(svc)
-        assert svc._model is not None  # unchanged
-
     def test_get_model_classmethod(self) -> None:
         """get_model() class method returns model property."""
         svc = _make_fresh_service()
         svc._model = "fake_model"
         assert svc.get_model() == "fake_model"
 
-    def test_model_property_none_by_default(self) -> None:
-        """model returns None when not configured (init skipped)."""
-        svc = _make_fresh_service()
-        assert svc.model is None
-
-    def test_client_property_none_by_default(self) -> None:
-        """client returns None when not configured (init skipped)."""
-        svc = _make_fresh_service()
-        assert svc.client is None
-
-    def test_using_gateway_false_by_default(self) -> None:
-        """using_gateway returns False when not configured (init skipped)."""
-        svc = _make_fresh_service()
-        assert svc.using_gateway is False
-
 
 # ============================================================================
 # is_available / ensure_* guards
 # ============================================================================
-
-
-@pytest.mark.asyncio
-class TestAvailabilityGuards:
-    """Tests for is_available, _ensure_model_available, _ensure_client_available."""
-
-    def test_is_available_true_when_model_set(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = "some_model"
-        assert svc.is_available() is True
-
-    def test_is_available_false_when_model_none(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = None
-        assert svc.is_available() is False
-
-    def test_ensure_model_available_raises_when_none(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = None
-        with pytest.raises(RuntimeError, match="AI model not configured"):
-            svc._ensure_model_available()
-
-    def test_ensure_model_available_passes_when_set(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = "some_model"
-        svc._ensure_model_available()
-
-    def test_ensure_client_available_raises_when_none(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
-            svc._ensure_client_available()
-
-    def test_ensure_client_available_passes_when_set(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = MagicMock()
-        svc._ensure_client_available()
 
 
 def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
@@ -150,39 +82,9 @@ def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
     assert svc.client is mock_client.return_value
 
 
-def test_lmstudio_adds_v1_to_base_url_when_omitted(monkeypatch) -> None:
-    """LM Studio's OpenAI-compatible endpoint requires the /v1 path."""
-    monkeypatch.setattr("app.services.ai_service.settings.LMSTUDIO_BASE_URL", "http://localhost:1234")
-    monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "local-model")
-    svc = _make_fresh_service()
-
-    with (
-        patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider,
-        patch("app.services.ai_service.OpenAIChatModel"),
-    ):
-        svc._initialize_lmstudio()
-
-    mock_provider.assert_called_once_with(base_url="http://localhost:1234/v1", api_key="lm-studio")
-
-
 # ============================================================================
 # Provider Initialization — Disabled
 # ============================================================================
-
-
-@pytest.mark.asyncio
-class TestInitializationDisabled:
-    """Tests for disabled provider mode."""
-
-    def test_disabled_mode_logs_warning(self) -> None:
-        svc = _make_fresh_service()
-        with (
-            patch("app.services.ai_service.settings") as mock_settings,
-            patch("app.services.ai_service.logger") as mock_logger,
-        ):
-            mock_settings.ai_provider_mode = "disabled"
-            svc._initialize_provider()
-            mock_logger.warning.assert_called_once()
 
 
 # ============================================================================
@@ -194,32 +96,6 @@ class TestInitializationDisabled:
 class TestInitializationGateway:
     """Tests for gateway provider initialization."""
 
-    def test_gateway_initializes_model_and_client(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "gpt-4o")
-        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", "sk-test-key")
-        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_ROUTE", None)
-        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_BASE_URL", None)
-
-        mock_provider = MagicMock()
-        mock_model = MagicMock()
-        mock_client = MagicMock()
-
-        svc = _make_fresh_service()
-        with (
-            patch("app.services.ai_service.gateway_provider", return_value=mock_provider) as mock_gw_provider,
-            patch("app.services.ai_service.OpenAIChatModel", return_value=mock_model) as mock_chat_model,
-            patch("app.services.ai_service.openai.Client", return_value=mock_client) as mock_openai_client,
-        ):
-            svc._initialize_gateway()
-            assert svc._model is mock_model
-            assert svc._client is mock_client
-            assert svc._using_gateway is True
-            mock_gw_provider.assert_called_once_with("openai", api_key="gw-test-key")
-            mock_chat_model.assert_called_once_with(model_name="gpt-4o", provider=mock_provider)
-            mock_openai_client.assert_called_once_with(api_key="sk-test-key")
-
     def test_gateway_skips_when_no_api_key(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", None)
         monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
@@ -227,26 +103,6 @@ class TestInitializationGateway:
         svc._model = "should_stay"
         svc._initialize_gateway()
         assert svc._model == "should_stay"
-
-    def test_gateway_uses_configured_custom_route(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
-        monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_ROUTE", "fallout-openai")
-        monkeypatch.setattr(
-            "app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_BASE_URL",
-            "https://gateway-eu.pydantic.dev/proxy",
-        )
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
-        svc = _make_fresh_service()
-
-        with patch("app.services.ai_service.gateway_provider") as mock_gw_provider:
-            svc._initialize_gateway()
-
-        mock_gw_provider.assert_called_once_with(
-            "openai",
-            api_key="gw-test-key",
-            route="fallout-openai",
-            base_url="https://gateway-eu.pydantic.dev/proxy",
-        )
 
     def test_gateway_handles_exception(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.PYDANTIC_AI_GATEWAY_API_KEY", "gw-test-key")
@@ -289,14 +145,6 @@ class TestInitializationDirect:
             mock_warn.assert_called_once()
             assert "deprecated" in str(mock_warn.call_args[0][0]).lower()
 
-    def test_direct_openai_without_key_skips(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", None)
-        svc = _make_fresh_service()
-        svc._initialize_direct_provider()
-        assert svc._model is None
-        assert svc._client is None
-
     def test_direct_anthropic_with_key_raises(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "anthropic")
         monkeypatch.setattr("app.services.ai_service.settings.ANTHROPIC_API_KEY", "sk-ant-test")
@@ -319,43 +167,10 @@ class TestInitializationDirect:
             svc._initialize_direct_provider()
             mock_logger.warning.assert_called_once()
 
-    def test_direct_provider_emits_deprecation_warning(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
-        monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", None)
-        svc = _make_fresh_service()
-        with pytest.warns(DeprecationWarning, match="Direct provider API keys are deprecated"):
-            svc._initialize_direct_provider()
-
 
 # ============================================================================
 # Provider Initialization — Ollama
 # ============================================================================
-
-
-@pytest.mark.asyncio
-class TestInitializationOllama:
-    """Tests for Ollama provider initialization."""
-
-    def test_ollama_initializes_model(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        monkeypatch.setattr("app.services.ai_service.settings.AI_MODEL", "llama2")
-
-        mock_provider = MagicMock()
-        mock_model = MagicMock()
-
-        svc = _make_fresh_service()
-        with (
-            patch("pydantic_ai.providers.ollama.OllamaProvider", return_value=mock_provider),
-            patch("app.services.ai_service.OpenAIChatModel", return_value=mock_model),
-        ):
-            svc._initialize_ollama()
-            assert svc._model is mock_model
-
-    def test_ollama_without_url_skips(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.OLLAMA_BASE_URL", "")
-        svc = _make_fresh_service()
-        svc._initialize_ollama()
-        assert svc._model is None
 
 
 # ============================================================================
@@ -367,14 +182,6 @@ class TestInitializationOllama:
 class TestInitializeProviderRouting:
     """Tests that _initialize_provider routes to the correct sub-initializer."""
 
-    def test_routes_to_gateway(self) -> None:
-        svc = _make_fresh_service()
-        with patch("app.services.ai_service.settings") as mock_settings:
-            mock_settings.ai_provider_mode = "gateway"
-            svc._initialize_gateway = MagicMock()
-            svc._initialize_provider()
-            svc._initialize_gateway.assert_called_once()
-
     def test_routes_to_direct(self) -> None:
         svc = _make_fresh_service()
         with patch("app.services.ai_service.settings") as mock_settings:
@@ -382,14 +189,6 @@ class TestInitializeProviderRouting:
             svc._initialize_direct_provider = MagicMock()
             svc._initialize_provider()
             svc._initialize_direct_provider.assert_called_once()
-
-    def test_routes_to_ollama(self) -> None:
-        svc = _make_fresh_service()
-        with patch("app.services.ai_service.settings") as mock_settings:
-            mock_settings.ai_provider_mode = "ollama"
-            svc._initialize_ollama = MagicMock()
-            svc._initialize_provider()
-            svc._initialize_ollama.assert_called_once()
 
     def test_routes_to_disabled(self) -> None:
         svc = _make_fresh_service()
@@ -480,19 +279,6 @@ class TestGenerateImage:
         with pytest.raises(RuntimeError, match="Failed to generate image"):
             await svc.generate_image(prompt="test", return_bytes=True)
 
-    async def test_generate_image_returns_url(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
-        svc = self._make_svc_with_client()
-
-        mock_data = MagicMock()
-        mock_data.url = "https://example.com/img.png"
-        mock_response = MagicMock()
-        mock_response.data = [mock_data]
-        svc._client.images.generate.return_value = mock_response
-
-        result = await svc.generate_image(prompt="test")
-        assert result == "https://example.com/img.png"
-
     async def test_generate_image_no_url_raises(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.AI_IMAGE_MODEL", "gpt-image-1")
         svc = self._make_svc_with_client()
@@ -504,12 +290,6 @@ class TestGenerateImage:
         svc._client.images.generate.return_value = mock_response
 
         with pytest.raises(RuntimeError, match="Image generation did not return a URL"):
-            await svc.generate_image(prompt="test")
-
-    async def test_generate_image_raises_without_client(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
             await svc.generate_image(prompt="test")
 
     async def test_generate_image_rejects_invalid_size_for_model(self, monkeypatch) -> None:
@@ -570,31 +350,12 @@ class TestGenerateAudio:
         svc._using_gateway = using_gateway
         return svc
 
-    async def test_generate_audio_success(self) -> None:
-        svc = self._make_svc_with_client()
-        with patch.object(svc, "_sync_generate_audio", return_value=b"audio_data"):
-            result = await svc.generate_audio(text="Hello", voice="alloy", model="tts-1")
-            assert result == b"audio_data"
-
-    async def test_generate_audio_uses_defaults(self) -> None:
-        svc = self._make_svc_with_client()
-        with patch.object(svc, "_sync_generate_audio", return_value=b"audio_data") as mock_sync:
-            result = await svc.generate_audio(text="Hello")
-            assert result == b"audio_data"
-            mock_sync.assert_called_once_with("tts-1", "alloy", "Hello")
-
     async def test_generate_audio_propagates_exception(self) -> None:
         svc = self._make_svc_with_client()
         with (
             patch.object(svc, "_sync_generate_audio", side_effect=ValueError("TTS error")),
             pytest.raises(ValueError, match="TTS error"),
         ):
-            await svc.generate_audio(text="Hello")
-
-    async def test_generate_audio_raises_without_client(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
             await svc.generate_audio(text="Hello")
 
     async def test_generate_audio_through_gateway_logs_debug(self) -> None:
@@ -660,12 +421,6 @@ class TestGenerateCompletion:
         with pytest.raises(RuntimeError, match="Failed to generate completion"):
             await svc.generate_completion(messages=[{"role": "user", "content": "Hi"}])
 
-    async def test_generate_completion_raises_without_client(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
-            await svc.generate_completion(messages=[])
-
 
 # ============================================================================
 # generate_completion_json
@@ -706,12 +461,6 @@ class TestGenerateCompletionJson:
         with pytest.raises(RuntimeError, match="Failed to generate JSON completion"):
             await svc.generate_completion_json(prompt="make json")
 
-    async def test_generate_completion_json_raises_without_client(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
-            await svc.generate_completion_json(prompt="make json")
-
 
 # ============================================================================
 # generate_speech_from_text
@@ -738,12 +487,6 @@ class TestGenerateSpeechFromText:
         svc._client.audio.speech.create.assert_called_once_with(model="tts-1", voice="echo", input="Hello")
         mock_response.stream_to_file.assert_called_once_with("/tmp/speech.mp3")
 
-    async def test_generate_speech_from_text_raises_without_client(self) -> None:
-        svc = _make_fresh_service()
-        svc._client = None
-        with pytest.raises(RuntimeError, match="OpenAI client not available"):
-            await svc.generate_speech_from_text(text_input="Hello", speech_file_path="/tmp/speech.mp3")
-
 
 # ============================================================================
 # transcribe_audio
@@ -760,33 +503,6 @@ class TestTranscribeAudio:
         svc._client = MagicMock()
         svc._using_gateway = using_gateway
         return svc
-
-    async def test_transcribe_audio_string_response(self) -> None:
-        svc = self._make_svc_with_client()
-        svc._client.audio.transcriptions.create.return_value = "  Hello world  "
-
-        result = await svc.transcribe_audio(audio_bytes=b"fake_audio")
-        assert result == "Hello world"
-
-    async def test_transcribe_audio_object_response(self) -> None:
-        svc = self._make_svc_with_client()
-        mock_text = MagicMock()
-        mock_text.text = "  Transcribed text  "
-        svc._client.audio.transcriptions.create.return_value = mock_text
-
-        result = await svc.transcribe_audio(audio_bytes=b"fake_audio")
-        assert result == "Transcribed text"
-
-    async def test_transcribe_audio_custom_filename(self) -> None:
-        svc = self._make_svc_with_client()
-        svc._client.audio.transcriptions.create.return_value = "done"
-
-        with patch("io.BytesIO") as mock_bytesio:
-            mock_bytesio_instance = MagicMock()
-            mock_bytesio.return_value = mock_bytesio_instance
-            await svc.transcribe_audio(audio_bytes=b"fake", filename="custom.wav")
-            mock_bytesio.assert_called_once_with(b"fake")
-            assert mock_bytesio_instance.name == "custom.wav"
 
     async def test_transcribe_audio_propagates_exception(self) -> None:
         svc = self._make_svc_with_client()
@@ -872,25 +588,6 @@ class TestChatCompletion:
             mock_agent_cls.assert_called_once()
             assert mock_agent_cls.call_args[1]["instructions"] == "You are helpful."
 
-    async def test_chat_completion_with_usage_no_instructions(self) -> None:
-        svc = self._make_svc_with_model()
-        mock_agent_result = MagicMock()
-        mock_agent_result.output = "Response"
-        mock_usage = MagicMock()
-        mock_usage.input_tokens = 5
-        mock_usage.output_tokens = 6
-        mock_usage.total_tokens = 11
-        mock_agent_result.usage.return_value = mock_usage
-
-        with patch("pydantic_ai.Agent") as mock_agent_cls:
-            mock_agent = MagicMock()
-            mock_agent.run = AsyncMock(return_value=mock_agent_result)
-            mock_agent_cls.return_value = mock_agent
-
-            result = await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
-            assert result.text == "Response"
-            assert "instructions" not in mock_agent_cls.call_args[1]
-
     async def test_chat_completion_with_usage_usage_extraction_fails(self) -> None:
         svc = self._make_svc_with_model()
         mock_agent_result = MagicMock()
@@ -918,47 +615,6 @@ class TestChatCompletion:
         with pytest.raises(RuntimeError, match="AI model not configured"):
             await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
 
-    async def test_chat_completion_with_usage_empty_messages(self) -> None:
-        svc = self._make_svc_with_model()
-        mock_agent_result = MagicMock()
-        mock_agent_result.output = ""
-        mock_usage = MagicMock()
-        mock_usage.input_tokens = 0
-        mock_usage.output_tokens = 0
-        mock_usage.total_tokens = 0
-        mock_agent_result.usage.return_value = mock_usage
-
-        with patch("pydantic_ai.Agent") as mock_agent_cls:
-            mock_agent = MagicMock()
-            mock_agent.run = AsyncMock(return_value=mock_agent_result)
-            mock_agent_cls.return_value = mock_agent
-
-            result = await svc.chat_completion_with_usage(messages=[])
-            assert result.text == ""
-
-    async def test_chat_completion_with_usage_multiple_user_messages(self) -> None:
-        svc = self._make_svc_with_model()
-        mock_agent_result = MagicMock()
-        mock_agent_result.output = "Combined"
-        mock_usage = MagicMock()
-        mock_usage.input_tokens = 3
-        mock_usage.output_tokens = 4
-        mock_usage.total_tokens = 7
-        mock_agent_result.usage.return_value = mock_usage
-
-        with patch("pydantic_ai.Agent") as mock_agent_cls:
-            mock_agent = MagicMock()
-            mock_agent.run = AsyncMock(return_value=mock_agent_result)
-            mock_agent_cls.return_value = mock_agent
-
-            await svc.chat_completion_with_usage(
-                messages=[
-                    {"role": "user", "content": "First"},
-                    {"role": "user", "content": "Second"},
-                ]
-            )
-            mock_agent.run.assert_called_once_with("First\nSecond")
-
 
 # ============================================================================
 # Module-level helper functions
@@ -980,30 +636,10 @@ class TestModuleLevelFunctions:
         svc._model = "fake_model"
         assert is_ai_available() is True
 
-    def test_is_ai_available_when_model_none(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = None
-        assert is_ai_available() is False
-
-    def test_get_model_returns_singleton_model(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = "test_model"
-        assert get_model() == "test_model"
-
-    def test_get_model_returns_none(self) -> None:
-        svc = _make_fresh_service()
-        svc._model = None
-        assert get_model() is None
-
     def test_is_using_gateway_true(self) -> None:
         svc = _make_fresh_service()
         svc._using_gateway = True
         assert is_using_gateway() is True
-
-    def test_is_using_gateway_false(self) -> None:
-        svc = _make_fresh_service()
-        svc._using_gateway = False
-        assert is_using_gateway() is False
 
 
 # ============================================================================

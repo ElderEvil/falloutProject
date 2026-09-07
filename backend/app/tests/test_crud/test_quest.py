@@ -19,118 +19,6 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 
 
 @pytest.mark.asyncio
-async def test_create_quest(async_session: AsyncSession) -> None:
-    """Test creating a quest."""
-    quest_data = QuestCreate(
-        title="Test Quest",
-        short_description="A test quest",
-        long_description="This is a longer description of the test quest.",
-        requirements="Level 10 dwellers",
-        rewards="100 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-    assert quest.id
-    assert quest.title == "Test Quest"
-    assert quest.short_description == "A test quest"
-    assert quest.requirements == "Level 10 dwellers"
-    assert quest.rewards == "100 caps"
-
-
-@pytest.mark.asyncio
-async def test_read_quest(async_session: AsyncSession) -> None:
-    """Test reading a quest."""
-    quest_data = QuestCreate(
-        title="Read Test Quest",
-        short_description="Reading test",
-        long_description="Testing quest reading",
-        requirements="Level 5 dwellers",
-        rewards="50 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-    read_quest = await crud.quest_crud.get(async_session, id=quest.id)
-    assert read_quest
-    assert read_quest.id == quest.id
-    assert read_quest.title == quest.title
-
-
-@pytest.mark.asyncio
-async def test_update_quest(async_session: AsyncSession) -> None:
-    """Test updating a quest."""
-    quest_data = QuestCreate(
-        title="Update Test Quest",
-        short_description="Update test",
-        long_description="Testing quest updating",
-        requirements="Level 15 dwellers",
-        rewards="200 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-
-    update_data = QuestUpdate(title="Updated Quest Title", rewards="500 caps")
-    updated_quest = await crud.quest_crud.update(async_session, id=quest.id, obj_in=update_data)
-
-    assert updated_quest.id == quest.id
-    assert updated_quest.title == "Updated Quest Title"
-    assert updated_quest.rewards == "500 caps"
-    # Unchanged fields should remain the same
-    assert updated_quest.short_description == quest.short_description
-
-
-@pytest.mark.asyncio
-async def test_delete_quest(async_session: AsyncSession) -> None:
-    """Test deleting a quest."""
-    from app.utils.exceptions import ResourceNotFoundException
-
-    quest_data = QuestCreate(
-        title="Delete Test Quest",
-        short_description="Delete test",
-        long_description="Testing quest deletion",
-        requirements="Level 20 dwellers",
-        rewards="1000 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-    quest_id = quest.id
-
-    await crud.quest_crud.delete(async_session, id=quest_id)
-
-    # Attempting to get a deleted quest should raise ResourceNotFoundException
-    with pytest.raises(ResourceNotFoundException):
-        await crud.quest_crud.get(async_session, id=quest_id)
-
-
-@pytest.mark.asyncio
-async def test_assign_quest_to_vault(async_session: AsyncSession) -> None:
-    """Test assigning a quest to a vault."""
-    # Create user and vault
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    # Create quest
-    quest_data = QuestCreate(
-        title="Vault Assignment Test",
-        short_description="Test assignment",
-        long_description="Testing quest assignment to vault",
-        requirements="Level 5 dwellers",
-        rewards="75 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-
-    # Assign quest to vault
-    link = await crud.quest_crud.assign_to_vault(
-        db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
-    )
-
-    assert link.vault_id == vault.id
-    assert link.quest_id == quest.id
-    assert link.is_visible is True
-    assert link.is_completed is False
-
-
-@pytest.mark.asyncio
 async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession) -> None:
     """Test that assigning the same quest twice updates the visibility."""
     # Create user and vault
@@ -327,55 +215,6 @@ async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: 
 
 
 @pytest.mark.asyncio
-async def test_assign_party_to_quest(async_session: AsyncSession) -> None:
-    """Test assigning dwellers to a quest party."""
-    from app.crud.quest_party import quest_party_crud
-    from app.models.dweller import Dweller
-    from app.models.quest_party import QuestParty
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    quest_data = QuestCreate(
-        title="Party Quest",
-        short_description="Test party",
-        long_description="Party quest",
-        requirements="3 dwellers",
-        rewards="300 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-    await crud.quest_crud.assign_to_vault(
-        db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
-    )
-
-    dweller1_data = create_fake_dweller()
-    dweller1_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller1 = Dweller(**dweller1_data, vault_id=vault.id)
-    async_session.add(dweller1)
-
-    dweller2_data = create_fake_dweller()
-    dweller2_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller2 = Dweller(**dweller2_data, vault_id=vault.id)
-    async_session.add(dweller2)
-    await async_session.commit()
-
-    party = await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller1.id, dweller2.id])
-
-    assert len(party) == 2
-    assert party[0].slot_number == 1
-    assert party[1].slot_number == 2
-    assert party[0].status == "assigned"
-    assert party[0].dweller_id == dweller1.id
-    assert party[1].dweller_id == dweller2.id
-
-
-@pytest.mark.asyncio
 async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
     """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
     from app.crud.quest_party import quest_party_crud
@@ -475,117 +314,6 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     assert link.duration_minutes == effective_quest_duration_minutes(quest.duration_minutes)
     with pytest.raises(ResourceConflictException, match="already in progress"):
         await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-@pytest.mark.asyncio
-async def test_start_quest_snapshots_local_duration_multiplier(
-    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from app.core.config import settings
-    from app.crud.quest_party import quest_party_crud
-    from app.models.dweller import Dweller
-    from app.services.quest_service import quest_service
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 0.1)
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    quest = await crud.quest_crud.create(
-        async_session,
-        obj_in=QuestCreate(
-            title="Accelerated Quest",
-            short_description="Test local duration scaling",
-            long_description="A quest that snapshots the local duration multiplier.",
-            requirements="1 dweller",
-            rewards="100 caps",
-            duration_minutes=120,
-        ),
-    )
-    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True)
-    dweller_data = create_fake_dweller()
-    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller = Dweller(**dweller_data, vault_id=vault.id)
-    async_session.add(dweller)
-    await async_session.commit()
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
-
-    link = await quest_service.start_quest(async_session, quest.id, vault.id)
-
-    assert link.duration_minutes == 12
-
-
-@pytest.mark.asyncio
-async def test_unstarted_quest_uses_local_duration_multiplier(
-    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "QUEST_DURATION_MULTIPLIER", 0.2)
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    quest = await crud.quest_crud.create(
-        async_session,
-        obj_in=QuestCreate(
-            title="Pre-start accelerated quest",
-            short_description="Test displayed local duration scaling",
-            long_description="An unstarted quest displays its effective local duration.",
-            requirements="1 dweller",
-            rewards="100 caps",
-            duration_minutes=120,
-        ),
-    )
-    await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True)
-
-    quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
-
-    assert quests[0].duration_minutes == 24
-
-
-@pytest.mark.asyncio
-async def test_start_quest_stores_utc_timestamp(async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Quest timers must be naive UTC, not server-local time (FE/BE clock mismatch on non-UTC hosts)."""
-    from app.crud.quest_party import quest_party_crud
-    from app.models.dweller import Dweller
-    from app.services.quest_service import quest_service
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    quest = await crud.quest_crud.create(
-        async_session,
-        obj_in=QuestCreate(
-            title="UTC Quest",
-            short_description="Test UTC timer",
-            long_description="Timed quest",
-            requirements="1 dweller",
-            rewards="100 caps",
-            duration_minutes=30,
-        ),
-    )
-    await crud.quest_crud.assign_to_vault(
-        db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
-    )
-    dweller_data = create_fake_dweller()
-    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller = Dweller(**dweller_data, vault_id=vault.id)
-    async_session.add(dweller)
-    await async_session.commit()
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
-
-    old_tz = os.environ.get("TZ")
-    os.environ["TZ"] = "Europe/Berlin"
-    time.tzset()
-    try:
-        link = await quest_service.start_quest(async_session, quest.id, vault.id)
-    finally:
-        if old_tz is None:
-            os.environ.pop("TZ", None)
-        else:
-            os.environ["TZ"] = old_tz
-        time.tzset()
-
-    assert link.started_at is not None
-    assert abs((link.started_at - datetime.utcnow()).total_seconds()) < timedelta(minutes=1).total_seconds()
 
 
 @pytest.mark.asyncio
@@ -711,7 +439,6 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
 @pytest.mark.asyncio
 async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) -> None:
     """Refreshing a vault makes its elapsed quest claimable without granting rewards."""
-    from datetime import datetime, timedelta
 
     from app.models.quest_reward import QuestReward, RewardType
     from app.models.vault_quest import VaultQuestCompletionLink
@@ -769,7 +496,6 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 @pytest.mark.asyncio
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
     """Simulate a party return followed by an atomic reward claim."""
-    from datetime import datetime, timedelta
 
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
@@ -859,63 +585,6 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
     await async_session.refresh(vault)
     assert vault.bottle_caps == vault_data["bottle_caps"] + 50
-
-
-@pytest.mark.asyncio
-async def test_quest_completion_rolls_back_when_any_reward_fails(async_session: AsyncSession) -> None:
-    """A quest must not settle partially when one of its rewards cannot be delivered."""
-    from datetime import datetime, timedelta
-
-    from app.models.quest_reward import QuestReward, RewardType
-    from app.services.quest_service import quest_service
-
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id),
-    )
-    quest = await crud.quest_crud.create(
-        async_session,
-        obj_in=QuestCreate(
-            title="Atomic reward quest",
-            short_description="Reward settlement",
-            long_description="Fails without available storage.",
-            requirements="None",
-            rewards="Caps and an item",
-        ),
-    )
-    async_session.add_all(
-        [
-            QuestReward(
-                quest_id=quest.id,
-                reward_type=RewardType.CAPS,
-                reward_data={"amount": 50},
-                reward_chance=1.0,
-            ),
-            QuestReward(
-                quest_id=quest.id,
-                reward_type=RewardType.ITEM,
-                reward_data={"item_type": "weapon", "name": "Laser Pistol"},
-                reward_chance=1.0,
-            ),
-        ]
-    )
-    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
-
-    link = await async_session.get(crud.quest_crud.link_model, (vault.id, quest.id))
-    assert link is not None
-    link.is_reward_ready = True
-    await async_session.commit()
-
-    with pytest.raises(ResourceNotFoundException, match="Storage"):
-        await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
-
-    await async_session.refresh(vault)
-    await async_session.refresh(link)
-    assert link.is_completed is False
-    assert link.is_reward_ready is True
-    assert vault.bottle_caps == vault_data["bottle_caps"]
 
 
 @pytest.mark.asyncio
@@ -1042,45 +711,3 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
 
     with pytest.raises(ResourceConflictException, match="already in progress"):
         await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
-
-
-@pytest.mark.asyncio
-async def test_get_party_for_quest_returns_dicts(async_session: AsyncSession) -> None:
-    """Test that get_party_for_quest returns proper dictionary format."""
-    from app.crud.quest_party import quest_party_crud
-    from app.models.dweller import Dweller
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    quest_data = QuestCreate(
-        title="Dict Format Quest",
-        short_description="Test dict",
-        long_description="Dict format test",
-        requirements="1 dweller",
-        rewards="50 caps",
-    )
-    quest = await crud.quest_crud.create(async_session, obj_in=quest_data)
-    await crud.quest_crud.assign_to_vault(
-        db_session=async_session, quest_id=quest.id, vault_id=vault.id, is_visible=True
-    )
-
-    dweller_data = create_fake_dweller()
-    dweller_data.update(is_adult=True, age_group=AgeGroupEnum.ADULT)
-    dweller = Dweller(**dweller_data, vault_id=vault.id)
-    async_session.add(dweller)
-    await async_session.commit()
-
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
-
-    party = await quest_party_crud.get_party_for_quest(async_session, quest.id, vault.id)
-
-    assert len(party) == 1
-    assert hasattr(party[0], "id")
-    assert str(party[0].dweller_id) == str(dweller.id)

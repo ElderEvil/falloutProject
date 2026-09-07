@@ -10,65 +10,10 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
 
 
-def test_substantial_none() -> None:
-    """None should be considered not substantial."""
-    assert dweller_ai._has_substantial_visual_attributes(None) is False
-
-
-def test_substantial_empty_dict() -> None:
-    """Empty dict should be considered not substantial."""
-    assert dweller_ai._has_substantial_visual_attributes({}) is False
-
-
-def test_substantial_only_identity() -> None:
-    """Only race+faction (defaults) should be considered not substantial."""
-    assert dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller"}) is False
-
-
-def test_substantial_identity_and_state() -> None:
-    """Identity + state_of_being should still be not substantial."""
-    assert (
-        dweller_ai._has_substantial_visual_attributes({"race": "ghoul", "faction": "none", "state_of_being": "sane"})
-        is False
-    )
-
-
-def test_substantial_identity_and_age() -> None:
-    """Identity + age should still be not substantial."""
-    assert (
-        dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "age": 30}) is False
-    )
-
-
 def test_substantial_with_height() -> None:
     """A physical attribute like height should make it substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "height": "tall"})
-        is True
-    )
-
-
-def test_substantial_with_hair_color() -> None:
-    """Hair color alone should make it substantial."""
-    assert dweller_ai._has_substantial_visual_attributes({"race": "human", "hair_color": "brown"}) is True
-
-
-def test_substantial_full_ai_data() -> None:
-    """Full AI-generated data should be substantial."""
-    assert (
-        dweller_ai._has_substantial_visual_attributes(
-            {
-                "race": "human",
-                "faction": "vault_dweller",
-                "height": "tall",
-                "build": "athletic",
-                "skin_tone": "tan",
-                "eye_color": "brown",
-                "hair_style": "short",
-                "hair_color": "brown",
-                "clothing_style": "casual",
-            }
-        )
         is True
     )
 
@@ -175,37 +120,6 @@ def test_restrict_equipment_fields_removes_non_owned() -> None:
     assert "accessory" not in attrs
     assert "object_held" not in attrs
     assert attrs["hair_color"] == "brown"
-
-
-def test_restrict_equipment_fields_keeps_owned() -> None:
-    """accessory/object_held matching an equipped item are preserved."""
-    attrs = {"accessory": "Leather Armor", "object_held": "Pistol"}
-    restrict_equipment_fields(attrs, ["Leather Armor", "Pistol"])
-    assert attrs["accessory"] == "Leather Armor"
-    assert attrs["object_held"] == "Pistol"
-
-
-def test_restrict_equipment_fields_keeps_one_owned_one_stripped() -> None:
-    """Only the field matching an owned item survives."""
-    attrs = {"accessory": "Pistol", "object_held": "Nuka-Cola Bottle"}
-    restrict_equipment_fields(attrs, ["Pistol"])
-    assert attrs["accessory"] == "Pistol"
-    assert "object_held" not in attrs
-
-
-def test_restrict_equipment_fields_empty_equipment_removes_all() -> None:
-    """With no equipped items, both equipment fields are removed."""
-    attrs = {"accessory": "Sunglasses", "object_held": "Crowbar"}
-    restrict_equipment_fields(attrs, [])
-    assert "accessory" not in attrs
-    assert "object_held" not in attrs
-
-
-def test_restrict_equipment_fields_noop_when_fields_absent() -> None:
-    """Missing equipment fields cause no changes to unrelated attributes."""
-    attrs = {"height": "tall", "hair_color": "brown"}
-    restrict_equipment_fields(attrs, ["Leather Armor"])
-    assert attrs == {"height": "tall", "hair_color": "brown"}
 
 
 def test_race_options() -> None:

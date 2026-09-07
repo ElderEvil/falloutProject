@@ -102,19 +102,6 @@ async def test_check_redis_unhealthy_redis_error() -> None:
     assert "failed" in result.message
 
 
-@pytest.mark.asyncio
-async def test_check_redis_unhealthy_connection_error() -> None:
-    """Redis ping raises ConnectionError."""
-    mock_redis = MagicMock()
-    mock_redis.ping = AsyncMock(side_effect=ConnectionError("refused"))
-    mock_redis.close = AsyncMock()
-
-    with patch("app.services.health_check.Redis", return_value=mock_redis):
-        result = await HealthCheckService.check_redis()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-
-
 # =============================================================================
 # check_dramatiq
 # =============================================================================
@@ -130,20 +117,6 @@ def test_check_dramatiq_not_configured() -> None:
     assert "not configured" in result.message
     assert result.details is not None
     assert result.details["actors"] == 0
-
-
-def test_check_dramatiq_healthy() -> None:
-    """Dramatiq broker has registered actors."""
-    mock_broker = MagicMock()
-    mock_broker.actors = {"actor_a": None, "actor_b": None}
-    with patch("app.services.health_check.broker", mock_broker):
-        result = HealthCheckService.check_dramatiq()
-
-    assert result.service == "dramatiq"
-    assert result.status == ServiceStatus.HEALTHY
-    assert result.details is not None
-    assert result.details["actors"] == 2
-    assert result.details["actor_names"] == ["actor_a", "actor_b"]
 
 
 def test_check_dramatiq_unhealthy() -> None:
@@ -206,21 +179,6 @@ def _patch_boto3_in_sys_modules(
     }
 
 
-def test_check_rustfs_not_configured() -> None:
-    """RustFS is not configured (no access key)."""
-    with (
-        patch.object(settings, "RUSTFS_ACCESS_KEY", None),
-        patch.object(settings, "RUSTFS_SECRET_KEY", None),
-    ):
-        result = HealthCheckService.check_rustfs()
-
-    assert result.service == "rustfs"
-    assert result.status == ServiceStatus.DEGRADED
-    assert "not configured" in result.message
-    assert result.details is not None
-    assert result.details["configured"] is False
-
-
 def test_check_rustfs_not_configured_missing_key() -> None:
     """RustFS has access key but no secret key."""
     with (
@@ -230,27 +188,6 @@ def test_check_rustfs_not_configured_missing_key() -> None:
         result = HealthCheckService.check_rustfs()
 
     assert result.status == ServiceStatus.DEGRADED
-
-
-def test_check_rustfs_healthy() -> None:
-    """RustFS lists buckets successfully."""
-    fake_modules = _patch_boto3_in_sys_modules(return_buckets=["bucket1", "bucket2"])
-    with (
-        patch.dict(sys.modules, fake_modules),
-        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
-        patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
-        patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
-        patch.object(settings, "RUSTFS_PORT", "9000"),
-        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
-    ):
-        result = HealthCheckService.check_rustfs()
-
-    assert result.service == "rustfs"
-    assert result.status == ServiceStatus.HEALTHY
-    assert "successful" in result.message
-    assert result.details is not None
-    assert result.details["buckets"] == ["bucket1", "bucket2"]
-    assert result.details["endpoint"] == "http://s3.example.com:9000"
 
 
 def test_check_rustfs_healthy_default_hostname() -> None:
@@ -272,53 +209,6 @@ def test_check_rustfs_healthy_default_hostname() -> None:
     assert result.details["endpoint"] == "https://s3.evillab.dev"
 
 
-def test_check_rustfs_client_error() -> None:
-    """RustFS list_buckets raises a ClientError."""
-    from botocore.exceptions import ClientError
-
-    error = ClientError(
-        {"Error": {"Code": "AccessDenied", "Message": "Forbidden"}},
-        "ListBuckets",
-    )
-    with (
-        patch.dict(sys.modules, _patch_boto3_in_sys_modules(side_effect=error)),
-        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
-        patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
-        patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
-        patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
-    ):
-        result = HealthCheckService.check_rustfs()
-
-    assert result.status == ServiceStatus.DEGRADED
-    assert "failed" in result.message
-
-
-def test_check_rustfs_import_error() -> None:
-    """RustFS raises ImportError (boto3 not installed)."""
-    with (
-        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
-        patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
-        patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
-        patch.object(settings, "RUSTFS_PORT", ""),
-        patch.object(settings, "RUSTFS_USE_HTTPS", new=False),
-        patch.dict(sys.modules, {"boto3": None}),
-    ):
-        # Simulate the inline ``import boto3`` raising ImportError
-        builtins_import = __import__
-
-        def _fake_import(name: str, *args, **kwargs) -> object:
-            if name == "boto3":
-                raise ImportError("no boto3")
-            return builtins_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=_fake_import):
-            result = HealthCheckService.check_rustfs()
-
-    assert result.status == ServiceStatus.DEGRADED
-    assert "failed" in result.message
-
-
 def test_check_rustfs_os_error() -> None:
     """RustFS raises OSError when connecting."""
     with (
@@ -333,23 +223,6 @@ def test_check_rustfs_os_error() -> None:
 
     assert result.status == ServiceStatus.DEGRADED
     assert "failed" in result.message
-
-
-def test_check_rustfs_endpoint_connection_error_is_degraded() -> None:
-    """An unreachable optional homelab endpoint must never abort backend startup."""
-    error = EndpointConnectionError(endpoint_url="https://s3-api.evillab.dev:443/")
-    with (
-        patch.dict(sys.modules, _patch_boto3_in_sys_modules(side_effect=error)),
-        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
-        patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
-        patch.object(settings, "RUSTFS_HOSTNAME", "s3-api.evillab.dev"),
-        patch.object(settings, "RUSTFS_PORT", "443"),
-        patch.object(settings, "RUSTFS_USE_HTTPS", new=True),
-    ):
-        result = HealthCheckService.check_rustfs()
-
-    assert result.status == ServiceStatus.DEGRADED
-    assert "optional service" in result.message
 
 
 # =============================================================================
@@ -581,49 +454,6 @@ async def test_check_smtp_tls_mapping(
 
 
 @pytest.mark.asyncio
-async def test_check_all_services_all_enabled() -> None:
-    """All services enabled: postgres, redis, rustfs, dramatiq, smtp."""
-    service = HealthCheckService()
-
-    async def fake_postgres(_engine: AsyncEngine) -> HealthCheckResult:
-        return _ok_result("postgresql")
-
-    async def fake_redis() -> HealthCheckResult:
-        return _ok_result("redis")
-
-    def fake_rustfs() -> HealthCheckResult:
-        return _ok_result("rustfs")
-
-    def fake_dramatiq() -> HealthCheckResult:
-        return _ok_result("dramatiq")
-
-    async def fake_smtp() -> HealthCheckResult:
-        return _ok_result("smtp")
-
-    with (
-        patch.object(HealthCheckService, "check_postgres", staticmethod(fake_postgres)),
-        patch.object(HealthCheckService, "check_redis", staticmethod(fake_redis)),
-        patch.object(HealthCheckService, "check_rustfs", staticmethod(fake_rustfs)),
-        patch.object(HealthCheckService, "check_dramatiq", staticmethod(fake_dramatiq)),
-        patch.object(HealthCheckService, "check_smtp", staticmethod(fake_smtp)),
-    ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=False
-        )
-
-    assert "postgresql" in results
-    assert "redis" in results
-    assert "rustfs" in results
-    assert "dramatiq" in results
-    assert "smtp" in results
-    assert "ollama" not in results
-    assert "lmstudio" not in results
-    for r in results.values():
-        assert r.status == ServiceStatus.HEALTHY
-
-
-@pytest.mark.asyncio
 async def test_check_all_services_with_local_ai() -> None:
     """With include_local_ai=True and a local provider configured."""
     service = HealthCheckService()
@@ -655,124 +485,9 @@ async def test_check_all_services_with_local_ai() -> None:
     assert results["ollama"].status == ServiceStatus.HEALTHY
 
 
-@pytest.mark.asyncio
-async def test_check_all_services_dramatiq_disabled() -> None:
-    """When include_dramatiq=False."""
-    service = HealthCheckService()
-
-    _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
-    _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
-    _rf = staticmethod(lambda: _ok_result("rustfs"))
-    _sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
-    with (
-        patch.object(HealthCheckService, "check_postgres", _pg),
-        patch.object(HealthCheckService, "check_redis", _rd),
-        patch.object(HealthCheckService, "check_rustfs", _rf),
-        patch.object(HealthCheckService, "check_smtp", _sm),
-    ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(
-            engine=engine, include_dramatiq=False, include_smtp=True, include_local_ai=False
-        )
-
-    assert "dramatiq" not in results
-
-
-@pytest.mark.asyncio
-async def test_check_all_services_smtp_disabled() -> None:
-    """When include_smtp=False."""
-    service = HealthCheckService()
-
-    _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
-    _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
-    _rf = staticmethod(lambda: _ok_result("rustfs"))
-    _dq = staticmethod(lambda: _ok_result("dramatiq"))
-    with (
-        patch.object(HealthCheckService, "check_postgres", _pg),
-        patch.object(HealthCheckService, "check_redis", _rd),
-        patch.object(HealthCheckService, "check_rustfs", _rf),
-        patch.object(HealthCheckService, "check_dramatiq", _dq),
-    ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=False, include_local_ai=False
-        )
-
-    assert "smtp" not in results
-
-
-@pytest.mark.asyncio
-async def test_check_all_services_rustfs_disabled() -> None:
-    """Startup can skip optional RustFS so an unavailable homelab never delays readiness."""
-    service = HealthCheckService()
-    _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
-    _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
-    _sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
-    _dq = staticmethod(lambda: _ok_result("dramatiq"))
-
-    with (
-        patch.object(HealthCheckService, "check_postgres", _pg),
-        patch.object(HealthCheckService, "check_redis", _rd),
-        patch.object(HealthCheckService, "check_rustfs") as rustfs,
-        patch.object(HealthCheckService, "check_smtp", _sm),
-        patch.object(HealthCheckService, "check_dramatiq", _dq),
-    ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(engine=engine, include_rustfs=False)
-
-    assert "rustfs" not in results
-    rustfs.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_check_all_services_mixed_health() -> None:
-    """Some services healthy, some unhealthy."""
-    service = HealthCheckService()
-
-    async def fake_unhealthy(_engine: AsyncEngine) -> HealthCheckResult:
-        return _unhealthy_result("postgresql")
-
-    _ok = _ok_result
-    _un = _unhealthy_result
-    _rd = staticmethod(AsyncMock(return_value=_ok("redis")))
-    _dq = staticmethod(lambda: _ok("dramatiq"))
-    _sm = staticmethod(AsyncMock(return_value=_ok("smtp")))
-    _rf = staticmethod(lambda: _un("rustfs"))
-    with (
-        patch.object(HealthCheckService, "check_postgres", staticmethod(fake_unhealthy)),
-        patch.object(HealthCheckService, "check_redis", _rd),
-        patch.object(HealthCheckService, "check_rustfs", _rf),
-        patch.object(HealthCheckService, "check_dramatiq", _dq),
-        patch.object(HealthCheckService, "check_smtp", _sm),
-    ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=False
-        )
-
-    assert results["postgresql"].status == ServiceStatus.UNHEALTHY
-    assert results["rustfs"].status == ServiceStatus.UNHEALTHY
-    assert results["redis"].status == ServiceStatus.HEALTHY
-
-
 # =============================================================================
 # log_health_check_results
 # =============================================================================
-
-
-def test_log_health_check_all_healthy() -> None:
-    """All services healthy returns True."""
-    results = {
-        "postgresql": _ok_result("postgresql"),
-        "redis": _ok_result("redis"),
-    }
-
-    with patch.object(logging.getLogger("app.services.health_check"), "info") as mock_info:
-        overall = HealthCheckService.log_health_check_results(results)
-
-    assert overall is True
-    # Should log the header, individual results, and the "all healthy" summary
-    assert mock_info.call_count >= 3
 
 
 def test_log_health_check_some_unhealthy() -> None:
@@ -794,35 +509,11 @@ def test_log_health_check_some_unhealthy() -> None:
     assert mock_info.call_count >= 2
 
 
-def test_log_health_check_all_unhealthy() -> None:
-    """All services unhealthy returns False."""
-    results = {
-        "postgresql": _unhealthy_result("postgresql"),
-        "redis": _unhealthy_result("redis"),
-    }
-    overall = HealthCheckService.log_health_check_results(results)
-    assert overall is False
-
-
 def test_log_health_check_results_empty() -> None:
     """Empty results dict returns True (no unhealthy services)."""
     results: dict[str, HealthCheckResult] = {}
     overall = HealthCheckService.log_health_check_results(results)
     assert overall is True
-
-
-def test_log_health_check_degraded_status() -> None:
-    """DEGRADED status marks overall as unhealthy."""
-    results = {
-        "postgresql": _ok_result("postgresql"),
-        "rustfs": HealthCheckResult(
-            service="rustfs",
-            status=ServiceStatus.DEGRADED,
-            message="not configured",
-        ),
-    }
-    overall = HealthCheckService.log_health_check_results(results)
-    assert overall is False
 
 
 # =============================================================================

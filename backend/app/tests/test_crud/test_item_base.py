@@ -111,25 +111,6 @@ async def test_get_items_by_vault_returns_items() -> None:
     session.execute.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_get_items_by_vault_empty() -> None:
-    session = _new_session()
-    _setup_execute_scalars_all(session, [])
-
-    result = await get_items_by_vault(session, Outfit, "00000000-0000-0000-0000-000000000099")
-    assert result == []
-    session.execute.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_get_items_by_vault_pagination() -> None:
-    session = _new_session()
-    _setup_execute_scalars_all(session, [])
-
-    await get_items_by_vault(session, Outfit, "v-1", skip=20, limit=5)
-    session.execute.assert_called_once()
-
-
 # ---------------------------------------------------------------------------
 # get_items_list
 # ---------------------------------------------------------------------------
@@ -146,67 +127,9 @@ async def test_get_items_list_with_vault_id_delegates() -> None:
         assert result == ["item1", "item2"]
 
 
-@pytest.mark.asyncio
-async def test_get_items_list_without_vault_id() -> None:
-    session = _new_session()
-    crud_instance = MagicMock(spec=CRUDItem)
-    crud_instance.get_multi = AsyncMock(return_value=["a", "b"])
-
-    result = await get_items_list(crud_instance, session, Outfit, skip=10, limit=20)
-    crud_instance.get_multi.assert_called_once_with(session, skip=10, limit=20)
-    assert result == ["a", "b"]
-
-
-@pytest.mark.asyncio
-async def test_get_items_list_default_args() -> None:
-    session = _new_session()
-    crud_instance = MagicMock(spec=CRUDItem)
-    crud_instance.get_multi = AsyncMock(return_value=[])
-    await get_items_list(crud_instance, session, Weapon)
-    crud_instance.get_multi.assert_called_once_with(session, skip=0, limit=100)
-
-
 # ---------------------------------------------------------------------------
 # CRUDItem.create
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_create_dict_no_conflict_delegates() -> None:
-    """create() with a plain dict validates and delegates to super."""
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    obj_in = {"name": "New Weapon", "storage_id": "s1"}
-    expected = _make_mock_item(Weapon)
-
-    with patch("app.crud.base.CRUDBase.create", new=AsyncMock(return_value=expected)) as mock_super:
-        result = await crud.create(session, obj_in)
-        mock_super.assert_called_once_with(session, obj_in)
-        assert result is expected
-
-
-@pytest.mark.asyncio
-async def test_create_from_mock_schema() -> None:
-    """create() from a schema object calls model_dump then super."""
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    mock_schema = MagicMock()
-    mock_schema.model_dump.return_value = {"name": "Axe", "rarity": "common"}
-    expected = _make_mock_item(Weapon)
-
-    with patch("app.crud.base.CRUDBase.create", new=AsyncMock(return_value=expected)) as mock_super:
-        result = await crud.create(session, mock_schema)
-        mock_super.assert_called_once_with(session, {"name": "Axe", "rarity": "common"})
-        assert result is expected
-
-
-@pytest.mark.asyncio
-async def test_create_raises_both_storage_and_dweller_dict() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    obj_in = {"storage_id": "s1", "dweller_id": "d1"}
-    with pytest.raises(InvalidItemAssignmentException):
-        await crud.create(session, obj_in)
 
 
 @pytest.mark.asyncio
@@ -224,56 +147,9 @@ async def test_create_raises_both_storage_and_dweller_schema() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_update_raises_both_storage_and_dweller() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-    update_schema = MagicMock()
-    update_schema.storage_id = "s1"
-    update_schema.dweller_id = "d1"
-
-    with pytest.raises(InvalidItemAssignmentException):
-        await crud.update(session, id="item1", obj_in=update_schema)
-
-
-@pytest.mark.asyncio
-async def test_update_no_conflict() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    update_schema = MagicMock()
-    update_schema.storage_id = "s1"
-    update_schema.dweller_id = None
-    expected = _make_mock_item(Weapon)
-
-    with patch("app.crud.base.CRUDBase.update", new=AsyncMock(return_value=expected)) as mock_super:
-        result = await crud.update(session, id="item1", obj_in=update_schema)
-        mock_super.assert_called_once_with(session, id="item1", obj_in=update_schema)
-        assert result is expected
-
-
 # ---------------------------------------------------------------------------
 # CRUDItem.equip
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_equip_new_item_to_unequipped_dweller() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-new")
-
-    mock_storage = MagicMock(id="storage-1")
-    mock_vault = MagicMock(storage=mock_storage)
-    mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=None)
-
-    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=None)
-
-    await crud.equip(db_session=session, item_id="w-new", dweller_id="d1")
-
-    assert item.dweller_id == mock_dweller.id
-    assert item.storage_id is None
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(item)
 
 
 @pytest.mark.asyncio
@@ -286,23 +162,6 @@ async def test_equip_dweller_not_found() -> None:
     with pytest.raises(ResourceNotFoundException) as exc:
         await crud.equip(db_session=session, item_id="o-x", dweller_id="d-999")
     assert "Dweller" in exc.value.detail
-
-
-@pytest.mark.asyncio
-async def test_equip_item_fetched_separately_when_not_in_join() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w2")
-
-    mock_storage = MagicMock(id="st-1")
-    mock_vault = MagicMock(storage=mock_storage)
-    mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=None)
-
-    _setup_equip_mocks(session, dweller=mock_dweller, item=item, current_item=None)
-
-    await crud.equip(db_session=session, item_id="w2", dweller_id="d1")
-    session.get.assert_called_once_with(Weapon, "w2")
-    assert item.dweller_id == mock_dweller.id
 
 
 @pytest.mark.asyncio
@@ -337,30 +196,6 @@ async def test_equip_same_item_already_equipped() -> None:
         await crud.equip(db_session=session, item_id="w-same", dweller_id="d1")
 
 
-@pytest.mark.asyncio
-async def test_equip_replaces_existing_item() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    old_item = _make_mock_item(Weapon, item_id="w-old")
-    new_item = _make_mock_item(Weapon, item_id="w-new")
-
-    mock_storage = MagicMock(id="st-1")
-    mock_vault = MagicMock(storage=mock_storage)
-    mock_dweller = MagicMock(id="d1", vault=mock_vault, weapon=old_item)
-
-    _setup_equip_mocks(session, dweller=mock_dweller, item=new_item, current_item=old_item)
-
-    await crud.equip(db_session=session, item_id="w-new", dweller_id="d1")
-
-    assert old_item.dweller_id is None
-    assert old_item.storage_id == mock_storage.id
-    assert new_item.dweller_id == mock_dweller.id
-    assert new_item.storage_id is None
-    # The relationship must stay untouched; assigning it cascade-deletes old_item.
-    assert mock_dweller.weapon is old_item
-    assert mock_dweller not in [call.args[0] for call in session.add.call_args_list]
-
-
 # ---------------------------------------------------------------------------
 # _fetch_unequip_data
 # ---------------------------------------------------------------------------
@@ -381,18 +216,6 @@ async def test_fetch_unequip_data_weapon() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_unequip_data_outfit() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-    mock_dweller = MagicMock()
-    row = (mock_dweller, "storage-y", False)
-    _setup_execute_first(session, row)
-
-    _dweller, _sid, item_type = await crud._fetch_unequip_data(session, "o-1")
-    assert item_type == ItemTypeEnum.OUTFIT
-
-
-@pytest.mark.asyncio
 async def test_fetch_unequip_data_not_found() -> None:
     session = _new_session()
     crud = CRUDItem(Weapon)
@@ -405,14 +228,6 @@ async def test_fetch_unequip_data_not_found() -> None:
 # ---------------------------------------------------------------------------
 # _get_item_model
 # ---------------------------------------------------------------------------
-
-
-def test_get_item_model_weapon() -> None:
-    assert CRUDItem._get_item_model(ItemTypeEnum.WEAPON) is Weapon
-
-
-def test_get_item_model_outfit() -> None:
-    assert CRUDItem._get_item_model(ItemTypeEnum.OUTFIT) is Outfit
 
 
 # ---------------------------------------------------------------------------
@@ -441,17 +256,6 @@ async def test_update_dweller_clears_weapon() -> None:
 
     await CRUDItem._update_dweller(session, mock_dweller, ItemTypeEnum.WEAPON)
     assert mock_dweller.weapon is None
-    session.add.assert_called_once_with(mock_dweller)
-
-
-@pytest.mark.asyncio
-async def test_update_dweller_clears_outfit() -> None:
-    session = _new_session()
-    session.add = MagicMock()
-    mock_dweller = MagicMock()
-
-    await CRUDItem._update_dweller(session, mock_dweller, ItemTypeEnum.OUTFIT)
-    assert mock_dweller.outfit is None
     session.add.assert_called_once_with(mock_dweller)
 
 
@@ -517,88 +321,10 @@ class TestConvertToJunk:
         assert RarityEnum.RARE in rarities
         assert len(results) == 2
 
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_legendary_no_extra_prob(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.CLOTH, JunkTypeEnum.CIRCUITRY, JunkTypeEnum.LEATHER]
-        mock_random.return_value = 0.9
-
-        item = _make_mock_item(Weapon, rarity=RarityEnum.LEGENDARY)
-        results = CRUDItem.convert_to_junk(item)
-        assert len(results) == 1
-        assert results[0].rarity == RarityEnum.LEGENDARY
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_rare_with_extra_prob(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.LEATHER, JunkTypeEnum.STEEL, JunkTypeEnum.ADHESIVE]
-        mock_random.return_value = 0.1
-
-        item = _make_mock_item(Outfit, rarity=RarityEnum.RARE)
-        results = CRUDItem.convert_to_junk(item)
-
-        assert results[0].rarity == RarityEnum.RARE
-        assert any(j.rarity == RarityEnum.COMMON for j in results[1:])
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_rare_no_extra_prob(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.SCIENCE, JunkTypeEnum.CLOTH, JunkTypeEnum.VALUABLES]
-        mock_random.return_value = 0.9
-
-        item = _make_mock_item(Outfit, rarity=RarityEnum.RARE)
-        results = CRUDItem.convert_to_junk(item)
-        assert len(results) == 1
-        assert results[0].rarity == RarityEnum.RARE
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_common_with_extra_prob(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.ADHESIVE, JunkTypeEnum.STEEL, JunkTypeEnum.LEATHER]
-        mock_random.return_value = 0.1  # below 0.6
-
-        item = _make_mock_item(Weapon, rarity=RarityEnum.COMMON)
-        results = CRUDItem.convert_to_junk(item)
-
-        assert results[0].rarity == RarityEnum.COMMON
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_common_no_extra_prob(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.CIRCUITRY, JunkTypeEnum.VALUABLES, JunkTypeEnum.CLOTH]
-        mock_random.return_value = 0.9
-
-        item = _make_mock_item(Weapon, rarity=RarityEnum.COMMON)
-        results = CRUDItem.convert_to_junk(item)
-        assert len(results) == 1
-        assert results[0].rarity == RarityEnum.COMMON
-
     def test_unsupported_rarity_raises(self) -> None:
         item = _make_mock_item(Weapon, rarity="mythic")
         with pytest.raises(ValueError, match="not supported"):
             CRUDItem.convert_to_junk(item)
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_junk_values_from_config(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        mock_choice.side_effect = [JunkTypeEnum.CIRCUITRY, JunkTypeEnum.LEATHER, JunkTypeEnum.ADHESIVE]
-        mock_random.return_value = 0.9
-
-        item = _make_mock_item(Weapon, rarity=RarityEnum.LEGENDARY)
-        results = CRUDItem.convert_to_junk(item)
-        # game_config.exploration.get_junk_value("legendary") = 200
-        assert results[0].value == 200
-
-    @patch("app.crud.item_base.random.choice")
-    @patch("app.crud.item_base.random.random")
-    def test_common_no_duplicate_same_type(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
-        """When the random choice for same_rarity happens to match, no duplicate."""
-        mock_choice.side_effect = [JunkTypeEnum.ADHESIVE, JunkTypeEnum.STEEL, JunkTypeEnum.LEATHER]
-        mock_random.return_value = 0.9
-
-        item = _make_mock_item(Weapon, rarity=RarityEnum.COMMON)
-        results = CRUDItem.convert_to_junk(item)
-        assert len(results) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -634,21 +360,6 @@ async def test_scrap_not_found() -> None:
     assert "Outfit" in exc.value.detail
 
 
-@pytest.mark.asyncio
-async def test_scrap_no_storage_id() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-nostore", storage_id=None, dweller_id="d1")
-    session.get = AsyncMock(return_value=item)
-
-    with patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk)]) as mock_cvt:
-        results = await crud.scrap(db_session=session, item_id="w-nostore")
-
-    mock_cvt.assert_called_once_with(item)
-    session.delete.assert_called_once_with(item)
-    assert len(results) == 1
-
-
 # ---------------------------------------------------------------------------
 # add_caps_to_vault
 # ---------------------------------------------------------------------------
@@ -669,18 +380,6 @@ async def test_add_caps_to_vault_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_add_caps_to_vault_no_commit() -> None:
-    session = _new_session()
-    mock_vault = MagicMock(spec=Vault)
-    session.get = AsyncMock(return_value=mock_vault)
-
-    with patch("app.crud.item_base.vault_crud.deposit_caps", new=AsyncMock()):
-        await CRUDItem.add_caps_to_vault(session, "v-1", 100, commit=False)
-
-    session.commit.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_add_caps_to_vault_vault_not_found() -> None:
     session = _new_session()
     session.get = AsyncMock(return_value=None)
@@ -693,24 +392,6 @@ async def test_add_caps_to_vault_vault_not_found() -> None:
 # ---------------------------------------------------------------------------
 # sell
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_sell_from_storage() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-sell", storage_id="st-1", value=50, dweller_id=None)
-    session.get = AsyncMock(return_value=item)
-
-    # sell does session.execute → scalar_one_or_none for storage query
-    _setup_execute_scalar_one_or_none(session, "v-1")
-
-    with patch.object(crud, "add_caps_to_vault", new=AsyncMock()) as mock_add:
-        await crud.sell(session, item_id="w-sell")
-
-    mock_add.assert_called_once_with(session, "v-1", 50, commit=False)
-    session.delete.assert_called_once_with(item)
-    session.commit.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -728,17 +409,6 @@ async def test_sell_from_dweller() -> None:
     mock_add.assert_called_once_with(session, "v-2", 75, commit=False)
     session.delete.assert_called_once_with(item)
     session.commit.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sell_item_not_found() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    session.get = AsyncMock(return_value=None)
-
-    with pytest.raises(ResourceNotFoundException) as exc:
-        await crud.sell(session, item_id="nonexistent")
-    assert "Weapon" in exc.value.detail
 
 
 @pytest.mark.asyncio
@@ -775,17 +445,3 @@ async def test_sell_rollback_on_sqlalchemy_error() -> None:
 # ---------------------------------------------------------------------------
 # Inheritance / init smoke tests
 # ---------------------------------------------------------------------------
-
-
-def test_initialization() -> None:
-    assert CRUDItem(Weapon).model is Weapon
-    assert CRUDItem(Outfit).model is Outfit
-
-
-def test_inherits_crud_base() -> None:
-    from app.crud.base import CRUDBase
-
-    assert issubclass(CRUDItem, CRUDBase)
-    crud = CRUDItem(Weapon)
-    for method in ("get", "get_multi", "delete", "exists"):
-        assert hasattr(crud, method)

@@ -52,7 +52,7 @@ jobs:
 
       - name: Restore pnpm binary
         id: pnpm-bin
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/setup-pnpm
           key: pnpm-bin-11.9.0-${{ runner.os }}

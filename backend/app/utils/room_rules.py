@@ -86,7 +86,7 @@ async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Roo
                 Room.vault_id == elevator_room.vault_id,
                 Room.name == "Elevator",
                 Room.coordinate_x == elevator_room.coordinate_x,
-                Room.coordinate_y == elevator_room.coordinate_y + 1,
+                Room.coordinate_y == elevator_room.coordinate_y - 1,
             )
         )
     )

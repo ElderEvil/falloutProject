@@ -94,11 +94,14 @@ class TestValidateElevatorDestroy:
     async def test_elevator_with_elevator_above_rejects_destroy(self, mock_session):
         """Destroying an elevator that supports another elevator above breaks the stack."""
         elevator = _make_room(name="Elevator", coordinate_y=2, coordinate_x=0)
-        elevator_above = _make_room(name="Elevator", coordinate_y=3, coordinate_x=0, id=uuid4())
+        elevator_above = _make_room(name="Elevator", coordinate_y=1, coordinate_x=0, id=uuid4())
         mock_session.execute.return_value = _make_mock_execute_result(scalars_first=elevator_above)
 
         with pytest.raises(ValueError, match="stacked directly above"):
             await validate_elevator_destroy(mock_session, elevator)
+
+        query = mock_session.execute.call_args_list[0].args[0]
+        assert query.compile().params["coordinate_y_1"] == 1
 
     @pytest.mark.asyncio
     async def test_elevator_with_another_elevator_on_level_allowed(self, mock_session):

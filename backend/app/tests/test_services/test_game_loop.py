@@ -611,6 +611,88 @@ class TestProcessDwellers:
 
 
 # ═════════════════════════════════════════════════════════════════════
+# _process_dwellers — dehydration radiation
+# ═════════════════════════════════════════════════════════════════════
+
+
+class TestDehydrationRadiation:
+    """Tests for radiation applied while the vault has no water."""
+
+    @pytest.mark.asyncio
+    async def _prepare(self, async_session: AsyncSession, vault: Vault, dweller: Dweller, water: int) -> None:
+        vault.water = water
+        dweller.max_health = 100
+        dweller.health = 100
+        dweller.radiation = 0
+        async_session.add_all([vault, dweller])
+        await async_session.commit()
+
+    @pytest.mark.asyncio
+    async def test_empty_water_irradiates_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await self._prepare(async_session, vault, dweller, water=0)
+        result = await game_loop_service._process_dwellers(async_session, vault.id)
+        assert result["irradiated"] == 1
+        await async_session.refresh(dweller)
+        assert dweller.radiation == game_config.health.dehydration_radiation_per_tick
+
+    @pytest.mark.asyncio
+    async def test_available_water_does_not_irradiate(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        await self._prepare(async_session, vault, dweller, water=50)
+        result = await game_loop_service._process_dwellers(async_session, vault.id)
+        assert result["irradiated"] == 0
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 0
+
+    @pytest.mark.asyncio
+    async def test_scales_with_elapsed_ticks(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await self._prepare(async_session, vault, dweller, water=0)
+        await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 10 * game_config.health.dehydration_radiation_per_tick
+
+    @pytest.mark.asyncio
+    async def test_away_dwellers_are_exempt(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        from app.schemas.common import DwellerStatusEnum
+
+        await self._prepare(async_session, vault, dweller, water=0)
+        dweller.status = DwellerStatusEnum.EXPLORING
+        async_session.add(dweller)
+        await async_session.commit()
+
+        result = await game_loop_service._process_dwellers(async_session, vault.id)
+        assert result["irradiated"] == 0
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 0
+
+    @pytest.mark.asyncio
+    async def test_caps_at_max_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await self._prepare(async_session, vault, dweller, water=0)
+        dweller.radiation = game_config.health.max_radiation - 1
+        async_session.add(dweller)
+        await async_session.commit()
+
+        await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
+        await async_session.refresh(dweller)
+        assert dweller.radiation == game_config.health.max_radiation
+
+    @pytest.mark.asyncio
+    async def test_reaching_threshold_kills_same_tick(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        await self._prepare(async_session, vault, dweller, water=0)
+        dweller.radiation = game_config.health.max_radiation - 1
+        async_session.add(dweller)
+        await async_session.commit()
+
+        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
+            result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
+        mock_death.assert_called_once()
+        assert result["deaths"] == 1
+
+
+# ═════════════════════════════════════════════════════════════════════
 # _process_training
 # ═════════════════════════════════════════════════════════════════════
 #

@@ -21,6 +21,7 @@ from app.schemas.common import RoomTypeEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
+from app.services.radiation_service import apply_radiation_gain
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
 from app.utils.dwellers import group_dwellers_by_room
@@ -145,7 +146,7 @@ class GameLoopService:
         results["updates"]["explorations"] = exploration_update
 
         # === PHASE 4: Dweller Management ===
-        dweller_update = await self._process_dwellers(db_session, vault_id)
+        dweller_update = await self._process_dwellers(db_session, vault_id, seconds_passed)
         results["updates"]["dwellers"] = dweller_update
 
         # === PHASE 4.25: Youth Apprenticeships ===
@@ -349,9 +350,12 @@ class GameLoopService:
 
         return stats
 
-    async def _process_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_dwellers(
+        self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
+    ) -> dict:
         """Process dweller updates for a vault.
 
+        - Irradiate in-vault dwellers while the vault has no water
         - Award work XP to dwellers in production rooms
         - Check for level-ups
         - Check for deaths (health <= 0 or radiation threshold)
@@ -366,6 +370,7 @@ class GameLoopService:
             "leveled_up": 0,
             "xp_awarded": 0,
             "deaths": 0,
+            "irradiated": 0,
         }
 
         try:
@@ -373,6 +378,22 @@ class GameLoopService:
             dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
             dwellers_result = await db_session.execute(dwellers_query)
             dwellers = dwellers_result.scalars().all()
+
+            vault = await vault_crud.get(db_session, vault_id)
+            if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
+                ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
+                rads = game_config.health.dehydration_radiation_per_tick * ticks
+                for dweller in dwellers:
+                    if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
+                        continue
+                    if apply_radiation_gain(dweller, rads):
+                        db_session.add(dweller)
+                        stats["irradiated"] += 1
+                if stats["irradiated"]:
+                    await db_session.commit()
+                    self.logger.warning(
+                        f"Vault {vault_id} has no water: applied {rads} radiation to {stats['irradiated']} dwellers"
+                    )
 
             # Get all unique room IDs from working dwellers
             working_room_ids = {d.room_id for d in dwellers if d.status == DwellerStatusEnum.WORKING and d.room_id}

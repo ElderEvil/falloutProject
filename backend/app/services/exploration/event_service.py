@@ -17,6 +17,7 @@ from app.models.weapon import Weapon
 from app.schemas.common import RarityEnum
 from app.schemas.exploration_event import ExplorationEventType, OutfitSchema, WeaponSchema
 from app.services.exploration.event_generator import event_generator
+from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
 
 logger = logging.getLogger(__name__)
@@ -214,8 +215,7 @@ class EventService:
         if dweller_obj.is_dead:
             return
 
-        dweller_obj.radiation = min(1_000, dweller_obj.radiation + rads)
-        dweller_obj.health = min(dweller_obj.health, dweller_obj.effective_max_health)
+        apply_radiation_gain(dweller_obj, rads)
         db_session.add(dweller_obj)
         await db_session.flush()
 
@@ -237,11 +237,10 @@ class EventService:
 
         records: list[dict] = []
 
-        # Auto-use RadAway if radiation > 30
-        if exploration.radaways > 0 and dweller_obj.radiation > 30:
-            # Radiation removal logic (50% of radiation)
-            reduction = int(dweller_obj.radiation * 0.5)
-            dweller_obj.radiation = max(0, dweller_obj.radiation - reduction)
+        radaway_threshold = game_config.health.radaway_auto_use_threshold
+        if exploration.radaways > 0 and dweller_obj.radiation > radaway_threshold:
+            reduction = radiation_removal_amount(dweller_obj.radiation)
+            dweller_obj.radiation -= reduction
             exploration.radaways -= 1
             records.append(
                 exploration.add_event(
@@ -255,8 +254,7 @@ class EventService:
         # Auto-use Stimpak if health < 50%
         health_percentage = (dweller_obj.health / dweller_obj.effective_max_health) * 100
         if exploration.stimpaks > 0 and health_percentage < 50:
-            # Heal logic (40% of max health); log only what the radiation cap lets through
-            healing = int(dweller_obj.max_health * 0.4)
+            healing = int(dweller_obj.max_health * game_config.health.stimpack_heal_percent)
             actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
             dweller_obj.health += actual_healing
             exploration.stimpaks -= 1

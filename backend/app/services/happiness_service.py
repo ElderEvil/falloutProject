@@ -213,8 +213,8 @@ class HappinessService:
             change -= 1.0 * tick_multiplier
 
         # Radiation penalty
-        if dweller.radiation > 50:
-            change -= 1.0 * tick_multiplier
+        if dweller.radiation > game_config.happiness.radiation_penalty_threshold:
+            change -= game_config.happiness.radiation_penalty * tick_multiplier
 
         # === POSITIVE FACTORS ===
 
@@ -357,8 +357,8 @@ class HappinessService:
         if dweller.status == "idle":
             modifiers["negative"].append({"name": "Idle", "value": -game_config.happiness.idle_decay})
 
-        if dweller.radiation > 50:
-            modifiers["negative"].append({"name": "Radiation", "value": -1.0})
+        if dweller.radiation > game_config.happiness.radiation_penalty_threshold:
+            modifiers["negative"].append({"name": "Radiation", "value": -game_config.happiness.radiation_penalty})
 
         modifiers["negative"].append({"name": "Base Decay", "value": -game_config.happiness.base_decay})
 

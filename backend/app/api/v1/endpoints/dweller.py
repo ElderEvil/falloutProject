@@ -29,6 +29,7 @@ from app.schemas.dweller import (
     RevivalCostResponse,
 )
 from app.schemas.happiness import HappinessModifiersResponse
+from app.services import medical_service
 from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
@@ -353,13 +354,13 @@ async def use_stimpack(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerRead:
-    """Use a stimpack to heal the dweller (restores 40% of max health).
+    """Use one of the dweller's stimpacks to heal them.
 
     Returns:
         DwellerRead: The healed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.use_stimpack(db_session, dweller_id)
+    return await medical_service.use_stimpack(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/use_radaway", response_model=DwellerRead)
@@ -368,13 +369,13 @@ async def use_radaway(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> DwellerRead:
-    """Use a radaway to remove radiation from the dweller (removes 50% of radiation).
+    """Use one of the dweller's RadAways to reduce their radiation.
 
     Returns:
         DwellerRead: The dweller with reduced radiation.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.use_radaway(db_session, dweller_id)
+    return await medical_service.use_radaway(db_session, dweller_id)
 
 
 @router.get("/{dweller_id}/happiness_modifiers", response_model=HappinessModifiersResponse)

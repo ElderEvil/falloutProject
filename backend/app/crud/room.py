@@ -14,8 +14,8 @@ from app.crud.vault import vault as vault_crud
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
-from app.services import room_rules
 from app.services.event_bus import GameEvent, event_bus
+from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,

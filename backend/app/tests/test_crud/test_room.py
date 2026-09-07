@@ -11,7 +11,7 @@ from app.crud.room import CRUDRoom
 from app.models.room import Room
 from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
-from app.services import room_rules
+from app.utils import room_rules
 from app.utils.exceptions import (
     InsufficientResourcesException,
     NoSpaceAvailableException,

@@ -7,7 +7,7 @@ import pytest
 
 from app.models.room import Room
 from app.schemas.common import RoomTypeEnum
-from app.services.room_rules import is_elevator, validate_build_placement, validate_elevator_destroy
+from app.utils.room_rules import is_elevator, validate_build_placement, validate_elevator_destroy
 
 
 @pytest.fixture

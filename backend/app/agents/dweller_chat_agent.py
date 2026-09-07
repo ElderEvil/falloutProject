@@ -10,6 +10,7 @@ from pydantic_ai.exceptions import ModelRetry
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
@@ -25,7 +26,6 @@ from app.schemas.chat import (
     StartExplorationAction,
     StartTrainingAction,
 )
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerReadFull
 from app.services.ai_service import get_model
 from app.services.medical_service import (

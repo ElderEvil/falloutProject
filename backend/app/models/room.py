@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import SPECIALEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import SPECIALEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

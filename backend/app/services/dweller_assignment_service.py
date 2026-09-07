@@ -5,11 +5,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerUpdate
 from app.services.room_assignment_policy import adult_assignment_conditions
 from app.services.training_service import training_service

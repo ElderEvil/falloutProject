@@ -15,6 +15,7 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
+from app.core.enums import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.core.game_config import game_config
 from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.models.exploration import Exploration
@@ -25,7 +26,6 @@ from app.models.wasteland_location import (
     LocationTypeEnum,
     WastelandLocation,
 )
-from app.schemas.common import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.schemas.wasteland_location import (
     DiscoveryRoutePoint,
     DiscoveryRouteRead,

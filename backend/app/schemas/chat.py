@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import UUID4, BaseModel, Field
 
-from app.schemas.common import SPECIALEnum
+from app.core.enums import SPECIALEnum
 from app.schemas.happiness import HappinessImpact
 
 

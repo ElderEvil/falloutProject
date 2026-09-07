@@ -6,10 +6,10 @@ from collections.abc import Sequence
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import (
     PrimaryResourceAmounts,
     ResourceProduction,

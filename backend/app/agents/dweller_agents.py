@@ -3,7 +3,7 @@
 from pydantic_ai import Agent, RunContext
 
 from app.agents.deps import BackstoryDeps, ExtendBioDeps, VisualAttributesDeps
-from app.schemas.common import GenderEnum
+from app.core.enums import GenderEnum
 from app.schemas.dweller import DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory, ExtendedBio
 from app.services.ai_service import AIService

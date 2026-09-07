@@ -3,8 +3,8 @@
 from pydantic import UUID4, ConfigDict
 from sqlmodel import SQLModel
 
+from app.core.enums import RelationshipTypeEnum
 from app.models.relationship import RelationshipBase
-from app.schemas.common import RelationshipTypeEnum
 
 
 class RelationshipCreate(SQLModel):

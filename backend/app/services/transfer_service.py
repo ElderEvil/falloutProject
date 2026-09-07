@@ -6,12 +6,12 @@ from pydantic import UUID4
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import PARTNER_LINKED_STAGES
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.models.relationship import Relationship
-from app.schemas.common import PARTNER_LINKED_STAGES
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)

@@ -10,10 +10,10 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlmodel import select
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum
 from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.training_service import TrainingService
 

@@ -18,6 +18,7 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     parse_action_suggestion,
 )
+from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
@@ -25,7 +26,6 @@ from app.models import User
 from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate
 from app.schemas.chat import ActionSuggestion, NoAction
-from app.schemas.common import GenderEnum
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service

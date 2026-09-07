@@ -31,18 +31,18 @@ from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlmodel import select
 
 from app import crud
-from app.core.game_config import game_config
-from app.models.dweller import Dweller
-from app.models.pregnancy import Pregnancy
-from app.models.relationship import Relationship  # ruff: ignore[typing-only-first-party-import]
-from app.models.room import Room
-from app.schemas.common import (
+from app.core.enums import (
     AgeGroupEnum,
     GenderEnum,
     PregnancyStatusEnum,
     RelationshipTypeEnum,
     RoomTypeEnum,
 )
+from app.core.game_config import game_config
+from app.models.dweller import Dweller
+from app.models.pregnancy import Pregnancy
+from app.models.relationship import Relationship  # ruff: ignore[typing-only-first-party-import]
+from app.models.room import Room
 from app.services.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException
 

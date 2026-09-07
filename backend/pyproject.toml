@@ -243,6 +243,7 @@ addopts = [
     "-p", "no:cacheprovider",
 ]
 markers = [
+    "smoke: curated critical-path subset for quick dev loops (pytest -m smoke)",
     "unit: fast pure or mocked unit tests",
     "integration: tests requiring database/redis or real service wiring",
     "slow: tests that take >1s and should be skippable",

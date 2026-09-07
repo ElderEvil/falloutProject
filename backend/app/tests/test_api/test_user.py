@@ -37,6 +37,7 @@ async def create_isolated_user_with_token(
     return token_headers, {"id": str(user.id), **user_data}
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_create_user_new_email(
     async_client: AsyncClient,
@@ -56,6 +57,7 @@ async def test_create_user_new_email(
     assert user.email == created_user["email"]
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_get_existing_user(
     async_client: AsyncClient,

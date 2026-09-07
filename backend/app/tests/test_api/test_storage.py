@@ -18,6 +18,7 @@ from app.tests.factory.vaults import create_fake_vault
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_get_storage_space_with_items(
     async_client: AsyncClient,
@@ -65,6 +66,7 @@ async def test_get_storage_space_with_items(
     assert data["utilization_pct"] == 3.0  # 3/100 * 100 = 3%
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_get_storage_items_success(
     async_client: AsyncClient,

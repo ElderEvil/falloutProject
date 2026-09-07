@@ -18,6 +18,7 @@ from app.tests.factory.rooms import create_fake_room
 from app.tests.utils.user import authentication_token_from_email, user_authentication_headers
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_read_room_list(
     async_client: AsyncClient, async_session: AsyncSession, room: Room, superuser_token_headers: dict[str, str]
@@ -64,6 +65,7 @@ async def test_get_buildable_rooms_awaits_static_game_data() -> None:
     assert buildable_rooms == ["power generator"]
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_build_room_uses_backend_template(
     async_client: AsyncClient,
@@ -140,6 +142,7 @@ async def test_build_room_rejects_unknown_or_infrastructure_template(
         assert response.status_code == 400
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_read_room(async_client: AsyncClient, superuser_token_headers: dict[str, str], room: Room):
     response = await async_client.get(f"/rooms/{room.id}", headers=superuser_token_headers)
@@ -159,6 +162,7 @@ async def test_read_room(async_client: AsyncClient, superuser_token_headers: dic
     assert response_room["size_max"] == room.size_max
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 @pytest.mark.skip(
     reason="Flaky: fails with 400 only when run in the full suite (passes in isolation and "

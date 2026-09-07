@@ -73,6 +73,11 @@ When adding/removing/renaming a Python `StrEnum`/`IntEnum` mapped to a PostgreSQ
 
 > **Outage trap:** a member added to the Python enum but never migrated → `InvalidTextRepresentationError` → poisoned connection pool → crash-loop. Always migrate before using a new enum member.
 
+### Testing conventions
+
+- **Markers:** default tests are unmarked — fast, SQLite/fakeredis-backed; together they are the "full" suite. Tag only exceptions: `@pytest.mark.smoke` on the curated critical-path subset (`uv run pytest -m smoke`), `slow` for >1s tests, `integration` for tests needing real PostgreSQL/Redis. No `fast`/`full` markers.
+- **Structure:** bare test functions by default. `Test*` classes only to group one behavior/unit or to share class-scoped fixtures — never inheritance, `__init__`, or class-level state. Keep each file in one dominant style; don't mass-convert existing tests.
+
 ## Frontend (Vue 3 / TypeScript)
 
 ### Commands (from `frontend/`)

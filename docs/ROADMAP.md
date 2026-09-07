@@ -15,6 +15,38 @@ AI-powered dweller interactions.
 
 ## Active Priorities
 
+### P0 — Backend service-layer architecture rewrite
+
+Re-establish the CRUD/repository → service → endpoint boundaries before expanding backend mechanics. The current
+service layer mixes orchestration, direct SQL/session work, transport concerns, and broad exception recovery; rewrite
+it incrementally by domain rather than performing a risky all-at-once reorganization.
+
+- [ ] **Foundation contract** — define transaction ownership, typed service inputs/outputs, domain exception rules,
+  and the narrow cases where boundary-level `try/except` is allowed. Services must not raise `HTTPException` or
+  format transport responses.
+- [ ] **Chat and AI batch** — unify text, streaming, and audio validation/orchestration; move persistence and
+  provider-boundary handling behind focused collaborators; preserve the existing public service entry points while
+  rewriting `chat_service`, `services/chat/*`, conversation, AI, quota, and prompt flows.
+- [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
+  room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
+- [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and
+  player-facing events.
+- [ ] **Dweller/social batch** — reorganize relationships, breeding, happiness, death, assignment, training, and
+  lineage around explicit domain services and CRUD operations.
+- [ ] **Quest/exploration/reward batch** — separate quest settlement, objective evaluation, exploration state,
+  reward delivery, and prerequisite rules.
+- [ ] **Infrastructure batch** — clean up health checks, storage, email, WebSocket/streaming, notifications, and
+  backfill services without hiding operational failures.
+
+**Rewrite rules:** keep each batch below 100 files; preserve public service singleton names during migration; add
+characterization/regression tests before changing behavior; move reusable queries into existing CRUD modules instead
+of introducing a second generic repository layer; remove broad exception handling unless it represents a documented,
+recoverable boundary.
+
+**Success criteria:** endpoints are thin, services contain domain orchestration only, CRUD owns persistence queries,
+transport exceptions stay in the API layer, transaction boundaries are explicit, and each batch passes its focused
+suite plus the full backend suite.
+
 ### P1 — Quest mechanics, rewards, and objectives
 
 The progression loop must be correct and balanced before it grows. Quest rewards and mechanics need an end-to-end

@@ -264,6 +264,7 @@ async def test_change_password_incorrect_current_password(
 # ============================================================================
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_full_registration_verification_flow(
     async_client: AsyncClient,

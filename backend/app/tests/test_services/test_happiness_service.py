@@ -769,6 +769,46 @@ class TestHappinessService:
         negative_names = [m["name"] for m in modifiers["negative"]]
         assert "Low Health" in negative_names
 
+    async def test_get_modifiers_radiated_dweller_health_uses_effective_max(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+    ):
+        """Health ratio uses the radiation-reduced cap: 40/50 is not low health, 40/100 would be."""
+        dweller_data = create_fake_dweller()
+        dweller_data.update(
+            {
+                "first_name": "RadiatedHealth",
+                "last_name": "Mod",
+                "status": "working",
+                "happiness": 60,
+                "health": 40,
+                "max_health": 100,
+                "radiation": 50,
+            }
+        )
+        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+        radiated_dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+        # Good conditions
+        vault.power = 90
+        vault.power_max = 100
+        vault.food = 90
+        vault.food_max = 100
+        vault.water = 90
+        vault.water_max = 100
+        async_session.add(vault)
+        await async_session.commit()
+
+        modifiers = await happiness_service.get_happiness_modifiers(
+            async_session,
+            radiated_dweller.id,
+        )
+
+        # 40/50 = 80% effective health: no low-health penalty
+        negative_names = [m["name"] for m in modifiers["negative"]]
+        assert "Low Health" not in negative_names
+
     async def test_get_modifiers_radiation_dweller(
         self,
         async_session: AsyncSession,

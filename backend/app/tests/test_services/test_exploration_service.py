@@ -17,6 +17,7 @@ from app.schemas.exploration_event import (
     ItemSchema,
     LootEventSchema,
     LootSchema,
+    RestEventSchema,
 )
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
@@ -255,6 +256,13 @@ async def test_complete_exploration_transfers_caps(
 
     await async_session.refresh(exploration)
     await async_session.refresh(dweller)
+    # 65/80 passes the 70% survival check, but 65/100 would not: radiation makes
+    # this a guard against reverting the bonus to base max health.
+    dweller.max_health = 100
+    dweller.health = 65
+    dweller.radiation = 20
+    async_session.add(dweller)
+    await async_session.commit()
     initial_caps = vault.bottle_caps
 
     # Calculate expected XP BEFORE completion (XP uses pre-level-up dweller state)
@@ -437,3 +445,75 @@ async def test_process_danger_radiation_applies_to_dweller(
     await async_session.refresh(dweller)
     assert dweller.radiation == initial_radiation + 11
     assert result.events[-1]["radiation_gain"] == 11
+
+
+@pytest.mark.asyncio
+async def test_rest_event_logs_actual_healing_after_radiation_cap(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A rest heal capped by radiation must log the HP actually restored (PR #534)."""
+    dweller.max_health = 100
+    dweller.radiation = 50  # effective max 50
+    dweller.health = 48  # only 2 HP of headroom
+    async_session.add(dweller)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+    mock_event = RestEventSchema(
+        description="Rested in a safe location and recovered. Gained 10 HP.",
+        health_restored=10,
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.health == 50
+    rest_event = next(e for e in result.events if e["type"] == "rest")
+    assert rest_event["health_restored"] == 2
+    assert "Gained 2 HP" in rest_event["description"]
+
+
+@pytest.mark.asyncio
+async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A Stimpak heal capped by radiation must log the HP actually restored (PR #534)."""
+    dweller.max_health = 100
+    dweller.radiation = 50  # effective max 50
+    dweller.health = 20  # below the 50% auto-heal threshold
+    async_session.add(dweller)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.stimpaks = 1
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+    mock_event = LootEventSchema(
+        description="Found treasure!",
+        loot=LootSchema(
+            item=ItemSchema(name="Desk Fan", rarity="Common", value=15),
+            item_type="junk",
+            caps=25,
+        ),
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert dweller.health == 50  # 20 + 40 requested, capped at effective max
+    assert result.stimpaks == 0
+    item_use = next(e for e in result.events if e["type"] == "item_use")
+    assert item_use["health_restored"] == 30
+    assert "Healed 30 HP" in item_use["description"]

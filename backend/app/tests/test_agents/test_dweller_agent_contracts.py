@@ -1,6 +1,6 @@
 """Deterministic contract tests for the stateless dweller Pydantic AI agents."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
@@ -42,7 +42,8 @@ def _make_dweller() -> MagicMock:
     dweller.weapon = None
     dweller.health = dweller.max_health = 100
     dweller.radiation = 0
-    dweller.effective_max_health = 100
+    # Property-backed so tests mutating max_health/radiation never read a stale cap.
+    type(dweller).effective_max_health = PropertyMock(side_effect=lambda: max(1, dweller.max_health - dweller.radiation))
     dweller.stimpack = 2
     dweller.radaway = 1
     dweller.happiness = 75
@@ -217,8 +218,7 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
     """The AI medical tool exposes live percentages and vault inventory."""
     dweller = _make_dweller()
     dweller.health = 40
-    dweller.radiation = 35
-    dweller.effective_max_health = 65
+    dweller.radiation = 35  # effective max becomes 65
     storage_result = MagicMock()
     storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=3, radaway=4)
     session = MagicMock(execute=AsyncMock(return_value=storage_result))

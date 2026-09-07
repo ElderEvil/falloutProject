@@ -68,6 +68,7 @@ async def test_check_level_up_single_level(
     # Give dweller enough XP for level 2
     dweller.level = 1
     dweller.experience = 300  # More than enough for level 2 (282 XP)
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
     initial_max_health = dweller.max_health
 
     leveled_up, levels_gained = await leveling_service.check_level_up(async_session, dweller)
@@ -89,6 +90,7 @@ async def test_check_level_up_multiple_levels(
     # Give dweller enough XP for level 5
     dweller.level = 1
     dweller.experience = 2000  # Enough for multiple levels
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
     initial_max_health = dweller.max_health
 
     leveled_up, levels_gained = await leveling_service.check_level_up(async_session, dweller)
@@ -129,6 +131,7 @@ async def test_level_up_dweller_directly(
     dweller.level = 5
     dweller.max_health = 100
     dweller.health = 80  # Partially damaged
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
 
     # Level up 3 times
     await leveling_service.level_up_dweller(async_session, dweller, levels=3)

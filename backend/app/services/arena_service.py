@@ -201,7 +201,7 @@ class ArenaService:
                             name=f"{f.first_name} {f.last_name}",
                             level=f.level,
                             health=f.health,
-                            max_health=f.max_health,
+                            max_health=f.effective_max_health,
                             power=combat_power(f),
                         )
                         for f in fighters
@@ -212,7 +212,7 @@ class ArenaService:
                             name=f"{d.first_name} {d.last_name}",
                             level=d.level,
                             health=d.health,
-                            max_health=d.max_health,
+                            max_health=d.effective_max_health,
                         )
                         for d in roster
                     ],

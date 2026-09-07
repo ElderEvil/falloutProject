@@ -8,7 +8,16 @@ vault thriving. Built with modern Python tooling.
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.9-00ff00.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-6.0-00ff00.svg)](https://www.typescriptlang.org/)
+
+## 🧱 Core stack
+
+- **[Pydantic](https://docs.pydantic.dev) + [PydanticAI](https://ai.pydantic.dev)** — the validation layer and the
+  AI agent runtime behind chat, dwellers, and visual attributes.
+- **[astral.sh](https://astral.sh) toolchain** — [uv](https://docs.astral.sh/uv) for projects and dependencies,
+  [ruff](https://docs.astral.sh/ruff) for lint and format, [ty](https://docs.astral.sh/ty) for type checking.
+- **[VoidZero](https://voidzero.dev) toolchain** — [Vite+](https://viteplus.dev) (`vp`: Vite, Vitest, Oxfmt) with
+  Oxlint and Rolldown on the [Oxc](https://oxc.rs) parser.
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming features.
 

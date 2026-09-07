@@ -46,6 +46,22 @@ reproducible cases, unless they block a core progression action.
 
 ## Planned
 
+### Chat/Conversation Service Decomposition (Target: TBD)
+
+Chat handling has concentrated into one oversized service: `chat_service.py` (~660 lines) mixes LLM streaming
+orchestration, provider-failure classification, persistence, and conversation side-effects; `dweller_chat_agent.py`
+(~600 lines) carries agent wiring alongside prompts. Decompose before the AI layer grows further, keeping endpoints
+and WebSocket handlers thin.
+
+- [ ] **Split `chat_service.py`** — extract streaming/fallback orchestration, chat persistence, and conversation
+  side-effects (notifications, place unlocks, happiness application) into focused collaborators.
+- [ ] **Trim `dweller_chat_agent.py`** — move prompt templates and output-schema construction out of agent wiring;
+  keep the agent file as composition only.
+- [ ] **Consolidate provider-failure handling** — one module for quota/credit-exhaustion and provider-error
+  classification shared by text, voice, and WebSocket paths.
+- [ ] **Regression coverage first** — lock current text/voice/WS chat behavior with focused tests before moving code
+  (`test_api/test_chat.py` covers much of it; extend rather than rewrite).
+
 ### Radiation & Medical Reliability
 
 Radiation rules now share configuration-backed service helpers and effective-health behavior. The next pass should

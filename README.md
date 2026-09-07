@@ -4,6 +4,7 @@ A web-based simulation game where you manage a vault full of dwellers, balancing
 vault thriving. Built with modern Python tooling.
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
+[![Backend Coverage](https://gist.githubusercontent.com/ElderEvil/7cc382e5dbf89fbe5bc026b6d8a0ab88/raw/coverage.svg)](https://github.com/ElderEvil/falloutProject/actions/workflows/backend-coverage.yml)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL 18](https://img.shields.io/badge/postgresql-18-blue.svg)](https://www.postgresql.org/)
 [![Vue 3.5](https://img.shields.io/badge/vue-3.5-00ff00.svg)](https://vuejs.org/)

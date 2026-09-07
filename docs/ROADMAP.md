@@ -46,6 +46,25 @@ reproducible cases, unless they block a core progression action.
 
 ## Planned
 
+### Radiation & Medical Reliability
+
+Radiation rules now share configuration-backed service helpers and effective-health behavior. The next pass should
+make treatment, presentation, and death timing equally explicit before adding more radiation sources.
+
+- [ ] **Rad-X** — design and implement a distinct temporary radiation-resistance treatment; define stacking,
+  duration, inventory ownership, exploration behavior, and player-facing progression feedback before adding it to
+  loot or production.
+- [ ] **Effective health API contract** — expose `effective_max_health` consistently in compact and full dweller
+  responses, document the health/radiation relationship, and add API regression coverage for capped healing.
+- [ ] **Medical row-locking** — lock the dweller row while consuming a Stimpack or RadAway so concurrent requests
+  cannot spend the same supply twice or overwrite a newer health/radiation value; cover the guarantee with a real
+  PostgreSQL concurrency test.
+- [ ] **Radiation death lag** — trace tick ordering, offline catch-up, SSE, and notification delivery when radiation
+  reaches the death threshold; ensure the dweller is marked dead in the same authoritative tick and the UI does not
+  show stale living health afterward.
+
+Backend mechanics and invariants are documented in `docs/backend/RADIATION.md`.
+
 ### Recently Shipped — "The Overseer's Toolkit" (2.62–2.67, now on `master`)
 
 **Shipped:** Overseer Briefing (vault state summary + unresolved-item tile count + direct response links), AI

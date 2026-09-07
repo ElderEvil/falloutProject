@@ -9,11 +9,11 @@ Pass multimodal content as a list mixing text with `ImageUrl`, `AudioUrl`, `Vide
 ```python
 from pydantic_ai import Agent, ImageUrl
 
-agent = Agent(model='openai:gpt-5.2')
+agent = Agent(model="openai:gpt-5.2")
 result = agent.run_sync(
     [
-        'What company is this logo from?',
-        ImageUrl(url='https://example.com/logo.png'),
+        "What company is this logo from?",
+        ImageUrl(url="https://example.com/logo.png"),
     ]
 )
 print(result.output)
@@ -30,10 +30,10 @@ Use `message_history=` to continue a conversation across runs.
 ```python
 from pydantic_ai import Agent
 
-agent = Agent('openai:gpt-5.2', instructions='Be a helpful assistant.')
+agent = Agent("openai:gpt-5.2", instructions="Be a helpful assistant.")
 
-result1 = agent.run_sync('Tell me a joke.')
-result2 = agent.run_sync('Explain?', message_history=result1.new_messages())
+result1 = agent.run_sync("Tell me a joke.")
+result2 = agent.run_sync("Explain?", message_history=result1.new_messages())
 print(result2.output)
 ```
 
@@ -58,7 +58,7 @@ async def keep_recent(messages: list[ModelMessage]) -> list[ModelMessage]:
     return messages[-10:] if len(messages) > 10 else messages
 
 
-agent = Agent('openai:gpt-5.2', capabilities=[ProcessHistory(keep_recent)])
+agent = Agent("openai:gpt-5.2", capabilities=[ProcessHistory(keep_recent)])
 ```
 
 Good uses:
@@ -77,13 +77,13 @@ Use `RunContext.enqueue(...)` (from a tool or capability hook) or `AgentRun.enqu
 ```python
 from pydantic_ai import Agent, RunContext
 
-agent = Agent('anthropic:claude-opus-4-7')
+agent = Agent("anthropic:claude-opus-4-7")
 
 
 @agent.tool
 def trigger_alert(ctx: RunContext[None]) -> str:
-    ctx.enqueue('Alert: production is degraded, prioritize triage.')
-    return 'alert raised'
+    ctx.enqueue("Alert: production is degraded, prioritize triage.")
+    return "alert raised"
 ```
 
 A `priority` controls delivery:

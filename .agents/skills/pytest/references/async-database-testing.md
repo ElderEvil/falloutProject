@@ -180,15 +180,11 @@ async def test_user_query(db_session: AsyncSession):
 ```python
 async def test_user_query(db_session: AsyncSession):
     # Create
-    await db_session.execute(
-        insert(User).values(name="Test", email="test@example.com")
-    )
+    await db_session.execute(insert(User).values(name="Test", email="test@example.com"))
     await db_session.commit()
 
     # Read
-    result = await db_session.execute(
-        select(User).where(User.name == "Test")
-    )
+    result = await db_session.execute(select(User).where(User.name == "Test"))
     user = result.scalar_one()
     assert user.email == "test@example.com"
 ```
@@ -201,9 +197,7 @@ async def test_user_query(db_session: AsyncSession):
 async def test_user_with_items(db_session: AsyncSession):
     # Avoid lazy loading in async context
     result = await db_session.execute(
-        select(User)
-        .options(selectinload(User.items))
-        .where(User.id == 1)
+        select(User).options(selectinload(User.items)).where(User.id == 1)
     )
     user = result.scalar_one()
 
@@ -240,9 +234,7 @@ async def test_jsonb_operations(db_session: AsyncSession):
 
     # Containment query
     result = await db_session.execute(
-        select(Document).where(
-            Document.payload.contains({"status": "active"})
-        )
+        select(Document).where(Document.payload.contains({"status": "active"}))
     )
     assert result.scalar_one().id == doc.id
 ```
@@ -290,9 +282,7 @@ async def test_enum_round_trip(db_session: AsyncSession):
 ```python
 async def test_invalid_enum(db_session: AsyncSession):
     with pytest.raises((StatementError, DataError)):
-        await db_session.execute(
-            text("INSERT INTO item (status) VALUES ('invalid')")
-        )
+        await db_session.execute(text("INSERT INTO item (status) VALUES ('invalid')"))
 ```
 
 ## PostgreSQL-Specific
@@ -309,9 +299,7 @@ async def pg_session(postgres_engine: AsyncEngine):
 
     async with postgres_engine.connect() as conn:
         await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
-        await conn.execute(
-            text(f'SET search_path TO "{schema}"')
-        )
+        await conn.execute(text(f'SET search_path TO "{schema}"'))
         await conn.run_sync(SQLModel.metadata.create_all)
         await conn.commit()
 

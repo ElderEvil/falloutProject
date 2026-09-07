@@ -416,6 +416,7 @@ uv run pytest app/tests/test_services/test_game_loop_exploration.py -v
 **Solution:** Use `flag_modified()` after modifying JSONB fields
 ```python
 from sqlalchemy import orm
+
 exploration.events.append(event)
 orm.attributes.flag_modified(exploration, "events")
 ```

@@ -28,7 +28,9 @@ class Dweller(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
     # Relationships use back-populates
-    rooms: list["Room"] = Relationship(back_populates="dwellers", sa_relationship_kwargs={"lazy": "selectin"})
+    rooms: list["Room"] = Relationship(
+        back_populates="dwellers", sa_relationship_kwargs={"lazy": "selectin"}
+    )
 ```
 
 ### Shared Model (Base for Request/Response without table)
@@ -36,23 +38,27 @@ class Dweller(SQLModel, table=True):
 ```python
 class DwellerBase(SQLModel):
     """Shared base for create/update schemas."""
+
     name: str = Field(max_length=100)
     level: int = Field(default=1, ge=1, le=50)
 
 
 class DwellerCreate(DwellerBase):
     """Request schema for creating dwellers."""
+
     vault_id: UUID4
 
 
 class DwellerRead(DwellerBase):
     """Response schema — excludes internal fields."""
+
     id: UUID4
     is_active: bool
 
 
 class DwellerUpdate(DwellerBase):
     """Request schema for updates — all fields optional."""
+
     name: str | None = None
     level: int | None = None
 ```
@@ -152,6 +158,7 @@ class Vault(SQLModel, table=True):
         sa_relationship_kwargs={"lazy": "selectin"},
     )
 
+
 # Accessing loaded relationship
 vault = session.get(Vault, vault_id)
 for dweller in vault.dwellers:  # No N+1, already loaded
@@ -218,6 +225,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.vault import Vault
+
 
 class Dweller(SQLModel, table=True):
     # Forward reference for type checking only

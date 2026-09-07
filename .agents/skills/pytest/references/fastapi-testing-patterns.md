@@ -303,9 +303,7 @@ import pytest
 class TestUserWorkflow:
     """End-to-end user workflow tests."""
 
-    async def test_register_login_protected(
-        self, async_client: AsyncClient
-    ):
+    async def test_register_login_protected(self, async_client: AsyncClient):
         # Register
         response = await async_client.post(
             "/auth/register",

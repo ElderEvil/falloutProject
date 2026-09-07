@@ -317,7 +317,9 @@ async def clean_db(engine: AsyncEngine):
 async def db_session(engine: AsyncEngine):
     async with engine.connect() as conn:
         txn = await conn.begin()
-        async with AsyncSession(bind=conn, join_transaction_mode="create_savepoint") as session:
+        async with AsyncSession(
+            bind=conn, join_transaction_mode="create_savepoint"
+        ) as session:
             yield session
         await txn.rollback()  # Undo all changes
 ```
@@ -345,6 +347,7 @@ Common debugging approach:
 
 ```python
 import asyncio
+
 
 async def test_concurrent_operations(async_client: AsyncClient):
     tasks = [

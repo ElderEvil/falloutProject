@@ -188,11 +188,11 @@ See `../AGENTS.md` "Bug Fix Workflow" + this doc. Key manual checks:
   ```python
   class DwellerRelationshipBriefing(BaseModel):
       partner_name: str | None = None
-      relationship_stage: str | None = None      # friend/romantic/partner/MARRIED/ex
-      affinity: int | None = None                # 0-100
+      relationship_stage: str | None = None  # friend/romantic/partner/MARRIED/ex
+      affinity: int | None = None  # 0-100
       is_pregnant: bool = False
-      children: list[str] = []                   # names
-      parents: list[str] = []                    # names
+      children: list[str] = []  # names
+      parents: list[str] = []  # names
   ```
 - Add a tool on `dweller_chat_agent`:
   ```python

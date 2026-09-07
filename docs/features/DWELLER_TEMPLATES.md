@@ -140,7 +140,9 @@ Add one helper to `StaticGameData`:
 
 ```python
 def get_dwellers_by_rarity(self, rarity: RarityEnum) -> list[DwellerTemplate]: ...
-def pick_template(self, rarity: RarityEnum, rng: Random | None = None) -> DwellerTemplate: ...
+def pick_template(
+    self, rarity: RarityEnum, rng: Random | None = None
+) -> DwellerTemplate: ...
 ```
 
 Template selection excludes a template already active in the target vault. Cross-vault uniqueness is deliberately deferred for later investigation. If no eligible template remains, fall back to a common dweller. No event-bus changes are needed. Trading post, breeding, death, exploration, and chat agents continue to consume `Dweller.bio` / `visual_attributes` / `WastelandLocation`.

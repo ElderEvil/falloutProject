@@ -130,9 +130,11 @@ project/
 ```python
 import pytest
 
+
 @pytest.fixture
 def sample_data():
     return {"key": "value"}
+
 
 @pytest.fixture(scope="session")
 def db_connection():
@@ -150,6 +152,7 @@ asyncio_mode = "auto"
 
 ```python
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_async_function():

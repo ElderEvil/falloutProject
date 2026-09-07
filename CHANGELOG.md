@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.4 (2026-09-07)
+
+### Code Refactoring
+
+* move shared enums out of schema layer ([#547](https://github.com/ElderEvil/falloutProject/issues/547)) f3744a5
+
 ## 2.80.3 (2026-09-07)
 
 ### Bug Fixes

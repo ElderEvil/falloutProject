@@ -1,0 +1,2 @@
+# Formatter skips CSS entirely (design-system files keep hand-rolled style for now).
+*.css

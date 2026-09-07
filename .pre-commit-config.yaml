@@ -16,22 +16,25 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.15.21"
+    rev: "v0.16.6"
     hooks:
+      # Python files only — ruff 0.16 would otherwise re-format code blocks inside *.md
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix ]
+        files: \.py$
       - id: ruff-format
+        files: \.py$
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.11.28
+    rev: 0.12.10
     hooks:
       - id: uv-lock
 
   - repo: local
     hooks:
-      - id: frontend-lint
-        name: frontend lint (staged)
+      - id: frontend-lint-format
+        name: frontend lint+format (staged)
         entry: sh -c 'cd frontend && pnpm exec vp staged'
         language: system
         files: ^frontend/
@@ -40,5 +43,5 @@ repos:
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
   autoupdate_schedule: weekly
-  skip: [frontend-lint]
+  skip: [frontend-lint-format]
   submodules: false

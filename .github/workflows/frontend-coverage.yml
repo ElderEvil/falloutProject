@@ -1,0 +1,67 @@
+name: Frontend Coverage
+
+on:
+  schedule:
+    # Run nightly at 02:30 UTC (30 min after the backend coverage run)
+    - cron: '30 2 * * *'
+  push:
+    branches: [ master ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  frontend-coverage:
+    name: Frontend Tests with Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        working-directory: frontend
+        run: pnpm run test -- --run --coverage --coverage.reporter=json-summary
+
+      - name: Generate coverage badge JSON
+        working-directory: frontend
+        run: |
+          node - <<'NODE'
+          const fs = require('fs')
+          const pct = JSON.parse(fs.readFileSync('coverage/coverage-summary.json'))['total']['lines']['pct']
+          const color = pct >= 90 ? 'brightgreen'
+            : pct >= 80 ? 'green'
+            : pct >= 70 ? 'yellowgreen'
+            : pct >= 60 ? 'yellow'
+            : pct >= 50 ? 'orange'
+            : 'red'
+          const badge = { schemaVersion: 1, label: 'coverage:fe', message: `${pct}%`, color }
+          fs.writeFileSync('coverage-frontend.json', JSON.stringify(badge))
+          NODE
+
+      - name: Upload coverage badge to Gist
+        uses: exuanbo/actions-deploy-gist@47697fceaeea2006a90594ee24eb9cd0a1121ef8 # v1.1.4
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: 7cc382e5dbf89fbe5bc026b6d8a0ab88
+          file_path: frontend/coverage-frontend.json
+          file_type: text

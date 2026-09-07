@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.1 (2026-09-07)
+
+### Bug Fixes
+
+* address PR [#534](https://github.com/ElderEvil/falloutProject/issues/534) review findings — arena serialization and exploration healing logs ce8d145
+* apply radiation to dweller effective health ef65815
+* centralize radiation health rules 689baff
+* guarantee minimum stimpack healing 0f39422
+
 ## 2.80.0 (2026-09-06)
 
 ### Features

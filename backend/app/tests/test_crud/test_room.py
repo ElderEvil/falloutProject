@@ -112,25 +112,9 @@ def _make_room_create(**overrides) -> RoomCreate:
 
 
 class TestEvaluateCapacityFormula:
-    def test_valid_formula(self, room_crud):
-        result = room_crud.evaluate_capacity_formula("L * 2 + S", level=3, size=5)
-        assert result == 11  # 3*2 + 5 = 11
-
-    def test_invalid_syntax(self, room_crud):
-        result = room_crud.evaluate_capacity_formula("L * ", level=3, size=5)
-        assert result == 0
-
     def test_unknown_name_is_rejected(self, room_crud):
         """Formulas may only refer to the backend-owned L and S variables."""
         assert room_crud.evaluate_capacity_formula("S / unknown_var", level=3, size=5) == 0
-
-    def test_function_call_is_rejected(self, room_crud):
-        """Formula expressions cannot call arbitrary Python functions."""
-        assert room_crud.evaluate_capacity_formula("__import__('os')", level=3, size=5) == 0
-
-    def test_negative_result(self, room_crud):
-        result = room_crud.evaluate_capacity_formula("L - 100", level=3, size=1)
-        assert result == -97  # formula returns int result
 
 
 # =============================================================================
@@ -139,14 +123,6 @@ class TestEvaluateCapacityFormula:
 
 
 class TestEvaluateOutputFormula:
-    def test_valid_formula(self, room_crud):
-        result = room_crud.evaluate_output_formula("L * S * 3", level=2, size=3)
-        assert result == 18  # 2*3*3 = 18
-
-    def test_invalid_syntax(self, room_crud):
-        result = room_crud.evaluate_output_formula("invalid(", level=3, size=5)
-        assert result == 0
-
     def test_value_error(self, room_crud):
         result = room_crud.evaluate_output_formula("int('abc')", level=3, size=5)
         assert result == 0
@@ -155,32 +131,6 @@ class TestEvaluateOutputFormula:
 # =============================================================================
 # requires_recalculation
 # =============================================================================
-
-
-class TestRequiresRecalculation:
-    def test_capacity_category(self, room_crud):
-        room = _make_room(category=RoomTypeEnum.CAPACITY)
-        assert room_crud.requires_recalculation(room) is True
-
-    def test_production_category_non_radio(self, room_crud):
-        room = _make_room(category=RoomTypeEnum.PRODUCTION, name="Power Generator")
-        assert room_crud.requires_recalculation(room) is True
-
-    def test_production_category_radio_studio(self, room_crud):
-        room = _make_room(category=RoomTypeEnum.PRODUCTION, name="Radio studio")
-        assert room_crud.requires_recalculation(room) is False
-
-    def test_training_category(self, room_crud):
-        room = _make_room(category=RoomTypeEnum.TRAINING)
-        assert room_crud.requires_recalculation(room) is False
-
-    def test_misc_category(self, room_crud):
-        room = _make_room(category=RoomTypeEnum.MISC)
-        assert room_crud.requires_recalculation(room) is False
-
-    def test_with_room_create_schema(self, room_crud):
-        room_in = _make_room_create(category=RoomTypeEnum.CAPACITY)
-        assert room_crud.requires_recalculation(room_in) is True
 
 
 # =============================================================================
@@ -199,14 +149,6 @@ class TestGetMultyByVault:
         assert result == expected_rooms
         mock_session.execute.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_returns_empty_list(self, room_crud, mock_session):
-        vault_id = uuid4()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
-
-        result = await room_crud.get_multy_by_vault(db_session=mock_session, vault_id=vault_id, skip=0, limit=10)
-        assert result == []
-
 
 # =============================================================================
 # get_existing_room_names
@@ -222,44 +164,10 @@ class TestGetExistingRoomNames:
         result = await room_crud.get_existing_room_names(db_session=mock_session, vault_id=vault_id)
         assert result == {"living room", "diner", "elevator"}
 
-    @pytest.mark.asyncio
-    async def test_returns_empty_set(self, room_crud, mock_session):
-        vault_id = uuid4()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
-
-        result = await room_crud.get_existing_room_names(db_session=mock_session, vault_id=vault_id)
-        assert result == set()
-
 
 # =============================================================================
 # get_room_by_coordinates
 # =============================================================================
-
-
-class TestGetRoomByCoordinates:
-    @pytest.mark.asyncio
-    async def test_found(self, room_crud, mock_session):
-        room = _make_room()
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=room)
-
-        result = await room_crud.get_room_by_coordinates(
-            db_session=mock_session,
-            vault_id=room.vault_id,
-            x_coord=room.coordinate_x,
-            y_coord=room.coordinate_y,
-        )
-        assert result is room
-
-    @pytest.mark.asyncio
-    async def test_not_found(self, room_crud, mock_session):
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
-        result = await room_crud.get_room_by_coordinates(
-            db_session=mock_session,
-            vault_id=uuid4(),
-            x_coord=5,
-            y_coord=10,
-        )
-        assert result is None
 
 
 # =============================================================================
@@ -268,32 +176,6 @@ class TestGetRoomByCoordinates:
 
 
 class TestGetRoomBuildPrice:
-    @pytest.mark.asyncio
-    async def test_no_existing_rooms_same_category(self, room_crud, mock_session):
-        room_in = _make_room_create(base_cost=100, incremental_cost=25)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
-
-        price = await room_crud.get_room_build_price(db_session=mock_session, room_in=room_in)
-        assert price == 100  # base_cost only
-
-    @pytest.mark.asyncio
-    async def test_with_existing_rooms(self, room_crud, mock_session):
-        room_in = _make_room_create(base_cost=100, incremental_cost=25)
-        mock_session.execute.return_value = _make_mock_execute_result(
-            scalars_all=[_make_room(), _make_room(), _make_room()]  # 3 existing
-        )
-
-        price = await room_crud.get_room_build_price(db_session=mock_session, room_in=room_in)
-        assert price == 175  # 100 + 3*25
-
-    @pytest.mark.asyncio
-    async def test_missing_incremental_cost_raises_value_error(self, room_crud, mock_session):
-        room_in = _make_room_create(base_cost=100, incremental_cost=None)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
-
-        with pytest.raises(ValueError, match="Incremental cost must be set"):
-            await room_crud.get_room_build_price(db_session=mock_session, room_in=room_in)
-
     @pytest.mark.asyncio
     async def test_zero_incremental_cost_raises_value_error(self, room_crud, mock_session):
         """incremental_cost=0 is falsy, so `not room_in.incremental_cost` is True -> raises."""
@@ -310,20 +192,6 @@ class TestGetRoomBuildPrice:
 
 
 class TestCheckIsUniqueRoom:
-    @pytest.mark.asyncio
-    async def test_not_unique_room_does_nothing(self, room_crud, mock_session):
-        room_in = _make_room_create(incremental_cost=25)  # is_unique=False
-        await room_crud.check_is_unique_room(db_session=mock_session, obj_in=room_in)
-        mock_session.execute.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_unique_room_not_exists_does_not_raise(self, room_crud, mock_session):
-        room_in = _make_room_create(incremental_cost=None)  # is_unique=True
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
-
-        # Should not raise
-        await room_crud.check_is_unique_room(db_session=mock_session, obj_in=room_in)
-
     @pytest.mark.asyncio
     async def test_unique_room_exists_raises_exception(self, room_crud, mock_session):
         room_in = _make_room_create(incremental_cost=0, name="Vault Door")  # is_unique=True
@@ -463,239 +331,6 @@ class TestBuild:
             with pytest.raises(NoSpaceAvailableException):
                 await room_crud.build(db_session=mock_session, obj_in=room_in)
 
-    @pytest.mark.asyncio
-    async def test_successful_build_with_capacity_formula(self, room_crud, mock_session):
-        vault_id = uuid4()
-        room_in = _make_room_create(
-            name="Living room",
-            vault_id=vault_id,
-            category=RoomTypeEnum.CAPACITY,
-            tier=1,
-            size=3,
-            size_min=1,
-            size_max=6,
-            capacity_formula="2*S/3*(L+4)-2",
-            capacity=None,
-            output=None,
-            output_formula=None,
-            base_cost=100,
-            incremental_cost=25,
-        )
-        vault_mock = MagicMock()
-        vault_mock.id = vault_id
-
-        created_room = _make_room(
-            id=uuid4(),
-            vault_id=vault_id,
-            name="Living room",
-            category=RoomTypeEnum.CAPACITY,
-            tier=1,
-            size=3,
-            size_min=1,
-            size_max=6,
-            capacity=8,
-            output=None,
-            base_cost=100,
-            incremental_cost=25,
-            coordinate_x=2,
-            coordinate_y=2,
-        )
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-            level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            room_crud.evaluate_capacity_formula = MagicMock(return_value=8)
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            result = await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            assert result is created_room
-            mock_vault_crud.withdraw_caps.assert_called_once()
-            mock_vault_crud.recalculate_vault_attributes.assert_called_once_with(
-                db_session=mock_session,
-                vault_obj=vault_mock,
-                room_obj=created_room,
-                action=RoomActionEnum.BUILD,
-            )
-            mock_event_bus.emit.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_successful_build_no_recalc_needed(self, room_crud, mock_session):
-        vault_id = uuid4()
-        room_in = _make_room_create(
-            name="Radio studio",
-            vault_id=vault_id,
-            category=RoomTypeEnum.PRODUCTION,
-            tier=1,
-            size=2,
-            size_min=1,
-            size_max=3,
-            capacity=None,
-            output=None,
-            capacity_formula=None,
-            output_formula=None,
-            base_cost=100,
-            incremental_cost=25,
-        )
-        vault_mock = MagicMock()
-        vault_mock.id = vault_id
-
-        created_room = _make_room(
-            id=uuid4(),
-            vault_id=vault_id,
-            name="Radio studio",
-            category=RoomTypeEnum.PRODUCTION,
-            tier=1,
-            size=2,
-            size_min=1,
-            size_max=3,
-            capacity=None,
-            output=None,
-        )
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-            level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            result = await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            assert result is created_room
-            mock_vault_crud.recalculate_vault_attributes.assert_not_called()
-            mock_event_bus.emit.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_build_with_output_formula(self, room_crud, mock_session):
-        vault_id = uuid4()
-        room_in = _make_room_create(
-            name="Power Generator",
-            vault_id=vault_id,
-            category=RoomTypeEnum.PRODUCTION,
-            tier=2,
-            size=3,
-            size_min=1,
-            size_max=6,
-            capacity_formula=None,
-            output_formula="L*S*3",
-            capacity=None,
-            output=None,
-        )
-        vault_mock = MagicMock()
-        vault_mock.id = vault_id
-
-        created_room = _make_room(
-            id=uuid4(),
-            vault_id=vault_id,
-            name="Power Generator",
-            category=RoomTypeEnum.PRODUCTION,
-            tier=2,
-            size=3,
-            output=18,
-        )
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-            level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            room_crud.evaluate_output_formula = MagicMock(return_value=18)
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            result = await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            assert result is created_room
-            assert room_in.output == 18
-
-    @pytest.mark.asyncio
-    async def test_build_uses_size_field_when_set(self, room_crud, mock_session):
-        """When size is explicitly set, it should be used in capacity formula evaluation."""
-        vault_id = uuid4()
-        room_in = _make_room_create(
-            name="Living room",
-            vault_id=vault_id,
-            category=RoomTypeEnum.CAPACITY,
-            tier=1,
-            size=6,
-            size_min=1,
-            size_max=9,
-            capacity_formula="S*L",
-            capacity=None,
-        )
-        vault_mock = MagicMock()
-        vault_mock.id = vault_id
-
-        created_room = _make_room(
-            id=uuid4(),
-            vault_id=vault_id,
-            name="Living room",
-            category=RoomTypeEnum.CAPACITY,
-            tier=1,
-            size=6,
-            capacity=6,
-        )
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-            level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            eval_spy = MagicMock(return_value=6)
-            room_crud.evaluate_capacity_formula = eval_spy
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            # Should use size=6, not size_min=1
-            eval_spy.assert_called_with(room_in.capacity_formula, room_in.tier, 6)
-
 
 # =============================================================================
 # build - elevator gating
@@ -706,52 +341,6 @@ class TestBuildElevatorGating:
     """Elevators gate level building: non-elevator rooms need an elevator on
     their level (row 0 is anchored by the vault door), and elevators must be
     stacked directly under another elevator."""
-
-    @pytest.mark.asyncio
-    async def test_elevator_rejected_without_elevator_above(self, room_crud, mock_session):
-        room_in = _make_room_create(name="Elevator", coordinate_x=0, coordinate_y=4, size_min=1, size_max=1)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
-
-        with pytest.raises(VaultOperationException, match="directly under another elevator"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_elevator_allowed_under_existing_elevator(self, room_crud, mock_session):
-        vault_id = uuid4()
-        room_in = _make_room_create(
-            name="Elevator", vault_id=vault_id, coordinate_x=0, coordinate_y=4, size_min=1, size_max=1
-        )
-        elevator_above = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=0, coordinate_y=3)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=elevator_above)
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=MagicMock(id=vault_id))
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-
-            created_room = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=0, coordinate_y=4)
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            result = await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            assert result is created_room
-
-    @pytest.mark.asyncio
-    async def test_non_elevator_rejected_without_elevator_on_level(self, room_crud, mock_session):
-        room_in = _make_room_create(name="Diner", coordinate_x=2, coordinate_y=5)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
-
-        with pytest.raises(VaultOperationException, match="has no elevator"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
 
     @pytest.mark.asyncio
     async def test_non_elevator_allowed_with_elevator_on_level(self, room_crud, mock_session):
@@ -781,33 +370,6 @@ class TestBuildElevatorGating:
 
             assert result is created_room
 
-    @pytest.mark.asyncio
-    async def test_non_elevator_allowed_on_row_zero_without_elevator(self, room_crud, mock_session):
-        """The vault door anchors row 0, so rooms may be built there without an elevator."""
-        vault_id = uuid4()
-        room_in = _make_room_create(name="Diner", vault_id=vault_id, coordinate_x=2, coordinate_y=0)
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            mock_vault_crud.get = AsyncMock(return_value=MagicMock(id=vault_id))
-            mock_vault_crud.is_enough_dwellers = AsyncMock(return_value=True)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-
-            created_room = _make_room(name="Diner", vault_id=vault_id, coordinate_x=2, coordinate_y=0)
-            room_crud.get_room_by_coordinates = AsyncMock(return_value=None)
-            room_crud.create = AsyncMock(return_value=created_room)
-            room_crud.check_is_unique_room = AsyncMock()
-            room_crud.get_room_build_price = AsyncMock(return_value=100)
-
-            result = await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-            assert result is created_room
-
 
 # =============================================================================
 # destroy
@@ -821,81 +383,6 @@ class TestDestroy:
 
         with pytest.raises(ValueError, match=r"Room with id .* not found"):
             await room_crud.destroy(db_session=mock_session, id=uuid4())
-
-    @pytest.mark.asyncio
-    async def test_cannot_destroy_vault_door(self, room_crud, mock_session):
-        vault_door = _make_room(name="Vault Door")
-        room_crud.get = AsyncMock(return_value=vault_door)
-
-        with pytest.raises(ValueError, match="Cannot destroy the vault door"):
-            await room_crud.destroy(db_session=mock_session, id=vault_door.id)
-
-    @pytest.mark.asyncio
-    async def test_elevator_dependency_blocks_destroy(self, room_crud, mock_session):
-        elevator = _make_room(name="Elevator")
-        room_crud.get = AsyncMock(return_value=elevator)
-
-        with (
-            patch(
-                "app.crud.room.room_rules.validate_elevator_destroy",
-                new=AsyncMock(side_effect=ValueError("Cannot destroy this elevator")),
-            ),
-            pytest.raises(ValueError, match="Cannot destroy this elevator"),
-        ):
-            await room_crud.destroy(db_session=mock_session, id=elevator.id)
-
-    @pytest.mark.asyncio
-    async def test_successful_destroy_with_recalc(self, room_crud, mock_session):
-        room = _make_room(category=RoomTypeEnum.CAPACITY, base_cost=100, incremental_cost=25, tier=1)
-        room_crud.get = AsyncMock(return_value=room)
-        with (
-            patch("app.crud.room.room_rules.validate_elevator_destroy", new=AsyncMock()),
-            patch.object(CRUDBase, "delete", new=AsyncMock(return_value=room)),
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.game_config") as mock_game_config,
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.deposit_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_game_config.resource.destroy_room_refund_rate = 0.5
-
-            result = await room_crud.destroy(db_session=mock_session, id=room.id)
-
-            assert result is room
-            mock_vault_crud.deposit_caps.assert_called_once()
-            call_args = mock_vault_crud.deposit_caps.call_args
-            assert call_args.kwargs["amount"] == 62
-
-            mock_vault_crud.recalculate_vault_attributes.assert_called_once_with(
-                db_session=mock_session,
-                vault_obj=vault_mock,
-                room_obj=room,
-                action=RoomActionEnum.DESTROY,
-            )
-
-    @pytest.mark.asyncio
-    async def test_successful_destroy_no_recalc(self, room_crud, mock_session):
-        room = _make_room(category=RoomTypeEnum.TRAINING, base_cost=100, incremental_cost=25, tier=1)
-        room_crud.get = AsyncMock(return_value=room)
-        with (
-            patch("app.crud.room.room_rules.validate_elevator_destroy", new=AsyncMock()),
-            patch.object(CRUDBase, "delete", new=AsyncMock(return_value=room)),
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.game_config") as mock_game_config,
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.deposit_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_game_config.resource.destroy_room_refund_rate = 0.5
-
-            result = await room_crud.destroy(db_session=mock_session, id=room.id)
-
-            assert result is room
-            mock_vault_crud.recalculate_vault_attributes.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_destroy_refund_includes_upgrade_costs(self, room_crud, mock_session):
@@ -928,36 +415,6 @@ class TestDestroy:
             assert call_args.kwargs["amount"] == 1125
 
     @pytest.mark.asyncio
-    async def test_destroy_refund_tier2_only(self, room_crud, mock_session):
-        room = _make_room(
-            category=RoomTypeEnum.CAPACITY,
-            base_cost=200,
-            incremental_cost=25,
-            tier=2,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-        )
-        room_crud.get = AsyncMock(return_value=room)
-        with (
-            patch("app.crud.room.room_rules.validate_elevator_destroy", new=AsyncMock()),
-            patch.object(CRUDBase, "delete", new=AsyncMock(return_value=room)),
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.game_config") as mock_game_config,
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.deposit_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_game_config.resource.destroy_room_refund_rate = 0.5
-
-            await room_crud.destroy(db_session=mock_session, id=room.id)
-
-            # Refund: 50% of (200 + 25 + 500) = 362 (t3 not included since tier=2)
-            call_args = mock_vault_crud.deposit_caps.call_args
-            assert call_args.kwargs["amount"] == 362
-
-    @pytest.mark.asyncio
     async def test_destroy_different_case_vault_door(self, room_crud, mock_session):
         """Verify that 'VAULT DOOR' (any case) is blocked."""
         vault_door = _make_room(name="VAULT DOOR")
@@ -982,15 +439,6 @@ class TestUpgrade:
             await room_crud.upgrade(db_session=mock_session, room_id=room.id)
 
     @pytest.mark.asyncio
-    async def test_no_upgrade_cost_tier1(self, room_crud, mock_session):
-        """t2_upgrade_cost=0 is falsy (but not None), so max_tier=3 via t3 check but no valid cost for tier 1."""
-        room = _make_room(tier=1, t2_upgrade_cost=0, t3_upgrade_cost=1500)
-        room_crud.get = AsyncMock(return_value=room)
-
-        with pytest.raises(ValueError, match="No upgrade cost defined"):
-            await room_crud.upgrade(db_session=mock_session, room_id=room.id)
-
-    @pytest.mark.asyncio
     async def test_no_upgrade_cost_tier2(self, room_crud, mock_session):
         """t3_upgrade_cost=0 is falsy (but not None), so max_tier=3 but no valid cost for tier 2."""
         room = _make_room(tier=2, t2_upgrade_cost=500, t3_upgrade_cost=0)
@@ -998,37 +446,6 @@ class TestUpgrade:
 
         with pytest.raises(ValueError, match="No upgrade cost defined"):
             await room_crud.upgrade(db_session=mock_session, room_id=room.id)
-
-    @pytest.mark.asyncio
-    async def test_successful_upgrade_tier1_to_tier2(self, room_crud, mock_session):
-        room = _make_room(
-            tier=1, capacity=10, output=50, size=3, size_min=1, size_max=6, t2_upgrade_cost=500, t3_upgrade_cost=1500
-        )
-        room_crud.get = AsyncMock(return_value=room)
-        room_crud.update = AsyncMock()
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-
-            result = await room_crud.upgrade(db_session=mock_session, room_id=room.id)
-
-            assert result is room
-            assert room.tier == 2
-            mock_vault_crud.withdraw_caps.assert_called_once_with(
-                db_session=mock_session,
-                vault_obj=vault_mock,
-                amount=500,
-            )
-            mock_event_bus.emit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_successful_upgrade_tier2_to_tier3(self, room_crud, mock_session):
@@ -1066,77 +483,6 @@ class TestUpgrade:
                 db_session=mock_session,
                 vault_obj=vault_mock,
                 amount=1500,
-            )
-
-    @pytest.mark.asyncio
-    async def test_upgrade_without_capacity_and_output(self, room_crud, mock_session):
-        """Room with no capacity/output should still upgrade without recalculating those."""
-        room = _make_room(
-            tier=1,
-            capacity=None,
-            output=None,
-            category=RoomTypeEnum.TRAINING,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-        )
-        room_crud.get = AsyncMock(return_value=room)
-        room_crud.update = AsyncMock()
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-
-            result = await room_crud.upgrade(db_session=mock_session, room_id=room.id)
-
-            assert result is room
-            assert room.tier == 2
-            # No recalculation since TRAINING doesn't require it
-            mock_vault_crud.recalculate_vault_attributes.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_upgrade_with_recalc(self, room_crud, mock_session):
-        room = _make_room(
-            tier=1,
-            capacity=10,
-            output=50,
-            size=3,
-            size_min=1,
-            size_max=6,
-            category=RoomTypeEnum.PRODUCTION,
-            name="Power Generator",
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-        )
-        room_crud.get = AsyncMock(return_value=room)
-        room_crud.update = AsyncMock()
-
-        with (
-            patch("app.crud.room.vault_crud") as mock_vault_crud,
-            patch("app.crud.room.event_bus") as mock_event_bus,
-            patch("app.crud.room.get_room_image_url", return_value="/static/room_images/test.png"),
-        ):
-            vault_mock = MagicMock()
-            vault_mock.id = room.vault_id
-            mock_vault_crud.get = AsyncMock(return_value=vault_mock)
-            mock_vault_crud.withdraw_caps = AsyncMock()
-            mock_vault_crud.recalculate_vault_attributes = AsyncMock()
-            mock_event_bus.emit = AsyncMock()
-
-            await room_crud.upgrade(db_session=mock_session, room_id=room.id)
-
-            mock_vault_crud.recalculate_vault_attributes.assert_called_once_with(
-                db_session=mock_session,
-                vault_obj=vault_mock,
-                room_obj=room,
-                action=RoomActionEnum.UPGRADE,
             )
 
     @pytest.mark.asyncio

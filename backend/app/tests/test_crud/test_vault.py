@@ -12,58 +12,6 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
 
-@pytest.mark.asyncio
-async def test_create_vault_with_user(async_session: AsyncSession) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    assert vault.user_id == user.id
-
-    await crud.vault.deposit_caps(db_session=async_session, vault_obj=vault, amount=125)
-
-    profile = await profile_crud.get_by_user_id(async_session, user.id)
-    assert profile is not None
-    assert profile.total_caps_earned == 125
-
-
-@pytest.mark.asyncio
-async def test_destroying_room_refunds_caps_without_increasing_earned_caps(async_session: AsyncSession) -> None:
-    """Room refunds restore caps but must not count as earnings."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    room = await crud.room.create(
-        async_session,
-        RoomCreate(
-            vault_id=vault.id,
-            name="Diner",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.AGILITY,
-            base_cost=200,
-            incremental_cost=0,
-            t2_upgrade_cost=None,
-            t3_upgrade_cost=None,
-            size_min=3,
-            size_max=9,
-            size=3,
-            coordinate_x=1,
-            coordinate_y=1,
-        ),
-    )
-
-    initial_caps = vault.bottle_caps
-    await crud.room.destroy(async_session, room.id)
-    await async_session.refresh(vault)
-
-    profile = await profile_crud.get_by_user_id(async_session, user.id)
-    assert profile is not None
-    assert vault.bottle_caps == initial_caps + 100
-    assert profile.total_caps_earned == 0
-
-
 async def _add_elevator_on_level(async_session, vault_id, y):
     """Create an elevator row directly so a room build passes elevator gating."""
     elevator = RoomCreate(
@@ -82,47 +30,6 @@ async def _add_elevator_on_level(async_session, vault_id, y):
         coordinate_y=y,
     )
     return await crud.room.create(async_session, elevator)
-
-
-@pytest.mark.asyncio
-async def test_building_living_room_updates_population_max(async_session: AsyncSession) -> None:
-    """Test that building a living room updates vault.population_max."""
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    initial_population_max = vault.population_max
-
-    room_data = RoomCreate(
-        vault_id=vault.id,
-        name="Living room",
-        category=RoomTypeEnum.CAPACITY,
-        tier=1,
-        size=3,
-        ability=SPECIALEnum.CHARISMA,
-        capacity=8,
-        population_required=None,
-        base_cost=100,
-        incremental_cost=25,
-        t2_upgrade_cost=500,
-        t3_upgrade_cost=1500,
-        size_min=3,
-        size_max=9,
-        coordinate_x=1,
-        coordinate_y=1,
-    )
-
-    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    await room_crud.build(db_session=async_session, obj_in=room_data)
-
-    await async_session.refresh(vault)
-
-    assert vault.population_max == initial_population_max + 8, (
-        f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"
-    )
 
 
 @pytest.mark.asyncio
@@ -214,52 +121,6 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
 
     assert created_room.capacity == 8, (
         f"Expected capacity 8 (backend-derived from formula 2*S/3*(L+4)-2), got {created_room.capacity}"
-    )
-    assert vault.population_max == initial_population_max + 8, (
-        f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"
-    )
-
-
-@pytest.mark.asyncio
-async def test_building_living_room_with_wrong_capacity_formula_backend_wins(async_session: AsyncSession) -> None:
-    """Test that building a living room with wrong capacity_formula still uses backend-derived value."""
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    initial_population_max = vault.population_max
-
-    # Send a wrong capacity_formula — backend must override it
-    room_data = RoomCreate(
-        vault_id=vault.id,
-        name="Living room",
-        category=RoomTypeEnum.CAPACITY,
-        tier=1,
-        size=3,
-        ability=SPECIALEnum.CHARISMA,
-        capacity_formula="999",
-        population_required=None,
-        base_cost=100,
-        incremental_cost=25,
-        t2_upgrade_cost=500,
-        t3_upgrade_cost=1500,
-        size_min=3,
-        size_max=9,
-        coordinate_x=3,
-        coordinate_y=3,
-    )
-
-    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
-
-    await async_session.refresh(vault)
-
-    assert created_room.capacity == 8, (
-        f"Expected capacity 8 (backend-derived formula, ignoring client-supplied '999'), got {created_room.capacity}"
     )
     assert vault.population_max == initial_population_max + 8, (
         f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"

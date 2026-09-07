@@ -17,22 +17,29 @@ from typing import Any
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.grid_config import (
+    GRID_BUILD_X_MAX,
+    GRID_BUILD_Y_MAX,
+    GRID_X_MAX,
+    GRID_X_MIN,
+    GRID_Y_MAX,
+    GRID_Y_MIN,
+)
 from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
 from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
-logger = logging.getLogger(__name__)
+__all__ = [
+    "GRID_BUILD_X_MAX",
+    "GRID_BUILD_Y_MAX",
+    "GRID_X_MAX",
+    "GRID_X_MIN",
+    "GRID_Y_MAX",
+    "GRID_Y_MIN",
+]
 
-# Vault map grid geometry — design constraints, deliberately not env-tunable.
-# The UI renders GRID_BUILD bounds and locks rows beyond them; hard caps exist so
-# seeded/admin-side rooms can occupy the reserved expansion area without code changes.
-GRID_X_MIN = 0
-GRID_X_MAX = 9  # hard cap; buildable area is 0..GRID_BUILD_X_MAX
-GRID_Y_MIN = 0
-GRID_Y_MAX = 25  # hard cap, includes locked expansion rows
-GRID_BUILD_X_MAX = 7  # buildable columns 0..7 (8 columns, matches RoomGrid)
-GRID_BUILD_Y_MAX = 15  # buildable rows 0..15; rows 16..25 are locked expansion
+logger = logging.getLogger(__name__)
 
 
 class GameLoopConfig(BaseSettings):

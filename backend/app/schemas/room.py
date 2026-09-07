@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
-from app.core.game_config import GRID_BUILD_X_MAX, GRID_BUILD_Y_MAX, GRID_X_MIN, GRID_Y_MIN
+from app.core.grid_config import GRID_BUILD_X_MAX, GRID_BUILD_Y_MAX, GRID_X_MIN, GRID_Y_MIN
 from app.models.room import RoomBase
 from app.utils.partial import optional
 

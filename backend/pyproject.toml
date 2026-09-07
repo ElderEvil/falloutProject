@@ -228,6 +228,13 @@ convention = "google"
 "app/services/**" = ["D", "DOC"]
 "scripts/**" = ["D", "DOC", "suspicious-non-cryptographic-random-usage", "subprocess-without-shell-equals-true", "start-process-with-partial-path", "print", "TC"]
 
+[tool.ty.environment]
+python-version = "3.13"
+
+[tool.ty.src]
+# Tests are mock-heavy; production code is the ratchet target (AGENTS.md: ty = incremental cleanup, not a CI gate).
+exclude = ["app/tests"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"

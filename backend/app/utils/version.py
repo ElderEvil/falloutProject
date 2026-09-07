@@ -5,13 +5,8 @@ Reads version from pyproject.toml and provides system info.
 """
 
 import sys
+import tomllib
 from pathlib import Path
-
-# Python 3.11+ has tomllib built-in, older versions need tomli
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
 
 
 def get_app_version() -> str:

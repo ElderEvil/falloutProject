@@ -9,12 +9,12 @@ from sqlalchemy import orm
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
-from app.schemas.common import RarityEnum
 from app.schemas.exploration_event import ExplorationEventType, OutfitSchema, WeaponSchema
 from app.services.exploration.event_generator import event_generator
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
@@ -197,7 +197,7 @@ class EventService:
 
         if new_health <= 0:
             # Dweller dies in the wasteland
-            from app.schemas.common import DeathCauseEnum
+            from app.core.enums import DeathCauseEnum
             from app.services.death_service import death_service
 
             await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)

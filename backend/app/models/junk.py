@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, ClassVar
 from pydantic import UUID4, model_validator
 from sqlmodel import Field, Relationship
 
+from app.core.enums import JunkTypeEnum, RarityEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common import JunkTypeEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.storage import Storage

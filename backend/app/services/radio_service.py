@@ -8,11 +8,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
 

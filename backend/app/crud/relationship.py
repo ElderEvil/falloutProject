@@ -8,9 +8,9 @@ from sqlalchemy import update as sa_update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import PARTNER_LINKED_STAGES
 from app.crud.base import CRUDBase
 from app.models.relationship import Relationship
-from app.schemas.common import PARTNER_LINKED_STAGES
 from app.schemas.relationship import RelationshipCreate, RelationshipUpdate
 
 

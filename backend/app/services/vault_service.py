@@ -11,6 +11,14 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
+from app.core.enums import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RarityEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
@@ -19,14 +27,6 @@ from app.crud.vault import vault as vault_crud
 from app.models import Room, Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import (
-    AgeGroupEnum,
-    DwellerStatusEnum,
-    GenderEnum,
-    RarityEnum,
-    RoomTypeEnum,
-    SPECIALEnum,
-)
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
@@ -386,14 +386,14 @@ class VaultService:
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Create initial weapons and outfits for testing."""
 
-        from app.models.outfit import Outfit
-        from app.models.weapon import Weapon
-        from app.schemas.common import (
+        from app.core.enums import (
             OutfitTypeEnum,
             RarityEnum,
             WeaponSubtypeEnum,
             WeaponTypeEnum,
         )
+        from app.models.outfit import Outfit
+        from app.models.weapon import Weapon
         from app.utils.outfit_assets import get_outfit_image_url
         from app.utils.weapon_assets import get_weapon_image_url
 
@@ -490,10 +490,10 @@ class VaultService:
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
+        from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
         from app.crud.dweller import dweller as dweller_crud
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
-        from app.schemas.common import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
         from app.utils.outfit_assets import get_outfit_image_url
         from app.utils.weapon_assets import get_weapon_image_url
 

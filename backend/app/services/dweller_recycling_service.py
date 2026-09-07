@@ -13,10 +13,10 @@ from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)

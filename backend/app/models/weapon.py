@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 from pydantic import UUID4, field_validator
 from sqlmodel import Field, Relationship
 
+from app.core.enums import WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.dweller import Dweller
 from app.models.item import ItemBase
-from app.schemas.common import WeaponSubtypeEnum, WeaponTypeEnum
 
 if TYPE_CHECKING:
     from app.models.storage import Storage

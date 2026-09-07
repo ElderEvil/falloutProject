@@ -8,6 +8,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as crud_outfit
@@ -20,7 +21,6 @@ from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
-from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.event_bus import GameEvent, event_bus

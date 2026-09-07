@@ -1,7 +1,7 @@
 from pydantic import UUID4
 
+from app.core.enums import ItemTypeEnum
 from app.models.item import ItemBase
-from app.schemas.common import ItemTypeEnum
 from app.utils.partial import optional
 
 

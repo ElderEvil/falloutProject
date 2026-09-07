@@ -9,12 +9,12 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -593,8 +593,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         self, db_session: AsyncSession, dweller_id: UUID4
     ) -> DwellerReadWithRoomID | None:
         """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
+        from app.core.enums import SPECIALEnum
         from app.models.room import Room
-        from app.schemas.common import SPECIALEnum
 
         dweller_obj = await self.get(db_session, dweller_id)
         validate_automatic_assignment(dweller_obj)

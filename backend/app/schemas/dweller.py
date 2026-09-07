@@ -4,10 +4,7 @@ from typing import Annotated
 from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 from sqlmodel import SQLModel
 
-from app.models.dweller import DwellerBase
-from app.options.factions import FactionOption, faction_restrictions
-from app.options.races import RaceOption
-from app.schemas.common import (
+from app.core.enums import (
     STATE_OF_BEING_TYPE,
     AgeGroupEnum,
     DeathCauseEnum,
@@ -20,6 +17,9 @@ from app.schemas.common import (
     SPECIALEnum,
     WeaponTypeEnum,
 )
+from app.models.dweller import DwellerBase
+from app.options.factions import FactionOption, faction_restrictions
+from app.options.races import RaceOption
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
 from app.schemas.vault import VaultRead

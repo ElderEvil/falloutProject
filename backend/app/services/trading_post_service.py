@@ -14,11 +14,11 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum
-from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerReadLess
 from app.schemas.trading import TradeMarketResponse, TradeOffer, TradeResultResponse
 from app.services.dweller_recycling_service import dweller_recycling_service

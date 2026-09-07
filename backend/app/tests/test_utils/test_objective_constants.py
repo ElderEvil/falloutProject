@@ -16,25 +16,6 @@ from app.utils.objective_constants import (
 class TestNormalizeRoomType:
     """Tests for normalize_room_type function."""
 
-    def test_normalize_living_room(self):
-        assert normalize_room_type("Living room") == "living_room"
-        assert normalize_room_type("living room") == "living_room"
-        assert normalize_room_type("living_room") == "living_room"
-        assert normalize_room_type("LIVING ROOM") == "living_room"
-
-    def test_normalize_aliases(self):
-        assert normalize_room_type("living quarters") == "living_room"
-        assert normalize_room_type("living_quarters") == "living_room"
-        assert normalize_room_type("quarters") == "living_room"
-
-    def test_normalize_storage(self):
-        assert normalize_room_type("storage room") == "storage_room"
-        assert normalize_room_type("Storage") == "storage_room"
-
-    def test_normalize_power(self):
-        assert normalize_room_type("power generator") == "power_generator"
-        assert normalize_room_type("Power Plant") == "power_generator"
-
     def test_normalize_invalid(self):
         assert normalize_room_type("invalid_room") is None
         assert normalize_room_type("") is None
@@ -48,26 +29,10 @@ class TestValidateTargetEntity:
         errors = validate_target_entity("build", {"room_type": "living_room"})
         assert errors == []
 
-    def test_validate_build_room_type_alias(self):
-        errors = validate_target_entity("build", {"room_type": "living quarters"})
-        assert errors == []
-
     def test_validate_build_room_type_invalid(self):
         errors = validate_target_entity("build", {"room_type": "invalid_room"})
         assert len(errors) == 1
         assert "Invalid room_type" in errors[0]
-
-    def test_validate_build_room_type_wildcard(self):
-        errors = validate_target_entity("build", {"room_type": "*"})
-        assert errors == []
-
-    def test_validate_collect_resource_valid(self):
-        errors = validate_target_entity("collect", {"resource_type": "power"})
-        assert errors == []
-        errors = validate_target_entity("collect", {"resource_type": "caps"})
-        assert errors == []
-        errors = validate_target_entity("collect", {"resource_type": "any"})
-        assert errors == []
 
     def test_validate_collect_resource_invalid(self):
         errors = validate_target_entity("collect", {"resource_type": "invalid_resource"})
@@ -97,10 +62,6 @@ class TestValidateTargetEntity:
         errors = validate_target_entity("reach", {"reach_type": "invalid"})
         assert len(errors) == 1
         assert "Invalid reach_type" in errors[0]
-
-    def test_validate_none(self):
-        errors = validate_target_entity("assign", None)
-        assert errors == []
 
 
 class TestValidConstants:

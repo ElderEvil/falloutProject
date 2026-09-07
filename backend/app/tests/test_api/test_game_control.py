@@ -18,6 +18,7 @@ from app.tests.factory.rooms import create_fake_room
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_resume_vault(
     async_client: AsyncClient,
@@ -50,6 +51,7 @@ async def test_resume_vault(
     assert data["resumed_at"] is not None
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_manual_tick(
     async_client: AsyncClient,
@@ -118,6 +120,7 @@ async def test_get_incidents(
     assert len(data["incidents"]) == 0
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_vault_initialization_creates_game_state(
     async_client: AsyncClient,

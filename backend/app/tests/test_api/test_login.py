@@ -6,6 +6,7 @@ from app.core.config import settings
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_refresh_token(async_client: AsyncClient) -> None:
     # Step 1: Obtain access and refresh tokens through login

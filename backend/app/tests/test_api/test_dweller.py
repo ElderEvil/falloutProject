@@ -27,6 +27,7 @@ async def test_extend_bio_endpoint_delegates_to_ai_service() -> None:
     extend.assert_awaited_once_with(db_session=session, dweller_id=dweller_id, user=user)
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_create_dweller(
     async_client: AsyncClient,
@@ -54,6 +55,7 @@ async def test_create_dweller(
     assert "status" in response_data
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_read_dweller_list_exposes_weapon_type(
     async_client: AsyncClient,
@@ -69,6 +71,7 @@ async def test_read_dweller_list_exposes_weapon_type(
     assert by_id[str(dweller.id)]["weapon_type"] == weapon.weapon_type.value
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_delete_dweller(
     async_client: AsyncClient,

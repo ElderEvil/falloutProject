@@ -11,6 +11,7 @@ from app.schemas.room import RoomCreate
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_get_radio_stats_with_radio(
     async_client: AsyncClient,
@@ -60,6 +61,7 @@ async def test_get_radio_stats_with_radio(
     assert len(data["speedup_multipliers"]) == 1
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_manual_recruit_success(
     async_client: AsyncClient,

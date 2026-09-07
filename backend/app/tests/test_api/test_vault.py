@@ -10,6 +10,7 @@ from app.tests.factory.vaults import create_fake_vault
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_create_vault(
     async_client: AsyncClient,
@@ -28,6 +29,7 @@ async def test_create_vault(
     assert response_data["user_id"] == vault_data["user_id"]
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_read_vault_list(
     async_client: AsyncClient,
@@ -245,6 +247,7 @@ async def test_auto_assign_training_room_sets_training_status(
             assert training.room_id == training_room.id
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_vault_initiate_superuser_creates_25_dwellers(
     async_client: AsyncClient,

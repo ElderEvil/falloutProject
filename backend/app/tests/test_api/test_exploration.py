@@ -16,6 +16,7 @@ from app.schemas.exploration import ExplorationCreate
 from app.services.exploration_service import exploration_service
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_send_dweller_to_wasteland_success(
     async_client: AsyncClient,
@@ -191,6 +192,7 @@ async def test_recall_dweller_success(
     assert vault.bottle_caps == initial_caps + 50
 
 
+@pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_complete_exploration_success(
     async_client: AsyncClient,

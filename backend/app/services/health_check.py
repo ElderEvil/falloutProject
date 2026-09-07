@@ -4,6 +4,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Literal, cast
 
 import aiosmtplib
 import httpx
@@ -22,6 +23,11 @@ except ImportError:
     broker = None
 
 logger = logging.getLogger(__name__)
+
+_LOCAL_AI_PROVIDERS: dict[Literal["ollama", "lmstudio"], str] = {
+    "ollama": "Ollama",
+    "lmstudio": "LM Studio",
+}
 
 
 class ServiceStatus(StrEnum):
@@ -199,25 +205,26 @@ class HealthCheckService:
             )
 
     @staticmethod
-    async def check_ollama() -> HealthCheckResult:
-        """Check Ollama service connectivity when using ollama provider.
+    async def check_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
+        """Check local AI provider connectivity (Ollama / LM Studio, OpenAI-compatible /models).
 
         Returns:
             HealthCheckResult with connection status
         """
-        # Only check Ollama if it's the configured AI provider
-        if settings.AI_PROVIDER != "ollama":
+        label = _LOCAL_AI_PROVIDERS[provider]
+        base_url = settings.OLLAMA_BASE_URL if provider == "ollama" else settings.LMSTUDIO_BASE_URL
+
+        if provider != settings.AI_PROVIDER:
             return HealthCheckResult(
-                service="ollama",
+                service=provider,
                 status=ServiceStatus.DEGRADED,
-                message="Ollama not configured (using different AI provider)",
+                message=f"{label} not configured (using different AI provider)",
                 details={"configured": False, "ai_provider": settings.AI_PROVIDER},
             )
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # Check if Ollama is running
-                response = await client.get(f"{settings.OLLAMA_BASE_URL}/models")
+                response = await client.get(f"{base_url}/models")
 
                 if response.status_code == 200:
                     models_data = response.json()
@@ -230,55 +237,65 @@ class HealthCheckService:
 
                     if model_available:
                         return HealthCheckResult(
-                            service="ollama",
+                            service=provider,
                             status=ServiceStatus.HEALTHY,
-                            message=f"Ollama connection successful, model '{configured_model}' available",
+                            message=f"{label} connection successful, model '{configured_model}' available",
                             details={
-                                "base_url": settings.OLLAMA_BASE_URL,
+                                "base_url": base_url,
                                 "configured_model": configured_model,
                                 "available_models": model_names[:5],  # Show first 5 models
                             },
                         )
+                    recommendation = (
+                        f"Pull model locally with: ollama pull {configured_model}"
+                        if provider == "ollama"
+                        else f"Load model '{configured_model}' in LM Studio"
+                    )
                     return HealthCheckResult(
-                        service="ollama",
+                        service=provider,
                         status=ServiceStatus.DEGRADED,
-                        message=f"Ollama running but model '{configured_model}' not found",
+                        message=f"{label} running but model '{configured_model}' not found",
                         details={
-                            "base_url": settings.OLLAMA_BASE_URL,
+                            "base_url": base_url,
                             "configured_model": configured_model,
                             "available_models": model_names,
-                            "recommendation": (f"Pull model locally with: ollama pull {configured_model}"),
+                            "recommendation": recommendation,
                         },
                     )
                 return HealthCheckResult(
-                    service="ollama",
+                    service=provider,
                     status=ServiceStatus.UNHEALTHY,
-                    message=f"Ollama returned unexpected status: {response.status_code}",
-                    details={"base_url": settings.OLLAMA_BASE_URL, "status_code": response.status_code},
+                    message=f"{label} returned unexpected status: {response.status_code}",
+                    details={"base_url": base_url, "status_code": response.status_code},
                 )
         except (httpx.ConnectError, httpx.TimeoutException, Exception) as e:
+            serve_hint = (
+                "Ensure the local Ollama service is running: ollama serve"
+                if provider == "ollama"
+                else "Ensure the LM Studio server is running"
+            )
             if isinstance(e, httpx.ConnectError):
-                logger.warning("Ollama health check failed - connection error: %s", e)
-                message = "Cannot connect to Ollama service"
+                logger.warning("%s health check failed - connection error: %s", label, e)
+                message = f"Cannot connect to {label} service"
                 details = {
-                    "base_url": settings.OLLAMA_BASE_URL,
+                    "base_url": base_url,
                     "error": str(e),
-                    "recommendation": ("Ensure the local Ollama service is running: ollama serve"),
+                    "recommendation": serve_hint,
                 }
             elif isinstance(e, httpx.TimeoutException):
-                logger.warning("Ollama health check timed out")
-                message = "Ollama connection timed out"
+                logger.warning("%s health check timed out", label)
+                message = f"{label} connection timed out"
                 details = {
-                    "base_url": settings.OLLAMA_BASE_URL,
+                    "base_url": base_url,
                     "error": "Connection timeout after 10 seconds",
                 }
             else:
-                logger.exception("Ollama health check failed")
-                message = f"Ollama check failed: {e!s}"
-                details = {"base_url": settings.OLLAMA_BASE_URL, "error": str(e)}
+                logger.exception("%s health check failed", label)
+                message = f"{label} check failed: {e!s}"
+                details = {"base_url": base_url, "error": str(e)}
 
             return HealthCheckResult(
-                service="ollama",
+                service=provider,
                 status=ServiceStatus.UNHEALTHY,
                 message=message,
                 details=details,
@@ -359,13 +376,16 @@ class HealthCheckService:
         *,
         include_dramatiq: bool = True,
         include_smtp: bool = False,
-        include_ollama: bool = False,
+        include_local_ai: bool = False,
         include_rustfs: bool = True,
     ) -> dict[str, HealthCheckResult]:
         """Check all services and return results.
 
         SMTP is opt-in (no mail provider in production yet); pass
         include_smtp=True to probe it explicitly via check_smtp().
+        include_local_ai probes the configured local AI provider
+        (Ollama / LM Studio) via check_local_ai(); nothing is probed
+        when no local provider is configured.
         """
         results = {}
 
@@ -383,10 +403,10 @@ class HealthCheckService:
             rustfs_result = await asyncio.to_thread(self.check_rustfs)
             results["rustfs"] = rustfs_result
 
-        # Check Ollama (if using ollama provider)
-        if include_ollama:
-            ollama_result = await self.check_ollama()
-            results["ollama"] = ollama_result
+        # Check local AI provider (Ollama / LM Studio) when one is configured
+        if include_local_ai and settings.AI_PROVIDER in _LOCAL_AI_PROVIDERS:
+            local_provider = cast('Literal["ollama", "lmstudio"]', settings.AI_PROVIDER)
+            results[local_provider] = await self.check_local_ai(local_provider)
 
         # Check SMTP (optional, may timeout if mail service unavailable)
         if include_smtp:

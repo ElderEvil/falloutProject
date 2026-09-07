@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import cast
+from typing import Literal, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiosmtplib
 import httpx
 import pytest
 from botocore.exceptions import EndpointConnectionError
@@ -352,150 +353,135 @@ def test_check_rustfs_endpoint_connection_error_is_degraded() -> None:
 
 
 # =============================================================================
-# check_ollama
+# check_local_ai
 # =============================================================================
 
 
-@pytest.mark.asyncio
-async def test_check_ollama_not_configured() -> None:
-    """AI_PROVIDER is not ollama."""
-    with patch.object(settings, "AI_PROVIDER", "openai"):
-        result = await HealthCheckService.check_ollama()
+def _local_ai_response(status_code: int, models: list[str] | None = None) -> MagicMock:
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    if models is not None:
+        mock_response.json.return_value = {"data": [{"id": model} for model in models]}
+    return mock_response
 
-    assert result.service == "ollama"
+
+def _local_ai_client(get_effect: MagicMock | Exception) -> MagicMock:
+    """AsyncClient mock whose .get returns get_effect, or raises it when given an exception."""
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    if isinstance(get_effect, Exception):
+        mock_client.get = AsyncMock(side_effect=get_effect)
+    else:
+        mock_client.get = AsyncMock(return_value=get_effect)
+    return mock_client
+
+
+@pytest.mark.parametrize("provider", [pytest.param("ollama", id="ollama"), pytest.param("lmstudio", id="lmstudio")])
+@pytest.mark.asyncio
+async def test_check_local_ai_not_configured(provider: Literal["ollama", "lmstudio"]) -> None:
+    """AI_PROVIDER is not the checked local provider."""
+    with patch.object(settings, "AI_PROVIDER", "openai"):
+        result = await HealthCheckService.check_local_ai(provider)
+
+    assert result.service == provider
     assert result.status == ServiceStatus.DEGRADED
     assert "not configured" in result.message
     assert result.details is not None
     assert result.details["ai_provider"] == "openai"
 
 
-@pytest.mark.asyncio
-async def test_check_ollama_healthy_model_available() -> None:
-    """Ollama responds with models and configured model is found."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": [{"id": "llama2:latest"}, {"id": "mistral:7b"}]}
-
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(return_value=mock_response)
-
+@pytest.fixture
+def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmstudio"]:
+    """Patch settings for the parametrized local AI provider and yield its name."""
+    provider: Literal["ollama", "lmstudio"] = request.param
+    base_url = "http://localhost:11434/v1" if provider == "ollama" else "http://localhost:1234/v1"
     with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+        patch.object(settings, "AI_PROVIDER", provider),
+        patch.object(settings, f"{provider.upper()}_BASE_URL", base_url),
         patch.object(settings, "AI_MODEL", "llama2"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
     ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.service == "ollama"
-    assert result.status == ServiceStatus.HEALTHY
-    assert "llama2" in result.message
+        yield provider
 
 
+@pytest.mark.parametrize(
+    ("local_ai_provider", "get_effect", "expected_status", "message_fragment"),
+    [
+        pytest.param(
+            "ollama",
+            _local_ai_response(200, ["llama2:latest", "mistral:7b"]),
+            ServiceStatus.HEALTHY,
+            "llama2",
+            id="ollama-healthy",
+        ),
+        pytest.param(
+            "ollama",
+            _local_ai_response(200, ["mistral:7b"]),
+            ServiceStatus.DEGRADED,
+            "not found",
+            id="ollama-model-not-found",
+        ),
+        pytest.param("ollama", _local_ai_response(503), ServiceStatus.UNHEALTHY, "503", id="ollama-unexpected-status"),
+        pytest.param(
+            "ollama",
+            httpx.ConnectError("connection refused"),
+            ServiceStatus.UNHEALTHY,
+            "Cannot connect",
+            id="ollama-connect-error",
+        ),
+        pytest.param(
+            "ollama", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="ollama-timeout"
+        ),
+        pytest.param(
+            "ollama", Exception("unknown error"), ServiceStatus.UNHEALTHY, "unknown error", id="ollama-generic-error"
+        ),
+        pytest.param(
+            "lmstudio",
+            _local_ai_response(200, ["llama2:latest"]),
+            ServiceStatus.HEALTHY,
+            "llama2",
+            id="lmstudio-healthy",
+        ),
+        pytest.param(
+            "lmstudio", _local_ai_response(200, []), ServiceStatus.DEGRADED, "not found", id="lmstudio-model-not-found"
+        ),
+        pytest.param(
+            "lmstudio", _local_ai_response(503), ServiceStatus.UNHEALTHY, "503", id="lmstudio-unexpected-status"
+        ),
+        pytest.param(
+            "lmstudio",
+            httpx.ConnectError("connection refused"),
+            ServiceStatus.UNHEALTHY,
+            "Cannot connect",
+            id="lmstudio-connect-error",
+        ),
+        pytest.param(
+            "lmstudio", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="lmstudio-timeout"
+        ),
+        pytest.param(
+            "lmstudio",
+            Exception("unknown error"),
+            ServiceStatus.UNHEALTHY,
+            "unknown error",
+            id="lmstudio-generic-error",
+        ),
+    ],
+    indirect=["local_ai_provider"],
+)
 @pytest.mark.asyncio
-async def test_check_ollama_model_not_found() -> None:
-    """Ollama responds but configured model is not available."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"data": [{"id": "mistral:7b"}]}
+async def test_check_local_ai_provider_responses(
+    local_ai_provider: Literal["ollama", "lmstudio"],
+    get_effect: MagicMock | Exception,
+    expected_status: ServiceStatus,
+    message_fragment: str,
+) -> None:
+    """check_local_ai maps local provider HTTP outcomes onto component health."""
+    with patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
+        result = await HealthCheckService.check_local_ai(local_ai_provider)
 
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(return_value=mock_response)
-
-    with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        patch.object(settings, "AI_MODEL", "llama2"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
-    ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.service == "ollama"
-    assert result.status == ServiceStatus.DEGRADED
-    assert "not found" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_ollama_unexpected_status() -> None:
-    """Ollama returns non-200 status."""
-    mock_response = MagicMock()
-    mock_response.status_code = 503
-
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(return_value=mock_response)
-
-    with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
-    ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "503" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_ollama_connect_error() -> None:
-    """httpx.ConnectError raised."""
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
-
-    with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
-    ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "Cannot connect" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_ollama_timeout() -> None:
-    """httpx.TimeoutException raised."""
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
-
-    with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
-    ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "timed out" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_ollama_generic_exception() -> None:
-    """Generic Exception (not ConnectError/TimeoutException) raised."""
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    mock_client.get = AsyncMock(side_effect=Exception("unknown error"))
-
-    with (
-        patch.object(settings, "AI_PROVIDER", "ollama"),
-        patch.object(settings, "OLLAMA_BASE_URL", "http://localhost:11434/v1"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=mock_client),
-    ):
-        result = await HealthCheckService.check_ollama()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "unknown error" in result.message
+    assert result.service == local_ai_provider
+    assert result.status == expected_status
+    assert message_fragment in result.message
 
 
 # =============================================================================
@@ -503,31 +489,18 @@ async def test_check_ollama_generic_exception() -> None:
 # =============================================================================
 
 
+@pytest.mark.parametrize(
+    ("smtp_user", "smtp_password", "expected_auth", "login_args"),
+    [
+        pytest.param(None, None, False, None, id="no-auth"),
+        pytest.param("user", "pass", True, ("user", "pass"), id="with-auth"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_check_smtp_healthy_no_auth() -> None:
-    """SMTP connects without auth."""
-    mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock()
-    mock_smtp.quit = AsyncMock()
-
-    with (
-        patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp),
-        patch.object(settings, "SMTP_USER", None),
-    ):
-        result = await HealthCheckService.check_smtp()
-
-    assert result.service == "smtp"
-    assert result.status == ServiceStatus.HEALTHY
-    assert "successful" in result.message
-    assert result.details is not None
-    assert result.details["auth"] is False
-    mock_smtp.connect.assert_called_once()
-    mock_smtp.quit.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_check_smtp_healthy_with_auth() -> None:
-    """SMTP connects and authenticates."""
+async def test_check_smtp_healthy(
+    smtp_user: str | None, smtp_password: str | None, expected_auth: bool, login_args: tuple[str, str] | None
+) -> None:
+    """SMTP connects (and authenticates when credentials are set)."""
     mock_smtp = MagicMock()
     mock_smtp.connect = AsyncMock()
     mock_smtp.login = AsyncMock()
@@ -535,98 +508,71 @@ async def test_check_smtp_healthy_with_auth() -> None:
 
     with (
         patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp),
-        patch.object(settings, "SMTP_USER", "user"),
-        patch.object(settings, "SMTP_PASSWORD", "pass"),
+        patch.object(settings, "SMTP_USER", smtp_user),
+        patch.object(settings, "SMTP_PASSWORD", smtp_password),
     ):
         result = await HealthCheckService.check_smtp()
 
+    assert result.service == "smtp"
     assert result.status == ServiceStatus.HEALTHY
+    assert "successful" in result.message
     assert result.details is not None
-    assert result.details["auth"] is True
-    mock_smtp.login.assert_called_once_with("user", "pass")
+    assert result.details["auth"] is expected_auth
+    mock_smtp.connect.assert_called_once()
+    mock_smtp.quit.assert_called_once()
+    if login_args is not None:
+        mock_smtp.login.assert_called_once_with(*login_args)
 
 
+@pytest.mark.parametrize(
+    ("connect_error", "message_fragment"),
+    [
+        pytest.param(aiosmtplib.SMTPException("error"), "failed", id="smtp-exception"),
+        pytest.param(TimeoutError("timed out"), "timed out", id="timeout"),
+        pytest.param(ConnectionError("refused"), "failed", id="connection-error"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_check_smtp_unhealthy_smtp_exception() -> None:
-    """SMTPException raised on connect."""
-    import aiosmtplib
-
+async def test_check_smtp_connect_failures(connect_error: Exception, message_fragment: str) -> None:
+    """check_smtp maps connect failures onto UNHEALTHY."""
     mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock(side_effect=aiosmtplib.SMTPException("error"))
+    mock_smtp.connect = AsyncMock(side_effect=connect_error)
 
     with patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
         result = await HealthCheckService.check_smtp()
 
     assert result.status == ServiceStatus.UNHEALTHY
-    assert "failed" in result.message
+    assert message_fragment in result.message
 
 
+@pytest.mark.parametrize(
+    ("tls", "ssl", "port", "expected_tls_key", "forbidden_tls_key"),
+    [
+        pytest.param(True, False, 465, "use_tls", "start_tls", id="implicit-tls"),
+        pytest.param(False, True, 587, "start_tls", "use_tls", id="starttls"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_check_smtp_unhealthy_timeout() -> None:
-    """TimeoutError raised on connect."""
-    mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock(side_effect=TimeoutError("timed out"))
-
-    with patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
-        result = await HealthCheckService.check_smtp()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "timed out" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_smtp_unhealthy_connection_error() -> None:
-    """ConnectionError raised on connect."""
-    mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock(side_effect=ConnectionError("refused"))
-
-    with patch("app.services.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
-        result = await HealthCheckService.check_smtp()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "failed" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_smtp_implicit_tls_passes_use_tls() -> None:
-    """SMTP_TLS=true maps to aiosmtplib use_tls (port 465 implicit TLS)."""
+async def test_check_smtp_tls_mapping(
+    tls: bool, ssl: bool, port: int, expected_tls_key: str, forbidden_tls_key: str
+) -> None:
+    """SMTP_TLS/SMTP_SSL map to aiosmtplib use_tls vs start_tls."""
     with patch("app.services.health_check.aiosmtplib.SMTP") as mock_smtp_class:
         mock_smtp_class.return_value.connect = AsyncMock()
         mock_smtp_class.return_value.quit = AsyncMock()
         with (
-            patch.object(settings, "SMTP_TLS", new=True),
-            patch.object(settings, "SMTP_SSL", new=False),
+            patch.object(settings, "SMTP_TLS", new=tls),
+            patch.object(settings, "SMTP_SSL", new=ssl),
             patch.object(settings, "SMTP_HOST", "smtp.example.com"),
-            patch.object(settings, "SMTP_PORT", 465),
+            patch.object(settings, "SMTP_PORT", port),
         ):
             result = await HealthCheckService.check_smtp()
 
     assert result.status == ServiceStatus.HEALTHY
     kwargs = mock_smtp_class.call_args.kwargs
-    assert kwargs["use_tls"] is True
-    assert "start_tls" not in kwargs
-    assert kwargs["port"] == 465
-
-
-@pytest.mark.asyncio
-async def test_check_smtp_starttls_passes_start_tls() -> None:
-    """SMTP_SSL=true maps to aiosmtplib start_tls (port 587 STARTTLS)."""
-    with patch("app.services.health_check.aiosmtplib.SMTP") as mock_smtp_class:
-        mock_smtp_class.return_value.connect = AsyncMock()
-        mock_smtp_class.return_value.quit = AsyncMock()
-        with (
-            patch.object(settings, "SMTP_TLS", new=False),
-            patch.object(settings, "SMTP_SSL", new=True),
-            patch.object(settings, "SMTP_HOST", "smtp.example.com"),
-            patch.object(settings, "SMTP_PORT", 587),
-        ):
-            result = await HealthCheckService.check_smtp()
-
-    assert result.status == ServiceStatus.HEALTHY
-    kwargs = mock_smtp_class.call_args.kwargs
-    assert kwargs["start_tls"] is True
-    assert "use_tls" not in kwargs
-    assert kwargs["port"] == 587
+    assert kwargs[expected_tls_key] is True
+    assert forbidden_tls_key not in kwargs
+    assert kwargs["port"] == port
 
 
 # =============================================================================
@@ -663,7 +609,7 @@ async def test_check_all_services_all_enabled() -> None:
     ):
         engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=False
+            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=False
         )
 
     assert "postgresql" in results
@@ -672,35 +618,37 @@ async def test_check_all_services_all_enabled() -> None:
     assert "dramatiq" in results
     assert "smtp" in results
     assert "ollama" not in results
+    assert "lmstudio" not in results
     for r in results.values():
         assert r.status == ServiceStatus.HEALTHY
 
 
 @pytest.mark.asyncio
-async def test_check_all_services_with_ollama() -> None:
-    """With include_ollama=True."""
+async def test_check_all_services_with_local_ai() -> None:
+    """With include_local_ai=True and a local provider configured."""
     service = HealthCheckService()
 
-    async def fake_ollama() -> HealthCheckResult:
-        return _ok_result("ollama")
+    async def fake_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
+        return _ok_result(provider)
 
     _pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
     _rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
     _rf = staticmethod(lambda: _ok_result("rustfs"))
     _dq = staticmethod(lambda: _ok_result("dramatiq"))
     _sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
-    _ol = staticmethod(fake_ollama)
+    _ai = staticmethod(fake_local_ai)
     with (
         patch.object(HealthCheckService, "check_postgres", _pg),
         patch.object(HealthCheckService, "check_redis", _rd),
         patch.object(HealthCheckService, "check_rustfs", _rf),
         patch.object(HealthCheckService, "check_dramatiq", _dq),
         patch.object(HealthCheckService, "check_smtp", _sm),
-        patch.object(HealthCheckService, "check_ollama", _ol),
+        patch.object(HealthCheckService, "check_local_ai", _ai),
+        patch.object(settings, "AI_PROVIDER", "ollama"),
     ):
         engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=True
+            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=True
         )
 
     assert "ollama" in results
@@ -724,7 +672,7 @@ async def test_check_all_services_dramatiq_disabled() -> None:
     ):
         engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
-            engine=engine, include_dramatiq=False, include_smtp=True, include_ollama=False
+            engine=engine, include_dramatiq=False, include_smtp=True, include_local_ai=False
         )
 
     assert "dramatiq" not in results
@@ -747,7 +695,7 @@ async def test_check_all_services_smtp_disabled() -> None:
     ):
         engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=False, include_ollama=False
+            engine=engine, include_dramatiq=True, include_smtp=False, include_local_ai=False
         )
 
     assert "smtp" not in results
@@ -799,7 +747,7 @@ async def test_check_all_services_mixed_health() -> None:
     ):
         engine = cast("AsyncEngine", object())
         results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_ollama=False
+            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=False
         )
 
     assert results["postgresql"].status == ServiceStatus.UNHEALTHY

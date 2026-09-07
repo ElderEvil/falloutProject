@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum
 from app.core.game_config import game_config
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
@@ -32,7 +33,6 @@ from app.schemas.arena import (
     ArenaRosterEntry,
     ArenaState,
 )
-from app.schemas.common import AgeGroupEnum
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 

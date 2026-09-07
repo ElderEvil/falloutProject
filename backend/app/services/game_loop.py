@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud import game_state_crud
@@ -17,7 +18,6 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
@@ -307,7 +307,7 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'xp_awarded' and 'leveled_up' counts
         """
-        from app.schemas.common import RoomTypeEnum
+        from app.core.enums import RoomTypeEnum
         from app.services.leveling_service import leveling_service
 
         stats = {"xp_awarded": 0, "leveled_up": 0}
@@ -360,9 +360,9 @@ class GameLoopService:
         - Check for level-ups
         - Check for deaths (health <= 0 or radiation threshold)
         """
+        from app.core.enums import DeathCauseEnum, DwellerStatusEnum
         from app.models.dweller import Dweller
         from app.models.room import Room
-        from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
         from app.services.death_service import death_service
 
         stats = {
@@ -437,9 +437,9 @@ class GameLoopService:
 
     async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
+        from app.core.enums import RoomTypeEnum
         from app.models.base import SPECIALModel
         from app.models.room import Room
-        from app.schemas.common import RoomTypeEnum
         from app.services.training_service import TrainingService
 
         stats = {"active_count": 0, "stats_awarded": 0}
@@ -695,7 +695,7 @@ class GameLoopService:
         :returns: Count of relationships updated (0 or 1)
         :rtype: int
         """
-        from app.schemas.common import RelationshipTypeEnum
+        from app.core.enums import RelationshipTypeEnum
         from app.services.relationship_service import relationship_service
 
         key = (dweller1.id, dweller2.id)

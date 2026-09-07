@@ -9,8 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.api.game_data_deps import get_static_game_data
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.db.session import get_async_session
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,

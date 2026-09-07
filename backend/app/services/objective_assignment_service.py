@@ -5,9 +5,9 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import ObjectiveCategoryEnum
 
 logger = logging.getLogger(__name__)
 

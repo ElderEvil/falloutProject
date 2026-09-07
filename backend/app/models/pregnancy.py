@@ -5,8 +5,8 @@ import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import PregnancyStatusEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import PregnancyStatusEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

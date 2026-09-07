@@ -5,9 +5,9 @@ from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.models.base import BaseUUIDModel
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import ObjectiveCategoryEnum
 
 if TYPE_CHECKING:
     from app.models.vault import Vault

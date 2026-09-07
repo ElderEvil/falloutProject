@@ -4,8 +4,8 @@ import sqlalchemy as sa
 from pydantic import UUID4, model_validator
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import ItemTypeEnum, RarityEnum
 from app.models.base import BaseUUIDModel
-from app.schemas.common import ItemTypeEnum, RarityEnum
 
 if TYPE_CHECKING:
     from app.models.storage import Storage

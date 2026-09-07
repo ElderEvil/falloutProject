@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from app.schemas.common import FactionEnum, GenderEnum, RaceEnum
+from app.core.enums import FactionEnum, GenderEnum, RaceEnum
 
 
 @dataclass

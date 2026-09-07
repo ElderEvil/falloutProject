@@ -7,12 +7,12 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DeathCauseEnum, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
 from app.schemas.dweller import DwellerUpdate
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ContentNoChangeException, InsufficientResourcesException, ResourceNotFoundException

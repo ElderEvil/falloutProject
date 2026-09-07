@@ -4,8 +4,8 @@ import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.enums import RelationshipTypeEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.schemas.common import RelationshipTypeEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

@@ -7,11 +7,11 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import get_user_vault_or_403
+from app.core.enums import PregnancyStatusEnum
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.models.user import User
-from app.schemas.common import PregnancyStatusEnum
 from app.schemas.pregnancy import PregnancyCreate, PregnancyUpdate
 from app.utils.exceptions import ResourceNotFoundException
 

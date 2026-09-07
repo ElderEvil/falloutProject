@@ -7,8 +7,8 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
+from app.core.enums import RadioModeEnum
 from app.db.session import get_async_session
-from app.schemas.common import RadioModeEnum
 from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.schemas.responses import RadioModeResponse, RadioSpeedupResponse

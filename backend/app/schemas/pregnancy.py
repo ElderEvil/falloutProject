@@ -5,8 +5,8 @@ from datetime import datetime
 from pydantic import UUID4, ConfigDict
 from sqlmodel import SQLModel
 
+from app.core.enums import PregnancyStatusEnum
 from app.models.pregnancy import PregnancyBase
-from app.schemas.common import PregnancyStatusEnum
 
 
 class PregnancyCreate(SQLModel):

@@ -6,8 +6,7 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
-from app.schemas.common import (
+from app.core.enums import (
     AgeGroupEnum,
     DeathCauseEnum,
     DwellerStatusEnum,
@@ -16,6 +15,7 @@ from app.schemas.common import (
     SPECIALEnum,
     WeaponTypeEnum,
 )
+from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.notification import Notification

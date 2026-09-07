@@ -1,7 +1,7 @@
 import math
 from pathlib import Path
 
-from app.schemas.common import RoomTypeEnum
+from app.core.enums import RoomTypeEnum
 
 # Map internal room names (from rooms.json) to asset keys (from wiki filenames)
 ROOM_NAME_TO_ASSET_KEY = {

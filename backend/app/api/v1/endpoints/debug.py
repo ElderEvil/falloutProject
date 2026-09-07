@@ -209,8 +209,8 @@ async def test_build_living_room(
         ResourceNotFoundException: If vault or living room data not found.
     """
     from app import crud
+    from app.core.enums import RoomTypeEnum, SPECIALEnum
     from app.models.room import Room
-    from app.schemas.common import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
 
     # Get vault before building

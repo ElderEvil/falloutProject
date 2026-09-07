@@ -67,7 +67,8 @@ Backend mechanics and invariants are documented in `docs/backend/RADIATION.md`.
 
 ### Version 3.0 Platform Modernization
 
-3.0 will be a deliberate runtime and identity boundary rather than a routine dependency refresh. The work should
+3.0 will be a deliberate runtime and tooling boundary — Python 3.14, native TypeScript 7, UUIDv7 identifiers —
+rather than a routine dependency refresh. The work should
 land as one compatibility pass with migration notes, updated CI/container tooling, and a rollback plan.
 
 - [ ] **Python 3.14 baseline** — raise the supported backend runtime from the current 3.12–3.13 range, then verify
@@ -78,8 +79,13 @@ land as one compatibility pass with migration notes, updated CI/container toolin
 - [ ] **HTTPX 2 evaluation** — test the HTTPX 2 API and compatibility with FastAPI's test transport and application
   integrations; adopt it if the release and dependency ecosystem are ready, otherwise stay on the latest supported
   stable release and record the decision.
-- [ ] **3.0 upgrade rehearsal** — update `uv.lock`, CI, development tasks, container images, and documentation;
-  run the full backend/frontend suites plus migration and rollback checks before declaring the boundary complete.
+- [ ] **TypeScript 7 (native) transition** — the frontend rides the TypeScript 6 bridge (`^6.0.3`); when the TS 7
+  native compiler (`tsgo`) is stable, switch the typecheck gate, `vue-tsc`/Volar, type-aware Oxlint
+  (`oxlint-tsgolint`), and `openapi-typescript` onto it and re-baseline the typecheck gate. Volar's adoption of the
+  native API is the compatibility gate — keep the TS 6 bridge until then.
+- [ ] **3.0 upgrade rehearsal** — update `uv.lock`, `pnpm-lock.yaml`, CI, development tasks, container images, and
+  documentation; run the full backend/frontend suites plus migration and rollback checks before declaring the
+  boundary complete.
 
 Python 3.14 is the first version with standard-library UUIDv7 support, making it the natural point to evaluate the
 identifier change rather than adding another compatibility dependency now.
@@ -296,11 +302,6 @@ touching incident handling; any breeding change must keep `population_max=None` 
 
 ### v2.34.0 — Pydantic AI Reliability & Observability (shipped; two follow-ups open)
 
-**Shipped:** Logfire tracing of Pydantic AI runs (`include_content=False`, no-op when unconfigured), hardened chat
-output contract (instructions migration, output validation/retry rules, deterministic `TestModel` coverage),
-optional RustFS no longer delays startup (degraded health instead), and a read-only dweller activity briefing tool
-grounding suggestions in live gameplay state.
-
 - 🔄 **Activate Pydantic AI Gateway for chat and agents**
   - Configure the deployment-only `PYDANTIC_AI_GATEWAY_API_KEY`; the existing gateway model path becomes active without
     changing agent code.
@@ -315,13 +316,7 @@ grounding suggestions in live gameplay state.
 
 ### AI Layer Upgrade — Prompts, LLM Interactions, Admin & New Usage (Delivered through Plan 4 — see `docs/backend/AI_LAYER_PLAN.md`)
 
-**Focus**: Make the AI layer observable, configurable, and cheap — per-consumer decision whether Pydantic AI agents stay, get upgraded, or get replaced with deterministic paths. Plans 0–4 are delivered; Plans 5–6 remain parked.
-
-- ✅ **Plan 0 — Lock down `/objectives/generate`** — `GET /objectives/generate` was unauthenticated, token-spending (`AsyncOpenAI` + hardcoded `gpt-4-turbo`, no quota/logging, no frontend caller). **Deleted**: endpoint + `ChatService.generate_objectives` + dead imports removed; `GET /objectives/generate` now 404.
-- ✅ **Plan 1 — Durable interaction metadata** — `LLMInteraction` now snapshots `provider`/`model`/`instructions_hash`/`instructions_snapshot` + `prompt_id` (FK already existed, now populated). Existing rows backfilled via server defaults; migrations `e6f7a8b9c0d1` and `f7a8b9c0d1e2`.
-- ✅ **Plan 2 — Prompt Registry (immutable versions)** — `Prompt` now `version: int` + `is_active: bool`, `UNIQUE(prompt_name, version)` + partial unique index `ix_prompt_active_name WHERE is_active`. `PromptService.get_instructions()` reads active row via 60s TTL cache, falls back to hardcoded defaults on DB error. Seed: `backend/app/utils/seed_prompts.py` + `fo-cli seed-prompts` (4 rows: backstory/extend_bio/visual_attributes/chat v1).
-- ✅ **Plan 3 — Usage analytics** — `AIUsageResponse` now `by_operation: list[AIOperationStats]` (GROUP BY usage) + `chat_heavy` flag (>80% chat share). `ai_usage_service._aggregate_by_operation` covers totals; daily trend deferred as separate GROUP BY day query. Snapshotted `provider`/`model` enables honest future cost math (image/audio excluded).
-- ✅ **Plan 4 — sqladmin** — `LLMInteractionAdmin` shows tokens + provider/model + hash + created_at (search/sort), `PromptAdmin` shows version/is_active/template, `DwellerAdmin` shows bio flag; DRY truncation helper; 3 authenticated render smoke tests.
+**Focus**: Make the AI layer observable, configurable, and cheap — per-consumer decision whether Pydantic AI agents stay, get upgraded, or get replaced with deterministic paths. Plans 0–4 are delivered (objective-endpoint lockdown, `LLMInteraction` metadata snapshots, immutable prompt registry, usage analytics, sqladmin views); Plans 5–6 remain parked.
 - 🔜 **Plan 4.5 — AI control surfaces** — player quick wins: explain monthly AI use in Profile → Analytics and show a
   calm in-chat budget signal; operator quick wins: searchable/filterable prompt and interaction audit views. Reuse
   delivered API data; defer player interaction search, cost estimates, daily graphs, polling, and new endpoints until
@@ -332,18 +327,6 @@ grounding suggestions in live gameplay state.
 - ⏸️ **Plan 5 — Pre-generation shift (LM Studio/ComfyUI batch → curated content)** + **Plan 6 — New AI usage ideas** (incident narration, quest flavor, daily digest, dweller ambient chat) — parked, need product decisions + per-operation usage headroom before shipping.
 
 **Guardrails:** no Pydantic AI framework migration, no per-request model/temperature per prompt, no retroactive cost truth; template-first.
-
-### v2.35.0 — Release Version Integrity (Released 2026-08-14)
-
-**Shipped:** Semantic Release is the single version authority — it synchronizes `pyproject.toml`/`uv.lock`/
-`package.json` in its prepare phase and commits them before tagging; Conventional Commit squash-merge titles drive
-SemVer (`feat`→minor, `fix`/`perf`/`refactor`→patch, `!`/BREAKING→major, others non-releasing); both Docker images
-build from the release tag; a CI guard fails on any tag/package/changelog version disagreement.
-
-**Engineering constraint (v2.35 onward):** Every update must reduce net source LOC. Features that require new code
-must first offset it by removing or compacting existing code, favoring DRY reusable extraction over duplication. The
-reduction excludes generated files, lockfiles, and formatting-only changes, and must retain behavior under relevant
-tests.
 
 ---
 
@@ -413,11 +396,8 @@ must reject any identifier that does not match the authenticated user.
 
 ### Item Card Unification — ✅ Done
 
-**Shipped:** `src/core/models/items.ts` is the single source of truth for item display — weapon-subtype/outfit-type
-icon maps, rarity color + token-based Tailwind border/text classes, and unified stat-row builders (damage, uses,
-accuracy, type, weight, durability, outfit gender, SPECIAL bonuses), plus a shared `useItemImage` composable.
-`EquipmentCard` and `StorageItemCard` consume it and now expose the full unified detail set (each previously missed
-half of it); `ExplorationLootList` uses the shared rarity tokens with no inline styles. Net source LOC negative.
+`src/core/models/items.ts` + shared `useItemImage` describing icon maps, rarity tokens, and stat-row builders feed
+`EquipmentCard`, `StorageItemCard`, and `ExplorationLootList`. Net source LOC negative.
 
 ### Race & Faction Gameplay Mechanics (Target: TBD)
 
@@ -522,11 +502,8 @@ entry, never notification-only.
 
 ### P1 — Combat Power Overhaul (all stats + weapon type) — ✅ Done
 
-**Shipped:** `combat_power()` is a weighted sum across all seven SPECIAL stats, weights config-driven via
-`COMBAT_WEAPON_STAT_WEIGHTS` (JSON keyed by weapon type + `unarmed`; melee S/A primary, guns P/A, energy I/P, heavy
-S/E; unarmed balanced with a strength lean). `DwellerReadLess` exposes the equipped `weapon_type` (eager-loaded); the
-frontend `getCombatPower()` mirrors the table. Arena + incidents consume the same `combat_power()`; per-type unit
-tests cover primary-beats-secondary and cross-type reversals.
+`combat_power()` is a config-driven weighted sum over all seven SPECIAL stats (`COMBAT_WEAPON_STAT_WEIGHTS` keyed by
+weapon type) mirrored by the frontend `getCombatPower()`; arena + incidents share it, with per-type unit tests.
 
 ### P2 — Chat Polish
 
@@ -667,63 +644,24 @@ Keep it optional, non-breaking, and discoverable — easter eggs should reward c
 
 ## Progress Metrics
 
-### Current Stats (Aug 2026)
+### Current Stats (Sep 2026)
 
-- **Backend**: 25+ routers, 100+ endpoints, 19+ services, **82.44% coverage**
-- **Frontend**: 60+ Vue components, 10 feature modules
-- **Tests**: Frontend 867+, Backend 1500+
+- **Backend**: 25+ routers, 100+ endpoints, 19+ services, **84.22% statement coverage** (nightly, ≥80% enforced)
+- **Frontend**: 60+ Vue components, 10 feature modules, ~65% line coverage via Vitest
+- **Tests**: Frontend 867+, Backend 1900+
 - **Models**: 20+ database models
 
 ### Version Milestones
 
-| Version | Release      | Highlights                                                                                                                             |
-| ------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI                                             |
-| v2.68.0 | Aug 31, 2026 | Boosted vault rarity and race/faction diversity; dweller state identity icons                                                          |
-| v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links, determinism fix                                         |
-| v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab; QoL test backfill + migration-safety CI; Pydantic AI/Logfire verification |
-| v2.41.2 | Aug 19, 2026 | Quest storage 500 fix, EventBus cross-loop race fix                                                                                    |
-| v2.41.1 | Aug 18, 2026 | Frontend audit CRITICAL/MAJOR fixes (design tokens)                                                                                    |
-| v2.41.0 | Aug 17, 2026 | Chat WebSocket, vault events, notification navigation                                                                                  |
-| v2.40.0 | Aug 15, 2026 | Training tab UX (occupancy cards, live progress)                                                                                       |
-| v2.39.x | Aug 14, 2026 | Resource production corrections, thumbnail URL fix                                                                                     |
-| v2.38.0 | Aug 14, 2026 | Safe room construction, visual inventory                                                                                               |
-| v2.32.0 | Aug 12, 2026 | Ruff rule cleanup + Google-style docstrings                                                                                            |
-| v2.31.0 | Aug 12, 2026 | Map registration retry + failure notification, bio backfill fixes                                                                      |
-| v2.30.0 | Aug 11, 2026 | Frontend refactor (async actions, SSE fallback, typecheck)                                                                             |
-| v2.29.0 | Aug 10, 2026 | Map unlock on chat, dweller-location `is_unlocked`, UI polish                                                                          |
-| v2.28.0 | Aug 09, 2026 | Template-based bio filler + retroactive bio place backfill                                                                             |
-| v2.27.0 | Aug 2026     | Test coverage push, pytest-xdist speed-up                                                                                              |
-| v2.26.0 | Aug 07, 2026 | Alembic enum sync + PG enum regression tests                                                                                           |
-| v2.25.0 | Aug 07, 2026 | Map declutter, 160-world scaling, pregen service                                                                                       |
-| v2.24.0 | Aug 07, 2026 | World Map (schematic map, discoveries, bio places)                                                                                     |
-| v2.23.1 | Jul 13, 2026 | Vue 3.5 Reactive Destructure Migration                                                                                                 |
-| v2.23.0 | Jul 01, 2026 | Chat WebSocket migration                                                                                                               |
-| v2.22.0 | Jun 28, 2026 | Terminal Background Cleanup                                                                                                            |
-| v2.21.0 | Jun 24, 2026 | SSE Polish (incident/game-tick SSE)                                                                                                    |
-| v2.20.0 | Jun 22, 2026 | FE Simplification (YAGNI + DRY)                                                                                                        |
-| v2.19.0 | Jun 21, 2026 | SSE streaming + Dict-to-Pydantic refactoring                                                                                           |
-| v2.18.0 | Jun 21, 2026 | Library skills audit                                                                                                                   |
-| v2.17.0 | Jun 19, 2026 | Medical storage refactor                                                                                                               |
-| v2.16.0 | Jun 18, 2026 | Accessibility, CRT theme, test fixes                                                                                                   |
-| v2.15.0 | Jun 18, 2026 | Dweller visual unification                                                                                                             |
-| v2.14.4 | Jun 17, 2026 | Security dep bumps                                                                                                                     |
-| v2.13.1 | May 19, 2026 | Security hardening                                                                                                                     |
-| v2.13.0 | May 01, 2026 | Dramatiq migration                                                                                                                     |
-| v2.12.0 | Apr 23, 2026 | Test suite green, MinIO removed                                                                                                        |
-| v2.11.0 | Mar 19, 2026 | Vite+ toolchain                                                                                                                        |
-| v2.10.9 | Mar 13, 2026 | AI quota system                                                                                                                        |
-| v2.10.0 | Feb 10, 2026 | Quest & Objective system                                                                                                               |
-| v2.9.0  | Feb 07, 2026 | Chat exploration actions                                                                                                               |
-| v2.8.0  | Jan 29, 2026 | Easter eggs, changelog system                                                                                                          |
+Full release history lives in `CHANGELOG.md`; release names recap the headline theme.
 
-### v2.42.0 Observability Measurement (Pydantic AI & Logfire) — ✅ recorded
-
-Gateway path verified live and documented (`docs/backend/PYDANTIC_AI_GATEWAY.md`): `PYDANTIC_AI_GATEWAY_API_KEY` sets
-`ai_provider_mode == "gateway"`; Logfire instruments Pydantic AI with `include_content=False`. Measured: 12
-deterministic agent-contract tests, output-validation retry coverage via `TestModel`, 3 Logfire config tests. No
-agent code changes required; no gaps found.
-
+| Version | Release      | Highlights                                                             |
+| ------- | ------------ | ---------------------------------------------------------------------- |
+| Next    | In review    | Arena & Incident Combat Update: battle playground, incident cap + fast tick, room fight UI |
+| v2.80.0 | Sep 07, 2026 | Radiation effective-health contract, platform-modernization plan        |
+| v2.68.0 | Aug 31, 2026 | Boosted vault rarity and race/faction diversity; dweller state identity icons |
+| v2.46.0 | Aug 21, 2026 | The Wasteland Journal: exploration journal polish, discovery → map deep-links |
+| v2.42.0 | Aug 20, 2026 | The Family Update: MARRIED stage + lineage API + Family tab             |
 ---
 
 Keep it optional, non-breaking, and discoverable — easter eggs should reward curiosity, never gate progress.

@@ -40,7 +40,6 @@ dependencies = [
 test = [
     "aiosqlite>=0.22.1",
     "coverage>=7.15.4",
-    "coverage-badge>=1.1.0",
     "factory-boy>=3.3.3",
     "fakeredis[lua]>=2.36.2",
     "pytest>=9.1.1",

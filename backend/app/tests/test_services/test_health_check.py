@@ -391,8 +391,21 @@ async def test_check_local_ai_not_configured(provider: Literal["ollama", "lmstud
     assert result.details["ai_provider"] == "openai"
 
 
+@pytest.fixture
+def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmstudio"]:
+    """Patch settings for the parametrized local AI provider and yield its name."""
+    provider: Literal["ollama", "lmstudio"] = request.param
+    base_url = "http://localhost:11434/v1" if provider == "ollama" else "http://localhost:1234/v1"
+    with (
+        patch.object(settings, "AI_PROVIDER", provider),
+        patch.object(settings, f"{provider.upper()}_BASE_URL", base_url),
+        patch.object(settings, "AI_MODEL", "llama2"),
+    ):
+        yield provider
+
+
 @pytest.mark.parametrize(
-    ("provider", "get_effect", "expected_status", "message_fragment"),
+    ("local_ai_provider", "get_effect", "expected_status", "message_fragment"),
     [
         pytest.param(
             "ollama",
@@ -453,25 +466,20 @@ async def test_check_local_ai_not_configured(provider: Literal["ollama", "lmstud
             id="lmstudio-generic-error",
         ),
     ],
+    indirect=["local_ai_provider"],
 )
 @pytest.mark.asyncio
 async def test_check_local_ai_provider_responses(
-    provider: Literal["ollama", "lmstudio"],
+    local_ai_provider: Literal["ollama", "lmstudio"],
     get_effect: MagicMock | Exception,
     expected_status: ServiceStatus,
     message_fragment: str,
 ) -> None:
     """check_local_ai maps local provider HTTP outcomes onto component health."""
-    base_url = "http://localhost:11434/v1" if provider == "ollama" else "http://localhost:1234/v1"
-    with (
-        patch.object(settings, "AI_PROVIDER", provider),
-        patch.object(settings, f"{provider.upper()}_BASE_URL", base_url),
-        patch.object(settings, "AI_MODEL", "llama2"),
-        patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)),
-    ):
-        result = await HealthCheckService.check_local_ai(provider)
+    with patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
+        result = await HealthCheckService.check_local_ai(local_ai_provider)
 
-    assert result.service == provider
+    assert result.service == local_ai_provider
     assert result.status == expected_status
     assert message_fragment in result.message
 

@@ -367,114 +367,32 @@ class TestExpandRoom:
 
 
 class TestBuild:
+    @pytest.mark.parametrize(
+        ("overrides", "message"),
+        [
+            pytest.param({"size_min": 0, "size_max": 6}, "Invalid room size", id="size-min-below-1"),
+            pytest.param({"size_min": None, "size_max": 6}, "Invalid room size", id="size-min-none"),
+            pytest.param({"size_min": 5, "size_max": 3}, "Invalid room size", id="size-min-exceeds-max"),
+            pytest.param({"size_min": 3, "size_max": None}, "Invalid room size", id="size-max-none"),
+            pytest.param(
+                {"coordinate_x": None, "coordinate_y": None},
+                "Room coordinates must be specified",
+                id="coordinates-none",
+            ),
+            pytest.param({"coordinate_x": GRID_X_MIN - 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-below-min"),
+            pytest.param({"coordinate_x": GRID_X_MAX + 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-above-max"),
+            pytest.param({"coordinate_x": 8, "size_min": 3}, "Room exceeds grid width", id="exceeds-grid-width"),
+            pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MIN - 1}, "Invalid Y coordinate", id="y-below-min"),
+            pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MAX + 1}, "Invalid Y coordinate", id="y-above-max"),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_invalid_size_min_below_1(self, room_crud, mock_session):
+    async def test_build_rejects_invalid_input(self, room_crud, mock_session, overrides: dict, message: str) -> None:
+        """build() rejects malformed size/coordinate input before touching the session."""
         base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"size_min", "size_max"}),
-            size_min=0,
-            size_max=6,
-        )
-        with pytest.raises(ValueError, match="Invalid room size"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
+        room_in = RoomCreate.model_construct(**{**base.model_dump(exclude=set(overrides)), **overrides})
 
-    @pytest.mark.asyncio
-    async def test_invalid_size_min_none(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"size_min", "size_max"}),
-            size_min=None,
-            size_max=6,
-        )
-        with pytest.raises(ValueError, match="Invalid room size"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_size_min_exceeds_size_max(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"size_min", "size_max"}),
-            size_min=5,
-            size_max=3,
-        )
-        with pytest.raises(ValueError, match="Invalid room size"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_size_max_none_size_min_is_set(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"size_min", "size_max"}),
-            size_min=3,
-            size_max=None,
-        )
-        with pytest.raises(ValueError, match="Invalid room size"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_coordinates_none(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "coordinate_y"}),
-            coordinate_x=None,
-            coordinate_y=None,
-        )
-        with pytest.raises(ValueError, match="Room coordinates must be specified"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_x_coord_below_min(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "coordinate_y"}),
-            coordinate_x=GRID_X_MIN - 1,
-            coordinate_y=2,
-        )
-        with pytest.raises(ValueError, match="Invalid X coordinate"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_x_coord_above_max(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "coordinate_y"}),
-            coordinate_x=GRID_X_MAX + 1,
-            coordinate_y=2,
-        )
-        with pytest.raises(ValueError, match="Invalid X coordinate"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_room_exceeds_grid_width(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "size_min"}),
-            coordinate_x=8,
-            size_min=3,
-        )
-        with pytest.raises(ValueError, match="Room exceeds grid width"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_y_coord_below_min(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "coordinate_y"}),
-            coordinate_x=2,
-            coordinate_y=GRID_Y_MIN - 1,
-        )
-        with pytest.raises(ValueError, match="Invalid Y coordinate"):
-            await room_crud.build(db_session=mock_session, obj_in=room_in)
-
-    @pytest.mark.asyncio
-    async def test_y_coord_above_max(self, room_crud, mock_session):
-        base = _make_room_create()
-        room_in = RoomCreate.model_construct(
-            **base.model_dump(exclude={"coordinate_x", "coordinate_y"}),
-            coordinate_x=2,
-            coordinate_y=GRID_Y_MAX + 1,
-        )
-        with pytest.raises(ValueError, match="Invalid Y coordinate"):
+        with pytest.raises(ValueError, match=message):
             await room_crud.build(db_session=mock_session, obj_in=room_in)
 
     @pytest.mark.asyncio

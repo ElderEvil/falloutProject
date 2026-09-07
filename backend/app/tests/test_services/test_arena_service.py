@@ -302,7 +302,7 @@ class TestArenaService:
         assert result["arena"]["rounds"] == []
 
     @pytest.mark.asyncio
-    async def test_set_fighters_picks_and_resets_match(self, async_session, arena_room, fighter_a, fighter_b):
+    async def test_set_fighters_picks_and_resets_match(self, async_session, arena_room, fighter_a, fighter_b, vault):
         from datetime import datetime
 
         fighter_a.room_id = arena_room.id
@@ -311,6 +311,9 @@ class TestArenaService:
         arena_room.arena_fight_started_at = datetime.utcnow()
         fighter_a.health = 40
         fighter_b.health = 1
+        # Irradiate both fighters so effective_max_health differs from base max_health
+        fighter_a.radiation = 20
+        fighter_b.radiation = 10
         await async_session.refresh(fighter_a, ["weapon"])
         await async_session.refresh(fighter_b, ["weapon"])
         await async_session.commit()
@@ -325,8 +328,23 @@ class TestArenaService:
         assert room.arena_fight_started_at is None
         await async_session.refresh(fighter_a)
         await async_session.refresh(fighter_b)
-        assert fighter_a.health == fighter_a.max_health
-        assert fighter_b.health == fighter_b.max_health
+        assert fighter_a.health == fighter_a.effective_max_health
+        assert fighter_b.health == fighter_b.effective_max_health
+
+        # Regression (PR #534): get_arena_state must serialize effective_max_health
+        # as max_health, or irradiated dwellers show wrong health ratios to clients.
+        state = await service.get_arena_state(async_session, vault.id)
+        room_state = state.rooms[0]
+        fighters_by_id = {f.id: f for f in room_state.fighters}
+        for fighter in (fighter_a, fighter_b):
+            serialized = fighters_by_id[str(fighter.id)]
+            assert serialized.max_health == fighter.effective_max_health
+            assert serialized.max_health != fighter.max_health
+        roster_by_id = {r.id: r for r in room_state.roster}
+        for fighter in (fighter_a, fighter_b):
+            serialized = roster_by_id[str(fighter.id)]
+            assert serialized.max_health == fighter.effective_max_health
+            assert serialized.max_health != fighter.max_health
 
     @pytest.mark.asyncio
     async def test_set_fighters_rejects_dweller_not_in_room(self, async_session, arena_room, fighter_a, fighter_b):

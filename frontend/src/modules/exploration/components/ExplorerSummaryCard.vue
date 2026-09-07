@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
-import { getRadiationPercentage } from '@/modules/dwellers/models/dweller'
+import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
 
 const props = defineProps<{
   dwellerName: string
@@ -19,6 +19,9 @@ const props = defineProps<{
 }>()
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
+const healthPercentage = computed(
+  () => (Math.min(props.health, getEffectiveMaxHealth(props.radiation, props.maxHealth)) / props.maxHealth) * 100
+)
 </script>
 
 <template>
@@ -56,14 +59,14 @@ const radiationPercentage = computed(() => getRadiationPercentage(props.radiatio
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
             <UProgressBar
-              :model-value="(health / maxHealth) * 100"
+              :model-value="healthPercentage"
               :radiation="radiationPercentage"
               :height="12"
               :glow="false"
               ariaLabel="Health"
             />
             <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary"
-              >{{ health }}/{{ maxHealth }}</span
+              >{{ getHealthDisplay(health, maxHealth, radiation) }}</span
             >
           </div>
         </div>

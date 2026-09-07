@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import type { DwellerShort } from '../models/dweller'
-import { handleStoreError } from '@/core/utils/errorHandler'
+import { getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
 import type { components } from '@/core/types/api.generated'
@@ -13,10 +13,29 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
   const toast = useToast()
   const filterStore = useDwellerFilterStore()
 
-  async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
+  function applyDwellerUpdate(dwellerId: string, updated: DwellerShort): void {
+    if (filterStore.detailedDwellers[dwellerId]) {
+      Object.assign(filterStore.detailedDwellers[dwellerId], updated)
+    }
+
+    const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
+    if (dwellerIndex !== -1) {
+      filterStore.dwellers[dwellerIndex] = {
+        ...filterStore.dwellers[dwellerIndex],
+        ...updated,
+      }
+    }
+  }
+
+  async function useMedicalSupply(
+    supply: MedicalSupply,
+    dwellerId: string,
+    token: string
+  ): Promise<DwellerShort | null> {
+    const label = supply === 'stimpack' ? 'stimpack' : 'RadAway'
     try {
       const response = await axios.post<DwellerShort>(
-        `/api/v1/dwellers/${dwellerId}/use_stimpack`,
+        `/api/v1/dwellers/${dwellerId}/use_${supply}`,
         null,
         {
           headers: {
@@ -25,80 +44,24 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
         }
       )
 
-      // Update detailed dweller if cached
-      if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = {
-          ...filterStore.detailedDwellers[dwellerId],
-          ...response.data,
-        } as import('../models/dweller').Dweller
-      }
+      applyDwellerUpdate(dwellerId, response.data)
 
-      // Update in list if exists
-      const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-      if (dwellerIndex !== -1) {
-        filterStore.dwellers[dwellerIndex] = {
-          ...filterStore.dwellers[dwellerIndex],
-          ...response.data,
-        }
-      }
-
-      toast.success('Stimpack used! Dweller healed.')
+      toast.success(supply === 'stimpack' ? 'Stimpack used! Dweller healed.' : 'RadAway used! Radiation reduced.')
       return response.data
     } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to use stimpack'
-      handleStoreError(error, `Failed to use stimpack for dweller ${dwellerId}`)
+      const errorMessage = getErrorMessage(error, `Failed to use ${label}`)
+      handleStoreError(error, `Failed to use ${label} for dweller ${dwellerId}`, false)
       toast.error(errorMessage)
       return null
     }
   }
 
+  async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
+    return useMedicalSupply('stimpack', dwellerId, token)
+  }
+
   async function useRadaway(dwellerId: string, token: string): Promise<DwellerShort | null> {
-    try {
-      const response = await axios.post<DwellerShort>(
-        `/api/v1/dwellers/${dwellerId}/use_radaway`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      // Update detailed dweller if cached
-      if (filterStore.detailedDwellers[dwellerId]) {
-        filterStore.detailedDwellers[dwellerId] = {
-          ...filterStore.detailedDwellers[dwellerId],
-          ...response.data,
-        } as import('../models/dweller').Dweller
-      }
-
-      // Update in list if exists
-      const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-      if (dwellerIndex !== -1) {
-        filterStore.dwellers[dwellerIndex] = {
-          ...filterStore.dwellers[dwellerIndex],
-          ...response.data,
-        }
-      }
-
-      toast.success('RadAway used! Radiation reduced.')
-      return response.data
-    } catch (error: unknown) {
-      const errorMessage =
-        (
-          error as {
-            response?: { data?: { detail?: string } }
-          }
-        )?.response?.data?.detail || 'Failed to use RadAway'
-      handleStoreError(error, `Failed to use radaway for dweller ${dwellerId}`)
-      toast.error(errorMessage)
-      return null
-    }
+    return useMedicalSupply('radaway', dwellerId, token)
   }
 
   async function issueMedicalSupply(

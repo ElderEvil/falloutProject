@@ -57,8 +57,13 @@ class DwellerBaseWithoutStats(SQLModel):
     experience: int = Field(default=0, ge=0)
     max_health: int = Field(default=50, ge=50, le=1_500)  # Increased to allow for leveling gains
     health: int = Field(default=50, ge=0, le=1_500)
-    radiation: int = Field(default=0, ge=0, le=1_000)
+    radiation: int = Field(default=0, ge=0, le=1_000)  # runtime cap: game_config.health.max_radiation
     happiness: int = Field(default=50, ge=10, le=100)
+
+    @property
+    def effective_max_health(self) -> int:
+        """Maximum health available after radiation damage."""
+        return max(1, self.max_health - self.radiation)
 
     # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)

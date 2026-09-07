@@ -28,6 +28,7 @@ from app.schemas.incident import (
 )
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
+from app.services.radiation_service import apply_radiation_gain
 from app.services.stream_manager import sse_manager
 from app.utils.combat import total_combat_power
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
@@ -424,8 +425,10 @@ class IncidentService:
 
             if incident.type == IncidentType.RADSCORPION_ATTACK and dweller_damage > 1:
                 radiation_damage = min(dweller_damage - 1, dweller_damage // 2)
-                dweller.radiation = min(1_000, dweller.radiation + radiation_damage)
+                apply_radiation_gain(dweller, radiation_damage)
                 db_session.add(dweller)
+
+            new_health = min(new_health, dweller.effective_max_health)
 
             if new_health != dweller.health:
                 # Direct update - SQLAlchemy session tracks the object, no need to refresh

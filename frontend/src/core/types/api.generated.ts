@@ -1136,7 +1136,7 @@ export interface paths {
         put?: never;
         /**
          * Use Stimpack
-         * @description Use a stimpack to heal the dweller (restores 40% of max health).
+         * @description Use one of the dweller's stimpacks to heal them.
          *
          *     Returns:
          *         DwellerRead: The healed dweller.
@@ -1159,7 +1159,7 @@ export interface paths {
         put?: never;
         /**
          * Use Radaway
-         * @description Use a radaway to remove radiation from the dweller (removes 50% of radiation).
+         * @description Use one of the dweller's RadAways to reduce their radiation.
          *
          *     Returns:
          *         DwellerRead: The dweller with reduced radiation.

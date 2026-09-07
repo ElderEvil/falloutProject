@@ -10,7 +10,7 @@ from app.crud.user_profile import profile_crud
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
-from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
+from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerCreateWithoutVaultID
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -26,6 +26,19 @@ from app.utils.exceptions import (
 from backend.app.tests.factory.dwellers import create_fake_dweller
 
 RACE_VALUES = {race.value for race in RaceOption}
+
+
+def test_radiation_reduces_effective_max_health() -> None:
+    dweller = DwellerCreateWithoutVaultID(
+        first_name="Rad",
+        gender="male",
+        rarity="common",
+        max_health=120,
+        health=82,
+        radiation=35,
+    )
+
+    assert dweller.effective_max_health == 85
 
 
 @pytest.mark.asyncio

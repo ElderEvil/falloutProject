@@ -68,6 +68,7 @@ async def test_check_level_up_single_level(
     # Give dweller enough XP for level 2
     dweller.level = 1
     dweller.experience = 300  # More than enough for level 2 (282 XP)
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
     initial_max_health = dweller.max_health
 
     leveled_up, levels_gained = await leveling_service.check_level_up(async_session, dweller)
@@ -76,7 +77,7 @@ async def test_check_level_up_single_level(
     assert levels_gained == 1
     assert dweller.level == 2
     assert dweller.max_health == initial_max_health + game_config.leveling.hp_gain_per_level
-    assert dweller.health == dweller.max_health  # Should be fully healed
+    assert dweller.health == dweller.effective_max_health
 
 
 @pytest.mark.asyncio
@@ -89,6 +90,7 @@ async def test_check_level_up_multiple_levels(
     # Give dweller enough XP for level 5
     dweller.level = 1
     dweller.experience = 2000  # Enough for multiple levels
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
     initial_max_health = dweller.max_health
 
     leveled_up, levels_gained = await leveling_service.check_level_up(async_session, dweller)
@@ -97,7 +99,7 @@ async def test_check_level_up_multiple_levels(
     assert levels_gained > 1
     assert dweller.level > 2
     assert dweller.max_health == initial_max_health + (game_config.leveling.hp_gain_per_level * levels_gained)
-    assert dweller.health == dweller.max_health
+    assert dweller.health == dweller.effective_max_health
 
 
 @pytest.mark.asyncio
@@ -129,13 +131,14 @@ async def test_level_up_dweller_directly(
     dweller.level = 5
     dweller.max_health = 100
     dweller.health = 80  # Partially damaged
+    dweller.radiation = 10  # Non-zero so the heal must respect the reduced effective max
 
     # Level up 3 times
     await leveling_service.level_up_dweller(async_session, dweller, levels=3)
 
     assert dweller.level == 8
     assert dweller.max_health == 100 + (game_config.leveling.hp_gain_per_level * 3)
-    assert dweller.health == dweller.max_health  # Should be fully healed
+    assert dweller.health == dweller.effective_max_health
 
 
 @pytest.mark.asyncio

@@ -266,9 +266,23 @@ class HealthConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="HEALTH_")
 
     regen_per_tick: int = Field(default=5, description="HP per 60s when safe and fed", ge=0)
-    radiation_decay_per_tick: int = Field(default=2, description="RAD per 60s in safe room", ge=0)
     starvation_threshold: float = Field(default=0.0, description="Food % below which no regen", ge=0.0, le=1.0)
     dehydration_threshold: float = Field(default=0.0, description="Water % below which no regen", ge=0.0, le=1.0)
+
+    # Radiation rules (single source of truth; mirrored by Dweller.radiation field constraint)
+    max_radiation: int = Field(default=1000, description="Hard RAD cap per dweller", ge=1)
+    dehydration_radiation_per_tick: int = Field(
+        default=1, description="RAD per 60s tick for in-vault dwellers while vault water is empty", ge=0
+    )
+    radaway_removal_percent: float = Field(
+        default=0.5, description="Share of current RAD removed per RadAway (always at least 1)", gt=0.0, le=1.0
+    )
+    radaway_auto_use_threshold: int = Field(
+        default=30, description="RAD level that triggers auto RadAway use in the wasteland", ge=1
+    )
+    stimpack_heal_percent: float = Field(
+        default=0.4, description="Share of max health restored per stimpack", gt=0.0, le=1.0
+    )
 
 
 class HappinessConfig(BaseSettings):
@@ -304,6 +318,8 @@ class HappinessConfig(BaseSettings):
     # Thresholds
     high_health_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     critical_resource_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
+    radiation_penalty_threshold: int = Field(default=50, description="RAD level above which happiness drops", ge=0)
+    radiation_penalty: float = Field(default=1.0, description="Happiness decay for irradiated dwellers", ge=0.0)
 
     # Sentiment to happiness delta mapping (sentiment -5..+5 → delta -10..+10)
     sentiment_delta_mapping: dict[int, int] = Field(

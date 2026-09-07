@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.game_config import MEDICAL_ROOM_PRODUCTION, compute_medical_capacity, game_config
+from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
@@ -20,6 +20,22 @@ from app.services.event_bus import GameEvent, event_bus
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)
+
+# Medical room production mapping (room name lowercase → product type)
+MEDICAL_ROOM_PRODUCTION: dict[str, str] = {
+    "medbay": "stimpack",
+    "science lab": "radaway",
+}
+
+
+def compute_medical_capacity(rooms: Sequence[Room]) -> dict[str, int]:
+    """Compute max stimpack/radaway capacity from Medbay/Science Lab rooms."""
+    capacities: dict[str, int] = {"stimpack": 0, "radaway": 0}
+    for room in rooms:
+        product = MEDICAL_ROOM_PRODUCTION.get(room.name.lower())
+        if product and room.capacity is not None:
+            capacities[product] += room.capacity
+    return capacities
 
 
 class ResourceManager:

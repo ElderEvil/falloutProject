@@ -8,7 +8,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.game_config import compute_medical_capacity, game_config
+from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as crud_outfit
 from app.crud import storage as crud_storage
@@ -27,6 +27,7 @@ from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service
+from app.services.resource_manager import compute_medical_capacity
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.weapon_assets import get_weapon_image_url

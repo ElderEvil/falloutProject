@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from pydantic import UUID4
 from sqlmodel import Field, Relationship, SQLModel
 
+from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.schemas.common import RoomTypeEnum, SPECIALEnum
 
@@ -27,8 +28,8 @@ class RoomBase(SQLModel):
     size_max: int = Field(ge=1, le=9)
     size: int | None = Field(default=None, ge=1, le=9)
     tier: int = Field(default=1, ge=1, le=3)
-    coordinate_x: int | None = Field(default=None, ge=0, le=9)
-    coordinate_y: int | None = Field(default=None, ge=0, le=25)
+    coordinate_x: int | None = Field(default=None, ge=GRID_X_MIN, le=GRID_X_MAX)
+    coordinate_y: int | None = Field(default=None, ge=GRID_Y_MIN, le=GRID_Y_MAX)
     image_url: str | None = Field(default=None)
     speedup_multiplier: float = Field(default=1.0, ge=1.0, le=10.0)
     arena_last_fight_at: datetime | None = Field(

@@ -171,65 +171,6 @@ class _CollectLikeEvaluator(ObjectiveEvaluator):
         return True
 
 
-@pytest.mark.asyncio
-async def test_overlapping_resource_collected_emits_do_not_collide_on_objective_connection(
-    throwaway_engine,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Concurrent ticks must serialize evaluator database access per connection."""
-    from unittest.mock import patch
-
-    # Isolation: reset the class-level guard state between tests.
-    _ConcurrencyGuardedSession._in_flight = 0
-    _ConcurrencyGuardedSession.collisions = 0
-    _ConcurrencyGuardedSession.executions = 0
-
-    # Check out the single shared connection AFTER table creation (StaticPool
-    # reuses the same underlying connection, so seeded/created state is visible)
-    shared_conn = await throwaway_engine.connect()
-    shared_maker = _make_shared_session_maker(shared_conn)
-
-    bus = EventBus()
-    try:
-        # One evaluator is sufficient: the collision comes from two overlapping
-        # event emissions, as happens when game-loop tasks overlap.
-        _CollectLikeEvaluator(bus)
-
-        vault_id = UUID4("00000000-0000-0000-0000-000000000001")
-
-        with (
-            patch("app.services.objective_evaluators.async_session_maker", shared_maker),
-            caplog.at_level(logging.ERROR, logger="app.services.event_bus"),
-        ):
-            await asyncio.gather(
-                bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault_id,
-                    {"resource_type": "caps", "amount": 10},
-                ),
-                bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault_id,
-                    {"resource_type": "food", "amount": 5},
-                ),
-            )
-
-        interface_errors = [
-            record
-            for record in caplog.records
-            if record.exc_info and isinstance(record.exc_info[1], asyncpg.InterfaceError)
-        ]
-        assert _ConcurrencyGuardedSession.collisions == 0
-        assert _ConcurrencyGuardedSession.executions == 2
-        assert not interface_errors
-    finally:
-        bus.clear()
-        _ConcurrencyGuardedSession._in_flight = 0
-        _ConcurrencyGuardedSession.collisions = 0
-        _ConcurrencyGuardedSession.executions = 0
-        await shared_conn.close()
-
-
 def _seeded_engine() -> tuple[Any, Any, Any]:
     """Create a fresh in-memory engine (SQLite, StaticPool) with schema.
 

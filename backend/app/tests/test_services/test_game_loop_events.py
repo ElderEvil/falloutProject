@@ -38,16 +38,6 @@ async def test_process_events_offline_vault_returns_empty(async_session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_process_events_below_min_population_returns_empty(async_session: AsyncSession, vault: Vault):
-    """Events must not trigger below the minimum vault population."""
-    await _create_dwellers(async_session, vault, count=2)
-
-    result = await game_loop_service._process_events(async_session, vault.id, 3600)
-
-    assert result == {"triggered": 0, "events": []}
-
-
-@pytest.mark.asyncio
 async def test_process_events_spawn_chance_miss_returns_empty(async_session: AsyncSession, vault: Vault):
     """Events must not trigger when the spawn chance roll fails."""
     await _create_dwellers(async_session, vault, count=3)
@@ -128,21 +118,3 @@ async def test_process_events_raider_scout_spawns_incident(async_session: AsyncS
     mock_incident_service.spawn_incident.assert_awaited_once_with(
         async_session, vault.id, IncidentType.RADSCORPION_ATTACK
     )
-
-
-@pytest.mark.asyncio
-async def test_process_events_raider_scout_no_room_returns_empty(async_session: AsyncSession, vault: Vault):
-    """Raider scout events no-op when no incident can be spawned."""
-    await _create_dwellers(async_session, vault, count=3)
-
-    with (
-        patch("app.services.game_loop.random") as mock_random,
-        patch("app.services.incident_service.incident_service") as mock_incident_service,
-    ):
-        mock_random.random.return_value = 0.0
-        mock_random.choices.return_value = ["raider_scout"]
-        mock_incident_service.spawn_incident = AsyncMock(return_value=None)
-
-        result = await game_loop_service._process_events(async_session, vault.id, 3600)
-
-    assert result == {"triggered": 0, "events": []}

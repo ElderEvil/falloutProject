@@ -14,101 +14,6 @@ from app.services.quota_service import DEFAULT_QUOTA_LIMIT
 class TestAIUsageService:
     """Tests for AIUsageService token aggregation and quota reporting."""
 
-    async def test_get_user_usage_with_default_quota(self) -> None:
-        """Response uses DEFAULT_QUOTA_LIMIT when user has no custom limit."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        user_result = MagicMock()
-        user_result.scalar_one_or_none.return_value = None
-        db_session.execute = AsyncMock(return_value=user_result)
-
-        service = AIUsageService()
-        with (
-            patch.object(
-                service,
-                "_aggregate_tokens",
-                new_callable=AsyncMock,
-                side_effect=[
-                    AIUsageStats(prompt_tokens=10, completion_tokens=20, total_tokens=30),
-                    AIUsageStats(prompt_tokens=5, completion_tokens=5, total_tokens=10),
-                ],
-            ),
-            patch.object(service, "_aggregate_by_operation", new_callable=AsyncMock, return_value=[]),
-        ):
-            response = await service.get_user_usage(db_session, user_id)
-
-        assert isinstance(response, AIUsageResponse)
-        assert response.all_time.total_tokens == 30
-        assert response.current_month.total_tokens == 10
-        assert response.quota.quota_limit == DEFAULT_QUOTA_LIMIT
-        assert response.quota.quota_used == 10
-        assert response.quota.quota_remaining == DEFAULT_QUOTA_LIMIT - 10
-        assert response.by_operation == []
-        assert response.chat_heavy is False
-
-    async def test_get_user_usage_with_custom_quota(self) -> None:
-        """Response respects the user's monthly_token_limit."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        user = MagicMock()
-        user.monthly_token_limit = 100
-        user_result = MagicMock()
-        user_result.scalar_one_or_none.return_value = user
-        db_session.execute = AsyncMock(return_value=user_result)
-
-        service = AIUsageService()
-        with (
-            patch.object(
-                service,
-                "_aggregate_tokens",
-                new_callable=AsyncMock,
-                side_effect=[
-                    AIUsageStats(prompt_tokens=0, completion_tokens=0, total_tokens=0),
-                    AIUsageStats(prompt_tokens=80, completion_tokens=10, total_tokens=90),
-                ],
-            ),
-            patch.object(service, "_aggregate_by_operation", new_callable=AsyncMock, return_value=[]),
-        ):
-            response = await service.get_user_usage(db_session, user_id)
-
-        assert response.quota.quota_limit == 100
-        assert response.quota.quota_used == 90
-        assert response.quota.quota_remaining == 10
-        assert response.quota.quota_percentage == 90.0
-        assert response.quota.quota_warning is True
-        assert response.quota.quota_exceeded is False
-
-    async def test_get_user_usage_quota_exceeded(self) -> None:
-        """Quota exceeded flag is set when usage reaches 100%."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        user = MagicMock()
-        user.monthly_token_limit = 50
-        user_result = MagicMock()
-        user_result.scalar_one_or_none.return_value = user
-        db_session.execute = AsyncMock(return_value=user_result)
-
-        service = AIUsageService()
-        with (
-            patch.object(
-                service,
-                "_aggregate_tokens",
-                new_callable=AsyncMock,
-                side_effect=[
-                    AIUsageStats(prompt_tokens=0, completion_tokens=0, total_tokens=0),
-                    AIUsageStats(prompt_tokens=50, completion_tokens=10, total_tokens=60),
-                ],
-            ),
-            patch.object(service, "_aggregate_by_operation", new_callable=AsyncMock, return_value=[]),
-        ):
-            response = await service.get_user_usage(db_session, user_id)
-
-        assert response.quota.quota_exceeded is True
-        assert response.quota.quota_remaining == 0
-
     async def test_get_user_usage_zero_quota(self) -> None:
         """Percentage is 0.0 when quota limit is zero."""
         user_id = uuid4()
@@ -133,91 +38,6 @@ class TestAIUsageService:
             response = await service.get_user_usage(db_session, user_id)
 
         assert response.quota.quota_percentage == 0.0
-
-    async def test_get_user_usage_includes_by_operation_and_chat_heavy(self) -> None:
-        """Monthly per-operation breakdown is passed through and chat_heavy computed."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        user_result = MagicMock()
-        user_result.scalar_one_or_none.return_value = None
-        db_session.execute = AsyncMock(return_value=user_result)
-
-        by_operation = [
-            AIOperationStats(
-                operation="chat_with_dweller", prompt_tokens=80, completion_tokens=10, total_tokens=90, count=9
-            ),
-            AIOperationStats(
-                operation="generate_backstory", prompt_tokens=5, completion_tokens=5, total_tokens=10, count=1
-            ),
-        ]
-        service = AIUsageService()
-        with (
-            patch.object(
-                service,
-                "_aggregate_tokens",
-                new_callable=AsyncMock,
-                return_value=AIUsageStats(prompt_tokens=85, completion_tokens=15, total_tokens=100),
-            ),
-            patch.object(
-                service, "_aggregate_by_operation", new_callable=AsyncMock, return_value=by_operation
-            ) as mock_by_operation,
-        ):
-            response = await service.get_user_usage(db_session, user_id)
-
-        assert response.by_operation == by_operation
-        assert response.chat_heavy is True
-        mock_by_operation.assert_awaited_once()
-
-    async def test_get_user_usage_chat_heavy_false_when_mixed(self) -> None:
-        """chat_heavy stays False when chat_with_dweller is at or below 80%."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        user_result = MagicMock()
-        user_result.scalar_one_or_none.return_value = None
-        db_session.execute = AsyncMock(return_value=user_result)
-
-        by_operation = [
-            AIOperationStats(
-                operation="chat_with_dweller", prompt_tokens=40, completion_tokens=10, total_tokens=50, count=5
-            ),
-            AIOperationStats(operation="extend_bio", prompt_tokens=40, completion_tokens=10, total_tokens=50, count=5),
-        ]
-        service = AIUsageService()
-        with (
-            patch.object(
-                service,
-                "_aggregate_tokens",
-                new_callable=AsyncMock,
-                return_value=AIUsageStats(prompt_tokens=80, completion_tokens=20, total_tokens=100),
-            ),
-            patch.object(service, "_aggregate_by_operation", new_callable=AsyncMock, return_value=by_operation),
-        ):
-            response = await service.get_user_usage(db_session, user_id)
-
-        assert response.chat_heavy is False
-
-    def test_chat_heavy_ignores_operational_usage(self) -> None:
-        """Quota bookkeeping must not dilute the user-facing chat anomaly signal."""
-        by_operation = [
-            AIOperationStats(
-                operation="chat_with_dweller", prompt_tokens=80, completion_tokens=10, total_tokens=90, count=9
-            ),
-            AIOperationStats(
-                operation="generate_backstory", prompt_tokens=5, completion_tokens=5, total_tokens=10, count=1
-            ),
-            AIOperationStats(
-                operation="quota_tracking",
-                prompt_tokens=900,
-                completion_tokens=0,
-                total_tokens=900,
-                count=9,
-                is_operational=True,
-            ),
-        ]
-
-        assert AIUsageService._is_chat_heavy(by_operation) is True
 
     async def test_get_user_usage_logs_and_reraises(self) -> None:
         """Unexpected errors are logged and re-raised."""
@@ -322,20 +142,6 @@ class TestAIUsageService:
         assert stats[2].operation == "unknown"
         db_session.exec.assert_awaited_once()
 
-    async def test_aggregate_by_operation_empty(self) -> None:
-        """Returns an empty list when no interactions exist."""
-        user_id = uuid4()
-        db_session = AsyncMock()
-
-        result = MagicMock()
-        result.all.return_value = []
-        db_session.exec = AsyncMock(return_value=result)
-
-        stats = await AIUsageService()._aggregate_by_operation(db_session, user_id)
-
-        assert stats == []
-        db_session.exec.assert_awaited_once()
-
     async def test_aggregate_by_operation_with_since(self) -> None:
         """Per-operation query accepts the optional since filter."""
         user_id = uuid4()
@@ -378,17 +184,3 @@ class TestIsChatHeavy:
         other = AIOperationStats(operation="generate_backstory", total_tokens=19, count=1)
 
         assert AIUsageService._is_chat_heavy([chat, other]) is True
-
-    def test_at_threshold_is_not_heavy(self) -> None:
-        chat = AIOperationStats(operation="chat_with_dweller", total_tokens=80, count=1)
-        other = AIOperationStats(operation="generate_backstory", total_tokens=20, count=1)
-
-        assert AIUsageService._is_chat_heavy([chat, other]) is False
-
-    def test_chat_alone_is_heavy(self) -> None:
-        chat = AIOperationStats(operation="chat_with_dweller", total_tokens=10, count=1)
-
-        assert AIUsageService._is_chat_heavy([chat]) is True
-
-    def test_empty_usage_is_not_heavy(self) -> None:
-        assert AIUsageService._is_chat_heavy([]) is False

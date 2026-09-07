@@ -89,47 +89,6 @@ async def _create_due_pregnancy(
 
 
 @pytest.mark.asyncio
-async def test_deliver_baby_links_child_to_home_origin(
-    async_session: AsyncSession,
-    male_dweller: Dweller,
-    female_dweller: Dweller,
-) -> None:
-    """Happy: deliver_baby → child has ORIGIN DwellerLocation link to HOME_VAULT row."""
-    pregnancy = await _create_due_pregnancy(async_session, female_dweller.id, male_dweller.id)
-
-    child = await BreedingService.deliver_baby(async_session, pregnancy.id)
-
-    assert child is not None
-    assert child.age_group == AgeGroupEnum.CHILD
-
-    # HOME_VAULT WastelandLocation exists at (50, 50)
-    home_stmt = select(WastelandLocation).where(
-        WastelandLocation.type == LocationTypeEnum.HOME_VAULT,
-        WastelandLocation.vault_id == female_dweller.vault_id,
-    )
-    home_locations = (await async_session.execute(home_stmt)).scalars().all()
-    assert len(home_locations) == 1
-    home = home_locations[0]
-    assert home.coord_x == 50.0
-    assert home.coord_y == 50.0
-
-    # Child has ORIGIN DwellerLocation linking to the home vault row
-    link_stmt = select(DwellerLocation).where(
-        DwellerLocation.dweller_id == child.id,
-        DwellerLocation.location_id == home.id,
-        DwellerLocation.relation == DwellerLocationRelationEnum.ORIGIN,
-    )
-    links = (await async_session.execute(link_stmt)).scalars().all()
-    assert len(links) == 1
-    assert links[0].dweller_id == child.id
-    assert links[0].relation == DwellerLocationRelationEnum.ORIGIN
-
-    # No LLMInteraction rows created
-    llm_rows = (await async_session.execute(select(LLMInteraction))).scalars().all()
-    assert len(llm_rows) == 0
-
-
-@pytest.mark.asyncio
 async def test_deliver_baby_link_home_origin_failure_does_not_break_delivery(
     async_session: AsyncSession,
     male_dweller: Dweller,

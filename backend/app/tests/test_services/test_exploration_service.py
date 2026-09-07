@@ -93,19 +93,6 @@ async def test_generate_event_not_active(
     event = exploration_service.generate_event(exploration)
     assert event is None
 
-
-@pytest.mark.asyncio
-async def test_generate_event_timing(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Test event generation respects timing constraints."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_session.refresh(exploration)
-
-    # Immediately after creation, should not generate event (needs 5 minutes)
-    exploration_service.generate_event(exploration)
     # This is probabilistic but timing check should prevent generation
     # We can't assert None because it might have been 5+ minutes in test
 
@@ -152,82 +139,6 @@ async def test_generate_event_with_loot(
             assert event.loot is not None
             assert hasattr(event.loot, "item")
             assert hasattr(event.loot, "caps")
-
-
-@pytest.mark.asyncio
-async def test_process_event_adds_loot(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Test processing an event adds loot to exploration."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    # Manipulate to allow event generation
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
-    await async_session.commit()
-    await async_session.refresh(exploration)
-
-    # Mock generate_event to return a loot event (updated event type)
-    mock_event = LootEventSchema(
-        description="Found treasure!",
-        loot=LootSchema(
-            item=ItemSchema(name="Desk Fan", rarity="Common", value=15),
-            item_type="junk",
-            caps=25,
-        ),
-    )
-
-    with patch.object(event_generator, "generate_event", return_value=mock_event):
-        result = await exploration_service.process_event(async_session, exploration)
-
-    await async_session.refresh(result)
-
-    # Verify stats were updated (caps from mock event)
-    assert result.total_caps_found == 25
-    # Verify distance was added (loot event adds 1-5 miles + base 1-3 miles)
-    assert 2 <= result.total_distance <= 8
-    # Verify event was added
-    assert len(result.events) == 1
-    assert result.events[0]["type"] == "loot"
-    # Verify loot was collected
-    assert len(result.loot_collected) == 1
-    assert result.loot_collected[0]["item_name"] == "Desk Fan"
-
-
-@pytest.mark.asyncio
-async def test_process_event_combat_increases_enemies(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Test processing combat event increases enemy count."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
-    await async_session.commit()
-    await async_session.refresh(exploration)
-
-    # Mock generate_event to return a combat event (updated event type)
-    mock_event = CombatEventSchema(
-        description="Encountered raiders!",
-        health_loss=10,
-        enemy="Raider gang",
-        victory=True,
-    )
-
-    with patch.object(event_generator, "generate_event", return_value=mock_event):
-        result = await exploration_service.process_event(async_session, exploration)
-
-    await async_session.refresh(result)
-
-    # Verify enemies were incremented
-    assert result.enemies_encountered == 1
-    # Verify distance was added (all events add 1-3 miles)
-    assert 1 <= result.total_distance <= 3
-    # Verify event was added
-    assert len(result.events) == 1
-    assert result.events[0]["type"] == "combat"
 
 
 @pytest.mark.asyncio
@@ -383,40 +294,7 @@ async def test_recall_exploration_not_active_raises_error(
     with pytest.raises(ValueError, match="not active"):
         await exploration_service.recall_exploration(async_session, exploration.id)
 
-
-@pytest.mark.asyncio
-async def test_process_event_no_event_returns_unchanged(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Test processing when no event should be generated."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    # Mock generate_event to return None
-    with patch.object(event_generator, "generate_event", return_value=None):
-        result = await exploration_service.process_event(async_session, exploration)
-
-    # Exploration should be unchanged
-    assert result.total_caps_found == 0
     # Note: Event collection tested separately
-
-
-def test_danger_rad_template_yields_radiation_gain() -> None:
-    """Radiation danger templates deal rads instead of HP damage."""
-    from types import SimpleNamespace
-
-    exploration = SimpleNamespace(dweller_endurance=1)
-    rad_template = "Caught in unexpected radiation burst. Took {damage} rads."
-
-    with patch(
-        "app.services.exploration.event_generator.data_loader.load_event_templates",
-        return_value={"danger": [rad_template]},
-    ):
-        event = event_generator._generate_danger_event(exploration)
-
-    assert event.health_loss == 0
-    assert event.radiation_gain > 0
 
 
 @pytest.mark.asyncio

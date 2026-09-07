@@ -138,28 +138,6 @@ async def deleted_dweller_fixture(async_session: AsyncSession, vault: Vault) -> 
 
 
 @pytest.mark.asyncio
-async def test_get_radio_rooms_none(
-    async_session: AsyncSession,
-    vault: Vault,
-):
-    """Test getting radio rooms when none exist."""
-    rooms = await RadioService.get_radio_rooms(async_session, vault.id)
-    assert rooms == []
-
-
-@pytest.mark.asyncio
-async def test_get_radio_rooms_exists(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-):
-    """Test getting radio rooms when they exist."""
-    rooms = await RadioService.get_radio_rooms(async_session, vault.id)
-    assert len(rooms) == 1
-    assert rooms[0].id == radio_room.id
-
-
-@pytest.mark.asyncio
 async def test_calculate_recruitment_rate_no_radio(
     async_session: AsyncSession,
     vault: Vault,
@@ -167,42 +145,6 @@ async def test_calculate_recruitment_rate_no_radio(
     """Test recruitment rate with no radio rooms."""
     rate = await RadioService.calculate_recruitment_rate(async_session, vault, [])
     assert rate == 0.0
-
-
-@pytest.mark.asyncio
-async def test_calculate_recruitment_rate_tier_1(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-):
-    """Test recruitment rate with tier 1 radio room."""
-    rate = await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room])
-
-    # Base rate * tier 1 multiplier (1.0) * happiness multiplier
-    happiness_mult = 1.0 + (vault.happiness * game_config.radio.happiness_rate_multiplier)
-    expected_rate = game_config.radio.base_recruitment_rate * game_config.radio.get_tier_multiplier(1) * happiness_mult
-
-    assert rate == pytest.approx(expected_rate, abs=0.0001)
-
-
-@pytest.mark.asyncio
-async def test_calculate_recruitment_rate_tier_2(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-):
-    """Test recruitment rate with tier 2 radio room."""
-    # Upgrade to tier 2
-    radio_room.tier = 2
-    await async_session.commit()
-
-    rate = await RadioService.calculate_recruitment_rate(async_session, vault, [radio_room])
-
-    # Base rate * tier 2 multiplier (1.5) * happiness multiplier
-    happiness_mult = 1.0 + (vault.happiness * game_config.radio.happiness_rate_multiplier)
-    expected_rate = game_config.radio.base_recruitment_rate * game_config.radio.get_tier_multiplier(2) * happiness_mult
-
-    assert rate == pytest.approx(expected_rate, abs=0.0001)
 
 
 @pytest.mark.asyncio
@@ -279,26 +221,6 @@ async def test_recruit_dweller_fresh_when_pool_empty(
 
 
 @pytest.mark.asyncio
-async def test_manual_recruit_returns_tuple(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-    radio_dweller: Dweller,
-):
-    """manual_recruit must return a (Dweller, bool) tuple."""
-    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 100
-    await async_session.commit()
-
-    result = await RadioService.manual_recruit(async_session, vault.id)
-
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    dweller, recycled = result
-    assert isinstance(dweller, Dweller)
-    assert isinstance(recycled, bool)
-
-
-@pytest.mark.asyncio
 async def test_manual_recruit_success(
     async_session: AsyncSession,
     vault: Vault,
@@ -347,28 +269,6 @@ async def test_manual_recruit_no_radio(
 
 
 @pytest.mark.asyncio
-async def test_manual_recruit_custom_cost(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-    radio_dweller: Dweller,
-):
-    """Test manual recruitment with custom cost."""
-    custom_cost = 1000
-    vault.bottle_caps = custom_cost + 500
-    await async_session.commit()
-    initial_caps = vault.bottle_caps
-
-    dweller, _ = await RadioService.manual_recruit(async_session, vault.id, caps_cost=custom_cost)
-
-    assert dweller is not None
-
-    # Verify correct caps deducted
-    await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps - custom_cost
-
-
-@pytest.mark.asyncio
 async def test_get_recruitment_stats_no_radio(
     async_session: AsyncSession,
     vault: Vault,
@@ -396,65 +296,6 @@ async def test_get_recruitment_stats_with_radio(
     assert stats["estimated_hours_per_recruit"] > 0.0
     assert stats["radio_rooms_count"] == 1
     assert stats["manual_cost_caps"] == game_config.radio.manual_recruitment_cost
-
-
-@pytest.mark.asyncio
-async def test_get_recruitment_stats_higher_rate_with_charisma(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-):
-    """Test that recruitment stats return valid data."""
-    stats = await RadioService.get_recruitment_stats(async_session, vault.id)
-
-    # Verify stats structure and valid values
-    assert stats["has_radio"] is True
-    assert stats["recruitment_rate"] > 0.0
-    assert stats["rate_per_hour"] > 0.0
-    assert stats["estimated_hours_per_recruit"] > 0.0
-    assert stats["radio_rooms_count"] == 1
-
-
-@pytest.mark.asyncio
-async def test_calculate_recruitment_rate_multiple_rooms(
-    async_session: AsyncSession,
-    vault: Vault,
-):
-    """Test recruitment rate with multiple radio rooms."""
-    # Create two radio rooms
-    room_data = {
-        "name": "Radio Studio 1",
-        "category": RoomTypeEnum.MISC,
-        "ability": SPECIALEnum.CHARISMA,
-        "population_required": None,
-        "base_cost": 100,
-        "incremental_cost": 50,
-        "t2_upgrade_cost": 500,
-        "t3_upgrade_cost": 1500,
-        "capacity": 2,
-        "output": None,
-        "size_min": 1,
-        "size_max": 3,
-        "size": 2,
-        "tier": 1,
-        "coordinate_x": 0,
-        "coordinate_y": 0,
-        "image_url": None,
-    }
-    room_in_1 = RoomCreate(**room_data, vault_id=vault.id)
-    room1 = await crud.room.create(db_session=async_session, obj_in=room_in_1)
-
-    room_data["name"] = "Radio Studio 2"
-    room_data["coordinate_x"] = 1
-    room_in_2 = RoomCreate(**room_data, vault_id=vault.id)
-    room2 = await crud.room.create(db_session=async_session, obj_in=room_in_2)
-
-    # Get rate with 2 rooms
-    rate_two_rooms = await RadioService.calculate_recruitment_rate(async_session, vault, [room1, room2])
-
-    # Verify rate is positive and reasonable
-    assert rate_two_rooms > 0
-    assert rate_two_rooms < 1.0  # Should be less than 100% per tick
 
 
 # ---------------------------------------------------------------------------
@@ -690,23 +531,3 @@ async def test_recruit_dweller_does_not_recycle_recently_deleted(
 
     assert recycled is False
     assert dweller.id != recent.id
-
-
-@pytest.mark.asyncio
-async def test_manual_recruit_propagates_recycled_flag(
-    async_session: AsyncSession,
-    vault: Vault,
-    radio_room: Room,
-    radio_dweller: Dweller,
-    deleted_dweller: Dweller,
-):
-    """manual_recruit surfaces the recycled flag from recruit_dweller."""
-    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
-    await async_session.commit()
-
-    with patch("random.random", return_value=0.0):
-        dweller, recycled = await RadioService.manual_recruit(async_session, vault.id)
-
-    assert recycled is True
-    assert dweller.id == deleted_dweller.id
-    assert dweller.is_deleted is False

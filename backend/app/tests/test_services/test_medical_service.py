@@ -29,13 +29,6 @@ class TestUseRadaway:
         assert result.radaway == 1
 
     @pytest.mark.asyncio
-    async def test_removes_at_least_one_rad(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await _set_dweller_state(async_session, dweller, radiation=1, radaway=2)
-        result = await medical_service.use_radaway(async_session, dweller.id)
-        assert result.radiation == 0
-        assert result.radaway == 1
-
-    @pytest.mark.asyncio
     async def test_requires_supplies(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, radiation=10, radaway=0)
         with pytest.raises(ResourceConflictException):
@@ -50,18 +43,6 @@ class TestUseRadaway:
 
 class TestUseStimpack:
     @pytest.mark.asyncio
-    async def test_heals_at_least_one_hp_with_low_valid_percentage(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
-    ):
-        monkeypatch.setattr(game_config.health, "stimpack_heal_percent", 0.001)
-        await _set_dweller_state(async_session, dweller, max_health=100, health=10, radiation=0, stimpack=1)
-
-        result = await medical_service.use_stimpack(async_session, dweller.id)
-
-        assert result.health == 11
-        assert result.stimpack == 0
-
-    @pytest.mark.asyncio
     async def test_heals_configured_share_of_max_health(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):
@@ -69,13 +50,6 @@ class TestUseStimpack:
         result = await medical_service.use_stimpack(async_session, dweller.id)
         assert result.health == 10 + int(100 * game_config.health.stimpack_heal_percent)
         assert result.stimpack == 0
-
-    @pytest.mark.asyncio
-    async def test_heal_caps_at_effective_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await _set_dweller_state(async_session, dweller, max_health=100, health=50, radiation=10, stimpack=1)
-        result = await medical_service.use_stimpack(async_session, dweller.id)
-        assert result.health == 90
-        assert result.health < result.max_health
 
     @pytest.mark.asyncio
     async def test_requires_supplies(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):

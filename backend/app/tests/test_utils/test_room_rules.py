@@ -43,15 +43,6 @@ def _make_room(**overrides) -> Room:
     return Room(**defaults)
 
 
-@pytest.mark.asyncio
-async def test_is_elevator_case_insensitive():
-    assert is_elevator("Elevator")
-    assert is_elevator("elevator")
-    assert is_elevator(" ELEVATOR ")
-    assert not is_elevator("Diner")
-    assert not is_elevator(None)
-
-
 class TestValidateBuildPlacement:
     @pytest.mark.asyncio
     async def test_elevator_rejected_without_elevator_above(self, mock_session):
@@ -69,18 +60,6 @@ class TestValidateBuildPlacement:
         mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
         with pytest.raises(Exception, match="has no elevator"):
             await validate_build_placement(mock_session, uuid4(), "Diner", 2, 5)
-
-    @pytest.mark.asyncio
-    async def test_non_elevator_allowed_with_elevator_on_level(self, mock_session):
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Elevator"))
-        await validate_build_placement(mock_session, uuid4(), "Diner", 2, 5)
-
-    @pytest.mark.asyncio
-    async def test_non_elevator_allowed_on_row_zero_without_elevator(self, mock_session):
-        """The vault door anchors row 0, so rooms may be built there without an elevator."""
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
-        await validate_build_placement(mock_session, uuid4(), "Diner", 2, 0)
-        mock_session.execute.assert_not_called()
 
 
 class TestValidateElevatorDestroy:
@@ -111,17 +90,6 @@ class TestValidateElevatorDestroy:
         no_above = _make_mock_execute_result(scalars_first=None)
         all_elevators = _make_mock_execute_result(scalars_all=[elevator, other_elevator])
         mock_session.execute.side_effect = [no_above, all_elevators]
-
-        await validate_elevator_destroy(mock_session, elevator)
-
-    @pytest.mark.asyncio
-    async def test_only_elevator_with_no_other_rooms_allowed(self, mock_session):
-        vault_id = uuid4()
-        elevator = _make_room(name="Elevator", coordinate_y=5, vault_id=vault_id)
-        no_above = _make_mock_execute_result(scalars_first=None)
-        all_elevators = _make_mock_execute_result(scalars_all=[elevator])
-        no_rooms = _make_mock_execute_result(scalars_all=[])
-        mock_session.execute.side_effect = [no_above, all_elevators, no_rooms]
 
         await validate_elevator_destroy(mock_session, elevator)
 

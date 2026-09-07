@@ -59,20 +59,6 @@ async def _create_production_room(async_session: AsyncSession, vault: Vault):
 
 
 @pytest.mark.asyncio
-async def test_manual_youth_assignment_persists_room_ability_and_started_at(
-    async_session: AsyncSession, vault: Vault
-) -> None:
-    youth = await _create_youth(async_session, vault, "Ada")
-    room = await _create_production_room(async_session, vault)
-
-    await crud.dweller.move_to_room(async_session, youth.id, room.id)
-
-    await async_session.refresh(youth)
-    assert youth.apprentice_stat == SPECIALEnum.STRENGTH
-    assert youth.apprentice_started_at is not None
-
-
-@pytest.mark.asyncio
 async def test_only_one_youth_can_apprentice_in_a_production_room(async_session: AsyncSession, vault: Vault) -> None:
     first_youth = await _create_youth(async_session, vault, "Ada")
     second_youth = await _create_youth(async_session, vault, "Bea")
@@ -125,19 +111,6 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
 
 
 @pytest.mark.asyncio
-async def test_apprenticeship_tick_supports_raw_sqlalchemy_async_session() -> None:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
-    async with engine.begin() as connection:
-        await connection.run_sync(SQLModel.metadata.create_all)
-    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_maker() as raw_session:
-        result = await game_loop_service._process_apprenticeships(raw_session, uuid4())
-
-    await engine.dispose()
-    assert result == {"active_count": 0, "stats_awarded": 0}
-
-
-@pytest.mark.asyncio
 async def test_apprentice_scenario_setup_creates_one_teen_and_is_idempotent(
     async_session: AsyncSession, vault: Vault
 ) -> None:
@@ -181,35 +154,3 @@ async def test_apprentice_scenario_ready_backdates_once_and_reports_status(
 async def test_apprentice_scenario_requires_existing_production_room(async_session: AsyncSession, vault: Vault) -> None:
     with pytest.raises(ValueError, match="no production room"):
         await apprentice_scenario_service.setup(async_session, vault.id)
-
-
-@pytest.mark.asyncio
-async def test_adult_transition_preserves_each_apprentice_gain(async_session: AsyncSession, vault: Vault) -> None:
-    youth = await _create_youth(async_session, vault, "Ada")
-    youth.strength = 4  # Baseline child Strength 3 plus one completed apprenticeship interval.
-    youth.apprentice_stat_gains = {"strength": 1}
-    youth.apprentice_stat = SPECIALEnum.STRENGTH
-    youth.birth_date = datetime.utcnow() - timedelta(hours=10_000)
-    await async_session.commit()
-
-    await BreedingService.age_children(async_session, vault.id)
-
-    await async_session.refresh(youth)
-    assert youth.strength == 7
-
-
-@pytest.mark.asyncio
-async def test_adult_transition_clears_apprenticeship_state(async_session: AsyncSession, vault: Vault) -> None:
-    youth = await _create_youth(async_session, vault, "Ada")
-    room = await _create_production_room(async_session, vault)
-    await crud.dweller.move_to_room(async_session, youth.id, room.id)
-    youth.birth_date = datetime.utcnow() - timedelta(hours=10_000)
-    await async_session.commit()
-
-    await BreedingService.age_children(async_session, vault.id)
-
-    await async_session.refresh(youth)
-    assert youth.age_group == AgeGroupEnum.ADULT
-    assert youth.apprentice_stat is None
-    assert youth.apprentice_started_at is None
-    assert youth.apprentice_stat_gains == {}

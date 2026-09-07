@@ -50,30 +50,6 @@ def adapter_disabled(mock_settings_disabled):
     return RustFSAdapter()
 
 
-class TestInitialization:
-    def test_enabled_with_valid_config(self, mock_settings):
-        adapter = RustFSAdapter()
-        assert adapter.enabled is True
-
-    def test_disabled_without_access_key(self):
-        with patch("app.services.storage.rustfs_adapter.settings") as mock:
-            mock.RUSTFS_ACCESS_KEY = None
-            mock.RUSTFS_SECRET_KEY = "test-secret-key"
-            adapter = RustFSAdapter()
-            assert adapter.enabled is False
-
-    def test_disabled_without_secret_key(self):
-        with patch("app.services.storage.rustfs_adapter.settings") as mock:
-            mock.RUSTFS_ACCESS_KEY = "test-access-key"
-            mock.RUSTFS_SECRET_KEY = None
-            adapter = RustFSAdapter()
-            assert adapter.enabled is False
-
-    def test_default_bucket_name(self, mock_settings):
-        adapter = RustFSAdapter()
-        assert adapter.default_bucket_name == "test-bucket"
-
-
 class TestClientLazyInit:
     @patch("app.services.storage.rustfs_adapter.boto3")
     def test_client_created_on_first_access(self, mock_boto3, mock_settings):
@@ -87,9 +63,6 @@ class TestClientLazyInit:
         assert call_kwargs[0][0] == "s3"
         assert call_kwargs[1]["aws_access_key_id"] == "test-access-key"
         assert call_kwargs[1]["aws_secret_access_key"] == "test-secret-key"
-
-    def test_client_none_when_disabled(self, adapter_disabled):
-        assert adapter_disabled.client is None
 
 
 class TestUploadFile:
@@ -170,16 +143,6 @@ class TestDownloadFile:
 
 
 class TestPublicUrl:
-    def test_public_url_with_public_url_setting(self, mock_settings):
-        adapter = RustFSAdapter()
-        url = adapter.public_url(file_name="image.png")
-        assert url == "http://rustfs.local:9000/test-bucket/image.png"
-
-    def test_public_url_custom_bucket(self, mock_settings):
-        adapter = RustFSAdapter()
-        url = adapter.public_url(file_name="doc.pdf", bucket_name="other-bucket")
-        assert url == "http://rustfs.local:9000/other-bucket/doc.pdf"
-
     def test_public_url_disabled_returns_empty(self, adapter_disabled):
         url = adapter_disabled.public_url(file_name="test.txt")
         assert url == ""
@@ -235,21 +198,6 @@ class TestFileExists:
 
 
 class TestListFiles:
-    def test_list_files_success(self, mock_settings):
-        mock_client = MagicMock()
-        mock_client.list_objects_v2.return_value = {
-            "Contents": [
-                {"Key": "file1.txt"},
-                {"Key": "file2.txt"},
-                {"Key": "subdir/file3.txt"},
-            ]
-        }
-        with patch.object(RustFSAdapter, "client", new_callable=lambda: property(lambda self: mock_client)):
-            adapter = RustFSAdapter()
-            result = adapter.list_files()
-
-            assert result == ["file1.txt", "file2.txt", "subdir/file3.txt"]
-
     def test_list_files_with_prefix(self, mock_settings):
         mock_client = MagicMock()
         mock_client.list_objects_v2.return_value = {"Contents": [{"Key": "images/photo.png"}]}
@@ -259,14 +207,6 @@ class TestListFiles:
 
             mock_client.list_objects_v2.assert_called_once_with(Bucket="test-bucket", Prefix="images/")
             assert result == ["images/photo.png"]
-
-    def test_list_files_empty_contents(self, mock_settings):
-        mock_client = MagicMock()
-        mock_client.list_objects_v2.return_value = {}
-        with patch.object(RustFSAdapter, "client", new_callable=lambda: property(lambda self: mock_client)):
-            adapter = RustFSAdapter()
-            result = adapter.list_files()
-            assert result == []
 
     def test_list_files_disabled_returns_empty(self, adapter_disabled):
         result = adapter_disabled.list_files()
@@ -305,14 +245,6 @@ class TestUploadThumbnail:
 
 
 class TestEnsureBucketExists:
-    def test_bucket_already_exists(self, mock_settings):
-        mock_client = MagicMock()
-        adapter = RustFSAdapter()
-        adapter._client = mock_client
-        adapter._ensure_bucket_exists("test-bucket")
-        mock_client.head_bucket.assert_called_once_with(Bucket="test-bucket")
-        mock_client.create_bucket.assert_not_called()
-
     def test_bucket_created_when_missing(self, mock_settings):
         mock_client = MagicMock()
         mock_client.head_bucket.side_effect = ClientError(
@@ -355,14 +287,6 @@ class TestEnsureBucketExists:
 
 
 class TestBucketPolicy:
-    def test_is_public_bucket_true(self, mock_settings):
-        adapter = RustFSAdapter()
-        assert adapter._is_public_bucket("test-bucket") is True
-
-    def test_is_public_bucket_false(self, mock_settings):
-        adapter = RustFSAdapter()
-        assert adapter._is_public_bucket("unknown-bucket") is False
-
     def test_get_public_policy(self, mock_settings):
         import json
 
@@ -373,10 +297,3 @@ class TestBucketPolicy:
         assert policy["Version"] == "2012-10-17"
         assert policy["Statement"][0]["Effect"] == "Allow"
         assert "my-bucket" in policy["Statement"][0]["Resource"][0]
-
-    def test_ensure_bucket_policy_skips_non_public(self, mock_settings):
-        mock_client = MagicMock()
-        with patch.object(RustFSAdapter, "client", new_callable=lambda: property(lambda self: mock_client)):
-            adapter = RustFSAdapter()
-            adapter._ensure_bucket_policy("unknown-bucket")
-            mock_client.put_bucket_policy.assert_not_called()

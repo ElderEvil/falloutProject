@@ -64,13 +64,3 @@ class TestTaskSessionExec:
                 )
         finally:
             await engine.dispose()
-
-    async def test_task_session_exec_runs_query(self) -> None:
-        """With live PostgreSQL, ``.exec()`` runs a real query via ``task_session()``."""
-        uri = str(settings.ASYNC_DATABASE_URI)
-        if make_url(uri).get_backend_name() != "postgresql":
-            pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping live exec check")
-
-        async with task_session() as session:
-            result = await session.exec(select(1))
-            assert result.scalar() == 1

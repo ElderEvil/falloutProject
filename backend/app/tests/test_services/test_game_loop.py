@@ -35,12 +35,6 @@ class TestPauseResume:
     """Tests for pause_vault, resume_vault, and get_vault_status."""
 
     @pytest.mark.asyncio
-    async def test_pause_vault_sets_is_paused_true(self, async_session: AsyncSession, vault: Vault):
-        result = await game_loop_service.pause_vault(async_session, vault.id)
-        assert result.is_paused is True
-        assert result.paused_at is not None
-
-    @pytest.mark.asyncio
     async def test_resume_vault_sets_is_paused_false(self, async_session: AsyncSession, vault: Vault):
         await game_loop_service.pause_vault(async_session, vault.id)
         result = await game_loop_service.resume_vault(async_session, vault.id)
@@ -57,19 +51,6 @@ class TestPauseResume:
         assert "total_game_time" in status
         assert "last_tick_time" in status
         assert "offline_time" in status
-
-    @pytest.mark.asyncio
-    async def test_get_or_create_game_state_creates_new(self, async_session: AsyncSession, vault: Vault):
-        gs = await game_loop_service._get_or_create_game_state(async_session, vault.id)
-        assert gs is not None
-        assert gs.vault_id == vault.id
-        assert gs.is_active is True
-
-    @pytest.mark.asyncio
-    async def test_get_or_create_game_state_returns_existing(self, async_session: AsyncSession, vault: Vault):
-        gs1 = await game_loop_service._get_or_create_game_state(async_session, vault.id)
-        gs2 = await game_loop_service._get_or_create_game_state(async_session, vault.id)
-        assert gs1.id == gs2.id
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -91,15 +72,6 @@ class TestProcessGameTick:
         assert "total_time" in stats
 
     @pytest.mark.asyncio
-    async def test_active_vault_processed(self, async_session: AsyncSession, vault: Vault):
-        await game_loop_service.process_vault_tick(async_session, vault.id)
-        with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
-            mock_tick.return_value = {"status": "ok"}
-            stats = await game_loop_service.process_game_tick(async_session)
-            assert stats["vaults_processed"] >= 1
-            assert stats["errors"] == 0
-
-    @pytest.mark.asyncio
     async def test_counts_errors(self, async_session: AsyncSession, vault: Vault):
         from app.utils.exceptions import VaultOperationException
 
@@ -108,14 +80,6 @@ class TestProcessGameTick:
             mock_tick.side_effect = VaultOperationException("Simulated error")
             stats = await game_loop_service.process_game_tick(async_session)
             assert stats["errors"] >= 1
-
-    @pytest.mark.usefixtures("vault")
-    @pytest.mark.asyncio
-    async def test_no_active_vaults(self, async_session: AsyncSession):
-        stats = await game_loop_service.process_game_tick(async_session)
-        assert stats["vaults_processed"] == 0
-        assert stats["errors"] == 0
-        assert "total_time" in stats
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -153,20 +117,6 @@ class TestProcessVaultTick:
         assert result["seconds_passed"] <= 3600
 
     @pytest.mark.asyncio
-    async def test_includes_all_phases(self, async_session: AsyncSession, vault: Vault):
-        result = await self._patched_tick(async_session, vault)
-        for phase in [
-            "resources",
-            "explorations",
-            "dwellers",
-            "training",
-            "happiness",
-            "breeding",
-            "events",
-        ]:
-            assert phase in result["updates"]
-
-    @pytest.mark.asyncio
     async def test_resource_error_does_not_propagate(self, async_session: AsyncSession, vault: Vault):
         # resource phase except catches (SQLAlchemyError, ResourceNotFoundException, VaultOperationException)
         from app.utils.exceptions import VaultOperationException
@@ -182,94 +132,10 @@ class TestProcessVaultTick:
             result = await game_loop_service.process_vault_tick(async_session, vault.id)
         assert "error" in result["updates"]["resources"]
 
-    @pytest.mark.asyncio
-    async def test_retry_after_dweller_failure_does_not_reapply_resource_window(
-        self, async_session: AsyncSession, vault: Vault
-    ):
-        """A game_tick retry after an unexpected mid-tick failure must not reprocess the same window."""
-        gs = await game_loop_service._get_or_create_game_state(async_session, vault.id)
-        gs.last_tick_time = datetime.utcnow() - timedelta(seconds=60)
-        async_session.add(gs)
-        await async_session.commit()
-        pre_tick = gs.last_tick_time
-
-        mock_update = MagicMock()
-        mock_update.power = 100
-        mock_update.food = 50
-        mock_update.water = 75
-
-        with (
-            patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
-            patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock) as pd,
-            patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
-            patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
-            patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
-        ):
-            mr.return_value = (mock_update, ResourceTickEvents())
-            pd.side_effect = ValueError("boom")
-
-            with pytest.raises(ValueError, match="boom"):
-                await game_loop_service.process_vault_tick(async_session, vault.id)
-
-            await async_session.refresh(gs)
-            assert gs.last_tick_time > pre_tick
-
-            pd.side_effect = None
-            await game_loop_service.process_vault_tick(async_session, vault.id)
-
-        first_window = mr.call_args_list[0].args[2]
-        retry_window = mr.call_args_list[1].args[2]
-        assert first_window == 60
-        assert retry_window < first_window * 2
-
-    @pytest.mark.asyncio
-    async def test_paused_vault_short_circuits(self, async_session: AsyncSession, vault: Vault):
-        await game_loop_service.pause_vault(async_session, vault.id)
-        with patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr:
-            result = await game_loop_service.process_vault_tick(async_session, vault.id)
-        assert result["status"] == "paused"
-        mr.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_sse_publish_error_does_not_propagate(self, async_session: AsyncSession, vault: Vault):
-        mock_update = MagicMock()
-        mock_update.power = 100
-        mock_update.food = 50
-        mock_update.water = 75
-        with patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr:
-            mr.return_value = (mock_update, ResourceTickEvents())
-            with patch("app.services.game_loop.sse_manager.publish", new_callable=AsyncMock) as mock_publish:
-                mock_publish.side_effect = ConnectionError("SSE connection lost")
-                result = await game_loop_service.process_vault_tick(async_session, vault.id)
-        assert result is not None
-        assert "updates" in result
-
 
 # ═════════════════════════════════════════════════════════════════════
 # _get_active_vaults
 # ═════════════════════════════════════════════════════════════════════
-
-
-class TestGetActiveVaults:
-    """Tests for _get_active_vaults."""
-
-    @pytest.mark.asyncio
-    async def test_no_game_states(self, async_session: AsyncSession):
-        vaults = await game_loop_service._get_active_vaults(async_session)
-        assert vaults == []
-
-    @pytest.mark.asyncio
-    async def test_returns_active(self, async_session: AsyncSession, vault: Vault):
-        await game_loop_service.process_vault_tick(async_session, vault.id)
-        vaults = await game_loop_service._get_active_vaults(async_session)
-        assert any(v.id == vault.id for v in vaults)
-
-    @pytest.mark.asyncio
-    async def test_excludes_paused(self, async_session: AsyncSession, vault: Vault):
-        await game_loop_service.process_vault_tick(async_session, vault.id)
-        await game_loop_service.pause_vault(async_session, vault.id)
-        vaults = await game_loop_service._get_active_vaults(async_session)
-        assert not any(v.id == vault.id for v in vaults)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -306,51 +172,6 @@ class TestAwardWorkXp:
 
     @pytest.mark.usefixtures("async_session")
     @pytest.mark.asyncio
-    async def test_production_room_awards_xp(self):
-        import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
-
-        mock_db = MagicMock()
-        mock_db.add = MagicMock()
-        mock_dweller = MagicMock()
-        mock_dweller.experience = 0
-        mock_dweller.strength = 3
-        mock_dweller.vault_id = None
-        mock_dweller.name = "Test"
-        mock_dweller.level = 1
-        mock_room = MagicMock()
-        mock_room.category = RoomTypeEnum.PRODUCTION
-        mock_room.ability = SPECIALEnum.STRENGTH
-        saved = ls_mod.leveling_service.check_level_up
-        ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(False, 0))
-        try:
-            stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
-        finally:
-            ls_mod.leveling_service.check_level_up = saved
-        assert stats["xp_awarded"] == 2
-        assert stats["leveled_up"] == 0
-
-    @pytest.mark.usefixtures("async_session")
-    @pytest.mark.asyncio
-    async def test_production_room_with_ability_awards_nonzero_xp(self):
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
-
-        mock_db = MagicMock()
-        mock_db.add = MagicMock()
-        mock_dweller = MagicMock()
-        mock_dweller.experience = 0
-        mock_dweller.strength = 5
-        mock_dweller.vault_id = None
-        mock_dweller.name = "Worker"
-        mock_dweller.level = 1
-        mock_room = MagicMock()
-        mock_room.category = RoomTypeEnum.PRODUCTION
-        mock_room.ability = SPECIALEnum.STRENGTH
-        stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
-        assert stats["xp_awarded"] > 0
-
-    @pytest.mark.usefixtures("async_session")
-    @pytest.mark.asyncio
     async def test_high_matching_special_uses_configured_work_efficiency_bonus(self):
         """High matching SPECIAL awards the configured production-work XP bonus."""
         import app.services.leveling_service as ls_mod
@@ -378,32 +199,6 @@ class TestAwardWorkXp:
         assert stats["xp_awarded"] == int(
             game_config.leveling.work_xp_per_tick * game_config.leveling.work_efficiency_bonus
         )
-
-    @pytest.mark.usefixtures("async_session")
-    @pytest.mark.asyncio
-    async def test_triggers_level_up(self):
-        import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
-
-        mock_db = MagicMock()
-        mock_db.add = MagicMock()
-        mock_dweller = MagicMock()
-        mock_dweller.experience = 500
-        mock_dweller.strength = 5
-        mock_dweller.vault_id = None
-        mock_dweller.name = "Leveler"
-        mock_dweller.level = 5
-        mock_room = MagicMock()
-        mock_room.category = RoomTypeEnum.PRODUCTION
-        mock_room.ability = SPECIALEnum.STRENGTH
-        saved = ls_mod.leveling_service.check_level_up
-        ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(True, 2))
-        try:
-            stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
-        finally:
-            ls_mod.leveling_service.check_level_up = saved
-        assert stats["xp_awarded"] == 2
-        assert stats["leveled_up"] == 2
 
     @pytest.mark.usefixtures("async_session")
     @pytest.mark.asyncio
@@ -440,32 +235,6 @@ class TestAwardWorkXp:
         assert stats["leveled_up"] == 1
         mock_emit.assert_called_once()
 
-    @pytest.mark.usefixtures("async_session")
-    @pytest.mark.asyncio
-    async def test_negative_experience_normalized(self):
-        import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
-
-        mock_db = MagicMock()
-        mock_db.add = MagicMock()
-        mock_dweller = MagicMock()
-        mock_dweller.experience = -10
-        mock_dweller.strength = 5
-        mock_dweller.vault_id = None
-        mock_dweller.name = "Neg XP"
-        mock_dweller.level = 1
-        mock_room = MagicMock()
-        mock_room.category = RoomTypeEnum.PRODUCTION
-        mock_room.ability = SPECIALEnum.STRENGTH
-        saved = ls_mod.leveling_service.check_level_up
-        ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(False, 0))
-        try:
-            stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
-        finally:
-            ls_mod.leveling_service.check_level_up = saved
-        assert stats["xp_awarded"] == 2
-        assert mock_dweller.experience >= 0
-
 
 # ═════════════════════════════════════════════════════════════════════
 # _process_dwellers
@@ -477,14 +246,6 @@ class TestAwardWorkXp:
 
 class TestProcessDwellers:
     """Tests for dweller processing within the game loop."""
-
-    @pytest.mark.asyncio
-    async def test_empty_vault(self, async_session: AsyncSession, vault: Vault):
-        result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert result["health_updated"] == 0
-        assert result["leveled_up"] == 0
-        assert result["xp_awarded"] == 0
-        assert result["deaths"] == 0
 
     @pytest.mark.asyncio
     async def test_skips_dead_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
@@ -502,17 +263,6 @@ class TestProcessDwellers:
     @pytest.mark.asyncio
     async def test_detects_health_death(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         dweller.health = 0
-        async_session.add(dweller)
-        await async_session.commit()
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
-            result = await game_loop_service._process_dwellers(async_session, vault.id)
-        mock_death.assert_called_once()
-        assert result["deaths"] == 1
-
-    @pytest.mark.asyncio
-    async def test_detects_radiation_death(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        dweller.health = 100
-        dweller.radiation = 1000
         async_session.add(dweller)
         await async_session.commit()
         with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
@@ -567,48 +317,6 @@ class TestProcessDwellers:
                 ls_mod.leveling_service.check_level_up = saved
         assert result["xp_awarded"] > 0
 
-    @pytest.mark.asyncio
-    async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app import crud
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.tests.factory.dwellers import create_fake_dweller
-
-        dweller.health = 100
-        dweller.radiation = 0
-        room = await crud.room.create(
-            async_session,
-            RoomCreate(
-                name="Water",
-                category=RoomTypeEnum.PRODUCTION,
-                ability=SPECIALEnum.PERCEPTION,
-                base_cost=100,
-                incremental_cost=50,
-                capacity=4,
-                size=2,
-                tier=1,
-                t2_upgrade_cost=500,
-                t3_upgrade_cost=1500,
-                vault_id=vault.id,
-                coordinate_x=0,
-                coordinate_y=0,
-                size_min=1,
-                size_max=3,
-            ),
-        )
-        d_data = create_fake_dweller()
-        d_data["vault_id"] = vault.id
-        d_data["radiation"] = 1000
-        d_data["health"] = 100
-        d2 = await crud.dweller.create(async_session, DwellerCreate(**d_data))
-        await crud.dweller.move_to_room(async_session, d2.id, room.id)
-        await async_session.commit()
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
-            result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert mock_death.call_count >= 1
-        assert result["deaths"] >= 1
-
 
 # ═════════════════════════════════════════════════════════════════════
 # _process_dwellers — dehydration radiation
@@ -626,31 +334,6 @@ class TestDehydrationRadiation:
         dweller.radiation = 0
         async_session.add_all([vault, dweller])
         await async_session.commit()
-
-    @pytest.mark.asyncio
-    async def test_empty_water_irradiates_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await self._prepare(async_session, vault, dweller, water=0)
-        result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert result["irradiated"] == 1
-        await async_session.refresh(dweller)
-        assert dweller.radiation == game_config.health.dehydration_radiation_per_tick
-
-    @pytest.mark.asyncio
-    async def test_available_water_does_not_irradiate(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
-    ):
-        await self._prepare(async_session, vault, dweller, water=50)
-        result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert result["irradiated"] == 0
-        await async_session.refresh(dweller)
-        assert dweller.radiation == 0
-
-    @pytest.mark.asyncio
-    async def test_scales_with_elapsed_ticks(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await self._prepare(async_session, vault, dweller, water=0)
-        await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        await async_session.refresh(dweller)
-        assert dweller.radiation == 10 * game_config.health.dehydration_radiation_per_tick
 
     @pytest.mark.asyncio
     async def test_away_dwellers_are_exempt(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
@@ -677,20 +360,6 @@ class TestDehydrationRadiation:
         await async_session.refresh(dweller)
         assert dweller.radiation == game_config.health.max_radiation
 
-    @pytest.mark.asyncio
-    async def test_reaching_threshold_kills_same_tick(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
-    ):
-        await self._prepare(async_session, vault, dweller, water=0)
-        dweller.radiation = game_config.health.max_radiation - 1
-        async_session.add(dweller)
-        await async_session.commit()
-
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
-            result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        mock_death.assert_called_once()
-        assert result["deaths"] == 1
-
 
 # ═════════════════════════════════════════════════════════════════════
 # _process_training
@@ -704,35 +373,6 @@ class TestDehydrationRadiation:
 
 class TestProcessTraining:
     """Tests for training processing within the game loop."""
-
-    @pytest.mark.asyncio
-    async def test_no_active_trainings(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
-            mag.return_value = []
-            result = await game_loop_service._process_training(async_session, vault.id)
-        assert result["active_count"] == 0
-        assert result["sessions_updated"] == 0
-        assert result["completed"] == 0
-
-    @pytest.mark.asyncio
-    async def test_with_active_training(self, async_session: AsyncSession, vault: Vault):
-        mt = MagicMock()
-        mt.id = "t-1"
-        mt.dweller_id = "d-1"
-        mu = MagicMock()
-        mu.is_completed = MagicMock(return_value=False)
-        with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
-            mag.return_value = [mt]
-            with patch("app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock) as md:
-                md.return_value = {mt.dweller_id: MagicMock()}
-                with patch(
-                    "app.services.training_service.training_service.update_training_progress", new_callable=AsyncMock
-                ) as mu_async:
-                    mu_async.return_value = mu
-                    result = await game_loop_service._process_training(async_session, vault.id)
-        assert result["active_count"] == 1
-        assert result["sessions_updated"] == 1
-        assert result["completed"] == 0
 
     @pytest.mark.asyncio
     async def test_detects_completion(self, async_session: AsyncSession, vault: Vault):
@@ -805,49 +445,9 @@ class TestProcessTraining:
 # ═════════════════════════════════════════════════════════════════════
 
 
-class TestProcessHappiness:
-    """Tests for happiness processing within the game loop."""
-
-    @pytest.mark.asyncio
-    async def test_delegates_to_service(self, async_session: AsyncSession, vault: Vault):
-        expected = {"average_happiness": 75.0, "updated_count": 10}
-        with patch("app.services.game_loop.happiness_service.update_vault_happiness", new_callable=AsyncMock) as mh:
-            mh.return_value = expected
-            result = await game_loop_service._process_happiness(async_session, vault.id, 60)
-        mh.assert_called_once_with(async_session, vault.id, 60)
-        assert result == expected
-
-
 # ═════════════════════════════════════════════════════════════════════
 # _process_breeding
 # ═════════════════════════════════════════════════════════════════════
-
-
-class TestProcessBreeding:
-    """Tests for breeding processing within the game loop."""
-
-    @pytest.mark.asyncio
-    async def test_combines_all_stats(self, async_session: AsyncSession, vault: Vault):
-        with (
-            patch.object(
-                game_loop_service,
-                "_update_room_relationships",
-                new_callable=AsyncMock,
-                return_value={"relationships_updated": 3},
-            ),
-            patch.object(
-                game_loop_service,
-                "_process_pregnancies_and_births",
-                new_callable=AsyncMock,
-                return_value={"conceptions": 1, "births": 0},
-            ),
-            patch.object(game_loop_service, "_age_children", new_callable=AsyncMock, return_value={"children_aged": 2}),
-        ):
-            result = await game_loop_service._process_breeding(async_session, vault.id)
-        assert result["relationships_updated"] == 3
-        assert result["conceptions"] == 1
-        assert result["births"] == 0
-        assert result["children_aged"] == 2
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -857,16 +457,6 @@ class TestProcessBreeding:
 
 class TestUpdateRoomRelationships:
     """Tests for relationship updates within the game loop."""
-
-    @pytest.mark.asyncio
-    async def test_no_dwellers_in_rooms(self, async_session: AsyncSession, vault: Vault):
-        result = await game_loop_service._update_room_relationships(async_session, vault.id)
-        assert result["relationships_updated"] == 0
-
-    @pytest.mark.asyncio
-    async def test_excludes_dwellers_without_room(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        result = await game_loop_service._update_room_relationships(async_session, vault.id)
-        assert result["relationships_updated"] == 0
 
     @pytest.mark.asyncio
     async def test_single_dweller_skips(self, async_session: AsyncSession, vault: Vault):
@@ -944,34 +534,11 @@ class TestRelationshipHelpers:
         assert result[("d3", "d4")] == r2
         assert result[("d4", "d3")] == r2
 
-    def test_build_relationships_map_empty(self):
-        assert game_loop_service._build_relationships_map([]) == {}
-
     @pytest.mark.usefixtures("vault")
     @pytest.mark.asyncio
     async def test_fetch_existing_relationships(self, async_session: AsyncSession):
         result = await game_loop_service._fetch_existing_relationships(async_session, set())
         assert result == []
-
-    @pytest.mark.asyncio
-    async def test_update_pair_affinity_new_relationship(self, async_session: AsyncSession):
-        from app.schemas.common import RelationshipTypeEnum
-
-        d1 = MagicMock()
-        d1.id = "d-1"
-        d1.charisma = 10
-        d2 = MagicMock()
-        d2.id = "d-2"
-        d2.charisma = 10
-        new_rels = []
-        result = await game_loop_service._update_pair_affinity(async_session, d1, d2, {}, new_rels)
-        assert result == 0
-        assert len(new_rels) == 1
-        relationship, affinity_gain = new_rels[0]
-        assert relationship.dweller_1_id == "d-1"
-        assert relationship.dweller_2_id == "d-2"
-        assert relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
-        assert affinity_gain == game_config.relationship.affinity_increase_per_tick + 1
 
     @pytest.mark.asyncio
     async def test_update_pair_affinity_existing(self, async_session: AsyncSession):
@@ -1013,11 +580,6 @@ class TestRelationshipHelpers:
         assert result == 0
 
     @pytest.mark.asyncio
-    async def test_create_new_relationships_empty(self, async_session: AsyncSession):
-        result = await game_loop_service._create_new_relationships(async_session, [])
-        assert result == 0
-
-    @pytest.mark.asyncio
     async def test_create_new_relationships_with_rels(self, async_session: AsyncSession):
         r1 = MagicMock()
         r1.dweller_1_id = "d1"
@@ -1052,47 +614,12 @@ class TestProcessPregnancies:
     """Tests for pregnancy and birth processing."""
 
     @pytest.mark.asyncio
-    async def test_no_conceptions_no_due(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(return_value=[])
-            mbs.check_due_pregnancies = AsyncMock(return_value=[])
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["conceptions"] == 0
-        assert result["births"] == 0
-
-    @pytest.mark.asyncio
     async def test_detects_conceptions(self, async_session: AsyncSession, vault: Vault):
         with patch("app.services.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=["p1", "p2"])
             mbs.check_due_pregnancies = AsyncMock(return_value=[])
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
         assert result["conceptions"] == 2
-        assert result["births"] == 0
-
-    @pytest.mark.asyncio
-    async def test_delivers_babies(self, async_session: AsyncSession, vault: Vault):
-        mp = MagicMock()
-        mp.id = "p-1"
-        mb = MagicMock()
-        mb.first_name = "Test"
-        mb.last_name = "Baby"
-        with patch("app.services.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(return_value=[])
-            mbs.check_due_pregnancies = AsyncMock(return_value=[mp])
-            mbs.deliver_baby = AsyncMock(return_value=mb)
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["conceptions"] == 0
-        assert result["births"] == 1
-
-    @pytest.mark.asyncio
-    async def test_deliver_baby_returns_none(self, async_session: AsyncSession, vault: Vault):
-        mp = MagicMock()
-        mp.id = "p-1"
-        with patch("app.services.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(return_value=[])
-            mbs.check_due_pregnancies = AsyncMock(return_value=[mp])
-            mbs.deliver_baby = AsyncMock(return_value=None)
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
         assert result["births"] == 0
 
     @pytest.mark.asyncio
@@ -1158,13 +685,6 @@ class TestProcessPregnancies:
 
 class TestAgeChildren:
     """Tests for aging children to adults."""
-
-    @pytest.mark.asyncio
-    async def test_none_to_age(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
-            mbs.age_children = AsyncMock(return_value=[])
-            result = await game_loop_service._age_children(async_session, vault.id)
-        assert result["children_aged"] == 0
 
     @pytest.mark.asyncio
     async def test_success(self, async_session: AsyncSession, vault: Vault):

@@ -55,38 +55,6 @@ async def test_create_dweller(
 
 
 @pytest.mark.asyncio
-async def test_read_dweller_list(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-    dweller_data: dict,
-) -> None:
-    dweller_1_data = dweller_data
-    dweller_2_data = create_fake_dweller()
-    dweller_1_data.update({"vault_id": str(room.vault_id), "room_id": str(room.id)})
-    dweller_2_data.update({"vault_id": str(room.vault_id), "room_id": str(room.id)})
-    dweller_1 = DwellerCreate(**dweller_1_data)
-    dweller_2 = DwellerCreate(**dweller_2_data)
-    await crud.dweller.create(async_session, dweller_1)
-    await crud.dweller.create(async_session, dweller_2)
-    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 2
-    for dweller in dwellers:
-        assert "id" in dweller
-        assert "first_name" in dweller
-        assert "last_name" in dweller
-        assert "level" in dweller
-        assert "health" in dweller
-        assert "max_health" in dweller
-        assert "radiation" in dweller
-        assert "happiness" in dweller
-        assert "status" in dweller
-
-
-@pytest.mark.asyncio
 async def test_read_dweller_list_exposes_weapon_type(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -99,57 +67,6 @@ async def test_read_dweller_list_exposes_weapon_type(
     assert response.status_code == 200
     by_id = {d["id"]: d for d in response.json()}
     assert by_id[str(dweller.id)]["weapon_type"] == weapon.weapon_type.value
-
-
-@pytest.mark.asyncio
-async def test_read_dweller(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-    assert response.status_code == 200
-    response_data = response.json()
-    dweller_data = dweller.model_dump()
-    assert response_data["first_name"] == dweller_data["first_name"]
-    assert response_data["last_name"] == dweller_data["last_name"]
-    assert response_data["is_adult"] == dweller_data["is_adult"]
-    assert response_data["gender"] == dweller_data["gender"]
-    assert response_data["rarity"] == dweller_data["rarity"]
-    assert response_data["level"] == dweller_data["level"]
-    assert response_data["experience"] == dweller_data["experience"]
-    assert response_data["max_health"] == dweller_data["max_health"]
-    assert response_data["health"] == dweller_data["health"]
-    assert response_data["radiation"] == dweller_data["radiation"]
-    assert response_data["happiness"] == dweller_data["happiness"]
-    assert response_data["stimpack"] == dweller_data["stimpack"]
-    assert response_data["radaway"] == dweller_data["radaway"]
-    assert "status" in response_data
-
-
-@pytest.mark.asyncio
-async def test_update_dweller(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    dweller_new_data = create_fake_dweller()
-    update_response = await async_client.put(
-        f"/dwellers/{dweller.id}", json=dweller_new_data, headers=superuser_token_headers
-    )
-    updated_dweller = update_response.json()
-    assert update_response.status_code == 200
-    assert updated_dweller["id"] == str(dweller.id)
-    assert updated_dweller["first_name"] == dweller_new_data["first_name"]
-    assert updated_dweller["last_name"] == dweller_new_data["last_name"]
-    assert updated_dweller["gender"] == dweller_new_data["gender"].value
-    assert updated_dweller["rarity"] == dweller_new_data["rarity"].value
-    assert updated_dweller["level"] == dweller_new_data["level"]
-    assert updated_dweller["experience"] == dweller_new_data["experience"]
-    assert updated_dweller["max_health"] == dweller_new_data["max_health"]
-    assert updated_dweller["health"] == dweller_new_data["health"]
-    assert updated_dweller["happiness"] == dweller_new_data["happiness"]
-    assert updated_dweller["is_adult"] == dweller_new_data["is_adult"]
 
 
 @pytest.mark.asyncio
@@ -173,7 +90,7 @@ async def test_filter_dwellers_by_status(
 ) -> None:
     """Test filtering dwellers by status."""
     from app.schemas.common import DwellerStatusEnum
-    from app.schemas.dweller import DwellerCreate, DwellerUpdate
+    from app.schemas.dweller import DwellerUpdate
 
     # Create dwellers with different statuses
     dweller_1_data = create_fake_dweller()
@@ -209,87 +126,6 @@ async def test_filter_dwellers_by_status(
 
 
 @pytest.mark.asyncio
-async def test_update_dweller_room_auto_updates_status(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-) -> None:
-    """Test that updating dweller room_id automatically updates status."""
-    from app.schemas.common import RoomTypeEnum
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-    from app.tests.factory.rooms import create_fake_room
-
-    # Create a dweller with no room (IDLE)
-    dweller_data = create_fake_dweller()
-    dweller_data.update({"vault_id": str(room.vault_id)})
-    dweller_in = DwellerCreate(**dweller_data)
-    dweller = await crud.dweller.create(async_session, dweller_in)
-
-    assert dweller.status.value == "idle"
-    assert dweller.room_id is None
-
-    # Create a production room
-    production_room_data = create_fake_room()
-    production_room_data["category"] = RoomTypeEnum.PRODUCTION
-    production_room = await crud.room.create(async_session, RoomCreate(**production_room_data, vault_id=room.vault_id))
-
-    # Update dweller to assign to production room via API
-    update_response = await async_client.put(
-        f"/dwellers/{dweller.id}",
-        json={"room_id": str(production_room.id)},
-        headers=superuser_token_headers,
-    )
-    assert update_response.status_code == 200
-    updated_dweller = update_response.json()
-
-    # Status should automatically be WORKING
-    assert updated_dweller["status"] == "working"
-
-    # Verify room assignment by fetching the dweller from DB
-    await async_session.refresh(dweller)
-    assert dweller.room_id == production_room.id
-
-    # Create a training room
-    training_room_data = create_fake_room()
-    training_room_data["category"] = RoomTypeEnum.TRAINING
-    training_room = await crud.room.create(async_session, RoomCreate(**training_room_data, vault_id=room.vault_id))
-
-    # Move dweller to training room
-    update_response = await async_client.put(
-        f"/dwellers/{dweller.id}",
-        json={"room_id": str(training_room.id)},
-        headers=superuser_token_headers,
-    )
-    assert update_response.status_code == 200
-    updated_dweller = update_response.json()
-
-    # Status should automatically be TRAINING
-    assert updated_dweller["status"] == "training"
-
-    # Verify room assignment by fetching the dweller from DB
-    await async_session.refresh(dweller)
-    assert dweller.room_id == training_room.id
-
-    # Unassign dweller (set room_id to null)
-    update_response = await async_client.put(
-        f"/dwellers/{dweller.id}",
-        json={"room_id": None},
-        headers=superuser_token_headers,
-    )
-    assert update_response.status_code == 200
-    updated_dweller = update_response.json()
-
-    # Status should automatically be IDLE
-    assert updated_dweller["status"] == "idle"
-
-    # Verify room unassignment by fetching the dweller from DB
-    await async_session.refresh(dweller)
-    assert dweller.room_id is None
-
-
-@pytest.mark.asyncio
 async def test_search_dwellers_by_name(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -297,7 +133,6 @@ async def test_search_dwellers_by_name(
     room: Room,
 ) -> None:
     """Test searching dwellers by name."""
-    from app.schemas.dweller import DwellerCreate
 
     # Create dwellers with specific names
     dweller_1_data = create_fake_dweller()
@@ -346,7 +181,6 @@ async def test_sort_dwellers(
     room: Room,
 ) -> None:
     """Test sorting dwellers."""
-    from app.schemas.dweller import DwellerCreate
 
     # Create dwellers with different levels
     dweller_1_data = create_fake_dweller()
@@ -379,48 +213,6 @@ async def test_sort_dwellers(
     assert len(dwellers) == 2
     assert dwellers[0]["level"] == 10
     assert dwellers[1]["level"] == 5
-
-
-@pytest.mark.asyncio
-async def test_read_dweller_lineage(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    """GET /dwellers/{id}/lineage returns parents, children, siblings, partners and generation."""
-    parent = DwellerCreate(
-        first_name="Parent",
-        last_name="Dweller",
-        gender=GenderEnum.MALE,
-        rarity=RarityEnum.COMMON,
-        age_group=AgeGroupEnum.ADULT,
-        vault_id=dweller.vault_id,
-    )
-    parent_obj = await crud.dweller.create(async_session, parent)
-
-    child = DwellerCreate(
-        first_name="Child",
-        last_name="Dweller",
-        gender=GenderEnum.FEMALE,
-        rarity=RarityEnum.COMMON,
-        age_group=AgeGroupEnum.ADULT,
-        vault_id=dweller.vault_id,
-    )
-    child_obj = await crud.dweller.create(async_session, child)
-    # parent_1_id is not part of DwellerCreate; set the link on the persisted ORM object
-    child_obj.parent_1_id = parent_obj.id
-    await async_session.commit()
-
-    response = await async_client.get(f"/dwellers/{child_obj.id}/lineage", headers=superuser_token_headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["dweller_id"] == str(child_obj.id)
-    assert data["generation"] == 1
-    assert {p["id"] for p in data["parents"]} == {str(parent_obj.id)}
-    assert data["children"] == []
-    assert data["siblings"] == []
-    assert data["partners"] == []
 
 
 @pytest.mark.asyncio

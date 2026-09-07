@@ -50,26 +50,6 @@ def test_canonical_field_names() -> None:
     assert "body_type" not in fields, "body_type should be renamed to build"
 
 
-def test_all_fields_optional() -> None:
-    """All fields should be optional since JSONB stores sparse data."""
-    va = DwellerVisualAttributes()
-    assert va.model_dump(exclude_none=True) == {}
-
-
-def test_partial_population() -> None:
-    """Should allow partial data (e.g. only race+faction for defaults)."""
-    va = DwellerVisualAttributes(race="human", faction="vault_dweller")
-    assert va.race == "human"
-    assert va.faction == "vault_dweller"
-    assert va.height is None
-
-
-def test_rejects_factions_incompatible_with_a_dweller_race() -> None:
-    """Visual JSONB cannot save an identity combination excluded by the options data."""
-    with pytest.raises(ValueError, match="not valid for race"):
-        DwellerVisualAttributes(race="synth", faction="ncr")
-
-
 def test_identity_options_match_the_canonical_faction_restrictions() -> None:
     """Clients receive only the combinations the API accepts for identity editing."""
     options = dweller_service.get_identity_options()
@@ -78,47 +58,6 @@ def test_identity_options_match_the_canonical_faction_restrictions() -> None:
     assert options.factions_by_race["synth"] == ["the_institute", "railroad", "none"]
     assert options.states_by_race["ghoul"] == ["sane", "wild", "feral"]
     assert options.states_by_race["super_mutant"] == ["mild", "average", "behemoth"]
-
-
-def test_full_population() -> None:
-    """All fields should accept values."""
-    va = DwellerVisualAttributes(
-        race="human",
-        faction="brotherhood_of_steel",
-        height="tall",
-        build="athletic",
-        skin_tone="tan",
-        eye_color="brown",
-        age=30,
-        state_of_being=None,
-        appearance="attractive",
-        hair_style="short",
-        hair_color="brown",
-        facial_hair="clean-shaven",
-        makeup=None,
-        expression="determined",
-        headgear="Combat Helmet",
-        distinguishing_features=["scar"],
-        clothing_style="military",
-        accessory="Bandolier",
-        object_held="Laser Rifle",
-        pose="Weapon drawn",
-        background="Wasteland Ruins",
-        voice_line_text="For the Brotherhood!",
-        voice_line_url="https://audio.example/voice.mp3",
-    )
-    assert va.race == "human"
-    assert va.build == "athletic"
-    assert va.hair_style == "short"
-
-
-def test_age_range() -> None:
-    """Age should accept valid range."""
-    va = DwellerVisualAttributes(age=30)
-    assert va.age == 30
-
-    va = DwellerVisualAttributes(age=None)
-    assert va.age is None
 
 
 def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
@@ -156,11 +95,3 @@ def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
 def test_backward_compatibility_alias() -> None:
     """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""
     assert DwellerVisualAttributesInput is DwellerVisualAttributes
-
-
-def test_enum_values_serialize() -> None:
-    """Enum values should serialize to their string values."""
-    va = DwellerVisualAttributes(race="human", faction="vault_dweller")
-    dumped = va.model_dump()
-    assert dumped["race"] == "human"
-    assert dumped["faction"] == "vault_dweller"

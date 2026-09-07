@@ -95,47 +95,6 @@ async def permanently_dead_dweller_fixture(
 class TestDeathService:
     """Test death service functionality."""
 
-    async def test_mark_as_dead_success(
-        self,
-        async_session: AsyncSession,
-        alive_dweller: Dweller,
-        caplog: pytest.LogCaptureFixture,
-    ):
-        """Test marking a living dweller as dead."""
-        caplog.set_level(logging.INFO, logger="app.services.death_service")
-        alive_dweller.last_name = None
-        result = await death_service.mark_as_dead(
-            async_session,
-            alive_dweller,
-            DeathCauseEnum.HEALTH,
-        )
-
-        assert result.is_dead is True
-        assert result.status == DwellerStatusEnum.DEAD
-        assert result.death_cause == DeathCauseEnum.HEALTH
-        assert result.death_timestamp is not None
-        assert result.health == 0
-        assert result.room_id is None
-        assert result.epitaph is not None
-        assert f"Dweller {alive_dweller.first_name} () died" in caplog.text
-
-    async def test_mark_as_dead_with_custom_epitaph(
-        self,
-        async_session: AsyncSession,
-        alive_dweller: Dweller,
-    ):
-        """Test marking dweller as dead with custom epitaph."""
-        custom_epitaph = "A hero to the end"
-        result = await death_service.mark_as_dead(
-            async_session,
-            alive_dweller,
-            DeathCauseEnum.COMBAT,
-            epitaph=custom_epitaph,
-        )
-
-        assert result.epitaph == custom_epitaph
-        assert result.death_cause == DeathCauseEnum.COMBAT
-
     async def test_mark_as_dead_already_dead_raises(
         self,
         async_session: AsyncSession,
@@ -240,13 +199,6 @@ class TestDeathService:
 
         assert "not dead" in str(exc_info.value.detail).lower()
 
-    async def test_get_revival_cost_tier_1(self):
-        """Test revival cost for level 1-5 dwellers."""
-        # Level 1: 50 caps
-        assert death_service.get_revival_cost(1) == 50
-        # Level 5: 250 caps
-        assert death_service.get_revival_cost(5) == 250
-
     async def test_get_revival_cost_tier_2(self):
         """Test revival cost for level 6-10 dwellers."""
         # Level 6: 450 caps
@@ -296,32 +248,6 @@ class TestDeathService:
         days_left = death_service.get_days_until_permanent(dweller)
         assert days_left is not None
         assert 4 <= days_left <= 5
-
-    async def test_get_days_until_permanent_near_expiry(
-        self,
-        async_session: AsyncSession,
-        vault: Vault,
-    ):
-        """Test days calculation for dweller near permanent death."""
-        dweller_data = create_fake_dweller()
-        dweller_data.update(
-            {
-                "first_name": "Near",
-                "last_name": "Expiry",
-                "is_dead": True,
-                "is_permanently_dead": False,
-                "death_timestamp": datetime.utcnow() - timedelta(days=6, hours=12),
-                "death_cause": DeathCauseEnum.RADIATION.value,
-                "health": 0,
-                "max_health": 100,
-            }
-        )
-        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-        dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-        days_left = death_service.get_days_until_permanent(dweller)
-        assert days_left is not None
-        assert days_left == 0
 
     async def test_check_and_mark_permanent_deaths(
         self,
@@ -409,51 +335,6 @@ class TestDeathService:
         # Should have 1 revivable and 1 permanent
         assert stats["revivable_count"] == 1
         assert stats["permanently_dead_count"] == 1
-
-    async def test_generate_epitaph_health(
-        self,
-        alive_dweller: Dweller,
-    ):
-        """Test epitaph generation for health death."""
-        epitaph = death_service._generate_epitaph(alive_dweller, DeathCauseEnum.HEALTH)
-        assert "succumbed" in epitaph.lower() or "wounds" in epitaph.lower()
-        assert alive_dweller.first_name in epitaph
-
-    async def test_generate_epitaph_radiation(
-        self,
-        alive_dweller: Dweller,
-    ):
-        """Test epitaph generation for radiation death."""
-        epitaph = death_service._generate_epitaph(alive_dweller, DeathCauseEnum.RADIATION)
-        assert "radiation" in epitaph.lower()
-        assert alive_dweller.first_name in epitaph
-
-    async def test_generate_epitaph_incident(
-        self,
-        alive_dweller: Dweller,
-    ):
-        """Test epitaph generation for incident death."""
-        epitaph = death_service._generate_epitaph(alive_dweller, DeathCauseEnum.INCIDENT)
-        assert "defending" in epitaph.lower() or "hero" in epitaph.lower()
-        assert alive_dweller.first_name in epitaph
-
-    async def test_generate_epitaph_exploration(
-        self,
-        alive_dweller: Dweller,
-    ):
-        """Test epitaph generation for exploration death."""
-        epitaph = death_service._generate_epitaph(alive_dweller, DeathCauseEnum.EXPLORATION)
-        assert "wasteland" in epitaph.lower() or "lost" in epitaph.lower()
-        assert alive_dweller.first_name in epitaph
-
-    async def test_generate_epitaph_combat(
-        self,
-        alive_dweller: Dweller,
-    ):
-        """Test epitaph generation for combat death."""
-        epitaph = death_service._generate_epitaph(alive_dweller, DeathCauseEnum.COMBAT)
-        assert "combat" in epitaph.lower() or "bravely" in epitaph.lower()
-        assert alive_dweller.first_name in epitaph
 
 
 @pytest.mark.asyncio

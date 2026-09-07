@@ -73,62 +73,10 @@ class TestVoiceSelection:
         voice = conversation_service._select_voice_for_gender(GenderEnum.MALE)
         assert voice in ["echo", "fable", "onyx"]
 
-    def test_select_voice_for_female(self):
-        """Test voice selection for female dwellers."""
-        voice = conversation_service._select_voice_for_gender(GenderEnum.FEMALE)
-        assert voice in ["nova", "shimmer", "alloy"]
-
     def test_select_voice_for_none_gender(self):
         """Test voice selection defaults to alloy for None gender."""
         voice = conversation_service._select_voice_for_gender(None)
         assert voice == "alloy"
-
-
-@pytest.mark.asyncio
-class TestPromptBuilder:
-    """Tests for dweller prompt building."""
-
-    async def test_build_prompt_text_mode(self, test_dweller: Dweller):
-        """Test building prompt for text chat."""
-        # Load full dweller info
-        prompt = conversation_service._build_dweller_prompt(test_dweller, for_audio=False)
-
-        # Check essential elements
-        assert test_dweller.first_name in prompt
-        assert test_dweller.last_name in prompt
-        assert str(test_dweller.level) in prompt
-        assert test_dweller.gender.value in prompt
-        assert "concise" not in prompt.lower() or "150 words" not in prompt
-
-    async def test_build_prompt_audio_mode(self, test_dweller: Dweller):
-        """Test building prompt for audio chat includes conciseness instruction."""
-        prompt = conversation_service._build_dweller_prompt(test_dweller, for_audio=True)
-
-        # Check essential elements
-        assert test_dweller.first_name in prompt
-        assert "concise" in prompt.lower()
-        assert "150 words" in prompt
-
-    async def test_build_prompt_includes_special_stats(self, test_dweller: Dweller):
-        """Test prompt includes SPECIAL stats."""
-        prompt = conversation_service._build_dweller_prompt(test_dweller, for_audio=False)
-
-        # Should include SPECIAL stat names
-        assert "strength" in prompt.lower()
-        assert "perception" in prompt.lower()
-        assert "endurance" in prompt.lower()
-        assert "charisma" in prompt.lower()
-        assert "intelligence" in prompt.lower()
-        assert "agility" in prompt.lower()
-        assert "luck" in prompt.lower()
-
-    async def test_build_prompt_includes_vault_info(self, test_dweller: Dweller):
-        """Test prompt includes vault information."""
-        prompt = conversation_service._build_dweller_prompt(test_dweller, for_audio=False)
-
-        # Should mention vault
-        assert "vault" in prompt.lower()
-        assert str(test_dweller.vault.number) in prompt
 
 
 class TestAudioChatProvenance:

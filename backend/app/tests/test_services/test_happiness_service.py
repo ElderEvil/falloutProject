@@ -364,8 +364,8 @@ class TestHappinessService:
         dweller2 = await crud.dweller.create(db_session=async_session, obj_in=dweller2_in)
 
         # Make them partners
+        from app.core.enums import RelationshipTypeEnum
         from app.models.relationship import Relationship
-        from app.schemas.common import RelationshipTypeEnum
 
         relationship = Relationship(
             dweller_1_id=dweller1.id,

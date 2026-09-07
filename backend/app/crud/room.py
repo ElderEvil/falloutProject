@@ -8,11 +8,11 @@ from sqlalchemy import func
 from sqlmodel import and_, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RoomActionEnum, RoomTypeEnum
 from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN, game_config
 from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
 from app.models.room import Room
-from app.schemas.common import RoomActionEnum, RoomTypeEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.event_bus import GameEvent, event_bus
 from app.utils import room_rules

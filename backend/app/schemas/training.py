@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import UUID4, field_serializer
 
 from app.models.training import TrainingBase
-from app.schemas.common import serialize_optional_utc_datetime, serialize_utc_datetime
+from app.utils.serialize import serialize_optional_utc_datetime, serialize_utc_datetime
 
 
 class TrainingCreate(TrainingBase):

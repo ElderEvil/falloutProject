@@ -18,8 +18,8 @@ from app.agents.dweller_chat_agent import (
     parse_action_suggestion,
     validate_dweller_chat_output,
 )
+from app.core.enums import DwellerStatusEnum, SPECIALEnum
 from app.schemas.chat import MedicalAidStatus, NoAction, RequestRadawayAction, RequestStimpakAction
-from app.schemas.common import DwellerStatusEnum, SPECIALEnum
 from app.services.medical_service import get_dweller_medical_status
 
 

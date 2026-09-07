@@ -2,9 +2,9 @@
 
 import pytest
 
+from app.core.enums import WeaponSubtypeEnum, WeaponTypeEnum
 from app.models.dweller import Dweller
 from app.models.weapon import Weapon
-from app.schemas.common import WeaponSubtypeEnum, WeaponTypeEnum
 from app.utils.combat import combat_power, total_combat_power
 
 

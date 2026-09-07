@@ -7,11 +7,11 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum
 from app.schemas.exploration import ExplorationCreate
 from app.services.exploration_service import exploration_service
 

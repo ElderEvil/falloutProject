@@ -9,11 +9,11 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.crud import exploration as crud_exploration
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
 from app.models.exploration import Exploration, ExplorationStatus
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import RewardsSchema

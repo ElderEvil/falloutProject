@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.quest import QuestCreate, QuestUpdate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -771,12 +771,12 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     """Simulate a party return followed by an atomic reward claim."""
     from datetime import datetime, timedelta
 
+    from app.core.enums import AgeGroupEnum
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.models.quest_reward import QuestReward, RewardType
     from app.models.storage import Storage
     from app.models.weapon import Weapon
-    from app.schemas.common import AgeGroupEnum
     from app.services.event_bus import GameEvent, event_bus
     from app.services.quest_service import quest_service
     from app.tests.factory.dwellers import create_fake_dweller

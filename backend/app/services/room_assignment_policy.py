@@ -3,9 +3,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.core.enums import AgeGroupEnum, RoomTypeEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import AgeGroupEnum, RoomTypeEnum
 from app.utils.exceptions import ValidationException
 
 

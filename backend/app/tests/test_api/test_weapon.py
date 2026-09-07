@@ -197,7 +197,7 @@ async def test_scrap_weapon_creates_correct_value(
     data = response.json()
     junk_list = data.get("junk", [])
     if junk_list:
-        from app.schemas.common import RarityEnum
+        from app.core.enums import RarityEnum
 
         rarity = weapon.rarity
         mapping = {RarityEnum.COMMON: 2, RarityEnum.RARE: 50, RarityEnum.LEGENDARY: 200}

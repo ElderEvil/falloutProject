@@ -251,8 +251,8 @@ async def test_auto_assign_only_selects_idle_unassigned_dwellers(
     superuser_token_headers: dict[str, str],
 ):
     """Busy dwellers without a room must not be pulled into automatic assignment."""
+    from app.core.enums import DwellerStatusEnum
     from app.models.room import RoomTypeEnum, SPECIALEnum
-    from app.schemas.common import DwellerStatusEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
@@ -336,8 +336,8 @@ async def test_auto_assign_respects_age_group_filter(
     superuser_token_headers: dict[str, str],
 ):
     """Auto-assign with age_group=adult must leave teen dwellers unassigned."""
+    from app.core.enums import DwellerStatusEnum
     from app.models.room import RoomTypeEnum, SPECIALEnum
-    from app.schemas.common import DwellerStatusEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
@@ -491,8 +491,8 @@ async def test_auto_assign_training_room_sets_training_status(
     superuser_token_headers: dict[str, str],
 ):
     """Test that assigning dwellers to training rooms sets status to 'training'."""
+    from app.core.enums import DwellerStatusEnum
     from app.models.room import RoomTypeEnum, SPECIALEnum
-    from app.schemas.common import DwellerStatusEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
 
@@ -592,10 +592,10 @@ async def test_vault_initiate_boosted_creates_25_dwellers(
 
     from sqlmodel import select
 
+    from app.core.enums import DwellerStatusEnum
     from app.core.game_config import game_config
     from app.models.dweller import Dweller
     from app.models.room import Room
-    from app.schemas.common import DwellerStatusEnum
 
     vault_number = {"number": 101, "boosted": True}
     response = await async_client.post("/vaults/initiate", headers=normal_user_token_headers, json=vault_number)

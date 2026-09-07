@@ -7,13 +7,13 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum, RarityEnum
 from app.crud.user_profile import profile_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
-from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.reward_service import reward_service
@@ -765,9 +765,9 @@ async def test_process_single_reward_unknown_type_raises(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_process_objective_reward_weapon(async_session: AsyncSession) -> None:
+    from app.core.enums import ObjectiveCategoryEnum
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
     from app.schemas.objective import ObjectiveCreate
 
     user_data = create_fake_user()
@@ -799,9 +799,9 @@ async def test_process_objective_reward_weapon(async_session: AsyncSession) -> N
 
 @pytest.mark.asyncio
 async def test_process_objective_reward_outfit(async_session: AsyncSession) -> None:
+    from app.core.enums import ObjectiveCategoryEnum
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
     from app.schemas.objective import ObjectiveCreate
 
     user_data = create_fake_user()
@@ -833,9 +833,9 @@ async def test_process_objective_reward_outfit(async_session: AsyncSession) -> N
 @pytest.mark.asyncio
 async def test_process_objective_reward_dweller(async_session: AsyncSession) -> None:
     """Test processing objective reward for dweller."""
+    from app.core.enums import ObjectiveCategoryEnum
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
     from app.schemas.objective import ObjectiveCreate
 
     user_data = create_fake_user()

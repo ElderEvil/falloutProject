@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import ObjectiveCategoryEnum
 from app.services.objective_assignment_service import ObjectiveAssignmentService
 
 # ---------------------------------------------------------------------------

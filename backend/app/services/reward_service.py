@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import GenderEnum, RarityEnum
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
@@ -16,7 +17,6 @@ from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
-from app.schemas.common import GenderEnum, RarityEnum
 from app.services.event_bus import GameEvent, event_bus
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
@@ -112,7 +112,7 @@ class RewardService:
         )
 
     def _build_outfit(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        from app.schemas.common import OutfitTypeEnum
+        from app.core.enums import OutfitTypeEnum
 
         return Outfit(
             name=name,
@@ -125,8 +125,8 @@ class RewardService:
         )
 
     def _build_junk(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
+        from app.core.enums import JunkTypeEnum
         from app.models.junk import Junk
-        from app.schemas.common import JunkTypeEnum
 
         return Junk(
             name=name,
@@ -192,7 +192,7 @@ class RewardService:
     async def grant_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, dweller_template: dict[str, Any]
     ) -> dict[str, Any]:
-        from app.schemas.common import RarityEnum
+        from app.core.enums import RarityEnum
         from app.schemas.dweller import STATS_RANGE_BY_RARITY
         from app.utils.static_data import game_data_store
 
@@ -388,9 +388,9 @@ class RewardService:
         - 3 random items (weapons or outfits)
         - 1 random dweller
         """
+        from app.core.enums import OutfitTypeEnum, WeaponSubtypeEnum, WeaponTypeEnum
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
-        from app.schemas.common import OutfitTypeEnum, WeaponSubtypeEnum, WeaponTypeEnum
 
         # Generate 3 random items
         item_configs = [

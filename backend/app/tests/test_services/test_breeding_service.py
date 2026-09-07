@@ -8,11 +8,7 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.game_config import game_config
-from app.models.dweller import Dweller
-from app.models.room import Room
-from app.models.vault import Vault
-from app.schemas.common import (
+from app.core.enums import (
     AgeGroupEnum,
     GenderEnum,
     PregnancyStatusEnum,
@@ -20,6 +16,10 @@ from app.schemas.common import (
     RoomTypeEnum,
     SPECIALEnum,
 )
+from app.core.game_config import game_config
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.breeding_service import BreedingService
@@ -358,8 +358,8 @@ async def test_check_for_conception_same_sex_couple_never_conceives(
     male_dweller_2.room_id = living_quarters.id
     await async_session.commit()
 
+    from app.core.enums import RelationshipTypeEnum
     from app.crud.relationship import relationship_crud
-    from app.schemas.common import RelationshipTypeEnum
 
     await relationship_crud.create_with_defaults(
         async_session,

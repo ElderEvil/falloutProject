@@ -6,10 +6,10 @@ from typing import Any
 
 from faker import Faker
 
+from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
-from app.schemas.common import AgeGroupEnum, GenderEnum
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
 
 fake: Faker = Faker()

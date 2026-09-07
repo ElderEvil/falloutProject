@@ -6,11 +6,11 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
-from app.schemas.common import GameStatusEnum, RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
 from app.utils.resource_warnings import get_resource_warnings

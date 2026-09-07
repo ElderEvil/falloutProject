@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.crud.item_base import CRUDItem, get_items_by_vault, get_items_list
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.vault import Vault
 from app.models.weapon import Weapon
-from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidItemAssignmentException,

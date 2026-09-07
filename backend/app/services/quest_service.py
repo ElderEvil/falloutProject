@@ -9,10 +9,10 @@ from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.utils.quest_duration import effective_quest_duration_minutes
 
 logger = logging.getLogger(__name__)

@@ -9,13 +9,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.incident_event import IncidentEvent
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
 from app.services.incident_service import incident_service

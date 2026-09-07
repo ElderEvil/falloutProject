@@ -9,6 +9,13 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import (
+    AgeGroupEnum,
+    GenderEnum,
+    PregnancyStatusEnum,
+    RarityEnum,
+    RoomTypeEnum,
+)
 from app.core.game_config import game_config
 from app.crud import vault as vault_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -17,13 +24,6 @@ from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
-from app.schemas.common import (
-    AgeGroupEnum,
-    GenderEnum,
-    PregnancyStatusEnum,
-    RarityEnum,
-    RoomTypeEnum,
-)
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.services.notification_service import notification_service
 
@@ -258,7 +258,7 @@ class BreedingService:
             ResourceNotFoundException: If either parent does not exist.
             ValueError: If either parent is not an adult, or mother is not female, or father is not male.
         """
-        from app.schemas.common import AgeGroupEnum, GenderEnum
+        from app.core.enums import AgeGroupEnum, GenderEnum
 
         mother = await dweller_crud.get(db_session, mother_id)
         if mother.age_group != AgeGroupEnum.ADULT:

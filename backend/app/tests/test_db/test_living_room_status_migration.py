@@ -7,10 +7,10 @@ import pytest
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.crud import room as room_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 
 MIGRATION_PATH = (

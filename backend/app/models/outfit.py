@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import UUID4
 from sqlmodel import Column, Enum, Field, Relationship
 
+from app.core.enums import GenderEnum, OutfitTypeEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.models.item import ItemBase
-from app.schemas.common import GenderEnum, OutfitTypeEnum
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller

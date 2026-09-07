@@ -7,10 +7,10 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomBuild, RoomCreate
 from app.schemas.vault import VaultUpdate
 from app.services.room_service import room_service

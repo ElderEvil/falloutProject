@@ -130,7 +130,7 @@ def test_extract_institute_and_nucleus_origins() -> None:
 @pytest.mark.asyncio
 async def test_backfill_bio_places_for_vault_registers_missing(async_session: AsyncSession, vault: Vault) -> None:
     """Dwellers with bio but no locations are registered; linked dwellers are skipped."""
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     missing_data = {
@@ -176,7 +176,7 @@ async def test_backfill_bio_places_for_vault_registers_missing(async_session: As
 @pytest.mark.asyncio
 async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session: AsyncSession, vault: Vault) -> None:
     """max_dwellers limits how many dwellers are processed."""
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     for i in range(3):
@@ -200,7 +200,7 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session
     """Only non-deleted vaults are backfilled."""
     from faker import Faker
 
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID

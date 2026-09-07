@@ -5,11 +5,11 @@ from uuid import uuid4
 
 import pytest
 
+from app.core.enums import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.base import CRUDBase
 from app.crud.room import CRUDRoom
 from app.models.room import Room
-from app.schemas.common import RoomActionEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate, RoomUpdate
 from app.utils import room_rules
 from app.utils.exceptions import (

@@ -192,7 +192,7 @@ def dweller_data_fixture():
 
     from faker import Faker
 
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.tests.utils.utils import get_gender_based_name, get_stats_by_rarity
 
     fake = Faker()
@@ -262,7 +262,7 @@ async def dweller_fixture(async_session: AsyncSession, vault: "Vault", dweller_d
 @pytest_asyncio.fixture(name="radio_room")
 async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Room":
     """Create a radio room for testing."""
-    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.core.enums import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
 
     room_data = {
@@ -291,7 +291,7 @@ async def radio_room_fixture(async_session: AsyncSession, vault: "Vault") -> "Ro
 @pytest_asyncio.fixture(name="radio_dweller")
 async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", radio_room: "Room") -> "Dweller":
     """Create a dweller with high charisma for radio room."""
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     dweller_data = {
@@ -348,7 +348,7 @@ async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]
 @pytest_asyncio.fixture
 async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Dweller":
     """Create a dweller in the test vault."""
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     _, vault = user_with_vault
@@ -380,7 +380,7 @@ async def dweller_in_vault(async_session: AsyncSession, user_with_vault: tuple) 
 @pytest_asyncio.fixture
 async def room_in_vault(async_session: AsyncSession, user_with_vault: tuple) -> "Room":
     """Create a room in the test vault."""
-    from app.schemas.common import RoomTypeEnum, SPECIALEnum
+    from app.core.enums import RoomTypeEnum, SPECIALEnum
     from app.schemas.room import RoomCreate
 
     _, vault = user_with_vault
@@ -459,7 +459,7 @@ async def room_with_dwellers_fixture(
 
     from faker import Faker
 
-    from app.schemas.common import RoomTypeEnum
+    from app.core.enums import RoomTypeEnum
     from app.schemas.dweller import DwellerCreate
     from app.schemas.room import RoomCreate
     from app.schemas.vault import VaultCreateWithUserID

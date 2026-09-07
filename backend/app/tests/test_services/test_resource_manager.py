@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager import ResourceManager
 from app.utils.resource_warnings import get_resource_warnings

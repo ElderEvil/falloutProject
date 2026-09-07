@@ -5,18 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import UUID4, ValidationError
 
-from app.core.game_config import game_config
-from app.models.dweller import Dweller
-from app.models.room import Room
-from app.models.storage import Storage
-from app.models.vault import Vault
-from app.schemas.common import (
+from app.core.enums import (
     DwellerStatusEnum,
     GenderEnum,
     RarityEnum,
     RoomTypeEnum,
     SPECIALEnum,
 )
+from app.core.game_config import game_config
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.models.storage import Storage
+from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import (

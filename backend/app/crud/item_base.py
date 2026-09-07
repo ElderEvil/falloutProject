@@ -9,13 +9,13 @@ from sqlalchemy.orm import aliased
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.crud.vault import vault as vault_crud
 from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
-from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
 
 

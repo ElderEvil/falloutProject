@@ -8,11 +8,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import RarityEnum
 from app.models.dweller import Dweller
 from app.models.notification import Notification
 from app.models.vault import Vault
 from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
-from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
 from app.utils.places import normalize_place_name, seeded_vault_specs
 

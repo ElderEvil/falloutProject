@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.core.enums import RoomTypeEnum
 from app.models.room import Room
-from app.schemas.common import RoomTypeEnum
 from app.utils.room_rules import is_elevator, validate_build_placement, validate_elevator_destroy
 
 

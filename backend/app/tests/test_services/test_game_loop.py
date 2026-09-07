@@ -294,7 +294,7 @@ class TestAwardWorkXp:
 
     @pytest.mark.asyncio
     async def test_non_production_room_returns_zero(self, async_session: AsyncSession):
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
 
         mock_dweller = MagicMock()
         mock_room = MagicMock()
@@ -308,7 +308,7 @@ class TestAwardWorkXp:
     @pytest.mark.asyncio
     async def test_production_room_awards_xp(self):
         import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
@@ -333,7 +333,7 @@ class TestAwardWorkXp:
     @pytest.mark.usefixtures("async_session")
     @pytest.mark.asyncio
     async def test_production_room_with_ability_awards_nonzero_xp(self):
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
@@ -354,8 +354,8 @@ class TestAwardWorkXp:
     async def test_high_matching_special_uses_configured_work_efficiency_bonus(self):
         """High matching SPECIAL awards the configured production-work XP bonus."""
         import app.services.leveling_service as ls_mod
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
         from app.core.game_config import game_config
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
@@ -383,7 +383,7 @@ class TestAwardWorkXp:
     @pytest.mark.asyncio
     async def test_triggers_level_up(self):
         import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
@@ -411,7 +411,7 @@ class TestAwardWorkXp:
         from uuid import uuid4
 
         import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
         from app.services.event_bus import event_bus
 
         mock_db = MagicMock()
@@ -444,7 +444,7 @@ class TestAwardWorkXp:
     @pytest.mark.asyncio
     async def test_negative_experience_normalized(self):
         import app.services.leveling_service as ls_mod
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
@@ -488,7 +488,7 @@ class TestProcessDwellers:
 
     @pytest.mark.asyncio
     async def test_skips_dead_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.schemas.common import DwellerStatusEnum
+        from app.core.enums import DwellerStatusEnum
 
         dweller.is_dead = True
         dweller.status = DwellerStatusEnum.DEAD
@@ -523,7 +523,7 @@ class TestProcessDwellers:
     @pytest.mark.asyncio
     async def test_awards_xp_to_working_dwellers(self, async_session: AsyncSession, vault: Vault):
         from app import crud
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
         from app.tests.factory.dwellers import create_fake_dweller
@@ -570,7 +570,7 @@ class TestProcessDwellers:
     @pytest.mark.asyncio
     async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         from app import crud
-        from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.core.enums import RoomTypeEnum, SPECIALEnum
         from app.schemas.dweller import DwellerCreate
         from app.schemas.room import RoomCreate
         from app.tests.factory.dwellers import create_fake_dweller
@@ -654,7 +654,7 @@ class TestDehydrationRadiation:
 
     @pytest.mark.asyncio
     async def test_away_dwellers_are_exempt(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.schemas.common import DwellerStatusEnum
+        from app.core.enums import DwellerStatusEnum
 
         await self._prepare(async_session, vault, dweller, water=0)
         dweller.status = DwellerStatusEnum.EXPLORING
@@ -955,7 +955,7 @@ class TestRelationshipHelpers:
 
     @pytest.mark.asyncio
     async def test_update_pair_affinity_new_relationship(self, async_session: AsyncSession):
-        from app.schemas.common import RelationshipTypeEnum
+        from app.core.enums import RelationshipTypeEnum
 
         d1 = MagicMock()
         d1.id = "d-1"

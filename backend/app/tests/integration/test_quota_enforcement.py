@@ -20,10 +20,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.agents.dweller_chat_agent import DwellerChatOutput
+from app.core.enums import GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
-from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate, DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory
 from app.schemas.user import UserCreate

@@ -7,13 +7,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum
 from app.crud.quest_party import quest_party_crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_party import QuestParty
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import DwellerStatusEnum
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
 
 

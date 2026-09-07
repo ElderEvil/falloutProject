@@ -5,9 +5,9 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.lineage_service import lineage_service
 
@@ -171,8 +171,8 @@ async def test_lineage_partner_context_reports_stage_and_affinity(
     vault: Vault,
 ) -> None:
     """A MARRIED partner reports relationship_type, affinity, and live state."""
+    from app.core.enums import RelationshipTypeEnum
     from app.models.relationship import Relationship
-    from app.schemas.common import RelationshipTypeEnum
 
     d1 = await _make_dweller(async_session, vault, first_name="D1", gender=GenderEnum.MALE)
     d2 = await _make_dweller(async_session, vault, first_name="D2", gender=GenderEnum.FEMALE)

@@ -126,8 +126,8 @@ class ExplorationCoordinator:
 
     async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
         """Restore the dweller's room-appropriate status after exploration."""
+        from app.core.enums import DwellerStatusEnum
         from app.crud.dweller import determine_status_for_room
-        from app.schemas.common import DwellerStatusEnum
         from app.schemas.dweller import DwellerUpdate
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)

@@ -4,13 +4,13 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_party import QuestParty
 from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.utils.exceptions import ResourceConflictException
 
 logger = logging.getLogger(__name__)

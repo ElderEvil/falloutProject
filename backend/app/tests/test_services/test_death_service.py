@@ -8,9 +8,9 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DeathCauseEnum, DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import DeathCauseEnum, DwellerStatusEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.death_service import death_service
 from app.tests.factory.dwellers import create_fake_dweller

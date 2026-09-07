@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
+from app.core.enums import SPECIALEnum
 from app.models.training import TrainingStatus
-from app.schemas.common import SPECIALEnum
 from app.schemas.training import TrainingRead
 
 

@@ -7,9 +7,9 @@ import pytest
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.services.dweller_assignment_service import (
     ABILITY_TO_STAT_MAP,
     MEDSCI_ABILITIES,

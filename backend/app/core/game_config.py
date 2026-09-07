@@ -17,10 +17,10 @@ from typing import Any
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.enums import SPECIALEnum, WeaponTypeEnum
 from app.models.incident import IncidentType
 from app.options.factions import faction_restrictions
 from app.options.races import RaceOption
-from app.schemas.common import SPECIALEnum, WeaponTypeEnum
 
 logger = logging.getLogger(__name__)
 

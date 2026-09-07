@@ -8,10 +8,10 @@ from sqlalchemy import or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import PARTNER_LINKED_STAGES, RelationshipTypeEnum
 from app.crud import dweller as dweller_crud
 from app.models.dweller import Dweller
 from app.models.relationship import Relationship
-from app.schemas.common import PARTNER_LINKED_STAGES, RelationshipTypeEnum
 from app.schemas.dweller import LineageMember, LineageResponse
 
 logger = logging.getLogger(__name__)

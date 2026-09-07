@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import JunkTypeEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
-from app.schemas.common import JunkTypeEnum, RarityEnum
 from app.schemas.junk import JunkCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.items import create_fake_junk

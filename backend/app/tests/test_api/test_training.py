@@ -9,10 +9,10 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.training import Training, TrainingStatus
 from app.models.vault import Vault
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 

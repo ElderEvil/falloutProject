@@ -15,10 +15,10 @@ from typing import Annotated
 
 import typer
 
+from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud.room import CRUDRoom
 from app.models import Dweller, Room, Vault
-from app.schemas.common import RoomTypeEnum
 from app.services.resource_manager import ResourceManager
 from app.utils.static_data import game_data_store
 

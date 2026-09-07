@@ -11,8 +11,8 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     list_all_rooms,
 )
+from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.models.vault import Vault
-from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.tests.factory.dwellers import create_fake_dweller

@@ -118,7 +118,7 @@ async def test_manual_recruit_insufficient_caps(
     superuser_token_headers: dict[str, str],
 ):
     """Test manual recruitment fails with insufficient caps."""
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
@@ -193,7 +193,7 @@ async def test_manual_recruit_success(
     superuser_token_headers: dict[str, str],
 ):
     """Test successful manual recruitment."""
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
@@ -385,7 +385,7 @@ async def test_manual_recruit_does_not_break_subsequent_api_calls(
     Expected: All API calls succeed with same auth token
     Actual: After recruitment, user appears logged out (404 errors)
     """
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
@@ -502,7 +502,7 @@ async def test_manual_recruit_with_assigned_dweller(
     Reproduces bug: Recruiting a dweller with caps causes session corruption.
     Expected: Vault state remains consistent and accessible after recruitment.
     """
-    from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
+    from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
     from app.services.radio_service import RadioService
 

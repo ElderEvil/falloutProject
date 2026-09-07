@@ -8,10 +8,10 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum
 from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.conversation_service import MessagePayload, conversation_service
 from app.tests.factory.dwellers import create_fake_dweller

@@ -2,8 +2,8 @@ import random
 
 import pytest
 
+from app.core.enums import RarityEnum
 from app.core.game_config import game_config
-from app.schemas.common import RarityEnum
 from app.schemas.dweller import DwellerTemplate
 from app.utils.dwellers import create_dweller_from_template
 from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name

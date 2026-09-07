@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")

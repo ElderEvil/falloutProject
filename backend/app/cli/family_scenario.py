@@ -135,7 +135,7 @@ def setup(
     ] = False,
 ) -> None:
     """Create couples (and optional pregnancies/children) with controlled timings."""
-    from app.schemas.common import RelationshipTypeEnum
+    from app.core.enums import RelationshipTypeEnum
 
     try:
         RelationshipTypeEnum(stage)

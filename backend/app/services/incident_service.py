@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.models.dweller import Dweller
@@ -17,7 +18,6 @@ from app.models.incident import Incident, IncidentStatus, IncidentType, get_inci
 from app.models.incident_event import IncidentEvent
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.room import Room
-from app.schemas.common import AgeGroupEnum, DwellerStatusEnum
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentProgress,
@@ -438,7 +438,7 @@ class IncidentService:
 
                 # Check for death from incident
                 if new_health <= 0 and not dweller.is_dead:
-                    from app.schemas.common import DeathCauseEnum
+                    from app.core.enums import DeathCauseEnum
                     from app.services.death_service import death_service
 
                     await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT)

@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -17,7 +18,6 @@ from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
-from app.schemas.common import JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.exploration_event import (
     CombatEventSchema,
     ExplorationEventType,

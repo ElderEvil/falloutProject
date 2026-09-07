@@ -167,7 +167,7 @@ async def test_scrap_outfit_creates_correct_value(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    from app.schemas.common import RarityEnum
+    from app.core.enums import RarityEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()

@@ -3,7 +3,7 @@ from typing import Any
 
 from faker import Faker
 
-from app.schemas.common import RoomTypeEnum
+from app.core.enums import RoomTypeEnum
 from app.schemas.dweller import LETTER_TO_STAT
 from app.utils.room_assets import ROOM_NAME_TO_ASSET_KEY, get_room_image_url
 

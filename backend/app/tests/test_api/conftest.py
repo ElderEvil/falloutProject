@@ -6,11 +6,7 @@ from faker import Faker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.models.dweller import Dweller
-from app.models.room import Room
-from app.models.user import User
-from app.models.vault import Vault
-from app.schemas.common import (
+from app.core.enums import (
     AgeGroupEnum,
     GenderEnum,
     JunkTypeEnum,
@@ -21,6 +17,10 @@ from app.schemas.common import (
     WeaponSubtypeEnum,
     WeaponTypeEnum,
 )
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.models.user import User
+from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate

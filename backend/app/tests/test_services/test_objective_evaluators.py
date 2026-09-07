@@ -7,10 +7,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.enums import ObjectiveCategoryEnum
 from app.models.dweller import Dweller
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.event_bus import GameEvent, event_bus

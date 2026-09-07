@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.models.wasteland_location import (
@@ -15,7 +16,6 @@ from app.models.wasteland_location import (
     LocationTypeEnum,
     WastelandLocation,
 )
-from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID

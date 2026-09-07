@@ -77,7 +77,7 @@ async def test_process_incident_publishes_only_on_transition(async_session: Asyn
     room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
 
     # --- Part A: No transition (dwellers present, short tick) ---
-    from app.schemas.common import GenderEnum, RarityEnum
+    from app.core.enums import GenderEnum, RarityEnum
 
     dweller_in = DwellerCreate(
         first_name="Test",

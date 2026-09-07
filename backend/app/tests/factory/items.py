@@ -2,7 +2,7 @@ import random
 
 from faker import Faker
 
-from app.schemas.common import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.schemas.dweller import SPECIAL_STATS
 from app.tests.utils.utils import get_name_two_words
 

@@ -9,9 +9,9 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.apprentice_scenario_service import apprentice_scenario_service

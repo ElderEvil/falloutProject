@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.pregnancy import Pregnancy
@@ -20,7 +21,6 @@ from app.models.wasteland_location import (
     LocationTypeEnum,
     WastelandLocation,
 )
-from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.breeding_service import BreedingService
 

@@ -3,11 +3,11 @@
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_party import QuestParty
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.common import DwellerStatusEnum
 
 
 class QuestStateObjectiveBackfillService:

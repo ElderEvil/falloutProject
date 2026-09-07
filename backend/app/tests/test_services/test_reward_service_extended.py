@@ -666,52 +666,27 @@ async def test_process_quest_rewards_error_handling(async_session: AsyncSession)
     assert results[0]["amount"] == 50
 
 
-@pytest.mark.asyncio
-async def test_parse_objective_reward_water() -> None:
-    """Test parsing water reward string."""
-    reward_type, reward_data = reward_service._parse_objective_reward("30 water")
+@pytest.mark.parametrize(
+    ("reward_str", "expected_type", "expected_data"),
+    [
+        pytest.param("30 water", RewardType.RESOURCE, {"resource_type": "water", "amount": 30}, id="water"),
+        pytest.param("25 power", RewardType.RESOURCE, {"resource_type": "power", "amount": 25}, id="power"),
+        pytest.param("200 xp", RewardType.EXPERIENCE, {"amount": 200, "dweller_ids": []}, id="xp"),
+        pytest.param("150 experience", RewardType.EXPERIENCE, {"amount": 150, "dweller_ids": []}, id="experience"),
+        pytest.param(
+            "outfit:Combat Armor",
+            RewardType.ITEM,
+            {"item_type": "outfit", "name": "Combat Armor", "rarity": "common"},
+            id="outfit",
+        ),
+    ],
+)
+def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expected_data: dict[str, object]) -> None:
+    """_parse_objective_reward splits a reward string into its type and payload."""
+    reward_type, reward_data = reward_service._parse_objective_reward(reward_str)
 
-    assert reward_type == RewardType.RESOURCE
-    assert reward_data["resource_type"] == "water"
-    assert reward_data["amount"] == 30
-
-
-@pytest.mark.asyncio
-async def test_parse_objective_reward_power() -> None:
-    """Test parsing power reward string."""
-    reward_type, reward_data = reward_service._parse_objective_reward("25 power")
-
-    assert reward_type == RewardType.RESOURCE
-    assert reward_data["resource_type"] == "power"
-    assert reward_data["amount"] == 25
-
-
-@pytest.mark.asyncio
-async def test_parse_objective_reward_xp() -> None:
-    """Test parsing XP reward string."""
-    reward_type, reward_data = reward_service._parse_objective_reward("200 xp")
-
-    assert reward_type == RewardType.EXPERIENCE
-    assert reward_data["amount"] == 200
-
-
-@pytest.mark.asyncio
-async def test_parse_objective_reward_experience() -> None:
-    """Test parsing 'experience' reward string."""
-    reward_type, reward_data = reward_service._parse_objective_reward("150 experience")
-
-    assert reward_type == RewardType.EXPERIENCE
-    assert reward_data["amount"] == 150
-
-
-@pytest.mark.asyncio
-async def test_parse_objective_reward_outfit() -> None:
-    """Test parsing outfit reward string."""
-    reward_type, reward_data = reward_service._parse_objective_reward("outfit:Combat Armor")
-
-    assert reward_type == RewardType.ITEM
-    assert reward_data["item_type"] == "outfit"
-    assert reward_data["name"] == "Combat Armor"
+    assert reward_type == expected_type
+    assert reward_data == expected_data
 
 
 @pytest.mark.asyncio
@@ -763,8 +738,19 @@ async def test_process_single_reward_unknown_type_raises(async_session: AsyncSes
         await reward_service._process_single_reward(async_session, "fake-vault-id", "unknown_type", {})
 
 
+@pytest.mark.parametrize(
+    ("reward_str", "expected"),
+    [
+        pytest.param("weapon:Laser Pistol", {"reward_type": RewardType.ITEM, "item_type": "weapon"}, id="weapon"),
+        pytest.param("outfit:Vault Suit", {"reward_type": RewardType.ITEM, "item_type": "outfit"}, id="outfit"),
+        pytest.param("dweller:Wanderer", {"reward_type": RewardType.DWELLER}, id="dweller"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_process_objective_reward_weapon(async_session: AsyncSession) -> None:
+async def test_process_objective_reward(
+    async_session: AsyncSession, reward_str: str, expected: dict[str, object]
+) -> None:
+    """process_objective_reward settles the objective's parsed reward for the vault."""
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
     from app.schemas.common import ObjectiveCategoryEnum
@@ -781,7 +767,7 @@ async def test_process_objective_reward_weapon(async_session: AsyncSession) -> N
 
     objective = await objective_crud.create(
         async_session,
-        ObjectiveCreate(challenge="Test", reward="weapon:Laser Pistol", category=ObjectiveCategoryEnum.ACHIEVEMENT),
+        ObjectiveCreate(challenge="Test", reward=reward_str, category=ObjectiveCategoryEnum.ACHIEVEMENT),
     )
 
     link = VaultObjectiveProgressLink(
@@ -793,71 +779,8 @@ async def test_process_objective_reward_weapon(async_session: AsyncSession) -> N
     result = await reward_service.process_objective_reward(async_session, vault.id, link)
 
     assert result is not None
-    assert result["reward_type"] == RewardType.ITEM
-    assert result["item_type"] == "weapon"
-
-
-@pytest.mark.asyncio
-async def test_process_objective_reward_outfit(async_session: AsyncSession) -> None:
-    from app.crud.objective import objective_crud
-    from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
-    from app.schemas.objective import ObjectiveCreate
-
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    storage = Storage(vault_id=vault.id, max_space=100)
-    async_session.add(storage)
-    await async_session.commit()
-
-    objective = await objective_crud.create(
-        async_session,
-        ObjectiveCreate(challenge="Test", reward="outfit:Vault Suit", category=ObjectiveCategoryEnum.ACHIEVEMENT),
-    )
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=1, total=1, is_completed=True
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    result = await reward_service.process_objective_reward(async_session, vault.id, link)
-
-    assert result["reward_type"] == RewardType.ITEM
-    assert result["item_type"] == "outfit"
-
-
-@pytest.mark.asyncio
-async def test_process_objective_reward_dweller(async_session: AsyncSession) -> None:
-    """Test processing objective reward for dweller."""
-    from app.crud.objective import objective_crud
-    from app.models.vault_objective import VaultObjectiveProgressLink
-    from app.schemas.common import ObjectiveCategoryEnum
-    from app.schemas.objective import ObjectiveCreate
-
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    objective = await objective_crud.create(
-        async_session,
-        ObjectiveCreate(challenge="Test", reward="dweller:Wanderer", category=ObjectiveCategoryEnum.ACHIEVEMENT),
-    )
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=1, total=1, is_completed=True
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    result = await reward_service.process_objective_reward(async_session, vault.id, link)
-
-    assert result is not None
-    assert result["reward_type"] == RewardType.DWELLER
+    for key, value in expected.items():
+        assert result[key] == value
 
 
 @pytest.mark.asyncio

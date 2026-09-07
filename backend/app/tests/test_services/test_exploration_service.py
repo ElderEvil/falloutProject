@@ -7,6 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.storage import Storage
@@ -480,13 +481,22 @@ async def test_rest_event_logs_actual_healing_after_radiation_cap(
     assert "Gained 2 HP" in rest_event["description"]
 
 
+@pytest.mark.parametrize(
+    ("heal_percent", "expected_health", "expected_healing"),
+    [(0.4, 50, 30), (0.001, 21, 1)],
+)
 @pytest.mark.asyncio
 async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+    heal_percent: float,
+    expected_health: int,
+    expected_healing: int,
 ) -> None:
     """A Stimpak heal capped by radiation must log the HP actually restored (PR #534)."""
+    monkeypatch.setattr(game_config.health, "stimpack_heal_percent", heal_percent)
     dweller.max_health = 100
     dweller.radiation = 50  # effective max 50
     dweller.health = 20  # below the 50% auto-heal threshold
@@ -512,8 +522,8 @@ async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
         result = await exploration_service.process_event(async_session, exploration)
 
     await async_session.refresh(dweller)
-    assert dweller.health == 50  # 20 + 40 requested, capped at effective max
+    assert dweller.health == expected_health
     assert result.stimpaks == 0
     item_use = next(e for e in result.events if e["type"] == "item_use")
-    assert item_use["health_restored"] == 30
-    assert "Healed 30 HP" in item_use["description"]
+    assert item_use["health_restored"] == expected_healing
+    assert f"Healed {expected_healing} HP" in item_use["description"]

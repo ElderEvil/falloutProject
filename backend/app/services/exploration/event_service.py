@@ -254,7 +254,7 @@ class EventService:
         # Auto-use Stimpak if health < 50%
         health_percentage = (dweller_obj.health / dweller_obj.effective_max_health) * 100
         if exploration.stimpaks > 0 and health_percentage < 50:
-            healing = int(dweller_obj.max_health * game_config.health.stimpack_heal_percent)
+            healing = max(1, int(dweller_obj.max_health * game_config.health.stimpack_heal_percent))
             actual_healing = min(dweller_obj.effective_max_health, dweller_obj.health + healing) - dweller_obj.health
             dweller_obj.health += actual_healing
             exploration.stimpaks -= 1

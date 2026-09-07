@@ -64,7 +64,7 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj.health >= dweller_obj.effective_max_health:
         raise ContentNoChangeException(detail="Dweller is already at full health.")
 
-    heal_amount = int(dweller_obj.max_health * game_config.health.stimpack_heal_percent)
+    heal_amount = max(1, int(dweller_obj.max_health * game_config.health.stimpack_heal_percent))
     new_health = min(dweller_obj.health + heal_amount, dweller_obj.effective_max_health)
 
     return await dweller_crud.update(

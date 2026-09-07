@@ -50,6 +50,18 @@ class TestUseRadaway:
 
 class TestUseStimpack:
     @pytest.mark.asyncio
+    async def test_heals_at_least_one_hp_with_low_valid_percentage(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(game_config.health, "stimpack_heal_percent", 0.001)
+        await _set_dweller_state(async_session, dweller, max_health=100, health=10, radiation=0, stimpack=1)
+
+        result = await medical_service.use_stimpack(async_session, dweller.id)
+
+        assert result.health == 11
+        assert result.stimpack == 0
+
+    @pytest.mark.asyncio
     async def test_heals_configured_share_of_max_health(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):

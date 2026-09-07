@@ -11,7 +11,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
-from app.core.game_config import compute_medical_capacity, game_config
+from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import room as room_crud
 from app.crud.storage import storage as storage_crud
@@ -30,7 +30,7 @@ from app.schemas.common import (
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
-from app.services.resource_manager import ResourceManager
+from app.services.resource_manager import ResourceManager, compute_medical_capacity
 from app.services.training_service import training_service
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException

@@ -14,6 +14,8 @@ from app.models.vault import Vault
 from app.schemas.chat import UnlockedPlace
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate
+from app.services.chat.agent_runner import AgentChatResult, run_chat_agent
+from app.services.chat.notifications import maybe_unlock_places
 from app.services.chat_service import chat_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException
@@ -71,12 +73,12 @@ class TestChatServiceErrorHandling:
         mock_result.usage.return_value = MagicMock(input_tokens=1, output_tokens=1, total_tokens=2)
 
         with (
-            patch("app.services.chat_service.dweller_chat_agent") as mock_agent,
-            patch("app.services.chat_service.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+            patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
+            patch("app.services.chat.agent_runner.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
         ):
             mock_agent.run = AsyncMock(return_value=mock_result)
 
-            await chat_service._run_chat_agent(
+            await run_chat_agent(
                 db_session=async_session,
                 dweller=chat_dweller,
                 message_text="Hello",
@@ -139,31 +141,21 @@ class TestChatServiceErrorHandling:
         mock_result.output = mock_output
         mock_result.usage.return_value = BrokenUsage()
 
-        with patch("app.services.chat_service.dweller_chat_agent") as mock_agent:
+        with patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(return_value=mock_result)
 
             # This should NOT raise an exception - it should handle the error gracefully
-            result = await chat_service._run_chat_agent(
+            result = await run_chat_agent(
                 db_session=async_session,
                 dweller=chat_dweller,
                 message_text="Hello",
             )
 
-            (
-                response_message,
-                _happiness_impact,
-                _action_suggestion,
-                prompt_tokens,
-                completion_tokens,
-                total_tokens,
-            ) = result
-
-            # Verify we got a response
-            assert response_message == "Test response"
-            # Token counts should be None when usage extraction fails
-            assert prompt_tokens is None
-            assert completion_tokens is None
-            assert total_tokens is None
+            # Verify we got a response; token counts are None when usage extraction fails
+            assert result.response_text == "Test response"
+            assert result.prompt_tokens is None
+            assert result.completion_tokens is None
+            assert result.total_tokens is None
 
     async def test_run_chat_agent_handles_usage_returns_none(
         self,
@@ -190,28 +182,19 @@ class TestChatServiceErrorHandling:
         mock_result.output = mock_output
         mock_result.usage.return_value = None
 
-        with patch("app.services.chat_service.dweller_chat_agent") as mock_agent:
+        with patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(return_value=mock_result)
 
-            result = await chat_service._run_chat_agent(
+            result = await run_chat_agent(
                 db_session=async_session,
                 dweller=chat_dweller,
                 message_text="Hello",
             )
 
-            (
-                response_message,
-                _happiness_impact,
-                _action_suggestion,
-                prompt_tokens,
-                completion_tokens,
-                total_tokens,
-            ) = result
-
-            assert response_message == "Test response"
-            assert prompt_tokens is None
-            assert completion_tokens is None
-            assert total_tokens is None
+            assert result.response_text == "Test response"
+            assert result.prompt_tokens is None
+            assert result.completion_tokens is None
+            assert result.total_tokens is None
 
     async def test_stream_response_ownership_denied(
         self,
@@ -286,7 +269,7 @@ class TestChatServiceErrorHandling:
 
         with (
             patch(
-                "app.services.chat_service.dweller_chat_agent.run_stream",
+                "app.services.chat.streaming.dweller_chat_agent.run_stream",
                 return_value=FakeRunStreamCM(),
             ),
             patch(
@@ -294,21 +277,20 @@ class TestChatServiceErrorHandling:
                 new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
             ),
             patch(
-                "app.services.chat_service.chat_message_crud.create_message",
+                "app.services.chat.persistence.chat_message_crud.create_message",
                 new=AsyncMock(return_value=MagicMock(id=uuid4())),
             ),
             patch(
-                "app.services.chat_service.llm_interaction_crud.create",
+                "app.services.chat.persistence.llm_interaction_crud.create",
                 new=AsyncMock(return_value=MagicMock(id=uuid4())),
             ),
-            patch("app.services.chat_service.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+            patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch(
-                "app.services.chat_service.parse_action_suggestion",
+                "app.services.chat.streaming.parse_action_suggestion",
                 new=AsyncMock(return_value=MagicMock(model_dump=dict)),
             ),
-            patch.object(
-                chat_service,
-                "_maybe_unlock_places",
+            patch(
+                "app.services.chat.notifications.maybe_unlock_places",
                 new=AsyncMock(return_value=[UnlockedPlace(location_id=uuid4(), name="Megaton")]),
             ),
         ):
@@ -349,7 +331,7 @@ class TestChatServiceErrorHandling:
 
         with (
             patch(
-                "app.services.chat_service.dweller_chat_agent.run_stream",
+                "app.services.chat.streaming.dweller_chat_agent.run_stream",
                 side_effect=provider_error,
             ),
             patch(
@@ -394,23 +376,23 @@ class TestChatServiceErrorHandling:
             async def __aexit__(self, *exc):
                 return False
 
-        fallback_return = (
-            "Sure, let's head to the wasteland!",
-            HappinessImpact(
+        fallback_result = AgentChatResult(
+            response_text="Sure, let's head to the wasteland!",
+            happiness_impact=HappinessImpact(
                 delta=0,
                 reason_code=HappinessReasonCode.CHAT_NEUTRAL,
                 reason_text="Chat processed without sentiment analysis",
                 happiness_after=chat_dweller.happiness,
             ),
-            NoAction(reason="Unable to analyze conversation for suggestions"),
-            10,
-            5,
-            15,
+            action_suggestion=NoAction(reason="Unable to analyze conversation for suggestions"),
+            prompt_tokens=10,
+            completion_tokens=5,
+            total_tokens=15,
         )
 
         with (
             patch(
-                "app.services.chat_service.dweller_chat_agent.run_stream",
+                "app.services.chat.streaming.dweller_chat_agent.run_stream",
                 return_value=FakeFailRunStreamCM(),
             ),
             patch(
@@ -418,19 +400,18 @@ class TestChatServiceErrorHandling:
                 new=AsyncMock(return_value=MagicMock(remaining=10, warning=False)),
             ),
             patch(
-                "app.services.chat_service.chat_message_crud.create_message",
+                "app.services.chat.persistence.chat_message_crud.create_message",
                 new=AsyncMock(return_value=MagicMock(id=uuid4())),
             ),
             patch(
-                "app.services.chat_service.llm_interaction_crud.create",
+                "app.services.chat.persistence.llm_interaction_crud.create",
                 new=AsyncMock(return_value=MagicMock(id=uuid4())),
             ),
-            patch.object(
-                chat_service,
-                "_run_chat_agent",
-                new=AsyncMock(return_value=fallback_return),
+            patch(
+                "app.services.chat.agent_runner.run_chat_agent",
+                new=AsyncMock(return_value=fallback_result),
             ),
-            patch.object(chat_service, "_maybe_unlock_places", new=AsyncMock()),
+            patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock()),
         ):
             events = [
                 event
@@ -502,7 +483,7 @@ class TestMaybeUnlockPlaces:
                 ),
             )
 
-        assert await chat_service._maybe_unlock_places(async_session, chat_dweller) == []
+        assert await maybe_unlock_places(async_session, chat_dweller) == []
 
         await async_session.refresh(link)
         assert link.is_unlocked is False, "Should NOT unlock after only 2 messages"
@@ -518,7 +499,7 @@ class TestMaybeUnlockPlaces:
             ),
         )
 
-        unlocked_places = await chat_service._maybe_unlock_places(async_session, chat_dweller)
+        unlocked_places = await maybe_unlock_places(async_session, chat_dweller)
         assert [place.name for place in unlocked_places] == ["Megaton"]
         assert unlocked_places[0].location_id == loc.id
 
@@ -547,4 +528,4 @@ class TestMaybeUnlockPlaces:
             )
 
         # Must not raise even though dweller has no DwellerLocation rows
-        await chat_service._maybe_unlock_places(async_session, chat_dweller)
+        await maybe_unlock_places(async_session, chat_dweller)

@@ -303,7 +303,7 @@ async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> N
     )
 
     with patch(
-        "app.agents.dweller_chat_agent.build_dweller_activity_briefing",
+        "app.agents.chat_tools.build_dweller_activity_briefing",
         new_callable=AsyncMock,
         return_value=briefing,
     ):
@@ -328,7 +328,7 @@ async def test_training_suggestion_requires_a_fresh_matching_training_option() -
     )
 
     with patch(
-        "app.agents.dweller_chat_agent.build_dweller_activity_briefing",
+        "app.agents.chat_tools.build_dweller_activity_briefing",
         new_callable=AsyncMock,
         return_value=briefing,
     ):

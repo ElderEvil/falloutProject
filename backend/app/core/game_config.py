@@ -28,6 +28,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Vault map grid geometry — design constraints, deliberately not env-tunable.
+# The UI renders GRID_BUILD bounds and locks rows beyond them; hard caps exist so
+# seeded/admin-side rooms can occupy the reserved expansion area without code changes.
+GRID_X_MIN = 0
+GRID_X_MAX = 9  # hard cap; buildable area is 0..GRID_BUILD_X_MAX
+GRID_Y_MIN = 0
+GRID_Y_MAX = 25  # hard cap, includes locked expansion rows
+GRID_BUILD_X_MAX = 7  # buildable columns 0..7 (8 columns, matches RoomGrid)
+GRID_BUILD_Y_MAX = 15  # buildable rows 0..15; rows 16..25 are locked expansion
+
 
 class GameLoopConfig(BaseSettings):
     """Game loop timing configuration."""

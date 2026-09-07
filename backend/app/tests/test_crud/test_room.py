@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.constants import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
+from app.core.game_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.base import CRUDBase
 from app.crud.room import CRUDRoom
 from app.models.room import Room

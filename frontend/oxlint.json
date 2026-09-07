@@ -1,6 +1,6 @@
 {
   "rules": {
-    "correctness": "warn",
+    "correctness": "error",
     "suspicious": "warn",
     "perf": "warn"
   },

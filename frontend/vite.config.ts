@@ -23,7 +23,7 @@ export default defineConfig({
     arrowParens: 'always',
   },
   staged: {
-    '*.{js,ts,tsx,vue}': 'vp lint --fix',
+    '*.{js,ts,tsx,vue}': ['vp lint --fix', 'vp fmt'],
     '*.{json,md,css,html}': 'vp fmt',
   },
   define: {

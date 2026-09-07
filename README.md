@@ -32,7 +32,7 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) for recent updates and upcoming feature
 ## 📋 Prerequisites
 
 **Required:**
-- [Python 3.12+](https://www.python.org/downloads/) (3.13 recommended)
+- [Python 3.13](https://www.python.org/downloads/)
 - [Node.js 22 LTS](https://nodejs.org/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (v2 - use `docker compose`, not `docker-compose`)
 

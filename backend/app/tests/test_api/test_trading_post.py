@@ -44,10 +44,6 @@ async def _soft_delete(async_session: AsyncSession, dweller: "Dweller") -> "Dwel
     return await crud.dweller.soft_delete(async_session, dweller.id)
 
 
-def _price(level: int) -> int:
-    return 50 + level * 10  # common base + level bonus
-
-
 async def test_buy_with_insufficient_caps_fails(
     async_client: AsyncClient,
     async_session: AsyncSession,

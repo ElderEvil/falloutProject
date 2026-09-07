@@ -65,16 +65,6 @@ def mock_user() -> User:
     return user
 
 
-@pytest.fixture
-def mock_admin_user() -> User:
-    """Create a mock admin user object."""
-    user = MagicMock(spec=User)
-    user.id = uuid4()
-    user.is_superuser = True
-    user.monthly_token_limit = None
-    return user
-
-
 class TestCheckQuotaDisabled:
     """Test QUOTA_DISABLED config bypasses all quota checks."""
 

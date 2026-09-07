@@ -100,19 +100,6 @@ async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -
     return await crud.dweller.get_full_info(async_session, dweller.id)
 
 
-@pytest_asyncio.fixture(name="quota_dweller_with_bio")
-async def quota_dweller_with_bio_fixture(async_session: AsyncSession, quota_dweller: "Dweller") -> "Dweller":
-    """Create a dweller with existing bio for extend_bio tests."""
-    from app.schemas.dweller import DwellerUpdate
-
-    await crud.dweller.update(
-        async_session,
-        quota_dweller.id,
-        DwellerUpdate(bio="Test bio for extension testing."),
-    )
-    return await crud.dweller.get_full_info(async_session, quota_dweller.id)
-
-
 @pytest.mark.asyncio
 class TestDwellerAIQuotaEnforcement:
     """Tests for DwellerAI service quota enforcement."""

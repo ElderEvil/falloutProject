@@ -55,13 +55,6 @@ class _FakeSessionCM:
         return None
 
 
-async def _fake_stream_response(db_session: object, user: object, dweller_id: object, message_text: str):
-    """Async generator mimicking chat_service.stream_response output."""
-    yield {"type": "token", "text": "Hello"}
-    yield {"type": "token", "text": " world"}
-    yield {"type": "done", "dweller_message_id": "msg-1", "happiness_impact": None, "action_suggestion": None}
-
-
 class TestChatWebSocketStreaming:
     """Text messages stream token/done chunks over the chat WebSocket."""
 

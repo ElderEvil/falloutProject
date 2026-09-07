@@ -39,12 +39,6 @@ def mock_settings_disabled():
 
 
 @pytest.fixture
-def adapter(mock_settings):
-    """Create an enabled RustFSAdapter."""
-    return RustFSAdapter()
-
-
-@pytest.fixture
 def adapter_disabled(mock_settings_disabled):
     """Create a disabled RustFSAdapter."""
     return RustFSAdapter()

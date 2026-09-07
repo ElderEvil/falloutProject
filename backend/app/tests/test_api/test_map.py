@@ -17,37 +17,12 @@ from app.models.wasteland_location import (
 )
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
-from app.schemas.user import UserCreate
-from app.schemas.vault import VaultCreateWithUserID
 from app.services.map_service import map_service
-from app.tests.utils.user import authentication_token_from_email
-from app.tests.utils.utils import get_gender_based_name, random_lower_string
+from app.tests.utils.utils import get_gender_based_name
 
 # ------------------------------------------------------------------
 # helpers
 # ------------------------------------------------------------------
-
-
-async def _create_second_user_and_vault(
-    async_session: AsyncSession,
-) -> tuple[str, Vault]:
-    """Create a second user + vault. Returns (email, vault)."""
-    username = random_lower_string()[:24]
-    email = f"{username}@example.com"
-    user_in = UserCreate(username=username, email=email, password=random_lower_string())
-    user = await crud.user.create(db_session=async_session, obj_in=user_in)
-
-    vault_in = VaultCreateWithUserID(
-        number=666,
-        bottle_caps=500,
-        happiness=50,
-        power=50,
-        food=50,
-        water=50,
-        user_id=user.id,
-    )
-    vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
-    return email, vault
 
 
 # ------------------------------------------------------------------

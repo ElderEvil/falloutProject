@@ -1,7 +1,5 @@
 """Tests for resilient prompt and provider provenance lookups."""
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 
 from app.models.prompt import Prompt
@@ -13,16 +11,6 @@ from app.services.prompt_service import (
     get_provider_model_snapshot,
     invalidate,
 )
-
-
-def _failing_session() -> MagicMock:
-    session = MagicMock()
-    savepoint = MagicMock()
-    savepoint.__aenter__ = AsyncMock(return_value=savepoint)
-    savepoint.__aexit__ = AsyncMock(return_value=False)
-    session.begin_nested.return_value = savepoint
-    session.exec = AsyncMock(side_effect=RuntimeError("database unavailable"))
-    return session
 
 
 @pytest.mark.asyncio

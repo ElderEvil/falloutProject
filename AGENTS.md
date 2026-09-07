@@ -119,6 +119,7 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 7. **Fail fast, minimize try-except (soft but binding):** the codebase favors fail-fast — let errors propagate to a single handler, don't wrap every call. Keep try-except blocks few and shallow: one per operation boundary at most, never nested; extract inner blocks into helpers. Prefer returning early / raising over defensive wrapping.
 8. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
 9. **Progression visibility (red line):** every player-facing progression event — level-up, loot, training completion, quest/objective completion — must surface via modal/pop-up or toast **in addition to** the notification bell entry, never notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing intact when touching these flows.
+10. **Test-pruning policy:** coverage-shadow analysis identifies candidates; it does not justify deletion by itself. Preserve at least one behaviorally distinct test for every public contract, regression, boundary/error path, migration, concurrency guarantee, security/auth check, and assertion-diverse or parametrized family. Tests without coverage contexts are not dead code. After any batch deletion, run collection and the full backend suite with coverage, compare the covered-line delta, and audit for orphaned fixtures/helpers. Record the deleted-test scope, test-count change, coverage delta, protected families, and validation command in the PR description.
 
 ## Dev Environment (Agent Quick-Start)
 
@@ -126,4 +127,4 @@ In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallo
 
 ---
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-09-08_

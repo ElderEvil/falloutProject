@@ -14,7 +14,6 @@ trips the same single-operation invariant enforced by asyncpg.
 import asyncio
 import logging
 import threading
-from collections.abc import AsyncGenerator
 from typing import Any, ClassVar
 
 import asyncpg
@@ -33,29 +32,6 @@ from app.services.event_bus import EventBus, GameEvent
 from app.services.objective_evaluators import ObjectiveEvaluator
 
 logger = logging.getLogger(__name__)
-
-
-class _ConcurrencyGuardedSession(AsyncSession):
-    """AsyncSession that enforces asyncpg's one-operation-at-a-time rule."""
-
-    _in_flight: int = 0
-    collisions: int = 0
-    executions: int = 0
-
-    async def execute(self, *args: Any, **kwargs: Any) -> Any:
-        if _ConcurrencyGuardedSession._in_flight > 0:
-            _ConcurrencyGuardedSession.collisions += 1
-            raise asyncpg.InterfaceError("another operation is in progress")
-
-        _ConcurrencyGuardedSession._in_flight += 1
-        try:
-            # Force a scheduling point while this simulated connection is busy
-            # so the second overlapping emit deterministically hits the guard.
-            await asyncio.sleep(0)
-            _ConcurrencyGuardedSession.executions += 1
-            return await super().execute(*args, **kwargs)
-        finally:
-            _ConcurrencyGuardedSession._in_flight -= 1
 
 
 class _ThreadSafeGuardedSession(AsyncSession):
@@ -96,56 +72,6 @@ class _ThreadSafeGuardedSession(AsyncSession):
                 _ThreadSafeGuardedSession._in_flight[conn_key] = (
                     _ThreadSafeGuardedSession._in_flight.get(conn_key, 0) - 1
                 )
-
-
-@pytest_asyncio.fixture
-async def throwaway_engine() -> AsyncGenerator:
-    """Single-connection throwaway engine (SQLite in-memory, StaticPool).
-
-    Uses StaticPool so every session that binds to this engine shares ONE
-    underlying DBAPI connection — mirroring ``pool_size=1`` with asyncpg.
-    Does NOT touch real PostgreSQL.
-    """
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-        future=True,
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
-    )
-
-    @event.listens_for(SQLModel.metadata, "before_create")
-    def _replace_jsonb_with_json(target, connection, **kw):
-        for table in target.tables.values():
-            for column in table.columns:
-                if isinstance(column.type, JSONB):
-                    column.type = JSON()
-
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-    await engine.dispose()
-    event.remove(SQLModel.metadata, "before_create", _replace_jsonb_with_json)
-
-
-def _make_shared_session_maker(shared_conn: AsyncConnection) -> Any:
-    """Return a callable mimicking ``async_session_maker`` bound to shared_conn.
-
-    Every call returns a fresh ``_ConcurrencyGuardedSession`` that shares the
-    single ``shared_conn`` — so two handler sessions issue queries against
-    the SAME connection, reproducing the asyncpg collision.
-    """
-
-    def _maker() -> _ConcurrencyGuardedSession:
-        return _ConcurrencyGuardedSession(
-            bind=shared_conn,
-            expire_on_commit=False,
-            autoflush=False,
-        )
-
-    return _maker
 
 
 def _make_thread_safe_session_maker(shared_conn: AsyncConnection) -> Any:

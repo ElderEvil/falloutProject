@@ -151,12 +151,6 @@ async def dweller_fixture(async_session: AsyncSession, vault: Vault, dweller_dat
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
-@pytest_asyncio.fixture(name="dweller_with_room")
-async def dweller_with_room_fixture(async_session: AsyncSession, room: Room, dweller_data: dict) -> Dweller:
-    dweller_in = DwellerCreate(**dweller_data, vault_id=room.vault_id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-
 @pytest_asyncio.fixture(name="vault_with_caps")
 async def vault_with_caps_fixture(async_session: AsyncSession) -> Vault:
     user_in = UserCreate(

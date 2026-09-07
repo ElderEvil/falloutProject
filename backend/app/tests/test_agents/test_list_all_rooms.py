@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -19,73 +18,6 @@ from app.tests.factory.dwellers import create_fake_dweller
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
-
-ROOM_CONFIGS: list[dict] = [
-    {
-        "name": "Living Quarters",
-        "category": RoomTypeEnum.CAPACITY,
-        "ability": SPECIALEnum.ENDURANCE,
-        "size": 6,
-        "size_min": 3,
-        "size_max": 9,
-    },
-    {
-        "name": "Weapon Workshop",
-        "category": RoomTypeEnum.CRAFTING,
-        "ability": None,
-        "size": 6,
-        "size_min": 3,
-        "size_max": 9,
-    },
-    {
-        "name": "Radio Studio",
-        "category": RoomTypeEnum.MISC,
-        "ability": SPECIALEnum.CHARISMA,
-        "size": 3,
-        "size_min": 3,
-        "size_max": 3,
-    },
-    {
-        "name": "Power Generator",
-        "category": RoomTypeEnum.PRODUCTION,
-        "ability": SPECIALEnum.STRENGTH,
-        "size": 6,
-        "size_min": 3,
-        "size_max": 9,
-    },
-    {
-        "name": "Overseer Office",
-        "category": RoomTypeEnum.QUESTS,
-        "ability": None,
-        "size": 3,
-        "size_min": 3,
-        "size_max": 3,
-    },
-    {
-        "name": "Theme Workshop",
-        "category": RoomTypeEnum.THEME,
-        "ability": None,
-        "size": 3,
-        "size_min": 3,
-        "size_max": 3,
-    },
-    {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "ability": SPECIALEnum.STRENGTH,
-        "size": 6,
-        "size_min": 3,
-        "size_max": 9,
-    },
-    {
-        "name": "Arena",
-        "category": RoomTypeEnum.ARENA,
-        "ability": SPECIALEnum.STRENGTH,
-        "size": 6,
-        "size_min": 6,
-        "size_max": 6,
-    },
-]
 
 ROOM_DEFAULTS = {
     "base_cost": 100,
@@ -105,16 +37,6 @@ async def _create_room(session: AsyncSession, vault_id, config: dict):
     data = {**ROOM_DEFAULTS, **config, "vault_id": vault_id}
     room_in = RoomCreate(**data)
     return await crud.room.create(db_session=session, obj_in=room_in)
-
-
-@pytest_asyncio.fixture(name="all_type_rooms")
-async def all_type_rooms_fixture(async_session: AsyncSession, vault: Vault):
-    rooms = {}
-    for i, config in enumerate(ROOM_CONFIGS):
-        cfg = {**config, "coordinate_y": i}
-        room = await _create_room(async_session, vault.id, cfg)
-        rooms[config["category"].value] = room
-    return rooms
 
 
 def _make_ctx(db_session: AsyncSession, vault: Vault) -> MagicMock:

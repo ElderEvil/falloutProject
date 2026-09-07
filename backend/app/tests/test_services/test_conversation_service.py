@@ -4,60 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-import pytest_asyncio
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
-from app.models.dweller import Dweller
-from app.models.user import User
-from app.models.vault import Vault
 from app.schemas.common import GenderEnum
-from app.schemas.dweller import DwellerCreate
 from app.services.conversation_service import MessagePayload, conversation_service
-from app.tests.factory.dwellers import create_fake_dweller
-
-# ============================================================================
-# Fixtures
-# ============================================================================
-
-
-@pytest_asyncio.fixture(name="test_dweller")
-async def test_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
-    """Create a test dweller for conversation with full relationships loaded."""
-    dweller_data = create_fake_dweller()
-    dweller_data.update(
-        {
-            "first_name": "Sarah",
-            "last_name": "Connor",
-            "gender": GenderEnum.FEMALE,
-            "is_adult": True,
-            "level": 10,
-            "happiness": 75,
-            "health": 90,
-            "max_health": 100,
-        }
-    )
-    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-    # Use crud.dweller.get() to eager load all relationships for prompt building
-    return await crud.dweller.get(db_session=async_session, id=dweller.id)
-
-
-@pytest_asyncio.fixture(name="test_user")
-async def test_user_fixture(async_session: AsyncSession, vault: Vault) -> User:
-    """Get the user who owns the vault."""
-    # Refresh to load user relationship
-    await async_session.refresh(vault, ["user"])
-    return vault.user
-
-
-@pytest.fixture
-def mock_audio_bytes():
-    """Mock audio file bytes."""
-    # Create a minimal mock audio file
-    return b"RIFF" + b"\x00" * 100  # Minimal RIFF header + some data
-
 
 # ============================================================================
 # Unit Tests for Helper Methods

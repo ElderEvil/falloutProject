@@ -49,43 +49,6 @@ async def working_dweller_fixture(
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
-@pytest_asyncio.fixture(name="idle_dweller")
-async def idle_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
-    """Create an idle dweller."""
-    dweller_data = create_fake_dweller()
-    dweller_data.update(
-        {
-            "first_name": "Idle",
-            "last_name": "Dweller",
-            "status": "idle",
-            "happiness": 60,
-            "health": 100,
-            "max_health": 100,
-        }
-    )
-    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-
-@pytest_asyncio.fixture(name="injured_dweller")
-async def injured_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
-    """Create an injured dweller with low health."""
-    dweller_data = create_fake_dweller()
-    dweller_data.update(
-        {
-            "first_name": "Injured",
-            "last_name": "Dweller",
-            "status": "idle",
-            "happiness": 50,
-            "health": 30,
-            "max_health": 100,
-            "radiation": 75,
-        }
-    )
-    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-
-
 @pytest.mark.asyncio
 class TestHappinessService:
     """Test happiness service functionality."""

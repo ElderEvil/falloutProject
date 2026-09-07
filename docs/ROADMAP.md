@@ -46,6 +46,44 @@ reproducible cases, unless they block a core progression action.
 
 ## Planned
 
+### Radiation & Medical Reliability
+
+Radiation rules now share configuration-backed service helpers and effective-health behavior. The next pass should
+make treatment, presentation, and death timing equally explicit before adding more radiation sources.
+
+- [ ] **Rad-X** — design and implement a distinct temporary radiation-resistance treatment; define stacking,
+  duration, inventory ownership, exploration behavior, and player-facing progression feedback before adding it to
+  loot or production.
+- [ ] **Effective health API contract** — expose `effective_max_health` consistently in compact and full dweller
+  responses, document the health/radiation relationship, and add API regression coverage for capped healing.
+- [ ] **Medical row-locking** — lock the dweller row while consuming a Stimpack or RadAway so concurrent requests
+  cannot spend the same supply twice or overwrite a newer health/radiation value; cover the guarantee with a real
+  PostgreSQL concurrency test.
+- [ ] **Radiation death lag** — trace tick ordering, offline catch-up, SSE, and notification delivery when radiation
+  reaches the death threshold; ensure the dweller is marked dead in the same authoritative tick and the UI does not
+  show stale living health afterward.
+
+Backend mechanics and invariants are documented in `docs/backend/RADIATION.md`.
+
+### Version 3.0 Platform Modernization
+
+3.0 will be a deliberate runtime and identity boundary rather than a routine dependency refresh. The work should
+land as one compatibility pass with migration notes, updated CI/container tooling, and a rollback plan.
+
+- [ ] **Python 3.14 baseline** — raise the supported backend runtime from the current 3.12–3.13 range, then verify
+  FastAPI, Pydantic, SQLModel, Dramatiq, database drivers, and production images across the supported environments.
+- [ ] **UUIDv7 identifiers** — use Python's standard-library `uuid.uuid7()` for new time-sortable identifiers where
+  it improves database locality; preserve existing IDs and define the PostgreSQL/default/migration strategy before
+  changing model factories or public API contracts.
+- [ ] **HTTPX 2 evaluation** — test the HTTPX 2 API and compatibility with FastAPI's test transport and application
+  integrations; adopt it if the release and dependency ecosystem are ready, otherwise stay on the latest supported
+  stable release and record the decision.
+- [ ] **3.0 upgrade rehearsal** — update `uv.lock`, CI, development tasks, container images, and documentation;
+  run the full backend/frontend suites plus migration and rollback checks before declaring the boundary complete.
+
+Python 3.14 is the first version with standard-library UUIDv7 support, making it the natural point to evaluate the
+identifier change rather than adding another compatibility dependency now.
+
 ### Recently Shipped — "The Overseer's Toolkit" (2.62–2.67, now on `master`)
 
 **Shipped:** Overseer Briefing (vault state summary + unresolved-item tile count + direct response links), AI
@@ -795,6 +833,6 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-08-31_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
+_Last updated: 2026-09-07_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
 manual playtesting. The world map remains single-vault exploration; multiplayer is out of scope. Investigate reported
 notification click-through failures after reproducible cases are collected.

@@ -18,14 +18,16 @@ health down to the new effective ceiling. Radiation death remains a separate gam
 
 ## Single source of truth
 
-`app/services/radiation_service.py` contains the shared pure helpers:
+`app/services/radiation_service.py` contains the shared session-free helpers:
 
-- `apply_radiation_gain(dweller, amount)` applies the configured cap and effective-health clamp.
-- `radiation_removal_amount(radiation)` calculates one RadAway's removal as the configured share of current
-  radiation, with a minimum removal of one and no negative result.
+- `apply_radiation_gain(dweller, amount)` mutates the dweller in place: applies the configured cap, pulls health
+  down to the effective-health ceiling, and returns whether anything changed.
+- `radiation_removal_amount(radiation)` is a pure calculation returning one RadAway's removal as the configured
+  share of current radiation — at least one point, never more than the dweller currently has.
 
-Callers persist the changed model; the helpers do not commit or own a session. Exploration events, Radscorpion
-incidents, dehydration, and medical treatment must use these helpers rather than duplicate caps or percentages.
+The helpers own no session and never commit. Callers persist the mutated dweller themselves. Exploration events,
+Radscorpion incidents, dehydration, and medical treatment must use these helpers rather than duplicate caps or
+percentages.
 
 ## Configured rules
 

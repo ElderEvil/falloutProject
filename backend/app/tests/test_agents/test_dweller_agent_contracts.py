@@ -43,7 +43,9 @@ def _make_dweller() -> MagicMock:
     dweller.health = dweller.max_health = 100
     dweller.radiation = 0
     # Property-backed so tests mutating max_health/radiation never read a stale cap.
-    type(dweller).effective_max_health = PropertyMock(side_effect=lambda: max(1, dweller.max_health - dweller.radiation))
+    type(dweller).effective_max_health = PropertyMock(
+        side_effect=lambda: max(1, dweller.max_health - dweller.radiation)
+    )
     dweller.stimpack = 2
     dweller.radaway = 1
     dweller.happiness = 75

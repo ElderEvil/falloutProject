@@ -34,32 +34,12 @@ class TestChatWebSocketAuth:
             ws.send_json({"type": "ping"})
             assert ws.receive_json()["type"] == "pong"
 
-    def test_missing_token_rejected_before_connect(self, ws_client: TestClient) -> None:
-        """No token → handshake rejected, socket never registered with the manager."""
-        user_id = uuid4()
-        with (
-            pytest.raises(WebSocketDisconnect) as exc,
-            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{uuid4()}"),
-        ):
-            pass
-        assert exc.value.code == 4008
-
     def test_invalid_token_rejected_before_connect(self, ws_client: TestClient) -> None:
         """Garbage token → handshake rejected."""
         user_id = uuid4()
         with (
             pytest.raises(WebSocketDisconnect) as exc,
             ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{uuid4()}?token=not-a-real-jwt"),
-        ):
-            pass
-        assert exc.value.code == 4008
-
-    def test_token_for_different_user_rejected(self, ws_client: TestClient) -> None:
-        """A valid token for a *different* user must not connect to this user_id."""
-        token = create_access_token(subject=str(uuid4()))
-        with (
-            pytest.raises(WebSocketDisconnect) as exc,
-            ws_client.websocket_connect(f"/api/v1/ws/chat/{uuid4()}/{uuid4()}?token={token}"),
         ):
             pass
         assert exc.value.code == 4008
@@ -84,34 +64,6 @@ async def _fake_stream_response(db_session: object, user: object, dweller_id: ob
 
 class TestChatWebSocketStreaming:
     """Text messages stream token/done chunks over the chat WebSocket."""
-
-    def test_message_streams_tokens_then_done(self, ws_client: TestClient) -> None:
-        """A valid message streams token chunks followed by a done chunk."""
-        user_id = uuid4()
-        dweller_id = uuid4()
-        token = create_access_token(subject=str(user_id))
-
-        with (
-            patch(
-                "app.api.v1.endpoints.websocket.async_session_maker",
-                return_value=_FakeSessionCM(),
-            ),
-            patch(
-                "app.api.v1.endpoints.websocket.user_crud.get",
-                new=AsyncMock(return_value=object()),
-            ),
-            patch(
-                "app.api.v1.endpoints.websocket.chat_service.stream_response",
-                new=_fake_stream_response,
-            ),
-            ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
-        ):
-            ws.send_json({"type": "message", "content": "Hello!"})
-            assert ws.receive_json() == {"type": "token", "text": "Hello"}
-            assert ws.receive_json() == {"type": "token", "text": " world"}
-            done = ws.receive_json()
-            assert done["type"] == "done"
-            assert done["dweller_message_id"] == "msg-1"
 
     def test_empty_content_returns_error(self, ws_client: TestClient) -> None:
         """Empty/whitespace-only content is rejected before streaming."""

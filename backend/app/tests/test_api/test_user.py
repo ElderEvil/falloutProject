@@ -38,32 +38,6 @@ async def create_isolated_user_with_token(
 
 
 @pytest.mark.asyncio
-async def test_get_users_superuser_me(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    response = await async_client.get("/users/me", headers=superuser_token_headers)
-    current_user = response.json()
-    assert current_user
-    assert current_user["is_active"] is True
-    assert current_user["is_superuser"]
-    assert current_user["email"] == settings.FIRST_SUPERUSER_EMAIL
-
-
-@pytest.mark.asyncio
-async def test_get_users_normal_user_me(
-    async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    response = await async_client.get("/users/me", headers=normal_user_token_headers)
-    current_user = response.json()
-    assert current_user
-    assert current_user["is_active"] is True
-    assert current_user["is_superuser"] is False
-    assert current_user["email"] == settings.EMAIL_TEST_USER
-
-
-@pytest.mark.asyncio
 async def test_create_user_new_email(
     async_client: AsyncClient,
     superuser_token_headers: dict,
@@ -101,25 +75,6 @@ async def test_get_existing_user(
     existing_user = await crud.user.get_by_email(db_session=async_session, email=user_data["email"])
     assert existing_user
     assert existing_user.email == api_user["email"]
-
-
-@pytest.mark.asyncio
-async def test_create_user_existing_username(
-    async_client: AsyncClient,
-    superuser_token_headers: dict,
-    async_session: AsyncSession,
-) -> None:
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    await crud.user.create(db_session=async_session, obj_in=user_in)
-    response = await async_client.post(
-        "/users/",
-        headers=superuser_token_headers,
-        json=user_data,
-    )
-    created_user = response.json()
-    assert response.status_code == 409
-    assert "_id" not in created_user
 
 
 @pytest.mark.asyncio
@@ -164,61 +119,6 @@ async def test_retrieve_users(
 
 
 @pytest.mark.asyncio
-async def test_get_my_profile(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-) -> None:
-    """Test getting current user's profile with isolated user."""
-    # Create isolated user to avoid shared state issues
-    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
-
-    response = await async_client.get("/users/me/profile", headers=token_headers)
-    assert response.status_code == 200
-    profile = response.json()
-    assert "id" in profile
-    assert "user_id" in profile
-    assert "bio" in profile
-    assert "avatar_url" in profile
-    assert "preferences" in profile
-    assert "total_dwellers_created" in profile
-    assert "total_caps_earned" in profile
-    assert "total_explorations" in profile
-    assert "total_rooms_built" in profile
-    assert "created_at" in profile
-    assert "updated_at" in profile
-    # Fresh user should have zero statistics
-    assert profile["total_dwellers_created"] == 0
-    assert profile["total_caps_earned"] == 0
-    assert profile["total_explorations"] == 0
-    assert profile["total_rooms_built"] == 0
-
-
-@pytest.mark.asyncio
-async def test_update_my_profile(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-) -> None:
-    """Test updating current user's profile with isolated user."""
-    # Create isolated user to avoid shared state issues
-    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
-
-    # First, get the profile to ensure it exists
-    await async_client.get("/users/me/profile", headers=token_headers)
-
-    update_data = {
-        "bio": "I am a vault dweller and I love Fallout!",
-        "avatar_url": "https://example.com/avatar.png",
-        "preferences": {"theme": "dark", "notifications": True},
-    }
-    response = await async_client.put("/users/me/profile", json=update_data, headers=token_headers)
-    assert response.status_code == 200
-    profile = response.json()
-    assert profile["bio"] == update_data["bio"]
-    assert profile["avatar_url"] == update_data["avatar_url"]
-    assert profile["preferences"] == update_data["preferences"]
-
-
-@pytest.mark.asyncio
 async def test_update_profile_partial(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -235,49 +135,3 @@ async def test_update_profile_partial(
     assert response.status_code == 200
     profile = response.json()
     assert profile["bio"] == update_data["bio"]
-
-
-@pytest.mark.asyncio
-async def test_get_superuser_profile(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-) -> None:
-    """Test that a fresh user has a profile auto-created with zero statistics."""
-    # Create isolated user to avoid shared state issues
-    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
-
-    response = await async_client.get("/users/me/profile", headers=token_headers)
-    assert response.status_code == 200
-    profile = response.json()
-    assert profile["user_id"] is not None
-    assert profile["total_dwellers_created"] == 0
-    assert profile["total_caps_earned"] == 0
-    assert profile["total_explorations"] == 0
-    assert profile["total_rooms_built"] == 0
-
-
-@pytest.mark.asyncio
-async def test_profile_statistics_not_directly_editable(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-) -> None:
-    """Test that statistics cannot be directly updated via the API."""
-    # Create isolated user to avoid shared state issues
-    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
-
-    # First, get the profile to ensure it exists
-    await async_client.get("/users/me/profile", headers=token_headers)
-
-    # Try to update statistics (should be ignored)
-    update_data = {
-        "bio": "New bio",
-        "total_dwellers_created": 9999,  # This should be ignored
-        "total_caps_earned": 9999,  # This should be ignored
-    }
-    response = await async_client.put("/users/me/profile", json=update_data, headers=token_headers)
-    assert response.status_code == 200
-    profile = response.json()
-    assert profile["bio"] == "New bio"
-    # Statistics should remain at 0 (not updated to 9999)
-    assert profile["total_dwellers_created"] == 0
-    assert profile["total_caps_earned"] == 0

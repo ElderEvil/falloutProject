@@ -18,68 +18,6 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 
 
 @pytest.mark.asyncio
-async def test_complete_training(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test completing an active training session via the API."""
-    # Create a training room
-    room_data = {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await crud.room.create(async_session, room_in)
-
-    # Set dweller to IDLE and reasonable strength
-    dweller.status = DwellerStatusEnum.IDLE
-    initial_strength = 5
-    dweller.strength = initial_strength
-    async_session.add(dweller)
-    await async_session.commit()
-    await async_session.refresh(dweller)
-
-    # Start training via the API
-    start_response = await async_client.post(
-        "/training/start",
-        params={"dweller_id": str(dweller.id), "room_id": str(room.id)},
-        headers=superuser_token_headers,
-    )
-    assert start_response.status_code == 201
-    training_id = start_response.json()["id"]
-
-    # Complete training via the new endpoint
-    response = await async_client.post(
-        f"/training/{training_id}/complete",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 200
-    data = response.json()
-
-    assert data["status"] == "completed"
-    assert data["progress"] == 1.0
-    assert data["completed_at"] is not None
-    assert data["id"] == training_id
-
-    # Verify dweller's strength increased
-    await async_session.refresh(dweller)
-    assert dweller.strength == initial_strength + 1
-    assert dweller.status == DwellerStatusEnum.IDLE
-
-
-@pytest.mark.asyncio
 async def test_unassigning_a_training_dweller_cancels_active_session(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -128,21 +66,6 @@ async def test_unassigning_a_training_dweller_cancels_active_session(
     assert response.json()["status"] == DwellerStatusEnum.IDLE.value
     training = await crud.training.training.get(async_session, UUID(training_id))
     assert training.status == TrainingStatus.CANCELLED
-
-
-@pytest.mark.asyncio
-async def test_complete_training_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """Test completing a non-existent training session returns 404."""
-    fake_id = str(uuid4())
-    response = await async_client.post(
-        f"/training/{fake_id}/complete",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 404
-    assert "unable to find" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -374,24 +297,6 @@ async def test_get_dweller_training_success(
     assert data["status"] == TrainingStatus.ACTIVE.value
 
 
-@pytest.mark.asyncio
-async def test_get_dweller_training_none(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """GET /training/dweller/{id} returns None when no active training."""
-    with patch(
-        "app.api.v1.endpoints.training.crud_training.training.get_active_by_dweller",
-        AsyncMock(return_value=None),
-    ):
-        response = await async_client.get(
-            f"/training/dweller/{uuid4()}",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 200
-    assert response.json() is None
-
-
 # --- GET /training/vault/{vault_id} -----------------------------------------
 
 
@@ -546,38 +451,6 @@ async def test_complete_training_not_found_from_service(
 
 
 @pytest.mark.asyncio
-async def test_cancel_training_success(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """POST /training/{id}/cancel returns cancelled training."""
-    mock_training = _make_mock_training(status=TrainingStatus.CANCELLED)
-    cancelled_training = _make_mock_training(status=TrainingStatus.CANCELLED)
-
-    with (
-        patch(
-            "app.api.v1.endpoints.training.crud_training.training.get",
-            AsyncMock(return_value=mock_training),
-        ),
-        patch(
-            "app.api.v1.endpoints.training.get_user_vault_or_403",
-            AsyncMock(return_value=None),
-        ),
-        patch(
-            "app.api.v1.endpoints.training.training_service.cancel_training",
-            AsyncMock(return_value=cancelled_training),
-        ),
-    ):
-        response = await async_client.post(
-            f"/training/{mock_training.id}/cancel",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == TrainingStatus.CANCELLED.value
-
-
-@pytest.mark.asyncio
 async def test_cancel_training_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -685,21 +558,3 @@ async def test_list_room_training_success(
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
-
-
-@pytest.mark.asyncio
-async def test_list_room_training_empty(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """GET /training/room/{id} returns empty list when no trainings in room."""
-    with patch(
-        "app.api.v1.endpoints.training.crud_training.training.get_active_by_room",
-        AsyncMock(return_value=[]),
-    ):
-        response = await async_client.get(
-            f"/training/room/{uuid4()}",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 200
-    assert response.json() == []

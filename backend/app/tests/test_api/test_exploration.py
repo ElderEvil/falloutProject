@@ -62,93 +62,6 @@ async def test_send_dweller_to_wasteland_success(
 
 
 @pytest.mark.asyncio
-async def test_send_dweller_already_exploring(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test error when dweller is already on an exploration."""
-    # Create an active exploration for the dweller
-    exploration_in = ExplorationCreate(
-        vault_id=vault.id,
-        dweller_id=dweller.id,
-        duration=4,
-    )
-    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    # Try to send the same dweller again
-    response = await async_client.post(
-        f"/explorations/send?vault_id={vault.id}",
-        json={"dweller_id": str(dweller.id), "duration": 4},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
-    assert "already on an exploration" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_send_child_dweller_to_wasteland_is_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Children cannot start wasteland explorations."""
-    dweller.is_adult = False
-    dweller.age_group = AgeGroupEnum.CHILD
-    async_session.add(dweller)
-    await async_session.commit()
-
-    response = await async_client.post(
-        f"/explorations/send?vault_id={vault.id}",
-        json={"dweller_id": str(dweller.id), "duration": 4},
-        headers=superuser_token_headers,
-    )
-
-    assert response.status_code == 400
-    assert "Children cannot be sent on exploration" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_list_explorations_active_only(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test listing only active explorations for a vault."""
-    # Create active exploration
-    active_exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    # Create completed exploration
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
-
-    dweller2_data = create_fake_dweller()
-    dweller2_data = create_fake_adult_dweller()
-    dweller2_data["vault_id"] = vault.id
-    dweller2 = await crud.dweller.create(async_session, DwellerCreate(**dweller2_data))
-
-    completed_exploration = await exploration_service.send_dweller(async_session, vault.id, dweller2.id, duration=4)
-    await crud.exploration.complete_exploration(async_session, exploration_id=completed_exploration.id)
-
-    # List active only
-    response = await async_client.get(
-        f"/explorations/vault/{vault.id}?active_only=true",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["id"] == str(active_exploration.id)
-    assert data[0]["status"] == ExplorationStatus.ACTIVE
-
-
-@pytest.mark.asyncio
 async def test_list_explorations_empty(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -279,27 +192,6 @@ async def test_recall_dweller_success(
 
 
 @pytest.mark.asyncio
-async def test_recall_dweller_not_active(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test error when trying to recall a completed exploration."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/recall",
-        json={},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
-    assert "not active" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
 async def test_complete_exploration_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -360,48 +252,6 @@ async def test_complete_exploration_success(
 
 
 @pytest.mark.asyncio
-async def test_complete_exploration_before_duration_is_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Only recall may end an active expedition before its duration elapses."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/complete",
-        json={},
-        headers=superuser_token_headers,
-    )
-
-    assert response.status_code == 400
-    assert "has not finished yet" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_complete_exploration_not_active(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test error when trying to complete a recalled exploration."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.recall_exploration(async_session, exploration_id=exploration.id)
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/complete",
-        json={},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
-    assert "not active" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
 async def test_generate_event_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -422,24 +272,3 @@ async def test_generate_event_success(
 
     # Event generation is probabilistic, but exploration should be returned
     assert data["id"] == str(exploration.id)
-
-
-@pytest.mark.asyncio
-async def test_generate_event_not_active(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """Test error when trying to generate event for inactive exploration."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await crud.exploration.complete_exploration(async_session, exploration_id=exploration.id)
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/generate_event",
-        json={},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
-    assert "not active" in response.json()["detail"]

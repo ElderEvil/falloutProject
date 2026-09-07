@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.3 (2026-09-07)
+
+### Bug Fixes
+
+* align elevator destroy stacking direction df13a78
+* isolate vault grid config from game settings f91cd4e
+
+### Documentation
+
+* credit core toolchains (Pydantic/AI, astral.sh, VoidZero) ce940c4
+* TS7 v3.0 plan, ROADMAP/AUDIT trim, stale TS badge 1131001
+
+### Code Refactoring
+
+* move medical capacity logic from game_config to resource_manager 265b4a6
+* move room_rules from services to utils (fix crud->service inversion) 5b49e61
+* unify vault grid bounds into game_config, drop app/constants.py 5943e22
+
 ## 2.80.2 (2026-09-07)
 
 ### Bug Fixes

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.2 (2026-09-07)
+
+### Bug Fixes
+
+* replace dead coverage-badge with shields endpoint JSON in gist 0bc169c
+
+### Documentation
+
+* clarify radiation helper persistence contract 8cf9ca7
+* define 3.0 platform modernization plan 0c6276c
+* define radiation follow-up plan e5766a7
+
 ## 2.80.1 (2026-09-07)
 
 ### Bug Fixes

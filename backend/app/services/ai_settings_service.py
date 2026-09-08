@@ -18,7 +18,7 @@ from app.schemas.ai_settings import (
     AISettingsUpdate,
 )
 from app.services.ai_service import AIService, build_test_model
-from app.services.chat_service import ChatService
+from app.services.chat.agent_runner import extract_provider_reason
 from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ class AISettingsService:
                 status="error",
                 latency_ms=int((time.perf_counter() - start) * 1000),
                 model=effective.model,
-                message=ChatService._extract_provider_reason(error),
+                message=extract_provider_reason(error),
             )
         except Exception as error:
             logger.exception("AI connection test failed")

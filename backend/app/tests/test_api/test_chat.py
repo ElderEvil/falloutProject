@@ -137,7 +137,7 @@ class TestTextChat:
                 db_session=MagicMock(),
             )
 
-    @patch("app.services.chat_service.dweller_chat_agent")
+    @patch("app.services.chat.agent_runner.dweller_chat_agent")
     async def test_chat_returns_structured_response(
         self,
         mock_agent: MagicMock,
@@ -170,8 +170,8 @@ class TestTextChat:
         assert data["happiness_impact"]["reason_code"] == "chat_negative"
         assert data["happiness_impact"]["reason_text"] == "Dweller expressed discomfort"
 
-    @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.services.chat_service.get_ai_service")
+    @patch("app.services.chat.agent_runner.dweller_chat_agent")
+    @patch("app.services.chat.agent_runner.get_ai_service")
     async def test_chat_fallback_on_agent_failure(
         self,
         mock_ai_service_func: MagicMock,
@@ -213,8 +213,8 @@ class TestTextChat:
         # Verify no_action suggestion on fallback
         assert data["action_suggestion"]["action_type"] == "no_action"
 
-    @patch("app.services.chat_service.dweller_chat_agent")
-    @patch("app.services.chat_service.get_ai_service")
+    @patch("app.services.chat.agent_runner.dweller_chat_agent")
+    @patch("app.services.chat.agent_runner.get_ai_service")
     async def test_chat_reports_exhausted_provider_credits(
         self,
         mock_ai_service_func: MagicMock,
@@ -438,7 +438,7 @@ class TestMessageIdCorrelation:
     """
 
     @patch("app.api.v1.endpoints.chat.conversation_service")
-    @patch("app.services.chat_service.manager")
+    @patch("app.services.chat.notifications.manager")
     async def test_voice_chat_ws_action_suggestion_includes_message_id(
         self,
         mock_manager: MagicMock,

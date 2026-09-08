@@ -7,7 +7,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
-from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -23,36 +22,9 @@ async def apply_chat_happiness(
     dweller_id: UUID4,
     delta: int,
 ) -> tuple[int, int]:
-    """Apply an immediate happiness delta from a chat interaction.
-
-    Loads the dweller and vault, applies the delta (clamped 10..100),
-    and recomputes vault happiness as the average of all dwellers.
-    Commits all changes in a single transaction.
-
-    Args:
-        db_session: Database session
-        dweller_id: Dweller ID to update
-        delta: Happiness change to apply (-10 to +10 typically)
-
-    Returns:
-        Tuple of (new_dweller_happiness, new_vault_happiness)
-
-    Raises:
-        ResourceNotFoundException: If dweller or vault not found
-    """
-    # Load dweller (includes vault relationship via eager loading)
-    try:
-        dweller = await dweller_crud.get(db_session, dweller_id)
-    except ResourceNotFoundException:
-        logger.warning("Chat happiness: Dweller %s not found", dweller_id)
-        raise
-
-    # Load vault
-    try:
-        vault = await vault_crud.get(db_session, dweller.vault_id)
-    except ResourceNotFoundException:
-        logger.warning("Chat happiness: Vault %s not found for dweller %s", dweller.vault_id, dweller_id)
-        raise
+    """Stage clamped dweller/vault happiness changes in the caller's chat transaction."""
+    dweller = await dweller_crud.get(db_session, dweller_id)
+    vault = await vault_crud.get(db_session, dweller.vault_id)
 
     # Apply delta with clamping (10..100 for dwellers)
     old_happiness = dweller.happiness
@@ -77,8 +49,7 @@ async def apply_chat_happiness(
     vault_happiness = max(VAULT_HAPPINESS_MIN, min(VAULT_HAPPINESS_MAX, vault_happiness))
     vault.happiness = vault_happiness
 
-    # Commit all changes in one transaction
-    await db_session.commit()
+    await db_session.flush()
 
     logger.info(
         "Chat happiness applied: dweller %s: %d -> %d (delta=%+d), vault %s: %d",

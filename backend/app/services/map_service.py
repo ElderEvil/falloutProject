@@ -134,6 +134,8 @@ class MapService:
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None = None,
+        *,
+        commit: bool = True,
     ) -> bool:
         """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
@@ -142,9 +144,8 @@ class MapService:
         Every visited name (max 64 chars, skip-list applied) is upserted, capped
         at ``game_config.bio.max_visited`` for the dweller's rarity.
 
-        A transient failure is retried once after rolling back the session. If
-        both attempts fail, a durable notification makes the incomplete map
-        registration visible without disrupting bio generation.
+        A failed attempt rolls back its savepoint before retrying. With commit=False,
+        the caller owns persistence and must notify failure after its own commit.
 
         Returns ``True`` when the registration succeeded (or nothing needed to be
         done), and ``False`` when it failed after the internal retry.
@@ -156,15 +157,15 @@ class MapService:
         )
         for attempt in range(2):
             try:
-                await self._register_bio_places_once(
-                    db_session,
-                    map_dweller,
-                    origin_place,
-                    visited_places,
-                    explicit_origin,
-                )
+                async with db_session.begin_nested():
+                    await self._register_bio_places_once(
+                        db_session,
+                        map_dweller,
+                        origin_place,
+                        visited_places,
+                        explicit_origin,
+                    )
             except Exception:
-                await db_session.rollback()
                 if attempt == 0:
                     logger.warning(
                         "register_bio_places retrying after failure: dweller=%s vault=%s origin=%r",
@@ -182,15 +183,29 @@ class MapService:
                     origin_place,
                 )
             else:
+                if commit:
+                    try:
+                        await db_session.commit()
+                    except Exception:
+                        await db_session.rollback()
+                        logger.exception(
+                            "register_bio_places could not commit: dweller=%s vault=%s origin=%r",
+                            map_dweller.id,
+                            map_dweller.vault_id,
+                            origin_place,
+                        )
+                        await self.notify_bio_registration_failure(db_session, map_dweller)
+                        return False
                 return True
 
-        await self._notify_bio_registration_failure(db_session, map_dweller)
+        if commit:
+            await self.notify_bio_registration_failure(db_session, map_dweller)
         return False
 
     async def _register_bio_places_once(
         self,
         db_session: AsyncSession,
-        dweller: _MapDwellerLike,
+        dweller: _MapDwellerSnapshot,
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None,
@@ -205,8 +220,11 @@ class MapService:
                 vault_id=dweller.vault_id,
                 name=effective_origin[:64],
                 type=LocationTypeEnum.ORIGIN,
+                commit=False,
             )
-            await wl_crud.link_dweller(db_session, dweller.id, origin_location.id, DwellerLocationRelationEnum.ORIGIN)
+            await wl_crud.link_dweller(
+                db_session, dweller.id, origin_location.id, DwellerLocationRelationEnum.ORIGIN, commit=False
+            )
 
         # --- visited (rarity-scaled cap, de-dupe against origin, apply skip-list) ---
         origin_normalized = normalize_place_name(effective_origin)
@@ -227,14 +245,17 @@ class MapService:
                 vault_id=dweller.vault_id,
                 name=name,
                 type=LocationTypeEnum.VISITED,
+                commit=False,
             )
-            await wl_crud.link_dweller(db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED)
+            await wl_crud.link_dweller(
+                db_session, dweller.id, loc.id, DwellerLocationRelationEnum.VISITED, commit=False
+            )
             visited += 1
 
-    async def _notify_bio_registration_failure(
+    async def notify_bio_registration_failure(
         self,
         db_session: AsyncSession,
-        dweller: _MapDwellerLike,
+        dweller: _MapDwellerLike | _MapDwellerSnapshot,
     ) -> None:
         """Persist an actionable notification when map registration exhausts its retry."""
         try:
@@ -313,9 +334,9 @@ class MapService:
         Event records are the journey history and therefore the route authority.
         Older events without the Journal coordinate fields are simply omitted.
         """
-        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        result = await db_session.exec(select(Exploration).where(Exploration.vault_id == vault_id))
         routes: list[DiscoveryRouteRead] = []
-        for exploration in result.scalars().all():
+        for exploration in result.all():
             points: list[DiscoveryRoutePoint] = []
             for event in exploration.events:
                 if event.get("type") != "discovery":

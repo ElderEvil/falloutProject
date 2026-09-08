@@ -53,20 +53,22 @@ async def maybe_unlock_places(db_session: AsyncSession, dweller: DwellerReadFull
     from app.crud.wasteland_location import wasteland_location as wl_crud
 
     try:
-        user_msg_count = await chat_crud.count_user_messages_to_dweller(db_session, dweller_id=dweller.id)
-        if user_msg_count >= 3:
-            unlocked_rows = await wl_crud.unlock_places_for_dweller(db_session, dweller_id=dweller.id)
-            unlocked_places = [UnlockedPlace(location_id=location_id, name=name) for location_id, name in unlocked_rows]
-            if unlocked_places:
-                logger.info(
-                    "Unlocked %d places for dweller %s after %d user messages",
-                    len(unlocked_places),
-                    dweller.id,
-                    user_msg_count,
-                )
-            return unlocked_places
+        async with db_session.begin_nested():
+            user_msg_count = await chat_crud.count_user_messages_to_dweller(db_session, dweller_id=dweller.id)
+            if user_msg_count >= 3:
+                unlocked_rows = await wl_crud.unlock_places_for_dweller(db_session, dweller_id=dweller.id)
+                unlocked_places = [
+                    UnlockedPlace(location_id=location_id, name=name) for location_id, name in unlocked_rows
+                ]
+                if unlocked_places:
+                    logger.info(
+                        "Unlocked %d places for dweller %s after %d user messages",
+                        len(unlocked_places),
+                        dweller.id,
+                        user_msg_count,
+                    )
+                return unlocked_places
     except Exception:
-        await db_session.rollback()
         logger.exception("Failed to unlock places for dweller %s, continuing", dweller.id)
     return []
 

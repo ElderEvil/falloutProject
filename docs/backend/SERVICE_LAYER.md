@@ -17,7 +17,9 @@ new code must follow them from the start.
 - A **service public entry point owns the commit** for its operation on HTTP paths. One operation, one
   transaction boundary — services may commit mid-operation only when the operation is explicitly
   multi-stage (e.g. profile after user creation).
-- **CRUD never commits** and never rolls back; it only executes queries and flushes.
+- **Target state: CRUD never commits** and never rolls back; it only executes queries and flushes.
+  Legacy exceptions include `CRUDBase` and `CRUDWastelandLocation.get_or_create` / `link_dweller`
+  (default `commit=True`). Bio map registration passes `commit=False` and isolates each attempt with a savepoint.
 - **Endpoints never commit** and never touch the session lifecycle.
 - Background actors (Dramatiq ticks) open their own session via `task_session()` from
   `app.db.session`; that context is the transaction boundary for the tick step it wraps.
@@ -66,3 +68,13 @@ stay compliant.
   Rejections carry remaining/warning metadata; `main.domain_exception_handler` formats quota headers.
 - `dweller_ai.py` now demonstrates the target pattern: provider/storage/audio failures raise
   `AIProviderException`/`AIStorageException`/`AIAudioException` instead of `HTTPException`.
+
+- Chat text, streaming, and voice entry points own the conversation commit. Happiness, LLM usage creation,
+  message creation, and place unlocking only flush. Recoverable agent/discovery work uses savepoints; failures
+  unwind their own writes without rolling back the caller's quota lock or messages.
+- `QuotaService.record_usage` stages usage in its caller's transaction; its Redis invalidation remains best-effort.
+  Prompt activation commits in `create_prompt_version`; failed activation rolls back its savepoint, while failed
+  prompt/profile reads retain shipped fallbacks. These queries support raw SQLAlchemy async sessions.
+- Non-chat dweller AI operations still have multiple stages. Bio map writes and usage commit in the service;
+  failed registration rolls back only its attempt, then sends a failure notification after usage commits.
+  Legacy CRUD commits elsewhere remain deferred to their domain batches.

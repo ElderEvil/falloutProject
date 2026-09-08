@@ -866,6 +866,7 @@ class TestInitiateVault:
         db_session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=storage_obj)))
 
         with (
+            patch("app.services.map_service.map_service.register_bio_places", new=AsyncMock(return_value=True)),
             patch(
                 "app.services.vault_service.vault_crud.create_with_user_id",
                 new_callable=AsyncMock,

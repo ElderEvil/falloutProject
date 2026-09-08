@@ -50,41 +50,44 @@ class ChatService:
         message_text: str,
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
-        dweller = await get_accessible_dweller(dweller_id, user, db_session)
+        async with db_session.begin_nested():
+            dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
-        quota_result = await quota_service.check_quota(user.id, db_session)
-        quota_result.ensure_allowed()
+            quota_result = await quota_service.check_quota(user.id, db_session)
+            quota_result.ensure_allowed()
 
-        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
-        provider, model = await get_provider_model_snapshot(db_session)
+            instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+            provider, model = await get_provider_model_snapshot(db_session)
 
-        result = await run_chat_agent(
-            db_session=db_session,
-            dweller=dweller,
-            message_text=message_text,
-            instructions=instructions,
-        )
+            result = await run_chat_agent(
+                db_session=db_session,
+                dweller=dweller,
+                message_text=message_text,
+                instructions=instructions,
+            )
 
-        bundle = StreamBundle(
-            response_text=result.response_text,
-            happiness_impact=result.happiness_impact,
-            action_suggestion=result.action_suggestion,
-            prompt_tokens=result.prompt_tokens,
-            completion_tokens=result.completion_tokens,
-            total_tokens=result.total_tokens,
-            provider=provider,
-            model=model,
-            prompt_id=prompt_id,
-            instructions_hash=instructions_hash,
-            instructions_snapshot=instructions,
-        )
-        dweller_message_id, unlocked_places = await persist_chat(
-            db_session=db_session,
-            user=user,
-            dweller=dweller,
-            message_text=message_text,
-            bundle=bundle,
-        )
+            bundle = StreamBundle(
+                response_text=result.response_text,
+                happiness_impact=result.happiness_impact,
+                action_suggestion=result.action_suggestion,
+                prompt_tokens=result.prompt_tokens,
+                completion_tokens=result.completion_tokens,
+                total_tokens=result.total_tokens,
+                provider=provider,
+                model=model,
+                prompt_id=prompt_id,
+                instructions_hash=instructions_hash,
+                instructions_snapshot=instructions,
+            )
+            dweller_message_id, unlocked_places = await persist_chat(
+                db_session=db_session,
+                user=user,
+                dweller=dweller,
+                message_text=message_text,
+                bundle=bundle,
+            )
+
+        await db_session.commit()
 
         return DwellerChatResponse(
             response=result.response_text,
@@ -114,37 +117,40 @@ class ChatService:
             or type "error" on failure.
         """
         try:
-            dweller = await get_accessible_dweller(dweller_id, user, db_session)
+            async with db_session.begin_nested():
+                dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
-            quota_result = await quota_service.check_quota(user.id, db_session)
-            quota_result.ensure_allowed()
+                quota_result = await quota_service.check_quota(user.id, db_session)
+                quota_result.ensure_allowed()
 
-            instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
-            provider, model = await get_provider_model_snapshot(db_session)
+                instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+                provider, model = await get_provider_model_snapshot(db_session)
 
-            deps = DwellerChatDeps(
-                db_session=db_session,
-                dweller=dweller,
-                vault_id=dweller.vault.id,
-            )
+                deps = DwellerChatDeps(
+                    db_session=db_session,
+                    dweller=dweller,
+                    vault_id=dweller.vault.id,
+                )
 
-            bundle = StreamBundle(
-                provider=provider,
-                model=model,
-                prompt_id=prompt_id,
-                instructions_hash=instructions_hash,
-                instructions_snapshot=instructions,
-            )
-            async for event in stream_with_fallback(deps, dweller, message_text, bundle, instructions):
-                yield event
+                bundle = StreamBundle(
+                    provider=provider,
+                    model=model,
+                    prompt_id=prompt_id,
+                    instructions_hash=instructions_hash,
+                    instructions_snapshot=instructions,
+                )
+                async for event in stream_with_fallback(deps, dweller, message_text, bundle, instructions):
+                    yield event
 
-            dweller_message_id, unlocked_places = await persist_chat(
-                db_session=db_session,
-                user=user,
-                dweller=dweller,
-                message_text=message_text,
-                bundle=bundle,
-            )
+                dweller_message_id, unlocked_places = await persist_chat(
+                    db_session=db_session,
+                    user=user,
+                    dweller=dweller,
+                    message_text=message_text,
+                    bundle=bundle,
+                )
+
+            await db_session.commit()
 
             yield {
                 "type": "done",

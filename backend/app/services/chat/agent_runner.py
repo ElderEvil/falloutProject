@@ -70,33 +70,32 @@ async def run_chat_agent(
     )
 
     try:
-        result = await dweller_chat_agent.run(message_text, deps=deps, instructions=instructions)
-        output: DwellerChatOutput = result.output
+        async with db_session.begin_nested():
+            result = await dweller_chat_agent.run(message_text, deps=deps, instructions=instructions)
+            output: DwellerChatOutput = result.output
 
-        delta = compute_happiness_delta(output.sentiment_score)
-        new_dweller_happiness, _ = await apply_chat_happiness(
-            db_session=db_session,
-            dweller_id=dweller.id,
-            delta=delta,
-        )
-        reason_code_str = derive_reason_code(output.sentiment_score)
-        happiness_impact = HappinessImpact(
-            delta=delta,
-            reason_code=HappinessReasonCode(reason_code_str),
-            reason_text=output.reason_text,
-            happiness_after=new_dweller_happiness,
-        )
-        action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-        prompt_tokens, completion_tokens, total_tokens = extract_usage(result.usage)
+            delta = compute_happiness_delta(output.sentiment_score)
+            new_dweller_happiness, _ = await apply_chat_happiness(
+                db_session=db_session,
+                dweller_id=dweller.id,
+                delta=delta,
+            )
+            reason_code_str = derive_reason_code(output.sentiment_score)
+            happiness_impact = HappinessImpact(
+                delta=delta,
+                reason_code=HappinessReasonCode(reason_code_str),
+                reason_text=output.reason_text,
+                happiness_after=new_dweller_happiness,
+            )
+            action_suggestion = await parse_action_suggestion(output, db_session, dweller)
+            prompt_tokens, completion_tokens, total_tokens = extract_usage(result.usage)
     except ModelHTTPError as error:
         if provider_credits_are_exhausted(error):
             raise AIProviderCreditsExhaustedException(detail=extract_provider_reason(error)) from error
         logger.exception("Dweller chat agent failed, using fallback")
-        await db_session.rollback()
         return await run_fallback_chat_agent(dweller, message_text, instructions)
     except Exception:
         logger.exception("Dweller chat agent failed, using fallback")
-        await db_session.rollback()
         return await run_fallback_chat_agent(dweller, message_text, instructions)
     return AgentChatResult(
         response_text=output.response_text,

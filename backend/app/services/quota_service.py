@@ -1,10 +1,4 @@
-"""Quota Service - Token quota management with atomic checks and cache invalidation.
-
-This service provides atomic quota checking using SELECT FOR UPDATE to prevent race
-conditions when multiple requests check quota simultaneously. Admin users bypass quotas.
-
-Cache invalidation happens in record_usage() to ensure fresh quota data.
-"""
+"""Token quota policy; callers own the transaction covering checks and usage writes."""
 
 import logging
 from dataclasses import dataclass
@@ -12,15 +6,16 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
 
 from app.core.config import settings
-from app.models.llm_interaction import LLMInteraction
+from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
+from app.crud.user import user as user_crud
 from app.models.user import User
+from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_constants import AI_USAGE_CACHE_KEY, QUOTA_TRACKING_OPERATION
-from app.utils.exceptions import QuotaExceededException
+from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -68,42 +63,13 @@ class QuotaService:
         user_id: UUID,
         db_session: AsyncSession,
     ) -> QuotaCheckResult:
-        """Check if user has quota available using SELECT FOR UPDATE for atomicity.
-
-        Uses row-level locking on the user record to prevent race conditions
-        when multiple requests check quota simultaneously.
-
-        Args:
-            user_id: The UUID of the user to check quota for.
-            db_session: The database session for queries.
-
-        Returns:
-            QuotaCheckResult with quota status and allowance decision.
-
-        Raises:
-            ResourceNotFoundException: If user not found.
-        """
-        from app.utils.exceptions import ResourceNotFoundException
-
-        user_query = select(User).where(col(User.id) == user_id).with_for_update()
-        result = await db_session.execute(user_query)
-        user = result.scalar_one_or_none()
+        """Lock the user until the caller commits usage, then evaluate this month's quota."""
+        user = await user_crud.get_for_update(db_session, user_id)
 
         if not user:
             raise ResourceNotFoundException(User, user_id)
 
-        if settings.QUOTA_DISABLED:
-            return QuotaCheckResult(
-                allowed=True,
-                remaining=DEFAULT_QUOTA_LIMIT,
-                limit=DEFAULT_QUOTA_LIMIT,
-                percentage=0.0,
-                warning=False,
-                used=0,
-            )
-
-        # Admin users bypass quota checks entirely
-        if user.is_superuser:
+        if settings.QUOTA_DISABLED or user.is_superuser:
             return QuotaCheckResult(
                 allowed=True,
                 remaining=DEFAULT_QUOTA_LIMIT,
@@ -118,13 +84,7 @@ class QuotaService:
         now = datetime.now(UTC)
         current_month_start = datetime(now.year, now.month, 1)
 
-        usage_query = select(func.coalesce(func.sum(col(LLMInteraction.total_tokens)), 0).label("total_used")).where(
-            col(LLMInteraction.user_id) == user_id,
-            col(LLMInteraction.created_at) >= current_month_start,
-        )
-        usage_result = await db_session.execute(usage_query)
-        usage_row = usage_result.one_or_none()
-        quota_used = int(usage_row[0] if usage_row else 0)
+        quota_used = await llm_interaction_crud.total_tokens_since(db_session, user_id, current_month_start)
 
         quota_remaining = max(0, quota_limit - quota_used)
         quota_percentage = (quota_used / quota_limit * 100) if quota_limit > 0 else 0.0
@@ -147,27 +107,12 @@ class QuotaService:
         db_session: AsyncSession,
         redis_client: Redis,
     ) -> None:
-        """Record token usage and invalidate Redis cache.
-
-        This method creates an LLMInteraction record for the token usage
-        and invalidates the cached AI usage data to ensure fresh quota checks.
-
-        Args:
-            user_id: The UUID of the user who used tokens.
-            tokens: Number of tokens used (total_tokens).
-            db_session: The database session for the transaction.
-            redis_client: The Redis client for cache invalidation.
-
-        Raises:
-            Exception: Re-raised after logging if database or cache operation fails.
-        """
-        from redis.exceptions import RedisError
-
+        """Stage usage without committing; cache invalidation is a best-effort side effect."""
         if tokens < 0:
             raise ValueError("Token count cannot be negative")
-
-        try:
-            interaction = LLMInteraction(
+        await llm_interaction_crud.create(
+            db_session,
+            LLMInteractionCreate(
                 user_id=user_id,
                 total_tokens=tokens,
                 prompt_tokens=0,
@@ -175,22 +120,12 @@ class QuotaService:
                 parameters=None,
                 response=None,
                 usage=QUOTA_TRACKING_OPERATION,
-            )
-            db_session.add(interaction)
-            await db_session.flush()
-
-            cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)
-            try:
-                await redis_client.delete(cache_key)
-                logger.debug("Invalidated cache for user %s after token usage", user_id)
-            except RedisError:
-                logger.warning("Failed to invalidate cache for user %s", user_id)
-
-            logger.info("Recorded %d tokens for user %s", tokens, user_id)
-
-        except Exception:
-            logger.exception("Failed to record usage for user %s", user_id)
-            raise
+            ),
+        )
+        try:
+            await redis_client.delete(AI_USAGE_CACHE_KEY.format(user_id=user_id))
+        except RedisError:
+            logger.exception("Failed to invalidate cache for user %s", user_id)
 
 
 quota_service = QuotaService()

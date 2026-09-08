@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlmodel import func, or_, select
+from sqlmodel import col, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -35,7 +35,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
                         ((ChatMessage.from_dweller_id == dweller_2) & (ChatMessage.to_dweller_id == dweller_1)),
                     )
                 )
-                .order_by(ChatMessage.created_at.asc())
+                .order_by(col(ChatMessage.created_at).asc())
                 .offset(offset)
                 .limit(limit)
             )
@@ -50,7 +50,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
                         ((ChatMessage.from_dweller_id == dweller_id) & (ChatMessage.to_user_id == user_id)),
                     )
                 )
-                .order_by(ChatMessage.created_at.asc())
+                .order_by(col(ChatMessage.created_at).asc())
                 .offset(offset)
                 .limit(limit)
             )
@@ -65,7 +65,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         query = (
             select(ChatMessage)
             .where(ChatMessage.vault_id == vault_id)
-            .order_by(ChatMessage.created_at.desc())
+            .order_by(col(ChatMessage.created_at).desc())
             .limit(limit)
         )
         result = await db.execute(query)
@@ -77,8 +77,11 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         *,
         obj_in: ChatMessageCreate,
     ) -> ChatMessage:
-        """Create a new chat message"""
-        return await self.create(db, obj_in=obj_in)
+        """Stage a message in the caller's conversation transaction."""
+        message = ChatMessage.model_validate(obj_in)
+        db.add(message)
+        await db.flush()
+        return message
 
     async def count_user_messages_to_dweller(self, db: AsyncSession, *, dweller_id: UUID) -> int:
         """Count messages from any user to a specific dweller."""
@@ -86,7 +89,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
             select(func.count())
             .select_from(ChatMessage)
             .where(
-                ChatMessage.from_user_id.isnot(None),
+                col(ChatMessage.from_user_id).is_not(None),
                 ChatMessage.to_dweller_id == dweller_id,
             )
         )

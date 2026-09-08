@@ -59,7 +59,7 @@ async def test_generate_replaces_substantial_attrs(
     user = MagicMock()
     user.id = uuid.uuid4()
     generated = await dweller_ai.generate_visual_attributes(
-        user=user, db_session=MagicMock(), dweller_info=mock_dweller
+        user=user, db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
     )
 
     deps = mock_agent.run.call_args.kwargs["deps"]
@@ -106,7 +106,7 @@ async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
 
     with pytest.raises(AIProviderException) as exc_info:
         await dweller_ai.generate_visual_attributes(
-            user=MagicMock(id=uuid.uuid4()), db_session=MagicMock(), dweller_info=dweller
+            user=MagicMock(id=uuid.uuid4()), db_session=MagicMock(commit=AsyncMock()), dweller_info=dweller
         )
 
     assert exc_info.value.status_code == 502

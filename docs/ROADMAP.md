@@ -21,9 +21,13 @@ Re-establish the CRUD/repository → service → endpoint boundaries before expa
 service layer mixes orchestration, direct SQL/session work, transport concerns, and broad exception recovery; rewrite
 it incrementally by domain rather than performing a risky all-at-once reorganization.
 
-- [ ] **Foundation contract** — define transaction ownership, typed service inputs/outputs, domain exception rules,
+- [x] **Foundation contract** — define transaction ownership, typed service inputs/outputs, domain exception rules,
   and the narrow cases where boundary-level `try/except` is allowed. Services must not raise `HTTPException` or
   format transport responses.
+  - **Shipped:** transport-free `DomainError` exception base + single API-layer handler (`main.py`),
+    `AIProviderException`/`AIStorageException`/`AIAudioException` for `dweller_ai`, and the AST guard test
+    (`test_architecture/test_service_layer_guard.py`) banning `HTTPException` in services/crud. Contract:
+    `docs/backend/SERVICE_LAYER.md`. Known deferral: chat quota headers move in the chat/AI batch.
 - [ ] **Chat and AI batch** — unify text, streaming, and audio validation/orchestration; move persistence and
   provider-boundary handling behind focused collaborators; preserve the existing public service entry points while
   rewriting `chat_service`, `services/chat/*`, conversation, AI, quota, and prompt flows.

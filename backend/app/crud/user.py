@@ -1,6 +1,5 @@
 from typing import Any
 
-from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -11,6 +10,7 @@ from app.crud.base import CRUDBase
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate, UserUpdate
+from app.utils.exceptions import ResourceConflictException
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
@@ -48,10 +48,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="User already exists",
-            ) from e
+            raise ResourceConflictException(detail="User already exists") from e
         return db_obj
 
     async def update(

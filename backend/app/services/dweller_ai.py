@@ -3,7 +3,6 @@ import logging
 from math import ceil
 from typing import Any
 
-from fastapi import HTTPException
 from pydantic import UUID4
 from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,7 +21,13 @@ from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
-from app.utils.exceptions import ContentNoChangeException, QuotaExceededException
+from app.utils.exceptions import (
+    AIAudioException,
+    AIProviderException,
+    AIStorageException,
+    ContentNoChangeException,
+    QuotaExceededException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -280,11 +285,10 @@ class DwellerAIService:
             )
         except ModelHTTPError as error:
             logger.exception("Appearance generation provider request failed for dweller %s", dweller_obj.id)
-            raise HTTPException(status_code=502, detail=self._provider_error_detail(error)) from error
+            raise AIProviderException(detail=self._provider_error_detail(error)) from error
         except UnexpectedModelBehavior as error:
             logger.exception("Appearance generation returned invalid structured output for dweller %s", dweller_obj.id)
-            raise HTTPException(
-                status_code=502,
+            raise AIProviderException(
                 detail="The AI provider returned an invalid appearance response. Please try again.",
             ) from error
 
@@ -337,10 +341,7 @@ class DwellerAIService:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
         if self.storage_service is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Image upload service is not available. Cannot generate photo.",
-            )
+            raise AIStorageException(detail="Image upload service is not available. Cannot generate photo.")
 
         prompt = (
             "Create a photo of a Fallout shelter game vault dweller."
@@ -366,7 +367,7 @@ class DwellerAIService:
             )
         except Exception as error:
             logger.exception("Portrait generation failed for dweller %s", dweller_obj.id)
-            raise HTTPException(status_code=502, detail="Portrait generation failed. Please try again.") from error
+            raise AIProviderException(detail="Portrait generation failed. Please try again.") from error
 
         await dweller_crud.update(
             db_session, dweller_obj.id, DwellerUpdate(image_url=image_url, thumbnail_url=thumbnail_url)
@@ -408,10 +409,7 @@ class DwellerAIService:
 
         if not self.storage_service.enabled:
             logger.warning("Storage service is disabled, cannot generate audio for dweller %s", dweller_obj.id)
-            raise HTTPException(
-                status_code=503,
-                detail="Audio upload service is not available. Cannot generate audio.",
-            )
+            raise AIStorageException(detail="Audio upload service is not available. Cannot generate audio.")
 
         # Check quota before making TTS API call
         quota_result = await quota_service.check_quota(user.id, db_session)
@@ -426,7 +424,7 @@ class DwellerAIService:
             if not len(audio_bytes):
                 logger.warning("Empty input")
         except (ValueError, RuntimeError) as e:
-            raise HTTPException(status_code=500, detail=f"Failed to generate audio via OpenAI: {e}") from e
+            raise AIAudioException(detail=f"Failed to generate audio via OpenAI: {e}") from e
 
         audio_url = await asyncio.to_thread(
             self.storage_service.upload_file,

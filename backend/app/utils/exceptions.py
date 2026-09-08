@@ -1,288 +1,225 @@
+"""Domain exceptions.
+
+Transport-free by contract (``docs/backend/SERVICE_LAYER.md``): these classes carry HTTP semantics
+as plain data attributes (``status_code``/``detail``/``headers``) but never inherit
+``fastapi.HTTPException``. Services raise them; the API layer (``main.py``) owns the single mapping
+to responses via ``domain_exception_handler``.
+"""
+
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlmodel import SQLModel
+from starlette import status
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 
-class AccessDeniedException[ModelType: SQLModel](HTTPException):
-    """
-    Exception raised when a user attempts to perform an action without the necessary permissions.
+class DomainError(Exception):
+    """Base for all domain exceptions; mapped to HTTP only at the API boundary."""
 
-    :param detail: Optional detailed message to override the default error message.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail: str = "An unexpected error occurred."
 
-    def __init__(
-        self, detail: str = "Access denied due to insufficient permissions.", headers: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
+    def __init__(self, detail: str | None = None, headers: dict[str, Any] | None = None) -> None:
+        self.detail = detail if detail is not None else self.default_detail
+        self.headers = headers
+        super().__init__(self.detail)
 
 
-class ResourceNotFoundException[ModelType: SQLModel](HTTPException):
-    """
-    Exception raised when a specific resource identified by its unique identifier or name is not found.
+def domain_exception_handler(_request: Request, exc: DomainError) -> JSONResponse:
+    """Map a domain exception to its HTTP response. The only transport mapping point."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
 
-    :param model: The model class of the resource.
-    :param identifier: The unique identifier or name of the resource.
-    :param identifier_type: Type of identifier used ('id' or 'name').
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
+
+class AccessDeniedException(DomainError):
+    """Raised when a user attempts an action without the necessary permissions."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    default_detail = "Access denied due to insufficient permissions."
+
+
+class ResourceNotFoundException(DomainError):
+    """Raised when a resource identified by its unique identifier or name is not found."""
+
+    status_code = status.HTTP_404_NOT_FOUND
 
     def __init__(
         self,
-        model: type[ModelType],
+        model: type[SQLModel],
         identifier: str | UUID,
         identifier_type: str = "id",
         headers: dict[str, Any] | None = None,
     ) -> None:
-        detail = f"Unable to find the {model.__name__} with {identifier_type} {identifier}."
-        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
+        super().__init__(f"Unable to find the {model.__name__} with {identifier_type} {identifier}.", headers)
 
 
-class ResourceAlreadyExistsException[ModelType: SQLModel](HTTPException):
-    """
-    Exception raised when attempting to create or update a resource that would violate unique constraints.
+class ResourceAlreadyExistsException(DomainError):
+    """Raised when creating or updating a resource would violate unique constraints."""
 
-    :param model: The model class of the resource.
-    :param name: The unique name that already exists.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
+    status_code = status.HTTP_409_CONFLICT
 
-    def __init__(
-        self,
-        model: type[ModelType],
-        name: str,
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        detail = f"The {model.__name__} name {name} already exists."
-        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail, headers=headers)
+    def __init__(self, model: type[SQLModel], name: str, headers: dict[str, Any] | None = None) -> None:
+        super().__init__(f"The {model.__name__} name {name} already exists.", headers)
 
 
-class ResourceConflictException(HTTPException):
-    """
-    Generic exception for handling conflicts during operations on resources.
+class ResourceConflictException(DomainError):
+    """Generic exception for handling conflicts during operations on resources."""
 
-    :param detail: Detailed message describing the conflict.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(self, detail: str = "Resource conflict encountered.", headers: dict[str, Any] | None = None) -> None:
-        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail, headers=headers)
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "Resource conflict encountered."
 
 
-class ContentNoChangeException(HTTPException):
-    """
-    Exception raised when an attempted update operation does not change any data.
+class ContentNoChangeException(DomainError):
+    """Raised when an attempted update operation does not change any data."""
 
-    :param detail: Detailed message explaining no change was made.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(
-        self,
-        detail: str = "No changes detected in the content update.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "No changes detected in the content update."
 
 
-class ValidationException(HTTPException):
-    """
-    Exception raised when validation fails for a domain operation.
+class ValidationException(DomainError):
+    """Raised when validation fails for a domain operation."""
 
-    :param detail: Detailed message explaining the validation failure.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(
-        self,
-        detail: str = "Validation failed.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Validation failed."
 
 
-class NotFoundException(HTTPException):
-    """
-    Exception raised when a requested resource is not found.
+class NotFoundException(DomainError):
+    """Raised when a requested resource is not found."""
 
-    :param detail: Detailed message explaining what was not found.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(
-        self,
-        detail: str = "Not found.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail, headers=headers)
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = "Not found."
 
 
-class InvalidItemAssignmentException[ModelType: SQLModel](HTTPException):
-    """
-    Exception raised when attempting to assign an item to both a storage and a dweller.
+class InvalidItemAssignmentException(DomainError):
+    """Raised when attempting to assign an item to both a storage and a dweller."""
 
-    :param model: The model class of the item.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
+    status_code = status.HTTP_400_BAD_REQUEST
 
-    def __init__(
-        self,
-        model: type[ModelType],
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        detail = f"The {model.__name__} cannot be assigned to both a storage and a dweller."
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail, headers=headers)
+    def __init__(self, model: type[SQLModel], headers: dict[str, Any] | None = None) -> None:
+        super().__init__(f"The {model.__name__} cannot be assigned to both a storage and a dweller.", headers)
 
 
 class InvalidVaultTransferException(ContentNoChangeException):
-    """
-    Exception raised when attempting to move an item between vaults.
+    """Raised when attempting to move an item between vaults."""
 
-    :param detail: Detailed message explaining the error.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(
-        self,
-        detail: str = "Items can only be moved within the same vault.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(detail=detail, headers=headers)
+    default_detail = "Items can only be moved within the same vault."
 
 
-class VaultOperationException(HTTPException):
-    """
-    Base exception for errors that occur during operations within the vault.
-    """
+class VaultOperationException(DomainError):
+    """Base exception for errors that occur during operations within the vault."""
 
     def __init__(
         self, detail: str, headers: dict[str, Any] | None = None, status_code: int = status.HTTP_400_BAD_REQUEST
-    ):
-        super().__init__(status_code=status_code, detail=detail, headers=headers)
+    ) -> None:
+        self.status_code = status_code
+        super().__init__(detail, headers)
 
 
 class IncidentsDisabledException(VaultOperationException):
     """Raised when an incident spawn is attempted on a vault with incidents disabled."""
 
-    def __init__(self, headers: dict[str, Any] | None = None):
-        super().__init__(detail="Incidents are disabled for this vault.", headers=headers)
+    def __init__(self, headers: dict[str, Any] | None = None) -> None:
+        super().__init__("Incidents are disabled for this vault.", headers)
 
 
 class NoSpaceAvailableException(VaultOperationException):
-    """
-    Exception raised when attempting to build a room in a vault with no available space.
+    """Raised when attempting to build a room in a vault with no available space."""
 
-    :param space_needed: The amount of space needed to build the room.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(self, space_needed: int | None = None, headers: dict[str, Any] | None = None):
+    def __init__(self, space_needed: int | None = None, headers: dict[str, Any] | None = None) -> None:
         detail = "No available space in vault to place the new room."
         if space_needed is not None:
             detail += f" {space_needed} units of space needed."
-        super().__init__(detail=detail, headers=headers)
+        super().__init__(detail, headers)
 
 
 class InsufficientResourcesException(VaultOperationException):
-    """
-    Exception raised when attempting to perform an action without sufficient resources.
-
-    :param resource_name: The name of the resource that is insufficient.
-    :param resource_amount: The amount of the resource that is needed.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
+    """Raised when attempting to perform an action without sufficient resources."""
 
     def __init__(
         self,
         resource_name: str | None = None,
         resource_amount: int | None = None,
         headers: dict[str, Any] | None = None,
-    ):
+    ) -> None:
         detail = "Insufficient resources to perform the action."
         if resource_name and resource_amount is not None:
             detail += f" Not enough {resource_name}; {resource_amount} more needed."
-        super().__init__(detail=detail, headers=headers)
+        super().__init__(detail, headers)
 
 
 class UniqueRoomViolationException(VaultOperationException):
-    """
-    Exception raised when attempting to create a room that violates the unique room constraint.
+    """Raised when attempting to create a room that violates the unique room constraint."""
 
-    :param room_name: The name of room that is unique.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(self, room_name: str | None = None, headers: dict[str, Any] | None = None):
+    def __init__(self, room_name: str | None = None, headers: dict[str, Any] | None = None) -> None:
         detail = "A unique room of this type already exists in the vault."
         if room_name is not None:
             detail += f" Room name: {room_name}."
-        super().__init__(detail=detail, headers=headers)
+        super().__init__(detail, headers)
 
 
 class DwellerNotFoundError(NotFoundException):
     """Raised when a dweller is not found."""
 
 
-class QuotaExceededException(HTTPException):
-    """
-    Exception raised when a user exceeds their monthly token quota.
+class QuotaExceededException(DomainError):
+    """Raised when a user exceeds their monthly token quota."""
 
-    :param detail: Optional detailed message with quota information.
-    :param headers: Optional HTTP headers to be sent in the response.
-    """
-
-    def __init__(
-        self,
-        detail: str = "Monthly token quota exceeded. Please try again next month or contact support.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail, headers=headers)
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    default_detail = "Monthly token quota exceeded. Please try again next month or contact support."
 
 
-class AIProviderCreditsExhaustedException(HTTPException):
+class AIProviderCreditsExhaustedException(DomainError):
     """Raised when the configured AI provider has no remaining credits."""
 
-    def __init__(
-        self,
-        detail: str | None = None,
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=detail or "AI provider credits are exhausted. Please try again later.",
-            headers=headers,
-        )
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "AI provider credits are exhausted. Please try again later."
 
 
-class BucketNotFoundError(HTTPException):
+class AIProviderException(DomainError):
+    """Raised when an AI provider call fails in a retryable way."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_detail = "AI provider request failed. Please try again."
+
+
+class AIStorageException(DomainError):
+    """Raised when media storage is unavailable or disabled."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = "Storage service is not available."
+
+
+class AIAudioException(DomainError):
+    """Raised when audio generation fails."""
+
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Failed to generate audio. Please try again."
+
+
+class BucketNotFoundError(DomainError):
     """Raised when a storage bucket is not found or cannot be created."""
 
-    def __init__(self, detail: str = "Storage bucket not found.", headers: dict[str, Any] | None = None):
-        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "Storage bucket not found."
 
 
-class FileUploadError(HTTPException):
+class FileUploadError(DomainError):
     """Raised when a file upload operation fails."""
 
-    def __init__(self, detail: str = "File upload failed.", headers: dict[str, Any] | None = None):
-        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "File upload failed."
 
 
-class FileDownloadError(HTTPException):
+class FileDownloadError(DomainError):
     """Raised when a file download operation fails."""
 
-    def __init__(self, detail: str = "File download failed.", headers: dict[str, Any] | None = None):
-        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail, headers=headers)
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    default_detail = "File download failed."
 
 
-class EmailDeliveryException(HTTPException):
+class EmailDeliveryException(DomainError):
     """Raised when an outbound email cannot be delivered via the configured SMTP server."""
 
-    def __init__(
-        self,
-        detail: str = "Failed to deliver email via the configured SMTP server.",
-        headers: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail, headers=headers)
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_detail = "Failed to deliver email via the configured SMTP server."

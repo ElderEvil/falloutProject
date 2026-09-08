@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.5 (2026-09-08)
+
+### Code Refactoring
+
+* split chat service and dweller chat agent into focused modules ([#555](https://github.com/ElderEvil/falloutProject/issues/555)) 77e25fb
+
 ## 2.80.4 (2026-09-07)
 
 ### Code Refactoring

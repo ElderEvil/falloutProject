@@ -20,7 +20,6 @@ from app.agents.dweller_chat_agent import (
 )
 from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
-from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
@@ -28,13 +27,14 @@ from app.models.chat_message import ChatMessageCreate
 from app.schemas.chat import ActionSuggestion, NoAction, VoiceChatResult
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.schemas.llm_interaction import LLMInteractionCreate
+from app.services.access_service import get_accessible_dweller
 from app.services.ai_service import get_ai_service
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
-from app.utils.exceptions import DwellerNotFoundError, ValidationException
+from app.utils.exceptions import ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -279,10 +279,7 @@ class ConversationService:
     ) -> VoiceChatResult:
         if not audio_bytes:
             raise ValidationException(detail="Empty audio file")
-        dweller = await dweller_crud.get_full_info(db_session, dweller_id)
-        if not dweller:
-            msg = f"Dweller {dweller_id} not found"
-            raise DwellerNotFoundError(msg)
+        dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
         logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
         transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(

@@ -13,12 +13,13 @@ from pydantic_ai.exceptions import ModelHTTPError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import DwellerChatDeps
-from app.crud.dweller import dweller as dweller_crud
-from app.crud.vault import vault as vault_crud
-from app.models import Dweller, User, Vault
+from app.crud.chat_message import chat_message as chat_message_crud
+from app.models import User
+from app.models.chat_message import ChatMessage
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, UnlockedPlace
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
+from app.services.access_service import get_accessible_dweller, verify_dweller_access
 from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
@@ -49,9 +50,7 @@ class ChatService:
         message_text: str,
     ) -> DwellerChatResponse:
         """Validate quota, generate a reply, and persist the conversation."""
-        dweller = await dweller_crud.get_full_info(db_session, dweller_id)
-        if not dweller:
-            raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
+        dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
         quota_result = await quota_service.check_quota(user.id, db_session)
         quota_result.ensure_allowed()
@@ -115,13 +114,7 @@ class ChatService:
             or type "error" on failure.
         """
         try:
-            dweller = await dweller_crud.get_full_info(db_session, dweller_id)
-            self._validate_dweller_exists(dweller, dweller_id)
-
-            # Ownership check: dweller's vault must belong to the current user
-            self._ensure_dweller_has_vault(dweller)
-            vault = await vault_crud.get(db_session, dweller.vault.id)
-            self._validate_dweller_ownership(dweller, vault, user)
+            dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
             quota_result = await quota_service.check_quota(user.id, db_session)
             quota_result.ensure_allowed()
@@ -166,7 +159,7 @@ class ChatService:
                 "unlocked_places": [place.model_dump(mode="json") for place in unlocked_places],
             }
 
-        except AccessDeniedException as e:
+        except (AccessDeniedException, ResourceNotFoundException) as e:
             yield {"type": "error", "detail": str(e.detail)}
             return
         except AIProviderCreditsExhaustedException as e:
@@ -206,25 +199,22 @@ class ChatService:
         """Apply the shared post-message discovery rule for non-text chat flows."""
         return await unlock_places_after_conversation(db_session, dweller)
 
-    @staticmethod
-    def _validate_dweller_exists(dweller: "DwellerReadFull | None", _dweller_id: UUID4) -> None:
-        """Validate that a dweller exists, raising ValueError if not."""
-        if not dweller:
-            raise ValueError(f"Dweller {_dweller_id} not found")
-
-    @staticmethod
-    def _ensure_dweller_has_vault(dweller: "DwellerReadFull") -> None:
-        """Ensure the dweller has a vault, raising AccessDeniedException if not."""
-        if not dweller.vault:
-            raise AccessDeniedException(detail="Dweller does not belong to the current user")
-
-    @staticmethod
-    def _validate_dweller_ownership(dweller: "DwellerReadFull", vault: "Vault | None", user: "User") -> None:
-        """Validate that a dweller belongs to the given user, raising AccessDeniedException if not."""
-        if not dweller.vault:
-            raise AccessDeniedException(detail="Dweller does not belong to the current user")
-        if not vault or vault.user_id != user.id:
-            raise AccessDeniedException(detail="Dweller does not belong to the current user")
+    async def get_history(
+        self,
+        db_session: AsyncSession,
+        user: User,
+        dweller_id: UUID4,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ChatMessage]:
+        await verify_dweller_access(dweller_id, user, db_session)
+        return await chat_message_crud.get_conversation(
+            db_session,
+            user_id=user.id,
+            dweller_id=dweller_id,
+            limit=limit,
+            offset=offset,
+        )
 
 
 # Singleton instance

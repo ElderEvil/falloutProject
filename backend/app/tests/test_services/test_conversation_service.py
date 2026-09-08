@@ -107,7 +107,7 @@ async def test_empty_audio_is_rejected_before_loading_dweller() -> None:
     from app.utils.exceptions import ValidationException
 
     with (
-        patch("app.services.conversation_service.dweller_crud.get_full_info", new_callable=AsyncMock) as load,
+        patch("app.services.conversation_service.get_accessible_dweller", new_callable=AsyncMock) as load,
         patch.object(
             conversation_service,
             "_transcribe_audio",

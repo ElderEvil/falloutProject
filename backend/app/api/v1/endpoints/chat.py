@@ -2,14 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser
-from app.crud.chat_message import chat_message as chat_message_crud
-from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessage as ChatMessageRow
 from app.models.chat_message import ChatMessageRead
@@ -52,25 +50,8 @@ async def get_chat_history(
     limit: int = 100,
     offset: int = 0,
 ) -> list[ChatMessageRow]:
-    """Get conversation history between user and dweller.
-
-    Returns:
-        list[ChatMessageRead]: List of chat messages.
-
-    Raises:
-        HTTPException: 404 if dweller not found.
-    """
-    dweller = await dweller_crud.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
-
-    return await chat_message_crud.get_conversation(
-        db_session,
-        user_id=user.id,
-        dweller_id=dweller.id,
-        limit=limit,
-        offset=offset,
-    )
+    """Get the user's conversation with an accessible dweller."""
+    return await chat_service.get_history(db_session, user, dweller_id, limit, offset)
 
 
 @router.post(

@@ -20,6 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.agents.dweller_chat_agent import DwellerChatOutput, parse_action_suggestion
 from app.api.v1.endpoints.chat import chat_with_dweller, voice_chat_with_dweller
+from app.core.config import settings
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration, ExplorationStatus
 from app.models.room import RoomTypeEnum
@@ -48,8 +49,15 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest_asyncio.fixture(name="chat_dweller")
-async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
-    """Create a test dweller for chat."""
+async def chat_dweller_fixture(
+    async_session: AsyncSession,
+    vault: Vault,
+    normal_user_token_headers: dict[str, str],
+) -> Dweller:
+    """Create a dweller owned by the authenticated normal user."""
+    user = await crud.user.get_by_email(async_session, settings.EMAIL_TEST_USER)
+    vault.user_id = user.id
+    await async_session.flush()
     dweller_data = create_fake_dweller()
     dweller_data.update(
         {
@@ -99,6 +107,46 @@ def create_mock_agent_output(
 class TestTextChat:
     """Tests for text-based chat endpoint."""
 
+    @pytest.mark.parametrize("mode", ["text", "voice", "history"])
+    @pytest.mark.parametrize("missing", [False, True])
+    async def test_chat_rejects_inaccessible_dweller_before_work(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        normal_user_token_headers: dict[str, str],
+        vault: Vault,
+        mode: str,
+        missing: bool,
+    ) -> None:
+        foreign_dweller = await crud.dweller.create(
+            async_session,
+            obj_in=DwellerCreate(**create_fake_dweller(), vault_id=vault.id),
+        )
+        dweller_id = uuid4() if missing else foreign_dweller.id
+        with (
+            patch(
+                "app.services.chat_service.run_chat_agent",
+                new=AsyncMock(side_effect=AssertionError("Unexpected generation")),
+            ),
+            patch(
+                "app.services.conversation_service.conversation_service._transcribe_audio",
+                new=AsyncMock(side_effect=AssertionError("Unexpected transcription")),
+            ),
+        ):
+            if mode == "history":
+                response = await async_client.get(f"chat/history/{dweller_id}", headers=normal_user_token_headers)
+            else:
+                path = f"chat/{dweller_id}" + ("/voice" if mode == "voice" else "")
+                if mode == "voice":
+                    response = await async_client.post(
+                        path,
+                        headers=normal_user_token_headers,
+                        files={"audio_file": ("test.webm", b"audio", "audio/webm")},
+                    )
+                else:
+                    response = await async_client.post(path, headers=normal_user_token_headers, json={"message": "Hi"})
+        assert response.status_code == (404 if missing else 403)
+
     async def test_missing_dweller_exception_propagates_to_api_boundary(self) -> None:
         """The shared API handler receives the original not-found domain error."""
         dweller_id = uuid4()
@@ -138,6 +186,7 @@ class TestTextChat:
                 db_session=MagicMock(),
             )
 
+    @pytest.mark.parametrize("as_admin", [False, True])
     @patch("app.services.chat.agent_runner.dweller_chat_agent")
     async def test_chat_returns_structured_response(
         self,
@@ -145,6 +194,8 @@ class TestTextChat:
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
+        superuser_token_headers: dict[str, str],
+        as_admin: bool,
     ):
         """Test that chat returns properly structured response with happiness and suggestions."""
         # Mock agent with negative sentiment
@@ -164,7 +215,7 @@ class TestTextChat:
         ) as record_usage:
             response = await async_client.post(
                 f"chat/{chat_dweller.id}",
-                headers=normal_user_token_headers,
+                headers=superuser_token_headers if as_admin else normal_user_token_headers,
                 json={"message": "How are you feeling?"},
             )
         usage = record_usage.call_args.kwargs["obj_in"]
@@ -177,6 +228,12 @@ class TestTextChat:
         assert data["happiness_impact"]["delta"] == -4  # -2 * 2
         assert data["happiness_impact"]["reason_code"] == "chat_negative"
         assert data["happiness_impact"]["reason_text"] == "Dweller expressed discomfort"
+        history = await async_client.get(
+            f"chat/history/{chat_dweller.id}",
+            headers=superuser_token_headers if as_admin else normal_user_token_headers,
+        )
+        assert history.status_code == 200
+        assert data["dweller_message_id"] in [message["id"] for message in history.json()]
 
     @patch("app.services.chat.agent_runner.dweller_chat_agent")
     @patch("app.services.chat.agent_runner.get_ai_service")
@@ -475,12 +532,15 @@ class TestMessageIdCorrelation:
     """
 
     @pytest.mark.parametrize("return_audio", [False, True])
+    @pytest.mark.parametrize("as_admin", [False, True])
     async def test_voice_chat_ws_action_suggestion_includes_message_id(
         self,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
         return_audio: bool,
+        superuser_token_headers: dict[str, str],
+        as_admin: bool,
     ) -> None:
         """Both response modes retain message correlation and progression metadata."""
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
@@ -519,7 +579,7 @@ class TestMessageIdCorrelation:
         ):
             response = await async_client.post(
                 f"chat/{chat_dweller.id}/voice",
-                headers=normal_user_token_headers,
+                headers=superuser_token_headers if as_admin else normal_user_token_headers,
                 files={"audio_file": ("test.webm", b"audio", "audio/webm")},
                 params={"return_audio": return_audio},
             )

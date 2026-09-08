@@ -374,13 +374,7 @@ export interface paths {
         };
         /**
          * Get Chat History
-         * @description Get conversation history between user and dweller.
-         *
-         *     Returns:
-         *         list[ChatMessageRead]: List of chat messages.
-         *
-         *     Raises:
-         *         HTTPException: 404 if dweller not found.
+         * @description Get the user's conversation with an accessible dweller.
          */
         get: operations["get_chat_history_api_v1_chat_history__dweller_id__get"];
         put?: never;

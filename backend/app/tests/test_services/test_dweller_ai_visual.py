@@ -4,10 +4,10 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.services.dweller_ai import dweller_ai, restrict_equipment_fields
+from app.utils.exceptions import AIProviderException
 
 
 def test_substantial_with_height() -> None:
@@ -104,7 +104,7 @@ async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
         outfit=None,
     )
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(AIProviderException) as exc_info:
         await dweller_ai.generate_visual_attributes(
             user=MagicMock(id=uuid.uuid4()), db_session=MagicMock(), dweller_info=dweller
         )

@@ -194,11 +194,15 @@ class TestTextChat:
         )
         mock_ai_service_func.return_value = mock_ai
 
-        response = await async_client.post(
-            f"chat/{chat_dweller.id}",
-            headers=normal_user_token_headers,
-            json={"message": "Hi there!"},
-        )
+        # The shared harness session (join_transaction_mode="create_savepoint", one
+        # connection across tasks) cannot roll back from the request task, so stub
+        # the endpoint-side rollback; ordering is unit-tested in test_chat_service.
+        with patch.object(AsyncSession, "rollback", new_callable=AsyncMock):
+            response = await async_client.post(
+                f"chat/{chat_dweller.id}",
+                headers=normal_user_token_headers,
+                json={"message": "Hi there!"},
+            )
 
         assert response.status_code == 200
         data = response.json()

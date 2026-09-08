@@ -222,15 +222,15 @@ async def test_generate_photo_already_has_image(mock_crud: MagicMock, mock_llm: 
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise HTTPException 503 if storage service is not available."""
-    from fastapi import HTTPException
+    """Should raise AIStorageException (503) if storage service is not available."""
+    from app.utils.exceptions import AIStorageException
 
     mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
 
     mock_dweller = _make_dweller_mock(image_url=None)
 
-    with patch.object(dweller_ai, "storage_service", None), pytest.raises(HTTPException) as exc_info:
+    with patch.object(dweller_ai, "storage_service", None), pytest.raises(AIStorageException) as exc_info:
         await dweller_ai.generate_photo(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
     assert exc_info.value.status_code == 503
     assert "not available" in exc_info.value.detail
@@ -240,7 +240,7 @@ async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm:
 @patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
     """Portrait provider failures must not reach the client as an unstructured 500."""
-    from fastapi import HTTPException
+    from app.utils.exceptions import AIProviderException
 
     mock_dweller = _make_dweller_mock(image_url=None)
     mock_storage = MagicMock()
@@ -250,7 +250,7 @@ async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: 
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_ai_service),
-        pytest.raises(HTTPException) as exc_info,
+        pytest.raises(AIProviderException) as exc_info,
     ):
         await dweller_ai.generate_photo(user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller)
 
@@ -281,8 +281,8 @@ async def test_generate_audio_already_has_voice_line(mock_crud: MagicMock, mock_
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_audio_storage_disabled(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise HTTPException 503 if storage service is disabled."""
-    from fastapi import HTTPException
+    """Should raise AIStorageException (503) if storage service is disabled."""
+    from app.utils.exceptions import AIStorageException
 
     mock_crud.update = AsyncMock()
     mock_llm.create = AsyncMock()
@@ -292,7 +292,7 @@ async def test_generate_audio_storage_disabled(mock_crud: MagicMock, mock_llm: M
     mock_storage = MagicMock()
     mock_storage.enabled = False
 
-    with patch.object(dweller_ai, "storage_service", mock_storage), pytest.raises(HTTPException) as exc_info:
+    with patch.object(dweller_ai, "storage_service", mock_storage), pytest.raises(AIStorageException) as exc_info:
         await dweller_ai.generate_audio(
             text="Hello", user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller
         )
@@ -326,8 +326,8 @@ async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: Mag
 @patch("app.services.dweller_ai.llm_interaction_crud")
 @patch("app.services.dweller_ai.dweller_crud")
 async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise HTTPException 500 if OpenAI TTS call fails."""
-    from fastapi import HTTPException
+    """Should raise AIAudioException (500) if OpenAI TTS call fails."""
+    from app.utils.exceptions import AIAudioException
 
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True, remaining=500000))
     mock_crud.update = AsyncMock()
@@ -345,7 +345,7 @@ async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: Magic
     with (
         patch.object(dweller_ai, "storage_service", mock_storage),
         patch.object(dweller_ai, "ai_service", mock_openai),
-        pytest.raises(HTTPException) as exc_info,
+        pytest.raises(AIAudioException) as exc_info,
     ):
         await dweller_ai.generate_audio(
             text="Hello", user=_make_user_mock(), db_session=MagicMock(), dweller_info=mock_dweller

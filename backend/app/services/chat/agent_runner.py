@@ -109,9 +109,11 @@ async def run_chat_agent(
         if provider_credits_are_exhausted(error):
             raise AIProviderCreditsExhaustedException(detail=extract_provider_reason(error)) from error
         logger.exception("Dweller chat agent failed, using fallback")
+        await db_session.rollback()
         return await run_fallback_chat_agent(dweller, message_text, instructions)
     except Exception:
         logger.exception("Dweller chat agent failed, using fallback")
+        await db_session.rollback()
         return await run_fallback_chat_agent(dweller, message_text, instructions)
     return AgentChatResult(
         response_text=output.response_text,

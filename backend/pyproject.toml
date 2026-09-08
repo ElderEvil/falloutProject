@@ -140,6 +140,7 @@ lint.ignore = [
     "raw-string-in-exception",   # Exception must not use string literal
     "f-string-in-exception",   # Exception must not use f-string literal
     "raise-vanilla-args",  # Avoid specifying long messages outside exception class
+    "error-suffix-on-exception-name",  # Codebase-wide *Exception naming convention (transport-free domain errors)
     "too-many-arguments", # Too many arguments in function definition
     "too-many-positional-arguments", # Too many positional arguments
     "fast-api-redundant-response-model", # Allow response_model alongside return type annotations

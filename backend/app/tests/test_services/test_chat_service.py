@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -70,7 +71,7 @@ class TestChatServiceErrorHandling:
         )
         mock_result = MagicMock()
         mock_result.output = output
-        mock_result.usage = MagicMock(input_tokens=1, output_tokens=1, total_tokens=2)
+        mock_result.usage = RunUsage(input_tokens=1, output_tokens=1)
 
         with (
             patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
@@ -306,7 +307,7 @@ class TestChatServiceErrorHandling:
 
             @property
             def usage(self):
-                return MagicMock(input_tokens=5, output_tokens=6, total_tokens=11)
+                return RunUsage(input_tokens=5, output_tokens=6)
 
             async def get_output(self):
                 return output
@@ -364,7 +365,8 @@ class TestChatServiceErrorHandling:
         assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
         assert events[-1]["unlocked_places"][0]["name"] == "Megaton"
-        assert record_usage.call_args.kwargs["obj_in"].total_tokens == 11
+        usage = record_usage.call_args.kwargs["obj_in"]
+        assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (5, 6, 11)
 
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,

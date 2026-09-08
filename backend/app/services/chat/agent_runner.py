@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass
 
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -20,7 +19,7 @@ from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
-from app.services.conversation_service import conversation_service
+from app.services.conversation_service import conversation_service, extract_usage
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 
 logger = logging.getLogger(__name__)
@@ -55,21 +54,6 @@ def extract_provider_reason(error: ModelHTTPError) -> str:
         if isinstance(message, str) and message:
             return message
     return f"AI provider request failed (HTTP {error.status_code})"
-
-
-def extract_usage(usage: RunUsage) -> tuple[int | None, int | None, int | None]:
-    """Extract token usage from an agent run result.
-
-    Returns:
-        Tuple of (prompt_tokens, completion_tokens, total_tokens)
-    """
-    try:
-        token_counts = usage.input_tokens, usage.output_tokens, usage.total_tokens
-    except Exception:
-        logger.exception("Failed to extract usage info from agent result")
-        return None, None, None
-    else:
-        return token_counts
 
 
 async def run_chat_agent(

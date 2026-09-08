@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from httpx import AsyncClient
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -154,13 +155,20 @@ class TestTextChat:
         )
         mock_result = MagicMock(spec=AgentRunResult)
         mock_result.output = mock_output
+        mock_result.usage = RunUsage(input_tokens=12, output_tokens=8)
         mock_agent.run = AsyncMock(return_value=mock_result)
 
-        response = await async_client.post(
-            f"chat/{chat_dweller.id}",
-            headers=normal_user_token_headers,
-            json={"message": "How are you feeling?"},
-        )
+        with patch(
+            "app.services.chat.persistence.llm_interaction_crud.create",
+            wraps=crud.llm_interaction.create,
+        ) as record_usage:
+            response = await async_client.post(
+                f"chat/{chat_dweller.id}",
+                headers=normal_user_token_headers,
+                json={"message": "How are you feeling?"},
+            )
+        usage = record_usage.call_args.kwargs["obj_in"]
+        assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (12, 8, 20)
 
         assert response.status_code == 200
         data = response.json()

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from pydantic import UUID4
-from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -36,6 +36,18 @@ from app.services.storage import get_storage_client
 from app.utils.exceptions import DwellerNotFoundError
 
 logger = logging.getLogger(__name__)
+
+
+def extract_usage(usage: RunUsage | None) -> tuple[int | None, int | None, int | None]:
+    """Keep malformed usage metadata from interrupting a generated chat response."""
+    if usage is None:
+        return None, None, None
+    try:
+        return usage.input_tokens, usage.output_tokens, usage.total_tokens
+    except Exception:
+        logger.exception("Failed to extract usage info from agent result")
+        return None, None, None
+
 
 VOICE_MAP = {
     GenderEnum.MALE: ["echo", "fable", "onyx"],
@@ -136,12 +148,6 @@ class ConversationService:
 
         return transcribed_text, user_audio_url, None
 
-    @staticmethod
-    def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
-        """Extract token usage from an agent run result."""
-        usage = result.usage
-        return usage.input_tokens, usage.output_tokens, usage.total_tokens
-
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str
     ) -> ChatGenerationResult:
@@ -176,7 +182,7 @@ class ConversationService:
             )
 
         output: DwellerChatOutput = result.output
-        prompt_tokens, completion_tokens, total_tokens = self._extract_usage(result)
+        prompt_tokens, completion_tokens, total_tokens = extract_usage(result.usage)
         delta = compute_happiness_delta(output.sentiment_score)
         new_dweller_happiness, _ = await apply_chat_happiness(db_session=db_session, dweller_id=dweller.id, delta=delta)
         reason_code_str = derive_reason_code(output.sentiment_score)

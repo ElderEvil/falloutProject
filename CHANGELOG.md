@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.7 (2026-09-08)
+
+### Bug Fixes
+
+* preserve chat token usage and isolate quota transport formatting ([#557](https://github.com/ElderEvil/falloutProject/issues/557)) 165c9f9
+
 ## 2.80.6 (2026-09-08)
 
 ### Code Refactoring

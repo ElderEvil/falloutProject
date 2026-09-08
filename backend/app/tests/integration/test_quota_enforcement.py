@@ -8,7 +8,7 @@ All tests mock the LLM service to avoid calling real APIs.
 """
 
 import io
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -24,9 +24,10 @@ from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
 from app.schemas.common import GenderEnum, RarityEnum
-from app.schemas.dweller import DwellerCreate, DwellerVisualAttributes
+from app.schemas.dweller import DwellerCreate, DwellerReadFull, DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory
 from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreate
 from app.services.conversation_service import conversation_service
 from app.services.dweller_ai import dweller_ai
 from app.tests.utils.user import authentication_token_from_email
@@ -60,7 +61,7 @@ async def user_at_quota_limit_fixture(async_session: AsyncSession, quota_user: U
         prompt_tokens=250000,
         completion_tokens=250000,
         total_tokens=500000,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
     async_session.add(interaction)
     await async_session.commit()
@@ -69,16 +70,13 @@ async def user_at_quota_limit_fixture(async_session: AsyncSession, quota_user: U
 
 
 @pytest_asyncio.fixture(name="quota_dweller")
-async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -> "Dweller":
+async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -> DwellerReadFull:
     """Create a test dweller for quota tests."""
-    from app.schemas.vault import VaultCreateWithUserID
-
-    vault_in = VaultCreateWithUserID(
+    vault_in = VaultCreate(
         number=100,
         bottle_caps=1000,
-        user_id=quota_user.id,
     )
-    vault = await crud.vault.create(db_session=async_session, obj_in=vault_in)
+    vault = await crud.vault.create_with_user_id(db_session=async_session, obj_in=vault_in, user_id=quota_user.id)
 
     dweller_in = DwellerCreate(
         first_name="Test",

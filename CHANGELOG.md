@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.10 (2026-09-08)
+
+### Bug Fixes
+
+* persist chat replies and usage in one transaction ([#560](https://github.com/ElderEvil/falloutProject/issues/560)) fa512ad
+
 ## 2.80.9 (2026-09-08)
 
 ### Bug Fixes

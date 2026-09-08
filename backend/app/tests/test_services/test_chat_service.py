@@ -196,6 +196,55 @@ class TestChatServiceErrorHandling:
             assert result.completion_tokens is None
             assert result.total_tokens is None
 
+    async def test_run_chat_agent_rolls_back_session_before_fallback_on_model_http_error(
+        self,
+        chat_dweller: Dweller,
+    ) -> None:
+        """Fallback after a provider error resets the shared session first (rollback before delegation)."""
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        provider_error = ModelHTTPError(status_code=500, model_name="gpt-4o-mini", body={"message": "provider down"})
+        db_session = AsyncMock()
+        fallback = AsyncMock(return_value=MagicMock(spec=AgentChatResult))
+        order = MagicMock()
+        order.attach_mock(db_session.rollback, "rollback")
+        order.attach_mock(fallback, "fallback")
+
+        with (
+            patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
+            patch("app.services.chat.agent_runner.run_fallback_chat_agent", fallback),
+        ):
+            mock_agent.run = AsyncMock(side_effect=provider_error)
+
+            result = await run_chat_agent(db_session=db_session, dweller=chat_dweller, message_text="Hello")
+
+        assert [c[0] for c in order.mock_calls] == ["rollback", "fallback"]
+        fallback.assert_awaited_once_with(chat_dweller, "Hello", None)
+        assert result is fallback.return_value
+
+    async def test_run_chat_agent_rolls_back_session_before_fallback_on_unexpected_error(
+        self,
+        chat_dweller: Dweller,
+    ) -> None:
+        """Fallback after an unexpected error resets the shared session first (rollback before delegation)."""
+        db_session = AsyncMock()
+        fallback = AsyncMock(return_value=MagicMock(spec=AgentChatResult))
+        order = MagicMock()
+        order.attach_mock(db_session.rollback, "rollback")
+        order.attach_mock(fallback, "fallback")
+
+        with (
+            patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
+            patch("app.services.chat.agent_runner.run_fallback_chat_agent", fallback),
+        ):
+            mock_agent.run = AsyncMock(side_effect=RuntimeError("boom"))
+
+            result = await run_chat_agent(db_session=db_session, dweller=chat_dweller, message_text="Hello")
+
+        assert [c[0] for c in order.mock_calls] == ["rollback", "fallback"]
+        fallback.assert_awaited_once_with(chat_dweller, "Hello", None)
+        assert result is fallback.return_value
+
     async def test_stream_response_ownership_denied(
         self,
         async_session: AsyncSession,

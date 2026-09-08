@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.9 (2026-09-08)
+
+### Bug Fixes
+
+* keep backend production images free of test dependencies ([#559](https://github.com/ElderEvil/falloutProject/issues/559)) 8d551d9
+
 ## 2.80.8 (2026-09-08)
 
 ### Bug Fixes

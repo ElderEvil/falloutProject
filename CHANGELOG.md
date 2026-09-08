@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.6 (2026-09-08)
+
+### Code Refactoring
+
+* transport-free domain exceptions and service-layer contract guard ([#556](https://github.com/ElderEvil/falloutProject/issues/556)) b9e8683
+
 ## 2.80.5 (2026-09-08)
 
 ### Code Refactoring

@@ -402,27 +402,7 @@ export interface paths {
         put?: never;
         /**
          * Voice Chat With Dweller
-         * @description Send an audio message to a dweller and receive an audio response.
-         *
-         *     Upload an audio file (WebM, MP3, WAV), it will be:
-         *     1. Transcribed to text (STT)
-         *     2. Processed by the dweller's AI (LLM)
-         *     3. Converted to audio response (TTS)
-         *     4. Saved to chat history
-         *
-         *     Args:
-         *         dweller_id: UUID of the dweller to chat with.
-         *         user: Current authenticated user.
-         *         db_session: Database session.
-         *         audio_file: Audio file upload (WebM, MP3, WAV, etc.).
-         *         return_audio: If True, returns audio bytes; if False, returns JSON with URLs.
-         *
-         *     Returns:
-         *         Audio response (MP3) or JSON with transcription and audio URL.
-         *
-         *     Raises:
-         *         HTTPException: 400 if the audio file is empty, 404 if dweller not found, or 500 if audio processing fails.
-         *         QuotaExceededException: If AI usage quota is exceeded.
+         * @description Transcribe audio, generate a reply, and return MP3 bytes or conversation metadata.
          */
         post: operations["voice_chat_with_dweller_api_v1_chat__dweller_id__voice_post"];
         delete?: never;

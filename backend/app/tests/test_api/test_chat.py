@@ -281,6 +281,31 @@ class TestAudioChat:
 
         assert exc_info.value.status_code == 400
 
+    @pytest.mark.parametrize("failure_kind", ["missing", "provider"])
+    async def test_voice_chat_preserves_domain_error_status(
+        self,
+        async_client: AsyncClient,
+        normal_user_token_headers: dict[str, str],
+        failure_kind: str,
+    ) -> None:
+        from app.utils.exceptions import AIProviderCreditsExhaustedException, DwellerNotFoundError
+
+        error = (
+            DwellerNotFoundError("Dweller not found")
+            if failure_kind == "missing"
+            else AIProviderCreditsExhaustedException()
+        )
+        with patch(
+            "app.api.v1.endpoints.chat.conversation_service.process_audio_message", new=AsyncMock(side_effect=error)
+        ):
+            response = await async_client.post(
+                f"chat/{uuid4()}/voice",
+                headers=normal_user_token_headers,
+                files={"audio_file": ("test.webm", b"audio", "audio/webm")},
+            )
+        assert response.status_code == error.status_code
+        assert response.json() == {"detail": error.detail}
+
 
 # ============================================================================
 # Exploration Action Tests
@@ -449,82 +474,67 @@ class TestMessageIdCorrelation:
     2. WS action_suggestion payloads include message_id matching the HTTP response
     """
 
-    @patch("app.api.v1.endpoints.chat.conversation_service")
-    @patch("app.services.chat.notifications.manager")
+    @pytest.mark.parametrize("return_audio", [False, True])
     async def test_voice_chat_ws_action_suggestion_includes_message_id(
         self,
-        mock_manager: MagicMock,
-        mock_conversation_service: MagicMock,
         async_client: AsyncClient,
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
-    ):
-        """Test that voice chat WS action_suggestion includes message_id matching dweller_message_id."""
-        import io
-
+        return_audio: bool,
+    ) -> None:
+        """Both response modes retain message correlation and progression metadata."""
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+        from app.services.conversation_service import ChatGenerationResult, conversation_service
 
-        room_id = uuid4()
-        mock_message_id = uuid4()
-
-        # Mock conversation_service with an actionable suggestion
-        mock_conversation_service.process_audio_message = AsyncMock(
-            return_value={
-                "transcription": "Where should I work?",
-                "user_audio_url": "https://example.com/user.webm",
-                "dweller_response": "You should work in the power plant!",
-                "dweller_audio_url": "https://example.com/dweller.mp3",
-                "dweller_audio_bytes": b"fake audio bytes",
-                "dweller_message_id": mock_message_id,
-                "happiness_impact": HappinessImpact(
-                    delta=2,
-                    reason_code=HappinessReasonCode.CHAT_POSITIVE,
-                    reason_text="Helpful suggestion",
-                    happiness_after=82,
-                ),
-                "action_suggestion": AssignToRoomAction(
-                    room_id=room_id,
-                    room_name="Power Plant",
-                    reason="High strength stat",
-                ),
-            }
+        message_id, place_id = uuid4(), uuid4()
+        generated = ChatGenerationResult(
+            text="You should work in the power plant!",
+            happiness_impact=HappinessImpact(
+                delta=2,
+                reason_code=HappinessReasonCode.CHAT_POSITIVE,
+                reason_text="Helpful suggestion",
+                happiness_after=82,
+            ),
+            action_suggestion=AssignToRoomAction(room_id=uuid4(), room_name="Power Plant", reason="High strength"),
+            prompt_tokens=12,
+            completion_tokens=8,
+            total_tokens=20,
         )
-
-        # Capture WS messages
-        captured_messages = []
-
-        async def capture_message(message, **_kwargs):
-            captured_messages.append(message)
-
-        mock_manager.send_chat_message = AsyncMock(side_effect=capture_message)
-
-        # Create fake audio file
-        audio_data = b"RIFF" + b"\x00" * 100
-        files = {"audio_file": ("test.webm", io.BytesIO(audio_data), "audio/webm")}
-
-        response = await async_client.post(
-            f"chat/{chat_dweller.id}/voice",
-            headers=normal_user_token_headers,
-            files=files,
-            params={"return_audio": False},  # Request JSON response
-        )
-
+        with (
+            patch.object(
+                conversation_service,
+                "_transcribe_audio",
+                new=AsyncMock(return_value=("Where should I work?", None, None)),
+            ),
+            patch.object(conversation_service, "_generate_response_with_agent", new=AsyncMock(return_value=generated)),
+            patch.object(
+                conversation_service, "_generate_tts_audio", new=AsyncMock(return_value=(b"fake audio bytes", None))
+            ),
+            patch.object(conversation_service, "_save_messages_to_db", new=AsyncMock(return_value=message_id)),
+            patch(
+                "app.services.chat.notifications.maybe_unlock_places",
+                new=AsyncMock(return_value=[UnlockedPlace(location_id=place_id, name="Megaton")]),
+            ),
+            patch("app.services.chat.notifications.manager.send_chat_message", new_callable=AsyncMock) as notify,
+        ):
+            response = await async_client.post(
+                f"chat/{chat_dweller.id}/voice",
+                headers=normal_user_token_headers,
+                files={"audio_file": ("test.webm", b"audio", "audio/webm")},
+                params={"return_audio": return_audio},
+            )
         assert response.status_code == 200
-        data = response.json()
-
-        # Get the dweller_message_id from HTTP response
-        assert "dweller_message_id" in data, "Voice chat response should include dweller_message_id"
-        dweller_message_id = data["dweller_message_id"]
-
-        # Find the action_suggestion WS message
-        action_msg = next(
-            (msg for msg in captured_messages if msg.get("type") == "action_suggestion"),
-            None,
-        )
-        assert action_msg is not None, "WS action_suggestion message should be sent for voice chat"
-
-        # Verify message_id in WS payload matches dweller_message_id
-        assert "message_id" in action_msg, "WS action_suggestion should include message_id"
-        assert action_msg["message_id"] == dweller_message_id, (
-            f"WS message_id '{action_msg['message_id']}' should match HTTP dweller_message_id '{dweller_message_id}'"
-        )
+        if return_audio:
+            assert response.content == b"fake audio bytes"
+            assert response.headers["content-type"] == "audio/mpeg"
+            assert response.headers["x-message-id"] == str(message_id)
+            assert response.headers["x-transcription"] == "Where should I work?"
+            assert response.headers["x-response-text"] == generated.text
+        else:
+            data = response.json()
+            assert data["dweller_message_id"] == str(message_id)
+            assert data["dweller_response"] == generated.text
+            assert "dweller_audio_bytes" not in data
+            assert data["unlocked_places"] == [{"location_id": str(place_id), "name": "Megaton"}]
+        assert [call.args[0]["type"] for call in notify.await_args_list] == ["happiness_update", "action_suggestion"]
+        assert all(call.args[0]["message_id"] == str(message_id) for call in notify.await_args_list)

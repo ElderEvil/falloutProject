@@ -101,3 +101,19 @@ async def test_voice_response_survives_malformed_usage(usage_kind: str) -> None:
     assert result.text == "All clear."
     expected = (12, 8, 20) if usage_kind == "valid" else (None, None, None)
     assert (result.prompt_tokens, result.completion_tokens, result.total_tokens) == expected
+
+
+async def test_empty_audio_is_rejected_before_loading_dweller() -> None:
+    from app.utils.exceptions import ValidationException
+
+    with (
+        patch("app.services.conversation_service.dweller_crud.get_full_info", new_callable=AsyncMock) as load,
+        patch.object(
+            conversation_service,
+            "_transcribe_audio",
+            new=AsyncMock(side_effect=AssertionError("Unexpected transcription")),
+        ),
+        pytest.raises(ValidationException, match="Empty audio file"),
+    ):
+        await conversation_service.process_audio_message(MagicMock(), MagicMock(), uuid4(), b"")
+    load.assert_not_awaited()

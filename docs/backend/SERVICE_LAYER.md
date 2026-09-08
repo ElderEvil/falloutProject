@@ -6,11 +6,11 @@ new code must follow them from the start.
 
 ## Layer responsibilities
 
-| Layer                          | Owns                                                                    | Never does                                                                           |
-| ------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Endpoint (`api/v1/endpoints/`) | Parse params, call one service, map exceptions to HTTP                  | Business logic, session/transaction management, CRUD calls for state changes         |
-| Service (`services/`)          | Domain orchestration, transaction boundaries, raising domain exceptions | `HTTPException`, transport formatting (headers/Responses), direct transport concerns |
-| CRUD (`crud/`)                 | Persistence queries and row mutations                                   | Committing, business rules, raising transport exceptions                             |
+| Layer                          | Owns                                                                        | Never does                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Endpoint (`api/v1/endpoints/`) | Parse params, call one service, propagate domain errors to the API boundary | Business logic, session/transaction management, CRUD calls for state changes         |
+| Service (`services/`)          | Domain orchestration, transaction boundaries, raising domain exceptions     | `HTTPException`, transport formatting (headers/Responses), direct transport concerns |
+| CRUD (`crud/`)                 | Persistence queries and row mutations                                       | Committing, business rules, raising transport exceptions                             |
 
 ## Transaction ownership
 

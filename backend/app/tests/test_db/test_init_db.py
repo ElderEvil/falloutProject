@@ -4,13 +4,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
-from app.db.init_db import init_db
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.tests.utils.init_db import init_db
 
 
 class TestInitDB:

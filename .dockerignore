@@ -1,7 +1,7 @@
 # Root .dockerignore for monorepo builds with context: .
 # Backend Dockerfile builds at repo root and copies:
 #   - backend/ → /app/
-#   - CHANGELOG.md → /app/CHANGELOG.md
+#   - CHANGELOG.md → /CHANGELOG.md
 
 # Git
 .git/
@@ -20,7 +20,8 @@ frontend/.DS_Store
 frontend/*.log
 
 # Backend exclusions
-backend/__pycache__/
+backend/**/__pycache__/
+backend/**/.ruff_cache/
 backend/**/*.py[cod]
 backend/**/*$py.class
 backend/app.egg-info/
@@ -34,10 +35,10 @@ backend/env/
 backend/build/
 backend/dist/
 backend/*.egg-info/
-backend/tests/
-backend/test_*
-backend/*_test.py
-backend/conftest.py
+backend/**/tests/
+backend/**/test_*.py
+backend/**/*_test.py
+backend/**/conftest.py
 backend/*.db
 backend/*.sqlite3
 backend/*.tmp
@@ -56,8 +57,8 @@ docs/
 *.log
 
 # Environment files
-.env
-.env.*
+**/.env
+**/.env.*
 
 # CI/CD
 .github/

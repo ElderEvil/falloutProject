@@ -16,6 +16,7 @@ from app.db.session import get_async_session
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.token import TokenPayload
+from app.services import access_service
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
@@ -112,27 +113,8 @@ async def get_user_vault_or_403(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Vault:
-    """Verify that the user has access to the specified vault.
-
-    Returns:
-        The vault if user owns it or is a superuser.
-
-    Raises:
-        HTTPException: 404 if vault not found.
-        HTTPException: 403 if user doesn't have access.
-    """
-    vault = await crud.vault.get(db_session, vault_id)
-    if not vault:
-        raise HTTPException(status_code=404, detail="Vault not found")
-
-    # Check if user owns the vault or is a superuser
-    if vault.user_id != user.id and not user.is_superuser:
-        raise HTTPException(
-            status_code=403,
-            detail="The user doesn't have enough privileges",
-        )
-
-    return vault
+    """Return the user's vault (or any vault for a superuser)."""
+    return await access_service.get_accessible_vault(vault_id, user, db_session)
 
 
 async def verify_dweller_access(
@@ -140,17 +122,8 @@ async def verify_dweller_access(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> None:
-    """Verify user has access to the vault containing the dweller.
-
-    Raises:
-        HTTPException: 404 if dweller not found.
-        HTTPException: 403 if user doesn't have access to the vault.
-    """
-    dweller = await crud.dweller.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
-
-    await get_user_vault_or_403(dweller.vault_id, user, db_session)
+    """Apply the shared dweller access policy."""
+    await access_service.verify_dweller_access(dweller_id, user, db_session)
 
 
 async def verify_room_access(

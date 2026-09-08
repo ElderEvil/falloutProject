@@ -89,16 +89,13 @@ class TestChatServiceErrorHandling:
         assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
         assert (result.prompt_tokens, result.completion_tokens, result.total_tokens) == (1, 1, 2)
 
-    async def test_process_text_message_raises_not_found_for_missing_dweller(self) -> None:
+    async def test_process_text_message_raises_not_found_for_missing_dweller(self, async_session: AsyncSession) -> None:
         """A missing chat dweller is reported as the project's 404 exception."""
         dweller_id = uuid4()
 
-        with (
-            patch("app.services.chat_service.dweller_crud.get_full_info", new_callable=AsyncMock, return_value=None),
-            pytest.raises(ResourceNotFoundException) as exc_info,
-        ):
+        with pytest.raises(ResourceNotFoundException) as exc_info:
             await chat_service.process_text_message(
-                db_session=MagicMock(),
+                db_session=async_session,
                 user=MagicMock(id=uuid4()),
                 dweller_id=dweller_id,
                 message_text="Hello",
@@ -247,10 +244,12 @@ class TestChatServiceErrorHandling:
         fallback.assert_awaited_once_with(chat_dweller, "Hello", None)
         assert result is fallback.return_value
 
+    @pytest.mark.parametrize("missing", [False, True])
     async def test_stream_response_ownership_denied(
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
+        missing: bool,
     ) -> None:
         """Test that stream_response yields error when dweller's vault belongs to a different user."""
         from app.schemas.user import UserCreate
@@ -264,25 +263,33 @@ class TestChatServiceErrorHandling:
             ),
         )
 
+        dweller_id = uuid4() if missing else chat_dweller.id
         events = [
             event
             async for event in chat_service.stream_response(
                 db_session=async_session,
                 user=other_user,
-                dweller_id=chat_dweller.id,
+                dweller_id=dweller_id,
                 message_text="Hello",
             )
         ]
 
         assert len(events) == 1
         assert events[0]["type"] == "error"
-        assert events[0]["detail"] == "Dweller does not belong to the current user"
+        assert events[0]["detail"] == (
+            str(ResourceNotFoundException(Dweller, dweller_id))
+            if missing
+            else "The user doesn't have enough privileges"
+        )
 
+    @pytest.mark.parametrize("as_admin", [False, True])
     async def test_stream_response_streams_structured_output_deltas(
         self,
         async_session: AsyncSession,
         chat_dweller: Dweller,
         test_user: User,
+        superuser: User,
+        as_admin: bool,
     ) -> None:
         """stream_response streams response_text deltas from a structured-output agent."""
         from app.agents.dweller_chat_agent import DwellerChatOutput
@@ -350,7 +357,7 @@ class TestChatServiceErrorHandling:
                 event
                 async for event in chat_service.stream_response(
                     db_session=async_session,
-                    user=test_user,
+                    user=superuser if as_admin else test_user,
                     dweller_id=chat_dweller.id,
                     message_text="Hello",
                 )

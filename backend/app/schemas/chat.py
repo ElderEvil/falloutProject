@@ -151,3 +151,9 @@ class DwellerVoiceChatResponse(BaseModel):
         default_factory=list,
         description="Map locations newly unlocked by this conversation",
     )
+
+
+class VoiceChatResult(DwellerVoiceChatResponse):
+    """Completed voice conversation, including audio for binary playback."""
+
+    dweller_audio_bytes: bytes = Field(exclude=True)

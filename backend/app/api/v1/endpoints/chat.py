@@ -1,29 +1,22 @@
 """Chat endpoints."""
 
-import logging
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser
-from app.crud.chat_message import chat_message as chat_message_crud
-from app.crud.dweller import dweller as dweller_crud
 from app.db.session import get_async_session
 from app.models.chat_message import ChatMessage as ChatMessageRow
 from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
 from app.services.chat_service import chat_service
 from app.services.conversation_service import conversation_service
-from app.utils.exceptions import (
-    QuotaExceededException,
-    ValidationException,
-)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
-logger = logging.getLogger(__name__)
 
 
 @router.post("/{dweller_id}", response_model=DwellerChatResponse)
@@ -58,35 +51,8 @@ async def get_chat_history(
     limit: int = 100,
     offset: int = 0,
 ) -> list[ChatMessageRow]:
-    """Get conversation history between user and dweller.
-
-    Returns:
-        list[ChatMessageRead]: List of chat messages.
-
-    Raises:
-        HTTPException: 404 if dweller not found.
-    """
-    dweller = await dweller_crud.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
-
-    return await chat_message_crud.get_conversation(
-        db_session,
-        user_id=user.id,
-        dweller_id=dweller.id,
-        limit=limit,
-        offset=offset,
-    )
-
-
-def _validate_audio_not_empty(audio_bytes: bytes) -> None:
-    """Validate that audio bytes are not empty.
-
-    Raises:
-        ValidationException: If audio bytes are empty.
-    """
-    if len(audio_bytes) == 0:
-        raise ValidationException(detail="Empty audio file")
+    """Get the user's conversation with an accessible dweller."""
+    return await chat_service.get_history(db_session, user, dweller_id, limit, offset)
 
 
 @router.post(
@@ -101,86 +67,28 @@ async def voice_chat_with_dweller(
     audio_file: Annotated[UploadFile, File()],
     *,
     return_audio: bool = True,
-):
-    """Send an audio message to a dweller and receive an audio response.
+) -> Response | DwellerVoiceChatResponse:
+    """Transcribe audio, generate a reply, and return MP3 bytes or conversation metadata.
 
-    Upload an audio file (WebM, MP3, WAV), it will be:
-    1. Transcribed to text (STT)
-    2. Processed by the dweller's AI (LLM)
-    3. Converted to audio response (TTS)
-    4. Saved to chat history
-
-    Args:
-        dweller_id: UUID of the dweller to chat with.
-        user: Current authenticated user.
-        db_session: Database session.
-        audio_file: Audio file upload (WebM, MP3, WAV, etc.).
-        return_audio: If True, returns audio bytes; if False, returns JSON with URLs.
-
-    Returns:
-        Audio response (MP3) or JSON with transcription and audio URL.
-
-    Raises:
-        HTTPException: 400 if the audio file is empty, 404 if dweller not found, or 500 if audio processing fails.
-        QuotaExceededException: If AI usage quota is exceeded.
+    Binary responses percent-encode UTF-8 text in X-Transcription and X-Response-Text;
+    clients must decode these headers with decodeURIComponent. JSON fields remain plain text.
     """
-    # Read and validate audio before the processing exception boundary.
-    audio_bytes = await audio_file.read()
-    _validate_audio_not_empty(audio_bytes)
-
-    try:
-        # Get filename for format detection
-        filename = audio_file.filename or "audio.webm"
-
-        # Process the audio conversation
-        result = await conversation_service.process_audio_message(
-            db_session=db_session,
-            user=user,
-            dweller_id=dweller_id,
-            audio_bytes=audio_bytes,
-            audio_filename=filename,
+    result = await conversation_service.process_audio_message(
+        db_session=db_session,
+        user=user,
+        dweller_id=dweller_id,
+        audio_bytes=await audio_file.read(),
+        audio_filename=audio_file.filename or "audio.webm",
+    )
+    if return_audio:
+        return Response(
+            content=result.dweller_audio_bytes,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": 'inline; filename="dweller_response.mp3"',
+                "X-Transcription": quote(result.transcription, safe=""),
+                "X-Response-Text": quote(result.dweller_response, safe=""),
+                "X-Message-Id": str(result.dweller_message_id),
+            },
         )
-
-        # Emit WebSocket notifications (non-fatal)
-        await chat_service.send_chat_notification(
-            user_id=user.id,
-            dweller_id=dweller_id,
-            dweller_message_id=result["dweller_message_id"],
-            happiness_impact=result["happiness_impact"],
-            action_suggestion=result["action_suggestion"],
-        )
-
-        # Return audio bytes directly for immediate playback
-        if return_audio:
-            return Response(
-                content=result["dweller_audio_bytes"],
-                media_type="audio/mpeg",
-                headers={
-                    "Content-Disposition": 'inline; filename="dweller_response.mp3"',
-                    "X-Transcription": result["transcription"],
-                    "X-Response-Text": result["dweller_response"],
-                    "X-Message-Id": str(result["dweller_message_id"]),
-                },
-            )
-
-        # Build JSON response with all details including happiness and action suggestion
-        response = DwellerVoiceChatResponse(
-            transcription=result["transcription"],
-            user_audio_url=result["user_audio_url"],
-            dweller_response=result["dweller_response"],
-            dweller_audio_url=result["dweller_audio_url"],
-            dweller_message_id=result["dweller_message_id"],
-            happiness_impact=result["happiness_impact"],
-            action_suggestion=result["action_suggestion"],
-            unlocked_places=result.get("unlocked_places", []),
-        )
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except QuotaExceededException:
-        raise
-    except Exception as e:
-        logger.exception("Error processing voice chat")
-        raise HTTPException(status_code=500, detail=f"Error processing audio: {e!s}") from e
-    else:
-        return response
+    return result

@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -70,7 +71,7 @@ class TestChatServiceErrorHandling:
         )
         mock_result = MagicMock()
         mock_result.output = output
-        mock_result.usage.return_value = MagicMock(input_tokens=1, output_tokens=1, total_tokens=2)
+        mock_result.usage = RunUsage(input_tokens=1, output_tokens=1)
 
         with (
             patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
@@ -78,7 +79,7 @@ class TestChatServiceErrorHandling:
         ):
             mock_agent.run = AsyncMock(return_value=mock_result)
 
-            await run_chat_agent(
+            result = await run_chat_agent(
                 db_session=async_session,
                 dweller=chat_dweller,
                 message_text="Hello",
@@ -86,6 +87,7 @@ class TestChatServiceErrorHandling:
             )
 
         assert mock_agent.run.call_args.kwargs["instructions"] == active_instructions
+        assert (result.prompt_tokens, result.completion_tokens, result.total_tokens) == (1, 1, 2)
 
     async def test_process_text_message_raises_not_found_for_missing_dweller(self) -> None:
         """A missing chat dweller is reported as the project's 404 exception."""
@@ -109,17 +111,17 @@ class TestChatServiceErrorHandling:
         async_session: AsyncSession,
         chat_dweller: Dweller,
     ) -> None:
-        """Test that _run_chat_agent handles AttributeError from usage() gracefully.
+        """Test that _run_chat_agent handles AttributeError from usage gracefully.
 
         Regression test for: AttributeError: 'coroutine' object has no attribute 'input_tokens'
-        When the AI provider fails, result.usage() may return an unexpected type
+        When the AI provider fails, result.usage may return an unexpected type
         or raise an AttributeError when accessing token attributes.
         """
         from pydantic_ai.agent import AgentRunResult
 
         from app.agents.dweller_chat_agent import DwellerChatOutput
 
-        # Create a mock result where usage() returns something that causes
+        # Create a mock result where usage returns something that causes
         # AttributeError when accessing input_tokens
         mock_output = DwellerChatOutput(
             response_text="Test response",
@@ -139,7 +141,7 @@ class TestChatServiceErrorHandling:
 
         mock_result = MagicMock(spec=AgentRunResult)
         mock_result.output = mock_output
-        mock_result.usage.return_value = BrokenUsage()
+        mock_result.usage = BrokenUsage()
 
         with patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(return_value=mock_result)
@@ -162,7 +164,7 @@ class TestChatServiceErrorHandling:
         async_session: AsyncSession,
         chat_dweller: Dweller,
     ) -> None:
-        """Test that _run_chat_agent handles usage() returning None gracefully."""
+        """Test that _run_chat_agent handles usage returning None gracefully."""
         from pydantic_ai.agent import AgentRunResult
 
         from app.agents.dweller_chat_agent import DwellerChatOutput
@@ -180,7 +182,7 @@ class TestChatServiceErrorHandling:
 
         mock_result = MagicMock(spec=AgentRunResult)
         mock_result.output = mock_output
-        mock_result.usage.return_value = None
+        mock_result.usage = None
 
         with patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent:
             mock_agent.run = AsyncMock(return_value=mock_result)
@@ -303,8 +305,9 @@ class TestChatServiceErrorHandling:
             def stream_output(self):
                 return fake_stream_output()
 
+            @property
             def usage(self):
-                return MagicMock(input_tokens=5, output_tokens=6, total_tokens=11)
+                return RunUsage(input_tokens=5, output_tokens=6)
 
             async def get_output(self):
                 return output
@@ -332,7 +335,7 @@ class TestChatServiceErrorHandling:
             patch(
                 "app.services.chat.persistence.llm_interaction_crud.create",
                 new=AsyncMock(return_value=MagicMock(id=uuid4())),
-            ),
+            ) as record_usage,
             patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch(
                 "app.services.chat.streaming.parse_action_suggestion",
@@ -362,6 +365,8 @@ class TestChatServiceErrorHandling:
         assert events[-1]["response_text"] == "Hello vault dweller!"
         assert events[-1]["happiness_impact"]["delta"] == 4
         assert events[-1]["unlocked_places"][0]["name"] == "Megaton"
+        usage = record_usage.call_args.kwargs["obj_in"]
+        assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (5, 6, 11)
 
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,

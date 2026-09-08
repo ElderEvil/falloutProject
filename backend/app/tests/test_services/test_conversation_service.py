@@ -1,6 +1,6 @@
 """Tests for conversation service (audio chat)."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
@@ -74,3 +74,30 @@ class TestAudioChatProvenance:
 # Note: Integration tests for audio processing are omitted as they require complex mocking
 # of external services (OpenAI API, storage). The unit tests above (voice selection and
 # prompt building) cover the core logic of the conversation service.
+
+
+@pytest.mark.parametrize("usage_kind", ["valid", "missing", "broken"])
+async def test_voice_response_survives_malformed_usage(usage_kind: str) -> None:
+    from pydantic_ai.usage import RunUsage
+
+    from app.agents.dweller_chat_agent import DwellerChatOutput
+
+    usage = RunUsage(input_tokens=12, output_tokens=8) if usage_kind == "valid" else None
+    if usage_kind == "broken":
+        usage = MagicMock(spec=RunUsage)
+        type(usage).input_tokens = PropertyMock(side_effect=ValueError("Invalid usage"))
+    output = DwellerChatOutput(
+        response_text="All clear.", sentiment_score=0, reason_text="Neutral", action_type="no_action"
+    )
+    with (
+        patch(
+            "app.services.conversation_service.dweller_chat_agent.run",
+            new=AsyncMock(return_value=MagicMock(output=output, usage=usage)),
+        ),
+        patch("app.services.conversation_service.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+        patch("app.services.conversation_service.parse_action_suggestion", new=AsyncMock(return_value=None)),
+    ):
+        result = await conversation_service._generate_response_with_agent(MagicMock(), MagicMock(), "Status?", "Chat")
+    assert result.text == "All clear."
+    expected = (12, 8, 20) if usage_kind == "valid" else (None, None, None)
+    assert (result.prompt_tokens, result.completion_tokens, result.total_tokens) == expected

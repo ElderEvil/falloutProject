@@ -27,10 +27,13 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   - **Shipped:** transport-free `DomainError` exception base + single API-layer handler (`main.py`),
     `AIProviderException`/`AIStorageException`/`AIAudioException` for `dweller_ai`, and the AST guard test
     (`test_architecture/test_service_layer_guard.py`) banning `HTTPException` in services/crud. Contract:
-    `docs/backend/SERVICE_LAYER.md`. Known deferral: chat quota headers move in the chat/AI batch.
+    `docs/backend/SERVICE_LAYER.md`.
 - [ ] **Chat and AI batch** — unify text, streaming, and audio validation/orchestration; move persistence and
   provider-boundary handling behind focused collaborators; preserve the existing public service entry points while
   rewriting `chat_service`, `services/chat/*`, conversation, AI, quota, and prompt flows.
+  - **In progress:** shared chat quota enforcement, API-boundary quota headers, and text endpoint domain-error
+    propagation; text, streaming, and voice token accounting now read the agent usage property. Persistence, typed streaming/audio
+    results, and unified request validation remain in this batch.
 - [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
   room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and

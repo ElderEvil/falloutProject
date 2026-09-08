@@ -3,7 +3,6 @@
 import logging
 from dataclasses import dataclass
 
-from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.exceptions import ModelHTTPError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -20,7 +19,7 @@ from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.ai_service import get_ai_service
 from app.services.chat_happiness_service import apply_chat_happiness
-from app.services.conversation_service import conversation_service
+from app.services.conversation_service import conversation_service, extract_usage
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 
 logger = logging.getLogger(__name__)
@@ -57,22 +56,6 @@ def extract_provider_reason(error: ModelHTTPError) -> str:
     return f"AI provider request failed (HTTP {error.status_code})"
 
 
-def extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
-    """Extract token usage from an agent run result.
-
-    Returns:
-        Tuple of (prompt_tokens, completion_tokens, total_tokens)
-    """
-    try:
-        usage = result.usage()
-        token_counts = usage.input_tokens, usage.output_tokens, usage.total_tokens
-    except Exception:
-        logger.exception("Failed to extract usage info from agent result")
-        return None, None, None
-    else:
-        return token_counts
-
-
 async def run_chat_agent(
     db_session: AsyncSession,
     dweller: DwellerReadFull,
@@ -104,7 +87,7 @@ async def run_chat_agent(
             happiness_after=new_dweller_happiness,
         )
         action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-        prompt_tokens, completion_tokens, total_tokens = extract_usage(result)
+        prompt_tokens, completion_tokens, total_tokens = extract_usage(result.usage)
     except ModelHTTPError as error:
         if provider_credits_are_exhausted(error):
             raise AIProviderCreditsExhaustedException(detail=extract_provider_reason(error)) from error

@@ -15,7 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.agents.dweller_chat_agent import DwellerChatDeps
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
-from app.models import Dweller, User
+from app.models import Dweller, User, Vault
 from app.schemas.chat import ActionSuggestion, DwellerChatResponse, UnlockedPlace
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
@@ -27,7 +27,7 @@ from app.services.chat.notifications import send_chat_notification, unlock_place
 from app.services.chat.persistence import persist_chat
 from app.services.chat.streaming import StreamBundle, stream_with_fallback
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
-from app.services.quota_service import QuotaCheckResult, quota_service
+from app.services.quota_service import quota_service
 from app.utils.exceptions import (
     AccessDeniedException,
     AIProviderCreditsExhaustedException,
@@ -48,26 +48,13 @@ class ChatService:
         dweller_id: UUID4,
         message_text: str,
     ) -> DwellerChatResponse:
-        """Process a text chat message from user to dweller.
-
-        Args:
-            db_session: Database session
-            user: Current authenticated user
-            dweller_id: UUID of the dweller to chat with
-            message_text: Text message from user
-
-        Returns:
-            Chat response with dweller's reply, happiness impact, and action suggestion
-
-        Raises:
-            ResourceNotFoundException: If dweller not found
-        """
+        """Validate quota, generate a reply, and persist the conversation."""
         dweller = await dweller_crud.get_full_info(db_session, dweller_id)
         if not dweller:
             raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
 
         quota_result = await quota_service.check_quota(user.id, db_session)
-        self._validate_quota_allowed(quota_result, self._quota_headers(quota_result))
+        quota_result.ensure_allowed()
 
         instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
         provider, model = await get_provider_model_snapshot(db_session)
@@ -137,7 +124,7 @@ class ChatService:
             self._validate_dweller_ownership(dweller, vault, user)
 
             quota_result = await quota_service.check_quota(user.id, db_session)
-            self._validate_quota_allowed(quota_result, self._quota_headers(quota_result))
+            quota_result.ensure_allowed()
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
@@ -220,16 +207,6 @@ class ChatService:
         return await unlock_places_after_conversation(db_session, dweller)
 
     @staticmethod
-    def _quota_headers(quota_result: QuotaCheckResult) -> dict[str, str]:
-        """Build the response headers carrying quota information."""
-        quota_headers = {
-            "X-Quota-Remaining": str(quota_result.remaining),
-        }
-        if quota_result.warning:
-            quota_headers["X-Quota-Warning"] = "true"
-        return quota_headers
-
-    @staticmethod
     def _validate_dweller_exists(dweller: "DwellerReadFull | None", _dweller_id: UUID4) -> None:
         """Validate that a dweller exists, raising ValueError if not."""
         if not dweller:
@@ -248,13 +225,6 @@ class ChatService:
             raise AccessDeniedException(detail="Dweller does not belong to the current user")
         if not vault or vault.user_id != user.id:
             raise AccessDeniedException(detail="Dweller does not belong to the current user")
-
-    @staticmethod
-    def _validate_quota_allowed(quota_result: "QuotaCheckResult", quota_headers: dict[str, str]) -> None:
-        """Validate that the user has remaining quota, raising QuotaExceededException if not."""
-        if not quota_result.allowed:
-            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
-            raise QuotaExceededException(detail=detail, headers=quota_headers)
 
 
 # Singleton instance

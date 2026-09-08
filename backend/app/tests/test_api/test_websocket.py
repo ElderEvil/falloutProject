@@ -14,6 +14,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from app.core.security import create_access_token
+from app.schemas.chat import ChatStreamError, ChatStreamToken
 from main import app
 
 
@@ -98,7 +99,8 @@ class TestChatWebSocketStreaming:
         token = create_access_token(subject=str(user_id))
 
         async def failing_stream(db_session: object, user: object, dweller_id: object, message_text: str):
-            yield {"type": "error", "detail": "AI quota exceeded"}
+            yield ChatStreamToken(text="Partial response")
+            yield ChatStreamError(detail="AI quota exceeded")
 
         with (
             patch(
@@ -116,6 +118,7 @@ class TestChatWebSocketStreaming:
             ws_client.websocket_connect(f"/api/v1/ws/chat/{user_id}/{dweller_id}?token={token}") as ws,
         ):
             ws.send_json({"type": "message", "content": "Hello!"})
+            assert ws.receive_json() == {"type": "token", "text": "Partial response"}
             assert ws.receive_json() == {"type": "error", "detail": "AI quota exceeded"}
 
 

@@ -13,7 +13,7 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.chat import UnlockedPlace
+from app.schemas.chat import ChatStreamDone, ChatStreamError, ChatStreamToken, NoAction, UnlockedPlace
 from app.schemas.common import GenderEnum
 from app.schemas.dweller import DwellerCreate, DwellerReadFull
 from app.services.chat.agent_runner import AgentChatResult, run_chat_agent
@@ -278,11 +278,12 @@ class TestChatServiceErrorHandling:
         ]
 
         assert len(events) == 1
-        assert events[0]["type"] == "error"
-        assert events[0]["detail"] == (
-            str(ResourceNotFoundException(Dweller, dweller_id))
-            if missing
-            else "The user doesn't have enough privileges"
+        assert events[0] == ChatStreamError(
+            detail=(
+                str(ResourceNotFoundException(Dweller, dweller_id))
+                if missing
+                else "The user doesn't have enough privileges"
+            )
         )
 
     @pytest.mark.parametrize("as_admin", [False, True])
@@ -349,7 +350,7 @@ class TestChatServiceErrorHandling:
             patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch(
                 "app.services.chat.streaming.parse_action_suggestion",
-                new=AsyncMock(return_value=MagicMock(model_dump=dict)),
+                new=AsyncMock(return_value=NoAction()),
             ),
             patch(
                 "app.services.chat.notifications.maybe_unlock_places",
@@ -366,15 +367,16 @@ class TestChatServiceErrorHandling:
                 )
             ]
 
-        tokens = [event for event in events if event["type"] == "token"]
+        tokens = [event for event in events if event.type == "token"]
         assert tokens == [
-            {"type": "token", "text": "Helo vault"},
-            {"type": "token", "text": "Hello vault dweller!", "replace": True},
+            ChatStreamToken(text="Helo vault"),
+            ChatStreamToken(text="Hello vault dweller!", replace=True),
         ]
-        assert events[-1]["type"] == "done"
-        assert events[-1]["response_text"] == "Hello vault dweller!"
-        assert events[-1]["happiness_impact"]["delta"] == 4
-        assert events[-1]["unlocked_places"][0]["name"] == "Megaton"
+        assert isinstance(events[-1], ChatStreamDone)
+        assert events[-1].response_text == "Hello vault dweller!"
+        assert events[-1].happiness_impact is not None
+        assert events[-1].happiness_impact.delta == 4
+        assert events[-1].unlocked_places[0].name == "Megaton"
         usage = record_usage.call_args.kwargs["obj_in"]
         assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (5, 6, 11)
 
@@ -414,8 +416,7 @@ class TestChatServiceErrorHandling:
             ]
 
         assert len(events) == 1
-        assert events[0]["type"] == "error"
-        assert events[0]["detail"] == "You have no credits remaining."
+        assert events[0] == ChatStreamError(detail="You have no credits remaining.")
 
     async def test_stream_response_falls_back_on_invalid_structured_output(
         self,
@@ -487,10 +488,11 @@ class TestChatServiceErrorHandling:
                 )
             ]
 
-        assert events[0] == {"type": "token", "text": "Sure, let's head to the wasteland!", "replace": True}
-        assert events[-1]["type"] == "done"
-        assert events[-1]["response_text"] == "Sure, let's head to the wasteland!"
-        assert events[-1]["happiness_impact"]["delta"] == 0
+        assert events[0] == ChatStreamToken(text="Sure, let's head to the wasteland!", replace=True)
+        assert isinstance(events[-1], ChatStreamDone)
+        assert events[-1].response_text == "Sure, let's head to the wasteland!"
+        assert events[-1].happiness_impact is not None
+        assert events[-1].happiness_impact.delta == 0
 
 
 async def test_closing_stream_releases_provider_and_savepoint(
@@ -523,7 +525,7 @@ async def test_closing_stream_releases_provider_and_savepoint(
     )
     with patch("app.services.chat.streaming.dweller_chat_agent.run_stream", new=fake_provider):
         stream = stream_with_fallback(deps, chat_dweller, "Hi", StreamBundle(), "Chat")
-        assert await anext(stream) == {"type": "token", "text": "Hello"}
+        assert await anext(stream) == ChatStreamToken(text="Hello")
         await stream.aclose()
 
     assert provider_closed is True
@@ -661,7 +663,7 @@ async def test_chat_commits_usage_messages_and_happiness_together(
 
         await apply_chat_happiness(deps.db_session, dweller.id, 5)
         bundle.response_text = "Hello"
-        yield {"type": "token", "text": "Hello"}
+        yield ChatStreamToken(text="Hello")
 
     with (
         patch("app.services.chat.agent_runner.dweller_chat_agent.run", new=AsyncMock(return_value=result)),
@@ -672,7 +674,7 @@ async def test_chat_commits_usage_messages_and_happiness_together(
     ):
         if mode == "stream":
             events = [event async for event in chat_service.stream_response(async_session, test_user, dweller_id, "Hi")]
-            assert events[-1]["type"] == ("error" if fail_write else "done")
+            assert events[-1].type == ("error" if fail_write else "done")
         else:
             operation = (
                 conversation_service.process_audio_message(async_session, test_user, dweller_id, b"audio")

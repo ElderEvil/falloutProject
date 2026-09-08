@@ -1,12 +1,7 @@
-"""Service for handling chat operations between users and dwellers.
-
-ChatService is the composition root: it owns request validation and orchestration
-and delegates agent execution, streaming, persistence, and side-effects to the
-focused collaborators in :mod:`app.services.chat`.
-"""
+"""Chat orchestration service."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 from pydantic import UUID4
 from pydantic_ai.exceptions import ModelHTTPError
@@ -16,7 +11,14 @@ from app.agents.dweller_chat_agent import DwellerChatDeps
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.models import User
 from app.models.chat_message import ChatMessage
-from app.schemas.chat import ActionSuggestion, DwellerChatResponse, UnlockedPlace
+from app.schemas.chat import (
+    ActionSuggestion,
+    ChatStreamDone,
+    ChatStreamError,
+    ChatStreamEvent,
+    DwellerChatResponse,
+    UnlockedPlace,
+)
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
 from app.services.access_service import get_accessible_dweller, verify_dweller_access
@@ -103,19 +105,8 @@ class ChatService:
         user: User,
         dweller_id: UUID4,
         message_text: str,
-    ) -> AsyncIterator[dict]:
-        """Stream a chat response from dweller token-by-token.
-
-        Args:
-            db_session: Database session
-            user: Current authenticated user
-            dweller_id: UUID of the dweller to chat with
-            message_text: Text message from user
-
-        Yields:
-            Dicts with type "token" for each token, then type "done" with metadata,
-            or type "error" on failure.
-        """
+    ) -> AsyncGenerator[ChatStreamEvent]:
+        """Yield typed token, completion, or error events for one dweller response."""
         try:
             async with db_session.begin_nested():
                 dweller = await get_accessible_dweller(dweller_id, user, db_session)
@@ -152,35 +143,30 @@ class ChatService:
 
             await db_session.commit()
 
-            yield {
-                "type": "done",
-                "dweller_message_id": str(dweller_message_id),
-                "response_text": bundle.response_text,
-                "happiness_impact": bundle.happiness_impact.model_dump(mode="json")
-                if bundle.happiness_impact
-                else None,
-                "action_suggestion": bundle.action_suggestion.model_dump(mode="json")
-                if bundle.action_suggestion
-                else None,
-                "unlocked_places": [place.model_dump(mode="json") for place in unlocked_places],
-            }
+            yield ChatStreamDone(
+                dweller_message_id=dweller_message_id,
+                response_text=bundle.response_text,
+                happiness_impact=bundle.happiness_impact,
+                action_suggestion=bundle.action_suggestion,
+                unlocked_places=unlocked_places,
+            )
 
         except (AccessDeniedException, ResourceNotFoundException) as e:
-            yield {"type": "error", "detail": str(e.detail)}
+            yield ChatStreamError(detail=str(e.detail))
             return
         except AIProviderCreditsExhaustedException as e:
             logger.warning("Streaming chat response stopped: provider credits exhausted")
-            yield {"type": "error", "detail": str(e.detail)}
+            yield ChatStreamError(detail=str(e.detail))
             return
         except ModelHTTPError as e:
             logger.exception("Streaming chat response failed")
-            yield {"type": "error", "detail": extract_provider_reason(e)}
+            yield ChatStreamError(detail=extract_provider_reason(e))
         except Exception as e:
             logger.exception("Streaming chat response failed")
             if isinstance(e, (ValueError, QuotaExceededException)):
-                yield {"type": "error", "detail": str(e)}
+                yield ChatStreamError(detail=str(e))
             else:
-                yield {"type": "error", "detail": "An unexpected error occurred during chat"}
+                yield ChatStreamError(detail="An unexpected error occurred during chat")
 
     async def send_chat_notification(
         self,

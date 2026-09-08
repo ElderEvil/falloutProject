@@ -131,6 +131,38 @@ class DwellerChatResponse(BaseModel):
     )
 
 
+class ChatStreamToken(BaseModel):
+    """An incremental or replacement fragment of a streamed dweller response."""
+
+    type: Literal["token"] = "token"
+    text: str
+    replace: bool | None = None
+
+
+class ChatStreamDone(BaseModel):
+    """The persisted result of a completed streamed dweller response."""
+
+    type: Literal["done"] = "done"
+    dweller_message_id: UUID4
+    response_text: str
+    happiness_impact: HappinessImpact | None = None
+    action_suggestion: ActionSuggestion | None = None
+    unlocked_places: list[UnlockedPlace] = Field(default_factory=list)
+
+
+class ChatStreamError(BaseModel):
+    """A recoverable failure reported through the chat streaming protocol."""
+
+    type: Literal["error"] = "error"
+    detail: str
+
+
+ChatStreamEvent = Annotated[
+    ChatStreamToken | ChatStreamDone | ChatStreamError,
+    Field(discriminator="type"),
+]
+
+
 class DwellerVoiceChatResponse(BaseModel):
     """Response schema for voice chat interactions (JSON mode)."""
 

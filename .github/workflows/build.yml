@@ -88,12 +88,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push image
+      - name: Build image
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: true
+          load: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
             ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:v${{ steps.release.outputs.version }}
@@ -103,3 +103,20 @@ jobs:
             VERSION=${{ steps.release.outputs.version }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:latest
           cache-to: type=inline
+
+      - name: Check production backend image
+        if: matrix.name == 'Backend'
+        env:
+          IMAGE: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:v${{ steps.release.outputs.version }}
+        run: |
+          docker run --rm -i --network=none --read-only \
+            --tmpfs /tmp --tmpfs /var/log/fallout_shelter:mode=1777 \
+            --entrypoint uv "$IMAGE" run --offline python - < scripts/check_backend_image.py
+
+      - name: Push validated image
+        env:
+          IMAGE: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker push "$IMAGE:v$VERSION"
+          docker push "$IMAGE:latest"

@@ -540,73 +540,35 @@ docker compose logs dramatiq_worker
 
 ## Performance Notes
 
-### Dockerfile Optimizations
+### Production images
 
-**Backend:** Use `--no-dev --no-cache` for production builds:
-```dockerfile
-RUN uv sync --frozen --no-dev --no-install-project --no-cache
+The backend uses a multi-stage build from the repository root. The root `.dockerignore` excludes
+tests, local environments, caches, and environment files; there is no separate backend ignore file.
+Only runtime dependency groups are installed with `uv sync --frozen --no-default-groups`.
+The project and its `fo-cli` entry point are installed during the build.
+
+The runtime image sets `UV_NO_SYNC=1`, `UV_NO_DEFAULT_GROUPS=1`, and `UV_NO_CACHE=1`.
+Existing `uv run` commands for the API, workers, and migrations use the baked environment without
+installing packages or writing a home-directory cache. Rebuild the image after dependency changes.
+Local source mounts still work; testing tools remain in the host development environment.
+
+The frontend runtime contains compiled `dist` assets and its static server. Build tools stay in the
+build stage. Both Dockerfiles copy dependency manifests before source to retain dependency caching.
+
+CI builds the backend image and runs `scripts/check_backend_image.py` before publishing. The check
+runs as the image user, offline and with a read-only root filesystem, and verifies that tests and
+development packages are absent, runtime assets exist, API/worker modules import, and API, migration,
+worker, scheduler, and CLI entry points work. Run the same check locally:
+
+```bash
+podman build -t fallout-backend-check -f backend/Dockerfile .
+podman run --rm -i --network=none --read-only \
+  --tmpfs /tmp --tmpfs /var/log/fallout_shelter:mode=1777 \
+  --entrypoint uv fallout-backend-check run --offline python - < scripts/check_backend_image.py
 ```
 
-**Frontend:** Use multi-stage builds with production-only dependencies:
-```dockerfile
-FROM node:22-alpine AS deps
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
-
-FROM node:22-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm run build
-
-FROM node:22-alpine
-WORKDIR /app
-RUN npm install -g serve
-COPY --from=build /app/dist .
-CMD ["serve", "-s", ".", "-l", "3000"]
-```
-
-**Layer Ordering:** Copy dependency manifests before source code to maximize cache hits:
-```dockerfile
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
-COPY . .
-```
-
-**BuildKit Cache:** Enable registry caching in CI:
-```yaml
-cache_from:
-  - type=registry,ref=${DOCKER_USERNAME}/fo-shelter-be:cache
-cache_to:
-  - type=registry,ref=${DOCKER_USERNAME}/fo-shelter-be:cache,mode=max
-```
-
-### .dockerignore Recommendations
-
-**Backend:**
-```text
-__pycache__
-*.pyc
-.pytest_cache
-.coverage
-htmlcov/
-.env
-.venv
-.git
-**/tests/
-```
-
-**Frontend:**
-```text
-node_modules
-dist
-.git
-.env
-.env.local
-coverage
-tests
-```
+The database-backed application tests continue to run in backend CI; the image check does not apply
+migrations or contact infrastructure.
 
 ## Related Documentation
 

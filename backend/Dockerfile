@@ -1,56 +1,32 @@
 ARG PYTHON_VERSION
 FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm AS builder
 
-# Install build dependencies for Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    libffi-dev \
-    libpq-dev \
+    gcc g++ libffi-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
+COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /bin/uv
 WORKDIR /app
 
-# Set environment variables
-ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
-
-# Copy dependency files for installation
+# Cache runtime dependencies separately from the editable application and its CLI.
 COPY backend/pyproject.toml backend/uv.lock /app/
+RUN uv sync --frozen --no-default-groups --no-install-project --no-cache
+COPY backend/ /app/
+RUN uv sync --frozen --no-default-groups --no-cache
 
-# Create virtual environment and install dependencies using uv sync
-RUN uv sync --frozen --no-dev --no-install-project --no-cache
-
-# Runtime stage
 FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm
-
-# Install uv (needed for uv run commands)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Create a non-root user and a writable fallback log directory
+COPY --from=builder /bin/uv /bin/uv
 RUN useradd --create-home --uid 1000 appuser \
-    && mkdir -p /var/log/fallout_shelter
-
+    && install -d -o appuser -g appuser /var/log/fallout_shelter
 WORKDIR /app
 
-# Set environment variables
+# API, worker, migration, and CLI commands use the baked environment.
 ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
-
-# Copy installed virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Copy backend application code
-COPY backend/ /app/
-
-# Copy changelog to project root
+    PATH="/app/.venv/bin:$PATH" \
+    UV_NO_SYNC=1 \
+    UV_NO_CACHE=1 \
+    UV_NO_DEFAULT_GROUPS=1
+COPY --from=builder --chown=appuser:appuser /app /app
 COPY CHANGELOG.md /CHANGELOG.md
-
-RUN chown -R appuser:appuser /app /var/log/fallout_shelter
 USER appuser
 
-# Command to run the application
 CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

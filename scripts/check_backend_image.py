@@ -1,6 +1,6 @@
 """Run inside the built backend image with networking disabled and a read-only filesystem."""
 
-# ruff: file-ignore[implicit-namespace-package, assert, hardcoded-password-func-arg, subprocess-without-shell-equals-true]
+# ruff: file-ignore[INP001, S101, S106, S603]
 
 import importlib.util
 import os

@@ -4,7 +4,7 @@ FROM python:${PYTHON_VERSION:-3.13}-slim-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libffi-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /bin/uv
 WORKDIR /app
 
 # Cache runtime dependencies separately from the editable application and its CLI.

@@ -234,7 +234,7 @@ class TestVoiceChatQuotaEnforcement:
         mock_ai_service = MagicMock()
         mock_ai_service.transcribe_audio = AsyncMock(return_value="Hello there")
         with (
-            patch("app.services.conversation_service.dweller_chat_agent") as mock_agent,
+            patch("app.services.chat.agent_runner.dweller_chat_agent") as mock_agent,
             patch.object(conversation_service, "ai_service", mock_ai_service),
             patch("app.services.quota_service.settings") as mock_settings,
         ):

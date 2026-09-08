@@ -62,3 +62,25 @@ async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSes
     assert result.percentage == 80.0
     assert result.remaining == 100000
     assert result.used == 400000
+
+
+@pytest.mark.parametrize(("allowed", "warning"), [(True, False), (True, True), (False, False), (False, True)])
+def test_quota_enforcement_keeps_http_headers_at_api_boundary(allowed: bool, warning: bool) -> None:
+    from starlette.requests import Request
+
+    from app.services.quota_service import QuotaCheckResult
+    from app.utils.exceptions import QuotaExceededException
+    from main import domain_exception_handler
+
+    result = QuotaCheckResult(allowed=allowed, remaining=0, limit=100, percentage=100, warning=warning, used=100)
+    if allowed:
+        assert result.ensure_allowed() is None
+        return
+    with pytest.raises(QuotaExceededException) as caught:
+        result.ensure_allowed()
+    assert caught.value.headers is None
+    assert str(caught.value) == "Monthly token quota exceeded. You have used 100 of 100 tokens."
+    response = domain_exception_handler(Request({"type": "http"}), caught.value)
+    assert response.status_code == 429
+    assert response.headers["X-Quota-Remaining"] == "0"
+    assert response.headers.get("X-Quota-Warning") == ("true" if warning else None)

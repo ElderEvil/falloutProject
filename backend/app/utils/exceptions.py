@@ -11,8 +11,6 @@ from uuid import UUID
 
 from sqlmodel import SQLModel
 from starlette import status
-from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 
 class DomainError(Exception):
@@ -25,11 +23,6 @@ class DomainError(Exception):
         self.detail = detail if detail is not None else self.default_detail
         self.headers = headers
         super().__init__(self.detail)
-
-
-def domain_exception_handler(_request: Request, exc: DomainError) -> JSONResponse:
-    """Map a domain exception to its HTTP response. The only transport mapping point."""
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
 
 
 class AccessDeniedException(DomainError):
@@ -167,6 +160,18 @@ class QuotaExceededException(DomainError):
 
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
     default_detail = "Monthly token quota exceeded. Please try again next month or contact support."
+
+    def __init__(
+        self,
+        detail: str | None = None,
+        headers: dict[str, Any] | None = None,
+        *,
+        remaining: int | None = None,
+        warning: bool = False,
+    ) -> None:
+        super().__init__(detail, headers)
+        self.remaining = remaining
+        self.warning = warning
 
 
 class AIProviderCreditsExhaustedException(DomainError):

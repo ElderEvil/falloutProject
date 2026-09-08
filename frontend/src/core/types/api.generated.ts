@@ -356,13 +356,7 @@ export interface paths {
         put?: never;
         /**
          * Chat With Dweller
-         * @description Send a text message to a dweller and get a response.
-         *
-         *     Returns:
-         *         DwellerChatResponse: Dweller's text response with metadata.
-         *
-         *     Raises:
-         *         HTTPException: 404 if dweller not found.
+         * @description Send a text message and publish the resulting chat notifications.
          */
         post: operations["chat_with_dweller_api_v1_chat__dweller_id__post"];
         delete?: never;

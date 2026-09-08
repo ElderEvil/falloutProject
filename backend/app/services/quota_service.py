@@ -8,18 +8,19 @@ Cache invalidation happens in record_usage() to ensure fresh quota data.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from redis.asyncio import Redis
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.models.llm_interaction import LLMInteraction
 from app.models.user import User
 from app.services.ai_constants import AI_USAGE_CACHE_KEY, QUOTA_TRACKING_OPERATION
+from app.utils.exceptions import QuotaExceededException
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,15 @@ class QuotaCheckResult:
 
     used: int
     """Number of tokens used this month."""
+
+    def ensure_allowed(self) -> None:
+        """Reject exhausted quota with domain metadata for the caller."""
+        if not self.allowed:
+            raise QuotaExceededException(
+                detail=f"Monthly token quota exceeded. You have used {self.used} of {self.limit} tokens.",
+                remaining=self.remaining,
+                warning=self.warning,
+            )
 
 
 class QuotaService:
@@ -105,7 +115,7 @@ class QuotaService:
 
         quota_limit = user.monthly_token_limit if user.monthly_token_limit is not None else DEFAULT_QUOTA_LIMIT
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         current_month_start = datetime(now.year, now.month, 1)
 
         usage_query = select(func.coalesce(func.sum(col(LLMInteraction.total_tokens)), 0).label("total_used")).where(

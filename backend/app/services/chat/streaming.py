@@ -86,7 +86,7 @@ async def stream_structured(
             bundle.prompt_tokens,
             bundle.completion_tokens,
             bundle.total_tokens,
-        ) = agent_runner.extract_usage(result)
+        ) = agent_runner.extract_usage(result.usage)
         bundle.response_text = output.response_text
 
 

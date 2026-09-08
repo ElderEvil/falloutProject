@@ -3,13 +3,15 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import JSONResponse
 
 from app.admin.auth import AdminAuth
 from app.admin.views import (
@@ -48,7 +50,7 @@ from app.services.health_check import HealthCheckService
 from app.services.objective_evaluators import evaluator_manager
 from app.services.objective_notifications import register_objective_event_handlers
 from app.services.websocket_manager import manager
-from app.utils.exceptions import DomainError, domain_exception_handler
+from app.utils.exceptions import DomainError, QuotaExceededException
 from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.seed_quests import seed_quests_from_json
 
@@ -134,6 +136,18 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+
+def domain_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """Map domain failures and quota metadata to HTTP at the API boundary."""
+    exc = cast("DomainError", exc)
+    headers = dict(exc.headers or {})
+    if isinstance(exc, QuotaExceededException) and exc.remaining is not None:
+        headers["X-Quota-Remaining"] = str(exc.remaining)
+        if exc.warning:
+            headers["X-Quota-Warning"] = "true"
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)
+
 
 # Single transport mapping point for transport-free domain exceptions (docs/backend/SERVICE_LAYER.md)
 app.add_exception_handler(DomainError, domain_exception_handler)

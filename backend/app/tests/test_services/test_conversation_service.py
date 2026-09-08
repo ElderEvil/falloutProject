@@ -74,3 +74,12 @@ class TestAudioChatProvenance:
 # Note: Integration tests for audio processing are omitted as they require complex mocking
 # of external services (OpenAI API, storage). The unit tests above (voice selection and
 # prompt building) cover the core logic of the conversation service.
+
+
+def test_extract_usage_reads_agent_result_property() -> None:
+    from types import SimpleNamespace
+
+    from app.services.conversation_service import ConversationService
+
+    result = SimpleNamespace(usage=SimpleNamespace(input_tokens=12, output_tokens=8, total_tokens=20))
+    assert ConversationService._extract_usage(result) == (12, 8, 20)

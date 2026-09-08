@@ -33,7 +33,7 @@ from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
-from app.utils.exceptions import DwellerNotFoundError, QuotaExceededException
+from app.utils.exceptions import DwellerNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -138,18 +138,9 @@ class ConversationService:
 
     @staticmethod
     def _extract_usage(result: AgentRunResult[DwellerChatOutput]) -> tuple[int | None, int | None, int | None]:
-        """Extract token usage from an agent run result.
-
-        Returns:
-            Tuple of (prompt_tokens, completion_tokens, total_tokens)
-        """
-        try:
-            usage = result.usage()
-        except Exception:
-            logger.exception("Failed to extract usage info from voice chat agent result")
-            return None, None, None
-        else:
-            return usage.input_tokens, usage.output_tokens, usage.total_tokens
+        """Extract token usage from an agent run result."""
+        usage = result.usage
+        return usage.input_tokens, usage.output_tokens, usage.total_tokens
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str
@@ -292,17 +283,7 @@ class ConversationService:
         # Check quota before running LLM (after transcription, before AI response)
         quota_result = await quota_service.check_quota(user.id, db_session)
 
-        # Build headers for quota info
-        quota_headers = {
-            "X-Quota-Remaining": str(quota_result.remaining),
-        }
-        if quota_result.warning:
-            quota_headers["X-Quota-Warning"] = "true"
-
-        # If quota exceeded, raise exception with headers
-        if not quota_result.allowed:
-            detail = f"Monthly token quota exceeded. You have used {quota_result.used} of {quota_result.limit} tokens."
-            raise QuotaExceededException(detail=detail, headers=quota_headers)
+        quota_result.ensure_allowed()
 
         instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
         provider, model = await get_provider_model_snapshot(db_session)

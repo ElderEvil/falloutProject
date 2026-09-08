@@ -62,7 +62,7 @@ stay compliant.
 
 ## Known deferrals
 
-- `chat_service._quota_headers()` builds `X-Quota-Remaining`/`X-Quota-Warning` headers in the service
-  (transport formatting). To be relocated to the API layer by the chat/AI batch.
+- Chat quota validation is shared by text, streaming, and audio through `QuotaCheckResult.ensure_allowed()`.
+  Rejections carry remaining/warning metadata; `main.domain_exception_handler` formats quota headers.
 - `dweller_ai.py` now demonstrates the target pattern: provider/storage/audio failures raise
   `AIProviderException`/`AIStorageException`/`AIAudioException` instead of `HTTPException`.

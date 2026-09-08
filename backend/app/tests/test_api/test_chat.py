@@ -98,8 +98,8 @@ def create_mock_agent_output(
 class TestTextChat:
     """Tests for text-based chat endpoint."""
 
-    async def test_missing_dweller_exception_maps_to_404(self) -> None:
-        """Only the designated not-found exception is mapped to HTTP 404."""
+    async def test_missing_dweller_exception_propagates_to_api_boundary(self) -> None:
+        """The shared API handler receives the original not-found domain error."""
         dweller_id = uuid4()
         user = MagicMock(id=uuid4())
 
@@ -109,7 +109,7 @@ class TestTextChat:
                 new_callable=AsyncMock,
                 side_effect=ResourceNotFoundException(Dweller, dweller_id),
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(ResourceNotFoundException) as exc_info,
         ):
             await chat_with_dweller(
                 dweller_id=dweller_id,

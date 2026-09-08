@@ -63,18 +63,20 @@ class DwellerAIService:
         origin_place: str,
         visited_places: list[str],
         explicit_origin: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Register bio-extracted places on the world map — best-effort, never raises."""
         try:
-            await map_service.register_bio_places(
+            return await map_service.register_bio_places(
                 db_session,
                 dweller_obj,
                 origin_place=origin_place,
                 visited_places=visited_places,
                 explicit_origin=explicit_origin,
+                commit=False,
             )
         except Exception:
             logger.exception("Failed to register map places for dweller %s", dweller_obj.id)
+            return False
 
     def _extract_usage(self, result: Any, *, agent_name: str) -> tuple[int | None, int | None, int | None]:
         """Extract token usage from an agent result, tolerating provider failures."""
@@ -142,7 +144,7 @@ class DwellerAIService:
         await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)
-        await self._register_map_places_best_effort(
+        registered = await self._register_map_places_best_effort(
             db_session,
             dweller_obj,
             origin_place=result.output.origin_place,
@@ -171,6 +173,8 @@ class DwellerAIService:
             obj_in=llm_int_create,
         )
         await db_session.commit()
+        if not registered:
+            await map_service.notify_bio_registration_failure(db_session, dweller_obj)
 
         return dweller_obj
 
@@ -210,7 +214,7 @@ class DwellerAIService:
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)
-        await self._register_map_places_best_effort(
+        registered = await self._register_map_places_best_effort(
             db_session,
             dweller_obj,
             origin_place="",
@@ -238,6 +242,8 @@ class DwellerAIService:
             obj_in=llm_int_create,
         )
         await db_session.commit()
+        if not registered:
+            await map_service.notify_bio_registration_failure(db_session, dweller_obj)
 
         return await dweller_crud.get_full_info(db_session, dweller_id)
 

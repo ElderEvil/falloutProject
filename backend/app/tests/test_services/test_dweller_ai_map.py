@@ -50,6 +50,7 @@ async def test_generate_backstory_map_service_raising_is_swallowed(
     mock_llm.create = AsyncMock()
     mock_crud.update = AsyncMock()
     mock_map.register_bio_places = AsyncMock(side_effect=Exception("DB failure"))
+    mock_map.notify_bio_registration_failure = AsyncMock()
 
     mock_dweller = _make_dweller_mock(bio=None)
 
@@ -131,3 +132,50 @@ async def test_extend_bio_length_guard_truncates_at_1024(
     assert len(stored_bio) <= BIO_DB_MAX_LENGTH
     assert stored_bio.endswith("...")
     assert not stored_bio.endswith("....")  # not double-truncated
+
+
+@pytest.mark.parametrize("extend", [False, True])
+async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(async_session, vault, dweller, extend):
+    from sqlalchemy import func, select
+
+    from app import crud
+    from app.models.llm_interaction import LLMInteraction
+    from app.models.notification import Notification, NotificationType
+    from app.models.wasteland_location import DwellerLocation, WastelandLocation
+
+    dweller.bio = "Original biography."
+    await async_session.commit()
+    dweller_id = dweller.id
+    user = await crud.user.get(async_session, vault.user_id)
+    output = (
+        ExtendedBio(extended_bio="New biography.", visited_places=["Arefu", "Megaton"])
+        if extend
+        else DwellerBackstory(bio="New biography.", origin_place="Arefu", visited_places=["Megaton"])
+    )
+    result = MagicMock(output=output)
+    result.usage.return_value = MagicMock(input_tokens=3, output_tokens=2, total_tokens=5)
+    agent = "bio_extension_agent" if extend else "backstory_agent"
+    original = crud.wasteland_location.link_dweller
+
+    async def fail_after_link(*args, **kwargs):
+        await original(*args, **kwargs)
+        raise RuntimeError("map link failed")
+
+    with (
+        patch(f"app.services.dweller_ai.{agent}.run", new=AsyncMock(return_value=result)),
+        patch.object(crud.wasteland_location, "link_dweller", new=fail_after_link),
+    ):
+        if extend:
+            await dweller_ai.extend_bio(async_session, dweller_id, user)
+        else:
+            await dweller_ai.generate_backstory(user, async_session, dweller_id=dweller_id)
+    await async_session.rollback()
+    bio = (await crud.dweller.get(async_session, dweller_id)).bio
+    assert bio is not None
+    assert "New biography." in bio
+    interaction = (await async_session.execute(select(LLMInteraction))).scalar_one()
+    assert interaction.total_tokens == 5
+    notification = (await async_session.execute(select(Notification))).scalar_one()
+    assert notification.notification_type == NotificationType.MAP_REGISTRATION_FAILED
+    assert (await async_session.execute(select(func.count()).select_from(WastelandLocation))).scalar_one() == 0
+    assert (await async_session.execute(select(func.count()).select_from(DwellerLocation))).scalar_one() == 0

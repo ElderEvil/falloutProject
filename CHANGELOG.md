@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.8 (2026-09-08)
+
+### Bug Fixes
+
+* enforce shared chat access and type voice results ([#558](https://github.com/ElderEvil/falloutProject/issues/558)) b8bb0d5
+
 ## 2.80.7 (2026-09-08)
 
 ### Bug Fixes

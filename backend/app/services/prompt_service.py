@@ -12,11 +12,11 @@ import time
 from string import Formatter
 from uuid import UUID
 
-from sqlmodel import col, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.ai_settings import ai_settings as ai_settings_crud
+from app.crud.prompt import prompt as prompt_crud
 from app.models.prompt import Prompt
 
 logger = logging.getLogger(__name__)
@@ -103,26 +103,20 @@ async def create_prompt_version(
         raise ValueError(f"Unknown prompt agent_name: {agent_name!r}")
     _validate_prompt_template(template)
 
-    result = await db_session.exec(
-        select(Prompt)
-        .where(col(Prompt.prompt_name) == agent_name)
-        .order_by(col(Prompt.version).desc())
-        .with_for_update()
-    )
-    versions = list(result.all())
-    active = next((prompt for prompt in versions if prompt.is_active), None)
-    if active is None:
-        raise ValueError(f"No active prompt registered for {agent_name!r}")
+    async with db_session.begin_nested():
+        versions = await prompt_crud.get_versions_for_update(db_session, agent_name)
+        active = next((prompt for prompt in versions if prompt.is_active), None)
+        if active is None:
+            raise ValueError(f"No active prompt registered for {agent_name!r}")
 
-    active.is_active = False
-    replacement = Prompt(
-        prompt_name=agent_name,
-        description=description or active.description,
-        prompt_template=template,
-        version=max(prompt.version for prompt in versions) + 1,
-        is_active=True,
-    )
-    db_session.add(replacement)
+        replacement = Prompt(
+            prompt_name=agent_name,
+            description=description or active.description,
+            prompt_template=template,
+            version=max(prompt.version for prompt in versions) + 1,
+            is_active=True,
+        )
+        await prompt_crud.replace_active(db_session, active, replacement)
     await db_session.commit()
     await db_session.refresh(replacement)
     invalidate(agent_name)
@@ -147,12 +141,9 @@ async def get_instructions(db_session: AsyncSession, agent_name: str) -> tuple[s
 
     try:
         async with db_session.begin_nested():
-            rows = await db_session.exec(
-                select(Prompt).where(col(Prompt.prompt_name) == agent_name, col(Prompt.is_active).is_(True))
-            )
-            prompt = rows.first()
+            prompt = await prompt_crud.get_active(db_session, agent_name)
     except Exception:
-        logger.warning("Prompt registry lookup failed for %r; using hardcoded default", agent_name)
+        logger.exception("Prompt registry lookup failed for %r; using hardcoded default", agent_name)
         return default, None, compute_instructions_hash(default)
 
     if prompt is None:
@@ -173,6 +164,6 @@ async def get_provider_model_snapshot(db_session: AsyncSession) -> tuple[str, st
         async with db_session.begin_nested():
             profile = await ai_settings_crud.get_single(db_session)
     except Exception:
-        logger.warning("AI settings profile read failed; snapshotting env config only")
+        logger.exception("AI settings profile read failed; snapshotting env config only")
         return settings.AI_PROVIDER, settings.AI_MODEL
     return settings.effective_ai_provider(profile), settings.effective_ai_model(profile)

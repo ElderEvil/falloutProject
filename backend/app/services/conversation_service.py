@@ -156,7 +156,8 @@ class ConversationService:
 
         try:
             logger.info("Generating dweller response using PydanticAI agent")
-            result = await dweller_chat_agent.run(transcribed_text, deps=deps, instructions=instructions)
+            async with db_session.begin_nested():
+                result = await dweller_chat_agent.run(transcribed_text, deps=deps, instructions=instructions)
         except Exception:
             logger.exception("Dweller chat agent failed, using fallback for voice chat")
             dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
@@ -279,54 +280,56 @@ class ConversationService:
     ) -> VoiceChatResult:
         if not audio_bytes:
             raise ValidationException(detail="Empty audio file")
-        dweller = await get_accessible_dweller(dweller_id, user, db_session)
+        async with db_session.begin_nested():
+            dweller = await get_accessible_dweller(dweller_id, user, db_session)
 
-        logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
-        transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
-            audio_bytes, user.id, dweller_id, audio_filename
-        )
+            logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
+            transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
+                audio_bytes, user.id, dweller_id, audio_filename
+            )
 
-        # Check quota before running LLM (after transcription, before AI response)
-        quota_result = await quota_service.check_quota(user.id, db_session)
+            # Check quota before running LLM (after transcription, before AI response)
+            quota_result = await quota_service.check_quota(user.id, db_session)
 
-        quota_result.ensure_allowed()
+            quota_result.ensure_allowed()
 
-        instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
-        provider, model = await get_provider_model_snapshot(db_session)
-        response = await self._generate_response_with_agent(db_session, dweller, transcribed_text, instructions)
-        dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
-            response.text, dweller.gender, user.id, dweller_id
-        )
-        payload = MessagePayload(
-            transcribed_text=transcribed_text,
-            user_audio_url=user_audio_url,
-            audio_duration=audio_duration,
-            dweller_response_text=response.text,
-            dweller_audio_url=dweller_audio_url,
-            happiness_impact=response.happiness_impact,
-            action_suggestion=response.action_suggestion,
-            prompt_tokens=response.prompt_tokens,
-            completion_tokens=response.completion_tokens,
-            total_tokens=response.total_tokens,
-            provider=provider,
-            model=model,
-            prompt_id=prompt_id,
-            instructions_hash=instructions_hash,
-            instructions_snapshot=instructions,
-        )
-        dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
-        unlocked_places = await unlock_places_after_conversation(db_session, dweller)
-        result = VoiceChatResult(
-            transcription=transcribed_text,
-            user_audio_url=user_audio_url,
-            dweller_response=response.text,
-            dweller_audio_url=dweller_audio_url,
-            dweller_audio_bytes=dweller_audio_bytes,
-            dweller_message_id=dweller_message_id,
-            happiness_impact=response.happiness_impact,
-            action_suggestion=response.action_suggestion,
-            unlocked_places=unlocked_places,
-        )
+            instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
+            provider, model = await get_provider_model_snapshot(db_session)
+            response = await self._generate_response_with_agent(db_session, dweller, transcribed_text, instructions)
+            dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
+                response.text, dweller.gender, user.id, dweller_id
+            )
+            payload = MessagePayload(
+                transcribed_text=transcribed_text,
+                user_audio_url=user_audio_url,
+                audio_duration=audio_duration,
+                dweller_response_text=response.text,
+                dweller_audio_url=dweller_audio_url,
+                happiness_impact=response.happiness_impact,
+                action_suggestion=response.action_suggestion,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
+                total_tokens=response.total_tokens,
+                provider=provider,
+                model=model,
+                prompt_id=prompt_id,
+                instructions_hash=instructions_hash,
+                instructions_snapshot=instructions,
+            )
+            dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
+            unlocked_places = await unlock_places_after_conversation(db_session, dweller)
+            result = VoiceChatResult(
+                transcription=transcribed_text,
+                user_audio_url=user_audio_url,
+                dweller_response=response.text,
+                dweller_audio_url=dweller_audio_url,
+                dweller_audio_bytes=dweller_audio_bytes,
+                dweller_message_id=dweller_message_id,
+                happiness_impact=response.happiness_impact,
+                action_suggestion=response.action_suggestion,
+                unlocked_places=unlocked_places,
+            )
+        await db_session.commit()
         await send_chat_notification(
             user_id=user.id,
             dweller_id=dweller_id,

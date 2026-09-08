@@ -69,7 +69,7 @@ async def test_generate_backstory_map_service_raising_is_swallowed(
     # Should NOT raise — helper catches internally
     result = await dweller_ai.generate_backstory(
         user=mock_user,
-        db_session=MagicMock(),
+        db_session=MagicMock(commit=AsyncMock()),
         dweller_info=mock_dweller,
     )
 
@@ -119,7 +119,7 @@ async def test_extend_bio_length_guard_truncates_at_1024(
     mock_user.id = uuid.uuid4()
 
     await dweller_ai.extend_bio(
-        db_session=MagicMock(),
+        db_session=MagicMock(commit=AsyncMock()),
         dweller_id=mock_dweller.id,
         user=mock_user,
     )

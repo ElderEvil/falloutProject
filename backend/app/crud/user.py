@@ -2,7 +2,8 @@ from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
@@ -14,10 +15,14 @@ from app.utils.exceptions import ResourceConflictException
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    async def get_for_update(self, db_session: SAAsyncSession, user_id: UUID4) -> User | None:
+        result = await db_session.execute(select(User).where(col(User.id) == user_id).with_for_update())
+        return result.scalar_one_or_none()
+
     async def get_by_email(self, db_session: AsyncSession, email: str, include_deleted: bool = False) -> User | None:
         query = select(self.model).where(self.model.email == email)
         if not include_deleted:
-            query = query.where(~self.model.is_deleted)
+            query = query.where(~col(self.model.is_deleted))
         response = await db_session.execute(query)
         return response.scalar_one_or_none()
 
@@ -26,7 +31,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User | None:
         query = select(self.model).where(self.model.username == username)
         if not include_deleted:
-            query = query.where(~self.model.is_deleted)
+            query = query.where(~col(self.model.is_deleted))
         response = await db_session.execute(query)
         return response.scalar_one_or_none()
 

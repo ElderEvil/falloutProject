@@ -170,6 +170,7 @@ class DwellerAIService:
             db_session,
             obj_in=llm_int_create,
         )
+        await db_session.commit()
 
         return dweller_obj
 
@@ -236,6 +237,7 @@ class DwellerAIService:
             db_session,
             obj_in=llm_int_create,
         )
+        await db_session.commit()
 
         return await dweller_crud.get_full_info(db_session, dweller_id)
 
@@ -323,6 +325,7 @@ class DwellerAIService:
             db_session,
             obj_in=llm_int_create,
         )
+        await db_session.commit()
 
         return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 
@@ -385,6 +388,7 @@ class DwellerAIService:
             db_session,
             obj_in=llm_int_create,
         )
+        await db_session.commit()
 
         return dweller_obj
 
@@ -459,6 +463,7 @@ class DwellerAIService:
             db_session,
             obj_in=llm_int_create,
         )
+        await db_session.commit()
 
         return await dweller_crud.get_full_info(db_session, dweller_obj.id)
 

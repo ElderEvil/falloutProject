@@ -33,3 +33,14 @@ class TestLLMInteractionTokenEstimation:
         assert result.prompt_tokens == estimate_token_count("Some long prompt text for estimation")
         assert result.completion_tokens == estimate_token_count("A somewhat longer completion response here")
         assert result.total_tokens == 99
+
+
+async def test_usage_creation_leaves_commit_to_caller(async_session):
+    from app.models.llm_interaction import LLMInteraction
+
+    row = await llm_interaction_crud.create(
+        async_session, LLMInteractionCreate(parameters="Hi", response="Hello", usage="chat", total_tokens=7)
+    )
+    row_id = row.id
+    await async_session.rollback()
+    assert await async_session.get(LLMInteraction, row_id) is None

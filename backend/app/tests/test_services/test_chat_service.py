@@ -9,12 +9,13 @@ from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.crud.chat_message import chat_message as chat_message_crud
 from app.models.dweller import Dweller
 from app.models.user import User
 from app.models.vault import Vault
 from app.schemas.chat import UnlockedPlace
 from app.schemas.common import GenderEnum
-from app.schemas.dweller import DwellerCreate
+from app.schemas.dweller import DwellerCreate, DwellerReadFull
 from app.services.chat.agent_runner import AgentChatResult, run_chat_agent
 from app.services.chat.notifications import maybe_unlock_places
 from app.services.chat_service import chat_service
@@ -25,7 +26,7 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest_asyncio.fixture(name="chat_dweller")
-async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> DwellerReadFull:
     """Create a test dweller for chat tests."""
     dweller_data = create_fake_dweller()
     dweller_data.update(
@@ -57,7 +58,7 @@ class TestChatServiceErrorHandling:
     async def test_run_chat_agent_passes_active_registry_prompt(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
         """The active chat prompt is passed to the PydanticAI run."""
         from app.agents.dweller_chat_agent import DwellerChatOutput
@@ -106,7 +107,7 @@ class TestChatServiceErrorHandling:
     async def test_run_chat_agent_handles_usage_attribute_error(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
         """Test that _run_chat_agent handles AttributeError from usage gracefully.
 
@@ -159,7 +160,7 @@ class TestChatServiceErrorHandling:
     async def test_run_chat_agent_handles_usage_returns_none(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
         """Test that _run_chat_agent handles usage returning None gracefully."""
         from pydantic_ai.agent import AgentRunResult
@@ -195,18 +196,19 @@ class TestChatServiceErrorHandling:
             assert result.completion_tokens is None
             assert result.total_tokens is None
 
-    async def test_run_chat_agent_rolls_back_session_before_fallback_on_model_http_error(
+    async def test_run_chat_agent_rolls_back_savepoint_before_fallback_on_model_http_error(
         self,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
-        """Fallback after a provider error resets the shared session first (rollback before delegation)."""
+        """Fallback after a provider error rolls back only the agent savepoint before delegation."""
         from pydantic_ai.exceptions import ModelHTTPError
 
         provider_error = ModelHTTPError(status_code=500, model_name="gpt-4o-mini", body={"message": "provider down"})
-        db_session = AsyncMock()
+        savepoint = MagicMock(__aenter__=AsyncMock(), __aexit__=AsyncMock(return_value=False))
+        db_session = MagicMock(begin_nested=MagicMock(return_value=savepoint))
         fallback = AsyncMock(return_value=MagicMock(spec=AgentChatResult))
         order = MagicMock()
-        order.attach_mock(db_session.rollback, "rollback")
+        order.attach_mock(savepoint.__aexit__, "rollback")
         order.attach_mock(fallback, "fallback")
 
         with (
@@ -221,15 +223,16 @@ class TestChatServiceErrorHandling:
         fallback.assert_awaited_once_with(chat_dweller, "Hello", None)
         assert result is fallback.return_value
 
-    async def test_run_chat_agent_rolls_back_session_before_fallback_on_unexpected_error(
+    async def test_run_chat_agent_rolls_back_savepoint_before_fallback_on_unexpected_error(
         self,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
-        """Fallback after an unexpected error resets the shared session first (rollback before delegation)."""
-        db_session = AsyncMock()
+        """Fallback after an unexpected error rolls back only the agent savepoint before delegation."""
+        savepoint = MagicMock(__aenter__=AsyncMock(), __aexit__=AsyncMock(return_value=False))
+        db_session = MagicMock(begin_nested=MagicMock(return_value=savepoint))
         fallback = AsyncMock(return_value=MagicMock(spec=AgentChatResult))
         order = MagicMock()
-        order.attach_mock(db_session.rollback, "rollback")
+        order.attach_mock(savepoint.__aexit__, "rollback")
         order.attach_mock(fallback, "fallback")
 
         with (
@@ -248,7 +251,7 @@ class TestChatServiceErrorHandling:
     async def test_stream_response_ownership_denied(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
         missing: bool,
     ) -> None:
         """Test that stream_response yields error when dweller's vault belongs to a different user."""
@@ -286,7 +289,7 @@ class TestChatServiceErrorHandling:
     async def test_stream_response_streams_structured_output_deltas(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
         test_user: User,
         superuser: User,
         as_admin: bool,
@@ -378,7 +381,7 @@ class TestChatServiceErrorHandling:
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
         test_user: User,
     ) -> None:
         """stream_response yields the exact provider reason when run_stream raises ModelHTTPError."""
@@ -417,7 +420,7 @@ class TestChatServiceErrorHandling:
     async def test_stream_response_falls_back_on_invalid_structured_output(
         self,
         async_session: AsyncSession,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
         test_user: User,
     ) -> None:
         """stream_response re-runs via run() (retry-capable) when structured streaming output fails validation."""
@@ -498,7 +501,7 @@ class TestMaybeUnlockPlaces:
         self,
         async_session: AsyncSession,
         vault: Vault,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
         """After 3 user messages to a dweller, their linked places get unlocked."""
         from app.crud.chat_message import chat_message as chat_crud
@@ -571,7 +574,7 @@ class TestMaybeUnlockPlaces:
         self,
         async_session: AsyncSession,
         vault: Vault,
-        chat_dweller: Dweller,
+        chat_dweller: DwellerReadFull,
     ) -> None:
         """_maybe_unlock_places does not raise when the dweller has no linked places."""
         from app.crud.chat_message import chat_message as chat_crud
@@ -590,3 +593,87 @@ class TestMaybeUnlockPlaces:
 
         # Must not raise even though dweller has no DwellerLocation rows
         await maybe_unlock_places(async_session, chat_dweller)
+
+
+@pytest.mark.parametrize("mode", ["text", "stream", "voice"])
+@pytest.mark.parametrize("fail_write", [False, True])
+async def test_chat_commits_usage_messages_and_happiness_together(
+    async_session, chat_dweller, test_user, mode, fail_write
+):
+    from sqlalchemy import func, select
+
+    from app.agents.dweller_chat_agent import DwellerChatOutput
+    from app.models.chat_message import ChatMessage
+    from app.models.llm_interaction import LLMInteraction
+    from app.services.conversation_service import conversation_service
+
+    dweller_id, happiness = chat_dweller.id, chat_dweller.happiness
+    output = DwellerChatOutput(
+        response_text="Hello", sentiment_score=5, reason_text="Friendly", action_type="no_action"
+    )
+    result = MagicMock(output=output, usage=RunUsage(input_tokens=3, output_tokens=2))
+    original = chat_message_crud.create_message
+
+    async def fail_reply(db, *, obj_in):
+        if fail_write and obj_in.from_dweller_id:
+            raise RuntimeError("reply write failed")
+        return await original(db, obj_in=obj_in)
+
+    async def generate_stream(deps, dweller, message_text, bundle, instructions):
+        from app.services.chat_happiness_service import apply_chat_happiness
+
+        await apply_chat_happiness(deps.db_session, dweller.id, 5)
+        bundle.response_text = "Hello"
+        yield {"type": "token", "text": "Hello"}
+
+    with (
+        patch("app.services.chat.agent_runner.dweller_chat_agent.run", new=AsyncMock(return_value=result)),
+        patch("app.services.chat_service.stream_with_fallback", new=generate_stream),
+        patch.object(chat_message_crud, "create_message", new=fail_reply),
+        patch.object(conversation_service, "_transcribe_audio", new=AsyncMock(return_value=("Hi", None, None))),
+        patch.object(conversation_service, "_generate_tts_audio", new=AsyncMock(return_value=(b"audio", None))),
+    ):
+        if mode == "stream":
+            events = [event async for event in chat_service.stream_response(async_session, test_user, dweller_id, "Hi")]
+            assert events[-1]["type"] == ("error" if fail_write else "done")
+        else:
+            operation = (
+                conversation_service.process_audio_message(async_session, test_user, dweller_id, b"audio")
+                if mode == "voice"
+                else chat_service.process_text_message(async_session, test_user, dweller_id, "Hi")
+            )
+            if fail_write:
+                with pytest.raises(RuntimeError, match="reply write failed"):
+                    await operation
+            else:
+                await operation
+
+    await async_session.rollback()
+    assert (await async_session.execute(select(func.count()).select_from(LLMInteraction))).scalar_one() == (
+        0 if fail_write else 1
+    )
+    assert (await async_session.execute(select(func.count()).select_from(ChatMessage))).scalar_one() == (
+        0 if fail_write else 2
+    )
+    saved_happiness = (await crud.dweller.get(async_session, dweller_id)).happiness
+    assert saved_happiness == happiness if fail_write else saved_happiness > happiness
+
+
+async def test_discovery_failure_preserves_pending_conversation(async_session, chat_dweller, test_user):
+    from app.models.chat_message import ChatMessageCreate
+
+    message = await chat_message_crud.create_message(
+        async_session,
+        obj_in=ChatMessageCreate(
+            vault_id=chat_dweller.vault.id,
+            from_user_id=test_user.id,
+            to_dweller_id=chat_dweller.id,
+            message_text="Keep this message",
+        ),
+    )
+    with patch.object(
+        chat_message_crud, "count_user_messages_to_dweller", new=AsyncMock(side_effect=RuntimeError("offline"))
+    ):
+        assert await maybe_unlock_places(async_session, chat_dweller) == []
+    await async_session.commit()
+    assert (await chat_message_crud.get(async_session, message.id)).message_text == "Keep this message"

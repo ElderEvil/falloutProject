@@ -1,7 +1,7 @@
 """Tests for QuotaService."""
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.models.llm_interaction import LLMInteraction
@@ -46,6 +46,9 @@ async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSes
 
     # Create usage at exactly 80% threshold (400K of 500K)
     interaction = LLMInteraction(
+        parameters=None,
+        response=None,
+        usage="test",
         user_id=user.id,
         total_tokens=400000,  # 80% of 500K
         prompt_tokens=200000,
@@ -84,3 +87,47 @@ def test_quota_enforcement_keeps_http_headers_at_api_boundary(allowed: bool, war
     assert response.status_code == 429
     assert response.headers["X-Quota-Remaining"] == "0"
     assert response.headers.get("X-Quota-Warning") == ("true" if warning else None)
+
+
+async def test_quota_raw_session_owns_usage_transaction(db_connection, async_session):
+    from datetime import datetime
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy import event
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
+
+    from app.models.user import User
+
+    statements = []
+    async with RawAsyncSession(
+        bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    ) as db:
+        user = User(
+            username="quota-raw", email="quota-raw@example.com", hashed_password="unused", monthly_token_limit=100
+        )
+        db.add(user)
+        await db.commit()
+        user_id = user.id
+        db.add(
+            LLMInteraction(
+                parameters=None,
+                response=None,
+                usage="test",
+                user_id=user_id,
+                total_tokens=99,
+                created_at=datetime(2000, 1, 1),
+            )
+        )
+        await db.commit()
+        event.listen(
+            db.sync_session,
+            "do_orm_execute",
+            lambda state: statements.append(str(state.statement.compile(dialect=postgresql.dialect()))),
+        )
+        await quota_service.record_usage(user_id, 80, db, AsyncMock())
+        quota = await quota_service.check_quota(user_id, db)
+        assert (quota.used, quota.remaining, quota.warning) == (80, 20, True)
+        assert any("FOR UPDATE" in statement for statement in statements)
+        await db.rollback()
+        assert (await quota_service.check_quota(user_id, db)).used == 0

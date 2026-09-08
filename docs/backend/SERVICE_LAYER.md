@@ -66,3 +66,12 @@ stay compliant.
   Rejections carry remaining/warning metadata; `main.domain_exception_handler` formats quota headers.
 - `dweller_ai.py` now demonstrates the target pattern: provider/storage/audio failures raise
   `AIProviderException`/`AIStorageException`/`AIAudioException` instead of `HTTPException`.
+
+- Chat text, streaming, and voice entry points own the conversation commit. Happiness, LLM usage creation,
+  message creation, and place unlocking only flush. Recoverable agent/discovery work uses savepoints; failures
+  unwind their own writes without rolling back the caller's quota lock or messages.
+- `QuotaService.record_usage` stages usage in its caller's transaction; its Redis invalidation remains best-effort.
+  Prompt activation commits in `create_prompt_version`; failed activation rolls back its savepoint, while failed
+  prompt/profile reads retain shipped fallbacks. These queries support raw SQLAlchemy async sessions.
+- Non-chat dweller AI operations still have multiple stages; their usage writes now commit explicitly in the
+  service. Legacy generic CRUD commits elsewhere are deferred to their domain batches.

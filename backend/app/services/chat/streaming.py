@@ -52,7 +52,10 @@ async def stream_structured(
     Raises:
         UnexpectedModelBehavior: If the model's structured output fails validation.
     """
-    async with dweller_chat_agent.run_stream(message_text, deps=deps, instructions=instructions) as result:
+    async with (
+        deps.db_session.begin_nested(),
+        dweller_chat_agent.run_stream(message_text, deps=deps, instructions=instructions) as result,
+    ):
         # Structured output snapshots can revise previously emitted text.
         # Tell clients to replace their draft when that happens.
         previous_text = ""

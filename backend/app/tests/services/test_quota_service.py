@@ -44,7 +44,7 @@ def user_id() -> UUID:
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
     """Create a mock database session."""
-    return AsyncMock()
+    return AsyncMock(add=MagicMock())
 
 
 @pytest.fixture

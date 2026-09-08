@@ -37,7 +37,10 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
     orchestration live in the service, and domain failures retain their status through the API handler.
   - **Access boundary:** text, voice, streaming, and history now share vault ownership validation with API
     dependencies; owners and superusers are allowed, while foreign/missing dwellers are rejected before chat work.
-    Persistence and typed streaming events remain in this batch.
+  - **Persistence boundary:** quota/prompt queries live in CRUD; text, streaming, and voice commit happiness,
+    usage, and both messages together. Agent fallback and optional place discovery use savepoints so they cannot
+    roll back the enclosing conversation or release its quota lock. Prompt activation remains append-only.
+    Typed streaming events and the remaining provider boundaries are next in this batch.
 - [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
   room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.models.dweller import Dweller
 from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum, WastelandLocation
@@ -244,21 +244,21 @@ class CRUDWastelandLocation:
         stmt = (
             sa_update(DwellerLocation)
             .where(
-                DwellerLocation.dweller_id == dweller_id,
-                DwellerLocation.is_unlocked.is_(False),
+                col(DwellerLocation.dweller_id) == dweller_id,
+                col(DwellerLocation.is_unlocked).is_(False),
             )
             .values(is_unlocked=True)
-            .returning(DwellerLocation.location_id)
+            .returning(col(DwellerLocation.location_id))
         )
         location_ids = list((await db_session.execute(stmt)).scalars())
         if not location_ids:
             return []
 
         names_result = await db_session.execute(
-            select(WastelandLocation.id, WastelandLocation.name).where(WastelandLocation.id.in_(location_ids))
+            select(WastelandLocation.id, WastelandLocation.name).where(col(WastelandLocation.id).in_(location_ids))
         )
         location_names = {row.id: row.name for row in names_result.all()}
-        await db_session.commit()
+        await db_session.flush()
         return [(location_id, location_names[location_id]) for location_id in location_ids]
 
 

@@ -26,9 +26,10 @@ from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
+from app.services.chat.models import StreamBundle
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
-from app.services.chat.streaming import StreamBundle, stream_with_fallback
+from app.services.chat.streaming import stream_with_fallback
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.utils.exceptions import (

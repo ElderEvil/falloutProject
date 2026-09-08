@@ -57,6 +57,7 @@ async def chat_dweller_fixture(
 ) -> Dweller:
     """Create a dweller owned by the authenticated normal user."""
     user = await crud.user.get_by_email(async_session, settings.EMAIL_TEST_USER)
+    assert user is not None
     vault.user_id = user.id
     await async_session.flush()
     dweller_data = create_fake_dweller()
@@ -566,11 +567,12 @@ class TestMessageIdCorrelation:
     ) -> None:
         """Both response modes retain message correlation and progression metadata."""
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
-        from app.services.conversation_service import ChatGenerationResult, conversation_service
+        from app.services.chat.models import AgentChatResult
+        from app.services.conversation_service import conversation_service
 
         message_id, place_id = uuid4(), uuid4()
-        generated = ChatGenerationResult(
-            text=reply,
+        generated = AgentChatResult(
+            response_text=reply,
             happiness_impact=HappinessImpact(
                 delta=2,
                 reason_code=HappinessReasonCode.CHAT_POSITIVE,
@@ -618,7 +620,7 @@ class TestMessageIdCorrelation:
             data = response.json()
             assert data["transcription"] == transcription
             assert data["dweller_message_id"] == str(message_id)
-            assert data["dweller_response"] == generated.text
+            assert data["dweller_response"] == generated.response_text
             assert "dweller_audio_bytes" not in data
             assert data["unlocked_places"] == [{"location_id": str(place_id), "name": "Megaton"}]
         assert [call.args[0]["type"] for call in notify.await_args_list] == ["happiness_update", "action_suggestion"]

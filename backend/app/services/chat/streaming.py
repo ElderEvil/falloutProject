@@ -2,9 +2,7 @@
 
 import logging
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
 
-from pydantic import UUID4
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.agents.dweller_chat_agent import (
@@ -14,30 +12,14 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     parse_action_suggestion,
 )
-from app.schemas.chat import ActionSuggestion, ChatStreamToken
+from app.schemas.chat import ChatStreamToken
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.chat import agent_runner
+from app.services.chat.models import StreamBundle
 from app.services.chat_happiness_service import apply_chat_happiness
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class StreamBundle:
-    """Collected structured-stream outcome shared between streaming helpers and persistence."""
-
-    response_text: str = ""
-    happiness_impact: HappinessImpact | None = None
-    action_suggestion: ActionSuggestion | None = None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
-    provider: str | None = None
-    model: str | None = None
-    prompt_id: UUID4 | None = None
-    instructions_hash: str | None = None
-    instructions_snapshot: str | None = None
 
 
 async def stream_structured(

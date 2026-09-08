@@ -3,34 +3,23 @@
 import asyncio
 import logging
 import random
-from dataclasses import dataclass
 from uuid import uuid4
 
 from pydantic import UUID4
-from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.agents.dweller_chat_agent import (
-    DwellerChatDeps,
-    DwellerChatOutput,
-    compute_happiness_delta,
-    derive_reason_code,
-    dweller_chat_agent,
-    parse_action_suggestion,
-)
 from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
-from app.models.base import SPECIALModel
 from app.models.chat_message import ChatMessageCreate
-from app.schemas.chat import ActionSuggestion, NoAction, VoiceChatResult
-from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+from app.schemas.chat import VoiceChatResult
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.access_service import get_accessible_dweller
 from app.services.ai_service import get_ai_service
+from app.services.chat.agent_runner import run_chat_agent
+from app.services.chat.models import AgentChatResult, VoiceMessagePayload
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
-from app.services.chat_happiness_service import apply_chat_happiness
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
 from app.services.storage import get_storage_client
@@ -39,52 +28,10 @@ from app.utils.exceptions import ValidationException
 logger = logging.getLogger(__name__)
 
 
-def extract_usage(usage: RunUsage | None) -> tuple[int | None, int | None, int | None]:
-    """Keep malformed usage metadata from interrupting a generated chat response."""
-    if usage is None:
-        return None, None, None
-    try:
-        return usage.input_tokens, usage.output_tokens, usage.total_tokens
-    except Exception:
-        logger.exception("Failed to extract usage info from agent result")
-        return None, None, None
-
-
 VOICE_MAP = {
     GenderEnum.MALE: ["echo", "fable", "onyx"],
     GenderEnum.FEMALE: ["nova", "shimmer", "alloy"],
 }
-
-
-@dataclass
-class MessagePayload:
-    """Data holder for message processing results."""
-
-    transcribed_text: str
-    user_audio_url: str | None
-    audio_duration: float | None
-    dweller_response_text: str
-    dweller_audio_url: str | None
-    happiness_impact: HappinessImpact | None = None
-    action_suggestion: ActionSuggestion | None = None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
-    provider: str | None = None
-    model: str | None = None
-    prompt_id: UUID4 | None = None
-    instructions_hash: str | None = None
-    instructions_snapshot: str | None = None
-
-
-@dataclass
-class ChatGenerationResult:
-    text: str
-    happiness_impact: HappinessImpact | None
-    action_suggestion: ActionSuggestion | None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
 
 
 class ConversationService:
@@ -99,34 +46,6 @@ class ConversationService:
         if gender is not None and gender in VOICE_MAP:
             return random.choice(VOICE_MAP[gender])
         return "alloy"
-
-    @staticmethod
-    def _build_dweller_prompt(dweller, *, for_audio: bool = False) -> str:
-        special_stats = SPECIALModel.format_special_stats(dweller)
-        vault_stats = (
-            f" Average happiness: {dweller.vault.happiness}/100"
-            f" Power: {dweller.vault.power}/{dweller.vault.power_max}"
-            f" Food: {dweller.vault.food}/{dweller.vault.food_max}"
-            f" Water: {dweller.vault.water}/{dweller.vault.water_max}"
-        )
-        audio_instruction = (
-            "\nKeep responses concise (under 150 words) since this will be converted to audio." if for_audio else ""
-        )
-        return f"""
-        You are a Vault-Tec Dweller named {dweller.first_name} {dweller.last_name} in a post-apocalyptic world.
-        You are {dweller.gender.value} {dweller.age_group.value.title()} of level {dweller.level}.
-        You are considered a {dweller.rarity.value} rarity dweller.
-        You are in a vault {dweller.vault.number} with a group of other dwellers.
-        You are in the {dweller.room.name if dweller.room else "a"} room of the vault.
-        Your outfit is {dweller.outfit.name if dweller.outfit else "Vault Suit"}.
-        Your weapon is {dweller.weapon.name if dweller.weapon else "Fist"}.
-        You have {dweller.stimpack} Stimpacks and {dweller.radaway} Radaways.
-        Your health is {dweller.health}/{dweller.max_health}.
-        Your happiness level is {dweller.happiness}/100. Don't mention this, just act accordingly.
-        Your SPECIAL stats are: {special_stats}. Don't mention them until asked, use this information for acting.
-        In case user asks about vault - here is the information: {vault_stats}. Say it in a natural way.
-        Try to be in character and be in line with the Fallout universe.{audio_instruction}
-        """
 
     async def _transcribe_audio(
         self, audio_bytes: bytes, user_id: UUID4, dweller_id: UUID4, audio_filename: str
@@ -151,58 +70,8 @@ class ConversationService:
 
     async def _generate_response_with_agent(
         self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str
-    ) -> ChatGenerationResult:
-        deps = DwellerChatDeps(db_session=db_session, dweller=dweller, vault_id=dweller.vault.id)
-
-        try:
-            logger.info("Generating dweller response using PydanticAI agent")
-            async with db_session.begin_nested():
-                result = await dweller_chat_agent.run(transcribed_text, deps=deps, instructions=instructions)
-        except Exception:
-            logger.exception("Dweller chat agent failed, using fallback for voice chat")
-            dweller_prompt = self._build_dweller_prompt(dweller, for_audio=True)
-            system_instructions = "\n\n".join((instructions, dweller_prompt.strip()))
-            result = await self.ai_service.chat_completion_with_usage(
-                [
-                    {"role": "system", "content": system_instructions},
-                    {"role": "user", "content": transcribed_text},
-                ]
-            )
-            happiness = HappinessImpact(
-                delta=0,
-                reason_code=HappinessReasonCode.CHAT_NEUTRAL,
-                reason_text="Voice chat processed without sentiment analysis",
-                happiness_after=dweller.happiness,
-            )
-            return ChatGenerationResult(
-                text=result.text,
-                happiness_impact=happiness,
-                action_suggestion=NoAction(reason="Unable to analyze conversation for suggestions"),
-                prompt_tokens=result.prompt_tokens,
-                completion_tokens=result.completion_tokens,
-                total_tokens=result.total_tokens,
-            )
-
-        output: DwellerChatOutput = result.output
-        prompt_tokens, completion_tokens, total_tokens = extract_usage(result.usage)
-        delta = compute_happiness_delta(output.sentiment_score)
-        new_dweller_happiness, _ = await apply_chat_happiness(db_session=db_session, dweller_id=dweller.id, delta=delta)
-        reason_code_str = derive_reason_code(output.sentiment_score)
-        happiness_impact = HappinessImpact(
-            delta=delta,
-            reason_code=HappinessReasonCode(reason_code_str),
-            reason_text=output.reason_text,
-            happiness_after=new_dweller_happiness,
-        )
-        action_suggestion = await parse_action_suggestion(output, db_session, dweller)
-        return ChatGenerationResult(
-            text=output.response_text,
-            happiness_impact=happiness_impact,
-            action_suggestion=action_suggestion,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-        )
+    ) -> AgentChatResult:
+        return await run_chat_agent(db_session, dweller, transcribed_text, instructions, for_audio=True)
 
     async def _generate_tts_audio(
         self, text: str, gender: GenderEnum | None, user_id: UUID4, dweller_id: UUID4
@@ -227,7 +96,7 @@ class ConversationService:
         db_session: AsyncSession,
         user: User,
         dweller,
-        payload: "MessagePayload",
+        payload: VoiceMessagePayload,
     ) -> UUID4:
         llm_int_create = LLMInteractionCreate(
             parameters=payload.transcribed_text,
@@ -297,13 +166,13 @@ class ConversationService:
             provider, model = await get_provider_model_snapshot(db_session)
             response = await self._generate_response_with_agent(db_session, dweller, transcribed_text, instructions)
             dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
-                response.text, dweller.gender, user.id, dweller_id
+                response.response_text, dweller.gender, user.id, dweller_id
             )
-            payload = MessagePayload(
+            payload = VoiceMessagePayload(
                 transcribed_text=transcribed_text,
                 user_audio_url=user_audio_url,
                 audio_duration=audio_duration,
-                dweller_response_text=response.text,
+                dweller_response_text=response.response_text,
                 dweller_audio_url=dweller_audio_url,
                 happiness_impact=response.happiness_impact,
                 action_suggestion=response.action_suggestion,
@@ -321,7 +190,7 @@ class ConversationService:
             result = VoiceChatResult(
                 transcription=transcribed_text,
                 user_audio_url=user_audio_url,
-                dweller_response=response.text,
+                dweller_response=response.response_text,
                 dweller_audio_url=dweller_audio_url,
                 dweller_audio_bytes=dweller_audio_bytes,
                 dweller_message_id=dweller_message_id,

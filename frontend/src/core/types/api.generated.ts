@@ -397,6 +397,9 @@ export interface paths {
         /**
          * Voice Chat With Dweller
          * @description Transcribe audio, generate a reply, and return MP3 bytes or conversation metadata.
+         *
+         *     Binary responses percent-encode UTF-8 text in X-Transcription and X-Response-Text;
+         *     clients must decode these headers with decodeURIComponent. JSON fields remain plain text.
          */
         post: operations["voice_chat_with_dweller_api_v1_chat__dweller_id__voice_post"];
         delete?: never;

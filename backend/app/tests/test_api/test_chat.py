@@ -6,6 +6,7 @@ Integration tests with external services (OpenAI API, storage) are omitted due t
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import unquote
 from uuid import uuid4
 
 import pytest
@@ -531,6 +532,23 @@ class TestMessageIdCorrelation:
     2. WS action_suggestion payloads include message_id matching the HTTP response
     """
 
+    @pytest.mark.parametrize(
+        ("transcription", "reply", "encoded_transcription", "encoded_reply"),
+        [
+            (
+                "Where should I work?",
+                "You should work in the power plant!",
+                "Where%20should%20I%20work%3F",
+                "You%20should%20work%20in%20the%20power%20plant%21",
+            ),
+            (
+                "Де / 100% +?",
+                "你好 👋\r\n",
+                "%D0%94%D0%B5%20%2F%20100%25%20%2B%3F",
+                "%E4%BD%A0%E5%A5%BD%20%F0%9F%91%8B%0D%0A",
+            ),
+        ],
+    )
     @pytest.mark.parametrize("return_audio", [False, True])
     @pytest.mark.parametrize("as_admin", [False, True])
     async def test_voice_chat_ws_action_suggestion_includes_message_id(
@@ -541,6 +559,10 @@ class TestMessageIdCorrelation:
         return_audio: bool,
         superuser_token_headers: dict[str, str],
         as_admin: bool,
+        transcription: str,
+        reply: str,
+        encoded_transcription: str,
+        encoded_reply: str,
     ) -> None:
         """Both response modes retain message correlation and progression metadata."""
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
@@ -548,7 +570,7 @@ class TestMessageIdCorrelation:
 
         message_id, place_id = uuid4(), uuid4()
         generated = ChatGenerationResult(
-            text="You should work in the power plant!",
+            text=reply,
             happiness_impact=HappinessImpact(
                 delta=2,
                 reason_code=HappinessReasonCode.CHAT_POSITIVE,
@@ -564,7 +586,7 @@ class TestMessageIdCorrelation:
             patch.object(
                 conversation_service,
                 "_transcribe_audio",
-                new=AsyncMock(return_value=("Where should I work?", None, None)),
+                new=AsyncMock(return_value=(transcription, None, None)),
             ),
             patch.object(conversation_service, "_generate_response_with_agent", new=AsyncMock(return_value=generated)),
             patch.object(
@@ -588,10 +610,13 @@ class TestMessageIdCorrelation:
             assert response.content == b"fake audio bytes"
             assert response.headers["content-type"] == "audio/mpeg"
             assert response.headers["x-message-id"] == str(message_id)
-            assert response.headers["x-transcription"] == "Where should I work?"
-            assert response.headers["x-response-text"] == generated.text
+            assert response.headers["x-transcription"] == encoded_transcription
+            assert unquote(response.headers["x-transcription"]) == transcription
+            assert response.headers["x-response-text"] == encoded_reply
+            assert unquote(response.headers["x-response-text"]) == reply
         else:
             data = response.json()
+            assert data["transcription"] == transcription
             assert data["dweller_message_id"] == str(message_id)
             assert data["dweller_response"] == generated.text
             assert "dweller_audio_bytes" not in data

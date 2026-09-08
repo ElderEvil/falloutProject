@@ -1,6 +1,7 @@
 """Chat endpoints."""
 
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import Response
@@ -67,7 +68,11 @@ async def voice_chat_with_dweller(
     *,
     return_audio: bool = True,
 ) -> Response | DwellerVoiceChatResponse:
-    """Transcribe audio, generate a reply, and return MP3 bytes or conversation metadata."""
+    """Transcribe audio, generate a reply, and return MP3 bytes or conversation metadata.
+
+    Binary responses percent-encode UTF-8 text in X-Transcription and X-Response-Text;
+    clients must decode these headers with decodeURIComponent. JSON fields remain plain text.
+    """
     result = await conversation_service.process_audio_message(
         db_session=db_session,
         user=user,
@@ -81,8 +86,8 @@ async def voice_chat_with_dweller(
             media_type="audio/mpeg",
             headers={
                 "Content-Disposition": 'inline; filename="dweller_response.mp3"',
-                "X-Transcription": result.transcription,
-                "X-Response-Text": result.dweller_response,
+                "X-Transcription": quote(result.transcription, safe=""),
+                "X-Response-Text": quote(result.dweller_response, safe=""),
                 "X-Message-Id": str(result.dweller_message_id),
             },
         )

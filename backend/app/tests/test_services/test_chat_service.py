@@ -493,6 +493,43 @@ class TestChatServiceErrorHandling:
         assert events[-1]["happiness_impact"]["delta"] == 0
 
 
+async def test_closing_stream_releases_provider_and_savepoint(
+    async_session: AsyncSession, chat_dweller: DwellerReadFull
+) -> None:
+    """A disconnected client immediately closes the provider stream and its savepoint."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from app.agents.dweller_chat_agent import DwellerChatDeps
+    from app.services.chat.streaming import StreamBundle, stream_with_fallback
+
+    provider_closed = False
+
+    async def stream_output():
+        yield SimpleNamespace(response_text="Hello")
+
+    @asynccontextmanager
+    async def fake_provider(*args, **kwargs):
+        nonlocal provider_closed
+        try:
+            yield SimpleNamespace(stream_output=stream_output)
+        finally:
+            provider_closed = True
+
+    deps = DwellerChatDeps(
+        db_session=async_session,
+        dweller=chat_dweller,
+        vault_id=chat_dweller.vault.id,
+    )
+    with patch("app.services.chat.streaming.dweller_chat_agent.run_stream", new=fake_provider):
+        stream = stream_with_fallback(deps, chat_dweller, "Hi", StreamBundle(), "Chat")
+        assert await anext(stream) == {"type": "token", "text": "Hello"}
+        await stream.aclose()
+
+    assert provider_closed is True
+    assert async_session.in_nested_transaction() is False
+
+
 @pytest.mark.asyncio
 class TestMaybeUnlockPlaces:
     """Tests for the _maybe_unlock_places side-effect."""

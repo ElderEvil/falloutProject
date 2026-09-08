@@ -132,6 +132,13 @@ async def test_register_bio_places_retries_a_transient_failure(
     assert len(links) == 3
 
 
+@pytest.mark.asyncio
+async def test_register_bio_places_handles_final_commit_failure(async_session: AsyncSession, dweller: Dweller) -> None:
+    """A failed final commit remains a best-effort map-registration failure."""
+    with patch.object(async_session, "commit", new=AsyncMock(side_effect=SQLAlchemyError("offline"))):
+        assert await map_service.register_bio_places(async_session, dweller, "Arefu", []) is False
+
+
 # ---------------------------------------------------------------------------
 # Regression — DwellerReadFull has vault_id (production path)
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """Structured-output streaming for chat with a non-streaming fallback."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
 from pydantic import UUID4
@@ -46,7 +46,7 @@ async def stream_structured(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
-) -> AsyncIterator[dict]:
+) -> AsyncGenerator[dict]:
     """Stream structured output tokens and collect the final output metadata into ``bundle``.
 
     Raises:
@@ -99,7 +99,7 @@ async def stream_with_fallback(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
-) -> AsyncIterator[dict]:
+) -> AsyncGenerator[dict]:
     """Stream structured output, falling back to a non-streaming run on validation failure.
 
     Yields token events. On ``UnexpectedModelBehavior`` (local providers
@@ -107,16 +107,22 @@ async def stream_with_fallback(
     retry-capable non-streaming path so action suggestions are preserved.
     The resolved values are written into ``bundle`` for later persistence.
     """
+    structured_stream = stream_structured(deps, dweller, message_text, bundle, instructions)
     try:
-        async for event in stream_structured(deps, dweller, message_text, bundle, instructions):
-            yield event
-    except UnexpectedModelBehavior:
-        logger.warning("Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id)
-        result = await agent_runner.run_chat_agent(deps.db_session, dweller, message_text, instructions)
-        bundle.response_text = result.response_text
-        bundle.happiness_impact = result.happiness_impact
-        bundle.action_suggestion = result.action_suggestion
-        bundle.prompt_tokens = result.prompt_tokens
-        bundle.completion_tokens = result.completion_tokens
-        bundle.total_tokens = result.total_tokens
-        yield {"type": "token", "text": bundle.response_text, "replace": True}
+        try:
+            async for event in structured_stream:
+                yield event
+        except UnexpectedModelBehavior:
+            logger.warning(
+                "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
+            )
+            result = await agent_runner.run_chat_agent(deps.db_session, dweller, message_text, instructions)
+            bundle.response_text = result.response_text
+            bundle.happiness_impact = result.happiness_impact
+            bundle.action_suggestion = result.action_suggestion
+            bundle.prompt_tokens = result.prompt_tokens
+            bundle.completion_tokens = result.completion_tokens
+            bundle.total_tokens = result.total_tokens
+            yield {"type": "token", "text": bundle.response_text, "replace": True}
+    finally:
+        await structured_stream.aclose()

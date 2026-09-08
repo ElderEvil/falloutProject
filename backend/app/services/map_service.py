@@ -184,7 +184,18 @@ class MapService:
                 )
             else:
                 if commit:
-                    await db_session.commit()
+                    try:
+                        await db_session.commit()
+                    except Exception:
+                        await db_session.rollback()
+                        logger.exception(
+                            "register_bio_places could not commit: dweller=%s vault=%s origin=%r",
+                            map_dweller.id,
+                            map_dweller.vault_id,
+                            origin_place,
+                        )
+                        await self.notify_bio_registration_failure(db_session, map_dweller)
+                        return False
                 return True
 
         if commit:
@@ -323,9 +334,9 @@ class MapService:
         Event records are the journey history and therefore the route authority.
         Older events without the Journal coordinate fields are simply omitted.
         """
-        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        result = await db_session.exec(select(Exploration).where(Exploration.vault_id == vault_id))
         routes: list[DiscoveryRouteRead] = []
-        for exploration in result.scalars().all():
+        for exploration in result.all():
             points: list[DiscoveryRoutePoint] = []
             for event in exploration.events:
                 if event.get("type") != "discovery":

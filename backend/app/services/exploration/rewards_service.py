@@ -28,6 +28,7 @@ from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service
 from app.services.resource_manager import compute_medical_capacity
+from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.weapon_assets import get_weapon_image_url
@@ -422,7 +423,7 @@ class RewardsService:
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
         value = self._loot_caps_value(loot_item, weapons_data, outfits_data)
         vault = await crud_vault.get(db_session, exploration.vault_id)
-        await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()
@@ -441,7 +442,7 @@ class RewardsService:
         total_caps = exploration.total_caps_found
         if total_caps > 0:
             vault = await crud_vault.get(db_session, exploration.vault_id)
-            await crud_vault.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps)
+            await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps)
 
         # Calculate and apply experience
         full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)

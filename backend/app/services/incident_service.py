@@ -584,10 +584,11 @@ class IncidentService:
 
             if total_caps_earned > 0:
                 from app.crud.vault import vault as vault_crud
+                from app.services.vault_service import vault_service
 
                 vault = await vault_crud.get(db_session, vault_id)
                 if vault:
-                    await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
+                    await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=total_caps_earned)
                     stats["caps_earned"] = total_caps_earned
                     self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 

@@ -481,7 +481,6 @@ class TestProcessVaultIncidents:
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
             mock_vault_crud.get = AsyncMock(return_value=vault)
-            mock_vault_crud.deposit_caps = AsyncMock()
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 1
         assert result["processed"] == 1

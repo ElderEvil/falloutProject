@@ -8,6 +8,7 @@ from app.schemas.common import RoomTypeEnum, SPECIALEnum
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.room_service import RoomService
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
@@ -70,7 +71,7 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
     )
 
     await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    await room_crud.build(db_session=async_session, obj_in=room_data)
+    await RoomService()._build(db_session=async_session, obj_in=room_data)
 
     storage_result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
     storage = storage_result.scalars().first()
@@ -115,7 +116,7 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
 
     await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
     await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    created_room = await room_crud.build(db_session=async_session, obj_in=room_data)
+    created_room, _ = await RoomService()._build(db_session=async_session, obj_in=room_data)
 
     await async_session.refresh(vault)
 

@@ -209,9 +209,10 @@ async def test_build_living_room(
         ResourceNotFoundException: If vault or living room data not found.
     """
     from app import crud
-    from app.core.enums import RoomTypeEnum, SPECIALEnum
+    from app.core.enums import SPECIALEnum
     from app.models.room import Room
-    from app.schemas.room import RoomCreate
+    from app.schemas.room import RoomBuild
+    from app.services.room_service import room_service
 
     # Get vault before building
     vault_before = await crud.vault.get(session, id=vault_id)
@@ -236,33 +237,17 @@ async def test_build_living_room(
     # Capture population_max before building
     vault_before_population_max = vault_before.population_max
 
-    # Build the living room
-    room_create = RoomCreate(
-        vault_id=vault_id,
-        name=living_room_data["name"],
-        category=RoomTypeEnum(living_room_data["category"]),
-        tier=1,
-        size=3,
-        ability=SPECIALEnum(living_room_data["ability"]) if living_room_data.get("ability") else None,
-        capacity=8,  # Typical size 3 living room
-        population_required=living_room_data.get("population_required"),
-        base_cost=living_room_data["base_cost"],
-        incremental_cost=living_room_data["incremental_cost"],
-        t2_upgrade_cost=living_room_data["t2_upgrade_cost"],
-        t3_upgrade_cost=living_room_data["t3_upgrade_cost"],
-        size_min=living_room_data["size_min"],
-        size_max=living_room_data["size_max"],
-        coordinate_x=1,
-        coordinate_y=1,
+    # Build the living room through the service layer
+    created_room = await room_service.build_room(
+        session,
+        RoomBuild(
+            vault_id=vault_id,
+            room_name=living_room_data["name"],
+            coordinate_x=1,
+            coordinate_y=1,
+        ),
     )
-
-    # Check requires_recalculation
-    from app.crud.room import room as room_crud
-
-    requires_calc = room_crud.requires_recalculation(room_create)
-
-    # Build the room
-    created_room = await room_crud.build(session, obj_in=room_create)
+    requires_calc = crud.room.requires_recalculation(created_room)
 
     # Get vault after building
     await session.refresh(vault_before)

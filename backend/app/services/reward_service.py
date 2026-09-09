@@ -34,6 +34,7 @@ class RewardService:
         self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = True
     ) -> dict[str, Any]:
         from app.crud.vault import vault as vault_crud
+        from app.services.vault_service import vault_service
 
         vault_obj = await vault_crud.get(db_session, id=vault_id)
         if reward_delivery_is_deferred(db_session):
@@ -42,7 +43,7 @@ class RewardService:
             await persist_reward_change(db_session, vault_obj)
             await user_service.record_vault_statistic(db_session, vault_id, "total_caps_earned", credited, commit=False)
         else:
-            await vault_crud.deposit_caps(
+            await vault_service.deposit_caps(
                 db_session=db_session, vault_obj=vault_obj, amount=amount, emit_event=emit_event
             )
 

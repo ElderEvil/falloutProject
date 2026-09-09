@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.12 (2026-09-09)
+
+### Documentation
+
+* queue incidents/combat batch as next, record vault-batch endgame 3d51f71
+
+### Code Refactoring
+
+* **combat:** decompose incident_service — math, publishing, atomic round ([#569](https://github.com/ElderEvil/falloutProject/issues/569)) cb3a3fa
+
 ## 2.80.11 (2026-09-09)
 
 ### Code Refactoring

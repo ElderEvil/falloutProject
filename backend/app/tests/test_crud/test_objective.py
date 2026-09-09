@@ -149,3 +149,50 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
     assert link.is_completed is True
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 50
+
+
+@pytest.mark.asyncio
+async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
+    """Starter objectives are selected and linked in the CRUD layer."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    for category in (ObjectiveCategoryEnum.DAILY, ObjectiveCategoryEnum.WEEKLY, ObjectiveCategoryEnum.ACHIEVEMENT):
+        await crud.objective_crud.create(
+            async_session,
+            obj_in=ObjectiveCreate(
+                challenge=f"Starter {category.value}",
+                reward="10 caps",
+                category=category,
+                objective_type="collect",
+            ),
+        )
+
+    assigned_count = await crud.objective_crud.assign_initial(async_session, vault.id, is_boosted=True)
+    assigned = await crud.objective_crud.get_multi_for_vault(async_session, vault.id)
+
+    assert assigned_count == 3
+    assert {objective.category for objective in assigned} == {
+        ObjectiveCategoryEnum.DAILY,
+        ObjectiveCategoryEnum.WEEKLY,
+        ObjectiveCategoryEnum.ACHIEVEMENT,
+    }
+
+
+@pytest.mark.asyncio
+async def test_assign_initial_rolls_back_on_db_error() -> None:
+    """A DB failure assigns nothing but leaves the session usable."""
+    from unittest.mock import AsyncMock
+    from uuid import uuid4
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    db_session = AsyncMock()
+    db_session.execute = AsyncMock(side_effect=SQLAlchemyError("DB down"))
+
+    assigned = await crud.objective_crud.assign_initial(db_session, uuid4(), is_boosted=False)
+
+    assert assigned == 0
+    db_session.rollback.assert_awaited_once()

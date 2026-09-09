@@ -45,6 +45,11 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
     prompt construction, usage extraction, and execution records.
 - [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
   room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
+  - **Next:** finish the vault CRUD→service move (`deposit_caps`/`withdraw_caps`/`recalculate_vault_attributes`/
+    `is_enough_*`/`toggle_game_state` out of `crud/vault.py`). Migrate the CRUD-side callers (`room.py`,
+    `dweller.py`, `item_base.py`) to service entry points first to avoid CRUD→service import cycles. Already
+    done: objective-seeding delegation, storage CRUD helpers + item `create_many`, seed tables consolidated in
+    `services/vault_seed.py`.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and
   player-facing events.
 - [ ] **Dweller/social batch** — reorganize relationships, breeding, happiness, death, assignment, training, and

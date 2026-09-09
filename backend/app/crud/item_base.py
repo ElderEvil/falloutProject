@@ -1,5 +1,6 @@
 import contextlib
 import random
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
@@ -89,6 +90,17 @@ async def get_items_list(
 class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
+    async def create_many(
+        self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]]
+    ) -> Sequence[ModelType]:
+        """Persist pre-built items in one transaction (vault seeding)."""
+        db_objs = [self.model.model_validate(o) if isinstance(o, dict) else o for o in objs_in]
+        db_session.add_all(db_objs)
+        await db_session.commit()
+        for db_obj in db_objs:
+            await db_session.refresh(db_obj)
+        return db_objs
+
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
         obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
         if obj_in.get("storage_id") and obj_in.get("dweller_id"):

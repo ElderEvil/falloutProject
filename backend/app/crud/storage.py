@@ -66,6 +66,51 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
         return result.scalar_one_or_none()
 
+    @staticmethod
+    async def create_for_vault(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
+        """Create the storage row for a vault."""
+        storage = Storage(vault_id=vault_id)
+        db_session.add(storage)
+        await db_session.commit()
+        return storage
+
+    async def get_max_space(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Get a vault's storage max space (0 when no storage row exists)."""
+        result = await db_session.execute(select(self.model.max_space).where(self.model.vault_id == vault_id))
+        return result.scalar_one_or_none() or 0
+
+    async def set_max_space(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
+        """Set a vault's storage max space.
+
+        :raises ResourceNotFoundException: If storage not found for vault.
+        """
+        storage_obj = await self.get_by_vault(db_session, vault_id)
+        if not storage_obj:
+            raise ResourceNotFoundException(model=Storage, identifier=vault_id)
+        storage_obj.max_space = new_space_max
+        db_session.add(storage_obj)
+        await db_session.commit()
+        await db_session.refresh(storage_obj)
+        return storage_obj
+
+    async def adjust_max_space(self, db_session: AsyncSession, vault_id: UUID4, delta: int) -> Storage:
+        """Shift a vault's storage max space by a room capacity delta."""
+        return await self.set_max_space(db_session, vault_id, await self.get_max_space(db_session, vault_id) + delta)
+
+    async def set_medical_supplies(
+        self, db_session: AsyncSession, vault_id: UUID4, stimpack: int, radaway: int
+    ) -> Storage | None:
+        """Set stimpack/radaway counts; returns None when no storage row exists."""
+        storage_obj = await self.get_by_vault(db_session, vault_id)
+        if not storage_obj:
+            return None
+        storage_obj.stimpack = stimpack
+        storage_obj.radaway = radaway
+        db_session.add(storage_obj)
+        await db_session.commit()
+        await db_session.refresh(storage_obj)
+        return storage_obj
+
     async def get_available_space(self, db_session: AsyncSession, storage_id: UUID4) -> int:
         """Get available storage space."""
         try:

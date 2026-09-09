@@ -1,7 +1,10 @@
+import contextlib
+import logging
 from collections.abc import Sequence
 
 from pydantic import UUID4
-from sqlmodel import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -12,6 +15,8 @@ from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdat
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceConflictException
 from app.utils.reward_delivery import defer_reward_delivery
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDObjective(
@@ -69,6 +74,54 @@ class CRUDObjective(
             )
             for obj, progress, total, is_completed in results
         ]
+
+    async def assign_initial(self, db_session: AsyncSession, vault_id: UUID4, *, is_boosted: bool) -> int:
+        """Assign the deterministic starter objective set for a new vault."""
+        try:
+            categories = ["daily", "weekly"]
+            objectives = [
+                (
+                    await db_session.execute(
+                        select(self.model)
+                        .where(col(self.model.category) == category, col(self.model.objective_type).is_not(None))
+                        .order_by(col(self.model.id))
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+                for category in categories
+            ]
+            if is_boosted:
+                result = await db_session.execute(
+                    select(self.model)
+                    .where(
+                        col(self.model.category).not_in(categories),
+                        col(self.model.objective_type).is_not(None),
+                    )
+                    .order_by(col(self.model.id))
+                    .limit(8)
+                )
+                objectives.extend(result.scalars().all())
+            links = [
+                self.link_model(
+                    vault_id=vault_id,
+                    objective_id=objective.id,
+                    progress=0,
+                    total=objective.target_amount,
+                    is_completed=False,
+                )
+                for objective in objectives
+                if objective
+            ]
+            for link in links:
+                db_session.add(link)
+            if links:
+                await db_session.commit()
+            return len(links)
+        except SQLAlchemyError:
+            logger.exception("Failed to assign initial objectives to vault %s", vault_id)
+            with contextlib.suppress(Exception):
+                await db_session.rollback()
+            return 0
 
     async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Objective, vault_id: UUID4) -> None:
         """Handle any cascading logic when an objective is completed."""

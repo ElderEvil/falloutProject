@@ -27,7 +27,8 @@ from app.schemas.vault import (
     VaultNumber,
     VaultUpdate,
 )
-from app.services.vault_service import CreatedRooms, PreparedRooms, VaultService
+from app.services.vault_seed import CreatedRooms, PreparedRooms
+from app.services.vault_service import VaultService
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 # Valid UUIDv4 constants for use in mocked objects
@@ -408,64 +409,10 @@ class TestCreateInitialItems:
 
 
 # ---------------------------------------------------------------------------
-# Test _assign_initial_objectives
+# Objective assignment is delegated to objective_crud.assign_initial (CRUD layer).
+# Behavior is covered by test_crud/test_objective.py::test_assign_initial_objectives
+# and the delegation assertion in TestInitiateVault below.
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-class TestAssignInitialObjectives:
-    """Tests for initial objective assignment."""
-
-    async def test_boosted_assigns_more_objectives(self) -> None:
-        """Boosted vault adds achievement objectives."""
-        from app.models.objective import Objective
-
-        vault_id = VAULT_ID
-        daily_obj = Objective(id="od", challenge="Daily", reward="10 caps", category="daily", objective_type="collect")
-        weekly_obj = Objective(
-            id="ow", challenge="Weekly", reward="50 caps", category="weekly", objective_type="collect"
-        )
-        achievements = [
-            Objective(
-                id=f"oa{i}",
-                challenge=f"Ach{i}",
-                reward=f"{i * 10} caps",
-                category="achievement",
-                objective_type="build",
-            )
-            for i in range(5)
-        ]
-
-        service = VaultService()
-        db_session = AsyncMock()
-
-        mock_daily = MagicMock()
-        mock_daily.scalar_one_or_none.return_value = daily_obj
-        mock_weekly = MagicMock()
-        mock_weekly.scalar_one_or_none.return_value = weekly_obj
-        mock_basic = MagicMock()
-        mock_basic.scalars.return_value.all.return_value = achievements
-        db_session.execute = AsyncMock(side_effect=[mock_daily, mock_weekly, mock_basic])
-        db_session.add = MagicMock()
-        db_session.commit = AsyncMock()
-
-        await service._assign_initial_objectives(db_session, vault_id, is_boosted=True)
-
-        # 2 (daily/weekly) + 5 (achievements) = 7
-        assert db_session.add.call_count == 7
-
-    async def test_sqlalchemy_error_is_handled(self) -> None:
-        """SQLAlchemyError during assignment is caught and logged, not raised."""
-        vault_id = VAULT_ID
-
-        service = VaultService()
-        db_session = AsyncMock()
-        from sqlalchemy.exc import SQLAlchemyError
-
-        db_session.execute = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-
-        # Should not raise
-        await service._assign_initial_objectives(db_session, vault_id, is_boosted=False)
 
 
 # ---------------------------------------------------------------------------
@@ -856,7 +803,6 @@ class TestInitiateVault:
         )
         service._create_initial_dwellers = AsyncMock()
         service._start_training_sessions = AsyncMock()
-        service._assign_initial_objectives = AsyncMock()
         service._create_initial_items = AsyncMock()
 
         db_session = AsyncMock()
@@ -888,6 +834,11 @@ class TestInitiateVault:
                 "app.services.vault_service.compute_medical_capacity",
                 return_value={"stimpack": 5, "radaway": 5},
             ),
+            patch(
+                "app.crud.objective.objective_crud.assign_initial",
+                new_callable=AsyncMock,
+                return_value=2,
+            ) as mock_assign_initial,
         ):
             result = await service.initiate_vault(
                 db_session,
@@ -898,7 +849,7 @@ class TestInitiateVault:
 
         assert result == vault
         service._start_training_sessions.assert_awaited_once()
-        service._assign_initial_objectives.assert_awaited_once()
+        mock_assign_initial.assert_awaited_once_with(db_session, vault.id, is_boosted=True)
 
 
 class TestVaultStartConfig:

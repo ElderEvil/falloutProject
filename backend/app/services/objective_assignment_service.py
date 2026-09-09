@@ -2,10 +2,10 @@ import logging
 import random
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ObjectiveCategoryEnum
+from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 
@@ -26,9 +26,7 @@ class ObjectiveAssignmentService:
         return await self._assign_category_objectives(vault_id, ObjectiveCategoryEnum.WEEKLY, self.WEEKLY_COUNT)
 
     async def assign_achievement_objectives(self, vault_id: UUID4) -> list[Objective]:
-        query = select(Objective).where(Objective.category == ObjectiveCategoryEnum.ACHIEVEMENT)
-        result = await self._db_session.execute(query)
-        all_achievements = list(result.scalars().all())
+        all_achievements = await objective_crud.get_by_category(self._db_session, ObjectiveCategoryEnum.ACHIEVEMENT)
 
         assigned = []
         for objective in all_achievements:
@@ -88,20 +86,14 @@ class ObjectiveAssignmentService:
     async def _assign_category_objectives(
         self, vault_id: UUID4, category: ObjectiveCategoryEnum, count: int, auto_commit: bool = True
     ) -> list[Objective]:
-        query = select(Objective).where(Objective.category == category)
-        result = await self._db_session.execute(query)
-        all_objectives = list(result.scalars().all())
+        all_objectives = await objective_crud.get_by_category(self._db_session, category)
 
         if not all_objectives:
             logger.warning(f"No {category} objectives found in database")
             return []
 
         # Fetch all assigned objective IDs in a single query to avoid N+1
-        assigned_ids_query = select(VaultObjectiveProgressLink.objective_id).where(
-            VaultObjectiveProgressLink.vault_id == vault_id
-        )
-        assigned_result = await self._db_session.execute(assigned_ids_query)
-        assigned_ids = {row[0] for row in assigned_result.all()}
+        assigned_ids = await objective_crud.get_assigned_objective_ids(self._db_session, vault_id)
 
         available = [obj for obj in all_objectives if obj.id not in assigned_ids]
 
@@ -128,17 +120,14 @@ class ObjectiveAssignmentService:
     async def _clear_category_objectives(
         self, vault_id: UUID4, category: ObjectiveCategoryEnum, auto_commit: bool = True
     ) -> int:
-        subquery = select(Objective.id).where(Objective.category == category)
-        query = (
-            select(VaultObjectiveProgressLink)
-            .where(VaultObjectiveProgressLink.vault_id == vault_id)
-            .where(VaultObjectiveProgressLink.objective_id.in_(subquery))
-        )
-        result = await self._db_session.execute(query)
-        links = result.scalars().all()
+        category_objective_ids = {o.id for o in await objective_crud.get_by_category(self._db_session, category)}
+        links = [
+            link
+            for link in await objective_crud.get_links_for_vault(self._db_session, vault_id)
+            if link.objective_id in category_objective_ids
+        ]
 
-        for link in links:
-            await self._db_session.delete(link)
+        await objective_crud.delete_links(self._db_session, links)
 
         if links and auto_commit:
             await self._db_session.commit()
@@ -149,16 +138,10 @@ class ObjectiveAssignmentService:
     async def assign_random_objectives(self, vault_id: UUID4, count: int = 5) -> list[Objective]:
         """Assign random unassigned objectives to a vault (testing/debugging)."""
         # Get all objective IDs already assigned to this vault
-        assigned_ids_query = select(VaultObjectiveProgressLink.objective_id).where(
-            VaultObjectiveProgressLink.vault_id == vault_id
-        )
-        assigned_result = await self._db_session.execute(assigned_ids_query)
-        assigned_ids = {row[0] for row in assigned_result.all()}
+        assigned_ids = await objective_crud.get_assigned_objective_ids(self._db_session, vault_id)
 
         # Get all unassigned objectives
-        all_objectives_query = select(Objective)
-        all_result = await self._db_session.execute(all_objectives_query)
-        all_objectives = list(all_result.scalars().all())
+        all_objectives = await objective_crud.get_all(self._db_session)
         unassigned = [o for o in all_objectives if o.id not in assigned_ids]
 
         # Shuffle and assign up to 'count' objectives
@@ -180,9 +163,4 @@ class ObjectiveAssignmentService:
         return assigned
 
     async def _objective_already_assigned(self, vault_id: UUID4, objective_id: UUID4) -> bool:
-        query = select(VaultObjectiveProgressLink).where(
-            VaultObjectiveProgressLink.vault_id == vault_id,
-            VaultObjectiveProgressLink.objective_id == objective_id,
-        )
-        result = await self._db_session.execute(query)
-        return result.scalar_one_or_none() is not None
+        return await objective_crud.link_exists(self._db_session, vault_id=vault_id, objective_id=objective_id)

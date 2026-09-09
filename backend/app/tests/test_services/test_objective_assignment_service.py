@@ -1,11 +1,12 @@
 """Tests for ObjectiveAssignmentService — unit tests with mocked DB."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
@@ -201,12 +202,16 @@ class TestClearWeeklyObjectives:
     async def test_clears_existing_links(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
         """Clears weekly objective links."""
         link = MagicMock(spec=VaultObjectiveProgressLink)
-        mock_db.execute = AsyncMock(return_value=_make_exec_result([link]))
-
-        result = await service.clear_weekly_objectives(_VAULT_ID)
+        link.objective_id = _O1
+        with (
+            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[_make_objective()]),
+            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[link]),
+            patch.object(objective_crud, "delete_links", new_callable=AsyncMock) as mock_delete,
+        ):
+            result = await service.clear_weekly_objectives(_VAULT_ID)
 
         assert result == 1
-        assert mock_db.delete.await_count == 1
+        mock_delete.assert_awaited_once()
         assert mock_db.commit.await_count == 1
 
 
@@ -224,16 +229,15 @@ class TestRefreshDailyObjectives:
     ) -> None:
         """No daily objectives at all → clear existing, assign nothing, commit once."""
         old_link = MagicMock(spec=VaultObjectiveProgressLink)
-        responses = [
-            _make_exec_result([old_link]),  # clear: found 1
-            _make_exec_result([]),  # assign: no objectives
-        ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        result = await service.refresh_daily_objectives(_VAULT_ID)
+        with (
+            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
+            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[old_link]),
+            patch.object(objective_crud, "delete_links", new_callable=AsyncMock) as mock_delete,
+        ):
+            result = await service.refresh_daily_objectives(_VAULT_ID)
 
         assert result == []
-        assert mock_db.delete.await_count == 1
+        mock_delete.assert_awaited_once()
         assert mock_db.commit.await_count == 1
 
 
@@ -248,13 +252,11 @@ class TestRefreshWeeklyObjectives:
     @pytest.mark.asyncio
     async def test_no_weekly_still_commits(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
         """Empty clearing + empty assigning still commits."""
-        responses = [
-            _make_exec_result([]),
-            _make_exec_result([]),
-        ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        result = await service.refresh_weekly_objectives(_VAULT_ID)
+        with (
+            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
+            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[]),
+        ):
+            result = await service.refresh_weekly_objectives(_VAULT_ID)
 
         assert result == []
         assert mock_db.commit.await_count == 1

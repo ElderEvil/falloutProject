@@ -40,14 +40,7 @@ SERVICES_SELECT_BASELINE = frozenset(
         "dweller_recycling_service.py",
         "game_loop.py",
         "incident_service.py",
-        "objective_assignment_service.py",
-        "objective_evaluators.py",
-        "objective_notifications.py",
-        "prerequisite_service.py",
-        "quest_service.py",
         "trading_post_service.py",
-        "exploration/event_service.py",
-        "exploration/rewards_service.py",
     }
 )
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")

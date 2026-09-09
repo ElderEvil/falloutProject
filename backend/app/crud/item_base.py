@@ -90,6 +90,23 @@ async def get_items_list(
 class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
+    async def count_in_storage_by_name(
+        self, db_session: AsyncSession, storage_id: UUID4, name: str
+    ) -> int:
+        """Count items of this type in one storage matching the name case-insensitively."""
+        from sqlalchemy import func
+
+        query = select(func.count(self.model.id)).where(
+            self.model.storage_id == storage_id,
+            func.lower(self.model.name) == name.lower(),
+        )
+        return int((await db_session.execute(query)).scalar_one())
+
+    async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID4) -> ModelType | None:
+        """The item of this type currently equipped by the dweller, if any."""
+        result = await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))
+        return result.scalar_one_or_none()
+
     async def create_many(
         self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]]
     ) -> Sequence[ModelType]:

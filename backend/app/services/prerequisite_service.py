@@ -4,18 +4,11 @@ import logging
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import func
-from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.dweller import Dweller
-from app.models.outfit import Outfit
+from app import crud
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
-from app.models.room import Room
-from app.models.storage import Storage
-from app.models.vault_quest import VaultQuestCompletionLink
-from app.models.weapon import Weapon
 from app.utils.objective_constants import normalize_room_type
 
 logger = logging.getLogger(__name__)
@@ -30,16 +23,7 @@ class PrerequisiteService:
         required_level = requirement_data.get("level", 1)
         required_count = requirement_data.get("count", 1)
 
-        result = await db_session.execute(
-            select(func.count(Dweller.id)).where(
-                and_(
-                    Dweller.vault_id == vault_id,
-                    Dweller.level >= required_level,
-                    ~Dweller.is_deleted,
-                )
-            )
-        )
-        matching_count = result.scalar_one()
+        matching_count = await crud.dweller.count_alive_in_vault(db_session, vault_id, min_level=required_level)
         return matching_count >= required_count
 
     async def validate_item_requirement(
@@ -48,33 +32,14 @@ class PrerequisiteService:
         item_name = requirement_data.get("item_name", "")
         required_count = requirement_data.get("count", 1)
 
-        storage_result = await db_session.execute(select(Storage.id).where(Storage.vault_id == vault_id))
-        storage_id = storage_result.scalar_one_or_none()
-        if not storage_id:
+        storage = await crud.storage.get_by_vault(db_session, vault_id)
+        if not storage:
             return False
 
-        weapon_count_result = await db_session.execute(
-            select(func.count(Weapon.id)).where(
-                and_(
-                    Weapon.storage_id == storage_id,
-                    func.lower(Weapon.name) == item_name.lower(),
-                )
-            )
-        )
-        weapon_count = weapon_count_result.scalar_one()
+        weapon_count = await crud.weapon.count_in_storage_by_name(db_session, storage.id, item_name)
+        outfit_count = await crud.outfit.count_in_storage_by_name(db_session, storage.id, item_name)
 
-        outfit_count_result = await db_session.execute(
-            select(func.count(Outfit.id)).where(
-                and_(
-                    Outfit.storage_id == storage_id,
-                    func.lower(Outfit.name) == item_name.lower(),
-                )
-            )
-        )
-        outfit_count = outfit_count_result.scalar_one()
-
-        total_count = weapon_count + outfit_count
-        return total_count >= required_count
+        return weapon_count + outfit_count >= required_count
 
     async def validate_room_requirement(
         self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
@@ -84,7 +49,7 @@ class PrerequisiteService:
         if room_type is None:
             return False
 
-        room_names = (await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))).scalars()
+        room_names = await crud.dweller.count_room_names_by_type(db_session, vault_id)
         return sum(normalize_room_type(name) == room_type for name in room_names) >= required_count
 
     async def validate_dweller_count_requirement(
@@ -92,15 +57,7 @@ class PrerequisiteService:
     ) -> bool:
         required_count = requirement_data.get("count", 0)
 
-        result = await db_session.execute(
-            select(func.count(Dweller.id)).where(
-                and_(
-                    Dweller.vault_id == vault_id,
-                    ~Dweller.is_deleted,
-                )
-            )
-        )
-        current_count = result.scalar_one()
+        current_count = await crud.dweller.count_alive_in_vault(db_session, vault_id)
         return current_count >= required_count
 
     async def validate_quest_completed_requirement(
@@ -111,16 +68,8 @@ class PrerequisiteService:
             logger.warning("quest_completed requirement missing quest_id")
             return False
 
-        result = await db_session.execute(
-            select(VaultQuestCompletionLink).where(
-                and_(
-                    VaultQuestCompletionLink.vault_id == vault_id,
-                    VaultQuestCompletionLink.quest_id == quest_id,
-                    VaultQuestCompletionLink.is_completed,
-                )
-            )
-        )
-        return result.scalar_one_or_none() is not None
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        return link is not None and link.is_completed
 
     async def can_start_quest(self, db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> tuple[bool, list[str]]:
         missing = await self.get_missing_requirements(db_session, vault_id, quest)

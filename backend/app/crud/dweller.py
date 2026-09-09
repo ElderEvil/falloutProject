@@ -193,6 +193,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             select(self.model)
             .where(self.model.vault_id == vault_id)
             .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
             .where(or_(self.model.parent_1_id.in_(parent_ids), self.model.parent_2_id.in_(parent_ids)))
         )
         if exclude_id is not None:
@@ -207,6 +208,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             select(self.model)
             .where(self.model.vault_id == vault_id)
             .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
             .where(self.model.partner_id == dweller_id)
         )
         return list((await db_session.execute(query)).scalars().all())

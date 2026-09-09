@@ -124,6 +124,7 @@ class CRUDIncident:
             .where(col(Incident.status).in_(statuses))
             .where(col(Incident.end_time).is_not(None))
             .where(col(Incident.end_time) <= cutoff)
+            .order_by(col(Incident.end_time).asc())
             .limit(limit)
         )
         result = await db_session.execute(query)

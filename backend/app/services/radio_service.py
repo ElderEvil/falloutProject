@@ -104,6 +104,9 @@ class RadioService:
         # Get vault
         vault = await crud.vault.get_or_none(db_session, id=vault_id, include_deleted=True)
 
+        if not vault:
+            return None
+
         # Check if vault is in recruitment mode
         if vault.radio_mode != "recruitment":
             return None

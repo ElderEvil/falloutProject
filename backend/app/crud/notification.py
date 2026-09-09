@@ -82,7 +82,12 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
 
     async def get_older_than(self, db_session: AsyncSession, cutoff: datetime, limit: int) -> list[Notification]:
         """Notifications created at or before the cutoff, oldest batch first."""
-        query = select(Notification).where(col(Notification.created_at) <= cutoff).limit(limit)
+        query = (
+            select(Notification)
+            .where(col(Notification.created_at) <= cutoff)
+            .order_by(col(Notification.created_at).asc())
+            .limit(limit)
+        )
         result = await db_session.execute(query)
         return list(result.scalars().all())
 

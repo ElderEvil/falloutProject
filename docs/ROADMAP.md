@@ -9,7 +9,8 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work:** — _no active branch; roadmap pruned 2026-08-31 to reflect merged work (see Recently Shipped)._
+**Current work:** — _backend service-layer rewrite through #568 landed all raw SQL in CRUDs with guard-enforced
+zero-`select()`/`exec()` in services; next batch queued: **Incidents and combat** (see P0)._
 
 ---
 
@@ -45,14 +46,22 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
     prompt construction, usage extraction, and execution records.
 - [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
   room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
-  - **Next:** remove the legacy `vault_crud` delegates (`deposit_caps`/`withdraw_caps`/`recalculate_*`/`is_enough_*`)
-    once the last CRUD-side callers (`dweller.py`, `item_base.py`) move to service entry points, then move
-    `toggle_game_state` and the vault-with-counts reads out of `crud/vault.py`. Already done: objective-seeding
-    delegation, storage CRUD helpers + item `create_many`, seed tables in `services/vault_seed.py`, vault economy
-    core (`deposit/withdraw`, `is_enough_*`, recalculation) canonical in `VaultService`, room
-    build/destroy/upgrade orchestration canonical in `RoomService`.
+  - **Next:** migrate the last CRUD-side flows off the legacy delegates — `dweller.move_to_room` and the
+    `item_base` sell/caps flow move **into** services (first slice of the Dweller/social batch, same PR) — then
+    delete the four `vault_crud` delegates (`deposit_caps`/`withdraw_caps`/`recalculate_*`/`is_enough_*`) and move
+    `toggle_game_state` plus the vault-with-counts reads out of `crud/vault.py`. Expected net-zero on the
+    CRUD→services baseline until the dweller/item flows leave CRUD entirely — the delegate deletion itself is the win.
+    Already done: objective-seeding delegation, storage CRUD helpers + item `create_many`, seed tables in
+    `services/vault_seed.py`, vault economy core (`deposit/withdraw`, `is_enough_*`, recalculation) canonical in
+    `VaultService`, room build/destroy/upgrade orchestration canonical in `RoomService`.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and
   player-facing events.
+  - **Next up (chosen batch):** decompose the 888-line `services/combat/incident_service.py`. Persistence is
+    already extracted (all raw SQL moved to CRUD in #568) and `services/combat/` exists, so the remaining split is
+    orchestration-only: tick loop / spawn+spread gating, incident state machine (spawn → progress → resolve/spread),
+    combat resolution math, and event+notification publishing as focused collaborators. Fold in the deferred
+    transaction-atomicity review finding (single commit per tick operation) and the combat-power calc shared with
+    arena. Guards hold the ground: any new raw SQL or transport exception fails CI.
 - [ ] **Dweller/social batch** — reorganize relationships, breeding, happiness, death, assignment, training, and
   lineage around explicit domain services and CRUD operations.
 - [ ] **Quest/exploration/reward batch** — separate quest settlement, objective evaluation, exploration state,

@@ -174,9 +174,13 @@ class TestAssignAbilityDwellers:
     @pytest.mark.asyncio
     async def test_no_available_slots_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
-        mock_db.execute = AsyncMock(return_value=_make_exec_result([MagicMock(), MagicMock()]))
         dwellers = [_make_dweller(_id=_D1, strength=7)]
-        result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
+        with patch(
+            "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+            new_callable=AsyncMock,
+            return_value=2,
+        ):
+            result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
         assert len(result) == 1
 
     @pytest.mark.asyncio
@@ -229,8 +233,12 @@ class TestAssignToRoomsProportional:
     async def test_zero_total_slots_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
         dwellers = [_make_dweller(_id=_D1, strength=5)]
-        mock_db.execute = AsyncMock(return_value=_make_exec_result([MagicMock(), MagicMock()]))
-        result = await svc._assign_to_rooms_proportional([r1], PRODUCTION_ABILITIES, mock_db, dwellers, [], set())
+        with patch(
+            "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+            new_callable=AsyncMock,
+            return_value=2,
+        ):
+            result = await svc._assign_to_rooms_proportional([r1], PRODUCTION_ABILITIES, mock_db, dwellers, [], set())
         assert len(result) == 1
 
 
@@ -248,6 +256,11 @@ class TestUnassignAllDwellers:
         with (
             patch("app.services.dweller_assignment_service.crud.dweller.get_multi_by_vault") as mock_get,
             patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
         ):
             mock_get.return_value = [d]
             await svc.unassign_all_dwellers(mock_db, "v1")
@@ -273,14 +286,24 @@ class TestAutoAssignProductionRooms:
         r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # cap 2
         d1 = _make_dweller(_id=_D1, strength=5)
 
-        responses = [
-            _make_exec_result([r_str]),
-            _make_exec_result([d1]),
-            _make_exec_result([MagicMock(), MagicMock()]),  # 2 already in room
-        ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        with patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update:
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[r_str],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[d1],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=2,
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
 
         assert result["assigned_count"] == 0
@@ -294,15 +317,24 @@ class TestAutoAssignProductionRooms:
 
         d_weak = _make_dweller(_id=_DWEAK, strength=2, agility=9)
 
-        responses = [
-            _make_exec_result([r_str, r_agi]),
-            _make_exec_result([d_weak]),
-            _make_exec_result([]),  # r_str count
-            _make_exec_result([]),  # r_agi count
-        ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        with patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update:
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[r_str, r_agi],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[d_weak],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
 
         assert result["assigned_count"] == 1
@@ -330,18 +362,27 @@ class TestAutoAssignTrainingRooms:
         )
         strong_dweller = _make_dweller(_id=_DSTRONG, strength=8)
         weak_dweller = _make_dweller(_id=_DWEAK, strength=2)
-        mock_db.execute = AsyncMock(
-            side_effect=[
-                _make_exec_result([room]),
-                _make_exec_result([strong_dweller, weak_dweller]),
-                _make_exec_result([]),
-                _make_exec_result([]),
-            ]
-        )
 
-        with patch(
-            "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
-        ) as mock_start_training:
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[strong_dweller, weak_dweller],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch(
+                "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
+            ) as mock_start_training,
+        ):
             result = await svc.auto_assign_training_rooms(mock_db, "v1")
 
         assert result["assigned_count"] == 2

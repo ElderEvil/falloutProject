@@ -7,6 +7,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.incident import Incident, IncidentStatus, IncidentType
+from app.models.incident_event import IncidentEvent
 
 
 class CRUDIncident:
@@ -125,6 +126,18 @@ class CRUDIncident:
             .where(col(Incident.end_time).is_not(None))
             .where(col(Incident.end_time) <= cutoff)
             .order_by(col(Incident.end_time).asc())
+            .limit(limit)
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_recent_events(db_session: AsyncSession, incident_id: UUID4, limit: int = 20) -> list[IncidentEvent]:
+        """Recent events of an incident, newest first."""
+        query = (
+            select(IncidentEvent)
+            .where(IncidentEvent.incident_id == incident_id)
+            .order_by(IncidentEvent.created_at.desc())
             .limit(limit)
         )
         result = await db_session.execute(query)

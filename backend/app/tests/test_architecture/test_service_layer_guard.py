@@ -7,7 +7,7 @@ Dependency direction is one-way: CRUD modules may only use the shared policy ker
 ``app.services.room_assignment_policy``; messaging lives in ``app.core.event_bus``,
 outside the service layer entirely. Every other CRUD -> service dependency is
 recorded in ``CRUD_SERVICE_BASELINE`` and must shrink as domain batches migrate; new entries fail the suite. The same ratchet
-applies to raw ``select()`` queries in ``app/services`` (``SERVICES_SELECT_BASELINE``)
+applies to raw ``select()``/``exec()`` queries in ``app/services`` (``SERVICES_SELECT_BASELINE``)
 and to non-conforming top-level service module names (``SERVICE_NAME_GRANDFATHER``).
 A baseline entry with no remaining violations also fails, so the lists stay honest.
 """
@@ -23,7 +23,7 @@ EXCEPTIONS_FILE = APP_DIR / "utils" / "exceptions.py"
 CRUD_SERVICE_ALLOWLIST = frozenset({"app.services.room_assignment_policy"})
 CRUD_SERVICE_BASELINE = frozenset(
     {
-        ("dweller.py", "app.services.arena_service"),
+        ("dweller.py", "app.services.combat.arena_service"),
         ("dweller.py", "app.services.map_service"),
         ("dweller.py", "app.services.notification_service"),
         ("dweller.py", "app.services.user_service"),
@@ -33,16 +33,7 @@ CRUD_SERVICE_BASELINE = frozenset(
         ("vault.py", "app.services.vault_service"),
     }
 )
-SERVICES_SELECT_BASELINE = frozenset(
-    {
-        "arena_service.py",
-        "dweller_assignment_service.py",
-        "dweller_recycling_service.py",
-        "game_loop.py",
-        "incident_service.py",
-        "trading_post_service.py",
-    }
-)
+SERVICES_SELECT_BASELINE = frozenset()
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")
 SERVICE_NAME_GRANDFATHER = frozenset(
     {
@@ -134,13 +125,13 @@ def _service_imports(source: str) -> set[str]:
 
 
 def _select_call_lines(source: str) -> list[int]:
-    """Return sorted line numbers of select() calls in a module."""
+    """Return sorted line numbers of raw select() and exec() calls in a module."""
     lines = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Call):
             func = node.func
             if (isinstance(func, ast.Name) and func.id == "select") or (
-                isinstance(func, ast.Attribute) and func.attr == "select"
+                isinstance(func, ast.Attribute) and func.attr in ("select", "exec")
             ):
                 lines.append(node.lineno)
     return sorted(lines)
@@ -168,9 +159,9 @@ def test_services_do_not_query_directly() -> None:
             found.add(path.relative_to(APP_DIR / "services").as_posix())
     new_files = found - SERVICES_SELECT_BASELINE
     stale_entries = SERVICES_SELECT_BASELINE - found
-    messages = [f"{name} issues raw select() (new SQL in service layer)" for name in sorted(new_files)]
+    messages = [f"{name} issues raw select()/exec() (new SQL in service layer)" for name in sorted(new_files)]
     messages += [f"baseline entry {name} is stale; remove it" for name in sorted(stale_entries)]
-    assert not messages, "Raw select() usage in services changed:\n" + "\n".join(messages)
+    assert not messages, "Raw select()/exec() usage in services changed:\n" + "\n".join(messages)
 
 
 def test_service_module_names_follow_convention() -> None:
@@ -233,9 +224,14 @@ def test_guard_detects_relative_service_import() -> None:
 
 
 def test_guard_detects_select_calls() -> None:
-    """Self-test: bare and attribute select() calls are reported with line numbers."""
-    source = "x = select(Model).where(Model.id == 1)\ny = session.execute(select(Model))\nz = selected_items\n"
-    assert _select_call_lines(source) == [1, 2]
+    """Self-test: bare/attribute select() and exec() calls are reported with line numbers."""
+    source = (
+        "x = select(Model).where(Model.id == 1)\n"
+        "y = session.execute(select(Model))\n"
+        "z = session.exec(query)\n"
+        "w = selected_items\n"
+    )
+    assert _select_call_lines(source) == [1, 2, 3]
 
 
 def test_service_name_pattern() -> None:

@@ -9,16 +9,14 @@ cleared) so traded dwellers arrive as fresh recruits.
 import logging
 
 from pydantic import UUID4
-from sqlalchemy import func
-from sqlalchemy.orm import selectinload
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RarityEnum
+from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
+from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum
 from app.schemas.dweller import DwellerReadLess
 from app.schemas.trading import TradeMarketResponse, TradeOffer, TradeResultResponse
 from app.services.dweller_recycling_service import dweller_recycling_service
@@ -52,28 +50,12 @@ def _to_offer(dweller: Dweller, places_visited: int) -> TradeOffer:
 
 async def _visited_counts(db_session: AsyncSession, dweller_ids: list[UUID4]) -> dict[UUID4, int]:
     """Count VISITED wasteland locations per dweller in one query."""
-    if not dweller_ids:
-        return {}
-    query = (
-        select(DwellerLocation.dweller_id, func.count())
-        .where(col(DwellerLocation.dweller_id).in_(dweller_ids))
-        .where(DwellerLocation.relation == DwellerLocationRelationEnum.VISITED)
-        .group_by(DwellerLocation.dweller_id)
-    )
-    result = await db_session.execute(query)
-    return {row[0]: row[1] for row in result.all()}
+    return await wl_crud.get_visited_counts(db_session, dweller_ids)
 
 
 async def _get_tradable(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     """Fetch a soft-deleted, non-dead dweller by id."""
-    query = (
-        select(Dweller)
-        .where(Dweller.id == dweller_id)
-        .where(col(Dweller.is_deleted).is_(True))
-        .where(col(Dweller.is_dead).is_(False))
-    )
-    result = await db_session.execute(query)
-    dweller = result.scalars().one_or_none()
+    dweller = await dweller_crud.get_tradable_by_id(db_session, dweller_id)
     if not dweller:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
     return dweller
@@ -84,29 +66,10 @@ class TradingPostService:
 
     async def get_market(self, db_session: AsyncSession, vault: Vault) -> TradeMarketResponse:
         """List dwellers other vaults have put on the market plus own listings."""
-        market_query = (
-            select(Dweller)
-            .where(col(Dweller.is_deleted).is_(True))
-            .where(col(Dweller.is_dead).is_(False))
-            .where(Dweller.vault_id != vault.id)
-            .order_by(col(Dweller.deleted_at).desc())
-            .limit(MARKET_SIZE)
-            .options(selectinload(Dweller.weapon))
+        market_dwellers = list(
+            await dweller_crud.get_tradable(db_session, exclude_vault_id=vault.id, limit=MARKET_SIZE)
         )
-        market_result = await db_session.execute(market_query)
-
-        listings_query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault.id)
-            .where(col(Dweller.is_deleted).is_(True))
-            .where(col(Dweller.is_dead).is_(False))
-            .order_by(col(Dweller.deleted_at).desc())
-            .options(selectinload(Dweller.weapon))
-        )
-        listings_result = await db_session.execute(listings_query)
-
-        market_dwellers = list(market_result.scalars().all())
-        listing_dwellers = list(listings_result.scalars().all())
+        listing_dwellers = list(await dweller_crud.get_tradable(db_session, vault_id=vault.id))
         visited = await _visited_counts(db_session, [d.id for d in market_dwellers] + [d.id for d in listing_dwellers])
 
         return TradeMarketResponse(

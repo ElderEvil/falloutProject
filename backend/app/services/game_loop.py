@@ -6,14 +6,16 @@ from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
+from app.crud import dweller as crud_dweller
 from app.crud import exploration as crud_exploration
 from app.crud import game_state_crud
+from app.crud import room as crud_room
+from app.crud.relationship import relationship_crud as crud_relationship
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
@@ -230,18 +232,13 @@ class GameLoopService:
     async def _get_active_vaults(self, db_session: AsyncSession) -> list[Vault]:
         """Get all vaults that should be processed this tick."""
         # First get all active game states
-        game_state_query = select(GameState).where(GameState.is_active & ~GameState.is_paused)
-        result = await db_session.execute(game_state_query)
-        active_game_states = list(result.scalars().all())
-
+        active_game_states = await game_state_crud.get_all_active(db_session)
         if not active_game_states:
             return []
 
         # Then get the corresponding vaults
         vault_ids = [gs.vault_id for gs in active_game_states]
-        vault_query = select(Vault).where(Vault.id.in_(vault_ids)).where(Vault.deleted_at.is_(None))
-        vault_result = await db_session.execute(vault_query)
-        return list(vault_result.scalars().all())
+        return list(await vault_crud.get_by_ids(vault_ids, db_session))
 
     async def _get_or_create_game_state(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Get existing game state or create a new one."""
@@ -308,7 +305,6 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'xp_awarded' and 'leveled_up' counts
         """
-        from app.core.enums import RoomTypeEnum
         from app.services.leveling_service import leveling_service
 
         stats = {"xp_awarded": 0, "leveled_up": 0}
@@ -362,8 +358,6 @@ class GameLoopService:
         - Check for deaths (health <= 0 or radiation threshold)
         """
         from app.core.enums import DeathCauseEnum, DwellerStatusEnum
-        from app.models.dweller import Dweller
-        from app.models.room import Room
         from app.services.family.death_service import death_service
 
         stats = {
@@ -376,9 +370,7 @@ class GameLoopService:
 
         try:
             # Get all dwellers in this vault
-            dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
-            dwellers_result = await db_session.execute(dwellers_query)
-            dwellers = dwellers_result.scalars().all()
+            dwellers = await crud_dweller.get_all_in_vault(db_session, vault_id)
 
             vault = await vault_crud.get(db_session, vault_id)
             if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
@@ -402,9 +394,8 @@ class GameLoopService:
             # Batch fetch all rooms in one query
             rooms_map = {}
             if working_room_ids:
-                rooms_query = select(Room).where(Room.id.in_(working_room_ids))
-                rooms_result = await db_session.execute(rooms_query)
-                rooms_map = {room.id: room for room in rooms_result.scalars().all()}
+                rooms = await crud_room.get_by_ids(list(working_room_ids), db_session)
+                rooms_map = {room.id: room for room in rooms}
 
             # Process each dweller
             for dweller in dwellers:
@@ -438,22 +429,11 @@ class GameLoopService:
 
     async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
-        from app.core.enums import RoomTypeEnum
         from app.models.base import SPECIALModel
-        from app.models.room import Room
         from app.services.training_service import TrainingService
 
         stats = {"active_count": 0, "stats_awarded": 0}
-        apprentices_result = await db_session.execute(
-            select(Dweller).where(
-                Dweller.vault_id == vault_id,
-                Dweller.apprentice_stat.is_not(None),
-                Dweller.apprentice_started_at.is_not(None),
-                ~Dweller.is_deleted,
-                ~Dweller.is_dead,
-            )
-        )
-        apprentices = list(apprentices_result.scalars().all())
+        apprentices = list(await crud_dweller.get_active_apprentices(db_session, vault_id))
         stats["active_count"] = len(apprentices)
         if not apprentices:
             return stats
@@ -461,8 +441,8 @@ class GameLoopService:
         room_ids = {apprentice.room_id for apprentice in apprentices if apprentice.room_id is not None}
         rooms_by_id = {}
         if room_ids:
-            rooms_result = await db_session.execute(select(Room).where(Room.id.in_(room_ids)))
-            rooms_by_id = {room.id: room for room in rooms_result.scalars().all()}
+            rooms = await crud_room.get_by_ids(list(room_ids), db_session)
+            rooms_by_id = {room.id: room for room in rooms}
 
         now = datetime.utcnow()
         for apprentice in apprentices:
@@ -564,10 +544,9 @@ class GameLoopService:
     ) -> dict:
         """Fire weighted random vault events (raider scout, resource cache, wanderer)."""
         # Import here to avoid circular import
-        from app.models.dweller import Dweller
         from app.models.incident import IncidentType
         from app.models.notification import NotificationPriority, NotificationType
-        from app.services.incident_service import incident_service
+        from app.services.combat.incident_service import incident_service
         from app.services.notification_service import notification_service
 
         stats = {"triggered": 0, "events": []}
@@ -577,8 +556,8 @@ class GameLoopService:
             return stats
 
         # Minimum population gate
-        dwellers_result = await db_session.execute(select(Dweller).where(Dweller.vault_id == vault_id))
-        if len(dwellers_result.scalars().all()) < game_config.vault_event.min_vault_population:
+        population = await crud_dweller.count_in_vault(db_session, vault_id)
+        if population < game_config.vault_event.min_vault_population:
             return stats
 
         # Time-based spawn chance (capped like incidents)
@@ -652,11 +631,7 @@ class GameLoopService:
         :param dweller_ids: Set of dweller IDs to fetch relationships for
         :returns: List of existing relationships
         """
-        relationships_query = select(Relationship).where(
-            (Relationship.dweller_1_id.in_(dweller_ids)) | (Relationship.dweller_2_id.in_(dweller_ids))
-        )
-        relationships_result = await db_session.execute(relationships_query)
-        return relationships_result.scalars().all()
+        return await crud_relationship.get_involving_any(db_session, dweller_ids)
 
     def _build_relationships_map(self, relationships: list[Relationship]) -> dict[tuple[UUID4, UUID4], Relationship]:
         """Build a bidirectional lookup map for relationships.
@@ -767,23 +742,10 @@ class GameLoopService:
         :returns: Statistics with 'relationships_updated' count
         :rtype: dict
         """
-        from app.models.room import Room
-
         stats = {"relationships_updated": 0}
 
         try:
-            dwellers_query = (
-                select(Dweller)
-                .join(Room, Dweller.room_id == Room.id)
-                .where(
-                    Dweller.vault_id == vault_id,
-                    Dweller.room_id.is_not(None),
-                    Room.name.ilike("%living%"),
-                    Room.category == RoomTypeEnum.CAPACITY,
-                )
-            )
-            dwellers_result = await db_session.execute(dwellers_query)
-            dwellers = dwellers_result.scalars().all()
+            dwellers = await crud_dweller.get_living_quarters_dwellers(db_session, vault_id)
             if not dwellers:
                 return stats
 

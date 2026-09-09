@@ -18,7 +18,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
-from app.services.incident_service import incident_service
+from app.services.combat.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
 
 
@@ -423,7 +423,7 @@ class TestProcessVaultIncidents:
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=True),
             patch.object(incident_service, "spawn_incident", new_callable=AsyncMock, return_value=mock_incident),
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
@@ -437,7 +437,7 @@ class TestProcessVaultIncidents:
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
@@ -452,7 +452,7 @@ class TestProcessVaultIncidents:
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
@@ -475,7 +475,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 return_value=IncidentRoundResult(caps_earned=50),
             ),
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
             patch("app.crud.vault.vault") as mock_vault_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
@@ -499,7 +499,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 return_value=IncidentRoundResult(skipped=True),
             ),
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
@@ -532,7 +532,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 side_effect=process_side_effect,
             ),
-            patch("app.services.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[inc1, inc2])

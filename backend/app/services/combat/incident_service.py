@@ -6,18 +6,19 @@ import random
 from pydantic import UUID4
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
+from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
+from app.crud.room import room as room_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
 from app.models.incident_event import IncidentEvent
 from app.models.notification import NotificationPriority, NotificationType
-from app.models.room import Room
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentProgress,
@@ -74,15 +75,9 @@ class IncidentService:
                 target=incident.difficulty * 2,
                 label=definition.progress_label,
             )
-        events_result = await db_session.execute(
-            select(IncidentEvent)
-            .where(IncidentEvent.incident_id == incident.id)
-            .order_by(IncidentEvent.created_at.desc())
-            .limit(20)
-        )
         events = [
             IncidentEventRead(id=str(event.id), kind=event.kind, message=event.message, data=event.data)
-            for event in reversed(events_result.scalars().all())
+            for event in reversed(await incident_crud.get_recent_events(db_session, incident.id))
         ]
         return IncidentRead(
             id=incident.id,
@@ -136,18 +131,10 @@ class IncidentService:
             return False
 
         # Need minimum population
-        from app.models.dweller import Dweller
-
-        dwellers_query = select(Dweller).where(Dweller.vault_id == vault_id)
-        dwellers_result = await db_session.execute(dwellers_query)
-        dweller_count = len(dwellers_result.scalars().all())
-
-        if dweller_count < game_config.incident.min_vault_population:
+        if await crud_dweller.count_in_vault(db_session, vault_id) < game_config.incident.min_vault_population:
             return False
 
         # Check if max active incidents reached
-        from app.crud.incident import incident_crud
-
         active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
         if len(active_incidents) >= game_config.incident.max_active_incidents:
             return False
@@ -227,11 +214,9 @@ class IncidentService:
         # Determine where to spawn based on incident type
         if incident_type.value in game_config.incident.vault_door_incidents:
             # External attacks spawn at vault door (0,0) and spread inward
-            vault_door_query = select(Room).where(
-                (Room.vault_id == vault_id) & (Room.coordinate_x == 0) & (Room.coordinate_y == 0)
+            target_room = await room_crud.get_room_by_coordinates(
+                db_session=db_session, vault_id=vault_id, x_coord=0, y_coord=0
             )
-            vault_door_result = await db_session.execute(vault_door_query)
-            target_room = vault_door_result.scalar_one_or_none()
 
             if not target_room:
                 self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
@@ -243,18 +228,7 @@ class IncidentService:
                 return None
         else:
             # Other incidents spawn in random occupied rooms (excluding elevators)
-            rooms_query = (
-                select(Room)
-                .join(Dweller, Room.id == Dweller.room_id)
-                .where(
-                    (Room.vault_id == vault_id)
-                    & (Dweller.room_id.is_not(None))
-                    & (Room.name != "Elevator")  # Exclude elevators
-                )
-                .distinct()
-            )
-            rooms_result = await db_session.execute(rooms_query)
-            occupied_rooms = list(rooms_result.scalars().all())
+            occupied_rooms = await room_crud.get_occupied_rooms(db_session, vault_id)
 
             # Filter out rooms that already have incidents
             available_rooms = [room for room in occupied_rooms if room.id not in rooms_with_incidents]
@@ -356,23 +330,7 @@ class IncidentService:
         transitioned = False
 
         # Get dwellers in affected room with equipment preloaded (N+1 optimization)
-        from sqlalchemy.orm import selectinload
-
-        dwellers_query = (
-            select(Dweller)
-            .options(
-                selectinload(Dweller.weapon),
-                selectinload(Dweller.outfit),
-            )
-            .where(
-                (Dweller.room_id == incident.room_id)
-                & (Dweller.health > 0)
-                & Dweller.is_adult
-                & (Dweller.age_group == AgeGroupEnum.ADULT)
-            )
-        )
-        dwellers_result = await db_session.execute(dwellers_query)
-        dwellers = list(dwellers_result.scalars().all())
+        dwellers = list(await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id))
 
         if not dwellers:
             if (
@@ -608,11 +566,9 @@ class IncidentService:
         if not await self._try_acquire_tick_lock(db_session):
             return {"vaults": 0, "spawned": 0, "resolved": 0}
 
-        from app.models.vault import Vault
-
         try:
-            result = await db_session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
-            vault_ids = [row[0] for row in result.all()]
+            vaults = await vault_crud.get_active_ordered(db_session)
+            vault_ids = [vault.id for vault in vaults]
 
             totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
             for vault_id in vault_ids:
@@ -721,9 +677,7 @@ class IncidentService:
         if len(unique_ids) != len(dweller_ids):
             raise ValidationException("Choose each responder only once")
 
-        query = select(Dweller).where(Dweller.id.in_(unique_ids), Dweller.vault_id == incident.vault_id)
-        result = await db_session.execute(query)
-        dwellers = list(result.scalars().all())
+        dwellers = list(await crud_dweller.get_by_ids_in_vault(db_session, unique_ids, incident.vault_id))
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
@@ -760,9 +714,7 @@ class IncidentService:
             return False
 
         # Get the current room to find its coordinates
-        current_room_query = select(Room).where(Room.id == incident.room_id)
-        current_room_result = await db_session.execute(current_room_query)
-        current_room = current_room_result.scalar_one_or_none()
+        current_room = await room_crud.get_or_none(db_session, id=incident.room_id)
 
         if not current_room or current_room.coordinate_x is None or current_room.coordinate_y is None:
             return False
@@ -772,27 +724,13 @@ class IncidentService:
 
         # Find adjacent rooms (within 1-2 coordinate units horizontally or vertically)
         # Exclude elevators and rooms with active incidents
-        adjacent_rooms_query = select(Room).where(
-            (Room.vault_id == incident.vault_id)
-            & (Room.id != incident.room_id)
-            & (Room.coordinate_x.is_not(None))
-            & (Room.coordinate_y.is_not(None))
-            & (Room.name != "Elevator")  # Exclude elevators from spread
-            & (
-                # Adjacent horizontally (same floor, next to each other)
-                (
-                    (Room.coordinate_y == current_room.coordinate_y)
-                    & (Room.coordinate_x.between(current_room.coordinate_x - 2, current_room.coordinate_x + 2))
-                )
-                # Adjacent vertically (same column, one floor up/down)
-                | (
-                    (Room.coordinate_x == current_room.coordinate_x)
-                    & (Room.coordinate_y.between(current_room.coordinate_y - 1, current_room.coordinate_y + 1))
-                )
-            )
+        all_adjacent_rooms = await room_crud.get_adjacent_rooms(
+            db_session,
+            incident.vault_id,
+            exclude_room_id=incident.room_id,
+            coord_x=current_room.coordinate_x,
+            coord_y=current_room.coordinate_y,
         )
-        adjacent_rooms_result = await db_session.execute(adjacent_rooms_query)
-        all_adjacent_rooms = list(adjacent_rooms_result.scalars().all())
 
         # Filter out rooms that already have incidents
         adjacent_rooms = [room for room in all_adjacent_rooms if room.id not in rooms_with_incidents]

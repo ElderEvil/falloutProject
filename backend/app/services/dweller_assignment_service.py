@@ -1,7 +1,6 @@
 """Service for intelligent dweller assignment to rooms."""
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -11,7 +10,6 @@ from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerUpdate
-from app.services.room_assignment_policy import adult_assignment_conditions
 from app.services.training_service import training_service
 
 ABILITY_TO_STAT_MAP = {
@@ -43,9 +41,7 @@ class DwellerAssignmentService:
 
     async def _get_available_slots(self, room: Room, db_session: AsyncSession) -> int:
         """Get available slots in a room."""
-        dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
-        dweller_count_result = await db_session.execute(dweller_count_query)
-        current_dwellers = len(dweller_count_result.scalars().all())
+        current_dwellers = await crud.dweller.count_in_room(db_session, room.id)
         max_capacity = self._calculate_room_capacity(room)
         return max(0, max_capacity - current_dwellers)
 
@@ -200,10 +196,7 @@ class DwellerAssignmentService:
         unassigned_count = 0
         arena_leavers: list[UUID4] = []
 
-        arena_rooms_result = await db_session.execute(
-            select(Room.id).where(Room.vault_id == vault_id, Room.category == RoomTypeEnum.ARENA)
-        )
-        arena_room_ids = {row[0] for row in arena_rooms_result}
+        arena_room_ids = {room.id for room in await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.ARENA)}
 
         for dweller in dwellers:
             if dweller.room_id is not None:
@@ -216,33 +209,12 @@ class DwellerAssignmentService:
                 )
                 unassigned_count += 1
 
-        from app.services.arena_service import arena_service
+        from app.services.combat.arena_service import arena_service
 
         for dweller_id in arena_leavers:
             await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id)
 
         return {"unassigned_count": unassigned_count}
-
-    async def _unassigned_dwellers(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        age_group: AgeGroupEnum | None = None,
-    ) -> list[Dweller]:
-        """Idle adults without a room, optionally narrowed to one age group."""
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.status == DwellerStatusEnum.IDLE)
-            .where(Dweller.room_id.is_(None))
-            .where(*adult_assignment_conditions())
-            .where(~Dweller.is_deleted)
-            .where(~Dweller.is_dead)
-        )
-        if age_group:
-            query = query.where(Dweller.age_group == age_group)
-        result = await db_session.execute(query)
-        return list(result.scalars().all())
 
     async def auto_assign_production_rooms(
         self,
@@ -253,16 +225,13 @@ class DwellerAssignmentService:
         """Intelligently assign unassigned dwellers to production rooms based on SPECIAL stats.
         Priority order: Power Plant (Strength) -> Diner (Agility) -> Water Treatment (Perception).
         """
-        rooms_query = (
-            select(Room)
-            .where(Room.vault_id == vault_id)
-            .where(Room.category == RoomTypeEnum.PRODUCTION)
-            .where(Room.ability.in_(PRODUCTION_ABILITIES))
-        )
-        rooms_result = await db_session.execute(rooms_query)
-        all_production_rooms = rooms_result.scalars().all()
+        all_production_rooms = [
+            room
+            for room in await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.PRODUCTION)
+            if room.ability in PRODUCTION_ABILITIES
+        ]
 
-        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
+        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()
@@ -277,9 +246,7 @@ class DwellerAssignmentService:
                 if not unassigned_dwellers:
                     break
 
-                dweller_count_query = select(Dweller).where(Dweller.room_id == room.id)
-                dweller_count_result = await db_session.execute(dweller_count_query)
-                current_dwellers_in_room = len(dweller_count_result.scalars().all())
+                current_dwellers_in_room = await crud.dweller.count_in_room(db_session, room.id)
 
                 room_size = room.size if room.size is not None else room.size_min
                 max_capacity = (room_size // 3) * 2 if room_size else 0
@@ -321,11 +288,8 @@ class DwellerAssignmentService:
         age_group: AgeGroupEnum | None = None,
     ) -> dict[str, int | list[dict[str, str]]]:
         """Assign idle dwellers to training rooms, prioritizing their lowest eligible SPECIAL stat."""
-        rooms_result = await db_session.execute(
-            select(Room).where(Room.vault_id == vault_id, Room.category == RoomTypeEnum.TRAINING)
-        )
-        training_rooms = list(rooms_result.scalars().all())
-        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
+        training_rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.TRAINING)
+        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
         assignments: list[dict[str, str]] = []
 
         await self._assign_to_rooms_proportional(
@@ -348,13 +312,9 @@ class DwellerAssignmentService:
         """Intelligently assign unassigned dwellers to ALL room types based on SPECIAL stats.
         Priority: Production -> Med/Science -> Radio -> Training.
         """
-        rooms_query = (
-            select(Room)
-            .where(Room.vault_id == vault_id)
-            .where(Room.category.in_([RoomTypeEnum.PRODUCTION, RoomTypeEnum.MISC, RoomTypeEnum.TRAINING]))
+        all_rooms = await crud.room.get_by_categories(
+            db_session, vault_id, [RoomTypeEnum.PRODUCTION, RoomTypeEnum.MISC, RoomTypeEnum.TRAINING]
         )
-        rooms_result = await db_session.execute(rooms_query)
-        all_rooms = rooms_result.scalars().all()
 
         production_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.PRODUCTION]
         medsci_rooms = [
@@ -363,7 +323,7 @@ class DwellerAssignmentService:
         radio_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.MISC and r.ability == SPECIALEnum.CHARISMA]
         training_rooms = [r for r in all_rooms if r.category == RoomTypeEnum.TRAINING]
 
-        unassigned_dwellers = await self._unassigned_dwellers(db_session, vault_id, age_group)
+        unassigned_dwellers = await crud.dweller.get_unassigned_adults(db_session, vault_id, age_group)
 
         assignments: list[dict[str, str]] = []
         assigned_dweller_ids: set = set()

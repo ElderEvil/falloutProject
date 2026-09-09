@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import col, select
+from sqlmodel import col, func, select
 
 from app.models.dweller import Dweller
 from app.models.wasteland_location import (
@@ -70,6 +70,19 @@ class CRUDWastelandLocation:
         )
         result = await db_session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_visited_counts(self, db_session: AsyncSession, dweller_ids: list[UUID4]) -> dict[UUID4, int]:
+        """Count VISITED wasteland locations per dweller in one grouped query."""
+        if not dweller_ids:
+            return {}
+        query = (
+            select(DwellerLocation.dweller_id, func.count())
+            .where(col(DwellerLocation.dweller_id).in_(dweller_ids))
+            .where(DwellerLocation.relation == DwellerLocationRelationEnum.VISITED)
+            .group_by(DwellerLocation.dweller_id)
+        )
+        result = await db_session.execute(query)
+        return {row[0]: row[1] for row in result.all()}
 
     async def get_by_normalized(
         self, db_session: AsyncSession, vault_id: UUID4, normalized_name: str

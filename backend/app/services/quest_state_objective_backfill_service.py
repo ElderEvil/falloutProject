@@ -1,13 +1,11 @@
 """Repair legacy state objectives that were started as timed quests."""
 
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum
+from app.crud.quest import quest_crud
+from app.crud.quest_party import quest_party_crud
 from app.models.dweller import Dweller
-from app.models.quest import Quest
-from app.models.quest_party import QuestParty
-from app.models.vault_quest import VaultQuestCompletionLink
 
 
 class QuestStateObjectiveBackfillService:
@@ -15,26 +13,10 @@ class QuestStateObjectiveBackfillService:
 
     async def backfill_started_state_objectives(self, db_session: AsyncSession) -> int:
         """Release parties and make started building/population/training objectives claimable."""
-        result = await db_session.execute(
-            select(VaultQuestCompletionLink)
-            .join(Quest)
-            .where(
-                Quest.quest_category.in_(("building", "population", "training")),
-                VaultQuestCompletionLink.started_at.is_not(None),
-                ~VaultQuestCompletionLink.is_completed,
-                ~VaultQuestCompletionLink.is_reward_ready,
-            )
-        )
-        links = result.scalars().all()
+        links = await quest_crud.get_started_state_objective_links(db_session)
 
         for link in links:
-            party = await db_session.execute(
-                select(QuestParty).where(
-                    QuestParty.vault_id == link.vault_id,
-                    QuestParty.quest_id == link.quest_id,
-                )
-            )
-            for member in party.scalars():
+            for member in await quest_party_crud.get_party_for_quest(db_session, link.quest_id, link.vault_id):
                 if dweller := await db_session.get(Dweller, member.dweller_id):
                     dweller.status = DwellerStatusEnum.IDLE
                 await db_session.delete(member)

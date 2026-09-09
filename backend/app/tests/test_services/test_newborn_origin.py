@@ -22,7 +22,7 @@ from app.models.wasteland_location import (
 )
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.breeding_service import BreedingService
+from app.services.family.breeding_service import BreedingService
 
 
 @pytest_asyncio.fixture(name="male_dweller")

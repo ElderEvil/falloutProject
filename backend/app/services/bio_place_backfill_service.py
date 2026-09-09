@@ -11,11 +11,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exists, select
-
-from app.models.dweller import Dweller
-from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation
+from app.crud.dweller import dweller as dweller_crud
 from app.services.map_service import map_service
 
 if TYPE_CHECKING:
@@ -260,11 +256,9 @@ class BioPlaceBackfillService:
         Returns a mapping of ``vault_id`` → number of dwellers processed.
         Vaults are ordered by creation date for deterministic runs.
         """
-        stmt = select(Vault).where(~Vault.is_deleted).order_by(Vault.created_at)
-        if max_vaults is not None:
-            stmt = stmt.limit(max_vaults)
-        result = await db_session.execute(stmt)
-        vaults = result.scalars().all()
+        from app.crud.vault import vault as vault_crud
+
+        vaults = await vault_crud.get_active_ordered(db_session, max_vaults)
 
         counts: dict[UUID4, int] = {}
         for vault in vaults:
@@ -284,19 +278,7 @@ class BioPlaceBackfillService:
         max_dwellers: int | None,
     ) -> Sequence[Dweller]:
         """Return dwellers with a bio but no ``DwellerLocation`` links."""
-        stmt = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(~Dweller.is_deleted)
-            .where(Dweller.bio.is_not(None))
-            .where(Dweller.bio != "")
-            .where(~exists().where(DwellerLocation.dweller_id == Dweller.id))
-            .order_by(Dweller.created_at)
-        )
-        if max_dwellers is not None:
-            stmt = stmt.limit(max_dwellers)
-        response = await db_session.execute(stmt)
-        return response.scalars().all()
+        return await dweller_crud.get_bio_without_locations(db_session, vault_id, max_dwellers)
 
 
 # Module-level singleton — matches the convention used by other services.

@@ -9,7 +9,7 @@ from uuid import UUID
 
 import typer
 
-from app.services.apprentice_scenario_service import apprentice_scenario_service
+from app.services.family.apprentice_scenario_service import apprentice_scenario_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(

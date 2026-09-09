@@ -70,6 +70,26 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return {name.lower() for name in response.scalars().all()}
 
     @staticmethod
+    async def get_by_name_pattern(db_session: AsyncSession, vault_id: UUID4, pattern: str) -> list[Room]:
+        """Rooms of a vault whose name matches a LIKE pattern (e.g. ``%radio%``)."""
+        response = await db_session.execute(select(Room).where(Room.vault_id == vault_id, Room.name.ilike(pattern)))
+        return list(response.scalars().all())
+
+    @staticmethod
+    async def get_production_with_ability(db_session: AsyncSession, vault_id: UUID4) -> Room | None:
+        """Oldest production room that trains a SPECIAL ability, if any."""
+        response = await db_session.execute(
+            select(Room)
+            .where(
+                Room.vault_id == vault_id,
+                Room.category == RoomTypeEnum.PRODUCTION,
+                Room.ability.is_not(None),
+            )
+            .order_by(Room.created_at)
+        )
+        return response.scalars().first()
+
+    @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:
         try:
             result = _evaluate_room_formula(formula, level, size)

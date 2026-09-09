@@ -40,5 +40,51 @@ class CRUDLLMInteraction(CRUDBase[LLMInteraction, LLMInteractionCreate, None]):
         )
         return int(result.scalar_one() or 0)
 
+    async def aggregate_tokens(
+        self, db_session: AsyncSession, user_id: UUID, since: datetime | None = None
+    ) -> tuple[int, int, int]:
+        """Summed (prompt, completion, total) tokens for a user, optionally since a timestamp."""
+        query = select(
+            func.coalesce(func.sum(LLMInteraction.prompt_tokens), 0).label("prompt_tokens"),
+            func.coalesce(func.sum(LLMInteraction.completion_tokens), 0).label("completion_tokens"),
+            func.coalesce(func.sum(LLMInteraction.total_tokens), 0).label("total_tokens"),
+        ).where(LLMInteraction.user_id == user_id)
+        if since:
+            query = query.where(LLMInteraction.created_at >= since)
+        row = (await db_session.execute(query)).first()
+        if not row:
+            return (0, 0, 0)
+        return (int(row.prompt_tokens or 0), int(row.completion_tokens or 0), int(row.total_tokens or 0))
+
+    async def aggregate_by_operation(
+        self, db_session: AsyncSession, user_id: UUID, since: datetime | None = None
+    ) -> list[tuple[str, int, int, int, int]]:
+        """Per-operation (operation, prompt, completion, total, count) token usage, heaviest first."""
+        operation = func.coalesce(LLMInteraction.usage, "unknown")
+        query = (
+            select(
+                operation.label("operation"),
+                func.coalesce(func.sum(LLMInteraction.prompt_tokens), 0).label("prompt_tokens"),
+                func.coalesce(func.sum(LLMInteraction.completion_tokens), 0).label("completion_tokens"),
+                func.coalesce(func.sum(LLMInteraction.total_tokens), 0).label("total_tokens"),
+                func.count().label("interaction_count"),
+            )
+            .where(LLMInteraction.user_id == user_id)
+            .group_by(operation)
+            .order_by(func.sum(LLMInteraction.total_tokens).desc())
+        )
+        if since:
+            query = query.where(LLMInteraction.created_at >= since)
+        return [
+            (
+                row.operation,
+                int(row.prompt_tokens or 0),
+                int(row.completion_tokens or 0),
+                int(row.total_tokens or 0),
+                int(row.interaction_count),
+            )
+            for row in (await db_session.execute(query)).all()
+        ]
+
 
 llm_interaction = CRUDLLMInteraction(LLMInteraction)

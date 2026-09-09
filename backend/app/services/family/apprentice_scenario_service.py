@@ -7,13 +7,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
-from sqlmodel import select
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.base import SPECIALModel
-from app.models.dweller import Dweller
-from app.models.room import Room
 from app.schemas.dweller import DwellerCreate
 from app.services.training_service import TrainingService
 
@@ -50,16 +47,7 @@ class ApprenticeScenarioService:
     @staticmethod
     async def find_production_room(db_session: Any, vault_id: UUID4) -> Room:
         """Return a vault production room that trains a SPECIAL ability."""
-        query = (
-            select(Room)
-            .where(
-                Room.vault_id == vault_id,
-                Room.category == RoomTypeEnum.PRODUCTION,
-                Room.ability.is_not(None),
-            )
-            .order_by(Room.created_at)
-        )
-        room = (await db_session.execute(query)).scalars().first()
+        room = await crud.room.get_production_with_ability(db_session, vault_id)
         if room is None:
             raise ValueError(f"Vault {vault_id} has no production room with a SPECIAL ability.")
         return room
@@ -67,18 +55,7 @@ class ApprenticeScenarioService:
     @staticmethod
     async def find_active_apprentice(db_session: Any, vault_id: UUID4) -> Dweller | None:
         """Return the existing active apprentice, if the vault already has one."""
-        query = (
-            select(Dweller)
-            .where(
-                Dweller.vault_id == vault_id,
-                Dweller.apprentice_stat.is_not(None),
-                Dweller.apprentice_started_at.is_not(None),
-                ~Dweller.is_deleted,
-                ~Dweller.is_dead,
-            )
-            .order_by(Dweller.apprentice_started_at)
-        )
-        return (await db_session.execute(query)).scalars().first()
+        return await crud.dweller.get_first_active_apprentice(db_session, vault_id)
 
     @staticmethod
     def _training_duration(apprentice: Dweller, room: Room) -> int:

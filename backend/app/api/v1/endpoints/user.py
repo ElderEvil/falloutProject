@@ -17,7 +17,7 @@ from app.db.session import get_async_session
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdate, UserWithTokens
 from app.schemas.user_profile import ProfileRead, ProfileUpdate
-from app.services.death_service import death_service
+from app.services.family.death_service import death_service
 from app.services.user_service import user_service
 
 logger = logging.getLogger(__name__)

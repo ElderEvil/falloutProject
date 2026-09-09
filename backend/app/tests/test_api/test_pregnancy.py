@@ -53,7 +53,7 @@ async def test_get_vault_pregnancies_with_active(
     father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
     # Create pregnancy
-    from app.services.breeding_service import breeding_service
+    from app.services.family.breeding_service import breeding_service
 
     pregnancy = await breeding_service.create_pregnancy(
         async_session,
@@ -93,7 +93,7 @@ async def test_deliver_baby_success(
     mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
     father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
-    from app.services.breeding_service import breeding_service
+    from app.services.family.breeding_service import breeding_service
 
     pregnancy = await breeding_service.create_pregnancy(
         async_session,
@@ -202,7 +202,7 @@ async def test_accelerate_pregnancy_success(
     mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
     father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
-    from app.services.breeding_service import breeding_service
+    from app.services.family.breeding_service import breeding_service
 
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
 

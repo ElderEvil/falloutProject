@@ -11,7 +11,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
-from app.services.breeding_service import breeding_service
+from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/pregnancies", tags=["Pregnancy"])

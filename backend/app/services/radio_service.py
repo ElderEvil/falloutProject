@@ -4,7 +4,6 @@ import logging
 import random
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -15,6 +14,7 @@ from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
+from app.services.room_service import room_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,7 @@ class RadioService:
         """
         # Radio rooms would have "Radio" in the name or a specific type
         # For now, we'll use name-based matching until a RADIO room type is added
-        query = select(Room).where(Room.vault_id == vault_id).where(Room.name.ilike("%radio%"))
-
-        return (await db_session.execute(query)).scalars().all()
+        return await room_service.get_rooms_by_name_pattern(db_session, vault_id, "%radio%")
 
     @staticmethod
     async def calculate_recruitment_rate(
@@ -77,8 +75,7 @@ class RadioService:
 
             # Add charisma bonus from assigned dwellers
             # Query dwellers assigned to this room
-            dwellers_query = select(Dweller).where(Dweller.room_id == room.id)
-            dwellers = (await db_session.execute(dwellers_query)).scalars().all()
+            dwellers = await crud.dweller.get_by_room(db_session, room.id)
 
             for dweller in dwellers:
                 charisma_bonus = dweller.charisma * game_config.radio.charisma_rate_multiplier
@@ -105,8 +102,7 @@ class RadioService:
             Newly recruited dweller if successful, None otherwise
         """
         # Get vault
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
+        vault = await crud.vault.get_or_none(db_session, id=vault_id, include_deleted=True)
 
         if not vault:
             return None
@@ -275,10 +271,7 @@ class RadioService:
             raise ValueError(msg)
 
         radio_room_ids = [room.id for room in radio_rooms]
-        dwellers_query = select(Dweller).where(
-            Dweller.room_id.in_(radio_room_ids), Dweller.vault_id == vault_id, ~Dweller.is_deleted
-        )
-        assigned_dwellers = (await db_session.execute(dwellers_query)).scalars().all()
+        assigned_dwellers = await crud.dweller.get_by_room_ids(db_session, vault_id, radio_room_ids)
 
         if not assigned_dwellers:
             msg = "No residents assigned to radio room"
@@ -318,8 +311,7 @@ class RadioService:
             Dictionary with recruitment stats
         """
         # Get vault
-        vault_query = select(Vault).where(Vault.id == vault_id)
-        vault = (await db_session.execute(vault_query)).scalars().first()
+        vault = await crud.vault.get_or_none(db_session, id=vault_id, include_deleted=True)
 
         if not vault:
             return {
@@ -406,10 +398,8 @@ class RadioService:
         room_id: UUID4,
         speedup: float,
     ) -> Room:
-        room_query = select(Room).where(Room.id == room_id).where(Room.vault_id == vault_id)
-        room = (await db_session.execute(room_query)).scalars().first()
-
-        if not room:
+        room = await db_session.get(Room, room_id)
+        if not room or room.vault_id != vault_id:
             msg = "Radio room not found"
             raise ValueError(msg)
 

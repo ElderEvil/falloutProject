@@ -87,6 +87,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
+    async def has_other_apprentice(
+        self, db_session: AsyncSession, *, room_id: UUID4, exclude_dweller_id: UUID4
+    ) -> bool:
+        """Whether a room already has an apprentice besides the given dweller."""
+        query = select(self.model.id).where(
+            self.model.room_id == room_id,
+            self.model.id != exclude_dweller_id,
+            self.model.apprentice_started_at.is_not(None),
+            ~self.model.is_deleted,
+        )
+        response = await db_session.execute(query)
+        return response.scalars().first() is not None
+
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[Dweller]:
@@ -151,6 +164,128 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = query.offset(skip).limit(limit).options(selectinload(Dweller.weapon))
         response = await db_session.execute(query)
         return response.scalars().all()
+
+    async def get_by_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
+        """Dwellers assigned to one room, excluding soft-deleted."""
+        query = select(self.model).where(self.model.room_id == room_id, ~self.model.is_deleted)
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_aging_youth(
+        self, db_session: AsyncSession, vault_id: UUID4, age_group: AgeGroupEnum, born_before: datetime
+    ) -> Sequence[Dweller]:
+        """Dwellers of one young age group born before the threshold (ready to age up)."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.age_group == age_group)
+            .where(self.model.birth_date.is_not(None))
+            .where(self.model.birth_date <= born_before)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_children_of(
+        self, db_session: AsyncSession, *, vault_id: UUID4, parent_ids: Sequence[UUID4], exclude_id: UUID4 | None = None
+    ) -> Sequence[Dweller]:
+        """Live dwellers in a vault whose parent_1 or parent_2 is one of the given ids."""
+        from sqlalchemy import or_
+
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+            .where(or_(self.model.parent_1_id.in_(parent_ids), self.model.parent_2_id.in_(parent_ids)))
+        )
+        if exclude_id is not None:
+            query = query.where(self.model.id != exclude_id)
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_reciprocal_partners(
+        self, db_session: AsyncSession, vault_id: UUID4, dweller_id: UUID4
+    ) -> Sequence[Dweller]:
+        """Live dwellers in a vault whose partner_id points at this dweller."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+            .where(self.model.partner_id == dweller_id)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def count_death_stats(self, db_session: AsyncSession, vault_ids: Sequence[UUID4]) -> tuple[int, int]:
+        """(revivable, permanently_dead) dead-dweller counts across the given vaults."""
+        revivable_query = (
+            select(self.model)
+            .where(self.model.vault_id.in_(vault_ids))
+            .where(self.model.is_dead)
+            .where(~self.model.is_permanently_dead)
+        )
+        revivable = len((await db_session.execute(revivable_query)).scalars().all())
+
+        permanent_query = (
+            select(self.model).where(self.model.vault_id.in_(vault_ids)).where(self.model.is_permanently_dead)
+        )
+        permanent = len((await db_session.execute(permanent_query)).scalars().all())
+        return revivable, permanent
+
+    async def get_permanently_dead_before(self, db_session: AsyncSession, cutoff: datetime) -> Sequence[Dweller]:
+        """Dead, not-yet-permanent dwellers whose death predates the cutoff."""
+        query = (
+            select(self.model)
+            .where(self.model.is_dead)
+            .where(~self.model.is_permanently_dead)
+            .where(self.model.death_timestamp <= cutoff)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_by_room_ids(
+        self, db_session: AsyncSession, vault_id: UUID4, room_ids: list[UUID4]
+    ) -> Sequence[Dweller]:
+        """Assigned dwellers of a vault filtered to the given rooms, excluding soft-deleted."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.room_id.in_(room_ids))
+            .where(~self.model.is_deleted)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_first_active_apprentice(self, db_session: AsyncSession, vault_id: UUID4) -> Dweller | None:
+        """The vault's longest-standing active apprentice, if any."""
+        query = (
+            select(self.model)
+            .where(
+                self.model.vault_id == vault_id,
+                self.model.apprentice_stat.is_not(None),
+                self.model.apprentice_started_at.is_not(None),
+                ~self.model.is_deleted,
+                ~self.model.is_dead,
+            )
+            .order_by(self.model.apprentice_started_at)
+        )
+        return (await db_session.execute(query)).scalars().first()
+
+    async def get_bio_without_locations(
+        self, db_session: AsyncSession, vault_id: UUID4, limit: int | None = None
+    ) -> Sequence[Dweller]:
+        """Dwellers with a bio but no DwellerLocation links, oldest first."""
+        from sqlalchemy import exists
+
+        from app.models.wasteland_location import DwellerLocation
+
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(self.model.bio.is_not(None))
+            .where(self.model.bio != "")
+            .where(~exists().where(DwellerLocation.dweller_id == self.model.id))
+            .order_by(self.model.created_at)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return (await db_session.execute(query)).scalars().all()
 
     async def get_by_status(
         self,

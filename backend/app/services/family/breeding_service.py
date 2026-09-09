@@ -6,7 +6,6 @@ import random
 from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import (
@@ -20,10 +19,10 @@ from app.core.game_config import game_config
 from app.crud import vault as vault_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.pregnancy import pregnancy as pregnancy_crud
+from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
-from app.models.vault import Vault
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.services.notification_service import notification_service
 
@@ -114,13 +113,7 @@ class BreedingService:
         :returns: Conception chance as decimal (0.0 to 1.0)
         :rtype: float
         """
-        from app.models.relationship import Relationship
-
-        query = select(Relationship).where(
-            ((Relationship.dweller_1_id == dweller.id) & (Relationship.dweller_2_id == partner.id))
-            | ((Relationship.dweller_1_id == partner.id) & (Relationship.dweller_2_id == dweller.id))
-        )
-        relationship = (await db_session.execute(query)).scalars().first()
+        relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller.id, partner.id)
 
         # Calculate conception chance based on affinity (1% per affinity point)
         # If no relationship found, use base chance
@@ -184,9 +177,7 @@ class BreedingService:
         # already-committed pregnancies reserve one population slot each, so at
         # most (population_max - population - active_pregnancies) new babies may
         # be conceived this tick. population_max=None means unbounded (legacy).
-        population_max = (
-            await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
-        ).scalar_one_or_none()
+        population_max = await vault_crud.get_population_max(db_session=db_session, vault_id=vault_id)
 
         if population_max is not None:
             population = await vault_crud.get_population(db_session=db_session, vault_id=vault_id)
@@ -507,23 +498,9 @@ class BreedingService:
         teen_threshold = now - timedelta(hours=maturity_hours // 2)
         adult_threshold = now - timedelta(hours=maturity_hours)
 
-        teens_query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.age_group == AgeGroupEnum.TEEN)
-            .where(Dweller.birth_date.is_not(None))
-            .where(Dweller.birth_date <= adult_threshold)
-        )
-        teens = list((await db_session.execute(teens_query)).scalars().all())
+        teens = list(await dweller_crud.get_aging_youth(db_session, vault_id, AgeGroupEnum.TEEN, adult_threshold))
 
-        children_query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(Dweller.age_group == AgeGroupEnum.CHILD)
-            .where(Dweller.birth_date.is_not(None))
-            .where(Dweller.birth_date <= teen_threshold)
-        )
-        children = (await db_session.execute(children_query)).scalars().all()
+        children = await dweller_crud.get_aging_youth(db_session, vault_id, AgeGroupEnum.CHILD, teen_threshold)
 
         aged_dwellers = []
         for child in children:

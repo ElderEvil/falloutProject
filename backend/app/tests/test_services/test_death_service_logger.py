@@ -12,7 +12,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
 def test_death_service_log_has_context() -> None:
     """death_service must log dweller name, cause, and vault_id — not just cause."""
-    svc_path = BACKEND_ROOT / "app" / "services" / "death_service.py"
+    svc_path = BACKEND_ROOT / "app" / "services" / "family" / "death_service.py"
     source = svc_path.read_text()
 
     # Must contain context placeholders

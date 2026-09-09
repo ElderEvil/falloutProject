@@ -5,17 +5,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from sqlmodel import select
-
 from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.models.exploration import Exploration
-from app.models.vault import Vault
-from app.models.wasteland_location import (
-    DwellerLocation,
-    DwellerLocationRelationEnum,
-    LocationTypeEnum,
-    WastelandLocation,
-)
+from app.models.wasteland_location import DwellerLocationRelationEnum
 
 if TYPE_CHECKING:
     from pydantic import UUID4
@@ -33,28 +25,17 @@ class DiscoveryBackfillService:
         vault_id: UUID4,
     ) -> int:
         """Link every discovery location to the dweller who found it."""
-        result = await db_session.execute(
-            select(WastelandLocation).where(
-                WastelandLocation.vault_id == vault_id,
-                WastelandLocation.type == LocationTypeEnum.DISCOVERY,
-                WastelandLocation.exploration_id.is_not(None),
-            )
-        )
         fixed = 0
-        for location in result.scalars():
+        for location in await wl_crud.get_discoveries_with_exploration(db_session, vault_id):
             exploration = await db_session.get(Exploration, location.exploration_id)
             if exploration is None:
                 logger.warning("No exploration %s for location %s", location.exploration_id, location.name)
                 continue
 
-            existing = await db_session.execute(
-                select(DwellerLocation).where(
-                    DwellerLocation.dweller_id == exploration.dweller_id,
-                    DwellerLocation.location_id == location.id,
-                    DwellerLocation.relation == DwellerLocationRelationEnum.VISITED,
-                )
+            link = await wl_crud.get_dweller_link(
+                db_session, exploration.dweller_id, location.id, DwellerLocationRelationEnum.VISITED
             )
-            was_locked = (link := existing.scalar_one_or_none()) is None or not link.is_unlocked
+            was_locked = link is None or not link.is_unlocked
             await wl_crud.link_dweller(
                 db_session,
                 exploration.dweller_id,
@@ -74,11 +55,9 @@ class DiscoveryBackfillService:
         max_vaults: int | None = None,
     ) -> dict[UUID4, int]:
         """Unlock discoveries in active vaults, ordered by creation date."""
-        stmt = select(Vault).where(~Vault.is_deleted).order_by(Vault.created_at)
-        if max_vaults is not None:
-            stmt = stmt.limit(max_vaults)
-        result = await db_session.execute(stmt)
-        vaults = result.scalars().all()
+        from app.crud.vault import vault as vault_crud
+
+        vaults = await vault_crud.get_active_ordered(db_session, max_vaults)
 
         return {vault.id: await self.unlock_discoveries_for_vault(db_session, vault.id) for vault in vaults}
 

@@ -1,6 +1,6 @@
 """CLI command group: family-scenario — deterministic family/breeding test setup.
 
-Thin wrapper over :class:`app.services.family_scenario_service.FamilyScenarioService`;
+Thin wrapper over :class:`app.services.family.family_scenario_service.FamilyScenarioService`;
 all business logic lives in the service layer per AGENTS.md.
 
 Usage (from backend/):
@@ -22,7 +22,7 @@ from uuid import UUID
 
 import typer
 
-from app.services.family_scenario_service import family_scenario_service
+from app.services.family.family_scenario_service import family_scenario_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(

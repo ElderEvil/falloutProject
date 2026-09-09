@@ -28,7 +28,6 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
-from sqlmodel import select
 
 from app import crud
 from app.core.enums import (
@@ -39,15 +38,16 @@ from app.core.enums import (
     RoomTypeEnum,
 )
 from app.core.game_config import game_config
-from app.models.dweller import Dweller
-from app.models.pregnancy import Pregnancy
-from app.models.relationship import Relationship  # ruff: ignore[typing-only-first-party-import]
-from app.models.room import Room
-from app.services.breeding_service import breeding_service
+from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from app.models.dweller import Dweller
+    from app.models.room import Room
+
+from app.models.pregnancy import Pregnancy
 
 logger = logging.getLogger(__name__)
 
@@ -132,8 +132,8 @@ class FamilyScenarioService:
     @staticmethod
     async def find_living_quarters(db_session: AsyncSession, vault_id: UUID4) -> Room | None:
         """Return the first living-quarters (capacity) room in the vault, if any."""
-        query = select(Room).where(Room.vault_id == vault_id, Room.category == RoomTypeEnum.CAPACITY)
-        return (await db_session.execute(query)).scalars().first()
+        rooms = await crud.room.get_by_category(db_session, vault_id, RoomTypeEnum.CAPACITY)
+        return rooms[0] if rooms else None
 
     @staticmethod
     async def _get_dweller(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
@@ -405,10 +405,7 @@ class FamilyScenarioService:
             )
 
         # Pregnancies: due countdown for PREGNANT, cooldown countdown for DELIVERED.
-        pregnancy_query = (
-            select(Pregnancy).join(Dweller, Pregnancy.mother_id == Dweller.id).where(Dweller.vault_id == vault_id)
-        )
-        pregnancies = list((await db_session.execute(pregnancy_query)).scalars().all())
+        pregnancies = await crud.pregnancy.get_all_by_mother_vault(db_session, vault_id)
         for preg in pregnancies:
             mother = await _name(preg.mother_id)
             father = await _name(preg.father_id)
@@ -477,10 +474,7 @@ class FamilyScenarioService:
             await crud.relationship.delete(db_session, rel.id, soft=False)
             counts["relationships"] += 1
 
-        pregnancy_query = (
-            select(Pregnancy).join(Dweller, Pregnancy.mother_id == Dweller.id).where(Dweller.vault_id == vault_id)
-        )
-        for preg in (await db_session.execute(pregnancy_query)).scalars().all():
+        for preg in await crud.pregnancy.get_all_by_mother_vault(db_session, vault_id):
             await db_session.delete(preg)
             counts["pregnancies"] += 1
         await db_session.commit()

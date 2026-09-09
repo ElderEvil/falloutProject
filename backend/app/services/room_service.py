@@ -329,6 +329,15 @@ class RoomService:
         existing_room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
         return data_store.get_buildable_rooms(existing_room_names)
 
+    async def get_rooms_by_name_pattern(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        pattern: str,
+    ) -> "list[Room]":
+        """Rooms of a vault whose name matches a LIKE pattern (e.g. ``%radio%``)."""
+        return await crud.room.get_by_name_pattern(db_session, vault_id, pattern)
+
 
 # Singleton instance
 room_service = RoomService()

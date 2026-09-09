@@ -22,7 +22,7 @@ from app.schemas.common import (
 )
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.breeding_service import BreedingService
+from app.services.family.breeding_service import BreedingService
 from app.utils.exceptions import ResourceNotFoundException
 
 

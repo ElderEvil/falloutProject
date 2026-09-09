@@ -357,6 +357,20 @@ class CRUDQuest(
         except Exception:
             logger.exception(f"Failed to send quest completion notification for '{db_obj.title}'")
 
+    async def get_started_state_objective_links(self, db_session: AsyncSession) -> list[VaultQuestCompletionLink]:
+        """Started, incomplete, unclaimed links for building/population/training quests (backfill input)."""
+        query = (
+            select(VaultQuestCompletionLink)
+            .join(Quest)
+            .where(
+                Quest.quest_category.in_(("building", "population", "training")),
+                VaultQuestCompletionLink.started_at.is_not(None),
+                ~VaultQuestCompletionLink.is_completed,
+                ~VaultQuestCompletionLink.is_reward_ready,
+            )
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True
     ) -> VaultQuestCompletionLink:

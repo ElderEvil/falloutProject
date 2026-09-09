@@ -42,6 +42,18 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             raise ResourceNotFoundException(self.model, identifier=id)
         return db_obj
 
+    async def get_or_none(
+        self, db_session: AsyncSession, id: int | UUID4, include_deleted: bool = False
+    ) -> ModelType | None:
+        """Same as get() but returns None instead of raising when the row is absent."""
+        query = select(self.model).where(self.model.id == id)
+
+        if not include_deleted and hasattr(self.model, "is_deleted"):
+            query = query.where(~col(self.model.is_deleted))
+
+        response = await db_session.execute(query)
+        return response.scalar_one_or_none()
+
     async def get_by_ids(
         self, list_ids: list[UUID4 | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[Row[Any] | RowMapping | Any]:

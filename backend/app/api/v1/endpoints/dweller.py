@@ -30,11 +30,11 @@ from app.schemas.dweller import (
 )
 from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
-from app.services.death_service import death_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
+from app.services.family.death_service import death_service
+from app.services.family.lineage_service import lineage_service
 from app.services.happiness_service import happiness_service
-from app.services.lineage_service import lineage_service
 from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
 from app.utils.static_data import StaticGameData
 

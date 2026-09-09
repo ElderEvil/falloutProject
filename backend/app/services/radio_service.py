@@ -9,12 +9,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
-from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
+from app.services.room_service import room_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class RadioService:
         """
         # Radio rooms would have "Radio" in the name or a specific type
         # For now, we'll use name-based matching until a RADIO room type is added
-        return await room_crud.get_by_name_pattern(db_session, vault_id, "%radio%")
+        return await room_service.get_rooms_by_name_pattern(db_session, vault_id, "%radio%")
 
     @staticmethod
     async def calculate_recruitment_rate(

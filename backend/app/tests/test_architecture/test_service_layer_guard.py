@@ -35,7 +35,6 @@ CRUD_SERVICE_BASELINE = frozenset(
 )
 SERVICES_SELECT_BASELINE = frozenset(
     {
-        "ai_usage_service.py",
         "apprentice_scenario_service.py",
         "arena_service.py",
         "bio_place_backfill_service.py",
@@ -49,18 +48,14 @@ SERVICES_SELECT_BASELINE = frozenset(
         "game_loop.py",
         "incident_service.py",
         "lineage_service.py",
-        "map_service.py",
-        "medical_service.py",
         "objective_assignment_service.py",
         "objective_evaluators.py",
         "objective_notifications.py",
         "prerequisite_service.py",
         "quest_service.py",
         "quest_state_objective_backfill_service.py",
-        "radio_service.py",
         "room_assignment_policy.py",
         "trading_post_service.py",
-        "transfer_service.py",
         "exploration/event_service.py",
         "exploration/rewards_service.py",
     }

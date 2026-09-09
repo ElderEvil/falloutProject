@@ -264,6 +264,27 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return (await db_session.execute(query)).scalars().first()
 
+    async def get_bio_without_locations(
+        self, db_session: AsyncSession, vault_id: UUID4, limit: int | None = None
+    ) -> Sequence[Dweller]:
+        """Dwellers with a bio but no DwellerLocation links, oldest first."""
+        from sqlalchemy import exists
+
+        from app.models.wasteland_location import DwellerLocation
+
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(self.model.bio.is_not(None))
+            .where(self.model.bio != "")
+            .where(~exists().where(DwellerLocation.dweller_id == self.model.id))
+            .order_by(self.model.created_at)
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return (await db_session.execute(query)).scalars().all()
+
     async def get_by_status(
         self,
         db_session: AsyncSession,

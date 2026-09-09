@@ -439,7 +439,7 @@ class IncidentService:
                 # Check for death from incident
                 if new_health <= 0 and not dweller.is_dead:
                     from app.core.enums import DeathCauseEnum
-                    from app.services.death_service import death_service
+                    from app.services.family.death_service import death_service
 
                     await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT)
                     deaths_count += 1

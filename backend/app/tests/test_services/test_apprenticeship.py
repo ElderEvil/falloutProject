@@ -14,8 +14,8 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.apprentice_scenario_service import apprentice_scenario_service
-from app.services.breeding_service import BreedingService
+from app.services.family.apprentice_scenario_service import apprentice_scenario_service
+from app.services.family.breeding_service import BreedingService
 from app.services.game_loop import game_loop_service
 from app.services.training_service import TrainingService
 from app.utils.exceptions import ValidationException

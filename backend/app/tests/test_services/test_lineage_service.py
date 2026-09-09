@@ -9,7 +9,7 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
-from app.services.lineage_service import lineage_service
+from app.services.family.lineage_service import lineage_service
 
 
 async def _make_dweller(

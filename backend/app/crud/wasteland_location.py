@@ -10,7 +10,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 
 from app.models.dweller import Dweller
-from app.models.wasteland_location import DwellerLocation, DwellerLocationRelationEnum, WastelandLocation
+from app.models.wasteland_location import (
+    DwellerLocation,
+    DwellerLocationRelationEnum,
+    LocationTypeEnum,
+    WastelandLocation,
+)
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
 if TYPE_CHECKING:
@@ -36,6 +41,35 @@ class CRUDWastelandLocation:
         """List every non-VAULT location row scoped to this vault."""
         result = await db_session.execute(select(WastelandLocation).where(WastelandLocation.vault_id == vault_id))
         return list(result.scalars().all())
+
+    async def get_discoveries_with_exploration(
+        self, db_session: AsyncSession, vault_id: UUID4
+    ) -> list[WastelandLocation]:
+        """Discovery locations with a linked exploration, for backfill passes."""
+        result = await db_session.execute(
+            select(WastelandLocation).where(
+                WastelandLocation.vault_id == vault_id,
+                WastelandLocation.type == LocationTypeEnum.DISCOVERY,
+                WastelandLocation.exploration_id.is_not(None),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_dweller_link(
+        self,
+        db_session: AsyncSession,
+        dweller_id: UUID4,
+        location_id: UUID4,
+        relation: DwellerLocationRelationEnum,
+    ) -> DwellerLocation | None:
+        """An existing dweller-location link of the given relation, or None."""
+        stmt = select(DwellerLocation).where(
+            DwellerLocation.dweller_id == dweller_id,
+            DwellerLocation.location_id == location_id,
+            DwellerLocation.relation == relation,
+        )
+        result = await db_session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_by_normalized(
         self, db_session: AsyncSession, vault_id: UUID4, normalized_name: str

@@ -255,7 +255,7 @@ class TestProcessDwellers:
         dweller.status = DwellerStatusEnum.DEAD
         async_session.add(dweller)
         await async_session.commit()
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
+        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
         mock_death.assert_not_called()
         assert result["deaths"] == 0
@@ -265,7 +265,7 @@ class TestProcessDwellers:
         dweller.health = 0
         async_session.add(dweller)
         await async_session.commit()
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
+        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
         mock_death.assert_called_once()
         assert result["deaths"] == 1
@@ -306,7 +306,7 @@ class TestProcessDwellers:
         dweller = await crud.dweller.create(async_session, DwellerCreate(**d_data))
         await crud.dweller.move_to_room(async_session, dweller.id, room.id)
         await async_session.commit()
-        with patch("app.services.death_service.death_service.mark_as_dead", new_callable=AsyncMock):
+        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock):
             import app.services.leveling_service as ls_mod
 
             saved = ls_mod.leveling_service.check_level_up
@@ -615,7 +615,7 @@ class TestProcessPregnancies:
 
     @pytest.mark.asyncio
     async def test_detects_conceptions(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=["p1", "p2"])
             mbs.check_due_pregnancies = AsyncMock(return_value=[])
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
@@ -639,7 +639,7 @@ class TestProcessPregnancies:
                 raise ValueError("Delivery failed")
             return mb
 
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=[])
             mbs.check_due_pregnancies = AsyncMock(return_value=[p1, p2])
             mbs.deliver_baby = AsyncMock(side_effect=deliver_side)
@@ -650,7 +650,7 @@ class TestProcessPregnancies:
     async def test_conception_db_error(self, async_session: AsyncSession, vault: Vault):
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(side_effect=SQLAlchemyError("DB down"))
             mbs.check_due_pregnancies = AsyncMock(return_value=[])
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
@@ -658,7 +658,7 @@ class TestProcessPregnancies:
 
     @pytest.mark.asyncio
     async def test_conception_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(side_effect=ValueError("Invalid"))
             mbs.check_due_pregnancies = AsyncMock(return_value=[])
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
@@ -668,7 +668,7 @@ class TestProcessPregnancies:
     async def test_due_pregnancies_db_error(self, async_session: AsyncSession, vault: Vault):
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=[])
             mbs.check_due_pregnancies = AsyncMock(side_effect=SQLAlchemyError("DB error"))
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
@@ -688,7 +688,7 @@ class TestAgeChildren:
 
     @pytest.mark.asyncio
     async def test_success(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.age_children = AsyncMock(return_value=["c1", "c2"])
             result = await game_loop_service._age_children(async_session, vault.id)
         assert result["children_aged"] == 2
@@ -697,14 +697,14 @@ class TestAgeChildren:
     async def test_db_error(self, async_session: AsyncSession, vault: Vault):
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.age_children = AsyncMock(side_effect=SQLAlchemyError("DB error"))
             result = await game_loop_service._age_children(async_session, vault.id)
         assert result["children_aged"] == 0
 
     @pytest.mark.asyncio
     async def test_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.breeding_service.breeding_service") as mbs:
+        with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.age_children = AsyncMock(side_effect=ValueError("Invalid"))
             result = await game_loop_service._age_children(async_session, vault.id)
         assert result["children_aged"] == 0

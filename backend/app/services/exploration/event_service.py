@@ -198,7 +198,7 @@ class EventService:
         if new_health <= 0:
             # Dweller dies in the wasteland
             from app.core.enums import DeathCauseEnum
-            from app.services.death_service import death_service
+            from app.services.family.death_service import death_service
 
             await death_service.mark_as_dead(db_session, dweller_obj, DeathCauseEnum.EXPLORATION)
         else:

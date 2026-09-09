@@ -65,6 +65,14 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         result = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
         return result.scalar_one_or_none()
 
+    @staticmethod
+    async def get_active_ordered(db_session: AsyncSession, limit: int | None = None) -> Sequence[Vault]:
+        """Non-deleted vaults ordered by creation date, optionally capped."""
+        query = select(Vault).where(~Vault.is_deleted).order_by(Vault.created_at)
+        if limit is not None:
+            query = query.limit(limit)
+        return (await db_session.execute(query)).scalars().all()
+
     async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID4) -> tuple[int | None, int]:
         """Population cap with assigned-dweller count; (None, 0) when the vault is missing."""
         result = await db_session.execute(

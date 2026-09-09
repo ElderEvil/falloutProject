@@ -38,7 +38,7 @@ from app.core.enums import (
     RoomTypeEnum,
 )
 from app.core.game_config import game_config
-from app.services.breeding_service import breeding_service
+from app.services.family.breeding_service import breeding_service
 from app.utils.exceptions import ResourceNotFoundException
 
 if TYPE_CHECKING:

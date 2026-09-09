@@ -364,7 +364,7 @@ class GameLoopService:
         from app.core.enums import DeathCauseEnum, DwellerStatusEnum
         from app.models.dweller import Dweller
         from app.models.room import Room
-        from app.services.death_service import death_service
+        from app.services.family.death_service import death_service
 
         stats = {
             "health_updated": 0,
@@ -828,7 +828,7 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'conceptions' and 'births' counts
         """
-        from app.services.breeding_service import breeding_service
+        from app.services.family.breeding_service import breeding_service
 
         stats = {"conceptions": 0, "births": 0}
 
@@ -869,7 +869,7 @@ class GameLoopService:
         Returns:
             dict: Statistics with 'children_aged' count
         """
-        from app.services.breeding_service import breeding_service
+        from app.services.family.breeding_service import breeding_service
 
         stats = {"children_aged": 0}
 

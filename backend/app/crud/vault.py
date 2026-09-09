@@ -12,7 +12,7 @@ from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
-from app.utils.exceptions import InsufficientResourcesException, ResourceNotFoundException
+from app.utils.exceptions import InsufficientResourcesException
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = getLogger(__name__)
@@ -42,26 +42,16 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         raise ValueError(msg)
 
     async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
-        """
-        Update the storage max space for a vault.
+        """Update the storage max space for a vault (delegates to storage CRUD)."""
+        from app.crud.storage import storage as storage_crud
 
-        :param db_session: Database session
-        :param vault_id: Vault ID
-        :param new_space_max: New maximum storage space
-        :returns: Updated storage object
-        :raises ResourceNotFoundException: If storage not found for vault
-        """
-        response = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-        storage_obj = response.scalar_one_or_none()
+        return await storage_crud.set_max_space(db_session, vault_id, new_space_max)
 
-        if not storage_obj:
-            raise ResourceNotFoundException(model=Storage, identifier=vault_id)
+    async def increase_storage_space(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> Storage:
+        """Increase a vault's storage capacity by a room's capacity."""
+        from app.crud.storage import storage as storage_crud
 
-        storage_obj.max_space = new_space_max
-        db_session.add(storage_obj)
-        await db_session.commit()
-        await db_session.refresh(storage_obj)
-        return storage_obj
+        return await storage_crud.adjust_max_space(db_session, vault_id, amount)
 
     async def recalculate_vault_attributes(
         self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
@@ -217,10 +207,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
-        storage = Storage(vault_id=vault_id)
-        db_session.add(storage)
-        await db_session.commit()
-        return storage
+        """Create the storage row for a vault (delegates to storage CRUD)."""
+        from app.crud.storage import storage as storage_crud
+
+        return await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_id)
 
     async def create_with_user_id(
         self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4

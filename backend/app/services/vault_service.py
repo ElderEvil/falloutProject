@@ -2,12 +2,9 @@
 
 import logging
 import random
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from pydantic import UUID4
-from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.game_data_deps import get_static_game_data
@@ -21,38 +18,30 @@ from app.core.enums import (
 )
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
+from app.crud import outfit as outfit_crud
 from app.crud import room as room_crud
+from app.crud import weapon as weapon_crud
 from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
-from app.models import Room, Storage
+from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
-from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
 from app.services.resource_manager import ResourceManager, compute_medical_capacity
 from app.services.training_service import training_service
+from app.services.vault_seed import (
+    BOOSTED_LIVING_ROOM_COORDINATES,
+    BOOSTED_LOADOUTS,
+    BOOSTED_TRAINING_STATS,
+    SEED_OUTFITS,
+    SEED_WEAPONS,
+    YOUTH_APPRENTICE_BIRTH_AGE_HOURS,
+    CreatedRooms,
+    PreparedRooms,
+)
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
-
-
-@dataclass(slots=True)
-class PreparedRooms:
-    infrastructure: list[RoomCreate]
-    capacity: list[RoomCreate]
-    production: list[RoomCreate]
-    misc: list[RoomCreate]
-    training: list[RoomCreate]
-    arena: list[RoomCreate]
-
-
-@dataclass(slots=True)
-class CreatedRooms:
-    production: list[Room]
-    training: list[Room]
-    misc: list[Room]
-    capacity: list[Room]
-    arena: list[Room]
 
 
 class VaultService:
@@ -103,8 +92,7 @@ class VaultService:
             )
             expected_dwellers = 25
             needed_living = (expected_dwellers + cap_per - 1) // cap_per
-            extra_coords = [(4, 3), (5, 3), (3, 3), (7, 3), (1, 3), (2, 3)]
-            extra_living = extra_coords[: max(0, needed_living - 1)]
+            extra_living = BOOSTED_LIVING_ROOM_COORDINATES[: max(0, needed_living - 1)]
             capacity_specs = [("living room", 2, 1), ("storage room", 2, 2)] + [
                 ("living room", x, y) for x, y in extra_living
             ]
@@ -157,10 +145,7 @@ class VaultService:
                 if room.ability == SPECIALEnum.CHARISMA:
                     vault.population_max += room.capacity or 0
                 elif room.ability == SPECIALEnum.ENDURANCE and room.capacity:
-                    cur = (
-                        await db_session.execute(select(Storage.max_space).where(Storage.vault_id == vault.id))
-                    ).scalar_one_or_none() or 0
-                    await vault_crud.update_storage(db_session, vault.id, cur + room.capacity)
+                    await storage_crud.adjust_max_space(db_session, vault.id, room.capacity)
 
         await db_session.commit()
         await db_session.refresh(vault)
@@ -238,17 +223,7 @@ class VaultService:
 
             # Training dwellers (boosted only)
             if is_boosted:
-                training_stats = [
-                    SPECIALEnum.STRENGTH,
-                    SPECIALEnum.PERCEPTION,
-                    SPECIALEnum.ENDURANCE,
-                    SPECIALEnum.CHARISMA,
-                    SPECIALEnum.INTELLIGENCE,
-                    SPECIALEnum.AGILITY,
-                    SPECIALEnum.LUCK,
-                ]
-
-                for i, training_stat in enumerate(training_stats):
+                for i, training_stat in enumerate(BOOSTED_TRAINING_STATS):
                     if i < len(created_training_rooms):
                         room = created_training_rooms[i]
                         dweller_data = DwellerCreateCommonOverride(special_boost=training_stat)
@@ -292,10 +267,9 @@ class VaultService:
                         db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
                     if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
-                        dweller.charisma = game_config.dweller.boosted_stat_value
-                        db_session.add(dweller)
-                        await db_session.commit()
-                        await db_session.refresh(dweller)
+                        await dweller_crud.update(
+                            db_session, dweller.id, {"charisma": game_config.dweller.boosted_stat_value}
+                        )
                     await dweller_crud.update(
                         db_session=db_session,
                         id=dweller.id,
@@ -304,10 +278,9 @@ class VaultService:
                     self.logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
 
             # Youth apprentices (boosted only) — one per production room, so the
-            # apprentice lifecycle is testable end-to-end. Teens at 13h birth_date
-            # stay teens ~11h before the growth loop ages them out. Apprentice
-            # fields are set on the model directly: DwellerUpdate does not carry
-            # them, and the seeded vault intentionally skips the population gate.
+            # apprentice lifecycle is testable end-to-end. Seeded as teens via
+            # _seed_youth_apprentice; the seeded vault intentionally skips the
+            # population gate.
             if is_boosted:
                 for room in created_production_rooms[:2]:
                     if room.ability is None:
@@ -316,19 +289,35 @@ class VaultService:
                     youth = await dweller_crud.create_random(
                         db_session, vault_id, youth_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
-                    youth.is_adult = False
-                    youth.age_group = AgeGroupEnum.TEEN
-                    youth.birth_date = datetime.utcnow() - timedelta(hours=13)
-                    youth.room_id = room.id
-                    youth.status = DwellerStatusEnum.WORKING
-                    youth.apprentice_stat = room.ability
-                    youth.apprentice_started_at = datetime.utcnow()
-                    await db_session.commit()
+                    await self._seed_youth_apprentice(db_session, youth.id, room)
                     self.logger.info("Youth %s apprenticed in %s", youth.id, room.name)
 
         except Exception:
             self.logger.exception("Failed to create dwellers")
             raise
+
+    async def _seed_youth_apprentice(self, db_session: AsyncSession, youth_id: UUID4, room: Room) -> None:
+        await dweller_crud.update(
+            db_session,
+            youth_id,
+            {
+                "is_adult": False,
+                "age_group": AgeGroupEnum.TEEN,
+                "birth_date": datetime.utcnow() - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS),
+                "room_id": room.id,
+                "status": DwellerStatusEnum.WORKING,
+                "apprentice_stat": room.ability,
+                "apprentice_started_at": datetime.utcnow(),
+            },
+        )
+
+    async def _start_dweller_training(self, db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
+        try:
+            await db_session.refresh(dweller)
+            await training_service.start_training(db_session, dweller.id, room.id)
+            self.logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
+        except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
+            self.logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
 
     async def _start_training_sessions(
         self,
@@ -361,24 +350,7 @@ class VaultService:
                 dwellers = dwellers_by_room.get(room.id, [])
 
                 for dweller in dwellers:
-                    try:
-                        # Refresh dweller to ensure all fields loaded
-                        await db_session.refresh(dweller)
-
-                        # Debug: Check dweller stats
-                        stat_name = room.ability.value.lower() if room.ability else "unknown"
-                        stat_value = getattr(dweller, stat_name, None) if room.ability else None
-                        self.logger.info(
-                            f"Dweller {dweller.id} {stat_name}={stat_value}, "
-                            f"all stats: S={dweller.strength}, P={dweller.perception}, "
-                            f"E={dweller.endurance}, status={dweller.status}"
-                        )
-
-                        await training_service.start_training(db_session, dweller.id, room.id)
-                        self.logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
-                    except (ResourceNotFoundException, ResourceConflictException, ValueError) as e:
-                        # Log error but continue with other dwellers
-                        self.logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
+                    await self._start_dweller_training(db_session, dweller, room)
         except Exception:
             self.logger.exception("Failed to start training sessions")
             raise
@@ -386,12 +358,6 @@ class VaultService:
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Create initial weapons and outfits for testing."""
 
-        from app.core.enums import (
-            OutfitTypeEnum,
-            RarityEnum,
-            WeaponSubtypeEnum,
-            WeaponTypeEnum,
-        )
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
         from app.utils.outfit_assets import get_outfit_image_url
@@ -401,122 +367,47 @@ class VaultService:
         if not storage:
             return
 
-        weapons_data = [
-            {
-                "name": "Rusty Pistol",
-                "rarity": RarityEnum.COMMON,
-                "value": 50,
-                "weapon_type": WeaponTypeEnum.GUN,
-                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
-                "stat": "agility",
-                "damage_min": 2,
-                "damage_max": 5,
-            },
-            {
-                "name": "Hunting Rifle",
-                "rarity": RarityEnum.RARE,
-                "value": 150,
-                "weapon_type": WeaponTypeEnum.GUN,
-                "weapon_subtype": WeaponSubtypeEnum.RIFLE,
-                "stat": "perception",
-                "damage_min": 5,
-                "damage_max": 12,
-            },
-            {
-                "name": "Sledgehammer",
-                "rarity": RarityEnum.RARE,
-                "value": 300,
-                "weapon_type": WeaponTypeEnum.MELEE,
-                "weapon_subtype": WeaponSubtypeEnum.BLUNT,
-                "stat": "strength",
-                "damage_min": 8,
-                "damage_max": 15,
-            },
-            {
-                "name": "Laser Pistol",
-                "rarity": RarityEnum.LEGENDARY,
-                "value": 500,
-                "weapon_type": WeaponTypeEnum.ENERGY,
-                "weapon_subtype": WeaponSubtypeEnum.PISTOL,
-                "stat": "intelligence",
-                "damage_min": 10,
-                "damage_max": 20,
-            },
+        weapons = [
+            Weapon(
+                **{**weapon_data, "image_url": get_weapon_image_url(weapon_data["name"])},
+                storage_id=storage.id,
+            )
+            for weapon_data in SEED_WEAPONS
         ]
-
-        outfits_data = [
-            {
-                "name": "Vault Jumpsuit",
-                "rarity": RarityEnum.COMMON,
-                "value": 20,
-                "outfit_type": OutfitTypeEnum.COMMON,
-                "gender": None,
-            },
-            {
-                "name": "Leather Armor",
-                "rarity": RarityEnum.RARE,
-                "value": 100,
-                "outfit_type": OutfitTypeEnum.RARE,
-                "gender": None,
-            },
-            {
-                "name": "Metal Armor",
-                "rarity": RarityEnum.RARE,
-                "value": 250,
-                "outfit_type": OutfitTypeEnum.RARE,
-                "gender": None,
-            },
-            {
-                "name": "T-51b Power Armor",
-                "rarity": RarityEnum.LEGENDARY,
-                "value": 1000,
-                "outfit_type": OutfitTypeEnum.POWER_ARMOR,
-                "gender": None,
-            },
+        outfits = [
+            Outfit(
+                **{**outfit_data, "image_url": get_outfit_image_url(outfit_data["name"])},
+                storage_id=storage.id,
+            )
+            for outfit_data in SEED_OUTFITS
         ]
-
-        for weapon_data in weapons_data:
-            weapon_data["image_url"] = get_weapon_image_url(weapon_data["name"])
-            weapon = Weapon(**weapon_data, storage_id=storage.id)
-            db_session.add(weapon)
-
-        for outfit_data in outfits_data:
-            outfit_data["image_url"] = get_outfit_image_url(outfit_data["name"])
-            outfit = Outfit(**outfit_data, storage_id=storage.id)
-            db_session.add(outfit)
-
-        await db_session.commit()
+        await weapon_crud.create_many(db_session, weapons)
+        await outfit_crud.create_many(db_session, outfits)
         self.logger.info(f"Created initial items for vault {vault_id}")
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
-        from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+        from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponTypeEnum
         from app.crud.dweller import dweller as dweller_crud
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
         from app.utils.outfit_assets import get_outfit_image_url
         from app.utils.weapon_assets import get_weapon_image_url
 
-        loadouts = {
-            "abraham-washington": ("Lever-action rifle", "Abraham's relaxedwear"),
-            "allistair-tenpenny": ("Hunting rifle", "Eulogy Jones' suit"),
-            "bittercup": ("10mm pistol", "Bittercup's outfit"),
-        }
-
-        for template_id, (weapon_name, outfit_name) in loadouts.items():
+        legendary_weapons = []
+        legendary_outfits = []
+        for template_id, weapon_name, outfit_name, weapon_subtype in BOOSTED_LOADOUTS:
             try:
                 dweller = await dweller_crud.create_from_template(db_session, vault_id, template_id)
             except ResourceConflictException:
                 self.logger.info("Boosted template %s already active in vault %s, skipping", template_id, vault_id)
                 continue
-            db_session.add(
+            legendary_weapons.append(
                 Weapon(
                     name=weapon_name,
                     rarity=RarityEnum.LEGENDARY,
                     weapon_type=WeaponTypeEnum.GUN,
-                    weapon_subtype=WeaponSubtypeEnum.RIFLE
-                    if "rifle" in weapon_name.lower()
-                    else WeaponSubtypeEnum.PISTOL,
+                    weapon_subtype=weapon_subtype,
                     stat="perception",
                     damage_min=12,
                     damage_max=20,
@@ -524,7 +415,7 @@ class VaultService:
                     dweller_id=dweller.id,
                 )
             )
-            db_session.add(
+            legendary_outfits.append(
                 Outfit(
                     name=outfit_name,
                     rarity=RarityEnum.LEGENDARY,
@@ -534,89 +425,10 @@ class VaultService:
                 )
             )
 
-        await db_session.commit()
-
-    async def _assign_initial_objectives(
-        self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False
-    ) -> None:
-        """Assign initial objectives to a new vault.
-
-        Standard vaults get 1 daily and 1 weekly objective.
-        Boosted vaults get additional achievement objectives (weapons, outfits, stimpaks, etc.)
-        """
-        try:
-            from sqlmodel import select
-
-            from app.models.objective import Objective
-
-            assigned_count = 0
-            assigned_types = []
-            objectives_to_assign = []
-
-            # Get 1 daily objective
-            daily_result = await db_session.execute(
-                select(Objective)
-                .where(Objective.category == "daily")
-                .where(Objective.objective_type.isnot(None))
-                .order_by(Objective.id)
-                .limit(1)
-            )
-            daily_objective = daily_result.scalar_one_or_none()
-            if daily_objective:
-                objectives_to_assign.append(daily_objective)
-                assigned_types.append("daily")
-
-            # Get 1 weekly objective
-            weekly_result = await db_session.execute(
-                select(Objective)
-                .where(Objective.category == "weekly")
-                .where(Objective.objective_type.isnot(None))
-                .order_by(Objective.id)
-                .limit(1)
-            )
-            weekly_objective = weekly_result.scalar_one_or_none()
-            if weekly_objective:
-                objectives_to_assign.append(weekly_objective)
-                assigned_types.append("weekly")
-
-            # For boosted vaults, add achievement objectives (collection, build, etc.)
-            if is_boosted:
-                # Get basic objectives (non-daily, non-weekly) with different types
-                basic_result = await db_session.execute(
-                    select(Objective)
-                    .where(Objective.category != "daily")
-                    .where(Objective.category != "weekly")
-                    .where(Objective.objective_type.isnot(None))
-                    .order_by(Objective.id)
-                    .limit(8)
-                )
-                basic_objectives = basic_result.scalars().all()
-                objectives_to_assign.extend(basic_objectives)
-                if basic_objectives:
-                    assigned_types.append(f"{len(basic_objectives)} achievement")
-
-            # Assign all objectives
-            for objective in objectives_to_assign:
-                link = VaultObjectiveProgressLink(
-                    vault_id=vault_id,
-                    objective_id=objective.id,
-                    progress=0,
-                    total=objective.target_amount or 1,
-                    is_completed=False,
-                )
-                db_session.add(link)
-                assigned_count += 1
-
-            if assigned_count > 0:
-                await db_session.commit()
-                types_str = ", ".join(assigned_types) if assigned_types else "objectives"
-                self.logger.info(
-                    "Assigned %d initial objective(s) (%s) to vault %s", assigned_count, types_str, vault_id
-                )
-            else:
-                self.logger.warning("No objectives found for vault %s", vault_id)
-        except SQLAlchemyError as e:
-            self.logger.warning("Failed to assign initial objectives to vault %s: %s", vault_id, e)
+        if legendary_weapons:
+            await weapon_crud.create_many(db_session, legendary_weapons)
+        if legendary_outfits:
+            await outfit_crud.create_many(db_session, legendary_outfits)
 
     async def initiate_vault(
         self,
@@ -679,12 +491,7 @@ class VaultService:
         initial_stimpack = min(vault_start.initial_stimpaks, medical_capacity.get("stimpack", 0))
         initial_radaway = min(vault_start.initial_radaways, medical_capacity.get("radaway", 0))
         if initial_stimpack > 0 or initial_radaway > 0:
-            storage_obj = await storage_crud.get_by_vault(db_session, vault_db_obj.id)
-            if storage_obj:
-                storage_obj.stimpack = initial_stimpack
-                storage_obj.radaway = initial_radaway
-                db_session.add(storage_obj)
-                await db_session.commit()
+            await storage_crud.set_medical_supplies(db_session, vault_db_obj.id, initial_stimpack, initial_radaway)
 
         # Create and assign dwellers
         await self._create_initial_dwellers(
@@ -707,7 +514,11 @@ class VaultService:
         await self._start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_boosted)
 
         # Assign initial objectives to the vault (boosted vaults get more objectives)
-        await self._assign_initial_objectives(db_session, vault_db_obj.id, is_boosted)
+        from app.crud.objective import objective_crud
+
+        assigned = await objective_crud.assign_initial(db_session, vault_db_obj.id, is_boosted=is_boosted)
+        if assigned == 0:
+            self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
 
         # Create initial weapons and outfits for testing
         await self._create_initial_items(db_session, vault_db_obj.id)

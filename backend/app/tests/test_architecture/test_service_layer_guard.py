@@ -131,12 +131,25 @@ def test_exceptions_module_has_no_fastapi_imports() -> None:
 
 
 def _service_imports(source: str) -> set[str]:
-    """Return app.services modules imported anywhere in a module (including nested imports)."""
+    """Return app.services modules imported anywhere in a module (including nested imports).
+
+    Level-two relative imports (``from ..services import X``) resolve against the
+    ``app`` package from inside ``app.crud``/``app.services``, so normalize them
+    to the corresponding ``app.services`` path instead of missing them.
+    """
     tree = ast.parse(source)
     modules = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("app.services"):
-            modules.add(node.module)
+        if isinstance(node, ast.ImportFrom):
+            if node.module and node.module.startswith("app.services"):
+                modules.add(node.module)
+            elif (
+                node.level
+                and node.level >= 2
+                and node.module
+                and (node.module == "services" or node.module.startswith("services."))
+            ):
+                modules.add(f"app.{node.module}")
         elif isinstance(node, ast.Import):
             modules.update(alias.name for alias in node.names if alias.name.startswith("app.services"))
     return modules
@@ -229,6 +242,16 @@ def test_guard_detects_nested_service_import() -> None:
         "    from app.services.event_bus import event_bus\n"
     )
     assert _service_imports(source) == {"app.services.vault_service", "app.services.event_bus"}
+
+
+def test_guard_detects_relative_service_import() -> None:
+    """Self-test: level-two relative imports normalize to app.services paths."""
+    source = (
+        "from ..services import vault_service\n"
+        "from ..services.room_assignment_policy import validate\n"
+        "from . import storage\n"
+    )
+    assert _service_imports(source) == {"app.services", "app.services.room_assignment_policy"}
 
 
 def test_guard_detects_select_calls() -> None:

@@ -21,8 +21,10 @@ The command retires the active row, clears the process cache, and rejects format
 Dramatiq game-tick actors create raw SQLAlchemy `AsyncSession` instances via
 `sqlalchemy.ext.asyncio.async_sessionmaker`. These sessions do not provide
 SQLModel's `.exec()` method. CRUD/services used by `game_tick`,
-`process_vault_tick`, or other `task_session()` actors must use
-`.execute(...).scalars()` unless the session factory explicitly sets
-`class_=sqlmodel.ext.asyncio.session.AsyncSession`. Any session-factory or CRUD
-refactor in this path requires a regression test using the raw SQLAlchemy
-session type.
+`process_vault_tick`, or other `task_session()` actors must `await
+session.execute(...)` (never `.exec()`) unless the session factory explicitly
+sets `class_=sqlmodel.ext.asyncio.session.AsyncSession`, and pick the result
+accessor by statement shape: `.all()` for multi-column queries,
+`scalar_one_or_none()` for aggregates, `.scalars()` only for single-column
+entity results. Any session-factory or CRUD refactor in this path requires a
+regression test using the raw SQLAlchemy session type.

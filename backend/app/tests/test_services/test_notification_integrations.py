@@ -44,7 +44,7 @@ class TestIncidentNotifications:
         ]
 
         for incident_type, expected_name in incident_types:
-            with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
+            with patch("app.services.combat.incident_publishing.notification_service.create_and_send") as mock_notify:
                 mock_notify.return_value = AsyncMock()
 
                 incident = await incident_service.spawn_incident(async_session, vault.id, incident_type)
@@ -88,7 +88,7 @@ class TestIncidentNotifications:
 
         incident_service = IncidentService()
 
-        with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
+        with patch("app.services.combat.incident_publishing.notification_service.create_and_send") as mock_notify:
             mock_notify.return_value = AsyncMock()
 
             await incident_service.process_incident(async_session, incident, 60)
@@ -124,7 +124,7 @@ class TestIncidentNotifications:
 
         incident_service = IncidentService()
 
-        with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
+        with patch("app.services.combat.incident_publishing.notification_service.create_and_send") as mock_notify:
             mock_notify.return_value = AsyncMock()
 
             await incident_service.process_incident(async_session, incident, 60)

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.80.11 (2026-09-09)
+
+### Code Refactoring
+
+* consolidate chat provider boundaries ([#562](https://github.com/ElderEvil/falloutProject/issues/562)) 9cff82a, closes #561
+
 ## 2.80.10 (2026-09-08)
 
 ### Bug Fixes

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from collections.abc import Sequence
 
@@ -118,6 +119,8 @@ class CRUDObjective(
             return len(links)
         except SQLAlchemyError:
             logger.exception("Failed to assign initial objectives to vault %s", vault_id)
+            with contextlib.suppress(Exception):
+                await db_session.rollback()
             return 0
 
     async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Objective, vault_id: UUID4) -> None:

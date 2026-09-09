@@ -179,3 +179,20 @@ async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
         ObjectiveCategoryEnum.WEEKLY,
         ObjectiveCategoryEnum.ACHIEVEMENT,
     }
+
+
+@pytest.mark.asyncio
+async def test_assign_initial_rolls_back_on_db_error() -> None:
+    """A DB failure assigns nothing but leaves the session usable."""
+    from unittest.mock import AsyncMock
+    from uuid import uuid4
+
+    from sqlalchemy.exc import SQLAlchemyError
+
+    db_session = AsyncMock()
+    db_session.execute = AsyncMock(side_effect=SQLAlchemyError("DB down"))
+
+    assigned = await crud.objective_crud.assign_initial(db_session, uuid4(), is_boosted=False)
+
+    assert assigned == 0
+    db_session.rollback.assert_awaited_once()

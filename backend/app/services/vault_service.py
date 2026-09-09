@@ -297,6 +297,7 @@ class VaultService:
             raise
 
     async def _seed_youth_apprentice(self, db_session: AsyncSession, youth_id: UUID4, room: Room) -> None:
+        """Mark a seeded teen as an apprentice of a production room."""
         await dweller_crud.update(
             db_session,
             youth_id,
@@ -312,6 +313,7 @@ class VaultService:
         )
 
     async def _start_dweller_training(self, db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
+        """Start one training session; domain failures are logged, not raised."""
         try:
             await db_session.refresh(dweller)
             await training_service.start_training(db_session, dweller.id, room.id)

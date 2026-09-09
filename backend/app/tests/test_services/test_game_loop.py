@@ -255,7 +255,9 @@ class TestProcessDwellers:
         dweller.status = DwellerStatusEnum.DEAD
         async_session.add(dweller)
         await async_session.commit()
-        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
+        with patch(
+            "app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock
+        ) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
         mock_death.assert_not_called()
         assert result["deaths"] == 0
@@ -265,7 +267,9 @@ class TestProcessDwellers:
         dweller.health = 0
         async_session.add(dweller)
         await async_session.commit()
-        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock) as mock_death:
+        with patch(
+            "app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock
+        ) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
         mock_death.assert_called_once()
         assert result["deaths"] == 1

@@ -2,10 +2,16 @@
 
 import json
 import logging
+from typing import TYPE_CHECKING, cast
 
 from fastapi import APIRouter, WebSocket
 from jose import JWTError, jwt
 from pydantic import UUID4
+
+if TYPE_CHECKING:
+    from contextlib import AbstractAsyncContextManager
+
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.crud.user import user as user_crud
@@ -50,7 +56,8 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
                 await websocket.send_json({"type": "error", "detail": "Message content must be a non-empty string"})
                 return
 
-            async with async_session_maker() as db_session:
+            session_context = cast("AbstractAsyncContextManager[AsyncSession]", async_session_maker())
+            async with session_context as db_session:
                 user = await user_crud.get(db_session, user_id)
                 if not user:
                     await websocket.send_json({"type": "error", "detail": "User not found"})
@@ -62,7 +69,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
                     dweller_id=dweller_id,
                     message_text=content,
                 ):
-                    await websocket.send_json(chunk)
+                    await websocket.send_json(chunk.model_dump(mode="json", exclude_none=True))
 
         else:
             await websocket.send_json({"type": "error", "message": f"Unknown message type: {message_type}"})
@@ -73,25 +80,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID4, 
 
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
-    """WebSocket endpoint for real-time notifications.
-
-    Connect to this endpoint to receive real-time notifications:
-    ws://localhost:8000/api/v1/ws/{user_id}
-
-    Messages format:
-    {
-        "type": "notification",
-        "notification": {
-            "id": "uuid",
-            "notification_type": "exploration_update",
-            "priority": "normal",
-            "title": "Title",
-            "message": "Message",
-            "meta_data": {...},
-            "created_at": "ISO timestamp"
-        }
-    }
-    """
+    """Handle a notification WebSocket connection."""
     await manager.connect(websocket, user_id)
     # Keep connection alive and handle incoming messages if needed
     async for data in websocket.iter_text():
@@ -104,45 +93,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: UUID4):
 
 @router.websocket("/ws/chat/{user_id}/{dweller_id}")
 async def chat_websocket_endpoint(websocket: WebSocket, user_id: UUID4, dweller_id: UUID4):
-    """WebSocket endpoint for real-time chat with a dweller.
-
-    Connect to this endpoint for real-time text chat:
-    ws://localhost:8000/api/v1/ws/chat/{user_id}/{dweller_id}
-
-    Client -> Server messages:
-    {
-        "type": "message",
-        "content": "Hello dweller!"
-    }
-    {
-        "type": "typing",
-        "is_typing": true
-    }
-
-    Server -> Client messages:
-    {
-        "type": "token",
-        "text": "Hello",
-        "replace": false
-    }
-    {
-        "type": "done",
-        "dweller_message_id": "uuid",
-        "response_text": "Hello dweller!",
-        "happiness_impact": {...} | null,
-        "action_suggestion": {...} | null,
-        "unlocked_places": [{"location_id": "uuid", "name": "Megaton"}]
-    }
-    {
-        "type": "error",
-        "detail": "Error description"
-    }
-    {
-        "type": "typing",
-        "is_typing": true,
-        "sender": "dweller"
-    }
-    """
+    """Handle an authenticated dweller-chat WebSocket connection."""
     # WS Auth: verify token matches user_id BEFORE accepting/registering the connection.
     # Closing before accept() causes Starlette to reject the WebSocket handshake (HTTP 403),
     # so an unauthenticated socket is never registered with the connection manager.

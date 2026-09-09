@@ -1,9 +1,9 @@
 """Chat agent execution: structured runs, fallback runs, and provider-failure classification."""
 
 import logging
-from dataclasses import dataclass
 
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.dweller_chat_agent import (
@@ -14,27 +14,56 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     parse_action_suggestion,
 )
-from app.schemas.chat import ActionSuggestion, NoAction
+from app.models.base import SPECIALModel
+from app.schemas.chat import NoAction
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.ai_service import get_ai_service
+from app.services.chat.models import AgentChatResult
 from app.services.chat_happiness_service import apply_chat_happiness
-from app.services.conversation_service import conversation_service, extract_usage
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class AgentChatResult:
-    """Outcome of one chat-agent run (structured or fallback)."""
+def extract_usage(usage: RunUsage | None) -> tuple[int | None, int | None, int | None]:
+    """Return null counts when provider usage metadata is absent or malformed."""
+    if usage is None:
+        return None, None, None
+    try:
+        return usage.input_tokens, usage.output_tokens, usage.total_tokens
+    except Exception:
+        logger.exception("Failed to extract usage info from agent result")
+        return None, None, None
 
-    response_text: str
-    happiness_impact: HappinessImpact
-    action_suggestion: ActionSuggestion
-    prompt_tokens: int | None
-    completion_tokens: int | None
-    total_tokens: int | None
+
+def build_dweller_prompt(dweller: DwellerReadFull, *, for_audio: bool = False) -> str:
+    """Build the fallback prompt shared by text and voice chat."""
+    special_stats = SPECIALModel.format_special_stats(dweller)
+    vault_stats = (
+        f" Average happiness: {dweller.vault.happiness}/100"
+        f" Power: {dweller.vault.power}/{dweller.vault.power_max}"
+        f" Food: {dweller.vault.food}/{dweller.vault.food_max}"
+        f" Water: {dweller.vault.water}/{dweller.vault.water_max}"
+    )
+    audio_instruction = (
+        "\nKeep responses concise (under 150 words) since this will be converted to audio." if for_audio else ""
+    )
+    return f"""
+        You are a Vault-Tec Dweller named {dweller.first_name} {dweller.last_name} in a post-apocalyptic world.
+        You are {dweller.gender.value} {dweller.age_group.value.title()} of level {dweller.level}.
+        You are considered a {dweller.rarity.value} rarity dweller.
+        You are in a vault {dweller.vault.number} with a group of other dwellers.
+        You are in the {dweller.room.name if dweller.room else "a"} room of the vault.
+        Your outfit is {dweller.outfit.name if dweller.outfit else "Vault Suit"}.
+        Your weapon is {dweller.weapon.name if dweller.weapon else "Fist"}.
+        You have {dweller.stimpack} Stimpacks and {dweller.radaway} Radaways.
+        Your health is {dweller.health}/{dweller.max_health}.
+        Your happiness level is {dweller.happiness}/100. Don't mention this, just act accordingly.
+        Your SPECIAL stats are: {special_stats}. Don't mention them until asked, use this information for acting.
+        In case user asks about vault - here is the information: {vault_stats}. Say it in a natural way.
+        Try to be in character and be in line with the Fallout universe.{audio_instruction}
+        """
 
 
 def provider_credits_are_exhausted(error: ModelHTTPError) -> bool:
@@ -61,6 +90,8 @@ async def run_chat_agent(
     dweller: DwellerReadFull,
     message_text: str,
     instructions: str | None = None,
+    *,
+    for_audio: bool = False,
 ) -> AgentChatResult:
     """Run the chat agent and process the response, falling back on provider failure."""
     deps = DwellerChatDeps(
@@ -93,10 +124,10 @@ async def run_chat_agent(
         if provider_credits_are_exhausted(error):
             raise AIProviderCreditsExhaustedException(detail=extract_provider_reason(error)) from error
         logger.exception("Dweller chat agent failed, using fallback")
-        return await run_fallback_chat_agent(dweller, message_text, instructions)
+        return await run_fallback_chat_agent(dweller, message_text, instructions, for_audio=for_audio)
     except Exception:
         logger.exception("Dweller chat agent failed, using fallback")
-        return await run_fallback_chat_agent(dweller, message_text, instructions)
+        return await run_fallback_chat_agent(dweller, message_text, instructions, for_audio=for_audio)
     return AgentChatResult(
         response_text=output.response_text,
         happiness_impact=happiness_impact,
@@ -111,10 +142,12 @@ async def run_fallback_chat_agent(
     dweller: DwellerReadFull,
     message_text: str,
     instructions: str | None = None,
+    *,
+    for_audio: bool = False,
 ) -> AgentChatResult:
     """Return a basic chat completion when structured agent processing fails."""
     ai_service = get_ai_service()
-    dweller_prompt = conversation_service._build_dweller_prompt(dweller, for_audio=False)
+    dweller_prompt = build_dweller_prompt(dweller, for_audio=for_audio)
     system_instructions = "\n\n".join(filter(None, (instructions, dweller_prompt.strip())))
 
     try:
@@ -134,7 +167,9 @@ async def run_fallback_chat_agent(
         happiness_impact=HappinessImpact(
             delta=0,
             reason_code=HappinessReasonCode.CHAT_NEUTRAL,
-            reason_text="Chat processed without sentiment analysis",
+            reason_text="Voice chat processed without sentiment analysis"
+            if for_audio
+            else "Chat processed without sentiment analysis",
             happiness_after=dweller.happiness,
         ),
         action_suggestion=NoAction(reason="Unable to analyze conversation for suggestions"),

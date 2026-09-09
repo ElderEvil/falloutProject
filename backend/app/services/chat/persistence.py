@@ -13,7 +13,7 @@ from app.schemas.chat import UnlockedPlace
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat import notifications
-from app.services.chat.streaming import StreamBundle
+from app.services.chat.models import StreamBundle
 
 logger = logging.getLogger(__name__)
 

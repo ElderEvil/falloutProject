@@ -28,6 +28,7 @@ class DeathService:
         dweller: Dweller,
         cause: DeathCauseEnum,
         epitaph: str | None = None,
+        commit: bool = True,
     ) -> Dweller:
         """Mark a dweller as dead.
 
@@ -67,10 +68,11 @@ class DeathService:
                 health=0,
                 room_id=None,  # Remove from room
             ),
+            commit=commit,
         )
 
-        # Increment death statistics
-        await self._increment_death_stats(db_session, dweller.vault_id, cause)
+        # Increment death statistics (deferred with the caller's commit)
+        await self._increment_death_stats(db_session, dweller.vault_id, cause, commit=commit)
 
         logger.info(
             "Dweller %s (%s) died of %s in vault %s",
@@ -93,6 +95,7 @@ class DeathService:
                 dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
                 cause=cause.value,
                 meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
+                commit=commit,
             ),
         )
 
@@ -303,6 +306,7 @@ class DeathService:
         db_session: AsyncSession,
         vault_id: UUID4,
         cause: DeathCauseEnum,
+        commit: bool = True,
     ) -> None:
         """Increment death statistics for the vault owner."""
         vault = await vault_crud.get(db_session, vault_id)
@@ -320,8 +324,8 @@ class DeathService:
 
         stat_field = cause_to_field.get(cause)
         if stat_field:
-            await profile_crud.increment_statistic(db_session, vault.user_id, stat_field)
-            await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_died")
+            await profile_crud.increment_statistic(db_session, vault.user_id, stat_field, commit=commit)
+            await profile_crud.increment_statistic(db_session, vault.user_id, "total_dwellers_died", commit=commit)
 
     def _generate_epitaph(self, dweller: Dweller, cause: DeathCauseEnum) -> str:
         """Generate a default epitaph based on death cause."""

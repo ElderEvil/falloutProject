@@ -41,6 +41,7 @@ class NotificationService:
         from_dweller_id: UUID | None = None,
         priority: NotificationPriority = NotificationPriority.NORMAL,
         meta_data: dict[str, Any] | None = None,
+        commit: bool = True,
     ):
         """Create a notification and send it via WebSocket."""
         vault_prefix = await NotificationService._get_vault_prefix(db, vault_id)
@@ -58,6 +59,7 @@ class NotificationService:
                 message=prefixed_message,
                 meta_data=meta_data,
             ),
+            commit=commit,
         )
 
         logger.info(
@@ -325,6 +327,7 @@ class NotificationService:
         dweller_name: str,
         cause: str,
         meta_data: dict[str, Any] | None = None,
+        commit: bool = True,
     ):
         """Notify user that a dweller has died."""
         return await NotificationService.create_and_send(
@@ -337,6 +340,7 @@ class NotificationService:
             title="Dweller Lost",
             message=f"{dweller_name} has died. Cause: {cause}",
             meta_data=meta_data,
+            commit=commit,
         )
 
     @staticmethod

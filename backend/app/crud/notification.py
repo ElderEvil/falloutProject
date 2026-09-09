@@ -9,6 +9,24 @@ from app.models.notification import Notification, NotificationCreate, Notificati
 
 
 class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUpdate]):
+    async def create(
+        self, db_session: AsyncSession, obj_in: NotificationCreate, *, commit: bool = True
+    ) -> Notification:
+        """Create a notification row; commit deferred with the caller when requested.
+
+        The WebSocket/SSE delivery in the service layer always runs after the
+        row exists (best-effort), so callers deferring the commit also defer
+        delivery timing.
+        """
+        db_obj = self.model.model_validate(obj_in)
+        db_session.add(db_obj)
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
+        await db_session.refresh(db_obj)
+        return db_obj
+
     async def get_user_notifications(
         self,
         db: AsyncSession,

@@ -260,68 +260,41 @@ class IncidentService:
 
         return incident
 
-    async def process_incident(
-        self, db_session: AsyncSession, incident: Incident, seconds_passed: int
-    ) -> IncidentRoundResult:
-        """Process an active incident (apply damage, check victory conditions).
-
-        Args:
-            db_session: Database session
-            incident: The incident to process
-            seconds_passed: Time since last tick
-
-        Returns:
-            dict with combat results
-        """
-        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            return IncidentRoundResult(skipped=True)
-
-        transitioned = False
-
-        # Get dwellers in affected room with equipment preloaded (N+1 optimization)
-        dwellers = list(await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id))
-
-        if not dwellers:
-            if (
-                incident.elapsed_time() >= incident.duration
-                and incident.spread_count < game_config.incident.max_spread_count
-                and await self._spread_incident(db_session, incident)
-            ):
-                await db_session.commit()
-                await incident_publishing.publish_sse(incident, "incident_spreading")
-                return IncidentRoundResult(no_defenders=True)
-
-            if (
-                incident.spread_count >= game_config.incident.max_spread_count
-                or incident.elapsed_time() >= incident.duration
-            ):
-                incident.resolve(success=False)
-                self._record_event(
-                    db_session,
-                    incident,
-                    "failed",
-                    f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
-                )
-                db_session.add(incident)
-                await db_session.commit()
-                await incident_publishing.publish_sse(incident, "incident_resolved", success=False)
-                await incident_publishing.notify_resolution(db_session, incident, success=False)
+    async def _no_defender_outcome(self, db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
+        """An active incident nobody responds to: spread it, keep waiting, or lose it."""
+        if (
+            incident.elapsed_time() >= incident.duration
+            and incident.spread_count < game_config.incident.max_spread_count
+            and await self._spread_incident(db_session, incident)
+        ):
+            await db_session.commit()
+            await incident_publishing.publish_sse(incident, "incident_spreading")
             return IncidentRoundResult(no_defenders=True)
 
-        # Fire is a containment operation: responders suppress a hazard rather
-        # than defeat enemies. Other types retain the combat loop.
-        dweller_power = incident_math.dweller_combat_power(dwellers)
-        threat_power = incident_math.raider_power(incident.difficulty)
-        if incident.type == IncidentType.FIRE:
-            damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
-            response_progress = incident_math.fire_suppression(dweller_power, threat_power, seconds_passed)
-            damage_to_raiders = 0.0
-        else:
-            damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
-            response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
-            damage_to_raiders = response_progress * threat_power
+        if (
+            incident.spread_count >= game_config.incident.max_spread_count
+            or incident.elapsed_time() >= incident.duration
+        ):
+            incident.resolve(success=False)
+            self._record_event(
+                db_session,
+                incident,
+                "failed",
+                f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
+            )
+            db_session.add(incident)
+            await db_session.commit()
+            await incident_publishing.publish_sse(incident, "incident_resolved", success=False)
+            await incident_publishing.notify_resolution(db_session, incident, success=False)
+        return IncidentRoundResult(no_defenders=True)
 
-        # Apply damage to dwellers
+    async def _apply_damage(
+        self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
+    ) -> tuple[int, int]:
+        """Distribute incoming damage across responders; deaths stay pending for the round commit."""
+        from app.core.enums import DeathCauseEnum
+        from app.services.family.death_service import death_service
+
         damaged_count = 0
         deaths_count = 0
         total_damage = max(0, int(damage_to_dwellers))
@@ -345,30 +318,69 @@ class IncidentService:
 
                 # Check for death from incident
                 if new_health <= 0 and not dweller.is_dead:
-                    from app.core.enums import DeathCauseEnum
-                    from app.services.family.death_service import death_service
-
-                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT)
+                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT, commit=False)
                     deaths_count += 1
                     self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
+
+        return damaged_count, deaths_count
+
+    async def _resolve_victory(self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
+        """Generate loot, mark the incident resolved, and award XP. Returns caps for the batch payout."""
+        incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
+        incident.resolve(success=True)
+
+        caps_earned = incident.loot.get("caps", 0)
+        await self._award_combat_xp(db_session, incident, dwellers)
+
+        self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
+        self._record_event(
+            db_session, incident, "resolved", f"{get_incident_definition(incident.type).progress_label}."
+        )
+        return caps_earned
+
+    async def process_incident(
+        self, db_session: AsyncSession, incident: Incident, seconds_passed: int
+    ) -> IncidentRoundResult:
+        """Process one round of an active incident (apply damage, check victory)."""
+        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
+            return IncidentRoundResult(skipped=True)
+
+        # Get dwellers in affected room with equipment preloaded (N+1 optimization)
+        dwellers = list(await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id))
+        if not dwellers:
+            return await self._no_defender_outcome(db_session, incident)
+
+        # Fire is a containment operation: responders suppress a hazard rather
+        # than defeat enemies. Other types retain the combat loop.
+        dweller_power = incident_math.dweller_combat_power(dwellers)
+        threat_power = incident_math.raider_power(incident.difficulty)
+        if incident.type == IncidentType.FIRE:
+            damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
+            response_progress = incident_math.fire_suppression(dweller_power, threat_power, seconds_passed)
+            damage_to_raiders = 0.0
+        else:
+            damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
+            response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
+            damage_to_raiders = response_progress * threat_power
+
+        damaged_count, deaths_count = await self._apply_damage(db_session, incident, dwellers, damage_to_dwellers)
+        total_damage = max(0, int(damage_to_dwellers))
 
         # Track total damage dealt by raiders
         incident.damage_dealt += total_damage
 
         # Track enemies defeated — accumulate fractional kills so weak defenders
         # still make progress instead of stalling at int() == 0 every tick.
+        enemies_this_tick = 0
         if threat_power > 0:
             previous_kills = incident.enemies_defeated
             incident.combat_progress += response_progress
             if incident.type != IncidentType.FIRE:
                 incident.enemies_defeated = int(incident.combat_progress)
             enemies_this_tick = incident.enemies_defeated - previous_kills
-        else:
-            enemies_this_tick = 0
 
         # Check victory condition (defeated enough raiders based on difficulty)
         expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
-        caps_earned = 0
 
         if incident.type == IncidentType.FIRE and response_progress > 0:
             self._record_event(
@@ -392,27 +404,14 @@ class IncidentService:
             if incident.type == IncidentType.FIRE
             else incident.enemies_defeated >= expected_raider_count
         )
+        caps_earned = 0
         if resolved:
-            # Victory! Generate loot and resolve
-            transitioned = True
-            incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
-            incident.resolve(success=True)
-
-            # Track caps for batch vault update (done at game loop level)
-            caps_earned = incident.loot.get("caps", 0)
-
-            # Award XP to participating dwellers
-            await self._award_combat_xp(db_session, incident, dwellers)
-
-            self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
-            self._record_event(
-                db_session, incident, "resolved", f"{get_incident_definition(incident.type).progress_label}."
-            )
+            caps_earned = await self._resolve_victory(db_session, incident, dwellers)
 
         db_session.add(incident)
         await db_session.commit()
 
-        if transitioned:
+        if resolved:
             await incident_publishing.notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
             await incident_publishing.publish_sse(incident, "incident_resolved", success=True, caps_earned=caps_earned)
 

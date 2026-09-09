@@ -4,14 +4,12 @@ import logging
 from collections.abc import Mapping, Sequence
 
 from pydantic import UUID4
-from sqlalchemy import or_
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import PARTNER_LINKED_STAGES, RelationshipTypeEnum
+from app.core.enums import RelationshipTypeEnum
 from app.crud import dweller as dweller_crud
+from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
-from app.models.relationship import Relationship
 from app.schemas.dweller import LineageMember, LineageResponse
 
 logger = logging.getLogger(__name__)
@@ -54,14 +52,8 @@ class LineageService:
     @staticmethod
     async def _find_children(db_session: AsyncSession, dweller_id: UUID4, vault_id: UUID4) -> list[Dweller]:
         """Find dwellers in the same vault whose parent is this dweller."""
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(~Dweller.is_deleted)
-            .where(or_(Dweller.parent_1_id == dweller_id, Dweller.parent_2_id == dweller_id))
-        )
-        result = await db_session.execute(query)
-        return list(result.scalars().all())
+        children = await dweller_crud.get_children_of(db_session, vault_id=vault_id, parent_ids=[dweller_id])
+        return list(children)
 
     @staticmethod
     async def _find_siblings(
@@ -74,20 +66,10 @@ class LineageService:
         parent_ids = [p.id for p in parents]
         if not parent_ids:
             return []
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(~Dweller.is_deleted)
-            .where(Dweller.id != dweller.id)
-            .where(
-                or_(
-                    Dweller.parent_1_id.in_(parent_ids),
-                    Dweller.parent_2_id.in_(parent_ids),
-                )
-            )
+        siblings = await dweller_crud.get_children_of(
+            db_session, vault_id=vault_id, parent_ids=parent_ids, exclude_id=dweller.id
         )
-        result = await db_session.execute(query)
-        return list(result.scalars().all())
+        return list(siblings)
 
     @staticmethod
     async def _find_partners(
@@ -105,22 +87,10 @@ class LineageService:
         if dweller and dweller.partner_id:
             partner_ids.add(dweller.partner_id)
 
-        query = (
-            select(Dweller)
-            .where(Dweller.vault_id == vault_id)
-            .where(~Dweller.is_deleted)
-            .where(Dweller.partner_id == dweller_id)
-        )
-        result = await db_session.execute(query)
-        partner_ids.update(partner.id for partner in result.scalars().all())
+        reciprocal = await dweller_crud.get_reciprocal_partners(db_session, vault_id, dweller_id)
+        partner_ids.update(partner.id for partner in reciprocal)
 
-        rel_query = (
-            select(Relationship)
-            .where(Relationship.relationship_type.in_(PARTNER_LINKED_STAGES))
-            .where((Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id))
-        )
-        result = await db_session.execute(rel_query)
-        for relationship in result.scalars().all():
+        for relationship in await relationship_crud.get_partner_links_involving(db_session, dweller_id):
             other_id = (
                 relationship.dweller_2_id if relationship.dweller_1_id == dweller_id else relationship.dweller_1_id
             )

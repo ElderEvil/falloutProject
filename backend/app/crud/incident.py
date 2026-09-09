@@ -1,7 +1,9 @@
 """CRUD operations for Incident model."""
 
+from datetime import datetime
+
 from pydantic import UUID4
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.incident import Incident, IncidentStatus, IncidentType
@@ -108,6 +110,24 @@ class CRUDIncident:
             await db_session.commit()
             return True
         return False
+
+    @staticmethod
+    async def get_resolved_before(
+        db_session: AsyncSession,
+        statuses: list[IncidentStatus],
+        cutoff: datetime,
+        limit: int,
+    ) -> list[Incident]:
+        """Resolved incidents that ended before the cutoff, oldest batch first."""
+        query = (
+            select(Incident)
+            .where(col(Incident.status).in_(statuses))
+            .where(col(Incident.end_time).is_not(None))
+            .where(col(Incident.end_time) <= cutoff)
+            .limit(limit)
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
     @staticmethod
     async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> int:

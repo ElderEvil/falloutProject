@@ -114,6 +114,15 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         )
         return (await db_session.execute(query)).scalars().first()
 
+    async def get_all_by_mother_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Pregnancy]:
+        """All pregnancies (any status) whose mother lives in the vault."""
+        query = (
+            select(Pregnancy)
+            .join(Dweller, Pregnancy.mother_id == Dweller.id)
+            .where(Dweller.vault_id == vault_id)
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
     async def get_active_involving(self, db_session: AsyncSession, dweller_id: UUID4) -> list[Pregnancy]:
         """Active pregnancies where the dweller is the mother or the father."""
         query = select(Pregnancy).where(

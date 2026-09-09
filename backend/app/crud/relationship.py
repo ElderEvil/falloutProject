@@ -198,6 +198,16 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         result = await db.execute(query)
         return list(result.scalars().all())
 
+    async def get_partner_links_involving(self, db: AsyncSession, dweller_id: UUID4) -> list[Relationship]:
+        """PARTNER/MARRIED-stage relationships where the dweller is either side."""
+        query = (
+            select(Relationship)
+            .where(Relationship.relationship_type.in_(PARTNER_LINKED_STAGES))
+            .where((Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id))
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all())
+
     async def get_cross_vault_orphans(
         self,
         db: AsyncSession,

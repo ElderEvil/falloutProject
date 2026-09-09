@@ -4,7 +4,6 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DeathCauseEnum, DwellerStatusEnum
@@ -227,15 +226,7 @@ class DeathService:
         cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=game_config.death.permanent_death_days)
 
         # Find dead dwellers past the threshold
-        query = (
-            select(Dweller)
-            .where(Dweller.is_dead)
-            .where(~Dweller.is_permanently_dead)
-            .where(Dweller.death_timestamp <= cutoff_date)
-        )
-
-        result = await db_session.execute(query)
-        dwellers_to_mark = result.scalars().all()
+        dwellers_to_mark = await dweller_crud.get_permanently_dead_before(db_session, cutoff_date)
 
         count = 0
         for dweller in dwellers_to_mark:
@@ -299,32 +290,13 @@ class DeathService:
 
     async def _get_dead_dweller_counts(self, db_session: AsyncSession, user_id: UUID4) -> tuple[int, int]:
         """Get counts of revivable and permanently dead dwellers for a user."""
-        from app.models.vault import Vault
-
-        # Get user's vaults
-        vault_query = select(Vault.id).where(Vault.user_id == user_id)
-        vault_result = await db_session.execute(vault_query)
-        vault_ids = [row[0] for row in vault_result.all()]
+        vaults = await vault_crud.get_by_user_id(db_session=db_session, user_id=user_id)
+        vault_ids = [vault.id for vault in vaults]
 
         if not vault_ids:
             return 0, 0
 
-        # Count revivable (dead but not permanent)
-        revivable_query = (
-            select(Dweller)
-            .where(Dweller.vault_id.in_(vault_ids))
-            .where(Dweller.is_dead)
-            .where(~Dweller.is_permanently_dead)
-        )
-        revivable_result = await db_session.execute(revivable_query)
-        revivable_count = len(revivable_result.scalars().all())
-
-        # Count permanently dead
-        permanent_query = select(Dweller).where(Dweller.vault_id.in_(vault_ids)).where(Dweller.is_permanently_dead)
-        permanent_result = await db_session.execute(permanent_query)
-        permanent_count = len(permanent_result.scalars().all())
-
-        return revivable_count, permanent_count
+        return await dweller_crud.count_death_stats(db_session, vault_ids)
 
     async def _increment_death_stats(
         self,

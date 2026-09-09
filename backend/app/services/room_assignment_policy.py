@@ -1,7 +1,6 @@
 """Eligibility rules shared by manual and automatic room assignment."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
 from app.core.enums import AgeGroupEnum, RoomTypeEnum
 from app.models.dweller import Dweller
@@ -27,15 +26,12 @@ async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, r
     if room.ability is None:
         raise ValidationException(detail="Production room must have a SPECIAL ability for an apprentice")
 
-    existing_apprentice = await db_session.execute(
-        select(Dweller.id).where(
-            Dweller.room_id == room.id,
-            Dweller.id != dweller.id,
-            Dweller.apprentice_started_at.is_not(None),
-            ~Dweller.is_deleted,
-        )
+    from app.crud.dweller import dweller as dweller_crud
+
+    existing_apprentice = await dweller_crud.has_other_apprentice(
+        db_session, room_id=room.id, exclude_dweller_id=dweller.id
     )
-    if existing_apprentice.scalars().first() is not None:
+    if existing_apprentice:
         raise ValidationException(detail="This production room already has an apprentice")
 
 

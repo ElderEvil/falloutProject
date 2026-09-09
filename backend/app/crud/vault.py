@@ -59,6 +59,12 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         count = await db_session.execute(select(func.count(Vault.rooms)).where(Vault.id == vault_id))
         return count.scalar()
 
+    @staticmethod
+    async def get_population_max(*, db_session: AsyncSession, vault_id: UUID4) -> int | None:
+        """Population cap, or None when the vault is missing (treated as unbounded by callers)."""
+        result = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
+        return result.scalar_one_or_none()
+
     async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID4) -> tuple[int | None, int]:
         """Population cap with assigned-dweller count; (None, 0) when the vault is missing."""
         result = await db_session.execute(

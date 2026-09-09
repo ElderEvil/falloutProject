@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -79,6 +79,12 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             await db.refresh(notification)
             return notification
         return None
+
+    async def get_older_than(self, db_session: AsyncSession, cutoff: datetime, limit: int) -> list[Notification]:
+        """Notifications created at or before the cutoff, oldest batch first."""
+        query = select(Notification).where(col(Notification.created_at) <= cutoff).limit(limit)
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
 
 
 notification = CRUDNotification(Notification)

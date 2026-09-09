@@ -1,11 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.models.incident import Incident, IncidentStatus
-from app.models.notification import Notification
+from app.crud.incident import incident_crud
+from app.crud.notification import notification as notification_crud
+from app.models.incident import IncidentStatus
 
 
 class CleanupService:
@@ -23,15 +23,9 @@ class CleanupService:
         deleted_count = 0
 
         while True:
-            query = (
-                select(Incident)
-                .where(col(Incident.status).in_(resolved_statuses))
-                .where(col(Incident.end_time).is_not(None))
-                .where(col(Incident.end_time) <= cutoff_date)
-                .limit(batch)
+            incidents_to_delete = await incident_crud.get_resolved_before(
+                db_session, resolved_statuses, cutoff_date, batch
             )
-            result = await db_session.execute(query)
-            incidents_to_delete = list(result.scalars().all())
 
             if not incidents_to_delete:
                 break
@@ -57,9 +51,7 @@ class CleanupService:
         deleted_count = 0
 
         while True:
-            query = select(Notification).where(col(Notification.created_at) <= cutoff_date).limit(batch)
-            result = await db_session.execute(query)
-            notifications_to_delete = list(result.scalars().all())
+            notifications_to_delete = await notification_crud.get_older_than(db_session, cutoff_date, batch)
 
             if not notifications_to_delete:
                 break

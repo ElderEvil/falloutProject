@@ -105,7 +105,7 @@ async def test_process_events_raider_scout_spawns_incident(async_session: AsyncS
 
     with (
         patch("app.services.game_loop.random") as mock_random,
-        patch("app.services.incident_service.incident_service") as mock_incident_service,
+        patch("app.services.combat.incident_service.incident_service") as mock_incident_service,
     ):
         mock_random.random.return_value = 0.0
         mock_random.choices.return_value = ["raider_scout"]

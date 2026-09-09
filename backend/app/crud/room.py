@@ -58,6 +58,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
+    async def get_by_categories(
+        db_session: AsyncSession, vault_id: UUID4, categories: list[RoomTypeEnum]
+    ) -> list[Room]:
+        """Rooms of a vault in any of the given categories."""
+        response = await db_session.execute(
+            select(Room).where(Room.vault_id == vault_id, Room.category.in_(categories))
+        )
+        return list(response.scalars().all())
+
+    @staticmethod
     async def get_multy_by_vault(*, db_session: AsyncSession, vault_id: UUID4, skip: int, limit: int):
         """Retrieve multiple rooms by vault ID."""
         response = await db_session.execute(select(Room).where(Room.vault_id == vault_id).offset(skip).limit(limit))
@@ -88,6 +98,65 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             .order_by(Room.created_at)
         )
         return response.scalars().first()
+
+    @staticmethod
+    async def get_occupied_rooms(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+        """Rooms of a vault currently occupied by at least one dweller, elevators excluded."""
+        from app.models.dweller import Dweller
+
+        query = (
+            select(Room)
+            .join(Dweller, Room.id == Dweller.room_id)
+            .where(
+                (Room.vault_id == vault_id)
+                & (Dweller.room_id.is_not(None))
+                & (Room.name != "Elevator")  # Exclude elevators
+            )
+            .distinct()
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
+    async def get_adjacent_rooms(
+        db_session: AsyncSession, vault_id: UUID4, *, exclude_room_id: UUID4, coord_x: int, coord_y: int
+    ) -> list[Room]:
+        """Rooms within 1-2 grid units of a coordinate, elevators and the origin room excluded."""
+        query = select(Room).where(
+            (Room.vault_id == vault_id)
+            & (Room.id != exclude_room_id)
+            & (Room.coordinate_x.is_not(None))
+            & (Room.coordinate_y.is_not(None))
+            & (Room.name != "Elevator")  # Exclude elevators from spread
+            & (
+                # Adjacent horizontally (same floor, next to each other)
+                ((Room.coordinate_y == coord_y) & (Room.coordinate_x.between(coord_x - 2, coord_x + 2)))
+                # Adjacent vertically (same column, one floor up/down)
+                | ((Room.coordinate_x == coord_x) & (Room.coordinate_y.between(coord_y - 1, coord_y + 1)))
+            )
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
+    async def get_arena_room(db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room | None:
+        """An arena room by id, optionally scoped to a vault."""
+        query = select(Room).where(Room.id == room_id, Room.category == RoomTypeEnum.ARENA)
+        if vault_id is not None:
+            query = query.where(Room.vault_id == vault_id)
+        return (await db_session.execute(query)).scalars().first()
+
+    @staticmethod
+    async def get_all_arena_rooms(db_session: AsyncSession) -> list[Room]:
+        """Every arena room across all vaults (arena tick)."""
+        return list((await db_session.execute(select(Room).where(Room.category == RoomTypeEnum.ARENA))).scalars().all())
+
+    @staticmethod
+    async def get_arena_rooms_with_fighter(db_session: AsyncSession, dweller_id: UUID4) -> list[Room]:
+        """Arena rooms where the dweller occupies either fighter slot."""
+        query = select(Room).where(
+            Room.category == RoomTypeEnum.ARENA,
+            (Room.arena_fighter_a_id == dweller_id) | (Room.arena_fighter_b_id == dweller_id),
+        )
+        return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
     def evaluate_capacity_formula(formula: str, level: int, size: int) -> int:

@@ -30,7 +30,7 @@ async def _run_arena_tick(chain_token: str | None) -> tuple[str | None, dict | N
     from redis.asyncio import Redis
 
     from app.core.config import settings
-    from app.services.arena_service import arena_service
+    from app.services.combat.arena_service import arena_service
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     try:

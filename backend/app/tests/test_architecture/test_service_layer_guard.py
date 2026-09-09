@@ -23,7 +23,7 @@ EXCEPTIONS_FILE = APP_DIR / "utils" / "exceptions.py"
 CRUD_SERVICE_ALLOWLIST = frozenset({"app.services.room_assignment_policy"})
 CRUD_SERVICE_BASELINE = frozenset(
     {
-        ("dweller.py", "app.services.arena_service"),
+        ("dweller.py", "app.services.combat.arena_service"),
         ("dweller.py", "app.services.map_service"),
         ("dweller.py", "app.services.notification_service"),
         ("dweller.py", "app.services.user_service"),
@@ -33,16 +33,7 @@ CRUD_SERVICE_BASELINE = frozenset(
         ("vault.py", "app.services.vault_service"),
     }
 )
-SERVICES_SELECT_BASELINE = frozenset(
-    {
-        "arena_service.py",
-        "dweller_assignment_service.py",
-        "dweller_recycling_service.py",
-        "game_loop.py",
-        "incident_service.py",
-        "trading_post_service.py",
-    }
-)
+SERVICES_SELECT_BASELINE = frozenset()
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")
 SERVICE_NAME_GRANDFATHER = frozenset(
     {

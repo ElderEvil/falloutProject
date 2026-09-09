@@ -10,9 +10,9 @@ from app import crud
 from app.models.exploration import ExplorationStatus
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.notification import NotificationType
+from app.services.combat.incident_service import IncidentService
 from app.services.exploration.coordinator import ExplorationCoordinator
 from app.services.exploration_service import exploration_service
-from app.services.incident_service import IncidentService
 from app.services.notification_service import NotificationService
 from app.services.radio_service import RadioService
 
@@ -44,7 +44,7 @@ class TestIncidentNotifications:
         ]
 
         for incident_type, expected_name in incident_types:
-            with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+            with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
                 mock_notify.return_value = AsyncMock()
 
                 incident = await incident_service.spawn_incident(async_session, vault.id, incident_type)
@@ -88,7 +88,7 @@ class TestIncidentNotifications:
 
         incident_service = IncidentService()
 
-        with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+        with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
             mock_notify.return_value = AsyncMock()
 
             await incident_service.process_incident(async_session, incident, 60)
@@ -124,7 +124,7 @@ class TestIncidentNotifications:
 
         incident_service = IncidentService()
 
-        with patch("app.services.incident_service.notification_service.create_and_send") as mock_notify:
+        with patch("app.services.combat.incident_service.notification_service.create_and_send") as mock_notify:
             mock_notify.return_value = AsyncMock()
 
             await incident_service.process_incident(async_session, incident, 60)

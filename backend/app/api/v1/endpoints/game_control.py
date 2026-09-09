@@ -25,8 +25,8 @@ from app.schemas.incident import (
     PauseResumeResponse,
 )
 from app.schemas.system import GameBalanceResponse
+from app.services.combat.incident_service import incident_service
 from app.services.game_loop import game_loop_service
-from app.services.incident_service import incident_service
 from app.utils.exceptions import (
     AccessDeniedException,
     ResourceConflictException,

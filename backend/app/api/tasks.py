@@ -98,7 +98,7 @@ async def _run_incident_tick(chain_token: str | None) -> tuple[str | None, dict[
     from redis.asyncio import Redis
 
     from app.core.config import settings
-    from app.services.incident_service import incident_service
+    from app.services.combat.incident_service import incident_service
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
     try:

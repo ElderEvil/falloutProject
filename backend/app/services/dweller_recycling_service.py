@@ -9,10 +9,9 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import func
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
@@ -47,22 +46,15 @@ class DwellerRecyclingService:
         """
         cutoff_date = datetime.utcnow() - timedelta(days=min_age_days)
 
-        query = (
-            select(Dweller)
-            .where(col(Dweller.is_deleted).is_(True))
-            .where(col(Dweller.deleted_at) <= cutoff_date)
-            .order_by(col(Dweller.deleted_at).desc())
-            .limit(limit)
+        return list(
+            await crud.dweller.get_recyclable(
+                db_session,
+                gender=gender,
+                rarity=rarity,
+                deleted_before=cutoff_date,
+                limit=limit,
+            )
         )
-
-        if gender:
-            query = query.where(Dweller.gender == gender)
-
-        if rarity:
-            query = query.where(Dweller.rarity == rarity)
-
-        response = await db_session.exec(query)
-        return list(response.all())
 
     @staticmethod
     async def recycle_dweller_for_vault(
@@ -92,9 +84,7 @@ class DwellerRecyclingService:
             raise ResourceNotFoundException(Vault, identifier=target_vault_id)
 
         # Use SELECT ... FOR UPDATE to prevent race conditions
-        query = select(Dweller).where(Dweller.id == dweller_id).with_for_update()
-        response = await db_session.exec(query)
-        dweller = response.one_or_none()
+        dweller = await crud.dweller.get_for_update(db_session, dweller_id)
 
         if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)
@@ -221,15 +211,7 @@ class DwellerRecyclingService:
         deleted_count = 0
 
         while True:
-            query = (
-                select(Dweller)
-                .where(col(Dweller.is_deleted).is_(True))
-                .where(col(Dweller.deleted_at) <= cutoff_date)
-                .limit(batch_size)
-            )
-
-            response = await db_session.exec(query)
-            dwellers_to_delete = response.all()
+            dwellers_to_delete = await crud.dweller.get_soft_deleted_before(db_session, cutoff_date, batch_size)
 
             if not dwellers_to_delete:
                 break
@@ -261,41 +243,23 @@ class DwellerRecyclingService:
         """
         now = datetime.utcnow()
 
-        total_deleted_query = select(func.count()).where(col(Dweller.is_deleted).is_(True))
-        total_deleted_result = await db_session.exec(total_deleted_query)
-        total_deleted = total_deleted_result.one()
+        total_deleted = await crud.dweller.count_soft_deleted(db_session)
 
         week_ago = now - timedelta(days=7)
-        eligible_query = (
-            select(func.count()).where(col(Dweller.is_deleted).is_(True)).where(col(Dweller.deleted_at) <= week_ago)
-        )
-        eligible_result = await db_session.exec(eligible_query)
-        eligible_count = eligible_result.one()
+        eligible_count = await crud.dweller.count_soft_deleted(db_session, deleted_before=week_ago)
 
         ninety_days_ago = now - timedelta(days=90)
-        permanent_eligible_query = (
-            select(func.count())
-            .where(col(Dweller.is_deleted).is_(True))
-            .where(col(Dweller.deleted_at) <= ninety_days_ago)
-        )
-        permanent_eligible_result = await db_session.exec(permanent_eligible_query)
-        permanent_eligible_count = permanent_eligible_result.one()
+        permanent_eligible_count = await crud.dweller.count_soft_deleted(db_session, deleted_before=ninety_days_ago)
 
-        gender_query = (
-            select(Dweller.gender, func.count()).where(col(Dweller.is_deleted).is_(True)).group_by(Dweller.gender)
-        )
-        gender_result = await db_session.exec(gender_query)
-        gender_counts = {str(g): c for g, c in gender_result.all()}
+        gender_counts = {
+            str(g): c for g, c in await crud.dweller.count_soft_deleted_grouped(db_session, Dweller.gender)
+        }
 
-        rarity_query = (
-            select(Dweller.rarity, func.count()).where(col(Dweller.is_deleted).is_(True)).group_by(Dweller.rarity)
-        )
-        rarity_result = await db_session.exec(rarity_query)
-        rarity_counts = {str(r): c for r, c in rarity_result.all()}
+        rarity_counts = {
+            str(r): c for r, c in await crud.dweller.count_soft_deleted_grouped(db_session, Dweller.rarity)
+        }
 
-        oldest_query = select(func.min(Dweller.deleted_at)).where(col(Dweller.is_deleted).is_(True))
-        oldest_result = await db_session.exec(oldest_query)
-        oldest_deleted_at = oldest_result.one_or_none()
+        oldest_deleted_at = await crud.dweller.get_oldest_deleted_at(db_session)
 
         return {
             "total_soft_deleted": total_deleted,

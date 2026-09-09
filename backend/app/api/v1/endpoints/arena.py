@@ -15,7 +15,7 @@ from app.schemas.arena import (
     ArenaFightStarted,
     ArenaState,
 )
-from app.services.arena_service import arena_service
+from app.services.combat.arena_service import arena_service
 
 router = APIRouter(prefix="/arena", tags=["Arena"])
 

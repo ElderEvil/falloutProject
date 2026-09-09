@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
@@ -23,7 +23,11 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
-from app.services.room_assignment_policy import validate_automatic_assignment, validate_room_assignment
+from app.services.room_assignment_policy import (
+    adult_assignment_conditions,
+    validate_automatic_assignment,
+    validate_room_assignment,
+)
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (
     ContentNoChangeException,
@@ -267,6 +271,116 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
         return list(result.scalars().all())
+
+    async def count_in_room(self, db_session: AsyncSession, room_id: UUID4) -> int:
+        """Count all dwellers currently occupying a room (no status filters)."""
+        result = await db_session.execute(select(func.count(self.model.id)).where(self.model.room_id == room_id))
+        return int(result.scalar_one())
+
+    async def get_unassigned_adults(
+        self, db_session: AsyncSession, vault_id: UUID4, age_group: AgeGroupEnum | None = None
+    ) -> Sequence[Dweller]:
+        """Idle adults without a room, optionally narrowed to one age group."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.status == DwellerStatusEnum.IDLE)
+            .where(self.model.room_id.is_(None))
+            .where(*adult_assignment_conditions())
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+        )
+        if age_group:
+            query = query.where(self.model.age_group == age_group)
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_all_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Every dweller row of a vault, no status/deleted filters (tick processing)."""
+        result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
+        return result.scalars().all()
+
+    async def count_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Count every dweller row of a vault (no status/deleted filters)."""
+        result = await db_session.execute(select(func.count(self.model.id)).where(self.model.vault_id == vault_id))
+        return int(result.scalar_one())
+
+    async def get_active_apprentices(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """All active apprentices of a vault."""
+        query = select(self.model).where(
+            self.model.vault_id == vault_id,
+            self.model.apprentice_stat.is_not(None),
+            self.model.apprentice_started_at.is_not(None),
+            ~self.model.is_deleted,
+            ~self.model.is_dead,
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_living_quarters_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Dwellers assigned to living-quarter (capacity) rooms of a vault."""
+        from app.models.room import Room
+
+        query = (
+            select(self.model)
+            .join(Room, self.model.room_id == Room.id)
+            .where(
+                self.model.vault_id == vault_id,
+                self.model.room_id.is_not(None),
+                Room.name.ilike("%living%"),
+                Room.category == RoomTypeEnum.CAPACITY,
+            )
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_healthy_adults_in_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
+        """Adult dwellers with positive health in a room, weapon/outfit eager-loaded."""
+        query = (
+            select(self.model)
+            .options(
+                selectinload(self.model.weapon),
+                selectinload(self.model.outfit),
+            )
+            .where(
+                (self.model.room_id == room_id)
+                & (self.model.health > 0)
+                & self.model.is_adult
+                & (self.model.age_group == AgeGroupEnum.ADULT)
+            )
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_by_ids_in_vault(
+        self, db_session: AsyncSession, ids: list[UUID4], vault_id: UUID4
+    ) -> Sequence[Dweller]:
+        """Dwellers by ids scoped to one vault (no status filters)."""
+        query = select(self.model).where(self.model.id.in_(ids), self.model.vault_id == vault_id)
+        return (await db_session.execute(query)).scalars().all()
+
+    @staticmethod
+    def _arena_fighter_conditions(room_id: UUID4, *, require_alive: bool = True) -> list[Any]:
+        conditions = [
+            Dweller.room_id == room_id,
+            Dweller.is_adult,
+            Dweller.age_group == AgeGroupEnum.ADULT,
+        ]
+        if require_alive:
+            conditions.append(Dweller.health > 0)
+        return conditions
+
+    async def get_arena_fighters(
+        self, db_session: AsyncSession, room_id: UUID4, *, ids: Sequence[UUID4] | None = None
+    ) -> Sequence[Dweller]:
+        """Adult, alive dwellers assigned to a room (arena fighters), weapon eager-loaded."""
+        query = (
+            select(self.model).options(selectinload(self.model.weapon)).where(*self._arena_fighter_conditions(room_id))
+        )
+        if ids is not None:
+            query = query.where(self.model.id.in_(ids))
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_arena_roster(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
+        """Adult, alive dwellers assigned to a room, oldest first (arena roster)."""
+        query = select(self.model).where(*self._arena_fighter_conditions(room_id)).order_by(self.model.created_at)
+        return (await db_session.execute(query)).scalars().all()
 
     async def get_first_active_apprentice(self, db_session: AsyncSession, vault_id: UUID4) -> Dweller | None:
         """The vault's longest-standing active apprentice, if any."""
@@ -594,7 +708,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
         if old_room_id is not None:
-            from app.services.arena_service import arena_service
+            from app.services.combat.arena_service import arena_service
 
             await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
         await db_session.commit()
@@ -713,6 +827,99 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         response = await db_session.execute(query)
         return response.scalars().all()
+
+    async def get_tradable_by_id(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
+        """Soft-deleted, non-dead dweller by id (trading-post candidate)."""
+        query = (
+            select(self.model)
+            .where(self.model.id == dweller_id)
+            .where(self.model.is_deleted)
+            .where(~self.model.is_dead)
+        )
+        return (await db_session.execute(query)).scalars().one_or_none()
+
+    async def get_tradable(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID4 | None = None,
+        exclude_vault_id: UUID4 | None = None,
+        limit: int | None = None,
+    ) -> Sequence[Dweller]:
+        """Soft-deleted, non-dead dwellers, newest deletions first, weapon eager-loaded.
+
+        Optionally scoped to one vault (``vault_id``) or to every other vault
+        (``exclude_vault_id``), optionally capped at ``limit``.
+        """
+        query = (
+            select(self.model)
+            .where(self.model.is_deleted)
+            .where(~self.model.is_dead)
+            .order_by(self.model.deleted_at.desc())
+            .options(selectinload(Dweller.weapon))
+        )
+        if vault_id is not None:
+            query = query.where(self.model.vault_id == vault_id)
+        if exclude_vault_id is not None:
+            query = query.where(self.model.vault_id != exclude_vault_id)
+        if limit is not None:
+            query = query.limit(limit)
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_recyclable(
+        self,
+        db_session: AsyncSession,
+        *,
+        gender: GenderEnum | None = None,
+        rarity: RarityEnum | None = None,
+        deleted_before: datetime | None = None,
+        limit: int = 10,
+    ) -> Sequence[Dweller]:
+        """Soft-deleted dwellers eligible for recycling, newest deletions first."""
+        query = select(self.model).where(self.model.is_deleted).order_by(self.model.deleted_at.desc()).limit(limit)
+        if deleted_before is not None:
+            query = query.where(self.model.deleted_at <= deleted_before)
+        if gender is not None:
+            query = query.where(self.model.gender == gender)
+        if rarity is not None:
+            query = query.where(self.model.rarity == rarity)
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_for_update(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
+        """One dweller locked FOR UPDATE (recycling race protection)."""
+        result = await db_session.execute(select(self.model).where(self.model.id == dweller_id).with_for_update())
+        return result.scalars().one_or_none()
+
+    async def get_soft_deleted_before(
+        self, db_session: AsyncSession, cutoff: datetime, limit: int
+    ) -> Sequence[Dweller]:
+        """Soft-deleted dwellers deleted at or before the cutoff, oldest first."""
+        query = (
+            select(self.model)
+            .where(self.model.is_deleted)
+            .where(self.model.deleted_at <= cutoff)
+            .order_by(self.model.deleted_at.asc())
+            .limit(limit)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def count_soft_deleted(self, db_session: AsyncSession, deleted_before: datetime | None = None) -> int:
+        """Count soft-deleted dwellers, optionally only those deleted at/before a cutoff."""
+        conditions = [self.model.is_deleted]
+        if deleted_before is not None:
+            conditions.append(self.model.deleted_at <= deleted_before)
+        result = await db_session.execute(select(func.count()).where(and_(*conditions)))
+        return int(result.scalar_one())
+
+    async def count_soft_deleted_grouped(self, db_session: AsyncSession, column: Any) -> list[tuple[Any, int]]:
+        """Soft-deleted dweller counts grouped by a column (e.g. gender, rarity)."""
+        query = select(column, func.count()).where(self.model.is_deleted).group_by(column)
+        return [(row[0], row[1]) for row in (await db_session.execute(query)).all()]
+
+    async def get_oldest_deleted_at(self, db_session: AsyncSession) -> datetime | None:
+        """Earliest deletion timestamp among soft-deleted dwellers, or None."""
+        result = await db_session.execute(select(func.min(self.model.deleted_at)).where(self.model.is_deleted))
+        return result.scalar_one_or_none()
 
     async def get_graveyard(
         self,

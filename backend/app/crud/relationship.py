@@ -198,6 +198,13 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         result = await db.execute(query)
         return list(result.scalars().all())
 
+    async def get_involving_any(self, db: AsyncSession, dweller_ids: set[UUID4] | list[UUID4]) -> list[Relationship]:
+        """Relationships where either side is one of the given dwellers."""
+        query = select(Relationship).where(
+            (Relationship.dweller_1_id.in_(dweller_ids)) | (Relationship.dweller_2_id.in_(dweller_ids))
+        )
+        return list((await db.execute(query)).scalars().all())
+
     async def get_partner_links_involving(self, db: AsyncSession, dweller_id: UUID4) -> list[Relationship]:
         """PARTNER/MARRIED-stage relationships where the dweller is either side."""
         query = (

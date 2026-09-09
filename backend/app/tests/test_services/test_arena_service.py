@@ -14,7 +14,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
-from app.services.arena_service import ArenaService
+from app.services.combat.arena_service import ArenaService
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 

@@ -17,12 +17,13 @@ from datetime import datetime, timedelta
 
 from pydantic import UUID4
 from sqlalchemy import text
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum
+from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
+from app.crud import dweller as crud_dweller
+from app.crud import room as room_crud
+from app.crud.arena_match_event import arena_match_event_crud
 from app.models.arena_match_event import ArenaMatchEvent
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -43,17 +44,6 @@ HAPPINESS_WIN = 10
 HAPPINESS_LOSE = 10
 
 
-def _eligible_fighter_conditions(room_id: UUID4, *, require_alive: bool = True):
-    conditions = [
-        Dweller.room_id == room_id,
-        Dweller.is_adult,
-        Dweller.age_group == AgeGroupEnum.ADULT,
-    ]
-    if require_alive:
-        conditions.append(Dweller.health > 0)
-    return conditions
-
-
 class ArenaService:
     """Process arena fights for vaults."""
 
@@ -66,11 +56,7 @@ class ArenaService:
         self._damage_carry: dict[tuple[str, str], float] = {}
 
     async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
-        query = select(Room).where(Room.id == room_id, Room.category == "arena")
-        if vault_id is not None:
-            query = query.where(Room.vault_id == vault_id)
-        result = await db_session.execute(query)
-        if room := result.scalars().first():
+        if room := await room_crud.get_arena_room(db_session, room_id, vault_id):
             return room
         raise ValidationException(detail="Arena room not found")
 
@@ -92,10 +78,7 @@ class ArenaService:
 
         selected_ids = [fid for fid in (fighter_a_id, fighter_b_id) if fid is not None]
         if selected_ids:
-            result = await db_session.execute(
-                select(Dweller).where(Dweller.id.in_(selected_ids), *_eligible_fighter_conditions(room.id))
-            )
-            fighters = list(result.scalars().all())
+            fighters = list(await crud_dweller.get_arena_fighters(db_session, room.id, ids=selected_ids))
             if len(fighters) != len(selected_ids):
                 raise ValidationException(detail="Both fighters must be adult dwellers assigned to the Arena")
         else:
@@ -109,9 +92,7 @@ class ArenaService:
         self._round_seq.pop(room_key, None)
         self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
 
-        stale_events = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
-        for event in stale_events.scalars().all():
-            await db_session.delete(event)
+        await arena_match_event_crud.delete_for_room(db_session, room.id)
 
         for fighter in fighters:
             fighter.health = fighter.effective_max_health
@@ -127,12 +108,8 @@ class ArenaService:
         if len(ids) < MIN_FIGHTERS:
             return []
 
-        result = await db_session.execute(
-            select(Dweller)
-            .options(selectinload(Dweller.weapon))
-            .where(Dweller.id.in_(ids), *_eligible_fighter_conditions(room.id))
-        )
-        by_id = {str(f.id): f for f in result.scalars().all()}
+        fighters = await crud_dweller.get_arena_fighters(db_session, room.id, ids=ids)
+        by_id = {str(f.id): f for f in fighters}
         ordered = [by_id.get(str(room.arena_fighter_a_id)), by_id.get(str(room.arena_fighter_b_id))]
         if None in ordered:
             return []
@@ -140,10 +117,7 @@ class ArenaService:
 
     async def get_roster(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
         """Return the adult dwellers assigned to the room, oldest first."""
-        result = await db_session.execute(
-            select(Dweller).where(*_eligible_fighter_conditions(room.id)).order_by(Dweller.created_at)
-        )
-        return list(result.scalars().all())
+        return list(await crud_dweller.get_arena_roster(db_session, room.id))
 
     @staticmethod
     def _winner_from_events(events: list[ArenaMatchEventOut]) -> str | None:
@@ -155,8 +129,7 @@ class ArenaService:
 
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
-        rooms_result = await db_session.execute(select(Room).where(Room.vault_id == vault_id, Room.category == "arena"))
-        rooms = list(rooms_result.scalars().all())
+        rooms = await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.ARENA)
 
         countdown = game_config.game_loop.arena_countdown_seconds
         state = []
@@ -171,12 +144,6 @@ class ArenaService:
                 elapsed = (datetime.utcnow() - room.arena_fight_started_at).total_seconds()
                 countdown_remaining = max(0, int(countdown - elapsed))
 
-            events_result = await db_session.execute(
-                select(ArenaMatchEvent)
-                .where(ArenaMatchEvent.room_id == room.id)
-                .order_by(ArenaMatchEvent.created_at.desc())
-                .limit(40)
-            )
             events = [
                 ArenaMatchEventOut(
                     id=str(e.id),
@@ -184,7 +151,7 @@ class ArenaService:
                     kind=e.kind,
                     message=e.message,
                 )
-                for e in reversed(events_result.scalars().all())
+                for e in reversed(await arena_match_event_crud.get_recent_by_room(db_session, room.id))
             ]
             winner_name = self._winner_from_events(events)
 
@@ -231,12 +198,9 @@ class ArenaService:
     async def clear_journal(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> int:
         """Delete all journal events for an arena room. Returns how many were removed."""
         room = await self._get_arena_room(db_session, room_id, vault_id)
-        result = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
-        events = list(result.scalars().all())
-        for event in events:
-            await db_session.delete(event)
+        count = await arena_match_event_crud.delete_for_room(db_session, room.id)
         await db_session.commit()
-        return len(events)
+        return count
 
     async def clear_fighter_slots_for_dweller(
         self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True
@@ -246,14 +210,8 @@ class ArenaService:
         ``commit`` defaults to True for standalone use; pass False when the
         caller wants slot cleanup in the same transaction as a room move.
         """
-        result = await db_session.execute(
-            select(Room).where(
-                Room.category == "arena",
-                (Room.arena_fighter_a_id == dweller_id) | (Room.arena_fighter_b_id == dweller_id),
-            )
-        )
         changed = False
-        for room in result.scalars().all():
+        for room in await room_crud.get_arena_rooms_with_fighter(db_session, dweller_id):
             room_changed = False
             if room.arena_fighter_a_id == dweller_id:
                 room.arena_fighter_a_id = None
@@ -268,9 +226,7 @@ class ArenaService:
                 room_key = str(room.id)
                 self._round_seq.pop(room_key, None)
                 self._damage_carry = {key: carry for key, carry in self._damage_carry.items() if key[0] != room_key}
-                events = await db_session.execute(select(ArenaMatchEvent).where(ArenaMatchEvent.room_id == room.id))
-                for event in events.scalars().all():
-                    await db_session.delete(event)
+                await arena_match_event_crud.delete_for_room(db_session, room.id)
             db_session.add(room)
         if changed and commit:
             await db_session.commit()
@@ -341,8 +297,7 @@ class ArenaService:
         """
         with_tick_lock = await self._try_acquire_tick_lock(db_session)
         try:
-            result = await db_session.execute(select(Room).where(Room.category == "arena"))
-            rooms = list(result.scalars().all())
+            rooms = await room_crud.get_all_arena_rooms(db_session)
             return await self._process_rooms(db_session, rooms, seconds_passed)
         finally:
             if with_tick_lock:
@@ -374,13 +329,7 @@ class ArenaService:
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
 
     async def _get_arena_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
-        result = await db_session.execute(
-            select(Room).where(
-                Room.vault_id == vault_id,
-                Room.category == "arena",
-            )
-        )
-        return list(result.scalars().all())
+        return await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.ARENA)
 
     async def _run_round(
         self,

@@ -143,7 +143,7 @@ class TestProcessVaultTick:
 # ═════════════════════════════════════════════════════════════════════
 #
 # incident_service is imported LOCALLY inside _process_incidents:
-# So we patch app.services.incident_service.incident_service
+# So we patch app.services.combat.incident_service.incident_service
 #
 # incident_crud is imported at MODULE level:
 # So we patch app.services.game_loop.incident_crud

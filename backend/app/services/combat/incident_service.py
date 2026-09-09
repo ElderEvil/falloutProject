@@ -28,6 +28,7 @@ from app.schemas.incident import (
 )
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_publishing import INCIDENT_NAMES
+from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
@@ -410,6 +411,9 @@ class IncidentService:
 
         db_session.add(incident)
         await db_session.commit()
+        # Death notifications parked by mark_as_dead(commit=False) deliver only
+        # once the round actually persisted.
+        await notification_service.deliver_deferred_notifications(db_session)
 
         if resolved:
             await incident_publishing.notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
@@ -486,6 +490,7 @@ class IncidentService:
                         self.logger.info(f"Incident {incident.id} auto-resolved with status {incident.status}")
 
                 except (SQLAlchemyError, ValueError, RuntimeError) as e:
+                    notification_service.discard_deferred_notifications(db_session)
                     self.logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
 
             if total_caps_earned > 0:

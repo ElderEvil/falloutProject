@@ -150,3 +150,91 @@ class TestNotificationService:
                 context="test",
                 sender=lambda user_id: None,
             )
+
+
+class TestDeliveryDeferral:
+    """Delivery queue contract for create_and_send(commit=False)."""
+
+    @pytest.mark.asyncio
+    async def test_deferred_parks_until_drained(self, async_session: AsyncSession, user_with_vault: tuple):
+        """commit=False sends nothing inline; deliver_deferred sends once and empties the queue."""
+        user, vault = user_with_vault
+        with (
+            patch("app.services.notification_service.manager") as mock_ws,
+            patch("app.services.notification_service.sse_manager") as mock_sse,
+        ):
+            await NotificationService.create_and_send(
+                async_session,
+                user_id=user.id,
+                notification_type=NotificationType.COMBAT_VICTORY,
+                title="Queued",
+                message="delivered later",
+                vault_id=vault.id,
+                commit=False,
+            )
+            mock_ws.send_personal_message.assert_not_called()
+            mock_sse.publish.assert_not_called()
+            assert len(async_session.info["deferred_notification_deliveries"]) == 1
+
+            await NotificationService.deliver_deferred_notifications(async_session)
+            assert mock_ws.send_personal_message.call_count == 1
+            assert mock_sse.publish.call_count == 1
+            assert "deferred_notification_deliveries" not in async_session.info
+            await async_session.rollback()
+
+    @pytest.mark.asyncio
+    async def test_discard_drops_queued_delivery(self, async_session: AsyncSession, user_with_vault: tuple):
+        """A rolled-back transaction's queued payloads are dropped, never sent."""
+        user, vault = user_with_vault
+        with (
+            patch("app.services.notification_service.manager") as mock_ws,
+            patch("app.services.notification_service.sse_manager") as mock_sse,
+        ):
+            await NotificationService.create_and_send(
+                async_session,
+                user_id=user.id,
+                notification_type=NotificationType.COMBAT_DEFEAT,
+                title="discarded",
+                message="never delivered",
+                vault_id=vault.id,
+                commit=False,
+            )
+            NotificationService.discard_deferred_notifications(async_session)
+
+            await NotificationService.deliver_deferred_notifications(async_session)
+            mock_ws.send_personal_message.assert_not_called()
+            mock_sse.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ws_failure_does_not_block_sse(self, async_session: AsyncSession, user_with_vault: tuple):
+        """WS and SSE are independent best-effort channels."""
+        user, vault = user_with_vault
+        with (
+            patch(
+                "app.services.notification_service.manager",
+                **{"send_personal_message.side_effect": RuntimeError("ws down")},
+            ) as mock_ws,
+            patch("app.services.notification_service.sse_manager") as mock_sse,
+        ):
+            await NotificationService.create_and_send(
+                async_session,
+                user_id=user.id,
+                notification_type=NotificationType.COMBAT_VICTORY,
+                title="independent",
+                message="channels",
+                vault_id=vault.id,
+            )
+
+        mock_ws.send_personal_message.assert_called_once()
+        mock_sse.publish.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drain_of_empty_queue_is_noop(self, async_session: AsyncSession):
+        """deliver_deferred on a session with no pendings does nothing."""
+        with (
+            patch("app.services.notification_service.manager") as mock_ws,
+            patch("app.services.notification_service.sse_manager") as mock_sse,
+        ):
+            await NotificationService.deliver_deferred_notifications(async_session)
+        mock_ws.send_personal_message.assert_not_called()
+        mock_sse.publish.assert_not_called()

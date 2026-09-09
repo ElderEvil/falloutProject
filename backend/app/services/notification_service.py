@@ -67,49 +67,60 @@ class NotificationService:
             f"priority={priority}, user={user_id}, vault={vault_id}"
         )
 
+        payload = {
+            "type": "notification",
+            "notification": {
+                "id": str(notification.id),
+                "notification_type": notification.notification_type,
+                "priority": notification.priority,
+                "title": notification.title,
+                "message": notification.message,
+                "meta_data": notification.meta_data,
+                "created_at": notification.created_at.isoformat(),
+            },
+        }
+
+        if commit:
+            await NotificationService._deliver(user_id, payload)
+        else:
+            # Delivery deferred to the outer transaction: the caller must drain
+            # via deliver_deferred_notifications() after its commit, or discard
+            # the pendings on rollback (mirrors defer_reward_delivery).
+            pending = db.info.setdefault("deferred_notification_deliveries", [])
+            pending.append((user_id, payload))
+
+        return notification
+
+    @staticmethod
+    async def _deliver(user_id: UUID, payload: dict[str, Any]) -> None:
+        """Push one notification payload over WebSocket and SSE (best-effort, never raises)."""
         try:
-            await manager.send_personal_message(
-                {
-                    "type": "notification",
-                    "notification": {
-                        "id": str(notification.id),
-                        "notification_type": notification.notification_type,
-                        "priority": notification.priority,
-                        "title": notification.title,
-                        "message": notification.message,
-                        "meta_data": notification.meta_data,
-                        "created_at": notification.created_at.isoformat(),
-                    },
-                },
-                user_id=user_id,
-            )
+            await manager.send_personal_message(payload, user_id=user_id)
         except Exception:
-            logger.exception(f"Failed to send notification {notification.id} to user {user_id}")
+            logger.exception(f"Failed to send notification {payload['notification']['id']} to user {user_id}")
             # Best-effort delivery: persistence should succeed even if WS send fails.
 
         try:
             await sse_manager.publish(
                 user_id,
                 "notifications",
-                {
-                    "event_id": str(notification.id),
-                    "type": "notification",
-                    "notification": {
-                        "id": str(notification.id),
-                        "notification_type": notification.notification_type,
-                        "priority": notification.priority,
-                        "title": notification.title,
-                        "message": notification.message,
-                        "meta_data": notification.meta_data,
-                        "created_at": notification.created_at.isoformat(),
-                    },
-                },
+                payload,
             )
         except Exception:
-            logger.exception(f"Failed to send SSE notification {notification.id} to user {user_id}")
+            logger.exception(f"Failed to send SSE notification {payload['notification']['id']} to user {user_id}")
             # Best-effort delivery: persistence should succeed even if SSE send fails.
 
-        return notification
+    @staticmethod
+    def discard_deferred_notifications(db: AsyncSession) -> None:
+        """Drop queued deliveries for a transaction that rolled back."""
+        db.info.pop("deferred_notification_deliveries", None)
+
+    @staticmethod
+    async def deliver_deferred_notifications(db: AsyncSession) -> None:
+        """Send notifications parked by create_and_send(commit=False) after the caller committed."""
+        pending = db.info.pop("deferred_notification_deliveries", [])
+        for user_id, payload in pending:
+            await NotificationService._deliver(user_id, payload)
 
     @staticmethod
     async def notify_owner(

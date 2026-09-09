@@ -195,6 +195,8 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
         patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
         patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
         patch.object(incident_service, "_record_event", side_effect=SQLAlchemyError("event boom")),
+        patch("app.services.notification_service.manager") as mock_ws,
+        patch("app.services.notification_service.sse_manager") as mock_sse,
         pytest.raises(SQLAlchemyError, match="event boom"),
     ):
         await incident_service.process_incident(async_session, incident, 2)
@@ -203,6 +205,37 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
     await async_session.refresh(dweller)
     assert not dweller.is_dead
     assert dweller.health == 5
+    mock_ws.send_personal_message.assert_not_called()
+    mock_sse.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_fatal_round_delivers_death_notification_after_commit(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """A killing blow notifies the owner only after the round commit lands."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 5
+    dweller.max_health = 100
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    assert incident is not None
+
+    with (
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+        patch("app.services.notification_service.manager") as mock_ws,
+        patch("app.services.notification_service.sse_manager") as mock_sse,
+    ):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.refresh(dweller)
+    assert dweller.is_dead
+    assert mock_ws.send_personal_message.call_count >= 1
+    assert mock_sse.publish.call_count >= 1
 
 
 @pytest.mark.asyncio

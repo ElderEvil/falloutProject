@@ -708,8 +708,7 @@ class VaultService:
         )
         if population_max is None:
             if current_assigned_population == 0:
-                error_msg = f"Vault with ID {vault_id} not found"
-                raise ValueError(error_msg)
+                raise ResourceNotFoundException(Vault, identifier=vault_id)
             return False
         return current_assigned_population + space_required <= population_max
 
@@ -743,7 +742,7 @@ class VaultService:
             from app.services.event_bus import GameEvent, event_bus
 
             await event_bus.emit(
-                GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": amount}
+                GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": credited}
             )
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):

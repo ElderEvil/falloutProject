@@ -116,7 +116,6 @@ class RoomService:
         if obj_in.name.lower() == "vault door":
             existing_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault.id)
             if "vault door" in existing_names:
-                msg = "Cannot build multiple vault doors. A vault door already exists."
                 raise UniqueRoomViolationException(room_name="Vault Door")
 
         if not await vault_service.is_enough_dwellers(

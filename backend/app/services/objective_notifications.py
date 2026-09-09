@@ -10,10 +10,10 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import GameEvent, event_bus
 from app.db.session import async_session_maker
 from app.models.objective import Objective
 from app.models.vault import Vault
-from app.services.event_bus import GameEvent, event_bus
 from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)

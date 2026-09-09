@@ -8,6 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum, RarityEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
@@ -17,7 +18,6 @@ from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
-from app.services.event_bus import GameEvent, event_bus
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.outfit_assets import get_outfit_image_url

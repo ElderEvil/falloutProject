@@ -21,10 +21,10 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import EventBus, GameEvent, event_bus
 from app.db.session import async_session_maker
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.services.event_bus import EventBus, GameEvent, event_bus
 from app.utils.objective_constants import (
     normalize_item_type,
     normalize_resource_type,

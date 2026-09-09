@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.crud.room import room as room_crud
@@ -22,7 +23,6 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
-from app.services.event_bus import GameEvent, event_bus
 from app.services.room_assignment_policy import validate_automatic_assignment, validate_room_assignment
 from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (

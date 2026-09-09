@@ -9,6 +9,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as crud_outfit
@@ -23,7 +24,6 @@ from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
-from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.notification_service import notification_service

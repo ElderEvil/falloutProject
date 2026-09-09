@@ -3,6 +3,8 @@
 > **Repo:** `D:\Projects\falloutProject` | **Stack:** FastAPI + Vue 3 + PostgreSQL + Redis
 >
 > Agentic-coding guide. Keep every line here because removing it would cause a mistake the agent couldn't infer from code.
+> Game-domain rules (progression surfacing, prompt registry, tick-session compatibility) live in
+> `docs/backend/GAME_MECHANICS.md` and apply alongside this file.
 
 ## Orientation
 
@@ -34,9 +36,7 @@ CI gate: `uv run prek run` (see `.github/workflows/backend-ci.yml`).
 
 ### Prompt registry
 
-AI instructions are append-only registry entries. Never edit `Prompt` rows directly:
-create and activate a replacement with `uv run fo-cli version-prompt <name> --template-file <path>`.
-The command retires the active row, clears the process cache, and rejects format placeholders.
+See `docs/backend/GAME_MECHANICS.md` (append-only rule lives with the other game-domain invariants).
 
 ### Architecture (MANDATORY)
 
@@ -46,14 +46,7 @@ Rule of thumb: if an endpoint has >3 lines of non-trivial logic beyond a service
 
 ### Background task session compatibility
 
-Dramatiq game-tick actors create raw SQLAlchemy `AsyncSession` instances via
-`sqlalchemy.ext.asyncio.async_sessionmaker`. These sessions do not provide
-SQLModel's `.exec()` method. CRUD/services used by `game_tick`,
-`process_vault_tick`, or other `task_session()` actors must use
-`.execute(...).scalars()` unless the session factory explicitly sets
-`class_=sqlmodel.ext.asyncio.session.AsyncSession`. Any session-factory or CRUD
-refactor in this path requires a regression test using the raw SQLAlchemy
-session type.
+See `docs/backend/GAME_MECHANICS.md` (tick-session rule lives with the other game-domain invariants).
 
 Error handling:
 - Prefer custom exceptions in `backend/app/utils/exceptions.py` over ad-hoc `HTTPException`.
@@ -118,13 +111,15 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 1. Never push to git without explicit approval.
 2. After backend API changes: `cd frontend && pnpm run types:generate`.
 3. Small, test-backed changes; follow existing patterns; commit messages `feat:`/`fix:`/`chore:`; branch prefixes `feat/`/`fix/`/`chore/`. When touching Python, use `ty` and fix clear, local diagnostics as incremental cleanup; it is not a reason to widen unrelated work.
-4. **Architecture over simplification (MANDATORY):** the layered structure always wins over the LOC/file-count rules below. Backend: `models/`, `schemas/`, `crud/`, `services/`, thin routers in `api/v1/endpoints/` — **no all-in-one routers** (no business logic or schema definitions in endpoint files; endpoints parse params → call service → map exceptions). Frontend: `modules/<name>/` with `components/`, `composables/`, `stores/`, `models/`, `api/`. Never merge layers into one file to save lines; never declare schemas/models inline in a router or endpoint.
+4. **Architecture over simplification (MANDATORY):** the layered structure always wins over the LOC/file-count rules below. Backend: `models/`, `schemas/`, `crud/`, `services/`, thin routers in `api/v1/endpoints/` — **no all-in-one routers** (no business logic or schema definitions in endpoint files; endpoints parse params → call service → map exceptions). Cross-cutting infrastructure (`event_bus`, enums) lives in `app/core/`, never in `services/`. Enums are defined once in `app/core/enums.py` (`app/schemas/common.py` only re-exports them for compatibility — import from core in new code). Frontend: `modules/<name>/` with `components/`, `composables/`, `stores/`, `models/`, `api/`. Never merge layers into one file to save lines; never declare schemas/models inline in a router or endpoint.
 5. **Net-LOC & file-count rule (v2.35+):** every update must have a negative net source-LOC change — compact/remove existing code (DRY) before adding; don't count generated files, lockfiles, or format-only changes. Prefer fewer files too: do not split into more modules/files unless readability genuinely suffers — but never below the architecture floor from rule 4.
 6. **DRY / KISS / YAGNI:** one source of truth per fact; the simplest thing that works; no speculative abstractions, no "we might need this later" code. A new abstraction must pay for itself by removing more than it adds.
 7. **Fail fast, minimize try-except (soft but binding):** the codebase favors fail-fast — let errors propagate to a single handler, don't wrap every call. Keep try-except blocks few and shallow: one per operation boundary at most, never nested; extract inner blocks into helpers. Prefer returning early / raising over defensive wrapping.
 8. **Frontend simplification heuristic (in order):** does it need to exist? → stdlib → native platform → installed dep → one line → the minimum that works.
-9. **Progression visibility (red line):** every player-facing progression event — level-up, loot, training completion, quest/objective completion — must surface via modal/pop-up or toast **in addition to** the notification bell entry, never notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing intact when touching these flows.
+9. **Progression visibility (red line):** see `docs/backend/GAME_MECHANICS.md` — every player-facing progression event must surface via modal/pop-up or toast in addition to the notification bell entry, never notification-only.
 10. **Test-pruning policy:** coverage-shadow analysis identifies candidates; it does not justify deletion by itself. Preserve at least one behaviorally distinct test for every public contract, regression, boundary/error path, migration, concurrency guarantee, security/auth check, and assertion-diverse or parametrized family. Tests without coverage contexts are not dead code. After any batch deletion, run collection and the full backend suite with coverage, compare the covered-line delta, and audit for orphaned fixtures/helpers. Record the deleted-test scope, test-count change, coverage delta, protected families, and validation command in the PR description.
+11. **Layer dependency direction (mechanically enforced):** dependency flows endpoints → services → CRUD, never upward. CRUD modules must not import `app.services.*` except the shared policy kernel (`room_assignment_policy`); cross-cutting messaging lives in `app.core.event_bus`, outside the service layer. Services must not issue raw `select()` (queries live in CRUD). Both rules are AST-guarded in `backend/app/tests/test_architecture/test_service_layer_guard.py` with self-shrinking baselines — new violations fail the suite, and stale baseline entries fail until removed. Shrink the baselines with every domain batch; never extend them.
+12. **Module naming (mechanically enforced):** new top-level `backend/app/services/*.py` modules are `*_service.py`; `backend/app/crud/` stays flat lowercase files with no subpackages. Same guard test, same ratchet: grandfather lists cover only pre-existing names and must shrink, never grow.
 
 ## Dev Environment (Agent Quick-Start)
 

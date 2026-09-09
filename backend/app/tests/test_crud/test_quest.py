@@ -497,13 +497,13 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
     """Simulate a party return followed by an atomic reward claim."""
 
+    from app.core.event_bus import GameEvent, event_bus
     from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.models.quest_reward import QuestReward, RewardType
     from app.models.storage import Storage
     from app.models.weapon import Weapon
     from app.schemas.common import AgeGroupEnum
-    from app.services.event_bus import GameEvent, event_bus
     from app.services.quest_service import quest_service
     from app.tests.factory.dwellers import create_fake_dweller
 

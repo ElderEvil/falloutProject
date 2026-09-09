@@ -12,11 +12,11 @@ from pydantic import UUID4
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
+from app.core.event_bus import event_bus
 from app.core.game_config import game_config
 from app.db.session import task_session
 from app.services.cleanup_service import cleanup_service
 from app.services.death_service import death_service
-from app.services.event_bus import event_bus
 from app.services.game_loop import game_loop_service
 from app.services.tick_chain import claim_tick_chain
 

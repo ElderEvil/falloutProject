@@ -10,6 +10,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomTypeEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
 from app.crud import game_state_crud
@@ -18,7 +19,6 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.services.event_bus import GameEvent, event_bus
 from app.services.exploration_service import exploration_service
 from app.services.happiness_service import happiness_service
 from app.services.radiation_service import apply_radiation_gain

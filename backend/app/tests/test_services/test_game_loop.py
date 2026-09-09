@@ -206,8 +206,8 @@ class TestAwardWorkXp:
         from uuid import uuid4
 
         import app.services.leveling_service as ls_mod
+        from app.core.event_bus import event_bus
         from app.schemas.common import RoomTypeEnum, SPECIALEnum
-        from app.services.event_bus import event_bus
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()

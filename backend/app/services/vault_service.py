@@ -739,7 +739,7 @@ class VaultService:
             )
 
         if emit_event:
-            from app.services.event_bus import GameEvent, event_bus
+            from app.core.event_bus import GameEvent, event_bus
 
             await event_bus.emit(
                 GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": credited}

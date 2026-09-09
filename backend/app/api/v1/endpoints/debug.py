@@ -7,11 +7,11 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import GameEvent, event_bus
 from app.db.session import get_async_session
 from app.models.objective import Objective
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
-from app.services.event_bus import GameEvent, event_bus
 from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter(prefix="/debug", tags=["Debug"])
@@ -294,7 +294,7 @@ async def test_build_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"room_type": room_type}
     await event_bus.emit(GameEvent.ROOM_BUILT, vault_id, data)
@@ -317,7 +317,7 @@ async def test_train_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"stat_trained": stat_trained, "dweller_id": dweller_id}
     await event_bus.emit(GameEvent.DWELLER_TRAINED, vault_id, data)
@@ -340,7 +340,7 @@ async def test_assign_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"room_type": room_type, "dweller_id": dweller_id}
     await event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault_id, data)
@@ -363,7 +363,7 @@ async def test_reach_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"level": level, "dweller_id": dweller_id}
     await event_bus.emit(GameEvent.DWELLER_LEVEL_UP, vault_id, data)
@@ -386,7 +386,7 @@ async def test_collect_resource_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"resource_type": resource_type, "amount": amount}
     await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, data)
@@ -409,7 +409,7 @@ async def test_collect_item_event(
     Returns:
         dict: Status, event name, vault ID, and event data.
     """
-    from app.services.event_bus import event_bus
+    from app.core.event_bus import event_bus
 
     data = {"item_type": item_type, "amount": amount}
     await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, data)

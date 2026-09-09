@@ -8,10 +8,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import RoomActionEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.schemas.room import RoomBuild, RoomCreate, RoomRead, RoomUpdate
-from app.services.event_bus import GameEvent, event_bus
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils import room_rules

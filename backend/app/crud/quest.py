@@ -417,7 +417,9 @@ class CRUDQuest(
         )
         return list(result.scalars().all())
 
-    async def get_link(self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink | None:
+    async def get_link(
+        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+    ) -> VaultQuestCompletionLink | None:
         """The vault's completion link for a quest, or None."""
         result = await db_session.execute(
             select(VaultQuestCompletionLink).where(

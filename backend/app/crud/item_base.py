@@ -90,9 +90,7 @@ async def get_items_list(
 class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
     CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
 ):
-    async def count_in_storage_by_name(
-        self, db_session: AsyncSession, storage_id: UUID4, name: str
-    ) -> int:
+    async def count_in_storage_by_name(self, db_session: AsyncSession, storage_id: UUID4, name: str) -> int:
         """Count items of this type in one storage matching the name case-insensitively."""
         from sqlalchemy import func
 

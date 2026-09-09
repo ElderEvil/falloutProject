@@ -198,6 +198,28 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         result = await db.execute(query)
         return list(result.scalars().all())
 
+    async def get_cross_vault_orphans(
+        self,
+        db: AsyncSession,
+        vault_id: UUID4,
+    ) -> list[Relationship]:
+        """Relationships touching a vault whose two dwellers live in different vaults."""
+        from sqlalchemy.orm import aliased
+
+        from app.models.dweller import Dweller
+
+        d1 = aliased(Dweller)
+        d2 = aliased(Dweller)
+        query = (
+            select(Relationship)
+            .join(d1, Relationship.dweller_1_id == d1.id)
+            .join(d2, Relationship.dweller_2_id == d2.id)
+            .where(d1.vault_id != d2.vault_id)
+            .where((d1.vault_id == vault_id) | (d2.vault_id == vault_id))
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all())
+
     async def create_with_defaults(
         self,
         db: AsyncSession,

@@ -114,5 +114,13 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         )
         return (await db_session.execute(query)).scalars().first()
 
+    async def get_active_involving(self, db_session: AsyncSession, dweller_id: UUID4) -> list[Pregnancy]:
+        """Active pregnancies where the dweller is the mother or the father."""
+        query = select(Pregnancy).where(
+            (Pregnancy.mother_id == dweller_id) | (Pregnancy.father_id == dweller_id),
+            Pregnancy.status == PregnancyStatusEnum.PREGNANT,
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
 
 pregnancy = CRUDPregnancy(Pregnancy)

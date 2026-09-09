@@ -152,6 +152,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def get_by_room(self, db_session: AsyncSession, room_id: UUID4) -> Sequence[Dweller]:
+        """Dwellers assigned to one room, excluding soft-deleted."""
+        query = select(self.model).where(self.model.room_id == room_id, ~self.model.is_deleted)
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_by_room_ids(
+        self, db_session: AsyncSession, vault_id: UUID4, room_ids: list[UUID4]
+    ) -> Sequence[Dweller]:
+        """Assigned dwellers of a vault filtered to the given rooms, excluding soft-deleted."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.room_id.in_(room_ids))
+            .where(~self.model.is_deleted)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
     async def get_by_status(
         self,
         db_session: AsyncSession,

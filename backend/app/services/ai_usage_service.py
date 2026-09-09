@@ -16,11 +16,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
-from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.llm_interaction import LLMInteraction
+from app.crud.llm_interaction import llm_interaction
 from app.models.user import User
 from app.schemas.ai_usage import AIOperationStats, AIUsageResponse, AIUsageStats, QuotaInfo
 from app.services.ai_constants import QUOTA_TRACKING_OPERATION
@@ -46,8 +44,7 @@ class AIUsageService:
             current_month_start = datetime(now.year, now.month, 1)
             month_str = now.strftime("%Y-%m")
 
-            user_result = await db_session.execute(select(User).where(col(User.id) == user_id))
-            user = user_result.scalar_one_or_none()
+            user = await db_session.get(User, user_id)
 
             all_time_stats = await self._aggregate_tokens(db_session, user_id)
             monthly_stats = await self._aggregate_tokens(db_session, user_id, since=current_month_start)
@@ -102,26 +99,14 @@ class AIUsageService:
         since: datetime | None = None,
     ) -> AIUsageStats:
         try:
-            query = select(
-                func.coalesce(func.sum(LLMInteraction.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(LLMInteraction.completion_tokens), 0).label("completion_tokens"),
-                func.coalesce(func.sum(LLMInteraction.total_tokens), 0).label("total_tokens"),
-            ).where(LLMInteraction.user_id == user_id)
-
-            if since:
-                query = query.where(LLMInteraction.created_at >= since)
-
-            result = await db_session.exec(query)
-            row = result.first()
-
-            if row:
-                return AIUsageStats(
-                    prompt_tokens=int(row.prompt_tokens or 0),
-                    completion_tokens=int(row.completion_tokens or 0),
-                    total_tokens=int(row.total_tokens or 0),
-                )
-
-            return AIUsageStats(prompt_tokens=0, completion_tokens=0, total_tokens=0)
+            prompt_tokens, completion_tokens, total_tokens = await llm_interaction.aggregate_tokens(
+                db_session, user_id, since
+            )
+            return AIUsageStats(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+            )
         except Exception:
             logger.exception("Unexpected error aggregating tokens for user %s", user_id)
             raise
@@ -140,31 +125,17 @@ class AIUsageService:
         operational (bookkeeping, not an LLM request).
         """
         try:
-            operation = func.coalesce(LLMInteraction.usage, "unknown")
-            query = select(
-                operation.label("operation"),
-                func.coalesce(func.sum(LLMInteraction.prompt_tokens), 0).label("prompt_tokens"),
-                func.coalesce(func.sum(LLMInteraction.completion_tokens), 0).label("completion_tokens"),
-                func.coalesce(func.sum(LLMInteraction.total_tokens), 0).label("total_tokens"),
-                func.count().label("interaction_count"),
-            ).where(LLMInteraction.user_id == user_id)
-
-            if since:
-                query = query.where(LLMInteraction.created_at >= since)
-
-            query = query.group_by(operation).order_by(func.sum(LLMInteraction.total_tokens).desc())
-
-            result = await db_session.exec(query)
+            rows = await llm_interaction.aggregate_by_operation(db_session, user_id, since)
             return [
                 AIOperationStats(
-                    operation=row.operation,
-                    prompt_tokens=int(row.prompt_tokens or 0),
-                    completion_tokens=int(row.completion_tokens or 0),
-                    total_tokens=int(row.total_tokens or 0),
-                    count=int(row.interaction_count),
-                    is_operational=row.operation == QUOTA_TRACKING_OPERATION,
+                    operation=operation,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    count=count,
+                    is_operational=operation == QUOTA_TRACKING_OPERATION,
                 )
-                for row in result.all()
+                for operation, prompt_tokens, completion_tokens, total_tokens, count in rows
             ]
         except Exception:
             logger.exception("Unexpected error aggregating usage by operation for user %s", user_id)

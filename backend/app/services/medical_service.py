@@ -1,12 +1,11 @@
 """Business rules for dweller medical recommendations and supply usage."""
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
-from app.models import Storage
+from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
@@ -20,8 +19,7 @@ async def get_available_medical_supplies(
     vault_id: UUID4,
 ) -> tuple[int, int]:
     """Return the dweller's carried and vault-stored medical supplies."""
-    storage_result = await db_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-    storage = storage_result.scalar_one_or_none()
+    storage = await storage_crud.get_by_vault(db_session, vault_id)
     storage_stimpaks = (storage.stimpack or 0) if storage else 0
     storage_radaways = (storage.radaway or 0) if storage else 0
     return (dweller.stimpack or 0) + storage_stimpaks, (dweller.radaway or 0) + storage_radaways

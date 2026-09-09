@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
 
 from app.core.enums import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.core.game_config import game_config
+from app.crud.exploration import exploration as exploration_crud
 from app.crud.wasteland_location import wasteland_location as wl_crud
-from app.models.exploration import Exploration
 from app.models.notification import NotificationPriority, NotificationType
 from app.models.vault import Vault
 from app.models.wasteland_location import (
@@ -334,9 +333,9 @@ class MapService:
         Event records are the journey history and therefore the route authority.
         Older events without the Journal coordinate fields are simply omitted.
         """
-        result = await db_session.exec(select(Exploration).where(Exploration.vault_id == vault_id))
+        explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id)
         routes: list[DiscoveryRouteRead] = []
-        for exploration in result.all():
+        for exploration in explorations:
             points: list[DiscoveryRoutePoint] = []
             for event in exploration.events:
                 if event.get("type") != "discovery":

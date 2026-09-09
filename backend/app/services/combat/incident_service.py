@@ -28,10 +28,10 @@ from app.schemas.incident import (
     IncidentRoundResult,
 )
 from app.schemas.incident_sse import IncidentSseEvent
+from app.services.combat import incident_math
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
 from app.services.stream_manager import sse_manager
-from app.utils.combat import total_combat_power
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -361,15 +361,15 @@ class IncidentService:
 
         # Fire is a containment operation: responders suppress a hazard rather
         # than defeat enemies. Other types retain the combat loop.
-        dweller_power = self._calculate_dweller_combat_power(dwellers)
-        threat_power = self._calculate_raider_power(incident.difficulty)
+        dweller_power = incident_math.dweller_combat_power(dwellers)
+        threat_power = incident_math.raider_power(incident.difficulty)
         if incident.type == IncidentType.FIRE:
-            damage_to_dwellers = self._calculate_fire_damage(threat_power, seconds_passed)
-            response_progress = self._calculate_fire_suppression(dweller_power, threat_power, seconds_passed)
+            damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
+            response_progress = incident_math.fire_suppression(dweller_power, threat_power, seconds_passed)
             damage_to_raiders = 0.0
         else:
-            damage_to_dwellers = self._calculate_damage_to_dwellers(threat_power, seconds_passed)
-            response_progress = self._calculate_damage_to_raiders(dweller_power, seconds_passed) / threat_power
+            damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
+            response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
             damage_to_raiders = response_progress * threat_power
 
         # Apply damage to dwellers
@@ -446,7 +446,7 @@ class IncidentService:
         if resolved:
             # Victory! Generate loot and resolve
             transitioned = True
-            incident.loot = self._generate_loot(incident.difficulty, incident.type)
+            incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
             incident.resolve(success=True)
 
             # Track caps for batch vault update (done at game loop level)
@@ -793,34 +793,7 @@ class IncidentService:
                 incident.vault_id,
             )
 
-    def _calculate_dweller_combat_power(self, dwellers: list[Dweller]) -> float:
-        """Calculate total combat power of dwellers."""
-        return total_combat_power(dwellers)
-
-    def _calculate_raider_power(self, difficulty: int) -> float:
-        """Calculate raider power based on difficulty."""
-        return difficulty * game_config.combat.base_raider_power
-
-    def _calculate_damage_to_dwellers(self, raider_power: float, seconds: int) -> float:
-        """Calculate damage dealt to dwellers per tick."""
-        # Damage reduced by number of dwellers (distributed)
-        damage_per_second = raider_power / 10  # Raiders deal 10% of their power per second
-        return damage_per_second * seconds
-
-    def _calculate_damage_to_raiders(self, dweller_power: float, seconds: int) -> float:
-        """Calculate damage dealt to raiders per tick."""
-        damage_per_second = dweller_power / 5  # Dwellers deal 20% of their power per second
-        return damage_per_second * seconds
-
-    def _calculate_fire_damage(self, hazard_power: float, seconds: int) -> float:
-        """Fire harms occupants more slowly than an armed attack."""
-        return hazard_power / 20 * seconds
-
-    def _calculate_fire_suppression(self, dweller_power: float, hazard_power: float, seconds: int) -> float:
-        """Return fractional containment progress, where one fully extinguishes a fire."""
-        return dweller_power / max(1, hazard_power) * seconds / 5
-
-    async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list["Dweller"]) -> None:
+    async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list[Dweller]) -> None:
         """Award experience to dwellers who participated in combat.
 
         Args:
@@ -851,37 +824,6 @@ class IncidentService:
 
             # Check for level-up
             await leveling_service.check_level_up(db_session, dweller)
-
-    def _generate_loot(self, difficulty: int, incident_type: IncidentType) -> dict:
-        """Generate loot rewards based on difficulty and incident type."""
-        caps = random.randint(
-            game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
-            game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
-        )
-
-        # Internal threats (fire, radroach, mole rat, radscorpion) give caps only
-        # External threats (raider, deathclaw, feral ghoul) give caps + items
-        internal_threats = {
-            IncidentType.FIRE,
-            IncidentType.RADROACH_INFESTATION,
-            IncidentType.MOLE_RAT_ATTACK,
-            IncidentType.RADSCORPION_ATTACK,
-        }
-
-        if incident_type in internal_threats:
-            # Internal threats: caps only, no items
-            return {"caps": caps, "items": []}
-
-        # External threats: caps + weapons/junk based on difficulty
-        items = []
-        if difficulty >= 7:
-            items.append({"type": "weapon", "rarity": "rare", "name": "Heavy Raider Rifle"})
-        elif difficulty >= 4:
-            items.append({"type": "weapon", "rarity": "uncommon", "name": "Raider Pistol"})
-        else:
-            items.append({"type": "junk", "name": "Scrap Metal", "quantity": random.randint(1, 3)})
-
-        return {"caps": caps, "items": items}
 
 
 # Global instance

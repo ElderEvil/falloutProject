@@ -18,6 +18,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
+from app.services.combat import incident_math
 from app.services.combat.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
 
@@ -103,8 +104,8 @@ async def test_process_incident_distributes_all_integer_damage(
     assert incident is not None
 
     with (
-        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=damage),
-        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=damage),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
     ):
         result = await incident_service.process_incident(async_session, incident, 2)
 
@@ -132,8 +133,8 @@ async def test_radscorpion_deals_health_and_radiation_damage(async_session: Asyn
     assert incident is not None
 
     with (
-        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=20.0),
-        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
     ):
         result = await incident_service.process_incident(async_session, incident, 2)
 
@@ -175,13 +176,13 @@ async def test_process_incident_does_not_damage_child(
 async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     """Test loot generation for different difficulties."""
     # Test low difficulty (internal threat - caps only)
-    loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
+    loot_low = incident_math.generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert "caps" in loot_low
     assert loot_low["caps"] >= 25
     assert loot_low["caps"] <= 75
 
     # Test high difficulty (external threat - caps + items)
-    loot_high = incident_service._generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
+    loot_high = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
     assert loot_high["caps"] >= 250
     assert loot_high["caps"] <= 525
 

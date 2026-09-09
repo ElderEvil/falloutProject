@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,6 +19,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
+from app.services.combat import incident_math
 from app.services.combat.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
 
@@ -103,8 +105,8 @@ async def test_process_incident_distributes_all_integer_damage(
     assert incident is not None
 
     with (
-        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=damage),
-        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=damage),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
     ):
         result = await incident_service.process_incident(async_session, incident, 2)
 
@@ -132,8 +134,8 @@ async def test_radscorpion_deals_health_and_radiation_damage(async_session: Asyn
     assert incident is not None
 
     with (
-        patch.object(incident_service, "_calculate_damage_to_dwellers", return_value=20.0),
-        patch.object(incident_service, "_calculate_damage_to_raiders", return_value=0.0),
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
     ):
         result = await incident_service.process_incident(async_session, incident, 2)
 
@@ -172,16 +174,81 @@ async def test_process_incident_does_not_damage_child(
 
 
 @pytest.mark.asyncio
+@pytest.mark.asyncio
+async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession, room_with_dwellers: dict):
+    """A crash inside the round must not persist damage or deaths (single-commit round).
+
+    Rollback after a mid-round failure shows the dweller exactly as before the
+    round: the killing blow and the death marker were pending, not committed.
+    """
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 5
+    dweller.max_health = 100
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    assert incident is not None
+
+    with (
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+        patch.object(incident_service, "_record_event", side_effect=SQLAlchemyError("event boom")),
+        patch("app.services.notification_service.manager") as mock_ws,
+        patch("app.services.notification_service.sse_manager") as mock_sse,
+        pytest.raises(SQLAlchemyError, match="event boom"),
+    ):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.rollback()
+    await async_session.refresh(dweller)
+    assert not dweller.is_dead
+    assert dweller.health == 5
+    mock_ws.send_personal_message.assert_not_called()
+    mock_sse.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_fatal_round_delivers_death_notification_after_commit(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """A killing blow notifies the owner only after the round commit lands."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 5
+    dweller.max_health = 100
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    assert incident is not None
+
+    with (
+        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+        patch("app.services.notification_service.manager") as mock_ws,
+        patch("app.services.notification_service.sse_manager") as mock_sse,
+    ):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.refresh(dweller)
+    assert dweller.is_dead
+    assert mock_ws.send_personal_message.call_count >= 1
+    assert mock_sse.publish.call_count >= 1
+
+
+@pytest.mark.asyncio
 async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     """Test loot generation for different difficulties."""
     # Test low difficulty (internal threat - caps only)
-    loot_low = incident_service._generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
+    loot_low = incident_math.generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert "caps" in loot_low
     assert loot_low["caps"] >= 25
     assert loot_low["caps"] <= 75
 
     # Test high difficulty (external threat - caps + items)
-    loot_high = incident_service._generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
+    loot_high = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
     assert loot_high["caps"] >= 250
     assert loot_high["caps"] <= 525
 

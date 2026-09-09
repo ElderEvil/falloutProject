@@ -2,9 +2,7 @@
 
 import logging
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
 
-from pydantic import UUID4
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.agents.dweller_chat_agent import (
@@ -14,30 +12,14 @@ from app.agents.dweller_chat_agent import (
     dweller_chat_agent,
     parse_action_suggestion,
 )
-from app.schemas.chat import ActionSuggestion
+from app.schemas.chat import ChatStreamToken
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.chat import agent_runner
+from app.services.chat.models import StreamBundle
 from app.services.chat_happiness_service import apply_chat_happiness
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class StreamBundle:
-    """Collected structured-stream outcome shared between streaming helpers and persistence."""
-
-    response_text: str = ""
-    happiness_impact: HappinessImpact | None = None
-    action_suggestion: ActionSuggestion | None = None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
-    provider: str | None = None
-    model: str | None = None
-    prompt_id: UUID4 | None = None
-    instructions_hash: str | None = None
-    instructions_snapshot: str | None = None
 
 
 async def stream_structured(
@@ -46,25 +28,19 @@ async def stream_structured(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
-) -> AsyncGenerator[dict]:
-    """Stream structured output tokens and collect the final output metadata into ``bundle``.
-
-    Raises:
-        UnexpectedModelBehavior: If the model's structured output fails validation.
-    """
+) -> AsyncGenerator[ChatStreamToken]:
+    """Stream structured output and collect its final metadata in ``bundle``."""
     async with (
         deps.db_session.begin_nested(),
         dweller_chat_agent.run_stream(message_text, deps=deps, instructions=instructions) as result,
     ):
-        # Structured output snapshots can revise previously emitted text.
-        # Tell clients to replace their draft when that happens.
         previous_text = ""
         async for partial in result.stream_output():
             partial_text = partial.response_text
             if partial_text.startswith(previous_text):
-                yield {"type": "token", "text": partial_text[len(previous_text) :]}
+                yield ChatStreamToken(text=partial_text[len(previous_text) :])
             elif partial_text != previous_text:
-                yield {"type": "token", "text": partial_text, "replace": True}
+                yield ChatStreamToken(text=partial_text, replace=True)
             previous_text = partial_text
 
         output = await result.get_output()
@@ -99,14 +75,8 @@ async def stream_with_fallback(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
-) -> AsyncGenerator[dict]:
-    """Stream structured output, falling back to a non-streaming run on validation failure.
-
-    Yields token events. On ``UnexpectedModelBehavior`` (local providers
-    returning invalid structured output mid-stream) retries via the
-    retry-capable non-streaming path so action suggestions are preserved.
-    The resolved values are written into ``bundle`` for later persistence.
-    """
+) -> AsyncGenerator[ChatStreamToken]:
+    """Stream structured output, retrying non-streaming when validation fails."""
     structured_stream = stream_structured(deps, dweller, message_text, bundle, instructions)
     try:
         try:
@@ -123,6 +93,6 @@ async def stream_with_fallback(
             bundle.prompt_tokens = result.prompt_tokens
             bundle.completion_tokens = result.completion_tokens
             bundle.total_tokens = result.total_tokens
-            yield {"type": "token", "text": bundle.response_text, "replace": True}
+            yield ChatStreamToken(text=bundle.response_text, replace=True)
     finally:
         await structured_stream.aclose()

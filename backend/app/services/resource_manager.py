@@ -7,6 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomTypeEnum, SPECIALEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
@@ -16,7 +17,6 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
-from app.services.event_bus import GameEvent, event_bus
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)

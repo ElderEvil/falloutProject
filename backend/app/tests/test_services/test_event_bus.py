@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.event_bus import EventBus, GameEvent
+from app.core.event_bus import EventBus, GameEvent
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ async def test_unsubscribe_not_subscribed(fresh_event_bus: EventBus) -> None:
 @pytest.mark.asyncio
 async def test_event_bus_singleton() -> None:
     """Test singleton instance."""
-    from app.services.event_bus import event_bus as bus1
-    from app.services.event_bus import event_bus as bus2
+    from app.core.event_bus import event_bus as bus1
+    from app.core.event_bus import event_bus as bus2
 
     assert bus1 is bus2

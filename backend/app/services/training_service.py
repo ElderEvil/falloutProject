@@ -7,6 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum, RoomTypeEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -15,7 +16,6 @@ from app.models.base import SPECIALModel
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training, TrainingStatus
-from app.services.event_bus import GameEvent, event_bus
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 

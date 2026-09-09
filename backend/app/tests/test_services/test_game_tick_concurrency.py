@@ -27,8 +27,8 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import EventBus, GameEvent
 from app.services import objective_evaluators
-from app.services.event_bus import EventBus, GameEvent
 from app.services.objective_evaluators import ObjectiveEvaluator
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
 
         with (
             patch("app.services.objective_evaluators.async_session_maker", shared_maker),
-            caplog.at_level(logging.ERROR, logger="app.services.event_bus"),
+            caplog.at_level(logging.ERROR, logger="app.core.event_bus"),
         ):
             threads = [_worker_thread(vault_id) for vault_id in vaults]
             for thread in threads:

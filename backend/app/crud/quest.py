@@ -286,7 +286,7 @@ class CRUDQuest(
         granted_rewards: list[dict[str, Any]],
     ) -> None:
         """Publish reward and completion feedback after successful settlement."""
-        from app.services.event_bus import GameEvent, event_bus
+        from app.core.event_bus import GameEvent, event_bus
 
         leveled_up_dwellers = []
         for reward in granted_rewards:

@@ -19,7 +19,6 @@ from pydantic import UUID4
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
@@ -56,9 +55,10 @@ class ArenaService:
         self._damage_carry: dict[tuple[str, str], float] = {}
 
     async def _get_arena_room(self, db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room:
-        if room := await room_crud.get_arena_room(db_session, room_id, vault_id):
-            return room
-        raise ValidationException(detail="Arena room not found")
+        rooms = await room_crud.get_arena_rooms(db_session, room_id=room_id, vault_id=vault_id)
+        if not rooms:
+            raise ValidationException(detail="Arena room not found")
+        return rooms[0]
 
     async def set_fighters(
         self,
@@ -129,7 +129,7 @@ class ArenaService:
 
     async def get_arena_state(self, db_session: AsyncSession, vault_id: UUID4) -> ArenaState:
         """Build the full arena state for a vault: fighters, roster, flags, journal."""
-        rooms = await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.ARENA)
+        rooms = await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
 
         countdown = game_config.game_loop.arena_countdown_seconds
         state = []
@@ -297,7 +297,7 @@ class ArenaService:
         """
         with_tick_lock = await self._try_acquire_tick_lock(db_session)
         try:
-            rooms = await room_crud.get_all_arena_rooms(db_session)
+            rooms = await room_crud.get_arena_rooms(db_session)
             return await self._process_rooms(db_session, rooms, seconds_passed)
         finally:
             if with_tick_lock:
@@ -329,7 +329,7 @@ class ArenaService:
         return {"arena": {"rooms": len(rooms), "rounds": rounds}}
 
     async def _get_arena_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
-        return await room_crud.get_by_category(db_session, vault_id, RoomTypeEnum.ARENA)
+        return await room_crud.get_arena_rooms(db_session, vault_id=vault_id)
 
     async def _run_round(
         self,

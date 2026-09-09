@@ -137,17 +137,16 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
-    async def get_arena_room(db_session: AsyncSession, room_id: UUID4, vault_id: UUID4 | None = None) -> Room | None:
-        """An arena room by id, optionally scoped to a vault."""
-        query = select(Room).where(Room.id == room_id, Room.category == RoomTypeEnum.ARENA)
+    async def get_arena_rooms(
+        db_session: AsyncSession, *, room_id: UUID4 | None = None, vault_id: UUID4 | None = None
+    ) -> list[Room]:
+        """Arena rooms, optionally narrowed to one room id and/or one vault."""
+        query = select(Room).where(Room.category == RoomTypeEnum.ARENA)
+        if room_id is not None:
+            query = query.where(Room.id == room_id)
         if vault_id is not None:
             query = query.where(Room.vault_id == vault_id)
-        return (await db_session.execute(query)).scalars().first()
-
-    @staticmethod
-    async def get_all_arena_rooms(db_session: AsyncSession) -> list[Room]:
-        """Every arena room across all vaults (arena tick)."""
-        return list((await db_session.execute(select(Room).where(Room.category == RoomTypeEnum.ARENA))).scalars().all())
+        return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
     async def get_arena_rooms_with_fighter(db_session: AsyncSession, dweller_id: UUID4) -> list[Room]:

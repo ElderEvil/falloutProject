@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy import Row, RowMapping, func
 from sqlalchemy.orm import selectinload
-from sqlmodel import select
+from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RarityEnum, RoomTypeEnum
@@ -250,6 +250,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(~self.model.is_deleted)
         )
         return (await db_session.execute(query)).scalars().all()
+
+    async def count_alive_in_vault(
+        self, db_session: AsyncSession, vault_id: UUID4, *, min_level: int | None = None
+    ) -> int:
+        """Count non-deleted dwellers of a vault, optionally with a level floor."""
+        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted]
+        if min_level is not None:
+            conditions.append(self.model.level >= min_level)
+        result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
+        return result.scalar_one()
+
+    async def count_room_names_by_type(self, db_session: AsyncSession, vault_id: UUID4) -> list[str]:
+        """Room names of a vault (for callers that classify them by normalized type)."""
+        from app.models.room import Room
+
+        result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
+        return list(result.scalars().all())
 
     async def get_first_active_apprentice(self, db_session: AsyncSession, vault_id: UUID4) -> Dweller | None:
         """The vault's longest-standing active apprentice, if any."""

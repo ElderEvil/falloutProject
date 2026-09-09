@@ -75,6 +75,58 @@ class CRUDObjective(
             for obj, progress, total, is_completed in results
         ]
 
+    async def get_by_category(self, db_session: AsyncSession, category: str) -> list[Objective]:
+        """All objectives of one category."""
+        result = await db_session.execute(select(self.model).where(self.model.category == category))
+        return list(result.scalars().all())
+
+    async def get_all(self, db_session: AsyncSession) -> list[Objective]:
+        """Every objective."""
+        return list((await db_session.execute(select(self.model))).scalars().all())
+
+    async def get_assigned_objective_ids(self, db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
+        """IDs of objectives already linked to the vault."""
+        result = await db_session.execute(
+            select(self.link_model.objective_id).where(self.link_model.vault_id == vault_id)
+        )
+        return {row[0] for row in result.all()}
+
+    async def get_links_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[VaultObjectiveProgressLink]:
+        """All progress links of a vault."""
+        return list(
+            (await db_session.execute(select(self.link_model).where(self.link_model.vault_id == vault_id))).scalars()
+        )
+
+    async def delete_links(self, db_session: AsyncSession, links: Sequence[VaultObjectiveProgressLink]) -> None:
+        """Delete the given progress links without committing."""
+        for link in links:
+            await db_session.delete(link)
+
+    async def link_exists(self, db_session: AsyncSession, *, vault_id: UUID4, objective_id: UUID4) -> bool:
+        """Whether the vault already has a progress link for the objective."""
+        result = await db_session.execute(
+            select(self.link_model).where(
+                self.link_model.vault_id == vault_id,
+                self.link_model.objective_id == objective_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def get_active_with_links(
+        self, db_session: AsyncSession, vault_id: UUID4, objective_type: str
+    ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
+        """(objective, link) pairs of unfinished vault objectives of one objective_type."""
+        query = (
+            select(self.model, self.link_model)
+            .join(self.link_model)
+            .where(
+                self.link_model.vault_id == vault_id,
+                self.link_model.is_completed.is_(False),
+                self.model.objective_type == objective_type,
+            )
+        )
+        return list((await db_session.execute(query)).all())
+
     async def assign_initial(self, db_session: AsyncSession, vault_id: UUID4, *, is_boosted: bool) -> int:
         """Assign the deterministic starter objective set for a new vault."""
         try:

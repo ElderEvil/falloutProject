@@ -6,7 +6,6 @@ import random
 from typing import Any
 
 from sqlalchemy import orm
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RarityEnum
@@ -300,9 +299,11 @@ class EventService:
         if flagged is not None:
             current_score = tuple(flagged.get(key, 0) for key in score_fields)
         else:
-            current = (
-                await db_session.execute(select(model).where(model.dweller_id == exploration.dweller_id))
-            ).scalar_one_or_none()
+            from app.crud import outfit as outfit_crud
+            from app.crud import weapon as weapon_crud
+
+            item_crud = weapon_crud if model is Weapon else outfit_crud
+            current = await item_crud.get_equipped(db_session, exploration.dweller_id)
             current_score = self._item_score(current)
 
         if new_score <= current_score:

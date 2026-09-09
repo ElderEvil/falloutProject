@@ -32,6 +32,11 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
+    async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration | None:
+        """One exploration locked FOR UPDATE (reward claiming serialization)."""
+        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
+        return result.scalar_one_or_none()
+
     async def get_by_dweller(
         self,
         db_session: AsyncSession,

@@ -7,29 +7,33 @@ import logging
 from typing import Any
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import GameEvent, event_bus
 from app.db.session import async_session_maker
 from app.models.objective import Objective
-from app.models.vault import Vault
 from app.services.notification_service import notification_service
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
 
 async def _get_vault_owner(db_session: AsyncSession, vault_id: UUID4) -> UUID4 | None:
     """Get the owner user_id for a vault."""
-    result = await db_session.execute(select(Vault).where(Vault.id == vault_id))
-    vault = result.scalar_one_or_none()
+    from app.crud.vault import vault as vault_crud
+
+    vault = await vault_crud.get_or_none(db_session, id=vault_id)
     return vault.user_id if vault else None
 
 
 async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objective | None:
     """Get objective by ID."""
-    result = await db_session.execute(select(Objective).where(Objective.id == objective_id))
-    return result.scalar_one_or_none()
+    from app.crud.objective import objective_crud
+
+    try:
+        return await objective_crud.get(db_session, objective_id)
+    except ResourceNotFoundException:
+        return None
 
 
 async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:

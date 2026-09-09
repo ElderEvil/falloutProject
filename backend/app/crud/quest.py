@@ -5,9 +5,11 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import UUID4
+from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
@@ -370,6 +372,75 @@ class CRUDQuest(
             )
         )
         return list((await db_session.execute(query)).scalars().all())
+
+    async def get_expired_party_links(
+        self,
+        db_session: AsyncSession,
+        *,
+        now: Any,
+        expires_at: Any,
+        vault_id: UUID4 | None = None,
+    ) -> list[VaultQuestCompletionLink]:
+        """Started, unfinished links whose quest duration has elapsed, optionally per vault."""
+        conditions = [
+            ~VaultQuestCompletionLink.is_completed,
+            ~VaultQuestCompletionLink.is_reward_ready,
+            VaultQuestCompletionLink.started_at.isnot(None),
+            expires_at <= now,
+        ]
+        if vault_id is not None:
+            conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
+        return list(
+            (await db_session.execute(select(VaultQuestCompletionLink).join(Quest).where(*conditions))).scalars().all()
+        )
+
+    async def get_completed_quest_ids(self, db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
+        """IDs of quests the vault has completed."""
+        result = await db_session.execute(
+            select(VaultQuestCompletionLink.quest_id).where(
+                VaultQuestCompletionLink.vault_id == vault_id,
+                VaultQuestCompletionLink.is_completed.is_(True),
+            )
+        )
+        return set(result.scalars().all())
+
+    async def get_visible_quests_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Quest]:
+        """Quests with a visible link for the vault, requirements/rewards eager-loaded."""
+        result = await db_session.execute(
+            select(Quest)
+            .options(selectinload(Quest.quest_requirements), selectinload(Quest.quest_rewards))
+            .join(
+                VaultQuestCompletionLink,
+                and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
+            )
+            .where(VaultQuestCompletionLink.is_visible)
+        )
+        return list(result.scalars().all())
+
+    async def get_link(
+        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+    ) -> VaultQuestCompletionLink | None:
+        """The vault's completion link for a quest, or None."""
+        result = await db_session.execute(
+            select(VaultQuestCompletionLink).where(
+                VaultQuestCompletionLink.quest_id == quest_id,
+                VaultQuestCompletionLink.vault_id == vault_id,
+            )
+        )
+        return result.scalars().one_or_none()
+
+    async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
+        """Adult, unassigned dwellers of a vault eligible for quest assignment."""
+        result = await db_session.execute(
+            select(Dweller).where(
+                Dweller.vault_id == vault_id,
+                ~Dweller.is_deleted,
+                Dweller.is_adult,
+                Dweller.age_group == AgeGroupEnum.ADULT,
+                Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]),
+            )
+        )
+        return list(result.scalars().all())
 
     async def assign_to_vault(
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, *, is_visible: bool = True

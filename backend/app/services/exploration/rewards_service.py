@@ -5,18 +5,18 @@ import logging
 from typing import TypedDict
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
+from app.crud import exploration as crud_exploration
 from app.crud import outfit as crud_outfit
+from app.crud import room as room_crud
 from app.crud import storage as crud_storage
 from app.crud import vault as crud_vault
 from app.crud import weapon as crud_weapon
-from app.models import Room
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.junk import Junk
@@ -355,8 +355,7 @@ class RewardsService:
         }
 
     async def _load_unclaimed(self, db_session: AsyncSession, exploration_id: UUID4) -> tuple[Exploration, list[dict]]:
-        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
-        exploration = result.scalar_one_or_none()
+        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)
         if exploration.is_active():
@@ -365,14 +364,14 @@ class RewardsService:
 
     async def get_pending_overflow(self, db_session: AsyncSession, vault_id: UUID4) -> list[PendingOverflowRead]:
         """Return every completed exploration with loot still awaiting a player decision."""
-        result = await db_session.execute(select(Exploration).where(Exploration.vault_id == vault_id))
+        explorations = await crud_exploration.get_by_vault(db_session, vault_id=vault_id)
         return [
             PendingOverflowRead(
                 exploration_id=exploration.id,
                 dweller_id=exploration.dweller_id,
                 unclaimed_loot=exploration.unclaimed_loot,
             )
-            for exploration in result.scalars()
+            for exploration in explorations
             if not exploration.is_active() and exploration.unclaimed_loot
         ]
 
@@ -479,8 +478,9 @@ class RewardsService:
         if exploration.stimpaks > 0 or exploration.radaways > 0:
             storage_obj = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
             if storage_obj:
-                room_result = await db_session.execute(select(Room).where(Room.vault_id == exploration.vault_id))
-                rooms = room_result.scalars().all()
+                rooms = await room_crud.get_multy_by_vault(
+                    db_session=db_session, vault_id=exploration.vault_id, skip=0, limit=1000
+                )
                 capacity = compute_medical_capacity(rooms)
                 storage_obj.stimpack = min(
                     (storage_obj.stimpack or 0) + exploration.stimpaks,

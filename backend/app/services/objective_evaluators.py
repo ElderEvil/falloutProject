@@ -18,7 +18,6 @@ import logging
 from typing import Any
 
 from pydantic import UUID4
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.event_bus import EventBus, GameEvent, event_bus
@@ -87,17 +86,9 @@ class ObjectiveEvaluator(abc.ABC):
     async def _get_active_objectives(
         self, db_session: AsyncSession, vault_id: UUID4
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
-        query = (
-            select(Objective, VaultObjectiveProgressLink)
-            .join(VaultObjectiveProgressLink)
-            .where(
-                VaultObjectiveProgressLink.vault_id == vault_id,
-                VaultObjectiveProgressLink.is_completed.is_(False),
-                Objective.objective_type == self.objective_type,
-            )
-        )
-        result = await db_session.execute(query)
-        objectives = list(result.all())
+        from app.crud.objective import objective_crud
+
+        objectives = await objective_crud.get_active_with_links(db_session, vault_id, self.objective_type)
         logger.debug(f"Found {len(objectives)} active '{self.objective_type}' objectives for vault {vault_id}")
         return objectives
 
@@ -365,13 +356,9 @@ class ReachEvaluator(ObjectiveEvaluator):
     @staticmethod
     async def _get_dweller_count(db_session: AsyncSession, vault_id: UUID4) -> int:
         """Get count of dwellers in vault using COUNT query (no materialization)."""
-        from sqlalchemy import func, select
+        from app.crud.vault import vault as vault_crud
 
-        from app.models.dweller import Dweller
-
-        query = select(func.count()).select_from(Dweller).where(Dweller.vault_id == vault_id)
-        result = await db_session.execute(query)
-        return result.scalar_one_or_none() or 0
+        return await vault_crud.get_population(db_session=db_session, vault_id=vault_id)
 
 
 class ExpeditionEvaluator(ObjectiveEvaluator):

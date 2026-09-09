@@ -4,12 +4,10 @@ from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import func
-from sqlalchemy.orm import selectinload
-from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
@@ -31,28 +29,20 @@ class QuestService:
         else:
             expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
-        conditions = [
-            ~VaultQuestCompletionLink.is_completed,
-            ~VaultQuestCompletionLink.is_reward_ready,
-            VaultQuestCompletionLink.started_at.isnot(None),
-            expires_at <= now,
-        ]
-        if vault_id is not None:
-            conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
-        query = select(VaultQuestCompletionLink).join(Quest).where(*conditions)
-        result = await db_session.execute(query)
-        links = [(link.quest_id, link.vault_id) for link in result.scalars().all()]
+        links = await crud.quest_crud.get_expired_party_links(
+            db_session, now=now, expires_at=expires_at, vault_id=vault_id
+        )
 
         completed_count = 0
-        for quest_id, link_vault_id in links:
+        for link in links:
             try:
-                await self.mark_quest_ready_to_claim(db_session, quest_id, link_vault_id)
+                await self.mark_quest_ready_to_claim(db_session, link.quest_id, link.vault_id)
             except Exception:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
-                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {link_vault_id}")
+                logger.exception(f"Failed to auto-complete quest {link.quest_id} for vault {link.vault_id}")
             else:
                 completed_count += 1
-                logger.info(f"Quest {quest_id} is ready to claim for vault {link_vault_id}")
+                logger.info(f"Quest {link.quest_id} is ready to claim for vault {link.vault_id}")
 
         return completed_count
 
@@ -107,26 +97,8 @@ class QuestService:
         self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
     ) -> list[Quest]:
         """Get quests available for a vault, respecting quest chain prerequisites."""
-        completed_result = await db_session.execute(
-            select(VaultQuestCompletionLink.quest_id).where(
-                and_(
-                    VaultQuestCompletionLink.vault_id == vault_id,
-                    VaultQuestCompletionLink.is_completed,
-                )
-            )
-        )
-        completed_quest_ids = set(completed_result.scalars().all())
-
-        result = await db_session.execute(
-            select(Quest)
-            .options(selectinload(Quest.quest_requirements), selectinload(Quest.quest_rewards))
-            .join(
-                VaultQuestCompletionLink,
-                and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
-            )
-            .where(VaultQuestCompletionLink.is_visible)
-        )
-        all_quests = result.scalars().all()
+        completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
+        all_quests = await crud.quest_crud.get_visible_quests_for_vault(db_session, vault_id)
 
         available = [
             quest
@@ -141,18 +113,7 @@ class QuestService:
         from app.crud.quest_party import quest_party_crud
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-        link = (
-            (
-                await db_session.execute(
-                    select(VaultQuestCompletionLink).where(
-                        VaultQuestCompletionLink.quest_id == quest_id,
-                        VaultQuestCompletionLink.vault_id == vault_id,
-                    )
-                )
-            )
-            .scalars()
-            .one_or_none()
-        )
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
@@ -185,18 +146,7 @@ class QuestService:
         """Atomically deliver rewards that a returning party has made claimable."""
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
-        link = (
-            (
-                await db_session.execute(
-                    select(VaultQuestCompletionLink).where(
-                        VaultQuestCompletionLink.quest_id == quest_id,
-                        VaultQuestCompletionLink.vault_id == vault_id,
-                    )
-                )
-            )
-            .scalars()
-            .one_or_none()
-        )
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
         if link is None:
             raise ResourceNotFoundException(
                 VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
@@ -218,16 +168,7 @@ class QuestService:
 
         await db_session.refresh(quest, ["quest_requirements"])
 
-        result = await db_session.execute(
-            select(Dweller).where(
-                Dweller.vault_id == vault_id,
-                ~Dweller.is_deleted,
-                Dweller.is_adult,
-                Dweller.age_group == AgeGroupEnum.ADULT,
-                Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]),
-            )
-        )
-        dwellers = result.scalars().all()
+        dwellers = await crud.quest_crud.get_quest_eligible_dwellers(db_session, vault_id)
 
         vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}
         eligible = []

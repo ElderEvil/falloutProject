@@ -258,6 +258,7 @@ class RadioService:
             ValueError: If insufficient caps or no radio room
         """
         from app.crud import vault as crud_vault
+        from app.services.vault_service import vault_service
 
         vault = await crud_vault.get(db_session, vault_id)
 
@@ -287,7 +288,7 @@ class RadioService:
             msg = f"Insufficient caps ({vault.bottle_caps}/{caps_cost})"
             raise ValueError(msg)
 
-        await crud_vault.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost)
+        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost)
 
         dweller, recycled = await RadioService.recruit_dweller(db_session, vault_id, override)
 

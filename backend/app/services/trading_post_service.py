@@ -22,6 +22,7 @@ from app.models.wasteland_location import DwellerLocation, DwellerLocationRelati
 from app.schemas.dweller import DwellerReadLess
 from app.schemas.trading import TradeMarketResponse, TradeOffer, TradeResultResponse
 from app.services.dweller_recycling_service import dweller_recycling_service
+from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class TradingPostService:
             raise VaultOperationException(detail="Dweller was already sold")
 
         price = trade_value(dweller)
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=price)
+        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=price)
 
         dweller.is_traded = True
         db_session.add(dweller)
@@ -152,9 +153,9 @@ class TradingPostService:
         if not seller_vault:
             raise ResourceNotFoundException(Vault, identifier=dweller.vault_id)
 
-        await vault_crud.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
+        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
         if not dweller.is_traded:
-            await vault_crud.deposit_caps(db_session=db_session, vault_obj=seller_vault, amount=price)
+            await vault_service.deposit_caps(db_session=db_session, vault_obj=seller_vault, amount=price)
         else:
             logger.info(
                 "Trading Post: dweller %s was already sold once; buy proceeds are kept by the market",

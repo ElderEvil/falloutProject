@@ -24,6 +24,7 @@ from app.services.happiness_service import happiness_service
 from app.services.radiation_service import apply_radiation_gain
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
+from app.services.vault_service import vault_service
 from app.utils.dwellers import group_dwellers_by_room
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
@@ -625,7 +626,7 @@ class GameLoopService:
             caps = random.randint(game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max)
             title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
 
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
+        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
         await notification_service.create_and_send(
             db_session,
             user_id=vault.user_id,

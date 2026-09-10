@@ -51,6 +51,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
                 raise ValueError(f"Deleted dweller {dweller_id} cannot join a quest")
             if dweller.vault_id != vault_id:
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
+            # TODO: unify eligibility with incident responder checks; shared availability policy outside services.
             if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:
                 raise ValueError(f"Child dweller {dweller_id} cannot join a quest")
             if dweller.status == DwellerStatusEnum.EXPLORING:

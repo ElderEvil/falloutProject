@@ -287,7 +287,7 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
     with (
         patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
         patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-        patch.object(incident_service, "_record_event", side_effect=SQLAlchemyError("event boom")),
+        patch("app.services.combat.incident_publishing.record_event", side_effect=SQLAlchemyError("event boom")),
         patch("app.services.notification_service.manager") as mock_ws,
         patch("app.services.notification_service.sse_manager") as mock_sse,
         pytest.raises(SQLAlchemyError, match="event boom"),

@@ -14,7 +14,7 @@ from app.crud.room import room as room_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType
 from app.services.combat import incident_publishing
-from app.services.combat.incident_publishing import INCIDENT_NAMES, record_event
+from app.services.combat.incident_publishing import INCIDENT_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,9 @@ async def spawn_incident(
         difficulty=difficulty,
         duration=game_config.incident.spread_duration,
     )
-    record_event(db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}.")
+    incident_publishing.record_event(
+        db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}."
+    )
     await db_session.commit()
 
     logger.info(f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}")
@@ -243,7 +245,7 @@ async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
         # Update original incident spread tracking
         incident.spread_to_room(str(new_room.id))
         db_session.add(incident)
-        record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
+        incident_publishing.record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
 
         logger.warning(
             f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "

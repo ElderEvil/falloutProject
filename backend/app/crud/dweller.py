@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
-from sqlalchemy import Row, RowMapping, func
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -128,7 +128,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         sort_by: str = "created_at",
         order: str = "desc",
         include_deleted: bool = False,
-    ) -> Sequence[Row[Any] | RowMapping | Any]:
+    ) -> Sequence[Dweller]:
         """Get multiple dwellers by vault ID with optional filtering and sorting."""
         query = select(self.model).where(self.model.vault_id == vault_id)
 

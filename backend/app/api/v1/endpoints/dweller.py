@@ -1,7 +1,7 @@
 """Dweller endpoints."""
 
 from collections.abc import Sequence
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
@@ -177,7 +177,7 @@ async def read_dwellers_by_vault(
     search: str | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
-) -> Sequence[Any]:
+) -> Sequence[Dweller]:
     """Get dwellers by vault with optional filtering and sorting.
 
     Returns:

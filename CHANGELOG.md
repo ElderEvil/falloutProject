@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.0 (2026-09-10)
+
+### Features
+
+* extract incident_reads.py behind incident_service facade ba968a6
+* extract incident_round.py behind incident_service facade d7ebcad
+* extract incident_spawning.py behind incident_service facade d3fd5e3
+
+### Bug Fixes
+
+* annotate get_multi_by_vault as Sequence[Dweller] 9b2f0c7
+* clear ty diagnostics in touched backend files, exclude alembic from ty src 8646dcf
+* honest ORM annotations in dweller endpoints, restore admin test seams 70b9b4a
+
+### Code Refactoring
+
+* dedupe spawn gating, disabled checks, and room selection 2f0ecb1
+* fold incident_reads back into incident_service facade 8719b73
+
 ## 2.80.12 (2026-09-09)
 
 ### Documentation

@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 EventHandler = Callable[[str, UUID4, dict[str, Any]], Coroutine[Any, Any, None]]
 
 
+def _handler_name(handler: EventHandler) -> str:
+    """Best-effort handler label; decorated/partial callables may lack ``__name__``."""
+    return getattr(handler, "__name__", handler.__class__.__name__)
+
+
 class GameEvent(StrEnum):
     RESOURCE_COLLECTED = "resource_collected"
     ROOM_BUILT = "room_built"
@@ -50,7 +55,7 @@ class EventBus:
     def subscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         if handler not in self._handlers[event_type]:
             self._handlers[event_type].append(handler)
-            logger.debug(f"Handler '{handler.__name__}' subscribed to {event_type}")
+            logger.debug(f"Handler '{_handler_name(handler)}' subscribed to {event_type}")
 
     async def emit(self, event_type: GameEvent, vault_id: UUID4, data: dict[str, Any]) -> None:
         """Deliver one vault's event without overlapping the same event delivery.
@@ -68,21 +73,21 @@ class EventBus:
                 return
 
             logger.info(f"[EVENT] Emitting {event_type} for vault {vault_id} to {len(handlers)} handler(s): {data}")
-            logger.debug(f"[EVENT] Handlers: {[h.__name__ for h in handlers]}")
+            logger.debug(f"[EVENT] Handlers: {[_handler_name(h) for h in handlers]}")
 
             for handler in handlers:
                 try:
                     await self._safe_call(handler, event_type, vault_id, data)
                 except Exception:
-                    logger.exception(f"Handler '{handler.__name__}' failed for {event_type}")
+                    logger.exception(f"Handler '{_handler_name(handler)}' failed for {event_type}")
 
     def unsubscribe(self, event_type: GameEvent, handler: EventHandler) -> None:
         handlers = self._handlers.get(event_type, [])
         try:
             handlers.remove(handler)
-            logger.debug(f"Handler '{handler.__name__}' unsubscribed from {event_type}")
+            logger.debug(f"Handler '{_handler_name(handler)}' unsubscribed from {event_type}")
         except ValueError:
-            logger.warning(f"Handler '{handler.__name__}' was not subscribed to {event_type}")
+            logger.warning(f"Handler '{_handler_name(handler)}' was not subscribed to {event_type}")
 
     def clear(self) -> None:
         self._handlers.clear()

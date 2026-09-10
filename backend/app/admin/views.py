@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from sqladmin import ModelView, action
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter
-from sqlmodel import select
+from sqlmodel import col, select
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
@@ -75,7 +75,7 @@ class UserAdmin(AdminModelView, model=User):
         """Mark selected users' email addresses as verified."""
         user_ids = request.query_params.get("pks", "").split(",")
         async with self.session_maker() as session:
-            users = (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars()
+            users = (await session.execute(select(User).where(col(User.id).in_(user_ids)))).scalars()
             for user in users:
                 user.email_verified = True
                 user.email_verification_token = None
@@ -301,8 +301,8 @@ class PromptAdmin(AdminModelView, model=Prompt):
     column_details_exclude_list: ClassVar[list] = [Prompt.llm_interactions]
     column_searchable_list: ClassVar[list] = [Prompt.prompt_name, Prompt.description]
     column_filters: ClassVar[list] = [
-        BooleanFilter(Prompt.is_active),
-        AllUniqueStringValuesFilter(Prompt.version),
+        BooleanFilter(col(Prompt.is_active)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(Prompt.version)),  # ty: ignore[invalid-argument-type]
     ]
     column_default_sort: ClassVar[list] = [(Prompt.is_active, True), (Prompt.version, True)]
 
@@ -365,9 +365,9 @@ class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
     ]
     column_searchable_list: ClassVar[list] = [LLMInteraction.usage]
     column_filters: ClassVar[list] = [
-        AllUniqueStringValuesFilter(LLMInteraction.usage),
-        AllUniqueStringValuesFilter(LLMInteraction.provider),
-        AllUniqueStringValuesFilter(LLMInteraction.model),
+        AllUniqueStringValuesFilter(col(LLMInteraction.usage)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(LLMInteraction.provider)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(LLMInteraction.model)),  # ty: ignore[invalid-argument-type]
     ]
     column_sortable_list: ClassVar[list] = [
         LLMInteraction.usage,

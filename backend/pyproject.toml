@@ -234,7 +234,8 @@ python-version = "3.13"
 
 [tool.ty.src]
 # Tests are mock-heavy; production code is the ratchet target (AGENTS.md: ty = incremental cleanup, not a CI gate).
-exclude = ["app/tests"]
+# Alembic excluded like ruff: generated migrations trip possibly-missing-submodule false positives.
+exclude = ["app/tests", "app/alembic"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

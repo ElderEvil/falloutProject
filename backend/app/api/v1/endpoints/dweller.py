@@ -1,5 +1,6 @@
 """Dweller endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +12,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.api.game_data_deps import get_static_game_data
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.db.session import get_async_session
+from app.models.dweller import Dweller
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -46,7 +48,7 @@ async def create_dweller(
     dweller_data: DwellerCreate,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Create a new dweller.
 
     Returns:
@@ -62,7 +64,7 @@ async def read_dweller_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
-) -> list[DwellerReadLess]:
+) -> Sequence[Dweller]:
     """Retrieve a paginated list of dwellers.
 
     Returns:
@@ -82,7 +84,7 @@ async def read_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerReadFull:
+) -> Dweller:
     """Get full details for a specific dweller.
 
     Returns:
@@ -136,7 +138,7 @@ async def rename_dweller(
     rename: DwellerRename,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Rename a dweller (first name only).
 
     Returns:
@@ -160,7 +162,7 @@ async def delete_dweller(
     Use hard_delete=True to permanently remove the dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
+    await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
@@ -175,7 +177,7 @@ async def read_dwellers_by_vault(
     search: str | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
-) -> list[DwellerReadLess]:
+) -> Sequence[Dweller]:
     """Get dwellers by vault with optional filtering and sorting.
 
     Returns:
@@ -208,7 +210,10 @@ async def move_dweller_to_room(
         DwellerReadWithRoomID: The dweller with updated room assignment.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.move_to_room(db_session, dweller_id, room_id)
+    moved = await crud.dweller.move_to_room(db_session, dweller_id, room_id)
+    if moved is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    return moved
 
 
 @router.post("/create_random/", response_model=DwellerRead)
@@ -217,7 +222,7 @@ async def create_random_common_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_override: DwellerCreateCommonOverride | None = None,
-) -> DwellerRead:
+) -> Dweller:
     """Create a random common dweller for a vault.
 
     Returns:
@@ -339,7 +344,7 @@ async def generate_dweller_avatar(
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 async def read_dwellers_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
-) -> list[DwellerCreateWithoutVaultID]:
+) -> Sequence[DwellerCreateWithoutVaultID]:
     """Get static dweller creation data.
 
     Returns:
@@ -353,7 +358,7 @@ async def use_stimpack(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Use one of the dweller's stimpacks to heal them.
 
     Returns:
@@ -368,7 +373,7 @@ async def use_radaway(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Use one of the dweller's RadAways to reduce their radiation.
 
     Returns:
@@ -406,7 +411,10 @@ async def auto_assign_to_room(
         DwellerReadWithRoomID: The dweller with assigned room.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+    assigned = await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+    if assigned is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    return assigned
 
 
 # ============================================
@@ -534,7 +542,7 @@ async def soft_delete_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Soft delete a dweller, preserving their data for future use.
 
     Returns:
@@ -549,7 +557,7 @@ async def restore_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Restore a soft-deleted dweller.
 
     Returns:
@@ -568,7 +576,7 @@ async def read_deleted_dwellers_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
-) -> list[DwellerReadLess]:
+) -> Sequence[Dweller]:
     """Get soft-deleted dwellers for a specific vault.
 
     Returns:

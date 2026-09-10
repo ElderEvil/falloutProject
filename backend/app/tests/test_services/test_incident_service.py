@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -12,7 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.game_config import game_config
 from app.models.game_state import GameState
-from app.models.incident import IncidentStatus, IncidentType
+from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.incident_event import IncidentEvent
 from app.models.room import Room
 from app.models.vault import Vault
@@ -22,6 +23,7 @@ from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math
 from app.services.combat.incident_service import incident_service
 from app.tests.factory.rooms import create_fake_room
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
 
 @pytest_asyncio.fixture(name="room")
@@ -76,6 +78,97 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
     read = await incident_service.get_incident_read(async_session, incident, room.name)
 
     assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 25)]
+
+
+@pytest.mark.asyncio
+async def test_incident_read_pins_fire_containment_progress(async_session: AsyncSession, room_with_dwellers: dict):
+    """FIRE progress reports containment percentage against a fixed target of 100."""
+    room = room_with_dwellers["room"]
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=3,
+    )
+    incident.combat_progress = 0.5
+    async_session.add(incident)
+    await async_session.commit()
+
+    read = await incident_service.get_incident_read(async_session, incident, room.name)
+
+    assert read.progress.current == 50
+    assert read.progress.target == 100
+    assert read.progress.label == "Fire contained"
+    assert read.family == IncidentFamily.HAZARD
+    assert read.objective == IncidentObjective.CONTAIN
+    assert read.response.label == "Send responders"
+    assert read.risk.kind == "spread"
+    assert read.risk.rooms_affected == 1
+
+
+@pytest.mark.asyncio
+async def test_incident_read_pins_combat_kill_progress(async_session: AsyncSession, room_with_dwellers: dict):
+    """Combat progress reports enemies defeated against difficulty * 2 raiders."""
+    room = room_with_dwellers["room"]
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=3,
+    )
+    incident.enemies_defeated = 2
+    async_session.add(incident)
+    await async_session.commit()
+
+    read = await incident_service.get_incident_read(async_session, incident, room.name)
+
+    assert read.progress.current == 2
+    assert read.progress.target == 6
+    assert read.progress.label == "Intruders neutralized"
+    assert read.family == IncidentFamily.INTRUSION
+    assert read.objective == IncidentObjective.DEFEAT
+
+
+@pytest.mark.asyncio
+async def test_get_incident_for_vault_returns_owned_incident(async_session: AsyncSession, room_with_dwellers: dict):
+    """An incident belonging to the requesting vault is returned as-is."""
+    room = room_with_dwellers["room"]
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+
+    fetched = await incident_service.get_incident_for_vault(async_session, incident.id, room.vault_id)
+
+    assert fetched.id == incident.id
+
+
+@pytest.mark.asyncio
+async def test_get_incident_for_vault_rejects_other_vault(async_session: AsyncSession, room_with_dwellers: dict):
+    """An incident from another vault is denied."""
+    room = room_with_dwellers["room"]
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=1,
+    )
+
+    with pytest.raises(AccessDeniedException, match="does not belong"):
+        await incident_service.get_incident_for_vault(async_session, incident.id, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_get_incident_for_vault_missing_raises_not_found(async_session: AsyncSession, vault: Vault):
+    """An unknown incident id raises not-found."""
+    with pytest.raises(ResourceNotFoundException):
+        await incident_service.get_incident_for_vault(async_session, uuid4(), vault.id)
 
 
 @pytest.mark.asyncio

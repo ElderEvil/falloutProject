@@ -13,10 +13,22 @@ from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType
+from app.models.room import Room
+from app.models.vault import Vault
 from app.services.combat import incident_publishing
 from app.services.combat.incident_publishing import INCIDENT_NAMES
 
 logger = logging.getLogger(__name__)
+
+
+def is_at_incident_cap(active_incidents: list[Incident]) -> bool:
+    """Report whether the vault already runs the maximum active incidents."""
+    return len(active_incidents) >= game_config.incident.max_active_incidents
+
+
+def is_spawning_disabled(vault: Vault | None) -> bool:
+    """Report whether incident spawning is switched off (an absent vault counts as enabled)."""
+    return vault is not None and vault.incidents_disabled
 
 
 async def should_spawn_incident(
@@ -38,10 +50,8 @@ async def should_spawn_incident(
         logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
         return False
 
-    from app.models.vault import Vault
-
     vault = await db_session.get(Vault, vault_id)
-    if vault is not None and vault.incidents_disabled:
+    if is_spawning_disabled(vault):
         logger.debug(f"Incidents are disabled for vault {vault_id}")
         return False
 
@@ -51,7 +61,7 @@ async def should_spawn_incident(
 
     # Check if max active incidents reached
     active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-    if len(active_incidents) >= game_config.incident.max_active_incidents:
+    if is_at_incident_cap(active_incidents):
         return False
 
     # Check cooldown period (if there are any incidents, check the most recent one)
@@ -94,18 +104,16 @@ async def spawn_incident(
     if not await try_acquire_spawn_lock(db_session, vault_id):
         return None
 
-    from app.models.vault import Vault
-
     vault = await db_session.get(Vault, vault_id)
     if vault is None:
         return None
-    if vault.incidents_disabled:
+    if is_spawning_disabled(vault):
         from app.utils.exceptions import IncidentsDisabledException
 
         raise IncidentsDisabledException
 
     active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-    if len(active_incidents) >= game_config.incident.max_active_incidents:
+    if is_at_incident_cap(active_incidents):
         from app.utils.exceptions import ResourceConflictException
 
         raise ResourceConflictException(
@@ -127,40 +135,9 @@ async def spawn_incident(
     # Get rooms that already have active incidents
     rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, vault_id)
 
-    # Determine where to spawn based on incident type
-    if incident_type.value in game_config.incident.vault_door_incidents:
-        # External attacks spawn at vault door (0,0) and spread inward
-        target_room = await room_crud.get_room_by_coordinates(
-            db_session=db_session,
-            vault_id=vault_id,  # ty: ignore[invalid-argument-type]
-            x_coord=0,
-            y_coord=0,
-        )
-
-        if not target_room:
-            logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
-            return None
-
-        # Check if vault door already has incident
-        if target_room.id in rooms_with_incidents:
-            logger.info(f"Vault door already has active incident in vault {vault_id}")
-            return None
-    else:
-        # Other incidents spawn in random occupied rooms (excluding elevators)
-        occupied_rooms = await room_crud.get_occupied_rooms(db_session, vault_id)
-
-        # Filter out rooms that already have incidents
-        available_rooms = [room for room in occupied_rooms if room.id not in rooms_with_incidents]
-
-        if not available_rooms:
-            logger.warning(
-                f"No available rooms for incident spawn in vault {vault_id} "
-                f"(all occupied non-elevator rooms already have incidents)"
-            )
-            return None
-
-        # Pick random room
-        target_room = random.choice(available_rooms)
+    target_room = await select_spawn_room(db_session, vault_id, incident_type, rooms_with_incidents)
+    if target_room is None:
+        return None
 
     difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
 
@@ -193,15 +170,54 @@ async def spawn_incident(
     return incident
 
 
+async def select_spawn_room(
+    db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType, rooms_with_incidents: set[UUID4]
+) -> Room | None:
+    """Pick the spawn room for an incident type; None when no suitable room exists."""
+    # Determine where to spawn based on incident type
+    if incident_type.value in game_config.incident.vault_door_incidents:
+        # External attacks spawn at vault door (0,0) and spread inward
+        target_room = await room_crud.get_room_by_coordinates(
+            db_session=db_session,
+            vault_id=vault_id,  # ty: ignore[invalid-argument-type]
+            x_coord=0,
+            y_coord=0,
+        )
+
+        if not target_room:
+            logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
+            return None
+
+        # Check if vault door already has incident
+        if target_room.id in rooms_with_incidents:
+            logger.info(f"Vault door already has active incident in vault {vault_id}")
+            return None
+        return target_room
+
+    # Other incidents spawn in random occupied rooms (excluding elevators)
+    occupied_rooms = await room_crud.get_occupied_rooms(db_session, vault_id)
+
+    # Filter out rooms that already have incidents
+    available_rooms = [room for room in occupied_rooms if room.id not in rooms_with_incidents]
+
+    if not available_rooms:
+        logger.warning(
+            f"No available rooms for incident spawn in vault {vault_id} "
+            f"(all occupied non-elevator rooms already have incidents)"
+        )
+        return None
+
+    # Pick random room
+    return random.choice(available_rooms)
+
+
 async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
     """Spread an incident to an adjacent room and report whether it succeeded."""
     if not await try_acquire_spawn_lock(db_session, incident.vault_id):
         return False
 
-    if (
-        len(await incident_crud.get_active_by_vault(db_session, incident.vault_id))
-        >= game_config.incident.max_active_incidents
-    ):
+    active_incidents = await incident_crud.get_active_by_vault(db_session, incident.vault_id)
+    if is_at_incident_cap(active_incidents):
         logger.info("Incident cap reached while spreading in vault %s", incident.vault_id)
         return False
 

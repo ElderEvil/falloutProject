@@ -140,7 +140,7 @@ class IncidentService:
             from app.models.vault import Vault
 
             vault = await db_session.get(Vault, vault_id)
-            if vault is not None and vault.incidents_disabled:
+            if incident_spawning.is_spawning_disabled(vault):
                 return stats
 
             active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
@@ -277,7 +277,7 @@ class IncidentService:
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
-        unavailable = [
+        unavailable = [  # TODO: could be reused, kinda policy - check this one, falls under refactor for me
             dweller
             for dweller in dwellers
             if not dweller.is_adult

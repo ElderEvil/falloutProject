@@ -5,10 +5,10 @@ import logging
 import sys
 import time
 from typing import Final
+from uuid import UUID
 
 import dramatiq
 import periodiq
-from pydantic import UUID4
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
@@ -53,6 +53,7 @@ def game_tick():
 
         async def run_tick():
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+            from sqlmodel.ext.asyncio.session import AsyncSession
 
             from app.core.config import settings
             from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
@@ -61,13 +62,8 @@ def game_tick():
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
-            engine = create_async_engine(
-                str(settings.ASYNC_DATABASE_URI),
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-            )
-            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), echo=False, future=True, pool_pre_ping=True)
+            session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             set_current_session_maker(session_maker)
 
             try:
@@ -158,6 +154,7 @@ def process_vault_tick(vault_id: str):
 
         async def run_vault_tick():
             from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+            from sqlmodel.ext.asyncio.session import AsyncSession
 
             from app.core.config import settings
             from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
@@ -166,18 +163,13 @@ def process_vault_tick(vault_id: str):
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
-            engine = create_async_engine(
-                str(settings.ASYNC_DATABASE_URI),
-                echo=False,
-                future=True,
-                pool_pre_ping=True,
-            )
-            session_maker = async_sessionmaker(engine, expire_on_commit=False)
+            engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), echo=False, future=True, pool_pre_ping=True)
+            session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             set_current_session_maker(session_maker)
 
             try:
                 async with session_maker() as session:
-                    return await game_loop_service.process_vault_tick(session, UUID4(vault_id))
+                    return await game_loop_service.process_vault_tick(session, UUID(vault_id))
             finally:
                 await engine.dispose()
 
@@ -246,14 +238,13 @@ def check_quest_completion():
 
 async def _refresh_objectives(*, weekly: bool) -> dict:
     """Assign daily or weekly objectives to every non-deleted vault."""
-    from sqlalchemy import select
+    from sqlmodel import col, select
 
     from app.models.vault import Vault
     from app.services.objective_assignment_service import ObjectiveAssignmentService
 
     async with task_session() as session:
-        result = await session.execute(select(Vault.id).where(Vault.deleted_at.is_(None)))
-        vault_ids = [row[0] for row in result.all()]
+        vault_ids = (await session.exec(select(Vault.id).where(col(Vault.deleted_at).is_(None)))).all()
 
         total_assigned = 0
         for vault_id in vault_ids:

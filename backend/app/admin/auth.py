@@ -1,10 +1,12 @@
 from sqladmin.authentication import AuthenticationBackend
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.requests import Request
 
 from app import crud
 from app.db.session import async_engine
+
+async_session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 class AdminAuth(AuthenticationBackend):
@@ -12,23 +14,11 @@ class AdminAuth(AuthenticationBackend):
         form = await request.form()
         username = form.get("username")
         password = form.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            return False
 
-        # Create async session
-        async_session = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=async_engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-
-        async with async_session() as session:
-            # Authenticate user
-            user = await crud.user.authenticate(
-                db_session=session,
-                email=username,
-                password=password,
-            )
+        async with async_session_maker() as session:
+            user = await crud.user.authenticate(db_session=session, email=username, password=password)
 
             # Check if user exists and is superuser
             if user and crud.user.is_superuser(user):
@@ -49,17 +39,8 @@ class AdminAuth(AuthenticationBackend):
         if not user_id:
             return False
 
-        # Create async session
-        async_session = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=async_engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-
         # Verify user still exists and is superuser
-        async with async_session() as session:
+        async with async_session_maker() as session:
             user = await crud.user.get(db_session=session, id=user_id)
             if user and crud.user.is_superuser(user):
                 return True

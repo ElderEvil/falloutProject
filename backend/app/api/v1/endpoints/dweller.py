@@ -11,6 +11,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.api.game_data_deps import get_static_game_data
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.db.session import get_async_session
+from app.models.dweller import Dweller
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
@@ -52,7 +53,7 @@ async def create_dweller(
     Returns:
         DwellerRead: The created dweller.
     """
-    return await crud.dweller.create(db_session, dweller_data)
+    return DwellerRead.model_validate(await crud.dweller.create(db_session, dweller_data))
 
 
 @router.get("/", response_model=list[DwellerReadLess])
@@ -68,7 +69,8 @@ async def read_dweller_list(
     Returns:
         list[DwellerReadLess]: List of dwellers.
     """
-    return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+    dwellers = await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+    return [DwellerReadLess.model_validate(d) for d in dwellers]
 
 
 @router.get("/identity-options", response_model=DwellerIdentityOptions)
@@ -89,7 +91,7 @@ async def read_dweller(
         DwellerReadFull: Full dweller details.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.get(db_session, dweller_id)
+    return DwellerReadFull.model_validate(await crud.dweller.get(db_session, dweller_id))
 
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)
@@ -144,7 +146,7 @@ async def rename_dweller(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     dweller_data = DwellerUpdate(first_name=rename.first_name)
-    return await crud.dweller.update(db_session, dweller_id, dweller_data)
+    return DwellerRead.model_validate(await crud.dweller.update(db_session, dweller_id, dweller_data))
 
 
 @router.delete("/{dweller_id}", status_code=204)
@@ -160,7 +162,7 @@ async def delete_dweller(
     Use hard_delete=True to permanently remove the dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
+    await crud.dweller.delete(db_session, dweller_id, soft=not hard_delete)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[DwellerReadLess])
@@ -182,7 +184,7 @@ async def read_dwellers_by_vault(
         list[DwellerReadLess]: Filtered list of dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_multi_by_vault(
+    dwellers = await crud.dweller.get_multi_by_vault(
         db_session=db_session,
         vault_id=vault_id,
         skip=skip,
@@ -193,6 +195,7 @@ async def read_dwellers_by_vault(
         sort_by=sort_by,
         order=order,
     )
+    return [DwellerReadLess.model_validate(d) for d in dwellers]
 
 
 @router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)
@@ -208,7 +211,10 @@ async def move_dweller_to_room(
         DwellerReadWithRoomID: The dweller with updated room assignment.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.move_to_room(db_session, dweller_id, room_id)
+    moved = await crud.dweller.move_to_room(db_session, dweller_id, room_id)
+    if moved is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    return moved
 
 
 @router.post("/create_random/", response_model=DwellerRead)
@@ -224,7 +230,8 @@ async def create_random_common_dweller(
         DwellerRead: The newly created random dweller.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
+    dweller = await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
+    return DwellerRead.model_validate(dweller)
 
 
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
@@ -345,7 +352,7 @@ async def read_dwellers_data(
     Returns:
         list[DwellerCreateWithoutVaultID]: List of dweller templates.
     """
-    return data_store.dwellers
+    return [DwellerCreateWithoutVaultID.model_validate(t) for t in data_store.dwellers]
 
 
 @router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)
@@ -360,7 +367,7 @@ async def use_stimpack(
         DwellerRead: The healed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await medical_service.use_stimpack(db_session, dweller_id)
+    return DwellerRead.model_validate(await medical_service.use_stimpack(db_session, dweller_id))
 
 
 @router.post("/{dweller_id}/use_radaway", response_model=DwellerRead)
@@ -375,7 +382,7 @@ async def use_radaway(
         DwellerRead: The dweller with reduced radiation.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await medical_service.use_radaway(db_session, dweller_id)
+    return DwellerRead.model_validate(await medical_service.use_radaway(db_session, dweller_id))
 
 
 @router.get("/{dweller_id}/happiness_modifiers", response_model=HappinessModifiersResponse)
@@ -406,7 +413,10 @@ async def auto_assign_to_room(
         DwellerReadWithRoomID: The dweller with assigned room.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+    assigned = await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+    if assigned is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    return assigned
 
 
 # ============================================
@@ -541,7 +551,7 @@ async def soft_delete_dweller(
         DwellerRead: The soft-deleted dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.soft_delete(db_session, dweller_id)
+    return DwellerRead.model_validate(await crud.dweller.soft_delete(db_session, dweller_id))
 
 
 @router.post("/{dweller_id}/restore", response_model=DwellerRead)
@@ -558,7 +568,7 @@ async def restore_dweller(
     # Note: We need to verify access with include_deleted=True
     dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
-    return await crud.dweller.restore(db_session, dweller_id)
+    return DwellerRead.model_validate(await crud.dweller.restore(db_session, dweller_id))
 
 
 @router.get("/vault/{vault_id}/deleted", response_model=list[DwellerReadLess])
@@ -575,4 +585,5 @@ async def read_deleted_dwellers_by_vault(
         list[DwellerReadLess]: List of soft-deleted dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    deleted = await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    return [DwellerReadLess.model_validate(d) for d in deleted]

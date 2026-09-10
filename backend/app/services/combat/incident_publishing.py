@@ -1,10 +1,11 @@
-"""Best-effort outbound messaging for incidents: SSE pushes and owner notifications."""
+"""Incident event reporting: lifecycle journal, SSE pushes, and owner notifications."""
 
 import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.incident import Incident, IncidentType, get_incident_definition
+from app.models.incident_event import IncidentEvent
 from app.models.notification import NotificationPriority, NotificationType
 from app.schemas.incident_sse import IncidentSseEvent
 from app.services.notification_service import notification_service
@@ -21,6 +22,13 @@ INCIDENT_NAMES: dict[IncidentType, str] = {
     IncidentType.FERAL_GHOUL_ATTACK: "🧟 Feral Ghoul Attack",
     IncidentType.RADSCORPION_ATTACK: "🦂 Radscorpion Attack",
 }
+
+
+def record_event(
+    db_session: AsyncSession, incident: Incident, kind: str, message: str, data: dict | None = None
+) -> None:
+    """Append a meaningful lifecycle event; callers commit with their state change."""
+    db_session.add(IncidentEvent(incident_id=incident.id, kind=kind, message=message, data=data))
 
 
 async def publish_sse(

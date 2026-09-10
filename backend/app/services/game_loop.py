@@ -377,6 +377,7 @@ class GameLoopService:
                 ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
                 rads = game_config.health.dehydration_radiation_per_tick * ticks
                 for dweller in dwellers:
+                    # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
                     if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
                         continue
                     if apply_radiation_gain(dweller, rads):

@@ -1,7 +1,6 @@
 """Incident service for managing combat events and vault disasters."""
 
 import logging
-import random
 
 from pydantic import UUID4
 from sqlalchemy import text
@@ -12,12 +11,10 @@ from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
-from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
-from app.models.incident_event import IncidentEvent
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentProgress,
@@ -26,10 +23,8 @@ from app.schemas.incident import (
     IncidentRisk,
     IncidentRoundResult,
 )
-from app.services.combat import incident_math, incident_publishing
-from app.services.combat.incident_publishing import INCIDENT_NAMES
+from app.services.combat import incident_publishing, incident_round, incident_spawning
 from app.services.notification_service import notification_service
-from app.services.radiation_service import apply_radiation_gain
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -46,7 +41,7 @@ class IncidentService:
         db_session: AsyncSession, incident: Incident, kind: str, message: str, data: dict | None = None
     ) -> None:
         """Append a meaningful lifecycle event; callers commit with their state change."""
-        db_session.add(IncidentEvent(incident_id=incident.id, kind=kind, message=message, data=data))
+        incident_publishing.record_event(db_session, incident, kind=kind, message=message, data=data)
 
     async def get_incident_read(
         self, db_session: AsyncSession, incident: Incident, room_name: str | None
@@ -95,338 +90,34 @@ class IncidentService:
     async def should_spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> bool:
-        """Determine if an incident should spawn based on vault state and time.
-
-        Args:
-            db_session: Database session
-            vault_id: The vault ID to check
-            seconds_passed: Seconds since last tick
-            game_state: Optional game state for online/offline check
-
-        Returns:
-            bool: True if incident should spawn
-        """
-        # Check if user is online (has recent activity) - suppress incidents when offline
-        if game_state and not game_state.is_user_online(timeout_seconds=600):
-            self.logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
-            return False
-
-        from app.models.vault import Vault
-
-        vault = await db_session.get(Vault, vault_id)
-        if vault is not None and vault.incidents_disabled:
-            self.logger.debug(f"Incidents are disabled for vault {vault_id}")
-            return False
-
-        # Need minimum population
-        if await crud_dweller.count_in_vault(db_session, vault_id) < game_config.incident.min_vault_population:
-            return False
-
-        # Check if max active incidents reached
-        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-        if len(active_incidents) >= game_config.incident.max_active_incidents:
-            return False
-
-        # Check cooldown period (if there are any incidents, check the most recent one)
-        if active_incidents:
-            from datetime import datetime
-
-            most_recent = max(active_incidents, key=lambda i: i.start_time)
-            seconds_since_last = (datetime.utcnow() - most_recent.start_time).total_seconds()
-            if seconds_since_last < game_config.incident.spawn_cooldown_seconds:
-                return False
-
-        # Time-based cap: limit spawn chance growth to prevent bursts
-        # Cap hours_passed to prevent excessive spawn chance after long offline periods
-        hours_passed = min(seconds_passed / 3600, 2.0)  # Cap at 2 hours worth of chance
-        spawn_chance = game_config.incident.spawn_chance_per_hour * hours_passed
-
-        # Random roll
-        return random.random() < spawn_chance
+        """Spawn gating — see incident_spawning."""
+        return await incident_spawning.should_spawn_incident(db_session, vault_id, seconds_passed, game_state)
 
     async def spawn_incident(
         self, db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType | None = None
     ) -> Incident | None:
-        """Spawn a new incident in a random occupied room.
-        Raiders and Deathclaws spawn at vault door (0,0) and spread inward.
-
-        Rules enforced:
-        - Only one incident type per vault at a time
-        - Only one incident per room
-        - Never spawn in elevators
-
-        Args:
-            db_session: Database session
-            vault_id: ID of the vault
-            incident_type: Type of incident (radscorpion if None)
-
-        Returns:
-            Incident or None if no suitable room found
-        """
-        if not await self._try_acquire_spawn_lock(db_session, vault_id):
-            return None
-
-        from app.models.vault import Vault
-
-        vault = await db_session.get(Vault, vault_id)
-        if vault is None:
-            return None
-        if vault.incidents_disabled:
-            from app.utils.exceptions import IncidentsDisabledException
-
-            raise IncidentsDisabledException
-
-        active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-        if len(active_incidents) >= game_config.incident.max_active_incidents:
-            from app.utils.exceptions import ResourceConflictException
-
-            raise ResourceConflictException(
-                detail=f"Vault is at the active-incident cap ({game_config.incident.max_active_incidents})."
-            )
-
-        active_types = {incident.type for incident in active_incidents}
-
-        # Runtime spawns use radscorpions; explicit types remain available to
-        # administrative and test callers.
-        if incident_type is None:
-            incident_type = IncidentType.RADSCORPION_ATTACK
-
-        # If type specified but vault has different type, don't spawn
-        if active_types and incident_type not in active_types:
-            self.logger.info(f"Cannot spawn {incident_type} in vault {vault_id} - vault already has {active_types}")
-            return None
-
-        # Get rooms that already have active incidents
-        rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, vault_id)
-
-        # Determine where to spawn based on incident type
-        if incident_type.value in game_config.incident.vault_door_incidents:
-            # External attacks spawn at vault door (0,0) and spread inward
-            target_room = await room_crud.get_room_by_coordinates(
-                db_session=db_session, vault_id=vault_id, x_coord=0, y_coord=0
-            )
-
-            if not target_room:
-                self.logger.warning(f"No vault door found at (0,0) for {incident_type} in vault {vault_id}")
-                return None
-
-            # Check if vault door already has incident
-            if target_room.id in rooms_with_incidents:
-                self.logger.info(f"Vault door already has active incident in vault {vault_id}")
-                return None
-        else:
-            # Other incidents spawn in random occupied rooms (excluding elevators)
-            occupied_rooms = await room_crud.get_occupied_rooms(db_session, vault_id)
-
-            # Filter out rooms that already have incidents
-            available_rooms = [room for room in occupied_rooms if room.id not in rooms_with_incidents]
-
-            if not available_rooms:
-                self.logger.warning(
-                    f"No available rooms for incident spawn in vault {vault_id} "
-                    f"(all occupied non-elevator rooms already have incidents)"
-                )
-                return None
-
-            # Pick random room
-            target_room = random.choice(available_rooms)
-
-        difficulty = random.randint(*game_config.incident.get_difficulty_range(incident_type))
-
-        incident_name = INCIDENT_NAMES.get(incident_type, str(incident_type))
-
-        # Create incident
-        incident = await incident_crud.create(
-            db_session,
-            vault_id=vault_id,
-            room_id=target_room.id,
-            incident_type=incident_type,
-            difficulty=difficulty,
-            duration=game_config.incident.spread_duration,
-        )
-        self._record_event(db_session, incident, "spawned", f"{incident_name} detected in {target_room.name}.")
-        await db_session.commit()
-
-        self.logger.info(
-            f"Spawned {incident_type} (difficulty {difficulty}) in room {target_room.name} of vault {vault_id}"
-        )
-
-        # Send notification + SSE (non-critical, don't break incident creation on failure)
-        await incident_publishing.notify_spawn(db_session, incident, target_room.name, incident_name, difficulty)
-        await incident_publishing.publish_sse(
-            incident,
-            "incident_spawned",
-            room_name=target_room.name if target_room else None,
-        )
-
-        return incident
+        """Spawn orchestration — see incident_spawning."""
+        return await incident_spawning.spawn_incident(db_session, vault_id, incident_type)
 
     async def _no_defender_outcome(self, db_session: AsyncSession, incident: Incident) -> IncidentRoundResult:
-        """An active incident nobody responds to: spread it, keep waiting, or lose it."""
-        if (
-            incident.elapsed_time() >= incident.duration
-            and incident.spread_count < game_config.incident.max_spread_count
-            and await self._spread_incident(db_session, incident)
-        ):
-            await db_session.commit()
-            await incident_publishing.publish_sse(incident, "incident_spreading")
-            return IncidentRoundResult(no_defenders=True)
-
-        if (
-            incident.spread_count >= game_config.incident.max_spread_count
-            or incident.elapsed_time() >= incident.duration
-        ):
-            incident.resolve(success=False)
-            self._record_event(
-                db_session,
-                incident,
-                "failed",
-                f"Failed to {get_incident_definition(incident.type).objective.value} before escalation.",
-            )
-            db_session.add(incident)
-            await db_session.commit()
-            await incident_publishing.publish_sse(incident, "incident_resolved", success=False)
-            await incident_publishing.notify_resolution(db_session, incident, success=False)
-        return IncidentRoundResult(no_defenders=True)
+        """Round engine — see incident_round."""
+        return await incident_round.no_defender_outcome(db_session, incident)
 
     async def _apply_damage(
         self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
     ) -> tuple[int, int]:
-        """Distribute incoming damage across responders; deaths stay pending for the round commit."""
-        from app.core.enums import DeathCauseEnum
-        from app.services.family.death_service import death_service
-
-        damaged_count = 0
-        deaths_count = 0
-        total_damage = max(0, int(damage_to_dwellers))
-        damage_per_dweller, remainder = divmod(total_damage, len(dwellers))
-        for index, dweller in enumerate(dwellers):
-            dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
-            new_health = max(0, dweller.health - dweller_damage)
-
-            if incident.type == IncidentType.RADSCORPION_ATTACK and dweller_damage > 1:
-                radiation_damage = min(dweller_damage - 1, dweller_damage // 2)
-                apply_radiation_gain(dweller, radiation_damage)
-                db_session.add(dweller)
-
-            new_health = min(new_health, dweller.effective_max_health)
-
-            if new_health != dweller.health:
-                # Direct update - SQLAlchemy session tracks the object, no need to refresh
-                dweller.health = new_health
-                db_session.add(dweller)
-                damaged_count += 1
-
-                # Check for death from incident
-                if new_health <= 0 and not dweller.is_dead:
-                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.INCIDENT, commit=False)
-                    deaths_count += 1
-                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
-
-        return damaged_count, deaths_count
+        """Round engine — see incident_round."""
+        return await incident_round.apply_damage(db_session, incident, dwellers, damage_to_dwellers)
 
     async def _resolve_victory(self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
-        """Generate loot, mark the incident resolved, and award XP. Returns caps for the batch payout."""
-        incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
-        incident.resolve(success=True)
-
-        caps_earned = incident.loot.get("caps", 0)
-        await self._award_combat_xp(db_session, incident, dwellers)
-
-        self.logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
-        self._record_event(
-            db_session, incident, "resolved", f"{get_incident_definition(incident.type).progress_label}."
-        )
-        return caps_earned
+        """Round engine — see incident_round."""
+        return await incident_round.resolve_victory(db_session, incident, dwellers)
 
     async def process_incident(
         self, db_session: AsyncSession, incident: Incident, seconds_passed: int
     ) -> IncidentRoundResult:
-        """Process one round of an active incident (apply damage, check victory)."""
-        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
-            return IncidentRoundResult(skipped=True)
-
-        # Get dwellers in affected room with equipment preloaded (N+1 optimization)
-        dwellers = list(await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id))
-        if not dwellers:
-            return await self._no_defender_outcome(db_session, incident)
-
-        # Fire is a containment operation: responders suppress a hazard rather
-        # than defeat enemies. Other types retain the combat loop.
-        dweller_power = incident_math.dweller_combat_power(dwellers)
-        threat_power = incident_math.raider_power(incident.difficulty)
-        if incident.type == IncidentType.FIRE:
-            damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
-            response_progress = incident_math.fire_suppression(dweller_power, threat_power, seconds_passed)
-            damage_to_raiders = 0.0
-        else:
-            damage_to_dwellers = incident_math.damage_to_dwellers(threat_power, seconds_passed)
-            response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
-            damage_to_raiders = response_progress * threat_power
-
-        damaged_count, deaths_count = await self._apply_damage(db_session, incident, dwellers, damage_to_dwellers)
-        total_damage = max(0, int(damage_to_dwellers))
-
-        # Track total damage dealt by raiders
-        incident.damage_dealt += total_damage
-
-        # Track enemies defeated — accumulate fractional kills so weak defenders
-        # still make progress instead of stalling at int() == 0 every tick.
-        enemies_this_tick = 0
-        if threat_power > 0:
-            previous_kills = incident.enemies_defeated
-            incident.combat_progress += response_progress
-            if incident.type != IncidentType.FIRE:
-                incident.enemies_defeated = int(incident.combat_progress)
-            enemies_this_tick = incident.enemies_defeated - previous_kills
-
-        # Check victory condition (defeated enough raiders based on difficulty)
-        expected_raider_count = incident.difficulty * 2  # Each difficulty = 2 raiders
-
-        if incident.type == IncidentType.FIRE and response_progress > 0:
-            self._record_event(
-                db_session,
-                incident,
-                "containment",
-                f"Fire containment increased by {max(1, int(response_progress * 100))}%.",
-                {"target": "hazard", "amount": response_progress},
-            )
-        else:
-            self._record_event(
-                db_session,
-                incident,
-                "round",
-                f"Responders dealt {int(damage_to_raiders)} damage; took {total_damage}.",
-                {"target": "combat", "damage_to_dwellers": total_damage, "damage_to_threat": damage_to_raiders},
-            )
-
-        resolved = (
-            incident.combat_progress >= 1
-            if incident.type == IncidentType.FIRE
-            else incident.enemies_defeated >= expected_raider_count
-        )
-        caps_earned = 0
-        if resolved:
-            caps_earned = await self._resolve_victory(db_session, incident, dwellers)
-
-        db_session.add(incident)
-        await db_session.commit()
-        # Death notifications parked by mark_as_dead(commit=False) deliver only
-        # once the round actually persisted.
-        await notification_service.deliver_deferred_notifications(db_session)
-
-        if resolved:
-            await incident_publishing.notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
-            await incident_publishing.publish_sse(incident, "incident_resolved", success=True, caps_earned=caps_earned)
-
-        return IncidentRoundResult(
-            damage_to_dwellers=damage_to_dwellers,
-            damage_to_raiders=damage_to_raiders,
-            dwellers_damaged=damaged_count,
-            dwellers_killed=deaths_count,
-            enemies_defeated=enemies_this_tick,
-            caps_earned=caps_earned,
-        )
+        """Round engine — see incident_round."""
+        return await incident_round.process_incident(db_session, incident, seconds_passed)
 
     async def process_vault_incidents(
         self,
@@ -449,7 +140,7 @@ class IncidentService:
             from app.models.vault import Vault
 
             vault = await db_session.get(Vault, vault_id)
-            if vault is not None and vault.incidents_disabled:
+            if incident_spawning.is_spawning_disabled(vault):
                 return stats
 
             active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
@@ -503,13 +194,15 @@ class IncidentService:
                     stats["caps_earned"] = total_caps_earned
                     self.logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 
-        except (SQLAlchemyError, ResourceNotFoundException) as e:
+        except (SQLAlchemyError, ResourceNotFoundException) as e:  # TODO: Should it be here?
             self.logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
             stats["error"] = str(e)
 
         return stats
 
-    async def process_all_vaults_incidents(self, db_session: AsyncSession, seconds_passed: int) -> dict:
+    async def process_all_vaults_incidents(
+        self, db_session: AsyncSession, seconds_passed: int
+    ) -> dict:  # TODO: Must be tested for performance
         """Process incidents for every active vault (fast-tick entry point).
 
         A PostgreSQL advisory lock serializes execution across workers; the
@@ -561,16 +254,6 @@ class IncidentService:
             # worker; the advisory lock self-releases on session close anyway.
             self.logger.exception("Failed to release incident tick advisory lock")
 
-    async def _try_acquire_spawn_lock(self, db_session: AsyncSession, vault_id: UUID4) -> bool:
-        if db_session.get_bind().dialect.name != "postgresql":
-            return True
-
-        result = await db_session.execute(
-            text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
-            {"lock_key": f"incident-spawn:{vault_id}"},
-        )
-        return bool(result.scalar())
-
     async def get_incident_for_vault(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Incident:
         incident = await incident_crud.get(db_session, incident_id)
         if not incident:
@@ -594,7 +277,7 @@ class IncidentService:
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
-        unavailable = [
+        unavailable = [  # TODO: could be reused, kinda policy - check this one, falls under refactor for me
             dweller
             for dweller in dwellers
             if not dweller.is_adult
@@ -615,98 +298,12 @@ class IncidentService:
         return unique_ids
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
-        """Spread an incident to an adjacent room and report whether it succeeded."""
-        if not await self._try_acquire_spawn_lock(db_session, incident.vault_id):
-            return False
+        """Spread orchestration — see incident_spawning."""
+        return await incident_spawning.spread_incident(db_session, incident)
 
-        if (
-            len(await incident_crud.get_active_by_vault(db_session, incident.vault_id))
-            >= game_config.incident.max_active_incidents
-        ):
-            self.logger.info("Incident cap reached while spreading in vault %s", incident.vault_id)
-            return False
-
-        # Get the current room to find its coordinates
-        current_room = await room_crud.get_or_none(db_session, id=incident.room_id)
-
-        if not current_room or current_room.coordinate_x is None or current_room.coordinate_y is None:
-            return False
-
-        # Get rooms that already have active incidents
-        rooms_with_incidents = await incident_crud.get_rooms_with_active_incidents(db_session, incident.vault_id)
-
-        # Find adjacent rooms (within 1-2 coordinate units horizontally or vertically)
-        # Exclude elevators and rooms with active incidents
-        all_adjacent_rooms = await room_crud.get_adjacent_rooms(
-            db_session,
-            incident.vault_id,
-            exclude_room_id=incident.room_id,
-            coord_x=current_room.coordinate_x,
-            coord_y=current_room.coordinate_y,
-        )
-
-        # Filter out rooms that already have incidents
-        adjacent_rooms = [room for room in all_adjacent_rooms if room.id not in rooms_with_incidents]
-
-        if adjacent_rooms:
-            # Pick a random adjacent room
-            new_room = random.choice(adjacent_rooms)
-
-            # Create a new incident in the adjacent room with the SAME type, capped
-            # at the model's max difficulty so it can't snowball on repeat spreads.
-            new_incident = await incident_crud.create(
-                db_session,
-                vault_id=incident.vault_id,
-                room_id=new_room.id,
-                incident_type=incident.type,  # Same type! (field is called 'type')
-                difficulty=min(incident.difficulty + 1, 10),  # Slightly harder
-                duration=game_config.incident.spread_duration,
-            )
-
-            # Update original incident spread tracking
-            incident.spread_to_room(str(new_room.id))
-            db_session.add(incident)
-            self._record_event(db_session, incident, "spread", f"Spread to {new_room.name}.")
-
-            self.logger.warning(
-                f"Incident {incident.type} spread from {current_room.name} to {new_room.name} "
-                f"(difficulty {new_incident.difficulty})"
-            )
-            return True
-
-        return False
-
-    async def _award_combat_xp(self, db_session: AsyncSession, incident: "Incident", dwellers: list[Dweller]) -> None:
-        """Award experience to dwellers who participated in combat.
-
-        Args:
-            db_session: Database session
-            incident: Resolved incident
-            dwellers: List of dwellers who fought
-        """
-        from app.services.leveling_service import leveling_service
-
-        if not dwellers:
-            return
-
-        # Base XP from difficulty
-        base_xp = incident.difficulty * game_config.combat.xp_per_difficulty
-
-        # Check for perfect combat (no damage taken)
-        perfect_combat = incident.damage_dealt == 0
-
-        if perfect_combat:
-            base_xp = int(base_xp * game_config.combat.perfect_bonus_multiplier)
-
-        # Distribute XP among participants
-        xp_per_dweller = base_xp // len(dwellers)
-
-        for dweller in dwellers:
-            dweller.experience = max(0, dweller.experience + xp_per_dweller)
-            db_session.add(dweller)
-
-            # Check for level-up
-            await leveling_service.check_level_up(db_session, dweller)
+    async def _award_combat_xp(self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> None:
+        """Round engine — see incident_round."""
+        await incident_round.award_combat_xp(db_session, incident, dwellers)
 
 
 # Global instance

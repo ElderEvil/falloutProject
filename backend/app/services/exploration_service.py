@@ -125,6 +125,7 @@ class ExplorationService:
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.vault_id != vault_id:
             raise ValueError("Dweller does not belong to this vault")
+        # TODO: unify with incident responder eligibility into a shared availability policy outside services.
         if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:
             raise ValueError("Children cannot be sent on exploration")
         dweller_stimpaks = dweller.stimpack or 0

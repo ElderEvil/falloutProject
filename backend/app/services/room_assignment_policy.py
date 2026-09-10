@@ -1,5 +1,7 @@
 """Eligibility rules shared by manual and automatic room assignment."""
 
+# TODO: relocate this kernel plus dweller availability checks outside services so CRUD can share them.
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import AgeGroupEnum, RoomTypeEnum

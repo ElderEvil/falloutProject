@@ -300,7 +300,10 @@ class PromptAdmin(AdminModelView, model=Prompt):
     # edits go through the deferred copy-as-new-version flow, never in place.
     column_details_exclude_list: ClassVar[list] = [Prompt.llm_interactions]
     column_searchable_list: ClassVar[list] = [Prompt.prompt_name, Prompt.description]
-    column_filters: ClassVar[list] = [BooleanFilter("is_active"), AllUniqueStringValuesFilter("version")]
+    column_filters: ClassVar[list] = [
+        BooleanFilter(col(Prompt.is_active)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(Prompt.version)),  # ty: ignore[invalid-argument-type]
+    ]
     column_default_sort: ClassVar[list] = [(Prompt.is_active, True), (Prompt.version, True)]
 
     icon = "fa-solid fa-comment-dots"
@@ -362,9 +365,9 @@ class LLInteractionAdmin(AdminModelView, model=LLMInteraction):
     ]
     column_searchable_list: ClassVar[list] = [LLMInteraction.usage]
     column_filters: ClassVar[list] = [
-        AllUniqueStringValuesFilter("usage"),
-        AllUniqueStringValuesFilter("provider"),
-        AllUniqueStringValuesFilter("model"),
+        AllUniqueStringValuesFilter(col(LLMInteraction.usage)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(LLMInteraction.provider)),  # ty: ignore[invalid-argument-type]
+        AllUniqueStringValuesFilter(col(LLMInteraction.model)),  # ty: ignore[invalid-argument-type]
     ]
     column_sortable_list: ClassVar[list] = [
         LLMInteraction.usage,

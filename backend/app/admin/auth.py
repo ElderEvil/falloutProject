@@ -6,8 +6,6 @@ from starlette.requests import Request
 from app import crud
 from app.db.session import async_engine
 
-async_session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
-
 
 class AdminAuth(AuthenticationBackend):
     async def login(self, request: Request) -> bool:
@@ -17,7 +15,8 @@ class AdminAuth(AuthenticationBackend):
         if not isinstance(username, str) or not isinstance(password, str):
             return False
 
-        async with async_session_maker() as session:
+        maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as session:
             user = await crud.user.authenticate(db_session=session, email=username, password=password)
 
             # Check if user exists and is superuser
@@ -40,7 +39,8 @@ class AdminAuth(AuthenticationBackend):
             return False
 
         # Verify user still exists and is superuser
-        async with async_session_maker() as session:
+        maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as session:
             user = await crud.user.get(db_session=session, id=user_id)
             if user and crud.user.is_superuser(user):
                 return True

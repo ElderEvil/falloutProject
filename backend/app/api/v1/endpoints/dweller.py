@@ -1,6 +1,7 @@
 """Dweller endpoints."""
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import UUID4
@@ -47,13 +48,13 @@ async def create_dweller(
     dweller_data: DwellerCreate,
     _: CurrentSuperuser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Create a new dweller.
 
     Returns:
         DwellerRead: The created dweller.
     """
-    return DwellerRead.model_validate(await crud.dweller.create(db_session, dweller_data))
+    return await crud.dweller.create(db_session, dweller_data)
 
 
 @router.get("/", response_model=list[DwellerReadLess])
@@ -63,14 +64,13 @@ async def read_dweller_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
-) -> list[DwellerReadLess]:
+) -> Sequence[Dweller]:
     """Retrieve a paginated list of dwellers.
 
     Returns:
         list[DwellerReadLess]: List of dwellers.
     """
-    dwellers = await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
-    return [DwellerReadLess.model_validate(d) for d in dwellers]
+    return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
 
 
 @router.get("/identity-options", response_model=DwellerIdentityOptions)
@@ -84,14 +84,14 @@ async def read_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerReadFull:
+) -> Dweller:
     """Get full details for a specific dweller.
 
     Returns:
         DwellerReadFull: Full dweller details.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return DwellerReadFull.model_validate(await crud.dweller.get(db_session, dweller_id))
+    return await crud.dweller.get(db_session, dweller_id)
 
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)
@@ -138,7 +138,7 @@ async def rename_dweller(
     rename: DwellerRename,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Rename a dweller (first name only).
 
     Returns:
@@ -146,7 +146,7 @@ async def rename_dweller(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     dweller_data = DwellerUpdate(first_name=rename.first_name)
-    return DwellerRead.model_validate(await crud.dweller.update(db_session, dweller_id, dweller_data))
+    return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
 
 @router.delete("/{dweller_id}", status_code=204)
@@ -177,14 +177,14 @@ async def read_dwellers_by_vault(
     search: str | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
-) -> list[DwellerReadLess]:
+) -> Sequence[Any]:
     """Get dwellers by vault with optional filtering and sorting.
 
     Returns:
         list[DwellerReadLess]: Filtered list of dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dwellers = await crud.dweller.get_multi_by_vault(
+    return await crud.dweller.get_multi_by_vault(
         db_session=db_session,
         vault_id=vault_id,
         skip=skip,
@@ -195,7 +195,6 @@ async def read_dwellers_by_vault(
         sort_by=sort_by,
         order=order,
     )
-    return [DwellerReadLess.model_validate(d) for d in dwellers]
 
 
 @router.post("/{dweller_id}/move_to/{room_id}", response_model=DwellerReadWithRoomID)
@@ -223,15 +222,14 @@ async def create_random_common_dweller(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     dweller_override: DwellerCreateCommonOverride | None = None,
-) -> DwellerRead:
+) -> Dweller:
     """Create a random common dweller for a vault.
 
     Returns:
         DwellerRead: The newly created random dweller.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dweller = await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
-    return DwellerRead.model_validate(dweller)
+    return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
 
 
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)
@@ -346,13 +344,13 @@ async def generate_dweller_avatar(
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 async def read_dwellers_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
-) -> list[DwellerCreateWithoutVaultID]:
+) -> Sequence[DwellerCreateWithoutVaultID]:
     """Get static dweller creation data.
 
     Returns:
         list[DwellerCreateWithoutVaultID]: List of dweller templates.
     """
-    return [DwellerCreateWithoutVaultID.model_validate(t) for t in data_store.dwellers]
+    return data_store.dwellers
 
 
 @router.post("/{dweller_id}/use_stimpack", response_model=DwellerRead)
@@ -360,14 +358,14 @@ async def use_stimpack(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Use one of the dweller's stimpacks to heal them.
 
     Returns:
         DwellerRead: The healed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return DwellerRead.model_validate(await medical_service.use_stimpack(db_session, dweller_id))
+    return await medical_service.use_stimpack(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/use_radaway", response_model=DwellerRead)
@@ -375,14 +373,14 @@ async def use_radaway(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Use one of the dweller's RadAways to reduce their radiation.
 
     Returns:
         DwellerRead: The dweller with reduced radiation.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return DwellerRead.model_validate(await medical_service.use_radaway(db_session, dweller_id))
+    return await medical_service.use_radaway(db_session, dweller_id)
 
 
 @router.get("/{dweller_id}/happiness_modifiers", response_model=HappinessModifiersResponse)
@@ -544,14 +542,14 @@ async def soft_delete_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Soft delete a dweller, preserving their data for future use.
 
     Returns:
         DwellerRead: The soft-deleted dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return DwellerRead.model_validate(await crud.dweller.soft_delete(db_session, dweller_id))
+    return await crud.dweller.soft_delete(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/restore", response_model=DwellerRead)
@@ -559,7 +557,7 @@ async def restore_dweller(
     dweller_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
+) -> Dweller:
     """Restore a soft-deleted dweller.
 
     Returns:
@@ -568,7 +566,7 @@ async def restore_dweller(
     # Note: We need to verify access with include_deleted=True
     dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
-    return DwellerRead.model_validate(await crud.dweller.restore(db_session, dweller_id))
+    return await crud.dweller.restore(db_session, dweller_id)
 
 
 @router.get("/vault/{vault_id}/deleted", response_model=list[DwellerReadLess])
@@ -578,12 +576,11 @@ async def read_deleted_dwellers_by_vault(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     skip: int = 0,
     limit: int = 100,
-) -> list[DwellerReadLess]:
+) -> Sequence[Dweller]:
     """Get soft-deleted dwellers for a specific vault.
 
     Returns:
         list[DwellerReadLess]: List of soft-deleted dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    deleted = await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
-    return [DwellerReadLess.model_validate(d) for d in deleted]
+    return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)

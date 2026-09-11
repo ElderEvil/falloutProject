@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.82.0 (2026-09-11)
+
+### Features
+
+* **breeding:** gate conception by race, inherit newborn race, immunize ghouls 7c97f3e
+
+### Bug Fixes
+
+* **breeding:** exclude parent races from mutation candidates 14bcf8a
+* **test:** pin radiation in danger-event test to avoid cap flake 7f9f88b
+
 ## 2.81.5 (2026-09-11)
 
 ### Bug Fixes

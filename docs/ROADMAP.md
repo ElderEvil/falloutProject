@@ -303,6 +303,14 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
   fix), quest party-roster rendering, and the discovery-unlock fix (`register_discovery` links the exploring
   dweller; v2.46.1 backfill script repairs pre-fix rows).
 
+**Direction — Shared Places Registry (multiplayer foundation, planned):** the map moves to a shared world with a
+canonical places registry (`WorldLocation` + `VaultLocationState`). Coordinates become global (name-derived, no
+per-vault drift), lore is authored once, and the fragmented place-name sources (bio-place backfill regex lists,
+dweller templates, procedural pool) collapse into one JSON seed. Cross-vault **state** — raids, visits,
+leaderboards, fallen-dweller encounters — stays deferred; the registry is only the geography those would build on.
+Phases 0–6, the migration strategy, and the seed strategy live in `docs/WORLD_MAP_PLAN.md`; phases 1–3 (registry)
+and phase 4 (race mechanics) are independent, and the race newborn bug may ship first.
+
 **Current focus — World Map + exploration polish (easy first, hard planned):**
 
 - ✅ **Shipped** — locked-marker discoverability hint. The locked modal (`MarkerDetailModal.vue`) shows
@@ -329,12 +337,14 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
 Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
 `docs/WORLD_MAP_PLAN.md`.
 
-**Out of scope:** multiplayer world simulation, async-PvP raids, cross-vault fallen dwellers, friends, visits, and
-leaderboards are not planned work. Revisit only with a separate product direction; no map architecture should be
-optimized around them now.
+**Out of scope:** multiplayer **state** — live world simulation, async-PvP raids, cross-vault fallen dwellers,
+friends, visits, and leaderboards — remains unplanned; revisit only with a separate product direction. The shared
+places registry is explicitly in scope as the foundation those features would build on, without optimizing the
+registry itself around them.
 
-**Guardrails:** keep map state vault-local and exploration-led; no global location registry or cross-vault simulation;
-respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
+**Guardrails:** keep per-vault discovery/unlock state vault-local; the registry owns only shared geography (name,
+coordinates, canonical lore) and no live simulation; respect the v2.35+ net-LOC constraint (claw back per-vault
+nudge machinery and the duplicated place-name sources as the registry lands).
 
 **Success criteria:** the near-term release delivers a legible per-explorer journey (loot + health-change trail +
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent

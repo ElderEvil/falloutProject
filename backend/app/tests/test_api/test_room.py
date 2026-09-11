@@ -53,7 +53,7 @@ async def test_get_buildable_rooms_awaits_static_game_data() -> None:
     game_data.get_buildable_rooms.return_value = ["power generator"]
 
     with (
-        patch("app.api.game_data_deps.get_static_game_data", new_callable=AsyncMock, return_value=game_data),
+        patch("app.core.game_data.get_static_game_data", new_callable=AsyncMock, return_value=game_data),
         patch(
             "app.services.room_service.crud.room.get_existing_room_names",
             new_callable=AsyncMock,

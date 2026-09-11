@@ -8,7 +8,6 @@ from itertools import starmap
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.game_data_deps import get_static_game_data
 from app.core.enums import (
     AgeGroupEnum,
     DwellerStatusEnum,
@@ -19,6 +18,7 @@ from app.core.enums import (
     SPECIALEnum,
 )
 from app.core.game_config import game_config
+from app.core.game_data import get_static_game_data
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as outfit_crud
 from app.crud import room as room_crud

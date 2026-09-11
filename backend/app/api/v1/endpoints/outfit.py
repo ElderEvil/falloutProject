@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.game_data_deps import get_static_game_data
+from app.core.game_data import get_static_game_data
 from app.crud.item_base import get_items_list
 from app.db.session import get_async_session
 from app.models.outfit import Outfit

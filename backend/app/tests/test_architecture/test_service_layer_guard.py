@@ -173,13 +173,14 @@ def test_crud_does_not_depend_on_services() -> None:
     assert not messages, "CRUD -> service dependencies changed:\n" + "\n".join(messages)
 
 
-def test_crud_does_not_depend_on_api() -> None:
-    """CRUD is the lowest layer; it must never import from app.api (access policy lives in services)."""
+def test_lower_layers_do_not_depend_on_api() -> None:
+    """CRUD and services must never import from app.api; the API layer depends downward only."""
     offenders = []
-    for path in sorted((APP_DIR / "crud").rglob("*.py")):
-        modules = _api_imports(path.read_text(encoding="utf-8"))
-        offenders.extend(f"{path.relative_to(APP_DIR / 'crud').as_posix()} imports {module}" for module in modules)
-    assert not offenders, "CRUD -> API dependencies are forbidden:\n" + "\n".join(offenders)
+    for layer in ("crud", "services"):
+        for path in sorted((APP_DIR / layer).rglob("*.py")):
+            modules = _api_imports(path.read_text(encoding="utf-8"))
+            offenders.extend(f"{path.relative_to(APP_DIR).as_posix()} imports {module}" for module in modules)
+    assert not offenders, "Lower-layer -> API dependencies are forbidden:\n" + "\n".join(offenders)
 
 
 def test_services_do_not_query_directly() -> None:

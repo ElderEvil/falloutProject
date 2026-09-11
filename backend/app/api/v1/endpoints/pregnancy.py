@@ -12,7 +12,7 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.db.session import get_async_session
 from app.schemas.pregnancy import DeliveryResult, PregnancyRead
 from app.services.family.breeding_service import breeding_service
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/pregnancies", tags=["Pregnancy"])
 logger = logging.getLogger(__name__)
@@ -54,8 +54,9 @@ async def get_pregnancy(
         HTTPException: 404 if pregnancy not found or access denied.
     """
     try:
-        pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
-    except ResourceNotFoundException as exc:
+        pregnancy, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
+        await get_user_vault_or_403(mother.vault_id, user, db_session)
+    except (ResourceNotFoundException, AccessDeniedException) as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     return PregnancyRead.model_validate(pregnancy)
@@ -77,8 +78,9 @@ async def deliver_baby(
         HTTPException: 400 if delivery conditions not met.
     """
     try:
-        _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
-    except ResourceNotFoundException as exc:
+        _, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
+        await get_user_vault_or_403(mother.vault_id, user, db_session)
+    except (ResourceNotFoundException, AccessDeniedException) as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     # Attempt delivery

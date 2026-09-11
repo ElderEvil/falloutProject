@@ -217,3 +217,42 @@ async def test_accelerate_pregnancy_success(
     data = response.json()
     assert data["is_due"] is True
     assert data["progress_percentage"] == 100.0
+
+
+async def _pregnancy_in_new_vault(async_session: AsyncSession, number: int):
+    owner = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault = await crud.vault.create_with_user_id(db_session=async_session, obj_in={"number": number}, user_id=owner.id)
+    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
+    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+
+    from app.services.family.breeding_service import breeding_service
+
+    return await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+
+
+@pytest.mark.asyncio
+async def test_get_pregnancy_foreign_vault_returns_404(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Another user's pregnancy reads as 404, so the endpoint is not an existence oracle."""
+    pregnancy = await _pregnancy_in_new_vault(async_session, 781)
+
+    response = await async_client.get(f"/pregnancies/{pregnancy.id}", headers=normal_user_token_headers)
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_deliver_foreign_vault_pregnancy_returns_404(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Delivering another user's pregnancy is 404 too, not a distinguishable 403."""
+    pregnancy = await _pregnancy_in_new_vault(async_session, 782)
+
+    response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=normal_user_token_headers)
+
+    assert response.status_code == 404

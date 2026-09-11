@@ -220,7 +220,7 @@ async def test_build_living_room(
         raise ResourceNotFoundException(model=Vault, identifier=vault_id)
 
     # Find a living room from the rooms data
-    from app.api.game_data_deps import get_static_game_data
+    from app.core.game_data import get_static_game_data
 
     game_data_store = await get_static_game_data()
     living_room_data = None

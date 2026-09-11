@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.3 (2026-09-11)
+
+### Bug Fixes
+
+* return completed objective links without mutating progress 38618eb
+
+### Documentation
+
+* record vault-batch shipment, game-loop split, incidents progress a2a5934
+
 ## 2.81.2 (2026-09-11)
 
 ### Bug Fixes

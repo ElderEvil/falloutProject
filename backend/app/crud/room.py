@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RoomTypeEnum
 from app.crud.base import CRUDBase
 from app.models.room import Room
-from app.schemas.room import RoomCreate, RoomUpdate
+from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
 from app.utils.exceptions import (
     InsufficientResourcesException,
     UniqueRoomViolationException,
@@ -233,7 +233,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return existing_room
 
     @staticmethod
-    def requires_recalculation(room_obj: RoomCreate | Room) -> bool:
+    def requires_recalculation(room_obj: RoomCreate | Room | RoomRead) -> bool:
         """Check if the room category needs to be recalculated."""
         return room_obj.category == RoomTypeEnum.CAPACITY or (
             room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.name != "Radio studio"

@@ -78,6 +78,34 @@ def _handler_map() -> dict[str, list[str]]:
     }
 
 
+def _vault_objective_rows(vault_id: UUID4, objective_type: str | None = None):
+    stmt = (
+        select(Objective, VaultObjectiveProgressLink)
+        .join(VaultObjectiveProgressLink)
+        .where(VaultObjectiveProgressLink.vault_id == vault_id)
+    )
+    return stmt.where(Objective.objective_type == objective_type) if objective_type else stmt
+
+
+def _objective_view(obj: Objective) -> dict[str, Any]:
+    return {
+        "id": str(obj.id),
+        "challenge": obj.challenge,
+        "objective_type": obj.objective_type,
+        "target_entity": obj.target_entity,
+        "target_amount": obj.target_amount,
+    }
+
+
+def _room_view(room) -> dict[str, Any]:
+    return {
+        "name": room.name,
+        "category": room.category.value if room.category else None,
+        "ability": room.ability.value if room.ability else None,
+        "capacity": room.capacity,
+    }
+
+
 @app.command()
 def emit(
     vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID")],
@@ -85,9 +113,7 @@ def emit(
     data: Annotated[str | None, typer.Option(help="JSON object merged over per-event defaults")] = None,
 ) -> None:
     """Emit one game event so subscribed evaluators process it."""
-    payload = dict(EVENT_DEFAULTS.get(event_type, {}))
-    if data:
-        payload.update(json.loads(data))
+    payload = {**EVENT_DEFAULTS.get(event_type, {}), **(json.loads(data) if data else {})}
 
     async def body(_session):
         await event_bus.emit(event_type, vault_id, payload)
@@ -97,24 +123,18 @@ def emit(
 
 
 @app.command()
-def events() -> None:
-    """List subscribed event handlers."""
-
-    async def body(_session):
-        handlers = _handler_map()
-        return {"events": handlers, "handler_count": sum(len(v) for v in handlers.values())}
-
-    _echo(_run(body))
-
-
-@app.command()
 def evaluators() -> None:
-    """Show evaluator-manager status and event subscriptions."""
+    """Show evaluator-manager status and every subscribed event handler."""
 
     async def body(_session):
         from app.services.objective_evaluators import evaluator_manager
 
-        return {"manager_initialized": evaluator_manager._initialized, "subscriptions": _handler_map()}
+        handlers = _handler_map()
+        return {
+            "manager_initialized": evaluator_manager._initialized,
+            "handler_count": sum(len(v) for v in handlers.values()),
+            "subscriptions": handlers,
+        }
 
     _echo(_run(body))
 
@@ -125,13 +145,7 @@ def objectives(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID
 
     async def body(session):
         all_objectives = (await session.execute(select(Objective))).scalars().all()
-        vault_rows = (
-            await session.execute(
-                select(Objective, VaultObjectiveProgressLink)
-                .join(VaultObjectiveProgressLink)
-                .where(VaultObjectiveProgressLink.vault_id == vault_id)
-            )
-        ).all()
+        vault_rows = (await session.execute(_vault_objective_rows(vault_id))).all()
         incomplete = [
             obj
             for obj in all_objectives
@@ -141,11 +155,7 @@ def objectives(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID
             "vault_id": str(vault_id),
             "all_seeded_objectives": [
                 {
-                    "id": str(obj.id),
-                    "challenge": obj.challenge,
-                    "objective_type": obj.objective_type,
-                    "target_entity": obj.target_entity,
-                    "target_amount": obj.target_amount,
+                    **_objective_view(obj),
                     "is_complete": obj.objective_type is not None
                     and obj.target_entity is not None
                     and obj.target_amount > 1,
@@ -154,11 +164,7 @@ def objectives(vault_id: Annotated[UUID4, typer.Argument(help="Target vault UUID
             ],
             "vault_objectives_with_progress": [
                 {
-                    "id": str(obj.id),
-                    "challenge": obj.challenge,
-                    "objective_type": obj.objective_type,
-                    "target_entity": obj.target_entity,
-                    "target_amount": obj.target_amount,
+                    **_objective_view(obj),
                     "progress": link.progress,
                     "total": link.total,
                     "is_completed": link.is_completed,
@@ -187,28 +193,13 @@ def collect(
         def _rows(rows):
             return [{"challenge": obj.challenge, "progress": link.progress, "total": link.total} for obj, link in rows]
 
-        before = _rows(
-            (
-                await session.execute(
-                    select(Objective, VaultObjectiveProgressLink)
-                    .join(VaultObjectiveProgressLink)
-                    .where(VaultObjectiveProgressLink.vault_id == vault_id)
-                    .where(Objective.objective_type == "collect")
-                )
-            ).all()
-        )
+        async def _collect_rows():
+            return _rows((await session.execute(_vault_objective_rows(vault_id, "collect"))).all())
+
+        before = await _collect_rows()
         await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": resource_type, "amount": amount})
         await session.commit()
-        after = _rows(
-            (
-                await session.execute(
-                    select(Objective, VaultObjectiveProgressLink)
-                    .join(VaultObjectiveProgressLink)
-                    .where(VaultObjectiveProgressLink.vault_id == vault_id)
-                    .where(Objective.objective_type == "collect")
-                )
-            ).all()
-        )
+        after = await _collect_rows()
         return {
             "vault_id": str(vault_id),
             "event": {"type": "RESOURCE_COLLECTED", "resource_type": resource_type, "amount": amount},
@@ -254,22 +245,9 @@ def build_living_room(vault_id: Annotated[UUID4, typer.Argument(help="Target vau
             "vault_id": str(vault_id),
             "before": {"population_max": before_population_max},
             "after": {"population_max": vault.population_max},
-            "room_built": {
-                "name": created.name,
-                "category": created.category.value if created.category else None,
-                "ability": created.ability.value if created.ability else None,
-                "capacity": created.capacity,
-            },
+            "room_built": _room_view(created),
             "requires_recalculation": requires_calc,
-            "all_rooms": [
-                {
-                    "name": room.name,
-                    "category": room.category.value if room.category else None,
-                    "ability": room.ability.value if room.ability else None,
-                    "capacity": room.capacity,
-                }
-                for room in all_rooms
-            ],
+            "all_rooms": [_room_view(room) for room in all_rooms],
         }
 
     _echo(_run(body))

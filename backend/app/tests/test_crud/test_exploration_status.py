@@ -12,6 +12,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.dweller_service import dweller_service
 from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
@@ -48,7 +49,7 @@ async def test_exploring_dweller_cannot_be_assigned_to_room(async_session: Async
     await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ResourceConflictException, match="exploring"):
-        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
 
 
 @pytest.mark.asyncio
@@ -74,7 +75,7 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
     room_data["category"] = RoomTypeEnum.TRAINING
     room = await crud.room.create(async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
 
-    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
+    await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room.id)
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.TRAINING
 

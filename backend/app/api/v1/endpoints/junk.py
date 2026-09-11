@@ -9,7 +9,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.game_data_deps import get_static_game_data
 from app.db.session import get_async_session
+from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkRead, JunkUpdate
+from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/junk", tags=["Junk"])
@@ -80,4 +82,4 @@ async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_stati
 @router.post("/{junk_id}/sell/", status_code=200, response_model=None)
 async def sell_junk(junk_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
     """Sell a junk item for caps."""
-    await crud.junk.sell(db_session=db_session, item_id=junk_id)
+    await item_service.sell_item(db_session, item_id=junk_id, model=Junk)

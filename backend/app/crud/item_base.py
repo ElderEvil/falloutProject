@@ -1,11 +1,9 @@
-import contextlib
 import random
 from collections.abc import Sequence
 from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy import update
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import aliased
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -13,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
-from app.crud.vault import vault as vault_crud
 from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -85,6 +82,17 @@ async def get_items_list(
     if vault_id:
         return await get_items_by_vault(db_session, model, vault_id, skip, limit)
     return await crud_instance.get_multi(db_session, skip=skip, limit=limit)
+
+
+async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk) -> UUID4 | None:
+    """Resolve the vault owning an item via its storage or equipping dweller, without lazy loads."""
+    if item.storage_id:
+        result = await db_session.execute(select(Storage.vault_id).where(Storage.id == item.storage_id))
+        return result.scalar_one_or_none()
+    if dweller_id := getattr(item, "dweller_id", None):
+        result = await db_session.execute(select(Dweller.vault_id).where(Dweller.id == dweller_id))
+        return result.scalar_one_or_none()
+    return None
 
 
 class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSchemaType: SQLModel](
@@ -321,47 +329,3 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
             await db_session.refresh(junk)
 
         return junk_list
-
-    @staticmethod
-    async def add_caps_to_vault(db_session: AsyncSession, vault_id: UUID4, value: int, *, commit: bool = True) -> None:
-        """Add value to the vault's resources and emit event for objective tracking."""
-        vault = await db_session.get(Vault, vault_id)
-        if not vault:
-            raise ResourceNotFoundException(Vault, identifier=vault_id)
-
-        await vault_crud.deposit_caps(db_session=db_session, vault_obj=vault, amount=value)
-        if commit:
-            await db_session.commit()
-
-    async def sell(self, db_session: AsyncSession, *, item_id: UUID4) -> None:
-        from sqlmodel import select
-
-        item = await db_session.get(self.model, item_id)
-        if not item:
-            raise ResourceNotFoundException(self.model, identifier=item_id)
-
-        # Get vault_id without lazy loading relationships
-        vault_id = None
-        if item.storage_id:
-            # Item is in storage - get vault via storage
-            storage_result = await db_session.execute(select(Storage.vault_id).where(Storage.id == item.storage_id))
-            vault_id = storage_result.scalar_one_or_none()
-        elif item.dweller_id:
-            # Item is equipped - get vault via dweller
-            from app.models.dweller import Dweller
-
-            dweller_result = await db_session.execute(select(Dweller.vault_id).where(Dweller.id == item.dweller_id))
-            vault_id = dweller_result.scalar_one_or_none()
-
-        if not vault_id:
-            raise ResourceNotFoundException(Vault, identifier="Unknown - item has no storage or dweller")
-
-        try:
-            await self.add_caps_to_vault(db_session, vault_id, item.value, commit=False)
-            await db_session.delete(item)
-            await db_session.commit()
-        except SQLAlchemyError:
-            # Ensure we rollback on any error to avoid partial state in async contexts
-            with contextlib.suppress(Exception):
-                await db_session.rollback()
-            raise

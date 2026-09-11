@@ -12,6 +12,7 @@ from app import crud
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.models.base import SPECIALModel
 from app.schemas.dweller import DwellerCreate
+from app.services.dweller_service import dweller_service
 from app.services.training_service import TrainingService
 
 
@@ -98,7 +99,7 @@ class ApprenticeScenarioService:
                     vault_id=vault_id,
                 ),
             )
-            await crud.dweller.move_to_room(db_session, apprentice.id, production_room.id)
+            await dweller_service.move_to_room(db_session, apprentice.id, production_room.id)
             await db_session.refresh(apprentice)
 
         status = await self._status_for_apprentice(db_session, apprentice)

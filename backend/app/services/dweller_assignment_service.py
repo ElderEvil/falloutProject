@@ -10,17 +10,8 @@ from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerUpdate
+from app.services.room_assignment_policy import ABILITY_TO_STAT_MAP, calculate_room_capacity
 from app.services.training_service import training_service
-
-ABILITY_TO_STAT_MAP = {
-    SPECIALEnum.STRENGTH: "strength",
-    SPECIALEnum.PERCEPTION: "perception",
-    SPECIALEnum.ENDURANCE: "endurance",
-    SPECIALEnum.CHARISMA: "charisma",
-    SPECIALEnum.INTELLIGENCE: "intelligence",
-    SPECIALEnum.AGILITY: "agility",
-    SPECIALEnum.LUCK: "luck",
-}
 
 PRODUCTION_ABILITIES = [
     SPECIALEnum.STRENGTH,
@@ -37,7 +28,7 @@ class DwellerAssignmentService:
     def _calculate_room_capacity(self, room: Room) -> int:
         """Calculate room capacity (2 dwellers per 3 size units)."""
         room_size = room.size if room.size is not None else room.size_min
-        return (room_size // 3) * 2 if room_size else 0
+        return calculate_room_capacity(room_size)
 
     async def _get_available_slots(self, room: Room, db_session: AsyncSession) -> int:
         """Get available slots in a room."""
@@ -248,10 +239,7 @@ class DwellerAssignmentService:
 
                 current_dwellers_in_room = await crud.dweller.count_in_room(db_session, room.id)
 
-                room_size = room.size if room.size is not None else room.size_min
-                max_capacity = (room_size // 3) * 2 if room_size else 0
-
-                available_slots = max_capacity - current_dwellers_in_room
+                available_slots = self._calculate_room_capacity(room) - current_dwellers_in_room
                 if available_slots <= 0:
                     continue
 

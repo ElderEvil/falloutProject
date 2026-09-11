@@ -17,6 +17,7 @@ from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training, TrainingStatus
 from app.services.notification_service import notification_service
+from app.services.room_assignment_policy import calculate_room_capacity
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 
@@ -103,8 +104,7 @@ class TrainingService:
         effective_capacity = room.capacity
         if effective_capacity is None and room.size is not None:
             # Calculate capacity based on room size: size/3*2 (minimum 1)
-            effective_capacity = (room.size // 3) * 2
-            effective_capacity = max(effective_capacity, 1)
+            effective_capacity = max(calculate_room_capacity(room.size), 1)
         if effective_capacity is not None and len(active_trainees) >= effective_capacity:
             return False, "Training room is at full capacity"
 

@@ -210,7 +210,7 @@ async def move_dweller_to_room(
         DwellerReadWithRoomID: The dweller with updated room assignment.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    moved = await crud.dweller.move_to_room(db_session, dweller_id, room_id)
+    moved = await dweller_service.move_to_room(db_session, dweller_id, room_id)
     if moved is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
     return moved
@@ -411,7 +411,7 @@ async def auto_assign_to_room(
         DwellerReadWithRoomID: The dweller with assigned room.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    assigned = await crud.dweller.auto_assign_to_best_room(db_session, dweller_id)
+    assigned = await dweller_service.auto_assign_to_best_room(db_session, dweller_id)
     if assigned is None:
         raise ResourceNotFoundException(Dweller, identifier=dweller_id)
     return assigned

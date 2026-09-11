@@ -15,6 +15,7 @@ from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, GenderEnum, Rari
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.combat.arena_service import ArenaService
+from app.services.dweller_service import dweller_service
 from app.utils.combat import combat_power
 from app.utils.exceptions import ValidationException
 
@@ -370,7 +371,7 @@ class TestArenaService:
                 vault_id=vault.id,
             ),
         )
-        await crud.dweller.move_to_room(async_session, dweller_id=fighter_a.id, room_id=other_room.id)
+        await dweller_service.move_to_room(async_session, dweller_id=fighter_a.id, room_id=other_room.id)
 
         await async_session.refresh(arena_room)
         assert arena_room.arena_fighter_a_id is None

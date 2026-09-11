@@ -13,27 +13,17 @@ from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEn
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
-from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerReadFull,
-    DwellerReadWithRoomID,
     DwellerUpdate,
 )
-from app.services.room_assignment_policy import (
-    adult_assignment_conditions,
-    validate_automatic_assignment,
-    validate_room_assignment,
-)
+from app.services.room_assignment_policy import adult_assignment_conditions
 from app.utils.dwellers import create_random_common_dweller
-from app.utils.exceptions import (
-    ContentNoChangeException,
-    InvalidVaultTransferException,
-    ResourceConflictException,
-)
+from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 
 
@@ -663,84 +653,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         response = await db_session.execute(query)
         return response.scalars().first()
 
-    async def move_to_room(
-        self, db_session: AsyncSession, dweller_id: UUID4, room_id: UUID4
-    ) -> DwellerReadWithRoomID | None:
-        """Move dweller to a different room."""
-        dweller_obj = await self.get(db_session, dweller_id)
-
-        if dweller_obj.status == DwellerStatusEnum.EXPLORING:
-            raise ResourceConflictException(detail="Dweller is exploring and cannot be assigned to a room")
-
-        # Validate room transfer (can't move to same room)
-        if dweller_obj.room_id == room_id:
-            raise ResourceConflictException(detail="Dweller is already in the room")
-
-        old_room_id = dweller_obj.room_id
-        room_obj = await room_crud.get(db_session, room_id)
-
-        # Validate vault transfer (can't move between vaults)
-        if dweller_obj.vault_id != room_obj.vault_id:
-            raise InvalidVaultTransferException
-
-        await validate_room_assignment(db_session, dweller_obj, room_obj)
-
-        if not dweller_obj.room_id and not await vault_crud.is_enough_population_space(
-            db_session=db_session, vault_id=dweller_obj.vault_id, space_required=1
-        ):
-            raise ContentNoChangeException(detail="Not enough space in the vault to move dweller")
-
-        new_status = determine_status_for_room(
-            room_obj.category if room_id else None, room_obj.name if room_id else None
-        )
-
-        apprenticeship_update = (
-            {"apprentice_stat": room_obj.ability, "apprentice_started_at": datetime.utcnow()}
-            if not dweller_obj.is_mature
-            else {"apprentice_stat": None, "apprentice_started_at": None, "apprentice_stat_gains": {}}
-        )
-        dweller_obj = await self.update(
-            db_session,
-            dweller_id,
-            {"room_id": room_id, "status": new_status, **apprenticeship_update},
-            commit=False,
-        )
-
-        # Leaving an arena room must clear the stale fighter slot, or later fighter picks get rejected.
-        if old_room_id is not None:
-            from app.services.combat.arena_service import arena_service
-
-            await arena_service.clear_fighter_slots_for_dweller(db_session, dweller_id, commit=False)
-        await db_session.commit()
-
-        # Emit dweller assigned event for objective tracking
-        await event_bus.emit(
-            GameEvent.DWELLER_ASSIGNED,
-            dweller_obj.vault_id,
-            {"dweller_id": str(dweller_id), "room_type": room_obj.name},
-        )
-
-        # Check if this is a "correct" assignment (dweller's highest SPECIAL matches room's ability)
-        if room_obj.ability:
-            special_stats = {
-                "strength": dweller_obj.strength,
-                "perception": dweller_obj.perception,
-                "endurance": dweller_obj.endurance,
-                "charisma": dweller_obj.charisma,
-                "intelligence": dweller_obj.intelligence,
-                "agility": dweller_obj.agility,
-                "luck": dweller_obj.luck,
-            }
-            highest_stat = max(special_stats, key=special_stats.get)
-            if highest_stat == room_obj.ability.value:
-                await event_bus.emit(
-                    GameEvent.DWELLER_ASSIGNED_CORRECTLY,
-                    dweller_obj.vault_id,
-                    {"dweller_id": str(dweller_id), "room_type": room_obj.name, "is_correct": True},
-                )
-
-        return DwellerReadWithRoomID.model_validate(dweller_obj)
-
     async def reanimate(self, db_session: AsyncSession, dweller_obj: Dweller) -> Dweller | None:
         """Revive a dead dweller."""
         if self.is_alive(dweller_obj):
@@ -947,78 +859,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         response = await db_session.execute(query)
         return response.scalars().all()
-
-    async def auto_assign_to_best_room(
-        self, db_session: AsyncSession, dweller_id: UUID4
-    ) -> DwellerReadWithRoomID | None:
-        """Auto-assign dweller to the best matching production room based on their highest SPECIAL stat."""
-        from app.core.enums import SPECIALEnum
-        from app.models.room import Room
-
-        dweller_obj = await self.get(db_session, dweller_id)
-        validate_automatic_assignment(dweller_obj)
-
-        # Find dweller's highest SPECIAL stat
-        special_stats = {
-            SPECIALEnum.STRENGTH: dweller_obj.strength,
-            SPECIALEnum.PERCEPTION: dweller_obj.perception,
-            SPECIALEnum.ENDURANCE: dweller_obj.endurance,
-            SPECIALEnum.CHARISMA: dweller_obj.charisma,
-            SPECIALEnum.INTELLIGENCE: dweller_obj.intelligence,
-            SPECIALEnum.AGILITY: dweller_obj.agility,
-            SPECIALEnum.LUCK: dweller_obj.luck,
-        }
-
-        best_stat = max(special_stats, key=special_stats.get)
-
-        # Find production rooms in the dweller's vault that match this stat and have space
-        query = (
-            select(Room)
-            .where(Room.vault_id == dweller_obj.vault_id)
-            .where(Room.category == RoomTypeEnum.PRODUCTION)
-            .where(Room.ability == best_stat)
-        )
-        response = await db_session.execute(query)
-        matching_rooms = response.scalars().all()
-
-        if not matching_rooms:
-            raise ResourceConflictException(
-                detail=f"No production rooms found matching {best_stat.value} stat in this vault"
-            )
-
-        # Check if dweller is already in a matching room
-        if dweller_obj.room_id:
-            current_room = await room_crud.get(db_session, dweller_obj.room_id)
-            if current_room.category == RoomTypeEnum.PRODUCTION and current_room.ability == best_stat:
-                raise ContentNoChangeException(
-                    detail=f"Dweller is already assigned to the best matching room ({current_room.name})"
-                )
-
-        # Find room with available capacity (based on room size)
-        room_ids = [r.id for r in matching_rooms]
-        count_stmt = (
-            select(Dweller.room_id, func.count(Dweller.id).label("count"))
-            .where(Dweller.room_id.in_(room_ids))
-            .group_by(Dweller.room_id)
-        )
-        count_result = await db_session.execute(count_stmt)
-        counts = {row.room_id: row.count for row in count_result}
-
-        best_room = None
-        for room in matching_rooms:
-            dweller_count = counts.get(room.id, 0)
-
-            # Room capacity: 2 dwellers per 3 size units (e.g., size 3 = 2 dwellers, size 6 = 4 dwellers)
-            max_dwellers = room.size // 3 * 2 if room.size else 0
-            if dweller_count < max_dwellers:
-                best_room = room
-                break
-
-        if not best_room:
-            raise ResourceConflictException(detail=f"All {best_stat.value} production rooms are at full capacity")
-
-        # Move dweller to the best room
-        return await self.move_to_room(db_session, dweller_id, best_room.id)
 
 
 dweller = CRUDDweller(Dweller)

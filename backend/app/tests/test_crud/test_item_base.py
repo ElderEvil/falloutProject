@@ -7,10 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.crud.item_base import CRUDItem, get_items_by_vault, get_items_list
+from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault, get_items_list
 from app.models.junk import Junk
 from app.models.outfit import Outfit
-from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import (
@@ -361,85 +360,37 @@ async def test_scrap_not_found() -> None:
 
 
 # ---------------------------------------------------------------------------
-# add_caps_to_vault
+# get_item_vault_id
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_add_caps_to_vault_success() -> None:
+async def test_get_item_vault_id_from_storage() -> None:
     session = _new_session()
-    mock_vault = MagicMock(spec=Vault, id="v-1")
-    session.get = AsyncMock(return_value=mock_vault)
-
-    with patch("app.crud.item_base.vault_crud.deposit_caps", new=AsyncMock()) as mock_deposit:
-        await CRUDItem.add_caps_to_vault(session, "v-1", 500)
-
-    session.get.assert_called_once_with(Vault, "v-1")
-    mock_deposit.assert_called_once_with(db_session=session, vault_obj=mock_vault, amount=500)
-    session.commit.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_add_caps_to_vault_vault_not_found() -> None:
-    session = _new_session()
-    session.get = AsyncMock(return_value=None)
-
-    with pytest.raises(ResourceNotFoundException) as exc:
-        await CRUDItem.add_caps_to_vault(session, "bad", 100)
-    assert "Vault" in exc.value.detail
-
-
-# ---------------------------------------------------------------------------
-# sell
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_sell_from_dweller() -> None:
-    session = _new_session()
-    crud = CRUDItem(Outfit)
-    item = _make_mock_item(Outfit, item_id="o-sell", dweller_id="d-1", storage_id=None, value=75)
-    session.get = AsyncMock(return_value=item)
-
-    _setup_execute_scalar_one_or_none(session, "v-2")
-
-    with patch.object(crud, "add_caps_to_vault", new=AsyncMock()) as mock_add:
-        await crud.sell(session, item_id="o-sell")
-
-    mock_add.assert_called_once_with(session, "v-2", 75, commit=False)
-    session.delete.assert_called_once_with(item)
-    session.commit.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_sell_no_vault_raises() -> None:
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-orphan", storage_id=None, dweller_id=None)
-    session.get = AsyncMock(return_value=item)
-
-    with pytest.raises(ResourceNotFoundException) as exc:
-        await crud.sell(session, item_id="w-orphan")
-    assert "Vault" in exc.value.detail
-
-
-@pytest.mark.asyncio
-async def test_sell_rollback_on_sqlalchemy_error() -> None:
-    from sqlalchemy.exc import SQLAlchemyError
-
-    session = _new_session()
-    crud = CRUDItem(Weapon)
-    item = _make_mock_item(Weapon, item_id="w-err", storage_id="st-1", value=10)
-    session.get = AsyncMock(return_value=item)
+    item = _make_mock_item(Weapon, storage_id="st-1", dweller_id=None)
     _setup_execute_scalar_one_or_none(session, "v-1")
 
-    with (
-        patch.object(crud, "add_caps_to_vault", new=AsyncMock(side_effect=SQLAlchemyError)),
-        pytest.raises(SQLAlchemyError),
-    ):
-        await crud.sell(session, item_id="w-err")
+    assert await get_item_vault_id(session, item) == "v-1"
+    session.execute.assert_called_once()
 
-    session.rollback.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_get_item_vault_id_from_dweller() -> None:
+    session = _new_session()
+    item = _make_mock_item(Outfit, storage_id=None, dweller_id="d-1")
+    _setup_execute_scalar_one_or_none(session, "v-2")
+
+    assert await get_item_vault_id(session, item) == "v-2"
+    session.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_item_vault_id_unattached() -> None:
+    session = _new_session()
+    item = _make_mock_item(Weapon, storage_id=None, dweller_id=None)
+
+    assert await get_item_vault_id(session, item) is None
+    session.execute.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

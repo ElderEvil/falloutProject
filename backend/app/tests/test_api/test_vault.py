@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -262,7 +263,7 @@ async def test_vault_initiate_superuser_creates_25_dwellers(
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 
-    vault_with_counts = await crud.vault.get_vault_with_room_and_dweller_count(
+    vault_with_counts = await vault_service.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
     assert vault_with_counts.dweller_count == 25, (

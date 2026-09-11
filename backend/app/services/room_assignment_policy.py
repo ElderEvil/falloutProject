@@ -4,10 +4,31 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import AgeGroupEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.schemas.dweller import DwellerReadFull
 from app.utils.exceptions import ValidationException
+
+ABILITY_TO_STAT_MAP = {
+    SPECIALEnum.STRENGTH: "strength",
+    SPECIALEnum.PERCEPTION: "perception",
+    SPECIALEnum.ENDURANCE: "endurance",
+    SPECIALEnum.CHARISMA: "charisma",
+    SPECIALEnum.INTELLIGENCE: "intelligence",
+    SPECIALEnum.AGILITY: "agility",
+    SPECIALEnum.LUCK: "luck",
+}
+
+
+def get_highest_special(dweller: Dweller | DwellerReadFull) -> SPECIALEnum:
+    """Return the dweller's highest SPECIAL stat (ties resolve to the first listed stat)."""
+    return max(ABILITY_TO_STAT_MAP, key=lambda stat: getattr(dweller, ABILITY_TO_STAT_MAP[stat]))
+
+
+def calculate_room_capacity(room_size: int | None) -> int:
+    """Return dweller slots from room size (2 dwellers per 3 size units, 0 when size is unknown)."""
+    return (room_size // 3) * 2 if room_size else 0
 
 
 def adult_assignment_conditions() -> tuple:

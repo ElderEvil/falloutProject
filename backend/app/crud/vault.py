@@ -2,17 +2,15 @@ from collections.abc import Sequence
 from logging import getLogger
 
 from pydantic import UUID4
-from sqlalchemy import func
+from sqlalchemy import Row, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import GameStatusEnum, RoomActionEnum
 from app.crud.base import CRUDBase
 from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
-from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultReadWithNumbers, VaultUpdate
-from app.utils.resource_warnings import get_resource_warnings
+from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
 
 logger = getLogger(__name__)
 
@@ -26,16 +24,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             query = query.where(~self.model.is_deleted)
         response = await db_session.execute(query)
         return response.scalars().all()
-
-    async def recalculate_vault_attributes(
-        self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
-    ) -> Vault:
-        """Legacy entry point; canonical logic lives in VaultService."""
-        from app.services.vault_service import vault_service
-
-        return await vault_service.recalculate_vault_attributes(
-            db_session=db_session, vault_obj=vault_obj, room_obj=room_obj, action=action
-        )
 
     async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
         """Update the storage max space for a vault (delegates to storage CRUD)."""
@@ -89,15 +77,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         vault_check = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
         return (vault_check.scalar_one_or_none(), 0)
 
-    async def toggle_game_state(self, *, db_session: AsyncSession, vault_id: UUID4) -> Vault:
-        vault_obj = await self.get(db_session, id=vault_id)
-        new_state = GameStatusEnum.PAUSED if vault_obj.game_state == GameStatusEnum.ACTIVE else GameStatusEnum.ACTIVE
-        obj_in = VaultUpdate(game_state=new_state)
-        return await self.update(db_session, id=vault_id, obj_in=obj_in)
-
-    async def get_vaults_with_room_and_dweller_count(
-        self, *, db_session: AsyncSession, user_id: UUID4
-    ) -> list[VaultReadWithNumbers]:
+    async def get_vault_count_rows(self, *, db_session: AsyncSession, user_id: UUID4) -> Sequence[Row]:
+        """Raw aggregate rows (vault, room_count, dweller_count, stimpack, radaway) for a user's vaults."""
         result = await db_session.execute(
             select(
                 self.model,
@@ -114,30 +95,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             .where(Vault.deleted_at.is_(None))
             .group_by(Vault.id)
         )
+        return result.all()
 
-        vaults = result.all()
-        return [
-            VaultReadWithNumbers(
-                **vault_obj.model_dump(),
-                room_count=room_count,
-                dweller_count=dweller_count,
-                stimpack=stimpack,
-                radaway=radaway,
-                resource_warnings=get_resource_warnings(
-                    vault_obj,
-                    {
-                        "power": float(vault_obj.power),
-                        "food": float(vault_obj.food),
-                        "water": float(vault_obj.water),
-                    },
-                ),
-            )
-            for vault_obj, room_count, dweller_count, stimpack, radaway in vaults
-        ]
-
-    async def get_vault_with_room_and_dweller_count(
-        self, *, db_session: AsyncSession, vault_id: UUID4
-    ) -> VaultReadWithNumbers:
+    async def get_vault_count_row(self, *, db_session: AsyncSession, vault_id: UUID4) -> Row:
+        """Raw aggregate row (vault, room_count, dweller_count, stimpack, radaway) for a single vault."""
         result = await db_session.execute(
             select(
                 self.model,
@@ -153,24 +114,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             .where(Vault.id == vault_id)
             .group_by(Vault.id)
         )
-
-        vault_data = result.one()
-        vault_obj, room_count, dweller_count, stimpack, radaway = vault_data
-        return VaultReadWithNumbers(
-            **vault_obj.model_dump(),
-            room_count=room_count,
-            dweller_count=dweller_count,
-            stimpack=stimpack,
-            radaway=radaway,
-            resource_warnings=get_resource_warnings(
-                vault_obj,
-                {
-                    "power": float(vault_obj.power),
-                    "food": float(vault_obj.food),
-                    "water": float(vault_obj.water),
-                },
-            ),
-        )
+        return result.one()
 
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
@@ -186,53 +130,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
         return await super().create(db_session, obj_in)
-
-    async def is_enough_dwellers(
-        self, *, db_session: AsyncSession, vault_id: UUID4, population_required: int | None
-    ) -> bool:
-        """Legacy entry point; canonical logic lives in VaultService."""
-        from app.services.vault_service import vault_service
-
-        return await vault_service.is_enough_dwellers(
-            db_session=db_session, vault_id=vault_id, population_required=population_required
-        )
-
-    @staticmethod
-    async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID4, space_required: int) -> bool:
-        """Legacy entry point; canonical logic lives in VaultService."""
-        from app.services.vault_service import vault_service
-
-        return await vault_service.is_enough_population_space(
-            db_session=db_session, vault_id=vault_id, space_required=space_required
-        )
-
-    async def deposit_caps(
-        self,
-        *,
-        db_session: AsyncSession,
-        vault_obj: Vault,
-        amount: int,
-        commit: bool = True,
-        emit_event: bool = True,
-        track_earnings: bool = True,
-    ) -> None:
-        """Legacy entry point; canonical logic lives in VaultService."""
-        from app.services.vault_service import vault_service
-
-        await vault_service.deposit_caps(
-            db_session=db_session,
-            vault_obj=vault_obj,
-            amount=amount,
-            commit=commit,
-            emit_event=emit_event,
-            track_earnings=track_earnings,
-        )
-
-    async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
-        """Legacy entry point; canonical logic lives in VaultService."""
-        from app.services.vault_service import vault_service
-
-        await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault_obj, amount=amount)
 
     async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:
         """Delete vault and its associated gamestate."""

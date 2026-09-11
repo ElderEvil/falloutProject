@@ -101,7 +101,9 @@ class DwellerService:
         await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
         if bio_places and register_bio_places:
             origin, visited = bio_places
-            await map_service.register_bio_places(db_session, dweller, origin_place=origin or "", visited_places=visited)
+            await map_service.register_bio_places(
+                db_session, dweller, origin_place=origin or "", visited_places=visited
+            )
         return dweller
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:

@@ -206,7 +206,11 @@ class BreedingService:
 
             checked_pairs.add(BreedingService._pair_key(dweller))
 
-            partner = await dweller_crud.get_or_none(db_session, dweller.partner_id, include_deleted=True)
+            partner = (
+                await dweller_crud.get_or_none(db_session, dweller.partner_id, include_deleted=True)
+                if dweller.partner_id
+                else None
+            )
 
             if (
                 not partner

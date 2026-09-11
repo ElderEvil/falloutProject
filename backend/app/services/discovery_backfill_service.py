@@ -27,7 +27,11 @@ class DiscoveryBackfillService:
         """Link every discovery location to the dweller who found it."""
         fixed = 0
         for location in await wl_crud.get_discoveries_with_exploration(db_session, vault_id):
-            exploration = await exploration_crud.get_or_none(db_session, location.exploration_id)
+            exploration = (
+                await exploration_crud.get_or_none(db_session, location.exploration_id)
+                if location.exploration_id
+                else None
+            )
             if exploration is None:
                 logger.warning("No exploration %s for location %s", location.exploration_id, location.name)
                 continue

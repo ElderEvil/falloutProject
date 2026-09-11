@@ -5,7 +5,9 @@ from enum import StrEnum
 
 class CaseInsensitiveEnum(StrEnum):
     @classmethod
-    def _missing_(cls, value: str):
+    def _missing_(cls, value: object):
+        if not isinstance(value, str):
+            return None
         for member in cls:
             if member.lower() == value.lower():
                 return member
@@ -204,6 +206,13 @@ class ObjectiveKindEnum(StrEnum):
     ANY = "Any"
     ASSIGN = "assign"
     COLLECT = "collect"
+
+
+class PlaceKindEnum(StrEnum):
+    """Canonical world-registry entry kind, used as the PostgreSQL `placekind` type."""
+
+    PLACE = "place"
+    VAULT = "vault"
 
 
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

@@ -83,6 +83,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "MAP_REGISTRATION_FAILED",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},
+    "placekind": {"PLACE", "VAULT"},
     "pregnancystatusenum": {"PREGNANT", "DELIVERED", "MISCARRIED"},
     "questtype": {"MAIN", "SIDE", "DAILY", "EVENT", "REPEATABLE"},
     "rarityenum": {"COMMON", "RARE", "LEGENDARY"},
@@ -118,7 +119,7 @@ def metadata_enum_map() -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
     for table in SQLModel.metadata.tables.values():
         for column in table.c:
-            if isinstance(column.type, SAEnum):
+            if isinstance(column.type, SAEnum) and column.type.name is not None:
                 result.setdefault(column.type.name, set()).update(column.type.enums)
     return result
 

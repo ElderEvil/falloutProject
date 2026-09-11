@@ -27,3 +27,4 @@ from .user_profile import UserProfile
 from .vault import Vault
 from .wasteland_location import DwellerLocation, WastelandLocation
 from .weapon import Weapon
+from .world_location import VaultLocationState, WorldLocation

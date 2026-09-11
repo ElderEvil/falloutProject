@@ -7,7 +7,6 @@ from app.api.v1.endpoints import (
     arena,
     auth,
     chat,
-    debug,
     dweller,
     email,
     exploration,
@@ -32,7 +31,6 @@ from app.api.v1.endpoints import (
     websocket,
 )
 from app.api.v1.endpoints import map as map_endpoints
-from app.core.config import settings
 
 api_router = APIRouter()
 
@@ -41,9 +39,6 @@ api_router.include_router(auth.router)
 api_router.include_router(ai_settings.router)
 api_router.include_router(chat.router)
 api_router.include_router(email.router)
-# Debug router only registered in debug/development mode
-if settings.ENVIRONMENT in ("local", "development"):
-    api_router.include_router(debug.router)
 api_router.include_router(dweller.router)
 api_router.include_router(exploration.router)
 api_router.include_router(game_control.router)

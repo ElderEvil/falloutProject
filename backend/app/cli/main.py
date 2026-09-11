@@ -23,6 +23,7 @@ import typer
 from app import crud
 from app.cli.apprentice_scenario import app as apprentice_scenario
 from app.cli.backfills import app as backfills
+from app.cli.debug import app as debug
 from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.family_scenario import app as family_scenario
 from app.cli.ops import app as ops
@@ -47,6 +48,7 @@ cli = typer.Typer(
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
 cli.add_typer(backfills, name="backfill", help="Retroactive backfill commands")
+cli.add_typer(debug, name="debug", help="Dev/QA: emit game events, inspect objectives/evaluators, simulate builds")
 cli.add_typer(ops, name="ops", help="One-off operations and infrastructure tasks")
 cli.add_typer(transfer, name="transfer", help="Move dwellers between vaults safely")
 cli.add_typer(wiki_images, name="wiki-images", help="Download Fallout Shelter wiki image assets")

@@ -18,7 +18,6 @@ from app.models.vault import Vault
 from app.services.game_tick import dwellers_tick, family_tick
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
-from app.utils.dwellers import group_dwellers_by_room  # ruff: ignore[unused-import] — test patch anchor; live use is in family_tick
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)

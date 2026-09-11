@@ -7,6 +7,7 @@ signal (compare before/after runs); the assertion bound is deliberately
 generous so CI never flakes on timing.
 """
 
+import math
 import statistics
 import time
 
@@ -55,7 +56,8 @@ async def test_vault_tick_wall_time(async_session: AsyncSession, is_boosted: boo
 
     label = "boosted" if is_boosted else "normal"
     mean_ms = statistics.fmean(samples_ms)
-    p95_ms = sorted(samples_ms)[max(0, int(len(samples_ms) * 0.95) - 1)]
+    ordered = sorted(samples_ms)
+    p95_ms = ordered[math.ceil(0.95 * len(ordered)) - 1]
     print(
         f"\n[tick-perf:{label}] runs={MEASURED_RUNS} mean={mean_ms:.0f}ms p95={p95_ms:.0f}ms max={max(samples_ms):.0f}ms"
     )

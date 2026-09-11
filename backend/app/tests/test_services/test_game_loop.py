@@ -472,7 +472,7 @@ class TestUpdateRoomRelationships:
         mock_result.scalars.return_value.all.return_value = [md]
         with (
             patch.object(async_session, "execute", new_callable=AsyncMock, return_value=mock_result),
-            patch("app.services.game_loop.group_dwellers_by_room", return_value={"r-1": [md]}),
+            patch("app.services.game_tick.family_tick.group_dwellers_by_room", return_value={"r-1": [md]}),
             patch.object(game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]),
         ):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
@@ -490,7 +490,7 @@ class TestUpdateRoomRelationships:
         mock_result.scalars.return_value.all.return_value = [d1, d2]
         with (
             patch.object(async_session, "execute", new_callable=AsyncMock, return_value=mock_result),
-            patch("app.services.game_loop.group_dwellers_by_room", return_value={"r-1": [d1, d2]}),
+            patch("app.services.game_tick.family_tick.group_dwellers_by_room", return_value={"r-1": [d1, d2]}),
             patch.object(game_loop_service, "_fetch_existing_relationships", new_callable=AsyncMock, return_value=[]),
             patch.object(game_loop_service, "_build_relationships_map", return_value={}),
             patch.object(game_loop_service, "_update_pair_affinity", new_callable=AsyncMock, return_value=0),

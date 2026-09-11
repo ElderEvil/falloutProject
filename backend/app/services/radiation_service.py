@@ -6,6 +6,7 @@ persist changes themselves (attribute tracking or ``db_session.add``).
 
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
+from app.options.races import RaceOption, race_of
 
 
 def radiation_removal_amount(radiation: int) -> int:
@@ -19,8 +20,9 @@ def apply_radiation_gain(dweller: Dweller, amount: int) -> bool:
 
     Also pulls current health down to the radiation-reduced ceiling, so callers
     only need to persist the dweller afterwards. Returns True if radiation changed.
+    Ghouls are immune and never gain radiation.
     """
-    if amount <= 0 or dweller.is_dead:
+    if amount <= 0 or dweller.is_dead or race_of(dweller) == RaceOption.GHOUL:
         return False
 
     old_radiation = dweller.radiation

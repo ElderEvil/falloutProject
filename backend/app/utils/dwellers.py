@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import random
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from faker import Faker
 
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
 from app.options.factions import FactionOption, faction_restrictions
-from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption
+from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 fake: Faker = Faker()
 
@@ -78,6 +81,19 @@ def _calendar_years_ago(value: datetime, years: int) -> datetime:
         return value.replace(year=value.year - years, month=2, day=28)
 
 
+def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> dict[str, Any]:
+    """Build a validator-passing race/faction/state_of_being identity for a chosen race."""
+    if race == RaceOption.HUMAN:
+        faction_weights = game_config.dweller.human_faction_weights
+        faction = source.choices(list(faction_weights), weights=list(faction_weights.values()))[0]
+    else:
+        faction = source.choice(faction_restrictions[race])
+    identity: dict[str, Any] = {"race": race.value, "faction": FactionOption(faction).value}
+    if states := STATE_OF_BEING_OPTIONS.get(race):
+        identity["state_of_being"] = source.choice(states).value
+    return identity
+
+
 def _roll_identity(rng: random.Random) -> dict[str, Any]:
     """Roll race/faction/state_of_being from game_config weights using ``rng``.
 
@@ -90,15 +106,25 @@ def _roll_identity(rng: random.Random) -> dict[str, Any]:
     """
     weights = game_config.dweller.get_race_weights()
     race = rng.choices(list(RaceOption), weights=[weights[r.value] for r in RaceOption])[0]
-    if race == RaceOption.HUMAN:
-        faction_weights = game_config.dweller.human_faction_weights
-        faction = rng.choices(list(faction_weights), weights=list(faction_weights.values()))[0]
+    return _identity_for_race(race, rng)
+
+
+def roll_child_identity(mother: Any, father: Any, source: random.Random | ModuleType = random) -> dict[str, Any]:
+    """Roll a newborn's identity: inherit a parent's race, with a configurable mutation chance.
+
+    Mutation (``BreedingConfig.race_mutation_chance``) picks a race *different*
+    from the parents, weighted by ``race_weights`` over the remaining candidates,
+    which is how non-humans arise from breeding given that only humans are
+    breeding-eligible.
+    """
+    parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
+    if source.random() < game_config.breeding.race_mutation_chance:
+        weights = game_config.dweller.get_race_weights()
+        candidates = [race for race in RaceOption if race not in parent_races]
+        race = source.choices(candidates, weights=[weights[candidate.value] for candidate in candidates])[0]
     else:
-        faction = rng.choice(faction_restrictions[race])
-    identity: dict[str, Any] = {"race": race.value, "faction": FactionOption(faction).value}
-    if states := STATE_OF_BEING_OPTIONS.get(race):
-        identity["state_of_being"] = rng.choice(states).value
-    return identity
+        race = source.choice(parent_races)
+    return _identity_for_race(race, source)
 
 
 def create_random_common_dweller(

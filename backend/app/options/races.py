@@ -55,6 +55,32 @@ STATE_OF_BEING_VALUES: dict[RaceOption, list[str]] = {
     race: [s.value for s in states] for race, states in STATE_OF_BEING_OPTIONS.items()
 }
 
+#: Whether a race can conceive. Non-humans do not give birth; they enter the
+#: population through recruitment, seeding, recycling, and breeding mutation.
+BREEDING_ELIGIBLE: dict[RaceOption, bool] = {
+    RaceOption.HUMAN: True,
+    RaceOption.GHOUL: False,
+    RaceOption.SUPER_MUTANT: False,
+    RaceOption.SYNTH: False,
+}
+
+
+def race_of(entity: object) -> RaceOption | None:
+    """Read an entity's race from its ``visual_attributes`` JSONB, if present and valid."""
+    attrs = getattr(entity, "visual_attributes", None)
+    raw = attrs.get("race") if isinstance(attrs, dict) else None
+    if raw is None:
+        return None
+    try:
+        return RaceOption(raw)
+    except ValueError:
+        return None
+
+
+def can_breed(entity: object) -> bool:
+    """Whether an entity's race may conceive; entities without a race default to human."""
+    return BREEDING_ELIGIBLE.get(race_of(entity) or RaceOption.HUMAN, False)
+
 
 race_descriptions: dict[RaceOption, str] = {
     RaceOption.GHOUL: (

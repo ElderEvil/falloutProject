@@ -307,6 +307,9 @@ async def test_process_danger_radiation_applies_to_dweller(
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    # Pin radiation: the fixture rolls a random start, and a value near the cap would break the +11 delta.
+    dweller.radiation = 0
+    async_session.add(dweller)
     await async_session.commit()
     await async_session.refresh(exploration)
     await async_session.refresh(dweller)

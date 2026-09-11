@@ -11,10 +11,10 @@ import httpx
 from botocore.exceptions import BotoCoreError, ClientError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core import db_locks
 from app.core.config import settings
 
 try:
@@ -62,14 +62,13 @@ class HealthCheckService:
             HealthCheckResult with connection status
         """
         try:
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-                return HealthCheckResult(
-                    service="postgresql",
-                    status=ServiceStatus.HEALTHY,
-                    message="Database connection successful",
-                    details={"host": settings.POSTGRES_SERVER, "database": settings.POSTGRES_DB},
-                )
+            await db_locks.postgres_ping(engine)
+            return HealthCheckResult(
+                service="postgresql",
+                status=ServiceStatus.HEALTHY,
+                message="Database connection successful",
+                details={"host": settings.POSTGRES_SERVER, "database": settings.POSTGRES_DB},
+            )
         except (SQLAlchemyError, ConnectionError, TimeoutError) as e:
             logger.exception("PostgreSQL health check failed")
             return HealthCheckResult(

@@ -4,9 +4,9 @@ import logging
 import random
 
 from pydantic import UUID4
-from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import db_locks
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
@@ -101,7 +101,7 @@ async def spawn_incident(
     Returns:
         Incident or None if no suitable room found
     """
-    if not await try_acquire_spawn_lock(db_session, vault_id):
+    if not await db_locks.try_advisory_xact_lock(db_session, f"incident-spawn:{vault_id}"):
         return None
 
     vault = await db_session.get(Vault, vault_id)
@@ -213,7 +213,7 @@ async def select_spawn_room(
 
 async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
     """Spread an incident to an adjacent room and report whether it succeeded."""
-    if not await try_acquire_spawn_lock(db_session, incident.vault_id):
+    if not await db_locks.try_advisory_xact_lock(db_session, f"incident-spawn:{incident.vault_id}"):
         return False
 
     active_incidents = await incident_crud.get_active_by_vault(db_session, incident.vault_id)
@@ -270,15 +270,3 @@ async def spread_incident(db_session: AsyncSession, incident: Incident) -> bool:
         return True
 
     return False
-
-
-async def try_acquire_spawn_lock(db_session: AsyncSession, vault_id: UUID4) -> bool:
-    """Acquire the per-vault spawn advisory lock; no-op outside PostgreSQL."""
-    if db_session.get_bind().dialect.name != "postgresql":
-        return True
-
-    result = await db_session.execute(  # ty: ignore[deprecated]
-        text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
-        {"lock_key": f"incident-spawn:{vault_id}"},
-    )
-    return bool(result.scalar())

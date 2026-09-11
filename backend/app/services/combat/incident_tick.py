@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core import db_locks
 from app.core.game_config import game_config
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
@@ -114,7 +114,7 @@ async def process_all_vaults_incidents(
     transaction is rolled back before releasing it so a failed tick cannot
     leave the session in an aborted state that makes the unlock itself fail.
     """
-    if not await _try_acquire_tick_lock(db_session):
+    if not await db_locks.try_advisory_lock(db_session, "incident-tick"):
         return {"vaults": 0, "spawned": 0, "resolved": 0}
 
     try:
@@ -134,29 +134,4 @@ async def process_all_vaults_incidents(
     else:
         return totals
     finally:
-        await _release_tick_lock(db_session)
-
-
-async def _try_acquire_tick_lock(db_session: AsyncSession) -> bool:
-    if db_session.get_bind().dialect.name != "postgresql":
-        return True
-
-    result = await db_session.execute(
-        text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
-        {"lock_key": "incident-tick"},
-    )
-    return bool(result.scalar())
-
-
-async def _release_tick_lock(db_session: AsyncSession) -> None:
-    if db_session.get_bind().dialect.name != "postgresql":
-        return
-    try:
-        await db_session.execute(
-            text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
-            {"lock_key": "incident-tick"},
-        )
-    except Exception:
-        # Unlock failure must not mask the original tick error or stall the
-        # worker; the advisory lock self-releases on session close anyway.
-        logger.exception("Failed to release incident tick advisory lock")
+        await db_locks.release_advisory_lock(db_session, "incident-tick", swallow_errors=True)

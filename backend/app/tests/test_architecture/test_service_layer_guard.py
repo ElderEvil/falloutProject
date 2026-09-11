@@ -140,6 +140,25 @@ def _session_get_call_lines(source: str) -> list[int]:
     return sorted(set(lines))
 
 
+def _api_imports(source: str) -> set[str]:
+    """Return every app.api module imported by a source file (dependency-direction guard)."""
+    modules = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom):
+            if node.module and node.module.startswith("app.api"):
+                modules.add(node.module)
+            elif (
+                node.level
+                and node.level >= 2
+                and node.module
+                and (node.module == "api" or node.module.startswith("api."))
+            ):
+                modules.add(f"app.{node.module}")
+        elif isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names if alias.name.startswith("app.api"))
+    return modules
+
+
 def test_crud_does_not_depend_on_services() -> None:
     """CRUD depends on services only via shared kernels; the baseline must shrink, never grow."""
     found = set()
@@ -152,6 +171,15 @@ def test_crud_does_not_depend_on_services() -> None:
     messages = [f"{name} imports {module} (new CRUD -> service dependency)" for name, module in sorted(new_violations)]
     messages += [f"baseline entry {name} / {module} is stale; remove it" for name, module in sorted(stale_entries)]
     assert not messages, "CRUD -> service dependencies changed:\n" + "\n".join(messages)
+
+
+def test_crud_does_not_depend_on_api() -> None:
+    """CRUD is the lowest layer; it must never import from app.api (access policy lives in services)."""
+    offenders = []
+    for path in sorted((APP_DIR / "crud").rglob("*.py")):
+        modules = _api_imports(path.read_text(encoding="utf-8"))
+        offenders.extend(f"{path.relative_to(APP_DIR / 'crud').as_posix()} imports {module}" for module in modules)
+    assert not offenders, "CRUD -> API dependencies are forbidden:\n" + "\n".join(offenders)
 
 
 def test_services_do_not_query_directly() -> None:

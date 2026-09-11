@@ -54,9 +54,11 @@ async def get_pregnancy(
         HTTPException: 404 if pregnancy not found or access denied.
     """
     try:
-        pregnancy, _ = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
+        pregnancy, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
     except ResourceNotFoundException as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
+
+    await get_user_vault_or_403(mother.vault_id, user, db_session)
 
     return PregnancyRead.model_validate(pregnancy)
 
@@ -77,9 +79,11 @@ async def deliver_baby(
         HTTPException: 400 if delivery conditions not met.
     """
     try:
-        _, _mother = await crud.pregnancy.get_with_vault_access(db_session, pregnancy_id, user)
+        _, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
     except ResourceNotFoundException as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
+
+    await get_user_vault_or_403(mother.vault_id, user, db_session)
 
     # Attempt delivery
     try:

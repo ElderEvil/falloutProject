@@ -71,6 +71,15 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   reward delivery, and prerequisite rules.
 - [ ] **Infrastructure batch** — clean up health checks, storage, email, WebSocket/streaming, notifications, and
   backfill services without hiding operational failures.
+- [ ] **Persistence-boundary hardening (Area 1)** — the AST guard is blind to `text()`, `session.execute()`, and
+  `session.get()` in services, and 20+ sites use them to bypass CRUD. Three slices, one branch each:
+  1. **Advisory-lock SQL + guard teeth** — centralize the `pg_try_advisory_lock`/`unlock` raw SQL (incident_tick,
+     incident_spawning, arena_service) plus the health-check `SELECT 1` behind one infra helper; extend the guard
+     to flag `text(`, `.execute(`, and `.get(` in services so this class stays dead.
+  2. **Session-read sweep A (game loop core)** — route `db_session.get()` through CRUD getters in quest_service
+     (7 sites), incident tick/spawning, map, radio, item, happiness, and transfer services.
+  3. **Session-read sweep B (rest) + proof** — same treatment for user, ai_usage, breeding, and the three
+     backfill services; final proof is a green guard with zero new baseline entries.
 
 **Rewrite rules:** keep each batch below 100 files; preserve public service singleton names during migration; add
 characterization/regression tests before changing behavior; move reusable queries into existing CRUD modules instead

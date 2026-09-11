@@ -145,8 +145,11 @@ def _api_imports(source: str) -> set[str]:
     modules = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
+            names = {alias.name for alias in node.names}
             if node.module and node.module.startswith("app.api"):
                 modules.add(node.module)
+            elif node.module == "app" and "api" in names:
+                modules.add("app.api")
             elif (
                 node.level
                 and node.level >= 2
@@ -154,6 +157,8 @@ def _api_imports(source: str) -> set[str]:
                 and (node.module == "api" or node.module.startswith("api."))
             ):
                 modules.add(f"app.{node.module}")
+            elif node.level >= 2 and node.module is None and "api" in names:
+                modules.add("app.api")
         elif isinstance(node, ast.Import):
             modules.update(alias.name for alias in node.names if alias.name.startswith("app.api"))
     return modules
@@ -204,6 +209,18 @@ def test_services_do_not_load_rows_directly() -> None:
         if lines:
             offenders.append(f"{path.relative_to(APP_DIR / 'services').as_posix()}:{lines}")
     assert not offenders, "Services must not call session.get() directly (route through CRUD):\n" + "\n".join(offenders)
+
+
+def test_guard_detects_api_import_forms() -> None:
+    """Self-test: absolute, package-attribute, and relative app.api imports are all caught."""
+    source = (
+        "from app.api.deps import x\n"
+        "from app import api\n"
+        "from .. import api\n"
+        "from ...api.deps import y\n"
+        "from app.core import game_data\n"
+    )
+    assert _api_imports(source) == {"app.api.deps", "app.api"}
 
 
 def test_service_module_names_follow_convention() -> None:

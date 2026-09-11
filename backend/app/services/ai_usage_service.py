@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.llm_interaction import llm_interaction
-from app.models.user import User
+from app.crud.user import user as user_crud
 from app.schemas.ai_usage import AIOperationStats, AIUsageResponse, AIUsageStats, QuotaInfo
 from app.services.ai_constants import QUOTA_TRACKING_OPERATION
 from app.services.quota_service import DEFAULT_QUOTA_LIMIT
@@ -44,7 +44,7 @@ class AIUsageService:
             current_month_start = datetime(now.year, now.month, 1)
             month_str = now.strftime("%Y-%m")
 
-            user = await db_session.get(User, user_id)
+            user = await user_crud.get_or_none(db_session, user_id, include_deleted=True)
 
             all_time_stats = await self._aggregate_tokens(db_session, user_id)
             monthly_stats = await self._aggregate_tokens(db_session, user_id, since=current_month_start)

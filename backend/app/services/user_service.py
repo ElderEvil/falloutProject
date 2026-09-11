@@ -111,7 +111,7 @@ class UserService:
         if amount <= 0:
             return
 
-        vault = await db_session.get(Vault, vault_id)
+        vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
         if isinstance(vault, Vault) and vault.user_id:
             await profile_crud.increment_statistic(db_session, vault.user_id, statistic, amount, commit=commit)
 

@@ -20,7 +20,9 @@ class TestAIUsageService:
 
         user = MagicMock()
         user.monthly_token_limit = 0
-        db_session.get = AsyncMock(return_value=user)
+        result = MagicMock()
+        result.scalar_one_or_none = MagicMock(return_value=user)
+        db_session.execute = AsyncMock(return_value=result)
 
         service = AIUsageService()
         with (
@@ -40,7 +42,7 @@ class TestAIUsageService:
         """Unexpected errors are logged and re-raised."""
         user_id = uuid4()
         db_session = AsyncMock()
-        db_session.get = AsyncMock(side_effect=RuntimeError("DB failure"))
+        db_session.execute = AsyncMock(side_effect=RuntimeError("DB failure"))
 
         service = AIUsageService()
         with (

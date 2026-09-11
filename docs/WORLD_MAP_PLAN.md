@@ -82,7 +82,15 @@ authored once; it does not introduce live shared simulation.
 | **1** | Registry schema + one transactional migration (dedupe by name, backfill state, repoint FK, drop old table, `placekind` + enum snapshot) | Row-count parity old vs new; PG integration migration test |
 | **2** | Rewire services/CRUD onto registry + state (`register_bio_places`, `get_vault_map`, `ensure_home_marker`) | Existing `test_map_service` / `test_map` / `test_discovery_events` pass **unmodified** |
 | **3** | Seed JSON + idempotent loader; NPC vault rows; delete hardcoded `_KNOWN_*` lists and runtime `seeded_vault_specs` path | Golden test: seeded roster matches old `seeded_vault_specs()` output |
-| **4** | Race mechanics: newborn race (bug), breeding eligibility, distribution, dossier visibility | Breeding tests preserved; new eligibility covered |
+| **4** | Race mechanics: newborn race (bug), breeding eligibility, distribution, dossier visibility, ghoul radiation immunity | Breeding tests preserved; new eligibility + inheritance covered |
+
+Phase 4 decisions (locked):
+- **Breeding rule:** a simple per-race `can_breed` boolean (in `app/options/races.py`) — not a pair-compatibility
+  matrix. Non-humans do not give birth; they enter the population via recruitment, seeding, recycling, and mutation.
+- **Newborn race:** inherit from the parents, with a configurable **mutation chance** to roll a different race
+  (weighted by `race_weights`). This is how non-humans arise from breeding and stay rare.
+- **Race effects:** ghoul **radiation immunity** ships in phase 4 (no radiation gain for ghouls); other per-race
+  effects stay in the separate parked "Race & Faction Gameplay Mechanics" roadmap item.
 | **5** | Map presentation: registry lore on markers, region/tag filtering, fog UX | Frontend contract verified (no `types:generate` diff) |
 | **6** | *Deferred:* raids, visits, fallen dwellers, leaderboards | Revisit with product direction |
 
@@ -118,11 +126,11 @@ need a migration.
 
 ### Open decisions (settle before the noted phase)
 
-1. **Breeding rule shape** — per-race `can_breed` boolean vs partner-compatibility matrix. *(before phase 4)*
-2. **Newborn race** — deterministic inheritance vs inheritance + mutation chance. *(before phase 4)*
-3. **Race effects** (ghoul radiation immunity, etc.) — phase 4 or the separate parked roadmap item. *(before phase 4)*
-4. **Seed scope** — confirm excluding combinatorial discovery names (emergent). *(before phase 3)*
-5. **Ordering** — registry-first (1→2→3) vs race bug (4a) first. *(now)*
+1. ✅ **Breeding rule shape** — per-race `can_breed` boolean (decided).
+2. ✅ **Newborn race** — inheritance + configurable mutation chance (decided).
+3. ✅ **Race effects** — ghoul radiation immunity in phase 4; rest parked (decided).
+4. ⬜ **Seed scope** — confirm excluding combinatorial discovery names (emergent). *(before phase 3)*
+5. ⬜ **Ordering** — registry-first (1→2→3) vs race bug (4a) first. *(now)*
 
 ## Deferred multiplayer phases (parked)
 

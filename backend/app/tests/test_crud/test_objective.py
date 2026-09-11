@@ -1,4 +1,4 @@
-"""Tests for objective CRUD operations."""
+"""Tests for objective persistence and settlement."""
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.reward_service import reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
@@ -34,7 +35,7 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
 
     initial_caps = vault.bottle_caps
     # Update progress to 5 (with total=1 by default, this will auto-complete since 5 >= 1)
-    link = await crud.objective_crud.update_progress(
+    link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
     )
 
@@ -67,7 +68,7 @@ async def test_complete_objective(async_session: AsyncSession) -> None:
     initial_caps = vault.bottle_caps
 
     # Complete objective
-    completed_objective = await crud.objective_crud.complete(
+    completed_objective = await reward_service.settle_objective_completion(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id
     )
 
@@ -103,7 +104,7 @@ async def test_complete_nonexistent_objective_creates_link(async_session: AsyncS
     objective = await crud.objective_crud.create(async_session, obj_in=objective_data)
 
     # Complete objective (should create link automatically)
-    completed_objective = await crud.objective_crud.complete(
+    completed_objective = await reward_service.settle_objective_completion(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id
     )
 
@@ -139,7 +140,7 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
 
     initial_caps = vault.bottle_caps
     # Update progress (should create and complete the link)
-    link = await crud.objective_crud.update_progress(
+    link = await reward_service.settle_objective_progress(
         db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=3
     )
 

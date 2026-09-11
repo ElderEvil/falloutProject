@@ -9,9 +9,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum, RarityEnum
 from app.core.event_bus import GameEvent, event_bus
+from app.crud.objective import objective_crud
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
+from app.models.objective import Objective
 from app.models.outfit import Outfit
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
@@ -21,7 +23,7 @@ from app.models.weapon import Weapon
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.outfit_assets import get_outfit_image_url
-from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
+from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change, reward_delivery_is_deferred
 from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
@@ -498,8 +500,6 @@ class RewardService:
     async def process_objective_reward(
         self, db_session: AsyncSession, vault_id: UUID4, objective: VaultObjectiveProgressLink
     ) -> dict[str, Any]:
-        from app.crud.objective import objective_crud
-
         objective_obj = await objective_crud.get(db_session, id=objective.objective_id)
         reward_str = objective_obj.reward
 
@@ -507,6 +507,57 @@ class RewardService:
         result = await self._process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=False)
         logger.info(f"Processed objective reward '{reward_str}' for vault {vault_id}")
         return result
+
+    async def settle_objective_completion(
+        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
+    ) -> Objective:
+        """Mark an objective complete for a vault and deliver its reward in one transaction."""
+        objective = await objective_crud.get(db_session, objective_id)
+        link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
+        if not link:
+            link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=objective_id, progress=0, total=1)
+            db_session.add(link)
+        elif link.is_completed:
+            raise ResourceConflictException("Already completed")
+
+        link.progress = link.total
+        await self._settle_objective_link(db_session, vault_id, link)
+        return objective
+
+    async def settle_objective_progress(
+        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
+    ) -> VaultObjectiveProgressLink:
+        """Update objective progress, settling its reward once the target is reached."""
+        link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
+        if not link:
+            objective = await objective_crud.get(db_session, objective_id)
+            link = VaultObjectiveProgressLink(
+                vault_id=vault_id,
+                objective_id=objective_id,
+                progress=progress,
+                total=objective.target_amount if objective else 1,
+            )
+            db_session.add(link)
+        else:
+            link.progress = progress
+
+        if link.is_completed:
+            return link
+        if link.progress < link.total:
+            await db_session.commit()
+        else:
+            await self._settle_objective_link(db_session, vault_id, link)
+        await db_session.refresh(link)
+        return link
+
+    async def _settle_objective_link(
+        self, db_session: AsyncSession, vault_id: UUID4, link: VaultObjectiveProgressLink
+    ) -> None:
+        """Complete the link and deliver its reward inside a single deferred transaction."""
+        link.is_completed = True
+        async with defer_reward_delivery(db_session):
+            await self.process_objective_reward(db_session, vault_id, link)
+            await db_session.commit()
 
     async def _process_single_reward(
         self,

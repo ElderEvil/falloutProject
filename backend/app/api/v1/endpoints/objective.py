@@ -14,6 +14,7 @@ from app.models.vault import Vault
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
 from app.services.objective_assignment_service import ObjectiveAssignmentService
+from app.services.reward_service import reward_service
 
 router = APIRouter(prefix="/objectives", tags=["Objective"])
 
@@ -69,7 +70,7 @@ async def complete_objective(
     Returns:
         The completed objective.
     """
-    return await crud.objective_crud.complete(db_session=db_session, objective_id=objective_id, vault_id=vault_id)
+    return await reward_service.settle_objective_completion(db_session, objective_id, vault_id)
 
 
 @router.post("/{vault_id}/{objective_id}/progress")
@@ -84,9 +85,7 @@ async def update_objective_progress(
     Returns:
         The updated objective.
     """
-    return await crud.objective_crud.update_progress(
-        db_session=db_session, objective_id=objective_id, vault_id=vault_id, progress=progress
-    )
+    return await reward_service.settle_objective_progress(db_session, objective_id, vault_id, progress)
 
 
 @router.post("/{vault_id}/assign-random")

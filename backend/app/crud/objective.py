@@ -8,21 +8,14 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.crud.mixins import CompletionMixin
 from app.models import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead, ObjectiveUpdate
-from app.services.reward_service import reward_service
-from app.utils.exceptions import ResourceConflictException
-from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
 
 
-class CRUDObjective(
-    CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate],
-    CompletionMixin[VaultObjectiveProgressLink],
-):
+class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     def __init__(self, model: type[Objective], link_model: type[VaultObjectiveProgressLink]):
         """Configure objective persistence with its vault-progress link model."""
         super().__init__(model)
@@ -175,25 +168,7 @@ class CRUDObjective(
                 await db_session.rollback()
             return 0
 
-    async def _handle_completion_cascade(self, db_session: AsyncSession, db_obj: Objective, vault_id: UUID4) -> None:
-        """Handle any cascading logic when an objective is completed."""
-        # Could trigger rewards, notifications, etc.
-
-    async def _finalize_link(
-        self,
-        db_session: AsyncSession,
-        db_obj: Objective,
-        link: VaultObjectiveProgressLink,
-        vault_id: UUID4,
-    ) -> None:
-        """Settle one incomplete objective link and deliver its reward once."""
-        link.is_completed = True
-        async with defer_reward_delivery(db_session):
-            await reward_service.process_objective_reward(db_session, vault_id, link)
-            await db_session.commit()
-        await self._handle_completion_cascade(db_session, db_obj, vault_id)
-
-    async def _get_link_for_update(
+    async def get_link_for_update(
         self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4
     ) -> VaultObjectiveProgressLink | None:
         """Lock an objective link before deciding whether it can be completed."""
@@ -203,77 +178,6 @@ class CRUDObjective(
             .with_for_update()
         )
         return result.scalar_one_or_none()
-
-    async def complete(self, *, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4) -> Objective:
-        """
-        Mark an objective as completed for a vault.
-
-        Args:
-            db_session: Database session
-            objective_id: ID of the objective to complete
-            vault_id: ID of the vault
-
-        Returns:
-            Completed objective
-        """
-        db_obj = await self.get(db_session, objective_id)
-        link = await self._get_link_for_update(db_session, objective_id, vault_id)
-
-        if not link:
-            link = self.link_model(vault_id=vault_id, objective_id=objective_id, progress=0, total=1)
-            db_session.add(link)
-        elif link.is_completed:
-            raise ResourceConflictException("Already completed")
-
-        link.progress = link.total
-
-        await self._finalize_link(db_session, db_obj, link, vault_id)
-
-        return db_obj
-
-    async def update_progress(
-        self, db_session: AsyncSession, objective_id: UUID4, vault_id: UUID4, progress: int
-    ) -> VaultObjectiveProgressLink:
-        """
-        Update the progress of an objective for a vault.
-
-        Args:
-            db_session: Database session
-            objective_id: ID of the objective
-            vault_id: ID of the vault
-            progress: New progress value
-
-        Returns:
-            Updated VaultObjectiveProgressLink
-        """
-        link = await self._get_link_for_update(db_session, objective_id, vault_id)
-
-        if not link:
-            objective = await self.get(db_session, objective_id)
-            target_amount = objective.target_amount if objective else 1
-            link = self.link_model(
-                vault_id=vault_id,
-                objective_id=objective_id,
-                progress=progress,
-                total=target_amount,
-            )
-            db_session.add(link)
-        else:
-            link.progress = progress
-            objective = None
-
-        if link.is_completed:
-            return link
-        if link.progress >= link.total:
-            if objective is None:
-                objective = await self.get(db_session, objective_id)
-            await self._finalize_link(db_session, objective, link, vault_id)
-            await db_session.refresh(link)
-            return link
-
-        await db_session.commit()
-        await db_session.refresh(link)
-        return link
 
     async def get_multi_complete(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100

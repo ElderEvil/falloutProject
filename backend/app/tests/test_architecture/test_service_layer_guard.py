@@ -23,9 +23,6 @@ EXCEPTIONS_FILE = APP_DIR / "utils" / "exceptions.py"
 CRUD_SERVICE_ALLOWLIST = frozenset({"app.services.room_assignment_policy"})
 CRUD_SERVICE_BASELINE = frozenset(
     {
-        ("objective.py", "app.services.reward_service"),
-        ("quest.py", "app.services.notification_service"),
-        ("quest.py", "app.services.reward_service"),
     }
 )
 SERVICES_SELECT_BASELINE = frozenset()

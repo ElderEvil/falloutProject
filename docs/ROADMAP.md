@@ -9,8 +9,8 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work:** — _backend service-layer rewrite through #568 landed all raw SQL in CRUDs with guard-enforced
-zero-`select()`/`exec()` in services; next batch queued: **Incidents and combat** (see P0)._
+**Current work:** — _backend service-layer rewrite: vault-batch endgame merged (#572), game-loop tick
+split open (#573), incidents tick-orchestration in flight (see P0)._
 
 ---
 
@@ -46,22 +46,25 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
     prompt construction, usage extraction, and execution records.
 - [ ] **Vault and game-loop batch** — separate tick orchestration, vault state transitions, resource calculations,
   room operations, and notifications; keep transaction and concurrency behavior explicitly test-backed.
-  - **Next:** migrate the last CRUD-side flows off the legacy delegates — `dweller.move_to_room` and the
-    `item_base` sell/caps flow move **into** services (first slice of the Dweller/social batch, same PR) — then
-    delete the four `vault_crud` delegates (`deposit_caps`/`withdraw_caps`/`recalculate_*`/`is_enough_*`) and move
-    `toggle_game_state` plus the vault-with-counts reads out of `crud/vault.py`. Expected net-zero on the
-    CRUD→services baseline until the dweller/item flows leave CRUD entirely — the delegate deletion itself is the win.
-    Already done: objective-seeding delegation, storage CRUD helpers + item `create_many`, seed tables in
+  - **Shipped (#572):** the last CRUD-side flows moved into services — `dweller.move_to_room` (+
+    `auto_assign_to_best_room`, first slice of the Dweller/social batch) into `DwellerService`, the `item_base`
+    sell/caps flow into new `ItemService` (sale events publish only after commit); the five `vault_crud` legacy
+    delegates (`deposit_caps`/`withdraw_caps`/`recalculate_*`/`is_enough_*`) deleted and the vault-with-counts
+    reads moved into `VaultService`. The dead `toggle_game_state` endpoint and orphaned `GameStatusEnum` were
+    removed (live pause is `POST /game/vaults/{id}/pause|resume`); `get_highest_special` and
+    `calculate_room_capacity` centralized in `room_assignment_policy`.
+    Already done earlier: objective-seeding delegation, storage CRUD helpers + item `create_many`, seed tables in
     `services/vault_seed.py`, vault economy core (`deposit/withdraw`, `is_enough_*`, recalculation) canonical in
     `VaultService`, room build/destroy/upgrade orchestration canonical in `RoomService`.
+  - **Open (#573):** `game_loop.py` tick decomposed the same way (878 → ~280-line facade over
+    `services/game_tick/` dwellers + family collaborators), plus a `@pytest.mark.slow` tick perf probe
+    (normal vs boosted vault) showing the split is perf-neutral.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and
   player-facing events.
-  - **Next up (chosen batch):** decompose the 888-line `services/combat/incident_service.py`. Persistence is
-    already extracted (all raw SQL moved to CRUD in #568) and `services/combat/` exists, so the remaining split is
-    orchestration-only: tick loop / spawn+spread gating, incident state machine (spawn → progress → resolve/spread),
-    combat resolution math, and event+notification publishing as focused collaborators. Fold in the deferred
-    transaction-atomicity review finding (single commit per tick operation) and the combat-power calc shared with
-    arena. Guards hold the ground: any new raw SQL or transport exception fails CI.
+  - **In flight:** math, publishing, round engine, and spawning extracted behind the facade
+    (#569, #571; `incident_service.py` 888 → ~310 lines). Remaining: tick-orchestration extraction
+    (`process_vault_incidents` / `process_all_vaults_incidents` into `combat/incident_tick.py`) plus the deferred
+    single-commit-per-tick finding. Guards hold the ground: any new raw SQL or transport exception fails CI.
 - [ ] **Dweller/social batch** — reorganize relationships, breeding, happiness, death, assignment, training, and
   lineage around explicit domain services and CRUD operations.
 - [ ] **Quest/exploration/reward batch** — separate quest settlement, objective evaluation, exploration state,
@@ -834,6 +837,6 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-09-07_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
+_Last updated: 2026-09-11_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
 manual playtesting. The world map remains single-vault exploration; multiplayer is out of scope. Investigate reported
 notification click-through failures after reproducible cases are collected.

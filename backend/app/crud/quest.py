@@ -1,8 +1,6 @@
-import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any
-from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy.orm import selectinload
@@ -20,13 +18,8 @@ from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
-from app.services.notification_service import notification_service
-from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.quest_duration import effective_quest_duration_minutes
-from app.utils.reward_delivery import defer_reward_delivery
-
-logger = logging.getLogger(__name__)
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID4 | str | None:
@@ -251,113 +244,11 @@ class CRUDQuest(
         await db_session.refresh(quest)
         return quest
 
-    async def _handle_completion_cascade(
-        self, db_session: AsyncSession, db_obj: Quest, vault_id: UUID4
-    ) -> list[dict[str, Any]]:
-        """Grant every quest reward within the completion transaction."""
-        from app.crud.quest_party import quest_party_crud
-
-        async with defer_reward_delivery(db_session):
-            await db_session.refresh(db_obj, ["quest_rewards"])
-            granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, db_obj)
-            party = await quest_party_crud.get_party_for_quest(db_session, db_obj.id, vault_id)
-            if party:
-                experience_reward = await reward_service.grant_experience(
-                    db_session,
-                    [member.dweller_id for member in party],
-                    db_obj.duration_minutes * 10,
-                )
-                experience_reward["name"] = "Quest experience"
-                granted_rewards.append(experience_reward)
-
-        if granted_rewards:
-            reward_summary = ", ".join(
-                f"{reward.get('amount', reward.get('name', reward.get('dweller_id', '?')))}"
-                for reward in granted_rewards
-            )
-            logger.info(f"Granted rewards for quest '{db_obj.title}': {reward_summary}")
-
-        return granted_rewards
-
-    async def _after_completion_commit(
-        self,
-        *,
-        db_session: AsyncSession,
-        db_obj: Quest,
-        vault_id: UUID4,
-        granted_rewards: list[dict[str, Any]],
-    ) -> None:
-        """Publish reward and completion feedback after successful settlement."""
-        from app.core.event_bus import GameEvent, event_bus
-
-        leveled_up_dwellers = []
-        for reward in granted_rewards:
-            if reward["reward_type"] == "caps":
-                await event_bus.emit(
-                    GameEvent.RESOURCE_COLLECTED,
-                    vault_id,
-                    {"resource_type": "caps", "amount": reward["amount"]},
-                )
-            elif reward["reward_type"] == "item":
-                await event_bus.emit(
-                    GameEvent.ITEM_COLLECTED,
-                    vault_id,
-                    {"item_type": reward.get("item_type", "item"), "amount": reward.get("amount", 1)},
-                )
-            elif reward["reward_type"] == "stimpak":
-                await event_bus.emit(
-                    GameEvent.ITEM_COLLECTED,
-                    vault_id,
-                    {"item_type": "stimpak", "amount": reward["amount"]},
-                )
-            elif reward["reward_type"] == "experience":
-                for raw_dweller_id in reward["leveled_up"]:
-                    dweller_id = UUID(str(raw_dweller_id))
-                    dweller = await db_session.get(Dweller, dweller_id)
-                    if dweller:
-                        leveled_up_dwellers.append(dweller)
-                        await event_bus.emit(
-                            GameEvent.DWELLER_LEVEL_UP,
-                            vault_id,
-                            {
-                                "dweller_id": str(dweller.id),
-                                "level": dweller.level,
-                                "old_level": dweller.level - 1,
-                                "amount": 1,
-                            },
-                        )
-
-        await event_bus.emit(
-            GameEvent.QUEST_COMPLETED,
-            vault_id,
-            {"quest_id": str(db_obj.id), "quest_title": db_obj.title, "quest_type": db_obj.quest_type.value},
-        )
-
-        try:
-            vault = await db_session.get(Vault, vault_id)
-            if vault and vault.user_id:
-                for dweller in leveled_up_dwellers:
-                    await notification_service.notify_level_up(
-                        db_session,
-                        user_id=vault.user_id,
-                        vault_id=vault_id,
-                        dweller_id=dweller.id,
-                        dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                        new_level=dweller.level,
-                        meta_data={"old_level": dweller.level - 1, "new_level": dweller.level},
-                    )
-                rewards_str = (
-                    ", ".join(
-                        f"{reward.get('amount', reward.get('name', reward.get('type', '?')))}"
-                        for reward in granted_rewards
-                    )
-                    or "no rewards"
-                )
-                await notification_service.notify_quest_completed(
-                    db_session, vault.user_id, vault_id, db_obj.title, rewards_str
-                )
-        except Exception:
-            logger.exception(f"Failed to send quest completion notification for '{db_obj.title}'")
+    async def mark_completed(
+        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+    ) -> VaultQuestCompletionLink:
+        """Lock and claim a quest link before its rewards settle (persistence only)."""
+        return await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_id)
 
     async def get_started_state_objective_links(self, db_session: AsyncSession) -> list[VaultQuestCompletionLink]:
         """Started, incomplete, unclaimed links for building/population/training quests (backfill input)."""

@@ -1,6 +1,8 @@
 import logging
+from contextlib import suppress
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlalchemy import func
@@ -8,10 +10,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerStatusEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.models.dweller import Dweller
 from app.models.quest import Quest
+from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.services.notification_service import notification_service
+from app.services.reward_service import reward_service
 from app.utils.quest_duration import effective_quest_duration_minutes
+from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +161,106 @@ class QuestService:
         if not link.is_reward_ready:
             raise ValidationException("Quest rewards are not ready to claim")
 
-        return await crud.quest_crud.complete(db_session=db_session, quest_entity_id=quest_id, vault_id=vault_id)
+        quest = None
+        try:
+            quest = await crud.quest_crud.get(db_session, quest_id)
+            await crud.quest_crud.mark_completed(db_session, quest_id=quest_id, vault_id=vault_id)
+            granted_rewards = await self._settle_quest_rewards(db_session, quest, vault_id)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            if quest is not None:
+                with suppress(Exception):
+                    await db_session.refresh(quest)
+            raise
+
+        await self._announce_quest_completion(db_session, quest, vault_id, granted_rewards)
+        return quest, granted_rewards
+
+    async def _settle_quest_rewards(
+        self, db_session: AsyncSession, quest: Quest, vault_id: UUID4
+    ) -> list[dict[str, Any]]:
+        """Grant every quest reward within the completion transaction."""
+        from app.crud.quest_party import quest_party_crud
+
+        async with defer_reward_delivery(db_session):
+            await db_session.refresh(quest, ["quest_rewards"])
+            granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, quest)
+            party = await quest_party_crud.get_party_for_quest(db_session, quest.id, vault_id)
+            if party:
+                experience_reward = await reward_service.grant_experience(
+                    db_session, [member.dweller_id for member in party], quest.duration_minutes * 10
+                )
+                experience_reward["name"] = "Quest experience"
+                granted_rewards.append(experience_reward)
+
+        if granted_rewards:
+            summary = ", ".join(f"{r.get('amount', r.get('name', r.get('dweller_id', '?')))}" for r in granted_rewards)
+            logger.info(f"Granted rewards for quest '{quest.title}': {summary}")
+
+        return granted_rewards
+
+    async def _announce_quest_completion(
+        self, db_session: AsyncSession, quest: Quest, vault_id: UUID4, granted_rewards: list[dict[str, Any]]
+    ) -> None:
+        """Publish reward and completion feedback after successful settlement."""
+
+        async def emit(event: GameEvent, payload: dict[str, Any]) -> None:
+            await event_bus.emit(event, vault_id, payload)
+
+        leveled_up_dwellers = []
+        for reward in granted_rewards:
+            kind = reward["reward_type"]
+            if kind == "caps":
+                await emit(GameEvent.RESOURCE_COLLECTED, {"resource_type": "caps", "amount": reward["amount"]})
+            elif kind in ("item", "stimpak"):
+                item_type = "stimpak" if kind == "stimpak" else reward.get("item_type", "item")
+                await emit(GameEvent.ITEM_COLLECTED, {"item_type": item_type, "amount": reward.get("amount", 1)})
+            elif kind == "experience":
+                for raw_dweller_id in reward["leveled_up"]:
+                    dweller = await db_session.get(Dweller, UUID(str(raw_dweller_id)))
+                    if dweller:
+                        leveled_up_dwellers.append(dweller)
+                        await emit(
+                            GameEvent.DWELLER_LEVEL_UP,
+                            {
+                                "dweller_id": str(dweller.id),
+                                "level": dweller.level,
+                                "old_level": dweller.level - 1,
+                                "amount": 1,
+                            },
+                        )
+
+        await emit(
+            GameEvent.QUEST_COMPLETED,
+            {"quest_id": str(quest.id), "quest_title": quest.title, "quest_type": quest.quest_type.value},
+        )
+
+        try:
+            vault = await db_session.get(Vault, vault_id)
+            if vault and vault.user_id:
+                for dweller in leveled_up_dwellers:
+                    await notification_service.notify_level_up(
+                        db_session,
+                        user_id=vault.user_id,
+                        vault_id=vault_id,
+                        dweller_id=dweller.id,
+                        dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                        new_level=dweller.level,
+                        meta_data={"old_level": dweller.level - 1, "new_level": dweller.level},
+                    )
+                rewards_str = (
+                    ", ".join(
+                        f"{reward.get('amount', reward.get('name', reward.get('type', '?')))}"
+                        for reward in granted_rewards
+                    )
+                    or "no rewards"
+                )
+                await notification_service.notify_quest_completed(
+                    db_session, vault.user_id, vault_id, quest.title, rewards_str
+                )
+        except Exception:
+            logger.exception(f"Failed to send quest completion notification for '{quest.title}'")
 
     async def get_eligible_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4

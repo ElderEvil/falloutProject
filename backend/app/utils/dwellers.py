@@ -112,14 +112,16 @@ def _roll_identity(rng: random.Random) -> dict[str, Any]:
 def roll_child_identity(mother: Any, father: Any, source: random.Random | ModuleType = random) -> dict[str, Any]:
     """Roll a newborn's identity: inherit a parent's race, with a configurable mutation chance.
 
-    Mutation (``BreedingConfig.race_mutation_chance``) re-rolls the race from
-    ``race_weights`` instead of inheriting, which is how non-humans arise from
-    breeding given that only humans are breeding-eligible.
+    Mutation (``BreedingConfig.race_mutation_chance``) picks a race *different*
+    from the parents, weighted by ``race_weights`` over the remaining candidates,
+    which is how non-humans arise from breeding given that only humans are
+    breeding-eligible.
     """
     parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
     if source.random() < game_config.breeding.race_mutation_chance:
         weights = game_config.dweller.get_race_weights()
-        race = source.choices(list(RaceOption), weights=[weights[r.value] for r in RaceOption])[0]
+        candidates = [race for race in RaceOption if race not in parent_races]
+        race = source.choices(candidates, weights=[weights[candidate.value] for candidate in candidates])[0]
     else:
         race = source.choice(parent_races)
     return _identity_for_race(race, source)

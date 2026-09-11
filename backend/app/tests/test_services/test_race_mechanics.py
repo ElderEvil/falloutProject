@@ -1,5 +1,6 @@
 """Race mechanics: breeding eligibility, newborn inheritance/mutation, ghoul immunity."""
 
+import random
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -47,11 +48,14 @@ class TestNewbornIdentity:
             identity = roll_child_identity(_dweller("human"), _dweller("human"))
         assert identity["race"] == RaceOption.HUMAN.value
 
-    def test_mutation_rolls_a_different_race(self) -> None:
+    def test_mutation_never_keeps_a_parent_race(self) -> None:
         with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 1.0):
-            identity = roll_child_identity(_dweller("human"), _dweller("human"))
-        assert identity["race"] in {race.value for race in RaceOption}
-        assert identity["faction"]
+            races = {
+                roll_child_identity(_dweller("human"), _dweller("human"), random.Random(seed))["race"]
+                for seed in range(50)
+            }
+        assert RaceOption.HUMAN.value not in races
+        assert races <= {race.value for race in RaceOption}
 
     def test_child_identity_uses_lore_valid_faction(self) -> None:
         with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 0.0):

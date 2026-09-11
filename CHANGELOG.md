@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.5 (2026-09-11)
+
+### Bug Fixes
+
+* validate emit --data JSON object, select living room by canonical name 4888815
+
+### Code Refactoring
+
+* compact debug CLI with shared row/room/objective helpers 7d1c27d
+
 ## 2.81.4 (2026-09-11)
 
 ### Bug Fixes

@@ -268,7 +268,10 @@ class HealthCheckService:
                     message=f"{label} returned unexpected status: {response.status_code}",
                     details={"base_url": base_url, "status_code": response.status_code},
                 )
-        except (httpx.ConnectError, httpx.TimeoutException, Exception) as e:
+        # Reachable failures: httpx transport/protocol errors (HTTPError covers
+        # ConnectError/TimeoutException below) and malformed JSON payloads
+        # (ValueError/AttributeError/TypeError). Anything else must propagate.
+        except (httpx.HTTPError, ValueError, AttributeError, TypeError) as e:
             serve_hint = (
                 "Ensure the local Ollama service is running: ollama serve"
                 if provider == "ollama"

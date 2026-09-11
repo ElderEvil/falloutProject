@@ -9,10 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.core import db_locks
 from app.core.game_config import game_config
+from app.crud import game_state_crud
 from app.crud.incident import incident_crud
 from app.crud.vault import vault as vault_crud
-from app.models.game_state import GameState
-from app.models.vault import Vault
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
     from pydantic import UUID4
     from sqlmodel.ext.asyncio.session import AsyncSession
 
+    from app.models.game_state import GameState
     from app.services.combat.incident_service import IncidentService
 
 logger = logging.getLogger(__name__)
@@ -42,9 +42,9 @@ async def process_vault_incidents(
 
     try:
         if game_state is None:
-            game_state = await db_session.get(GameState, vault_id)
+            game_state = await game_state_crud.get_by_vault_id(db_session, vault_id)
 
-        vault = await db_session.get(Vault, vault_id)
+        vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
         if incident_spawning.is_spawning_disabled(vault):
             return stats
 

@@ -11,9 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
-from app.models.dweller import Dweller
 from app.models.quest import Quest
-from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
@@ -63,7 +61,7 @@ class QuestService:
             ValidationException,
         )
 
-        link = await db_session.get(VaultQuestCompletionLink, (vault_id, quest_id))
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
 
         if not link:
             raise ResourceNotFoundException(
@@ -75,7 +73,7 @@ class QuestService:
         if link.started_at is not None:
             raise ResourceConflictException("Quest is already in progress")
 
-        quest = await db_session.get(Quest, quest_id)
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
         if quest.quest_category in ("building", "population", "training"):
@@ -128,7 +126,7 @@ class QuestService:
         if link.started_at is None:
             raise ValidationException("Quest must be started before it can be completed")
 
-        quest = await db_session.get(Quest, quest_id)
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
         duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
@@ -139,7 +137,7 @@ class QuestService:
 
         party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
         for member in party:
-            dweller = await db_session.get(Dweller, member.dweller_id)
+            dweller = await crud.dweller.get_or_none(db_session, member.dweller_id, include_deleted=True)
             if dweller:
                 dweller.status = DwellerStatusEnum.IDLE
         link.is_reward_ready = True
@@ -218,7 +216,9 @@ class QuestService:
                 await emit(GameEvent.ITEM_COLLECTED, {"item_type": item_type, "amount": reward.get("amount", 1)})
             elif kind == "experience":
                 for raw_dweller_id in reward["leveled_up"]:
-                    dweller = await db_session.get(Dweller, UUID(str(raw_dweller_id)))
+                    dweller = await crud.dweller.get_or_none(
+                        db_session, UUID(str(raw_dweller_id)), include_deleted=True
+                    )
                     if dweller:
                         leveled_up_dwellers.append(dweller)
                         await emit(
@@ -237,7 +237,7 @@ class QuestService:
         )
 
         try:
-            vault = await db_session.get(Vault, vault_id)
+            vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
             if vault and vault.user_id:
                 for dweller in leveled_up_dwellers:
                     await notification_service.notify_level_up(
@@ -268,7 +268,7 @@ class QuestService:
         """Get dwellers eligible for a quest based on requirements."""
         from app.utils.exceptions import ResourceNotFoundException
 
-        quest = await db_session.get(Quest, quest_id)
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         if quest is None:
             raise ResourceNotFoundException(Quest, identifier=quest_id)
 

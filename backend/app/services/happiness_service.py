@@ -294,7 +294,7 @@ class HappinessService:
         Returns:
             Dictionary with modifier breakdown
         """
-        dweller = await db_session.get(Dweller, dweller_id)
+        dweller = await dweller_crud.get_or_none(db_session, dweller_id, include_deleted=True)
         if not dweller:
             return {"error": "Dweller not found"}
 

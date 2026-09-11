@@ -15,11 +15,14 @@ from app.services.item_service import item_service
 from app.utils.exceptions import ResourceNotFoundException
 
 
-def _setup_execute_scalar_one_or_none(session_mock: MagicMock, value) -> None:
-    """Configure session.execute → .scalar_one_or_none() → *value*."""
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none = MagicMock(return_value=value)
-    session_mock.execute = AsyncMock(return_value=result_mock)
+def _setup_execute_scalar_one_or_none(session_mock: MagicMock, *values) -> None:
+    """Configure successive session.execute → .scalar_one_or_none() results."""
+    results = []
+    for value in values:
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none = MagicMock(return_value=value)
+        results.append(result_mock)
+    session_mock.execute = AsyncMock(side_effect=results)
 
 
 def _make_mock_item(model_class, *, item_id="00000000-0000-0000-0000-000000000001", **overrides) -> MagicMock:
@@ -42,14 +45,13 @@ def _new_session() -> MagicMock:
     s.refresh = AsyncMock()
     s.delete = AsyncMock()
     s.rollback = AsyncMock()
-    s.get = AsyncMock()
     return s
 
 
 @pytest.mark.asyncio
 async def test_sell_item_not_found() -> None:
     session = _new_session()
-    session.get = AsyncMock(return_value=None)
+    _setup_execute_scalar_one_or_none(session, None)
 
     with pytest.raises(ResourceNotFoundException) as exc:
         await item_service.sell_item(session, item_id="missing", model=Weapon)
@@ -60,8 +62,7 @@ async def test_sell_item_not_found() -> None:
 async def test_sell_from_storage() -> None:
     session = _new_session()
     item = _make_mock_item(Weapon, item_id="w-sell", storage_id="st-1", value=75)
-    session.get = AsyncMock(return_value=item)
-    _setup_execute_scalar_one_or_none(session, "v-2")
+    _setup_execute_scalar_one_or_none(session, item, "v-2")
 
     with patch.object(item_service, "_credit_caps", new=AsyncMock()) as mock_credit:
         await item_service.sell_item(session, item_id="w-sell", model=Weapon)
@@ -75,8 +76,7 @@ async def test_sell_from_storage() -> None:
 async def test_sell_from_dweller() -> None:
     session = _new_session()
     item = _make_mock_item(Outfit, item_id="o-sell", dweller_id="d-1", storage_id=None, value=75)
-    session.get = AsyncMock(return_value=item)
-    _setup_execute_scalar_one_or_none(session, "v-2")
+    _setup_execute_scalar_one_or_none(session, item, "v-2")
 
     with patch.object(item_service, "_credit_caps", new=AsyncMock()) as mock_credit:
         await item_service.sell_item(session, item_id="o-sell", model=Outfit)
@@ -90,7 +90,7 @@ async def test_sell_from_dweller() -> None:
 async def test_sell_no_vault_raises() -> None:
     session = _new_session()
     item = _make_mock_item(Weapon, item_id="w-orphan", storage_id=None, dweller_id=None)
-    session.get = AsyncMock(return_value=item)
+    _setup_execute_scalar_one_or_none(session, item, None)
 
     with pytest.raises(ResourceNotFoundException) as exc:
         await item_service.sell_item(session, item_id="w-orphan", model=Weapon)
@@ -101,8 +101,7 @@ async def test_sell_no_vault_raises() -> None:
 async def test_sell_rollback_on_sqlalchemy_error() -> None:
     session = _new_session()
     item = _make_mock_item(Weapon, item_id="w-err", storage_id="st-1", value=10)
-    session.get = AsyncMock(return_value=item)
-    _setup_execute_scalar_one_or_none(session, "v-1")
+    _setup_execute_scalar_one_or_none(session, item, "v-1")
 
     with (
         patch.object(item_service, "_credit_caps", new=AsyncMock(side_effect=SQLAlchemyError)),
@@ -117,13 +116,12 @@ async def test_sell_rollback_on_sqlalchemy_error() -> None:
 async def test_credit_caps_deposits_via_vault_service_without_commit_or_emit() -> None:
     session = _new_session()
     mock_vault = MagicMock(spec=Vault, id="v-1")
-    session.get = AsyncMock(return_value=mock_vault)
+    _setup_execute_scalar_one_or_none(session, mock_vault)
 
     with patch("app.services.item_service.vault_service.deposit_caps", new=AsyncMock(return_value=500)) as mock_deposit:
         credited = await item_service._credit_caps(session, "v-1", 500)
 
     assert credited == 500
-    session.get.assert_called_once_with(Vault, "v-1")
     mock_deposit.assert_called_once_with(
         db_session=session, vault_obj=mock_vault, amount=500, commit=False, emit_event=False
     )
@@ -133,7 +131,7 @@ async def test_credit_caps_deposits_via_vault_service_without_commit_or_emit() -
 @pytest.mark.asyncio
 async def test_credit_caps_vault_not_found() -> None:
     session = _new_session()
-    session.get = AsyncMock(return_value=None)
+    _setup_execute_scalar_one_or_none(session, None)
 
     with pytest.raises(ResourceNotFoundException) as exc:
         await item_service._credit_caps(session, "bad", 100)
@@ -147,8 +145,7 @@ async def test_sell_emits_resource_collected_only_after_commit() -> None:
 
     session = _new_session()
     item = _make_mock_item(Weapon, item_id="w-sell", storage_id="st-1", value=75)
-    session.get = AsyncMock(return_value=item)
-    _setup_execute_scalar_one_or_none(session, "v-2")
+    _setup_execute_scalar_one_or_none(session, item, "v-2", MagicMock(spec=Vault, id="v-2"))
 
     order: list[str] = []
 

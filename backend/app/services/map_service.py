@@ -17,9 +17,9 @@ from sqlalchemy.exc import IntegrityError
 from app.core.enums import RarityEnum  # ruff: ignore[typing-only-first-party-import]
 from app.core.game_config import game_config
 from app.crud.exploration import exploration as exploration_crud
+from app.crud.vault import vault as vault_crud
 from app.crud.wasteland_location import wasteland_location as wl_crud
 from app.models.notification import NotificationPriority, NotificationType
-from app.models.vault import Vault
 from app.models.wasteland_location import (
     DwellerLocationRelationEnum,
     LocationTypeEnum,
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
     from app.models.dweller import Dweller
+    from app.models.vault import Vault
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +259,7 @@ class MapService:
     ) -> None:
         """Persist an actionable notification when map registration exhausts its retry."""
         try:
-            vault = await db_session.get(Vault, dweller.vault_id)
+            vault = await vault_crud.get_or_none(db_session, dweller.vault_id, include_deleted=True)
             if vault is None:
                 logger.error("Cannot notify map registration failure: vault=%s not found", dweller.vault_id)
                 return

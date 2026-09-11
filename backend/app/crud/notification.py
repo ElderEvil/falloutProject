@@ -60,19 +60,18 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         return len(list(result.scalars().all()))
 
     async def mark_as_read(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
-        """Mark notification as read"""
+        """Mark notification as read (persistence only; the caller commits)."""
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_read = True
             notification.read_at = datetime.utcnow()
             db.add(notification)
-            await db.commit()
-            await db.refresh(notification)
+            await db.flush()
             return notification
         return None
 
     async def mark_all_as_read(self, db: AsyncSession, user_id: UUID) -> int:
-        """Mark all notifications as read for a user"""
+        """Mark all notifications as read for a user (persistence only; the caller commits)."""
         query = select(Notification).where(Notification.user_id == user_id).where(~Notification.is_read)
         result = await db.execute(query)
         notifications = result.scalars().all()
@@ -84,17 +83,17 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
             db.add(notification)
             count += 1
 
-        await db.commit()
+        if count:
+            await db.flush()
         return count
 
     async def dismiss(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
-        """Dismiss (soft delete) a notification"""
+        """Dismiss (soft delete) a notification (persistence only; the caller commits)."""
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_dismissed = True
             db.add(notification)
-            await db.commit()
-            await db.refresh(notification)
+            await db.flush()
             return notification
         return None
 

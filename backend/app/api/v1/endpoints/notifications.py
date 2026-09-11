@@ -11,6 +11,7 @@ from app.crud.notification import notification as notification_crud
 from app.db.session import get_async_session
 from app.models.notification import NotificationCreate, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
+from app.services.notification_service import notification_service
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -79,7 +80,7 @@ async def mark_notification_as_read(
     Raises:
         HTTPException: 404 if notification not found.
     """
-    notification = await notification_crud.mark_as_read(db_session, notification_id=notification_id, user_id=user.id)
+    notification = await notification_service.mark_read(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification
@@ -95,7 +96,7 @@ async def mark_all_notifications_as_read(
     Returns:
         Response with count of notifications marked as read.
     """
-    count = await notification_crud.mark_all_as_read(db_session, user_id=user.id)
+    count = await notification_service.mark_all_read(db_session, user_id=user.id)
     return MarkReadResponse(marked_read=count)
 
 
@@ -113,7 +114,7 @@ async def dismiss_notification(
     Raises:
         HTTPException: 404 if notification not found.
     """
-    notification = await notification_crud.dismiss(db_session, notification_id=notification_id, user_id=user.id)
+    notification = await notification_service.dismiss(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification

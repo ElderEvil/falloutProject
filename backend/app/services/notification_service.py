@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.notification import notification as notification_crud
-from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
+from app.models.notification import Notification, NotificationCreate, NotificationPriority, NotificationType
 from app.services.stream_manager import sse_manager
 from app.services.websocket_manager import manager
 
@@ -119,6 +119,31 @@ class NotificationService:
         pending = db.info.pop("deferred_notification_deliveries", [])
         for user_id, payload in pending:
             await NotificationService._deliver(user_id, payload)
+
+    @staticmethod
+    async def mark_read(db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
+        """Mark one notification read for its owner and commit."""
+        notification = await notification_crud.mark_as_read(db, notification_id=notification_id, user_id=user_id)
+        if notification:
+            await db.commit()
+            await db.refresh(notification)
+        return notification
+
+    @staticmethod
+    async def mark_all_read(db: AsyncSession, user_id: UUID) -> int:
+        """Mark every unread notification read for a user and commit."""
+        count = await notification_crud.mark_all_as_read(db, user_id=user_id)
+        if count:
+            await db.commit()
+        return count
+
+    @staticmethod
+    async def dismiss(db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
+        """Dismiss one notification for its owner and commit."""
+        notification = await notification_crud.dismiss(db, notification_id=notification_id, user_id=user_id)
+        if notification:
+            await db.commit()
+        return notification
 
     @staticmethod
     async def notify_owner(

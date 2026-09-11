@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.4 (2026-09-11)
+
+### Bug Fixes
+
+* catch relative and package-attribute app.api imports in guard 9c54686
+* return 404 for inaccessible pregnancies, not a distinguishable 403 61ea46c
+
+### Documentation
+
+* add Area 1 persistence-boundary hardening plan 4d036d5
+
 ## 2.81.3 (2026-09-11)
 
 ### Bug Fixes

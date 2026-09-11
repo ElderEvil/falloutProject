@@ -46,6 +46,10 @@ class WorldLocation(BaseUUIDModel, WorldLocationBase, TimeStampMixin, table=True
     __table_args__ = (
         sa.CheckConstraint("coord_x >= 0 AND coord_x <= 100", name="ck_world_location_coord_x_range"),
         sa.CheckConstraint("coord_y >= 0 AND coord_y <= 100", name="ck_world_location_coord_y_range"),
+        sa.CheckConstraint(
+            "(kind = 'VAULT' AND vault_number IS NOT NULL) OR (kind = 'PLACE' AND vault_number IS NULL)",
+            name="ck_world_location_kind_fields",
+        ),
         sa.Index(
             "uq_world_location_vault_number",
             "vault_number",

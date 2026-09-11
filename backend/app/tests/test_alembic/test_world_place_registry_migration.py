@@ -61,7 +61,7 @@ class TestWorldPlaceRegistryMigration:
         old_rows = await _scalar(live_pg_engine, "SELECT count(*) FROM wastelandlocation")
         state_rows = await _scalar(live_pg_engine, "SELECT count(*) FROM vaultlocationstate")
         registry_rows = await _scalar(live_pg_engine, "SELECT count(*) FROM worldlocation")
-        distinct_names = await _scalar(live_pg_engine, "SELECT count(DISTINCT normalized_name) FROM worldlocation")
+        distinct_names = await _scalar(live_pg_engine, "SELECT count(DISTINCT normalized_name) FROM wastelandlocation")
 
         assert state_rows == old_rows, "every wastelandlocation row must map to exactly one state row"
         assert registry_rows == distinct_names, "registry must be deduped on normalized_name"
@@ -79,6 +79,24 @@ class TestWorldPlaceRegistryMigration:
         )
         assert bad_home == 0, "vault-kind registry rows must sit at (50, 50)"
         assert out_of_range == 0, "registry coordinates must stay on the 0-100 grid"
+
+    @pytest.mark.asyncio
+    async def test_every_home_row_maps_to_a_vault_registry_row(self, live_pg_engine: AsyncEngine) -> None:
+        mismatched = await _scalar(
+            live_pg_engine,
+            """
+            SELECT count(*)
+            FROM wastelandlocation wl
+            JOIN vault v ON v.id = wl.vault_id
+            JOIN worldlocation gl ON gl.normalized_name = wl.normalized_name
+            WHERE wl.type = 'HOME_VAULT'
+              AND NOT (gl.kind = 'VAULT' AND gl.vault_number = v.number
+                       AND gl.coord_x = 50.0 AND gl.coord_y = 50.0)
+            """,
+        )
+        assert mismatched == 0, (
+            "every HOME_VAULT source row must yield a VAULT registry row with its vault number at (50, 50)"
+        )
 
     @pytest.mark.asyncio
     async def test_place_coordinates_are_unique(self, live_pg_engine: AsyncEngine) -> None:

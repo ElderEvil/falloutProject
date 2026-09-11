@@ -20,6 +20,7 @@ Create Date: 2026-09-12
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 import sqlalchemy as sa
 from alembic import op
@@ -73,6 +74,10 @@ def _create_tables() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.CheckConstraint("coord_x >= 0 AND coord_x <= 100", name="ck_world_location_coord_x_range"),
         sa.CheckConstraint("coord_y >= 0 AND coord_y <= 100", name="ck_world_location_coord_y_range"),
+        sa.CheckConstraint(
+            "(kind = 'VAULT' AND vault_number IS NOT NULL) OR (kind = 'PLACE' AND vault_number IS NULL)",
+            name="ck_world_location_kind_fields",
+        ),
     )
     op.create_index(op.f("ix_worldlocation_id"), "worldlocation", ["id"], unique=False)
     op.create_index("ix_worldlocation_normalized_name", "worldlocation", ["normalized_name"], unique=True)
@@ -119,19 +124,24 @@ def _create_tables() -> None:
 def _backfill_registry() -> None:
     """Copy ``wastelandlocation`` into the registry, deduped by normalized name.
 
-    Winner per name is the first row by ``(created_at, id)``; it supplies the
-    canonical display name, description, coordinates and row id. Coordinates are
-    name-derived (never carried over) so the registry stays deterministic for
-    every viewer. Every old row becomes exactly one ``VaultLocationState``.
+    Winner per name is a ``HOME_VAULT`` row when one exists, otherwise the first
+    row by ``(created_at, id)``; it supplies the canonical display name,
+    description and row id. Coordinates are name-derived (never carried over) so
+    the registry stays deterministic for every viewer. Every old row becomes
+    exactly one ``VaultLocationState``. Re-running also promotes a canonical row
+    first written as a ``PLACE`` before its home marker appeared.
     """
     from app.utils.places import collision_nudge, schematic_coords
 
     bind = op.get_bind()
 
-    registry: dict[str, str] = {
-        normalized: str(row_id)
-        for normalized, row_id in bind.execute(sa.text("SELECT normalized_name, id FROM worldlocation")).all()
+    existing: dict[str, tuple[str, str]] = {
+        normalized: (str(row_id), kind)
+        for normalized, row_id, kind in bind.execute(
+            sa.text("SELECT normalized_name, id, kind FROM worldlocation")
+        ).all()
     }
+    registry: dict[str, str] = {normalized: row_id for normalized, (row_id, _kind) in existing.items()}
     occupied: set[tuple[float, float]] = {
         (round(x, 1), round(y, 1))
         for x, y in bind.execute(sa.text("SELECT coord_x, coord_y FROM worldlocation")).all()
@@ -160,8 +170,14 @@ def _backfill_registry() -> None:
         .all()
     )
 
+    winners: dict[str, Any] = {}
     for row in rows:
         normalized = row["normalized_name"]
+        current = winners.get(normalized)
+        if current is None or (row["type"] == "HOME_VAULT" and current["type"] != "HOME_VAULT"):
+            winners[normalized] = row
+
+    for normalized, row in winners.items():
         is_home = row["type"] == "HOME_VAULT"
 
         if normalized not in registry:
@@ -194,7 +210,28 @@ def _backfill_registry() -> None:
                 },
             )
             registry[normalized] = str(row["id"])
+        elif is_home and existing[normalized][1] != "VAULT":
+            bind.execute(
+                sa.text(
+                    """
+                    UPDATE worldlocation
+                    SET kind = 'VAULT', vault_number = :vault_number, coord_x = :coord_x, coord_y = :coord_y,
+                        name = :name, updated_at = :updated_at
+                    WHERE normalized_name = :normalized_name
+                    """
+                ),
+                {
+                    "vault_number": row["vault_number"],
+                    "coord_x": _HOME_COORD[0],
+                    "coord_y": _HOME_COORD[1],
+                    "name": row["name"][:64],
+                    "updated_at": row["updated_at"],
+                    "normalized_name": normalized,
+                },
+            )
 
+    for row in rows:
+        normalized = row["normalized_name"]
         location_id = registry[normalized]
         if (str(row["vault_id"]), location_id) in existing_states:
             continue

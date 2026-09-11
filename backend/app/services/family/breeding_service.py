@@ -389,7 +389,9 @@ class BreedingService:
         }
 
         child_in = DwellerCreate(**child_data, vault_id=mother.vault_id)
-        child = await dweller_crud.create(db_session=db_session, obj_in=child_in)
+        from app.services.dweller_service import dweller_service
+
+        child = await dweller_service.create_dweller(db_session=db_session, obj_in=child_in)
 
         # Set parent IDs (not part of DwellerCreate schema)
         child.parent_1_id = mother.id

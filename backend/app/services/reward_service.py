@@ -202,17 +202,17 @@ class RewardService:
             if template is None:
                 msg = f"Unknown dweller reward template: {template_id}"
                 raise ValueError(msg)
-            from app.crud.dweller import dweller as dweller_crud
+            from app.services.dweller_service import dweller_service
 
             try:
-                new_dweller = await dweller_crud.create_from_template(
+                new_dweller = await dweller_service.create_dweller_from_template(
                     db_session,
                     vault_id,
                     template_id,
                     overrides=dweller_template,
                 )
             except ResourceConflictException:
-                fallback = await dweller_crud.create_random(
+                fallback = await dweller_service.create_random_dweller(
                     db_session, vault_id=vault_id, rarity=RarityEnum.COMMON, register_bio_places=True
                 )
                 logger.info(
@@ -307,6 +307,7 @@ class RewardService:
 
     async def grant_experience(self, db_session: AsyncSession, dweller_ids: list[UUID4], amount: int) -> dict[str, Any]:
         from app.crud.dweller import dweller as dweller_crud
+        from app.services.dweller_service import dweller_service
 
         leveled_up: list[str] = []
         granted_to: list[str] = []
@@ -315,7 +316,7 @@ class RewardService:
             dweller_id = UUID4(raw_id) if isinstance(raw_id, str) else raw_id
             dweller_obj = await dweller_crud.get(db_session, id=dweller_id)
             old_level = dweller_obj.level
-            await dweller_crud.add_experience(db_session, dweller_obj, amount)
+            await dweller_service.add_experience(db_session, dweller_obj, amount)
             granted_to.append(str(dweller_id))
 
             await db_session.refresh(dweller_obj)

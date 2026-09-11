@@ -1,6 +1,7 @@
 """General dweller business logic service."""
 
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -8,13 +9,23 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, RoomTypeEnum
+from app.core.enums import DwellerStatusEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
+from app.models.dweller import Dweller
+from app.models.room import Room
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
-from app.schemas.dweller import DwellerIdentityOptions, DwellerReadWithRoomID, DwellerUpdate
+from app.schemas.dweller import (
+    DwellerCreate,
+    DwellerCreateCommonOverride,
+    DwellerIdentityOptions,
+    DwellerReadWithRoomID,
+    DwellerUpdate,
+)
+from app.services.map_service import map_service
+from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import (
     calculate_room_capacity,
     get_highest_special,
@@ -22,12 +33,15 @@ from app.services.room_assignment_policy import (
     validate_room_assignment,
 )
 from app.services.training_service import training_service
+from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidVaultTransferException,
     ResourceConflictException,
+    ResourceNotFoundException,
 )
+from app.utils.reward_delivery import reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +58,83 @@ class DwellerService:
             },
             states_by_race={race.value: states for race, states in STATE_OF_BEING_VALUES.items()},
         )
+
+    async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:
+        """Create a dweller and record the overseer's lifetime total."""
+        dweller = await crud.dweller.create(db_session, obj_in)
+        await user_service.record_vault_statistic(db_session, dweller.vault_id, "total_dwellers_created")
+        return dweller
+
+    async def create_random_dweller(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        obj_in: DwellerCreateCommonOverride | None = None,
+        seed: int | None = None,
+        rarity: RarityEnum = RarityEnum.COMMON,
+        register_bio_places: bool = True,
+    ) -> Dweller:
+        """Create a random dweller, recording the overseer's total and registering bio places.
+
+        Callers composing their OWN bio (e.g. pregen_service) pass ``register_bio_places=False``.
+        """
+        payload = await crud.dweller.prepare_random_dweller(db_session, vault_id, obj_in, seed=seed, rarity=rarity)
+        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places)
+
+    async def create_dweller_from_template(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        template_id: str,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> Dweller:
+        """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
+        payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
+        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+
+    async def _persist_registered_dweller(
+        self, db_session: AsyncSession, vault_id: UUID4, payload: dict[str, Any], register_bio_places: bool
+    ) -> Dweller:
+        """Persist a prepared payload, record the lifetime total and register explicit bio places."""
+        bio_places = payload.pop("_bio_places", None)
+        dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
+        if bio_places and register_bio_places:
+            origin, visited = bio_places
+            await map_service.register_bio_places(db_session, dweller, origin_place=origin or "", visited_places=visited)
+        return dweller
+
+    async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
+        """Add experience via CRUD, then emit the level-up event and notify the vault owner."""
+        old_level = dweller_obj.level
+        updated_dweller = await crud.dweller.add_experience(db_session, dweller_obj, amount)
+        leveled_up = updated_dweller.level > old_level and not reward_delivery_is_deferred(db_session)
+
+        if leveled_up and updated_dweller.vault_id:
+            await event_bus.emit(
+                GameEvent.DWELLER_LEVEL_UP,
+                updated_dweller.vault_id,
+                {
+                    "dweller_id": str(updated_dweller.id),
+                    "level": updated_dweller.level,
+                    "old_level": old_level,
+                    "amount": 1,
+                },
+            )
+
+            vault = await crud.vault.get(db_session, updated_dweller.vault_id)
+            if vault and vault.user_id:
+                await notification_service.notify_level_up(
+                    db_session,
+                    user_id=vault.user_id,
+                    vault_id=updated_dweller.vault_id,
+                    dweller_id=updated_dweller.id,
+                    dweller_name=f"{updated_dweller.first_name} {updated_dweller.last_name or ''}".strip(),
+                    new_level=updated_dweller.level,
+                    meta_data={"old_level": old_level, "new_level": updated_dweller.level},
+                )
+
+        return updated_dweller
 
     async def update_dweller(
         self,
@@ -74,9 +165,6 @@ class DwellerService:
             else:
                 room_obj = await crud.room.get(db_session, room_id)
                 if not room_obj:
-                    from app.models.room import Room
-                    from app.utils.exceptions import ResourceNotFoundException
-
                     raise ResourceNotFoundException(model=Room, identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 

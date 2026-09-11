@@ -208,7 +208,7 @@ class TestCreateInitialDwellers:
 
         with (
             patch(
-                "app.services.vault_service.dweller_crud.create_random",
+                "app.services.dweller_service.dweller_service.create_random_dweller",
                 new_callable=AsyncMock,
                 side_effect=fake_create_random,
             ),
@@ -244,7 +244,7 @@ class TestCreateInitialDwellers:
         training_rooms: list[Room] = []
 
         with patch(
-            "app.services.vault_service.dweller_crud.create_random",
+            "app.services.dweller_service.dweller_service.create_random_dweller",
             new_callable=AsyncMock,
             side_effect=RuntimeError("DB error"),
         ):

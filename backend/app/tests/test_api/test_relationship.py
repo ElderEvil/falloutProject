@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.schemas.dweller import DwellerCreateCommonOverride
+from app.services.dweller_service import dweller_service
 from app.utils.exceptions import AccessDeniedException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
@@ -55,12 +56,12 @@ async def test_initiate_romance(
     )
 
     # Create dwellers and relationship
-    dweller1 = await crud.dweller.create_random(
+    dweller1 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
         obj_in=DwellerCreateCommonOverride(gender="male"),
     )
-    dweller2 = await crud.dweller.create_random(
+    dweller2 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
         obj_in=DwellerCreateCommonOverride(gender="female"),
@@ -332,12 +333,12 @@ async def test_marry(
         user_id=user.id,
     )
 
-    dweller1 = await crud.dweller.create_random(
+    dweller1 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
         obj_in=DwellerCreateCommonOverride(gender="male"),
     )
-    dweller2 = await crud.dweller.create_random(
+    dweller2 = await dweller_service.create_random_dweller(
         async_session,
         vault.id,
         obj_in=DwellerCreateCommonOverride(gender="female"),

@@ -202,6 +202,8 @@ class VaultService:
         is_boosted: bool,
     ) -> None:
         """Create and assign initial dwellers to production and training rooms."""
+        from app.services.dweller_service import dweller_service
+
         try:
             assignments = [
                 (room, stat, 2)
@@ -215,7 +217,7 @@ class VaultService:
                 assignments.extend((room, SPECIALEnum.INTELLIGENCE, 2) for room in created_production_rooms[3:5])
             for room, boosted_stat, count in assignments:
                 for _ in range(count):
-                    dweller_obj = await dweller_crud.create_random(
+                    dweller_obj = await dweller_service.create_random_dweller(
                         db_session,
                         vault_id,
                         DwellerCreateCommonOverride(special_boost=boosted_stat),
@@ -234,7 +236,7 @@ class VaultService:
                     if i < len(created_training_rooms):
                         room = created_training_rooms[i]
                         dweller_data = DwellerCreateCommonOverride(special_boost=training_stat)
-                        dweller_obj = await dweller_crud.create_random(
+                        dweller_obj = await dweller_service.create_random_dweller(
                             db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
                         )
 
@@ -252,7 +254,7 @@ class VaultService:
                 radio_room = next((r for r in created_misc_rooms if "radio" in r.name.lower()), None)
                 if radio_room:
                     dweller_data = DwellerCreateCommonOverride(special_boost=SPECIALEnum.CHARISMA)
-                    dweller_obj = await dweller_crud.create_random(
+                    dweller_obj = await dweller_service.create_random_dweller(
                         db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
                     await dweller_crud.update(
@@ -270,7 +272,7 @@ class VaultService:
                         gender=gender,
                         special_boost=SPECIALEnum.CHARISMA if is_boosted else None,
                     )
-                    dweller = await dweller_crud.create_random(
+                    dweller = await dweller_service.create_random_dweller(
                         db_session, vault_id, dweller_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
                     if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
@@ -293,7 +295,7 @@ class VaultService:
                     if room.ability is None:
                         continue
                     youth_data = DwellerCreateCommonOverride(special_boost=room.ability)
-                    youth = await dweller_crud.create_random(
+                    youth = await dweller_service.create_random_dweller(
                         db_session, vault_id, youth_data, rarity=self._roll_initial_rarity(is_boosted)
                     )
                     await self._seed_youth_apprentice(db_session, youth.id, room)
@@ -397,9 +399,9 @@ class VaultService:
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
         from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponTypeEnum
-        from app.crud.dweller import dweller as dweller_crud
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
+        from app.services.dweller_service import dweller_service
         from app.utils.outfit_assets import get_outfit_image_url
         from app.utils.weapon_assets import get_weapon_image_url
 
@@ -407,7 +409,7 @@ class VaultService:
         legendary_outfits = []
         for template_id, weapon_name, outfit_name, weapon_subtype in BOOSTED_LOADOUTS:
             try:
-                dweller = await dweller_crud.create_from_template(db_session, vault_id, template_id)
+                dweller = await dweller_service.create_dweller_from_template(db_session, vault_id, template_id)
             except ResourceConflictException:
                 self.logger.info("Boosted template %s already active in vault %s, skipping", template_id, vault_id)
                 continue

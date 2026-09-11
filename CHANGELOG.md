@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.83.0 (2026-09-11)
+
+### Features
+
+* **map:** add canonical world-place registry tables and backfill 717886e
+
+### Bug Fixes
+
+* **map:** promote HOME_VAULT winners and enforce registry invariants 18854a9
+
 ## 2.82.0 (2026-09-11)
 
 ### Features

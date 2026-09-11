@@ -523,6 +523,12 @@ class BreedingConfig(BaseSettings):
         ge=0.0,
         le=1.0,
     )
+    race_mutation_chance: float = Field(
+        default=0.05,
+        description="5% chance a newborn mutates into a different race than its parents",
+        ge=0.0,
+        le=1.0,
+    )
 
     # Youth maturity
     child_growth_duration_hours: int = Field(default=24, description="Total hours from child to adult", ge=2)

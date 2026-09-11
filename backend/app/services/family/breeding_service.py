@@ -23,6 +23,7 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
+from app.options.races import can_breed
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
 from app.services.notification_service import notification_service
 
@@ -223,6 +224,9 @@ class BreedingService:
             if partner.gender == dweller.gender:
                 continue
 
+            if not can_breed(dweller) or not can_breed(partner):
+                continue
+
             conception_chance = await BreedingService._get_relationship_affinity(db_session, dweller, partner)
             pregnancy = await BreedingService._roll_for_conception(db_session, dweller, partner, conception_chance)
 
@@ -266,6 +270,9 @@ class BreedingService:
             raise ValueError("Father must be an adult")
         if father.gender != GenderEnum.MALE:
             raise ValueError("Father must be male")
+
+        if not can_breed(mother) or not can_breed(father):
+            raise ValueError("Only humans can conceive; non-human races enter the vault by other means")
 
         # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
         conceived_at = datetime.now(UTC).replace(tzinfo=None)
@@ -365,7 +372,7 @@ class BreedingService:
         child_rarity = BreedingService._calculate_inherited_rarity(mother, father)
         child_gender = random.choice(list(GenderEnum))
 
-        from app.utils.dwellers import get_gender_based_name
+        from app.utils.dwellers import get_gender_based_name, roll_child_identity
 
         first_name = get_gender_based_name(child_gender)
         # Father's last name by default; occasionally inherit the mother's instead
@@ -389,6 +396,7 @@ class BreedingService:
             "health": 100,
             "radiation": 0,
             "happiness": 50,
+            "visual_attributes": roll_child_identity(mother, father),
             **child_stats,
         }
 

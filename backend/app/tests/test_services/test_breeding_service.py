@@ -223,6 +223,28 @@ async def test_create_pregnancy_father_not_male(
 
 
 @pytest.mark.asyncio
+async def test_create_pregnancy_rejects_non_human_parent(
+    async_session: AsyncSession,
+    vault: Vault,
+    male_dweller: Dweller,
+):
+    """Non-human races cannot conceive; create_pregnancy refuses the pair."""
+    ghoul_in = DwellerCreate(
+        first_name="Ghoul",
+        last_name="Test",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        age_group=AgeGroupEnum.ADULT,
+        birth_date=datetime.utcnow(),
+        vault_id=vault.id,
+        visual_attributes={"race": "ghoul", "faction": "vault_dweller"},
+    )
+    ghoul = await crud.dweller.create(db_session=async_session, obj_in=ghoul_in)
+    with pytest.raises(ValueError, match="Only humans can conceive"):
+        await BreedingService.create_pregnancy(async_session, ghoul.id, male_dweller.id)
+
+
+@pytest.mark.asyncio
 async def test_check_for_conception_no_partners(
     async_session: AsyncSession,
     vault: Vault,

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.1 (2026-09-11)
+
+### Bug Fixes
+
+* Room model in not-found error, emit RESOURCE_COLLECTED only after sale commits f19abfd
+
 ## 2.81.0 (2026-09-10)
 
 ### Features

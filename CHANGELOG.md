@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.81.2 (2026-09-11)
+
+### Bug Fixes
+
+* patch family_tick namespace directly, correct p95 nearest-rank index 748f68b
+
 ## 2.81.1 (2026-09-11)
 
 ### Bug Fixes

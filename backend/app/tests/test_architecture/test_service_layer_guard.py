@@ -21,10 +21,7 @@ GUARDED_DIRS = ("services", "crud")
 EXCEPTIONS_FILE = APP_DIR / "utils" / "exceptions.py"
 
 CRUD_SERVICE_ALLOWLIST = frozenset({"app.services.room_assignment_policy"})
-CRUD_SERVICE_BASELINE = frozenset(
-    {
-    }
-)
+CRUD_SERVICE_BASELINE = frozenset({})
 SERVICES_SELECT_BASELINE = frozenset()
 SERVICE_NAME_PATTERN = re.compile(r"^([a-z][a-z0-9_]*_service|__init__)\.py$")
 SERVICE_NAME_GRANDFATHER = frozenset(

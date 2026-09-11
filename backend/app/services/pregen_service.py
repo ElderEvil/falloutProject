@@ -138,12 +138,14 @@ class PregenService:
         consumption, cheap.
         """
         await self._ensure_vault_exists(db_session, vault_id)
+        from app.services.dweller_service import dweller_service
+
         rng = std_random.Random(seed)
         prefixes, suffixes = self._load_name_pools()
 
         results: list[PregenResult] = []
         for _ in range(count):
-            dweller = await crud.dweller.create_random(
+            dweller = await dweller_service.create_random_dweller(
                 db_session, vault_id=vault_id, seed=seed, register_bio_places=False
             )
 

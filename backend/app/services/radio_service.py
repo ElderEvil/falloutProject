@@ -156,6 +156,7 @@ class RadioService:
             dweller was restored rather than a new one created.
         """
         from app.services.dweller_recycling_service import dweller_recycling_service
+        from app.services.dweller_service import dweller_service
         from app.utils.exceptions import ResourceConflictException
 
         recycled = False
@@ -202,7 +203,7 @@ class RadioService:
 
         if dweller is None:
             rarity = RarityEnum.RARE if random.random() < game_config.radio.rare_chance else RarityEnum.COMMON
-            dweller = await crud.dweller.create_random(
+            dweller = await dweller_service.create_random_dweller(
                 db_session=db_session,
                 obj_in=override,
                 vault_id=vault_id,

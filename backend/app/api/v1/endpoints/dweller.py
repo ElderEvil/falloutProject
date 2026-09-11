@@ -54,7 +54,7 @@ async def create_dweller(
     Returns:
         DwellerRead: The created dweller.
     """
-    return await crud.dweller.create(db_session, dweller_data)
+    return await dweller_service.create_dweller(db_session, dweller_data)
 
 
 @router.get("/", response_model=list[DwellerReadLess])
@@ -229,7 +229,7 @@ async def create_random_common_dweller(
         DwellerRead: The newly created random dweller.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.create_random(db_session=db_session, obj_in=dweller_override, vault_id=vault_id)
+    return await dweller_service.create_random_dweller(db_session, vault_id, dweller_override)
 
 
 @router.post("/{dweller_id}/generate_backstory/", response_model=DwellerReadFull)

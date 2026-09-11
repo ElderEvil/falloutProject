@@ -334,7 +334,9 @@ class FamilyScenarioService:
         through ``child_growth_duration_hours`` and to adults at its end (24h by
         default). Backdating makes lifecycle states testable on the next tick.
         """
-        child = await crud.dweller.create_random(
+        from app.services.dweller_service import dweller_service
+
+        child = await dweller_service.create_random_dweller(
             db_session,
             vault_id,
             seed=seed,

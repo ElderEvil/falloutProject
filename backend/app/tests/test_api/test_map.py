@@ -17,6 +17,7 @@ from app.models.wasteland_location import (
 )
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
+from app.services.dweller_service import dweller_service
 from app.services.map_service import map_service
 from app.tests.utils.utils import get_gender_based_name
 
@@ -47,7 +48,7 @@ async def test_get_vault_map_includes_bio_places(
     )
 
     # Second dweller also from Megaton (use create_random for full defaults)
-    dw2 = await crud.dweller.create_random(db_session=async_session, vault_id=vault.id)
+    dw2 = await dweller_service.create_random_dweller(async_session, vault.id)
     await map_service.register_bio_places(
         async_session,
         dw2,

@@ -86,7 +86,7 @@ class ApprenticeScenarioService:
         created = apprentice is None
 
         if apprentice is None:
-            apprentice = await crud.dweller.create(
+            apprentice = await dweller_service.create_dweller(
                 db_session,
                 DwellerCreate(
                     first_name="Apprentice",

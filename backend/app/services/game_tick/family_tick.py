@@ -24,6 +24,13 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.pregnancy import Pregnancy
 from app.models.relationship import Relationship
+from app.services.game_tick.tick_results import (
+    AgeStats,
+    BreedingStats,
+    EventsStats,
+    PregnancyStats,
+    RelationshipsStats,
+)
 from app.services.vault_service import vault_service
 from app.utils.dwellers import group_dwellers_by_room
 
@@ -40,7 +47,7 @@ async def process_events(
     game_state: GameState | None = None,
     *,
     rng: ModuleType,
-) -> dict:
+) -> EventsStats:
     """Fire weighted random vault events (raider scout, resource cache, wanderer).
 
     ``rng`` is the ``random`` module passed in by the facade so tests can keep
@@ -52,7 +59,7 @@ async def process_events(
     from app.services.combat.incident_service import incident_service
     from app.services.notification_service import notification_service
 
-    stats = {"triggered": 0, "events": []}
+    stats: EventsStats = {"triggered": 0, "events": []}
 
     # Events do not punish players for time away from the vault
     if game_state and not game_state.is_user_online():
@@ -205,13 +212,15 @@ async def create_new_relationships(db_session: AsyncSession, new_relationships: 
     return count
 
 
-async def update_room_relationships(service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def update_room_relationships(
+    service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4
+) -> RelationshipsStats:
     """Update relationship affinity for dwellers sharing living quarters.
 
     Relationship helpers are reached through ``service`` so patches on the
     ``GameLoopService`` instance keep intercepting (existing test contract).
     """
-    stats = {"relationships_updated": 0}
+    stats: RelationshipsStats = {"relationships_updated": 0}
 
     try:
         dwellers = await crud_dweller.get_living_quarters_dwellers(db_session, vault_id)
@@ -264,11 +273,11 @@ async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID4, pregnancy
     return bool(baby)
 
 
-async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUID4) -> PregnancyStats:
     """Check for conception and process due pregnancies."""
     from app.services.family.breeding_service import breeding_service
 
-    stats = {"conceptions": 0, "births": 0}
+    stats: PregnancyStats = {"conceptions": 0, "births": 0}
 
     # Check for conception
     try:
@@ -293,11 +302,11 @@ async def process_pregnancies_and_births(db_session: AsyncSession, vault_id: UUI
     return stats
 
 
-async def age_children(db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def age_children(db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
     """Age children to adults if they're ready."""
     from app.services.family.breeding_service import breeding_service
 
-    stats = {"children_aged": 0}
+    stats: AgeStats = {"children_aged": 0}
 
     try:
         aged_children = await breeding_service.age_children(db_session, vault_id)
@@ -312,7 +321,7 @@ async def age_children(db_session: AsyncSession, vault_id: UUID4) -> dict:
     return stats
 
 
-async def process_breeding(service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def process_breeding(service: "GameLoopService", db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
     """Process relationships and breeding for a vault.
 
     - Update relationship affinity for dwellers in the same room

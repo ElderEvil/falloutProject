@@ -7,6 +7,7 @@ sessions, and happiness. ``GameLoopService`` keeps same-named thin delegates.
 
 import logging
 from datetime import datetime
+from functools import partial
 
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
@@ -20,6 +21,14 @@ from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
 from app.services.exploration_service import exploration_service
+from app.services.game_tick.guard import guard_phase
+from app.services.game_tick.tick_results import (
+    ApprenticeStats,
+    DwellersStats,
+    ExplorationStats,
+    TrainingStats,
+    WorkXpStats,
+)
 from app.services.happiness_service import happiness_service
 from app.services.radiation_service import apply_radiation_gain
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
@@ -27,13 +36,13 @@ from app.utils.exceptions import ResourceNotFoundException, VaultOperationExcept
 logger = logging.getLogger(__name__)
 
 
-async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
     """Process all active explorations for a vault.
 
     - Generate events for explorations that are due
     - Auto-complete explorations that have reached their duration
     """
-    stats = {
+    stats: ExplorationStats = {
         "active_count": 0,
         "events_generated": 0,
         "completed": 0,
@@ -50,24 +59,11 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> dic
         stats["active_count"] = len(active_explorations)
 
         for exploration in active_explorations:
-            try:
-                # Check if exploration should be auto-completed
-                if exploration.time_remaining_seconds() <= 0:
-                    # Auto-complete the exploration
-                    await exploration_service.complete_exploration(db_session, exploration.id)
-                    stats["completed"] += 1
-                    logger.info(f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}")
-                    continue
-
-                # Try to generate an event
-                event_generated = exploration_service.generate_event(exploration)
-                if event_generated:
-                    await exploration_service.process_event(db_session, exploration)
-                    stats["events_generated"] += 1
-
-            except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                # Keep broad exception for individual exploration processing
-                logger.error(f"Error processing exploration {exploration.id}: {e}", exc_info=True)
+            await guard_phase(
+                f"Error processing exploration {exploration.id}",
+                partial(_process_single_exploration, db_session, stats, exploration),
+                catch=(SQLAlchemyError, ValueError, RuntimeError),
+            )
 
     except (SQLAlchemyError, ResourceNotFoundException) as e:
         logger.error(f"Error loading explorations for vault {vault_id}: {e}", exc_info=True)
@@ -76,7 +72,23 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> dic
     return stats
 
 
-async def award_work_xp(db_session: AsyncSession, dweller, room) -> dict:
+async def _process_single_exploration(db_session: AsyncSession, stats: ExplorationStats, exploration) -> None:
+    # Check if exploration should be auto-completed
+    if exploration.time_remaining_seconds() <= 0:
+        # Auto-complete the exploration
+        await exploration_service.complete_exploration(db_session, exploration.id)
+        stats["completed"] += 1
+        logger.info(f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}")
+        return
+
+    # Try to generate an event
+    event_generated = exploration_service.generate_event(exploration)
+    if event_generated:
+        await exploration_service.process_event(db_session, exploration)
+        stats["events_generated"] += 1
+
+
+async def award_work_xp(db_session: AsyncSession, dweller, room) -> WorkXpStats:
     """Award work XP to a dweller and check for level-up.
 
     Args:
@@ -89,7 +101,7 @@ async def award_work_xp(db_session: AsyncSession, dweller, room) -> dict:
     """
     from app.services.leveling_service import leveling_service
 
-    stats = {"xp_awarded": 0, "leveled_up": 0}
+    stats: WorkXpStats = {"xp_awarded": 0, "leveled_up": 0}
 
     if room.category != RoomTypeEnum.PRODUCTION:
         return stats
@@ -130,7 +142,9 @@ async def award_work_xp(db_session: AsyncSession, dweller, room) -> dict:
     return stats
 
 
-async def process_dwellers(db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None) -> dict:
+async def process_dwellers(
+    db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
+) -> DwellersStats:
     """Process dweller updates for a vault.
 
     - Irradiate in-vault dwellers while the vault has no water
@@ -141,7 +155,7 @@ async def process_dwellers(db_session: AsyncSession, vault_id: UUID4, seconds_pa
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.family.death_service import death_service
 
-    stats = {
+    stats: DwellersStats = {
         "health_updated": 0,
         "leveled_up": 0,
         "xp_awarded": 0,
@@ -210,12 +224,12 @@ async def process_dwellers(db_session: AsyncSession, vault_id: UUID4, seconds_pa
     return stats
 
 
-async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> ApprenticeStats:
     """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
     from app.models.base import SPECIALModel
     from app.services.training_service import TrainingService
 
-    stats = {"active_count": 0, "stats_awarded": 0}
+    stats: ApprenticeStats = {"active_count": 0, "stats_awarded": 0}
     apprentices = list(await crud_dweller.get_active_apprentices(db_session, vault_id))
     stats["active_count"] = len(apprentices)
     if not apprentices:
@@ -258,7 +272,7 @@ async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> 
     return stats
 
 
-async def process_training(db_session: AsyncSession, vault_id: UUID4) -> dict:
+async def process_training(db_session: AsyncSession, vault_id: UUID4) -> TrainingStats:
     """Process all active training sessions for a vault.
 
     - Update training progress
@@ -266,10 +280,9 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> dict:
     - Track statistics
     """
     from app.crud import training as training_crud
-    from app.services.training_service import training_service
     from app.utils.exceptions import ResourceConflictException
 
-    stats = {
+    stats: TrainingStats = {
         "sessions_updated": 0,
         "completed": 0,
         "active_count": 0,
@@ -284,34 +297,37 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> dict:
         dwellers_map = await training_crud.training.get_dwellers_for_trainings(db_session, active_trainings)
 
         for training in active_trainings:
-            try:
-                # Get pre-fetched dweller
-                dweller = dwellers_map.get(training.dweller_id)
-
-                # Update progress (this will auto-complete if ready)
-                updated_training = await training_service.update_training_progress(
-                    db_session, training, dweller=dweller
-                )
-
-                stats["sessions_updated"] += 1
-
-                # Check if it was completed
-                if updated_training.is_completed():
-                    stats["completed"] += 1
-                    logger.info(
-                        f"Training completed: Dweller gained {updated_training.stat_being_trained.value} "
-                        f"(now {updated_training.target_stat_value})"
-                    )
-
-            except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                # Keep broad exception for individual training processing
-                logger.error(f"Error processing training {training.id}: {e}", exc_info=True)
+            await guard_phase(
+                f"Error processing training {training.id}",
+                partial(_process_single_training, db_session, stats, dwellers_map, training),
+                catch=(SQLAlchemyError, ValueError, RuntimeError),
+            )
 
     except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
         logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)
         stats["error"] = str(e)
 
     return stats
+
+
+async def _process_single_training(db_session, stats: TrainingStats, dwellers_map, training) -> None:
+    from app.services.training_service import training_service
+
+    # Get pre-fetched dweller
+    dweller = dwellers_map.get(training.dweller_id)
+
+    # Update progress (this will auto-complete if ready)
+    updated_training = await training_service.update_training_progress(db_session, training, dweller=dweller)
+
+    stats["sessions_updated"] += 1
+
+    # Check if it was completed
+    if updated_training.is_completed():
+        stats["completed"] += 1
+        logger.info(
+            f"Training completed: Dweller gained {updated_training.stat_being_trained.value} "
+            f"(now {updated_training.target_stat_value})"
+        )
 
 
 async def process_happiness(db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:

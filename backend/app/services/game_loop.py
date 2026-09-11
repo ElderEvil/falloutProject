@@ -16,6 +16,20 @@ from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.game_tick import dwellers_tick, family_tick
+from app.services.game_tick.tick_results import (
+    AgeStats,
+    ApprenticeStats,
+    BreedingStats,
+    DwellersStats,
+    EventsStats,
+    ExplorationStats,
+    GameTickResult,
+    PregnancyStats,
+    RelationshipsStats,
+    TrainingStats,
+    VaultTickResult,
+    WorkXpStats,
+)
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
@@ -30,13 +44,13 @@ class GameLoopService:
         self.resource_manager = ResourceManager()
         self.logger = logging.getLogger(__name__)
 
-    async def process_game_tick(self, db_session: AsyncSession) -> dict:
+    async def process_game_tick(self, db_session: AsyncSession) -> GameTickResult:
         """Process a single game tick for all active vaults.
 
         Returns:
             dict: Statistics about the tick processing
         """
-        stats = {
+        stats: GameTickResult = {
             "vaults_processed": 0,
             "vaults_skipped": 0,
             "errors": 0,
@@ -67,7 +81,7 @@ class GameLoopService:
 
         return stats
 
-    async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def process_vault_tick(self, db_session: AsyncSession, vault_id: UUID4) -> VaultTickResult:
         """Process a single tick for a specific vault.
 
         Args:
@@ -99,13 +113,12 @@ class GameLoopService:
         # Use minimum tick interval if too little time has passed
         seconds_passed = max(seconds_passed, game_config.game_loop.tick_interval)
 
-        results = {
+        results: VaultTickResult = {
             "vault_id": str(vault_id),
             "seconds_passed": seconds_passed,
             "updates": {},
         }
 
-        # === PHASE 1: Resource Management ===
         try:
             resource_update, resource_events = await self.resource_manager.process_vault_resources(
                 db_session, vault_id, seconds_passed
@@ -131,37 +144,28 @@ class GameLoopService:
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
 
-        # === PHASE 2: Incident Management ===
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
-        # === PHASE 3: Wasteland Exploration ===
         exploration_update = await self._process_explorations(db_session, vault_id)
         results["updates"]["explorations"] = exploration_update
 
-        # === PHASE 4: Dweller Management ===
         dweller_update = await self._process_dwellers(db_session, vault_id, seconds_passed)
         results["updates"]["dwellers"] = dweller_update
 
-        # === PHASE 4.25: Youth Apprenticeships ===
         apprenticeship_update = await self._process_apprenticeships(db_session, vault_id)
         results["updates"]["apprenticeships"] = apprenticeship_update
 
-        # === PHASE 4.5: Training System ===
         training_update = await self._process_training(db_session, vault_id)
         results["updates"]["training"] = training_update
 
-        # === PHASE 4.6: Happiness System ===
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
 
-        # === PHASE 4.7: Relationships & Breeding System ===
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
 
-        # === PHASE 4.8: Arena System ===
         # Arena fights run on their own fast cadence (arena_tick actor), not here.
 
-        # === PHASE 5: Event System ===
         event_update = await self._process_events(db_session, vault_id, seconds_passed, game_state)
         results["updates"]["events"] = event_update
 
@@ -224,25 +228,25 @@ class GameLoopService:
         """Get existing game state or create a new one."""
         return await game_state_crud.get_or_create(db_session, vault_id)
 
-    async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
         """Process all active explorations for a vault."""
         return await dwellers_tick.process_explorations(db_session, vault_id)
 
-    async def _award_work_xp(self, db_session: AsyncSession, dweller, room) -> dict:
+    async def _award_work_xp(self, db_session: AsyncSession, dweller, room) -> WorkXpStats:
         """Award work XP to a dweller and check for level-up."""
         return await dwellers_tick.award_work_xp(db_session, dweller, room)
 
     async def _process_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
-    ) -> dict:
+    ) -> DwellersStats:
         """Process dweller updates for a vault."""
         return await dwellers_tick.process_dwellers(db_session, vault_id, seconds_passed)
 
-    async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> ApprenticeStats:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
         return await dwellers_tick.process_apprenticeships(db_session, vault_id)
 
-    async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> TrainingStats:
         """Process all active training sessions for a vault."""
         return await dwellers_tick.process_training(db_session, vault_id)
 
@@ -252,7 +256,7 @@ class GameLoopService:
 
     async def _process_events(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
-    ) -> dict:
+    ) -> EventsStats:
         """Fire weighted random vault events (raider scout, resource cache, wanderer)."""
         return await family_tick.process_events(db_session, vault_id, seconds_passed, game_state, rng=random)
 
@@ -285,19 +289,19 @@ class GameLoopService:
         """Bulk create new relationships and update their affinity."""
         return await family_tick.create_new_relationships(db_session, new_relationships)
 
-    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> RelationshipsStats:
         """Update relationship affinity for dwellers sharing living quarters."""
         return await family_tick.update_room_relationships(self, db_session, vault_id)
 
-    async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID4) -> PregnancyStats:
         """Check for conception and process due pregnancies."""
         return await family_tick.process_pregnancies_and_births(db_session, vault_id)
 
-    async def _age_children(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _age_children(self, db_session: AsyncSession, vault_id: UUID4) -> AgeStats:
         """Age children to adults if they're ready."""
         return await family_tick.age_children(db_session, vault_id)
 
-    async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
+    async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
         """Process relationships and breeding for a vault."""
         return await family_tick.process_breeding(self, db_session, vault_id)
 

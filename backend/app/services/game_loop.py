@@ -8,26 +8,17 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
-from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
-from app.crud import dweller as crud_dweller
-from app.crud import exploration as crud_exploration
 from app.crud import game_state_crud
-from app.crud import room as crud_room
-from app.crud.relationship import relationship_crud as crud_relationship
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.services.exploration_service import exploration_service
-from app.services.happiness_service import happiness_service
-from app.services.radiation_service import apply_radiation_gain
+from app.services.game_tick import dwellers_tick, family_tick
 from app.services.resource_manager import ResourceManager
 from app.services.stream_manager import sse_manager
-from app.services.vault_service import vault_service
-from app.utils.dwellers import group_dwellers_by_room
+from app.utils.dwellers import group_dwellers_by_room  # ruff: ignore[unused-import] — test patch anchor; live use is in family_tick
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -193,23 +184,13 @@ class GameLoopService:
 
     async def pause_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Pause game loop for a specific vault."""
-        game_state = await self._get_or_create_game_state(db_session, vault_id)
-        game_state.pause()
-        db_session.add(game_state)
-        await db_session.commit()
-        await db_session.refresh(game_state)
-
+        game_state = await game_state_crud.pause(db_session, vault_id)
         self.logger.info(f"Vault {vault_id} paused")
         return game_state
 
     async def resume_vault(self, db_session: AsyncSession, vault_id: UUID4) -> GameState:
         """Resume game loop for a specific vault."""
-        game_state = await self._get_or_create_game_state(db_session, vault_id)
-        game_state.resume()
-        db_session.add(game_state)
-        await db_session.commit()
-        await db_session.refresh(game_state)
-
+        game_state = await game_state_crud.resume(db_session, vault_id)
         self.logger.info(f"Vault {vault_id} resumed")
         return game_state
 
@@ -245,413 +226,46 @@ class GameLoopService:
         return await game_state_crud.get_or_create(db_session, vault_id)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Process all active explorations for a vault.
-
-        - Generate events for explorations that are due
-        - Auto-complete explorations that have reached their duration
-        """
-        stats = {
-            "active_count": 0,
-            "events_generated": 0,
-            "completed": 0,
-        }
-
-        try:
-            # Get all active explorations for this vault
-            active_explorations = await crud_exploration.get_by_vault(
-                db_session,
-                vault_id=vault_id,
-                active_only=True,
-            )
-
-            stats["active_count"] = len(active_explorations)
-
-            for exploration in active_explorations:
-                try:
-                    # Check if exploration should be auto-completed
-                    if exploration.time_remaining_seconds() <= 0:
-                        # Auto-complete the exploration
-                        await exploration_service.complete_exploration(db_session, exploration.id)
-                        stats["completed"] += 1
-                        self.logger.info(
-                            f"Auto-completed exploration {exploration.id} for dweller {exploration.dweller_id}"
-                        )
-                        continue
-
-                    # Try to generate an event
-                    event_generated = exploration_service.generate_event(exploration)
-                    if event_generated:
-                        await exploration_service.process_event(db_session, exploration)
-                        stats["events_generated"] += 1
-
-                except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                    # Keep broad exception for individual exploration processing
-                    self.logger.error(f"Error processing exploration {exploration.id}: {e}", exc_info=True)
-
-        except (SQLAlchemyError, ResourceNotFoundException) as e:
-            self.logger.error(f"Error loading explorations for vault {vault_id}: {e}", exc_info=True)
-            stats["error"] = str(e)
-
-        return stats
+        """Process all active explorations for a vault."""
+        return await dwellers_tick.process_explorations(db_session, vault_id)
 
     async def _award_work_xp(self, db_session: AsyncSession, dweller, room) -> dict:
-        """Award work XP to a dweller and check for level-up.
-
-        Args:
-            db_session: Database session
-            dweller: Dweller model instance
-            room: Room model instance
-
-        Returns:
-            dict: Statistics with 'xp_awarded' and 'leveled_up' counts
-        """
-        from app.services.leveling_service import leveling_service
-
-        stats = {"xp_awarded": 0, "leveled_up": 0}
-
-        if room.category != RoomTypeEnum.PRODUCTION:
-            return stats
-
-        # Base XP per tick
-        xp_to_award = game_config.leveling.work_xp_per_tick
-
-        # Efficiency bonus: if dweller has high matching SPECIAL
-        if room.ability:
-            dweller_stat = getattr(dweller, room.ability.value.lower(), 1)
-            # If SPECIAL >= 7, give efficiency bonus
-            if dweller_stat >= 7:
-                xp_to_award = int(xp_to_award * game_config.leveling.work_efficiency_bonus)
-
-        # Award XP (ensure it never goes negative)
-        dweller.experience = max(0, dweller.experience + xp_to_award)
-        db_session.add(dweller)
-        stats["xp_awarded"] = xp_to_award
-
-        # Check for level-up
-        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
-        if leveled_up:
-            stats["leveled_up"] = levels_gained
-            self.logger.info(f"Dweller {dweller} gained {levels_gained} level(s)! Now level {dweller.level}")
-            # Emit DWELLER_LEVEL_UP event for objective tracking
-            if dweller.vault_id:
-                await event_bus.emit(
-                    GameEvent.DWELLER_LEVEL_UP,
-                    dweller.vault_id,
-                    {
-                        "dweller_id": str(dweller.id),
-                        "level": dweller.level,
-                        "old_level": dweller.level - levels_gained,
-                        "amount": levels_gained,
-                    },
-                )
-
-        return stats
+        """Award work XP to a dweller and check for level-up."""
+        return await dwellers_tick.award_work_xp(db_session, dweller, room)
 
     async def _process_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int | None = None
     ) -> dict:
-        """Process dweller updates for a vault.
-
-        - Irradiate in-vault dwellers while the vault has no water
-        - Award work XP to dwellers in production rooms
-        - Check for level-ups
-        - Check for deaths (health <= 0 or radiation threshold)
-        """
-        from app.core.enums import DeathCauseEnum, DwellerStatusEnum
-        from app.services.family.death_service import death_service
-
-        stats = {
-            "health_updated": 0,
-            "leveled_up": 0,
-            "xp_awarded": 0,
-            "deaths": 0,
-            "irradiated": 0,
-        }
-
-        try:
-            # Get all dwellers in this vault
-            dwellers = await crud_dweller.get_all_in_vault(db_session, vault_id)
-
-            vault = await vault_crud.get(db_session, vault_id)
-            if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
-                ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
-                rads = game_config.health.dehydration_radiation_per_tick * ticks
-                for dweller in dwellers:
-                    # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
-                    if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
-                        continue
-                    if apply_radiation_gain(dweller, rads):
-                        db_session.add(dweller)
-                        stats["irradiated"] += 1
-                if stats["irradiated"]:
-                    await db_session.commit()
-                    self.logger.warning(
-                        f"Vault {vault_id} has no water: applied {rads} radiation to {stats['irradiated']} dwellers"
-                    )
-
-            # Get all unique room IDs from working dwellers
-            working_room_ids = {d.room_id for d in dwellers if d.status == DwellerStatusEnum.WORKING and d.room_id}
-
-            # Batch fetch all rooms in one query
-            rooms_map = {}
-            if working_room_ids:
-                rooms = await crud_room.get_by_ids(list(working_room_ids), db_session)
-                rooms_map = {room.id: room for room in rooms}
-
-            # Process each dweller
-            for dweller in dwellers:
-                if dweller.is_dead:
-                    continue
-
-                if dweller.health <= 0:
-                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
-                    stats["deaths"] += 1
-                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
-                    continue
-
-                if dweller.radiation >= game_config.death.radiation_death_threshold:
-                    await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
-                    stats["deaths"] += 1
-                    self.logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
-                    continue
-
-                if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:
-                    room = rooms_map.get(dweller.room_id)
-                    if room:
-                        dweller_stats = await self._award_work_xp(db_session, dweller, room)
-                        stats["xp_awarded"] += dweller_stats["xp_awarded"]
-                        stats["leveled_up"] += dweller_stats["leveled_up"]
-
-        except SQLAlchemyError as e:
-            self.logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)
-            raise
-
-        return stats
+        """Process dweller updates for a vault."""
+        return await dwellers_tick.process_dwellers(db_session, vault_id, seconds_passed)
 
     async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""
-        from app.models.base import SPECIALModel
-        from app.services.training_service import TrainingService
-
-        stats = {"active_count": 0, "stats_awarded": 0}
-        apprentices = list(await crud_dweller.get_active_apprentices(db_session, vault_id))
-        stats["active_count"] = len(apprentices)
-        if not apprentices:
-            return stats
-
-        room_ids = {apprentice.room_id for apprentice in apprentices if apprentice.room_id is not None}
-        rooms_by_id = {}
-        if room_ids:
-            rooms = await crud_room.get_by_ids(list(room_ids), db_session)
-            rooms_by_id = {room.id: room for room in rooms}
-
-        now = datetime.utcnow()
-        for apprentice in apprentices:
-            room = rooms_by_id.get(apprentice.room_id)
-            if (
-                apprentice.is_mature
-                or room is None
-                or room.category != RoomTypeEnum.PRODUCTION
-                or room.ability != apprentice.apprentice_stat
-            ):
-                continue
-
-            current_stat = SPECIALModel.get_stat(apprentice, apprentice.apprentice_stat)
-            duration = TrainingService.calculate_training_duration(current_stat, room.tier)
-            if (now - apprentice.apprentice_started_at).total_seconds() < duration:
-                continue
-
-            if current_stat < game_config.training.special_stat_max:
-                SPECIALModel.set_stat(apprentice, apprentice.apprentice_stat, current_stat + 1)
-                stat_key = apprentice.apprentice_stat.value.lower()
-                apprentice.apprentice_stat_gains = {
-                    **apprentice.apprentice_stat_gains,
-                    stat_key: apprentice.apprentice_stat_gains.get(stat_key, 0) + 1,
-                }
-                stats["stats_awarded"] += 1
-            apprentice.apprentice_started_at = now
-            db_session.add(apprentice)
-
-        await db_session.flush()
-        return stats
+        return await dwellers_tick.process_apprenticeships(db_session, vault_id)
 
     async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Process all active training sessions for a vault.
-
-        - Update training progress
-        - Auto-complete trainings that have finished
-        - Track statistics
-        """
-        from app.crud import training as training_crud
-        from app.services.training_service import training_service
-        from app.utils.exceptions import ResourceConflictException
-
-        stats = {
-            "sessions_updated": 0,
-            "completed": 0,
-            "active_count": 0,
-        }
-
-        try:
-            # Get all active training sessions in this vault
-            active_trainings = await training_crud.training.get_active_by_vault(db_session, vault_id)
-            stats["active_count"] = len(active_trainings)
-
-            # Batch-fetch all dwellers for these training sessions (N+1 optimization)
-            dwellers_map = await training_crud.training.get_dwellers_for_trainings(db_session, active_trainings)
-
-            for training in active_trainings:
-                try:
-                    # Get pre-fetched dweller
-                    dweller = dwellers_map.get(training.dweller_id)
-
-                    # Update progress (this will auto-complete if ready)
-                    updated_training = await training_service.update_training_progress(
-                        db_session, training, dweller=dweller
-                    )
-
-                    stats["sessions_updated"] += 1
-
-                    # Check if it was completed
-                    if updated_training.is_completed():
-                        stats["completed"] += 1
-                        self.logger.info(
-                            f"Training completed: Dweller gained {updated_training.stat_being_trained.value} "
-                            f"(now {updated_training.target_stat_value})"
-                        )
-
-                except (SQLAlchemyError, ValueError, RuntimeError) as e:
-                    # Keep broad exception for individual training processing
-                    self.logger.error(f"Error processing training {training.id}: {e}", exc_info=True)
-
-        except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
-            self.logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)
-            stats["error"] = str(e)
-
-        return stats
+        """Process all active training sessions for a vault."""
+        return await dwellers_tick.process_training(db_session, vault_id)
 
     async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
-        """Process happiness updates for all dwellers in a vault.
-
-        - Calculate happiness changes based on vault conditions
-        - Update individual dweller happiness
-        - Update vault-wide average happiness
-        """
-        # Happiness service handles its own errors internally, no wrapper needed
-        return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)
+        """Process happiness updates for all dwellers in a vault."""
+        return await dwellers_tick.process_happiness(db_session, vault_id, seconds_passed)
 
     async def _process_events(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None
     ) -> dict:
         """Fire weighted random vault events (raider scout, resource cache, wanderer)."""
-        # Import here to avoid circular import
-        from app.models.incident import IncidentType
-        from app.models.notification import NotificationPriority, NotificationType
-        from app.services.combat.incident_service import incident_service
-        from app.services.notification_service import notification_service
-
-        stats = {"triggered": 0, "events": []}
-
-        # Events do not punish players for time away from the vault
-        if game_state and not game_state.is_user_online():
-            return stats
-
-        # Minimum population gate
-        population = await crud_dweller.count_in_vault(db_session, vault_id)
-        if population < game_config.vault_event.min_vault_population:
-            return stats
-
-        # Time-based spawn chance (capped like incidents)
-        hours_passed = min(seconds_passed / 3600, 2.0)
-        if random.random() >= game_config.vault_event.spawn_chance_per_hour * hours_passed:
-            return stats
-
-        # Pick weighted event type
-        weights = {
-            "resource_cache": game_config.vault_event.weight_resource_cache,
-            "wanderer": game_config.vault_event.weight_wanderer,
-            "raider_scout": game_config.vault_event.weight_raider_scout,
-        }
-        event_type = random.choices(list(weights), weights=list(weights.values()), k=1)[0]
-
-        vault = await vault_crud.get(db_session, vault_id)
-        if not vault or not vault.user_id:
-            return stats
-
-        if event_type == "raider_scout":
-            # Fail fast: the raider event can only fire when an incident can
-            # actually spawn. Check the blocking states before calling the
-            # service, which raises on them (the game-tick boundary handler
-            # would otherwise log a disabled vault as an error every tick).
-            if not vault.incidents_disabled:
-                from app.crud.incident import incident_crud
-
-                active_incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
-                if len(active_incidents) < game_config.incident.max_active_incidents:
-                    incident = await incident_service.spawn_incident(
-                        db_session, vault_id, IncidentType.RADSCORPION_ATTACK
-                    )
-                    if incident:
-                        stats["triggered"] = 1
-                        stats["events"].append({"type": "raider_scout", "incident_id": str(incident.id)})
-            return stats
-
-        # Positive events award caps
-        if event_type == "resource_cache":
-            caps = random.randint(
-                game_config.vault_event.resource_cache_caps_min, game_config.vault_event.resource_cache_caps_max
-            )
-            title, message = "Resource Cache Found!", f"Dwellers found a hidden cache worth {caps} caps!"
-        else:  # wanderer
-            caps = random.randint(game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max)
-            title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
-
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
-        await notification_service.create_and_send(
-            db_session,
-            user_id=vault.user_id,
-            vault_id=vault_id,
-            notification_type=NotificationType.ACHIEVEMENT_UNLOCKED,
-            priority=NotificationPriority.NORMAL,
-            title=title,
-            message=message,
-            meta_data={"event_type": event_type, "caps": caps},
-        )
-        stats["triggered"] = 1
-        stats["events"].append({"type": event_type, "caps": caps})
-        self.logger.info(f"Vault event {event_type} triggered in vault {vault_id}")
-        return stats
+        return await family_tick.process_events(db_session, vault_id, seconds_passed, game_state, rng=random)
 
     async def _fetch_existing_relationships(
         self, db_session: AsyncSession, dweller_ids: set[UUID4]
     ) -> list[Relationship]:
-        """Batch fetch all relationships for a set of dweller IDs.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param dweller_ids: Set of dweller IDs to fetch relationships for
-        :returns: List of existing relationships
-        """
-        return await crud_relationship.get_involving_any(db_session, dweller_ids)
+        """Batch fetch all relationships for a set of dweller IDs."""
+        return await family_tick.fetch_existing_relationships(db_session, dweller_ids)
 
     def _build_relationships_map(self, relationships: list[Relationship]) -> dict[tuple[UUID4, UUID4], Relationship]:
-        """Build a bidirectional lookup map for relationships.
-
-        :param relationships: List of relationships to map
-        :returns: Dictionary mapping (dweller_id, dweller_id) tuples to relationships
-        """
-        relationships_map = {}
-        for rel in relationships:
-            key1 = (rel.dweller_1_id, rel.dweller_2_id)
-            key2 = (rel.dweller_2_id, rel.dweller_1_id)
-            relationships_map[key1] = rel
-            relationships_map[key2] = rel
-        return relationships_map
-
-    @staticmethod
-    def _affinity_gain(dweller1: Dweller, dweller2: Dweller) -> int:
-        """Give a small bonus when both dwellers are highly charismatic."""
-        return game_config.relationship.affinity_increase_per_tick + min(dweller1.charisma, dweller2.charisma) // 10
+        """Build a bidirectional lookup map for relationships."""
+        return family_tick.build_relationships_map(relationships)
 
     async def _update_pair_affinity(
         self,
@@ -661,217 +275,32 @@ class GameLoopService:
         relationships_map: dict[tuple[UUID4, UUID4], Relationship],
         new_relationships: list[tuple[Relationship, int]],
     ) -> int:
-        """Update affinity for a pair of dwellers, creating relationship if needed.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param dweller1: First dweller in the pair
-        :param dweller2: Second dweller in the pair
-        :param relationships_map: Lookup map for existing relationships
-        :param new_relationships: List to append new relationships to
-        :returns: Count of relationships updated (0 or 1)
-        :rtype: int
-        """
-        from app.core.enums import RelationshipTypeEnum
-        from app.services.relationship_service import relationship_service
-
-        key = (dweller1.id, dweller2.id)
-        relationship = relationships_map.get(key)
-
-        if not relationship:
-            # Create new relationship
-            relationship = Relationship(
-                dweller_1_id=dweller1.id,
-                dweller_2_id=dweller2.id,
-                relationship_type=RelationshipTypeEnum.ACQUAINTANCE,
-                affinity=0,
-            )
-            new_relationships.append((relationship, self._affinity_gain(dweller1, dweller2)))
-            relationships_map[key] = relationship
-            relationships_map[(dweller2.id, dweller1.id)] = relationship
-            return 0  # New relationships updated later after commit
-
-        # Only update affinity for existing (persistent) relationships
-        if not any(new_relationship is relationship for new_relationship, _ in new_relationships):
-            await relationship_service.increase_affinity(
-                db_session,
-                relationship.dweller_1_id,
-                relationship.dweller_2_id,
-                self._affinity_gain(dweller1, dweller2),
-            )
-            return 1
-        return 0
+        """Update affinity for a pair of dwellers, creating relationship if needed."""
+        return await family_tick.update_pair_affinity(
+            db_session, dweller1, dweller2, relationships_map, new_relationships
+        )
 
     async def _create_new_relationships(
         self, db_session: AsyncSession, new_relationships: list[tuple[Relationship, int]]
     ) -> int:
-        """Bulk create new relationships and update their affinity.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param new_relationships: List of new relationships to persist
-        :returns: Count of relationships created and updated
-        :rtype: int
-        """
-        from app.services.relationship_service import relationship_service
-
-        if not new_relationships:
-            return 0
-
-        db_session.add_all([relationship for relationship, _ in new_relationships])
-        await db_session.commit()
-
-        # Update affinity for newly created relationships
-        count = 0
-        for relationship, affinity_gain in new_relationships:
-            await relationship_service.increase_affinity(
-                db_session,
-                relationship.dweller_1_id,
-                relationship.dweller_2_id,
-                affinity_gain,
-            )
-            count += 1
-        return count
+        """Bulk create new relationships and update their affinity."""
+        return await family_tick.create_new_relationships(db_session, new_relationships)
 
     async def _update_room_relationships(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Update relationship affinity for dwellers sharing living quarters.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID to process
-        :type vault_id: UUID4
-        :returns: Statistics with 'relationships_updated' count
-        :rtype: dict
-        """
-        stats = {"relationships_updated": 0}
-
-        try:
-            dwellers = await crud_dweller.get_living_quarters_dwellers(db_session, vault_id)
-            if not dwellers:
-                return stats
-
-            # Group dwellers by room
-            room_dwellers = group_dwellers_by_room(dwellers)
-
-            # Batch fetch all existing relationships for these dwellers
-            all_dweller_ids = {d.id for d in dwellers}
-            existing_relationships = await self._fetch_existing_relationships(db_session, all_dweller_ids)
-
-            relationships_map = self._build_relationships_map(existing_relationships)
-
-            new_relationships: list[tuple[Relationship, int]] = []
-            for room_dweller_list in room_dwellers.values():
-                if len(room_dweller_list) < 2:
-                    continue
-
-                for i, dweller1 in enumerate(room_dweller_list):
-                    for dweller2 in room_dweller_list[i + 1 :]:
-                        updated = await self._update_pair_affinity(
-                            db_session, dweller1, dweller2, relationships_map, new_relationships
-                        )
-                        stats["relationships_updated"] += updated
-
-            # Bulk add new relationships and commit
-            stats["relationships_updated"] += await self._create_new_relationships(db_session, new_relationships)
-
-        except SQLAlchemyError as e:
-            self.logger.error(f"Database error updating relationships for vault {vault_id}: {e}", exc_info=True)
-        except ValueError as e:
-            self.logger.error(f"Validation error updating relationships for vault {vault_id}: {e}", exc_info=True)
-
-        return stats
+        """Update relationship affinity for dwellers sharing living quarters."""
+        return await family_tick.update_room_relationships(self, db_session, vault_id)
 
     async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Check for conception and process due pregnancies.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to process
-
-        Returns:
-            dict: Statistics with 'conceptions' and 'births' counts
-        """
-        from app.services.family.breeding_service import breeding_service
-
-        stats = {"conceptions": 0, "births": 0}
-
-        # Check for conception
-        try:
-            new_pregnancies = await breeding_service.check_for_conception(db_session, vault_id)
-            stats["conceptions"] = len(new_pregnancies)
-            if new_pregnancies:
-                self.logger.info(f"New pregnancies in vault {vault_id}: {len(new_pregnancies)}")
-        except SQLAlchemyError as e:
-            self.logger.error(f"Database error checking for conception in vault {vault_id}: {e}", exc_info=True)
-        except ValueError as e:
-            self.logger.error(f"Validation error checking for conception in vault {vault_id}: {e}", exc_info=True)
-
-        # Check for due pregnancies and deliver babies
-        try:
-            due_pregnancies = await breeding_service.check_due_pregnancies(db_session, vault_id)
-            for pregnancy in due_pregnancies:
-                try:
-                    baby = await breeding_service.deliver_baby(db_session, pregnancy.id)
-                    if baby:
-                        stats["births"] += 1
-                        self.logger.info(f"Baby born in vault {vault_id}: {baby.first_name} {baby.last_name}")
-                except (SQLAlchemyError, ValueError) as e:
-                    self.logger.error(f"Error delivering baby for pregnancy {pregnancy.id}: {e}", exc_info=True)
-        except SQLAlchemyError as e:
-            self.logger.error(f"Database error checking due pregnancies in vault {vault_id}: {e}", exc_info=True)
-
-        return stats
+        """Check for conception and process due pregnancies."""
+        return await family_tick.process_pregnancies_and_births(db_session, vault_id)
 
     async def _age_children(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Age children to adults if they're ready.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID to process
-
-        Returns:
-            dict: Statistics with 'children_aged' count
-        """
-        from app.services.family.breeding_service import breeding_service
-
-        stats = {"children_aged": 0}
-
-        try:
-            aged_children = await breeding_service.age_children(db_session, vault_id)
-            stats["children_aged"] = len(aged_children)
-            if aged_children:
-                self.logger.info(f"Children aged to adults in vault {vault_id}: {len(aged_children)}")
-        except SQLAlchemyError as e:
-            self.logger.error(f"Database error aging children in vault {vault_id}: {e}", exc_info=True)
-        except ValueError as e:
-            self.logger.error(f"Validation error aging children in vault {vault_id}: {e}", exc_info=True)
-
-        return stats
+        """Age children to adults if they're ready."""
+        return await family_tick.age_children(db_session, vault_id)
 
     async def _process_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> dict:
-        """Process relationships and breeding for a vault.
-
-        - Update relationship affinity for dwellers in the same room
-        - Check for conception in living quarters
-        - Process due pregnancies and deliver babies
-        - Age children to adults
-        """
-        # Update relationship affinity
-        relationship_stats = await self._update_room_relationships(db_session, vault_id)
-
-        # Process pregnancies and births
-        pregnancy_stats = await self._process_pregnancies_and_births(db_session, vault_id)
-
-        # Age children
-        aging_stats = await self._age_children(db_session, vault_id)
-
-        # Combine stats
-        return {
-            "relationships_updated": relationship_stats["relationships_updated"],
-            "conceptions": pregnancy_stats["conceptions"],
-            "births": pregnancy_stats["births"],
-            "children_aged": aging_stats["children_aged"],
-        }
+        """Process relationships and breeding for a vault."""
+        return await family_tick.process_breeding(self, db_session, vault_id)
 
 
 # Global instance

@@ -3,6 +3,7 @@
 import logging
 import random
 from datetime import datetime, timedelta
+from itertools import starmap
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,7 +29,7 @@ from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate
-from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultUpdate
+from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.resource_manager import ResourceManager, compute_medical_capacity
 from app.services.training_service import training_service
 from app.services.vault_seed import (
@@ -47,6 +48,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
+from app.utils.resource_warnings import get_resource_warnings
 
 
 class VaultService:
@@ -721,8 +723,11 @@ class VaultService:
         commit: bool = True,
         emit_event: bool = True,
         track_earnings: bool = True,
-    ) -> None:
-        """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
+    ) -> int:
+        """Deposit the specified amount to the vault's bottle caps as part of a revenue operation.
+
+        Returns the amount actually credited (less than requested when the cap is hit).
+        """
         capped = min(vault_obj.bottle_caps + amount, 999_999)
         credited = capped - vault_obj.bottle_caps
         await vault_crud.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=capped), commit=commit)
@@ -745,6 +750,8 @@ class VaultService:
                 GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": credited}
             )
 
+        return credited
+
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""
         if vault_obj.bottle_caps < amount:
@@ -753,6 +760,45 @@ class VaultService:
         await vault_crud.update(
             db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount)
         )
+
+    @staticmethod
+    def _vault_with_numbers(
+        vault_obj: Vault, room_count: int, dweller_count: int, stimpack: int, radaway: int
+    ) -> VaultReadWithNumbers:
+        return VaultReadWithNumbers(
+            **vault_obj.model_dump(),
+            room_count=room_count,
+            dweller_count=dweller_count,
+            stimpack=stimpack,
+            radaway=radaway,
+            resource_warnings=get_resource_warnings(
+                vault_obj,
+                {
+                    "power": float(vault_obj.power),
+                    "food": float(vault_obj.food),
+                    "water": float(vault_obj.water),
+                },
+            ),
+        )
+
+    async def get_vaults_with_room_and_dweller_count(
+        self, *, db_session: AsyncSession, user_id: UUID4
+    ) -> list[VaultReadWithNumbers]:
+        """List the user's non-deleted vaults with room/dweller counts and resource warnings."""
+        return list(
+            starmap(
+                self._vault_with_numbers, await vault_crud.get_vault_count_rows(db_session=db_session, user_id=user_id)
+            )
+        )
+
+    async def get_vault_with_room_and_dweller_count(
+        self, *, db_session: AsyncSession, vault_id: UUID4
+    ) -> VaultReadWithNumbers:
+        """Fetch a single vault with room/dweller counts and resource warnings."""
+        vault_obj, room_count, dweller_count, stimpack, radaway = await vault_crud.get_vault_count_row(
+            db_session=db_session, vault_id=vault_id
+        )
+        return self._vault_with_numbers(vault_obj, room_count, dweller_count, stimpack, radaway)
 
 
 # Singleton instance

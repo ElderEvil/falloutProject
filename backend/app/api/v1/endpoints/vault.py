@@ -68,7 +68,7 @@ async def read_my_vaults(
     Returns:
         List of the user's vaults with room and dweller counts.
     """
-    return await crud.vault.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
+    return await vault_service.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
 @router.get("/{vault_id}", response_model=VaultReadWithNumbers)
@@ -83,7 +83,7 @@ async def read_vault(
     Returns:
         Vault details with room and dweller counts.
     """
-    return await crud.vault.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
+    return await vault_service.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
 @router.put("/{vault_id}", response_model=VaultReadWithUser)
@@ -115,20 +115,6 @@ async def delete_vault(
     Use hard_delete=True to permanently remove the vault.
     """
     return await crud.vault.delete(db_session, vault_id, soft=not hard_delete)
-
-
-@router.post("/{vault_id}/toggle_game_state", response_model=Vault, status_code=200)
-async def toggle_game_state(
-    *,
-    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> Vault:
-    """Toggle the game paused/running state for a vault.
-
-    Returns:
-        The updated vault with new game state.
-    """
-    return await crud.vault.toggle_game_state(db_session=db_session, vault_id=vault.id)
 
 
 @router.post("/initiate", response_model=Vault, status_code=201)

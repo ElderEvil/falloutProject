@@ -13,6 +13,7 @@ from app.db.session import get_async_session
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 from app.schemas.responses import JunkListResponse
+from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/outfits", tags=["Outfit"])
@@ -109,7 +110,7 @@ async def scrap_outfit(
 @router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
 async def sell_outfit(outfit_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]) -> None:
     """Sell an outfit for caps."""
-    await crud.outfit.sell(db_session=db_session, item_id=outfit_id)
+    await item_service.sell_item(db_session, item_id=outfit_id, model=Outfit)
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])

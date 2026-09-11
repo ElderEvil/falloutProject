@@ -22,6 +22,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math
 from app.services.combat.incident_service import incident_service
+from app.services.dweller_service import dweller_service
 from app.tests.factory.rooms import create_fake_room
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
@@ -390,15 +391,15 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
     # Add dwellers to all rooms
     dweller1_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     dweller1 = await crud.dweller.create(db_session=async_session, obj_in=dweller1_in)
-    await crud.dweller.move_to_room(async_session, dweller1.id, room1.id)
+    await dweller_service.move_to_room(async_session, dweller1.id, room1.id)
 
     dweller2_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     dweller2 = await crud.dweller.create(db_session=async_session, obj_in=dweller2_in)
-    await crud.dweller.move_to_room(async_session, dweller2.id, room2.id)
+    await dweller_service.move_to_room(async_session, dweller2.id, room2.id)
 
     dweller3_in = DwellerCreate(**dweller_data, vault_id=vault.id)
     dweller3 = await crud.dweller.create(db_session=async_session, obj_in=dweller3_in)
-    await crud.dweller.move_to_room(async_session, dweller3.id, room3.id)
+    await dweller_service.move_to_room(async_session, dweller3.id, room3.id)
 
     await async_session.commit()
 

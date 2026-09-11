@@ -14,6 +14,7 @@ from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.dweller_service import dweller_service
 from app.services.family.apprentice_scenario_service import apprentice_scenario_service
 from app.services.family.breeding_service import BreedingService
 from app.services.game_loop import game_loop_service
@@ -64,10 +65,10 @@ async def test_only_one_youth_can_apprentice_in_a_production_room(async_session:
     second_youth = await _create_youth(async_session, vault, "Bea")
     room = await _create_production_room(async_session, vault)
 
-    await crud.dweller.move_to_room(async_session, first_youth.id, room.id)
+    await dweller_service.move_to_room(async_session, first_youth.id, room.id)
 
     with pytest.raises(ValidationException, match="already has an apprentice"):
-        await crud.dweller.move_to_room(async_session, second_youth.id, room.id)
+        await dweller_service.move_to_room(async_session, second_youth.id, room.id)
 
 
 @pytest.mark.asyncio
@@ -75,13 +76,13 @@ async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session
     deleted_youth = await _create_youth(async_session, vault, "Ada")
     replacement_youth = await _create_youth(async_session, vault, "Bea")
     room = await _create_production_room(async_session, vault)
-    await crud.dweller.move_to_room(async_session, deleted_youth.id, room.id)
+    await dweller_service.move_to_room(async_session, deleted_youth.id, room.id)
     deleted_youth.strength = 2
     deleted_youth.apprentice_started_at = datetime.utcnow() - timedelta(days=1)
     deleted_youth.soft_delete()
     await async_session.commit()
 
-    await crud.dweller.move_to_room(async_session, replacement_youth.id, room.id)
+    await dweller_service.move_to_room(async_session, replacement_youth.id, room.id)
     result = await game_loop_service._process_apprenticeships(async_session, vault.id)
 
     await async_session.refresh(deleted_youth)
@@ -95,7 +96,7 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
 ) -> None:
     youth = await _create_youth(async_session, vault, "Ada")
     room = await _create_production_room(async_session, vault)
-    await crud.dweller.move_to_room(async_session, youth.id, room.id)
+    await dweller_service.move_to_room(async_session, youth.id, room.id)
     youth.strength = 2
     duration = TrainingService.calculate_training_duration(youth.strength, room.tier)
     youth.apprentice_started_at = datetime.utcnow() - timedelta(seconds=duration * 2)

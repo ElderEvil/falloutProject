@@ -45,6 +45,7 @@ from app import crud
 from app.api.deps import get_redis_client
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate
+from app.services.dweller_service import dweller_service
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
 from main import app
@@ -467,7 +468,7 @@ async def room_with_dwellers_fixture(
         dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
         dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
         # Assign dweller to room using move_to_room (room_id not supported in DwellerCreate)
-        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
         # Get the actual Dweller model with weapon relationship loaded
         dweller = await crud.dweller.get(async_session, dweller.id)
         dwellers.append(dweller)

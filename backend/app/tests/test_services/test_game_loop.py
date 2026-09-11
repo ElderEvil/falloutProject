@@ -24,6 +24,7 @@ from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.incident import IncidentRoundResult
 from app.schemas.vault import ResourceTickEvents
+from app.services.dweller_service import dweller_service
 from app.services.game_loop import game_loop_service
 
 # ═════════════════════════════════════════════════════════════════════
@@ -308,7 +309,7 @@ class TestProcessDwellers:
         d_data["health"] = 100
         d_data["radiation"] = 0
         dweller = await crud.dweller.create(async_session, DwellerCreate(**d_data))
-        await crud.dweller.move_to_room(async_session, dweller.id, room.id)
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
         await async_session.commit()
         with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock):
             import app.services.leveling_service as ls_mod

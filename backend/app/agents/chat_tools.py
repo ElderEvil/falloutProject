@@ -31,6 +31,7 @@ from app.schemas.dweller import DwellerReadFull
 from app.services.medical_service import (
     get_dweller_medical_status as fetch_dweller_medical_status,
 )
+from app.services.room_assignment_policy import get_highest_special
 
 logger = logging.getLogger(__name__)
 
@@ -207,18 +208,8 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
 
 def best_room_recommendation_text(dweller: DwellerReadFull) -> str:
     """Recommend a room based on the dweller's highest SPECIAL stat."""
-    special_stats = {
-        SPECIALEnum.STRENGTH: dweller.strength,
-        SPECIALEnum.PERCEPTION: dweller.perception,
-        SPECIALEnum.ENDURANCE: dweller.endurance,
-        SPECIALEnum.CHARISMA: dweller.charisma,
-        SPECIALEnum.INTELLIGENCE: dweller.intelligence,
-        SPECIALEnum.AGILITY: dweller.agility,
-        SPECIALEnum.LUCK: dweller.luck,
-    }
-
-    best_stat = max(special_stats, key=lambda s: special_stats[s])
-    best_value = special_stats[best_stat]
+    best_stat = get_highest_special(dweller)
+    best_value = getattr(dweller, best_stat.value)
 
     stat_room_map = {
         SPECIALEnum.STRENGTH: "Power Generator",

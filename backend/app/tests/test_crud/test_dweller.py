@@ -14,6 +14,7 @@ from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, Dwel
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.dweller_service import dweller_service
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
@@ -57,12 +58,12 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
     await async_session.commit()
 
     # Test: Move dweller from room 1 to room 2
-    await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
+    await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
     assert dweller.room_id == room_2.id, "Dweller should be moved to the new room"
 
     # Test: Attempt to move dweller to the same room they are already in
     with pytest.raises(ResourceConflictException) as exc_info:
-        await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
+        await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
     assert "Dweller is already in the room" in str(exc_info.value), "Should raise conflict when moving to the same room"
 
     # Test: Try to move dweller to a room in a different vault
@@ -72,7 +73,7 @@ async def test_move_dweller_to_room(async_session: AsyncSession):
     room_data_3 = create_fake_room()
     room_3 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_3, vault_id=vault_2.id))
     with pytest.raises(InvalidVaultTransferException):
-        await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=room_3.id)
+        await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_3.id)
 
 
 @pytest.mark.asyncio
@@ -108,7 +109,7 @@ async def test_move_teen_with_is_adult_flag_to_arena_rejected(async_session: Asy
     )
 
     with pytest.raises(ValidationException):
-        await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
+        await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
 
 
 @pytest.mark.asyncio
@@ -128,7 +129,7 @@ async def test_move_child_to_training_room_rejected(
     training_room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
 
     with pytest.raises(ValidationException, match="only be assigned to production rooms"):
-        await crud.dweller.move_to_room(async_session, dweller_in_vault.id, training_room.id)
+        await dweller_service.move_to_room(async_session, dweller_in_vault.id, training_room.id)
 
 
 @pytest.mark.asyncio
@@ -168,7 +169,7 @@ async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSess
         ),
     )
 
-    moved = await crud.dweller.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
+    moved = await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
     assert moved.room_id == arena_room.id
     assert moved.status == DwellerStatusEnum.FIGHTING
 

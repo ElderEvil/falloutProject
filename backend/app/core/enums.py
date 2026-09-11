@@ -12,11 +12,6 @@ class CaseInsensitiveEnum(StrEnum):
         return None
 
 
-class GameStatusEnum(StrEnum):
-    ACTIVE = "active"
-    PAUSED = "paused"
-
-
 class RadioModeEnum(StrEnum):
     RECRUITMENT = "recruitment"
     HAPPINESS = "happiness"

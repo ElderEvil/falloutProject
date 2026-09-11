@@ -6,6 +6,7 @@ from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.crud.item_base import get_item_vault_id
 from app.models.junk import Junk
 from app.models.outfit import Outfit
@@ -16,13 +17,19 @@ from app.utils.exceptions import ResourceNotFoundException
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
 
+_ITEM_CRUD = {Weapon: crud.weapon, Outfit: crud.outfit, Junk: crud.junk}
+
+
+def _crud_for(model: ItemModel):
+    return _ITEM_CRUD[model]
+
 
 class ItemService:
     """Item lifecycle operations that span items and vault resources."""
 
     async def sell_item(self, db_session: AsyncSession, *, item_id: UUID4, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""
-        item = await db_session.get(model, item_id)
+        item = await _crud_for(model).get_or_none(db_session, item_id)
         if not item:
             raise ResourceNotFoundException(model, identifier=item_id)
 
@@ -51,7 +58,7 @@ class ItemService:
 
         Returns the amount actually credited (part of the sell transaction).
         """
-        vault = await db_session.get(Vault, vault_id)
+        vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
         if not vault:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 

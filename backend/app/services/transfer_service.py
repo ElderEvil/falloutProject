@@ -114,8 +114,8 @@ class TransferService:
         orphans = await relationship_crud.get_cross_vault_orphans(db_session, vault_id)
         count = 0
         for rel in orphans:
-            d1_obj = await db_session.get(Dweller, rel.dweller_1_id)
-            d2_obj = await db_session.get(Dweller, rel.dweller_2_id)
+            d1_obj = await dweller_crud.get_or_none(db_session, rel.dweller_1_id, include_deleted=True)
+            d2_obj = await dweller_crud.get_or_none(db_session, rel.dweller_2_id, include_deleted=True)
             if rel.relationship_type in PARTNER_LINKED_STAGES:
                 if d1_obj and d2_obj:
                     await TransferService._break_partner_link(db_session, d1_obj, d2_obj.id)

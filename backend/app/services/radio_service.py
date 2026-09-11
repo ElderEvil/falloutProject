@@ -399,7 +399,7 @@ class RadioService:
         room_id: UUID4,
         speedup: float,
     ) -> Room:
-        room = await db_session.get(Room, room_id)
+        room = await crud.room.get_or_none(db_session, room_id)
         if not room or room.vault_id != vault_id:
             msg = "Radio room not found"
             raise ValueError(msg)

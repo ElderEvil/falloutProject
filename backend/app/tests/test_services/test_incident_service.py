@@ -623,6 +623,26 @@ class TestProcessVaultIncidents:
         mock_process.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_persisted_pause_skips_processing_without_passed_game_state(
+        self, async_session: AsyncSession, vault: Vault
+    ):
+        """The fast-tick actor path passes no game_state; it must still honor persisted pause state."""
+        async_session.add(GameState(vault_id=vault.id, is_paused=True))
+        await async_session.commit()
+
+        with (
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
+        ):
+            mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+
+        assert result["active_count"] == 1
+        mock_spawn.assert_not_awaited()
+        mock_process.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_processes_active(self, async_session: AsyncSession, vault: Vault):
         mock_incident = MagicMock()
         mock_incident.status = MagicMock()

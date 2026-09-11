@@ -11,6 +11,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.crud.room import room as room_crud
+from app.crud.vault import vault as vault_crud
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentType
 from app.models.room import Room
@@ -50,7 +51,7 @@ async def should_spawn_incident(
         logger.debug(f"Vault {vault_id} is offline, suppressing incident spawn")
         return False
 
-    vault = await db_session.get(Vault, vault_id)
+    vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
     if is_spawning_disabled(vault):
         logger.debug(f"Incidents are disabled for vault {vault_id}")
         return False
@@ -104,7 +105,7 @@ async def spawn_incident(
     if not await db_locks.try_advisory_xact_lock(db_session, f"incident-spawn:{vault_id}"):
         return None
 
-    vault = await db_session.get(Vault, vault_id)
+    vault = await vault_crud.get_or_none(db_session, vault_id, include_deleted=True)
     if vault is None:
         return None
     if is_spawning_disabled(vault):

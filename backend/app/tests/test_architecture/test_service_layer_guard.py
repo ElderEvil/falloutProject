@@ -114,16 +114,16 @@ def _service_imports(source: str) -> set[str]:
 
 
 def _select_call_lines(source: str) -> list[int]:
-    """Return sorted line numbers of raw select() and exec() calls in a module."""
+    """Return sorted unique line numbers of raw select(), exec(), text(), and execute() calls in a module."""
     lines = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Call):
             func = node.func
-            if (isinstance(func, ast.Name) and func.id == "select") or (
-                isinstance(func, ast.Attribute) and func.attr in ("select", "exec")
+            if (isinstance(func, ast.Name) and func.id in ("select", "text")) or (
+                isinstance(func, ast.Attribute) and func.attr in ("select", "exec", "execute")
             ):
                 lines.append(node.lineno)
-    return sorted(lines)
+    return sorted(set(lines))
 
 
 def test_crud_does_not_depend_on_services() -> None:
@@ -213,14 +213,15 @@ def test_guard_detects_relative_service_import() -> None:
 
 
 def test_guard_detects_select_calls() -> None:
-    """Self-test: bare/attribute select() and exec() calls are reported with line numbers."""
+    """Self-test: bare/attribute select(), exec(), text(), and execute() calls are reported with line numbers."""
     source = (
         "x = select(Model).where(Model.id == 1)\n"
         "y = session.execute(select(Model))\n"
         "z = session.exec(query)\n"
         "w = selected_items\n"
+        "v = session.execute(text('SELECT 1'))\n"
     )
-    assert _select_call_lines(source) == [1, 2, 3]
+    assert _select_call_lines(source) == [1, 2, 3, 5]
 
 
 def test_service_name_pattern() -> None:

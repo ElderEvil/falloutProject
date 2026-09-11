@@ -16,9 +16,9 @@ import random
 from datetime import datetime, timedelta
 
 from pydantic import UUID4
-from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import db_locks
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import room as room_crud
@@ -254,20 +254,10 @@ class ArenaService:
     async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
         """Acquire a cross-process advisory lock so concurrent workers never
         fight the same arena room in parallel (vault rounds + fast ticks)."""
-        if db_session.get_bind().dialect.name != "postgresql":
-            return True
-        result = await db_session.execute(
-            text("SELECT pg_try_advisory_lock(hashtextextended(:lock_key, 0))"),
-            {"lock_key": "arena-tick"},
-        )
-        return bool(result.scalar())
+        return await db_locks.try_advisory_lock(db_session, "arena-tick")
 
     async def _release_tick_lock(self, db_session: AsyncSession) -> None:
-        if db_session.get_bind().dialect.name == "postgresql":
-            await db_session.execute(
-                text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))"),
-                {"lock_key": "arena-tick"},
-            )
+        await db_locks.release_advisory_lock(db_session, "arena-tick")
 
     async def process_arena_fights(
         self,

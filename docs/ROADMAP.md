@@ -83,10 +83,14 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
 - [ ] **Upward-dependency elimination (Area 2)** — nothing below the API layer may import `app.api`.
   - **Shipped #581:** pregnancy vault-access check moved out of CRUD; `get_static_game_data` relocated to
     `app/core/game_data.py`; `test_lower_layers_do_not_depend_on_api` scans `crud/` + `services/` (no baseline).
-  - ⬜ **CRUD commit-ownership sweep** — 54 `.commit()`/`rollback` sites remain across ~17 CRUD modules; the target
-    state (per `docs/backend/SERVICE_LAYER.md`) is CRUD never commits, services own transaction boundaries. Largest
-    remaining Area 2 item: do it domain by domain, characterization tests first, and only where it does not violate
-    the net-LOC-negative rule.
+  - ⬜ **CRUD commit deferral (narrow, corrected scope)** — the earlier "CRUD never commits" framing was too broad.
+    `SERVICE_LAYER.md`'s target is aspirational and explicitly grandfathers legacy CRUD commits; `notification.create`
+    and `CRUDBase.update` already commit by default (`commit: bool = True`). Deferring the commit is only justified
+    where a service must compose **multiple** mutations into one atomic unit (an internal commit would force a
+    premature partial commit) — and it must not become flush-only, which silently loses a mutation for any caller
+    that forgets to commit. So: keep CRUD committing by default; add a `commit` opt-out only for methods a service
+    actually composes, characterization tests first. No notification / relationship / quest-party method qualifies.
+    (A `crud/notification.py` attempt was reverted for exactly this reason.)
   - ⬜ **CRUD business logic** — item/room/dweller rules still in CRUD (`item_base.convert_to_junk`, `room` formula
     evaluator/build-price, `dweller` template reservation + XP curve), `mixins.complete` completion orchestration,
     and `quest.get_multi_for_vault` which writes on a read path.

@@ -74,9 +74,10 @@ class DwellerService:
             else:
                 room_obj = await crud.room.get(db_session, room_id)
                 if not room_obj:
+                    from app.models.room import Room
                     from app.utils.exceptions import ResourceNotFoundException
 
-                    raise ResourceNotFoundException(model=type(room_obj), identifier=room_id)
+                    raise ResourceNotFoundException(model=Room, identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
         updated = await crud.dweller.update(db_session, dweller_id, DwellerUpdate(**data), commit=False)

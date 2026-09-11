@@ -114,16 +114,19 @@ async def test_sell_rollback_on_sqlalchemy_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_credit_caps_deposits_via_vault_service_without_commit() -> None:
+async def test_credit_caps_deposits_via_vault_service_without_commit_or_emit() -> None:
     session = _new_session()
     mock_vault = MagicMock(spec=Vault, id="v-1")
     session.get = AsyncMock(return_value=mock_vault)
 
-    with patch("app.services.item_service.vault_service.deposit_caps", new=AsyncMock()) as mock_deposit:
-        await item_service._credit_caps(session, "v-1", 500)
+    with patch("app.services.item_service.vault_service.deposit_caps", new=AsyncMock(return_value=500)) as mock_deposit:
+        credited = await item_service._credit_caps(session, "v-1", 500)
 
+    assert credited == 500
     session.get.assert_called_once_with(Vault, "v-1")
-    mock_deposit.assert_called_once_with(db_session=session, vault_obj=mock_vault, amount=500, commit=False)
+    mock_deposit.assert_called_once_with(
+        db_session=session, vault_obj=mock_vault, amount=500, commit=False, emit_event=False
+    )
     session.commit.assert_not_called()
 
 
@@ -135,3 +138,38 @@ async def test_credit_caps_vault_not_found() -> None:
     with pytest.raises(ResourceNotFoundException) as exc:
         await item_service._credit_caps(session, "bad", 100)
     assert "Vault" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_sell_emits_resource_collected_only_after_commit() -> None:
+    """RESOURCE_COLLECTED must not escape a sale that later rolls back (separate-session consumer)."""
+    from app.core.event_bus import GameEvent
+
+    session = _new_session()
+    item = _make_mock_item(Weapon, item_id="w-sell", storage_id="st-1", value=75)
+    session.get = AsyncMock(return_value=item)
+    _setup_execute_scalar_one_or_none(session, "v-2")
+
+    order: list[str] = []
+
+    async def fake_deposit(**kwargs) -> int:
+        order.append("deposit")
+        assert kwargs["emit_event"] is False
+        return 75
+
+    async def fake_commit() -> None:
+        order.append("commit")
+
+    async def fake_emit(*args, **kwargs) -> None:
+        order.append("emit")
+
+    session.commit = AsyncMock(side_effect=fake_commit)
+
+    with (
+        patch("app.services.item_service.vault_service.deposit_caps", new=AsyncMock(side_effect=fake_deposit)),
+        patch("app.core.event_bus.event_bus.emit", new=AsyncMock(side_effect=fake_emit)) as mock_emit,
+    ):
+        await item_service.sell_item(session, item_id="w-sell", model=Weapon)
+
+    mock_emit.assert_called_once_with(GameEvent.RESOURCE_COLLECTED, "v-2", {"resource_type": "caps", "amount": 75})
+    assert order == ["deposit", "commit", "emit"]

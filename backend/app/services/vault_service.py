@@ -723,8 +723,11 @@ class VaultService:
         commit: bool = True,
         emit_event: bool = True,
         track_earnings: bool = True,
-    ) -> None:
-        """Deposit the specified amount to the vault's bottle caps as part of a revenue operation."""
+    ) -> int:
+        """Deposit the specified amount to the vault's bottle caps as part of a revenue operation.
+
+        Returns the amount actually credited (less than requested when the cap is hit).
+        """
         capped = min(vault_obj.bottle_caps + amount, 999_999)
         credited = capped - vault_obj.bottle_caps
         await vault_crud.update(db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=capped), commit=commit)
@@ -746,6 +749,8 @@ class VaultService:
             await event_bus.emit(
                 GameEvent.RESOURCE_COLLECTED, vault_obj.id, {"resource_type": "caps", "amount": credited}
             )
+
+        return credited
 
     async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
         """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""

@@ -31,7 +31,7 @@ class ItemService:
             raise ResourceNotFoundException(Vault, identifier="Unknown - item has no storage or dweller")
 
         try:
-            await self._credit_caps(db_session, vault_id, item.value)
+            credited = await self._credit_caps(db_session, vault_id, item.value)
             await db_session.delete(item)
             await db_session.commit()
         except SQLAlchemyError:
@@ -40,13 +40,24 @@ class ItemService:
                 await db_session.rollback()
             raise
 
-    async def _credit_caps(self, db_session: AsyncSession, vault_id: UUID4, value: int) -> None:
-        """Credit the sale value to the vault via VaultService without committing (part of the sell transaction)."""
+        # Publish only after the sale commits: the objective handler runs on a
+        # separate session and must never observe a rolled-back sale.
+        from app.core.event_bus import GameEvent, event_bus
+
+        await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": credited})
+
+    async def _credit_caps(self, db_session: AsyncSession, vault_id: UUID4, value: int) -> int:
+        """Credit the sale value to the vault via VaultService without committing or emitting.
+
+        Returns the amount actually credited (part of the sell transaction).
+        """
         vault = await db_session.get(Vault, vault_id)
         if not vault:
             raise ResourceNotFoundException(Vault, identifier=vault_id)
 
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        return await vault_service.deposit_caps(
+            db_session=db_session, vault_obj=vault, amount=value, commit=False, emit_event=False
+        )
 
 
 # Singleton instance

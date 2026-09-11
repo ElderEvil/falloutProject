@@ -234,7 +234,7 @@ class BioPlaceBackfillService:
                     origin,
                     visited,
                 )
-            except Exception:
+            except Exception:  # broad by design: worker-loop isolation; logged+rolled back so backfill continues
                 logger.exception(
                     "Failed to commit bio place backfill for dweller %s in vault %s",
                     dweller.id,

@@ -306,9 +306,6 @@ def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmst
             "ollama", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="ollama-timeout"
         ),
         pytest.param(
-            "ollama", Exception("unknown error"), ServiceStatus.UNHEALTHY, "unknown error", id="ollama-generic-error"
-        ),
-        pytest.param(
             "lmstudio",
             _local_ai_response(200, ["llama2:latest"]),
             ServiceStatus.HEALTHY,
@@ -331,13 +328,6 @@ def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmst
         pytest.param(
             "lmstudio", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="lmstudio-timeout"
         ),
-        pytest.param(
-            "lmstudio",
-            Exception("unknown error"),
-            ServiceStatus.UNHEALTHY,
-            "unknown error",
-            id="lmstudio-generic-error",
-        ),
     ],
     indirect=["local_ai_provider"],
 )
@@ -355,6 +345,19 @@ async def test_check_local_ai_provider_responses(
     assert result.service == local_ai_provider
     assert result.status == expected_status
     assert message_fragment in result.message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("local_ai_provider", ["ollama", "lmstudio"], indirect=True)
+async def test_check_local_ai_unexpected_error_propagates(
+    local_ai_provider: Literal["ollama", "lmstudio"],
+) -> None:
+    """Non-HTTP, non-parse failures are bugs: they propagate instead of reporting UNHEALTHY."""
+    with (
+        patch("app.services.health_check.httpx.AsyncClient", return_value=_local_ai_client(Exception("boom"))),
+        pytest.raises(Exception, match="boom"),
+    ):
+        await HealthCheckService.check_local_ai(local_ai_provider)
 
 
 # =============================================================================

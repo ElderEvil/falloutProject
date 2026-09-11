@@ -96,9 +96,8 @@ class NotificationService:
         """Push one notification payload over WebSocket and SSE (best-effort, never raises)."""
         try:
             await manager.send_personal_message(payload, user_id=user_id)
-        except Exception:
+        except Exception:  # broad by design: best-effort delivery must never fail the caller
             logger.exception(f"Failed to send notification {payload['notification']['id']} to user {user_id}")
-            # Best-effort delivery: persistence should succeed even if WS send fails.
 
         try:
             await sse_manager.publish(
@@ -106,9 +105,8 @@ class NotificationService:
                 "notifications",
                 payload,
             )
-        except Exception:
+        except Exception:  # broad by design: best-effort delivery must never fail the caller
             logger.exception(f"Failed to send SSE notification {payload['notification']['id']} to user {user_id}")
-            # Best-effort delivery: persistence should succeed even if SSE send fails.
 
     @staticmethod
     def discard_deferred_notifications(db: AsyncSession) -> None:
@@ -145,7 +143,7 @@ class NotificationService:
             if not vault or not vault.user_id:
                 return
             await sender(vault.user_id)
-        except Exception:
+        except Exception:  # broad by design: caller-supplied sender may raise anything; must never fail the caller
             logger.exception("Failed to notify vault owner (%s)", context)
 
     # Convenience methods for common notification types

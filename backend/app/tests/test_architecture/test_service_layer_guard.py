@@ -126,6 +126,20 @@ def _select_call_lines(source: str) -> list[int]:
     return sorted(set(lines))
 
 
+_SESSION_GET_RECEIVERS = frozenset({"db_session", "session", "async_session"})
+
+
+def _session_get_call_lines(source: str) -> list[int]:
+    """Return sorted unique line numbers of <session>.get(...) direct PK loads (queries belong in CRUD)."""
+    lines = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
+            receiver = node.func.value
+            if isinstance(receiver, ast.Name) and receiver.id in _SESSION_GET_RECEIVERS:
+                lines.append(node.lineno)
+    return sorted(set(lines))
+
+
 def test_crud_does_not_depend_on_services() -> None:
     """CRUD depends on services only via shared kernels; the baseline must shrink, never grow."""
     found = set()
@@ -151,6 +165,16 @@ def test_services_do_not_query_directly() -> None:
     messages = [f"{name} issues raw select()/exec() (new SQL in service layer)" for name in sorted(new_files)]
     messages += [f"baseline entry {name} is stale; remove it" for name in sorted(stale_entries)]
     assert not messages, "Raw select()/exec() usage in services changed:\n" + "\n".join(messages)
+
+
+def test_services_do_not_load_rows_directly() -> None:
+    """Session .get() PK loads stay in CRUD; services orchestrate. No baseline: this class stays empty."""
+    offenders = []
+    for path in sorted((APP_DIR / "services").rglob("*.py")):
+        lines = _session_get_call_lines(path.read_text(encoding="utf-8"))
+        if lines:
+            offenders.append(f"{path.relative_to(APP_DIR / 'services').as_posix()}:{lines}")
+    assert not offenders, "Services must not call session.get() directly (route through CRUD):\n" + "\n".join(offenders)
 
 
 def test_service_module_names_follow_convention() -> None:
@@ -222,6 +246,20 @@ def test_guard_detects_select_calls() -> None:
         "v = session.execute(text('SELECT 1'))\n"
     )
     assert _select_call_lines(source) == [1, 2, 3, 5]
+
+
+def test_guard_detects_session_get_calls() -> None:
+    """Self-test: only session-receiver .get() loads are flagged; CRUD/redis/queue gets are ignored."""
+    source = (
+        "a = await db_session.get(Model, 1)\n"
+        "b = await session.get(Model, 2)\n"
+        "c = await crud.dweller.get(db_session, 3)\n"
+        "d = await dweller_crud.get(db_session, 4)\n"
+        "e = await redis_client.get('k')\n"
+        "f = await queue.get()\n"
+        "g = value.get('x')\n"
+    )
+    assert _session_get_call_lines(source) == [1, 2]
 
 
 def test_service_name_pattern() -> None:

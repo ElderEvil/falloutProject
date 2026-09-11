@@ -113,7 +113,13 @@ def emit(
     data: Annotated[str | None, typer.Option(help="JSON object merged over per-event defaults")] = None,
 ) -> None:
     """Emit one game event so subscribed evaluators process it."""
-    payload = {**EVENT_DEFAULTS.get(event_type, {}), **(json.loads(data) if data else {})}
+    try:
+        overrides = json.loads(data) if data else {}
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter("data must be valid JSON") from exc
+    if not isinstance(overrides, dict):
+        raise typer.BadParameter("data must be a JSON object")
+    payload = {**EVENT_DEFAULTS.get(event_type, {}), **overrides}
 
     async def body(_session):
         await event_bus.emit(event_type, vault_id, payload)
@@ -216,7 +222,6 @@ def build_living_room(vault_id: Annotated[UUID4, typer.Argument(help="Target vau
 
     async def body(session):
         from app import crud
-        from app.core.enums import SPECIALEnum
         from app.core.game_data import get_static_game_data
         from app.models.room import Room
         from app.schemas.room import RoomBuild
@@ -228,7 +233,7 @@ def build_living_room(vault_id: Annotated[UUID4, typer.Argument(help="Target vau
             raise ResourceNotFoundException(model=Vault, identifier=vault_id)
 
         game_data_store = await get_static_game_data()
-        living_room = next((room for room in game_data_store.rooms if room.ability == SPECIALEnum.CHARISMA), None)
+        living_room = game_data_store.get_room("Living room")
         if not living_room:
             raise ResourceNotFoundException(model=Vault, identifier="living room", identifier_type="name")
 

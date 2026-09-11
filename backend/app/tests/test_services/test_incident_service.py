@@ -584,7 +584,7 @@ class TestProcessVaultIncidents:
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=True),
             patch.object(incident_service, "spawn_incident", new_callable=AsyncMock, return_value=mock_incident),
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
@@ -598,7 +598,7 @@ class TestProcessVaultIncidents:
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
@@ -613,7 +613,7 @@ class TestProcessVaultIncidents:
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
@@ -636,7 +636,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 return_value=IncidentRoundResult(caps_earned=50),
             ),
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
             patch("app.crud.vault.vault") as mock_vault_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
@@ -660,7 +660,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 return_value=IncidentRoundResult(skipped=True),
             ),
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
@@ -693,7 +693,7 @@ class TestProcessVaultIncidents:
                 new_callable=AsyncMock,
                 side_effect=process_side_effect,
             ),
-            patch("app.services.combat.incident_service.incident_crud") as mock_crud,
+            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
             mock_crud.get_active_by_vault = AsyncMock(return_value=[inc1, inc2])
@@ -737,3 +737,80 @@ async def test_disabled_vault_should_spawn_returns_false(async_session: AsyncSes
     vault.incidents_disabled = True
     await async_session.commit()
     assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False
+
+
+class TestTickCommitBoundaries:
+    """Characterization: pins the transaction boundaries of one incident tick.
+
+    The tick commits at multiple boundaries today: the spawn path commits the
+    incident row, its lifecycle event, and the owner notification separately;
+    each combat round commits once (deferred death notifications drain right
+    after it); a victorious round's caps payout commits the deposit and the
+    profile statistic separately. Consolidating to a single commit per tick
+    must prove these boundaries equivalent first — these tests fail loudly if
+    the boundaries move silently.
+    """
+
+    @pytest.mark.asyncio
+    async def test_quiet_round_commits_exactly_once(self, async_session: AsyncSession, room_with_dwellers: dict):
+        """A round with no spawn, no victory, and no caps commits exactly once."""
+        vault = room_with_dwellers["vault"]
+        incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+        assert incident is not None
+
+        with (
+            patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
+            patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+            patch("app.services.combat.incident_math.fire_suppression", return_value=0.0),
+        ):
+            stats = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+
+        assert stats["processed"] == 1
+        assert stats["caps_earned"] == 0
+        assert commit_spy.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_spawn_commits_row_event_and_notification_separately(
+        self, async_session: AsyncSession, room_with_dwellers: dict
+    ):
+        """Spawning commits the incident row, the lifecycle event, and the owner notification."""
+        vault = room_with_dwellers["vault"]
+        with (
+            patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
+            patch("app.services.notification_service.manager"),
+            patch("app.services.notification_service.sse_manager"),
+        ):
+            incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+
+        assert incident is not None
+        assert commit_spy.await_count == 3
+
+    @pytest.mark.asyncio
+    async def test_victory_commits_round_notification_then_deposit(
+        self, async_session: AsyncSession, room_with_dwellers: dict
+    ):
+        """A victorious round commits the round, the victory notification, then the caps payout."""
+        vault = room_with_dwellers["vault"]
+        for dweller in room_with_dwellers["dwellers"]:
+            dweller.level = game_config.leveling.max_level  # keep level-up commits out of this count
+            async_session.add(dweller)
+        await async_session.commit()
+
+        incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
+        assert incident is not None
+
+        with (
+            patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
+            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+            patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
+            patch("app.services.combat.incident_math.damage_to_raiders", return_value=1000.0),
+            patch("app.services.notification_service.manager"),
+            patch("app.services.notification_service.sse_manager"),
+        ):
+            stats = await incident_service.process_vault_incidents(async_session, vault.id, 2)
+
+        assert stats["resolved"] == 1
+        assert stats["caps_earned"] > 0
+        assert commit_spy.await_count == 4

@@ -538,11 +538,10 @@ class RewardService:
                 total=objective.target_amount if objective else 1,
             )
             db_session.add(link)
-        else:
-            link.progress = progress
-
-        if link.is_completed:
+        elif link.is_completed:
             return link
+
+        link.progress = progress
         if link.progress < link.total:
             await db_session.commit()
         else:

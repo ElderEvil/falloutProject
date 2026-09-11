@@ -197,3 +197,28 @@ async def test_assign_initial_rolls_back_on_db_error() -> None:
 
     assert assigned == 0
     db_session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_completed_link_progress_not_mutated(async_session: AsyncSession) -> None:
+    """Settling progress on a completed link returns it untouched (no progress rewrite)."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    objective = await crud.objective_crud.create(
+        async_session,
+        obj_in=ObjectiveCreate(
+            challenge="Collect 10 weapons", reward="500 caps", category=ObjectiveCategoryEnum.ACHIEVEMENT
+        ),
+    )
+
+    link = await reward_service.settle_objective_progress(
+        db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=5
+    )
+    assert link.is_completed is True
+    assert link.progress == 5
+
+    relink = await reward_service.settle_objective_progress(
+        db_session=async_session, objective_id=objective.id, vault_id=vault.id, progress=1
+    )
+    assert relink.progress == 5
+    assert relink.is_completed is True

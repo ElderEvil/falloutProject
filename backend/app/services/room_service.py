@@ -455,9 +455,7 @@ class RoomService:
         if db_obj.tier >= 3 and db_obj.t3_upgrade_cost:
             refundable_total += db_obj.t3_upgrade_cost
 
-        refund = int(
-            refundable_total * db_obj.segment_count * game_config.resource.destroy_room_refund_rate
-        )
+        refund = int(refundable_total * db_obj.segment_count * game_config.resource.destroy_room_refund_rate)
 
         await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False)
 

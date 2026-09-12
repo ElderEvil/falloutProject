@@ -11,8 +11,20 @@ from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
+from app.utils.exceptions import ValidationException
+from app.utils.place_seed import get_seeded_vault_numbers
 
 logger = getLogger(__name__)
+
+
+def _validate_vault_number(number: int) -> None:
+    """Reject numbers claimed by seeded NPC vault signals.
+
+    A player vault reusing a seeded number would adopt the NPC marker row
+    (wrong coordinates, signal description) instead of its own (50, 50) home.
+    """
+    if number in get_seeded_vault_numbers():
+        raise ValidationException(f"Vault number {number} is reserved for a seeded wasteland vault signal.")
 
 
 class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
@@ -123,12 +135,17 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         return await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_id)
 
+    async def create(self, db_session: AsyncSession, obj_in: VaultCreate) -> Vault:
+        _validate_vault_number(obj_in.number if not isinstance(obj_in, dict) else obj_in["number"])
+        return await super().create(db_session, obj_in)
+
     async def create_with_user_id(
         self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID4
     ) -> Vault:
         obj_data = obj_in.model_dump() if hasattr(obj_in, "model_dump") else obj_in
         obj_data["user_id"] = user_id
         obj_in = VaultCreateWithUserID(**obj_data)
+        _validate_vault_number(obj_in.number)
         return await super().create(db_session, obj_in)
 
     async def delete(self, db_session: AsyncSession, id: UUID4, soft: bool = True) -> Vault:

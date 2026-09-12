@@ -9,9 +9,9 @@ from app.models.world_location import WorldLocation
 from app.services.place_seed_service import (
     get_origin_places,
     get_visited_places,
-    load_seed_entries,
     seed_places_from_json,
 )
+from app.utils.place_seed import load_seed_entries
 
 
 @pytest.mark.asyncio

@@ -8,39 +8,22 @@ seed-owned descriptions refresh so seed edits never need a migration.
 
 from __future__ import annotations
 
-import json
 import logging
 from functools import lru_cache
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
 from app.core.enums import PlaceKindEnum
 from app.crud.world_location import world_location as world_location_crud
 from app.models.world_location import WorldLocation
+from app.utils.place_seed import load_seed_entries
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-SEED_FILE = Path(__file__).parent.parent / "data" / "places" / "seed_places.json"
-
-
-@lru_cache(maxsize=1)
-def load_seed_entries() -> list[dict[str, Any]]:
-    """Load and validate the seed roster (cached)."""
-    with SEED_FILE.open(encoding="utf-8") as f:
-        entries = json.load(f)
-    seen: set[str] = set()
-    for entry in entries:
-        normalized = normalize_place_name(entry["name"])
-        if normalized in seen:
-            raise ValueError(f"Duplicate seed place {entry['name']!r}")
-        seen.add(normalized)
-    return entries
 
 
 @lru_cache(maxsize=1)

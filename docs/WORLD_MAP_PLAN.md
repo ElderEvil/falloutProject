@@ -83,6 +83,11 @@ authored once; it does not introduce live shared simulation.
 | **2** | ✅ Shipped in v2.84.0 — rewired services/CRUD onto registry + state **plus** the FK swap + drop of the old table | Existing `test_map_service` / `test_map` / `test_discovery_events` pass **unmodified** |
 | **3** | ✅ Shipped in v2.84.0 — Seed JSON + idempotent loader; NPC vault rows; deleted hardcoded `_KNOWN_*` lists and runtime `seeded_vault_specs` path | Golden test: seeded roster matches old `seeded_vault_specs()` output |
 | **4** | ✅ Shipped in v2.82.0 — Race mechanics: newborn race, breeding eligibility, ghoul radiation immunity | Breeding tests preserved; new eligibility + inheritance covered |
+| **5** | Map presentation: registry lore on markers, region/tag filtering, fog UX | Frontend contract verified (no `types:generate` diff) |
+| **6** | *Deferred:* raids, visits, fallen dwellers, leaderboards | Revisit with product direction |
+
+Phases 1–3 (registry) and phase 4 (race) shipped independently: race first (v2.82.0), then registry phase 1
+(v2.83.0).
 
 Phase 4 decisions (locked):
 - **Breeding rule:** a simple per-race `can_breed` boolean (in `app/options/races.py`) — not a pair-compatibility
@@ -91,11 +96,6 @@ Phase 4 decisions (locked):
   (weighted by `race_weights`). This is how non-humans arise from breeding and stay rare.
 - **Race effects:** ghoul **radiation immunity** ships in phase 4 (no radiation gain for ghouls); other per-race
   effects stay in the separate parked "Race & Faction Gameplay Mechanics" roadmap item.
-| **5** | Map presentation: registry lore on markers, region/tag filtering, fog UX | Frontend contract verified (no `types:generate` diff) |
-| **6** | *Deferred:* raids, visits, fallen dwellers, leaderboards | Revisit with product direction |
-
-Phases 1–3 (registry) and phase 4 (race) shipped independently: race first (v2.82.0), then registry phase 1
-(v2.83.0).
 
 ### Migration strategy (phases 1–2)
 

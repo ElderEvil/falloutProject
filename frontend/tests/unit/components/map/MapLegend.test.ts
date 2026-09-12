@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MapLegend from '@/modules/map/components/MapLegend.vue'
-import { useMapStore } from '@/modules/map/stores/map'
+import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 
 function discoveryLocation(id: string, is_unlocked = true) {
   return {
@@ -24,6 +24,7 @@ function discoveryLocation(id: string, is_unlocked = true) {
 describe('MapLegend', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
   })
 
   function mountLegend() {

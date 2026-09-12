@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
-import { useMapStore } from '@/modules/map/stores/map'
+import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
 // Stub child components that need complex DOM (Iconify, UTooltip)
@@ -70,6 +70,7 @@ function createVaultMarkers(count: number): VaultMarkerRead[] {
 describe('WorldMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
   })
 
   describe('Marker rendering', () => {

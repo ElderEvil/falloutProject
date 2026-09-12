@@ -1,9 +1,11 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { useIntervalFn } from '@vueuse/core'
+import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import * as mapService from '../services/mapService'
 import { handleStoreError } from '@/core/utils/errorHandler'
+
+export const VIEWED_LOCATIONS_STORAGE_KEY = 'map:viewed-location-keys'
 
 export const useMapStore = defineStore('map', () => {
   // State
@@ -12,7 +14,16 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const viewedLocationKeys = ref<Set<string>>(new Set())
+  const viewedLocationKeys = useLocalStorage<Set<string>>(
+    VIEWED_LOCATIONS_STORAGE_KEY,
+    new Set(),
+    {
+      serializer: {
+        read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
+        write: (value) => JSON.stringify([...value]),
+      },
+    }
+  )
 
   function viewedKey(vaultId: string, locationId: string): string {
     return `${vaultId}:${locationId}`

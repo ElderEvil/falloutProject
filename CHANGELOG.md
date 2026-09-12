@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.84.0 (2026-09-12)
+
+### Features
+
+* **map:** rewire world map onto the canonical registry, seed places, drop old table 834c51b
+
+### Bug Fixes
+
+* **map:** address CodeRabbit review on registry rewire 6fa0fac, closes #2
+* **map:** reserve seeded vault numbers at vault creation f140752
+
 ## 2.83.0 (2026-09-11)
 
 ### Features

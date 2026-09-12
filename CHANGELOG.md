@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.0 (2026-09-12)
+
+### Features
+
+* **rooms:** unit-grid vault layout, backend-owned geometry, and extended rooms ([#595](https://github.com/ElderEvil/falloutProject/issues/595)) b430cd8
+
 ## 2.86.0 (2026-09-12)
 
 ### Features

@@ -168,8 +168,8 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 
 .marker-list-wrapper.docked .marker-list-panel {
   width: 100%;
-  max-height: calc(100vh - 2rem);
-  max-height: calc(100dvh - 2rem);
+  max-height: min(960px, calc(100vh - 13rem));
+  max-height: min(960px, calc(100dvh - 13rem));
   background: var(--color-surface);
 }
 

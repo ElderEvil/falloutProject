@@ -309,7 +309,7 @@ per-vault drift), lore is authored once, and the fragmented place-name sources (
 dweller templates, procedural pool) collapse into one JSON seed. Cross-vault **state** — raids, visits,
 leaderboards, fallen-dweller encounters — stays deferred; the registry is only the geography those would build on.
 Phases 0–6, the migration strategy, and the seed strategy live in `docs/WORLD_MAP_PLAN.md`; race mechanics shipped
-first (v2.82.0), registry phase 1 (tables + backfill) shipped in v2.83.0, service cutover follows.
+first (v2.82.0), registry phases 1–3 shipped across v2.83.0 (tables + backfill) and v2.84.0 (service cutover + seed).
 
 **Current focus — World Map + exploration polish (easy first, hard planned):**
 

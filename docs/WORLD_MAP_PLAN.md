@@ -80,8 +80,8 @@ authored once; it does not introduce live shared simulation.
 |---|---|---|
 | **0** | Docs + decisions (this change) | — |
 | **1** | ✅ Shipped in v2.83.0 as an additive revision (schema + idempotent backfill; repoint + drop moved to phase 2) | Row-count parity old vs new; PG integration migration test |
-| **2** | Rewire services/CRUD onto registry + state (`register_bio_places`, `get_vault_map`, `ensure_home_marker`) **plus** the FK swap + drop of the old table | Existing `test_map_service` / `test_map` / `test_discovery_events` pass **unmodified** |
-| **3** | Seed JSON + idempotent loader; NPC vault rows; delete hardcoded `_KNOWN_*` lists and runtime `seeded_vault_specs` path | Golden test: seeded roster matches old `seeded_vault_specs()` output |
+| **2** | ✅ Shipped in v2.84.0 — rewired services/CRUD onto registry + state **plus** the FK swap + drop of the old table | Existing `test_map_service` / `test_map` / `test_discovery_events` pass **unmodified** |
+| **3** | ✅ Shipped in v2.84.0 — Seed JSON + idempotent loader; NPC vault rows; deleted hardcoded `_KNOWN_*` lists and runtime `seeded_vault_specs` path | Golden test: seeded roster matches old `seeded_vault_specs()` output |
 | **4** | ✅ Shipped in v2.82.0 — Race mechanics: newborn race, breeding eligibility, ghoul radiation immunity | Breeding tests preserved; new eligibility + inheritance covered |
 
 Phase 4 decisions (locked):
@@ -130,7 +130,7 @@ need a migration.
 1. ✅ **Breeding rule shape** — per-race `can_breed` boolean (decided).
 2. ✅ **Newborn race** — inheritance + configurable mutation chance (decided).
 3. ✅ **Race effects** — ghoul radiation immunity in phase 4; rest parked (decided).
-4. ⬜ **Seed scope** — confirm excluding combinatorial discovery names (emergent). *(before phase 3)*
+4. ✅ **Seed scope** — combinatorial discovery names stay emergent (not seeded).
 5. ✅ **Ordering** — resolved by events: race shipped first (v2.82.0), registry phases follow.
 
 ## Deferred multiplayer phases (parked)

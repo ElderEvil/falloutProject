@@ -24,16 +24,13 @@ it with `WORLD_SCALE = 1.6` to the 0–160 render world (`MAP_SIZE = 160`).
 Place rows are scoped to `vault_id`, which gives every vault independent discovery and unlock state. A place
 name resolves to the same shared base coordinate for every vault. The **global places registry** is now the
 active foundation (see the [delivery plan](../WORLD_MAP_PLAN.md)): canonical coordinates live in registry rows so
-a landmark sits in the same spot for every player. The registry tables shipped and are backfilled (v2.83.0); until
-the service cutover lands, reads still go through the vault-scoped rows, so a vault-local `collision_nudge` can
-still move an overlapping persisted marker differently in each vault — the map remains a shared-base-coordinate
-schematic with per-player fog rather than an exact global marker registry.
+a landmark sits in the same spot for every player. The registry tables shipped and were backfilled (v2.83.0) and
+the service cutover landed (v2.84.0), so the map is now an exact global marker registry with per-player fog.
 
 ## Invariants
 
 1. **One deterministic base world, per-player fog.** Base coordinates derive from names. Per-player discovery and
-   unlock state belong to vault-scoped state; collision resolution lives in the shared places registry (service
-   cutover pending).
+   unlock state belong to vault-scoped state; collision resolution lives in the shared places registry.
 2. **Async multiplayer.** A raid resolves against a snapshot, never a live vault simulation. The offline game
    loop makes live shared-world authority incompatible with this architecture.
 3. **`Vault.number` is global identity.** A real vault's world marker derives from its number, never from the

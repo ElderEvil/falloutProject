@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 
@@ -73,6 +73,17 @@ const groups = computed<MarkerGroup[]>(() => {
 
 const totalCount = computed(() => props.locations.length + props.vaultMarkers.length)
 
+// Per-group collapse state (expanded by default)
+const collapsedGroups = ref(new Set<string>())
+
+function toggleGroup(type: string) {
+  if (collapsedGroups.value.has(type)) {
+    collapsedGroups.value.delete(type)
+  } else {
+    collapsedGroups.value.add(type)
+  }
+}
+
 function handleItemClick(item: MarkerGroup['items'][number]) {
   emit('marker-select', { kind: item.kind, data: item.data } as any)
 }
@@ -100,21 +111,33 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 
       <div class="panel-body">
         <div v-for="group in groups" :key="group.type" class="marker-group">
-          <div class="group-header">
+          <button
+            type="button"
+            class="group-header"
+            :aria-expanded="!collapsedGroups.has(group.type)"
+            :aria-label="`${group.label}, ${group.items.length} markers`"
+            @click="toggleGroup(group.type)"
+          >
+            <Icon
+              :icon="collapsedGroups.has(group.type) ? 'mdi:chevron-right' : 'mdi:chevron-down'"
+              class="group-chevron"
+            />
             <Icon :icon="group.icon" class="group-icon" />
             <span class="group-label">{{ group.label }}</span>
             <span class="group-count">{{ group.items.length }}</span>
-          </div>
-
-          <button
-            v-for="item in group.items"
-            :key="item.id"
-            class="marker-row"
-            :class="{ selected: selectedMarkerId === item.id }"
-            @click="handleItemClick(item)"
-          >
-            <span class="marker-name">{{ item.name }}</span>
           </button>
+
+          <div v-show="!collapsedGroups.has(group.type)">
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              class="marker-row"
+              :class="{ selected: selectedMarkerId === item.id }"
+              @click="handleItemClick(item)"
+            >
+              <span class="marker-name">{{ item.name }}</span>
+            </button>
+          </div>
         </div>
 
         <div v-if="groups.length === 0" class="empty-state">No markers yet</div>
@@ -186,7 +209,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   border-radius: 2px;
   box-shadow: 0 0 10px var(--color-theme-glow);
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: 14px;
   color: var(--color-theme-primary);
   display: flex;
   flex-direction: column;
@@ -204,13 +227,13 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .panel-title {
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .panel-count {
-  font-size: 9px;
+  font-size: 11px;
   opacity: 0.6;
 }
 
@@ -228,11 +251,28 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  opacity: 0.5;
-  font-size: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  opacity: 0.75;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-header:hover {
+  opacity: 1;
+}
+
+.group-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .group-icon {

@@ -139,7 +139,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 .marker-label {
   fill: var(--color-theme-primary);
   font-family: var(--font-family-mono);
-  font-size: 2px;
+  font-size: 2.4px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 150ms ease;

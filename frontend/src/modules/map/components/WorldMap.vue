@@ -36,8 +36,16 @@ const visibleLocations = computed(() =>
 
 const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
 
+// Expeditions start at the home vault — anchor every trail there.
+const homeCoords = computed(() => {
+  const home = props.locations.find((loc) => loc.type === 'home_vault')
+  return home ? `${home.coord_x},${home.coord_y}` : '80,80'
+})
+
 const discoveryRouteLines = computed(() =>
-  props.discoveryRoutes.map((route) => route.points.map((point) => `${point.coord_x},${point.coord_y}`).join(' '))
+  props.discoveryRoutes.map((route) =>
+    [homeCoords.value, ...route.points.map((point) => `${point.coord_x},${point.coord_y}`)].join(' ')
+  )
 )
 
 // ── Zoom & Pan ────────────────────────────────────────────────────────
@@ -278,15 +286,16 @@ function onPanelMarkerSelect(payload: {
 <style scoped>
 .world-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 960px) minmax(12rem, 14rem);
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem);
   align-items: start;
-  gap: 1rem;
-  width: 100%;
-  max-width: 80rem;
+  gap: 0.75rem;
+  width: fit-content;
+  max-width: min(80rem, 100%);
 }
 
 .world-map-container {
-  width: 100%;
+  width: min(960px, 100%, calc(100vh - 14rem));
+  width: min(960px, 100%, calc(100dvh - 14rem));
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);

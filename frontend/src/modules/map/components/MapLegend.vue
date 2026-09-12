@@ -56,7 +56,7 @@ const legendItems: LegendItem[] = [
   border-radius: 2px;
   box-shadow: 0 0 6px var(--color-theme-glow);
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-theme-primary);
   pointer-events: none;
   user-select: none;

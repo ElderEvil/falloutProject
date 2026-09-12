@@ -22,21 +22,21 @@ Persistence stays on a 0–100 grid (`WastelandLocation.coord_x/y`, DB check-con
 it with `WORLD_SCALE = 1.6` to the 0–160 render world (`MAP_SIZE = 160`).
 
 Place rows are scoped to `vault_id`, which gives every vault independent discovery and unlock state. A place
-name resolves to the same shared base coordinate for every vault. Until Phase D introduces a global location
-registry, a vault-local `collision_nudge` can move an overlapping persisted marker differently in each vault;
-the current map is therefore a shared-base-coordinate schematic with per-player fog, not yet an exact global
-marker registry.
+name resolves to the same shared base coordinate for every vault. The **global places registry** is now the
+active foundation (see the [delivery plan](../WORLD_MAP_PLAN.md)): canonical coordinates live in registry rows so
+a landmark sits in the same spot for every player. The registry tables shipped and were backfilled (v2.83.0) and
+the service cutover landed (v2.84.0), so the map is now an exact global marker registry with per-player fog.
 
 ## Invariants
 
-1. **One deterministic base world, per-player fog.** Base coordinates derive from names. Per-player discovery,
-   unlock state, and collision resolution belong to vault-scoped state until a global registry exists.
+1. **One deterministic base world, per-player fog.** Base coordinates derive from names. Per-player discovery and
+   unlock state belong to vault-scoped state; collision resolution lives in the shared places registry.
 2. **Async multiplayer.** A raid resolves against a snapshot, never a live vault simulation. The offline game
    loop makes live shared-world authority incompatible with this architecture.
 3. **`Vault.number` is global identity.** A real vault's world marker derives from its number, never from the
    viewer's identity.
-4. **Names are coordinate authority.** Future denormalization deduplicates normalized names, not stored
-   coordinates.
+4. **Names are coordinate authority.** The registry deduplicates by normalized name, not stored coordinates; a
+   curated seed may override coordinates for a landmark on first insert only.
 
 ## Vault signals
 
@@ -61,5 +61,6 @@ private vault data.
 ## Boundaries
 
 - No live shared-world simulation.
-- No global location registry until cross-vault queries justify one.
+- The global places registry is the shared-world foundation; cross-vault **state** (visits, raids, leaderboards)
+  remains deferred.
 - No map-driven changes to exploration reward or combat mechanics.

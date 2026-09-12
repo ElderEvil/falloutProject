@@ -23,6 +23,7 @@ from app.db.session import async_session_maker
 from app.services.bio_place_backfill_service import bio_place_backfill_service
 from app.services.discovery_backfill_service import discovery_backfill_service
 from app.services.quest_state_objective_backfill_service import quest_state_objective_backfill_service
+from app.services.room_service import room_service
 from app.utils.exceptions import ResourceNotFoundException
 
 app = typer.Typer(
@@ -219,6 +220,62 @@ def backfill_vault_layout(
             f"overlaps={summary['overlaps']} floating={summary['floating']} "
             f"floor_width_ok={summary['floor_width_ok']}"
         )
+    typer.echo("Applied." if apply else "Dry run — pass --apply to persist.")
+
+
+@app.command(name="merge-rooms")
+def backfill_merge_rooms(
+    vault: Annotated[
+        str | None,
+        typer.Option(help="Vault UUID to limit scope; ignored when --all-active is set"),
+    ] = None,
+    all_active: Annotated[
+        bool,
+        typer.Option(help="Process all non-deleted vaults"),
+    ] = False,
+    apply: Annotated[
+        bool,
+        typer.Option(help="Persist merges; without it the command is a dry run"),
+    ] = False,
+) -> None:
+    """Merge adjacent same-name/same-tier rooms in active vaults."""
+    if vault and not all_active:
+        try:
+            UUID(vault)
+        except ValueError as exc:
+            raise typer.BadParameter(f"Invalid vault UUID: {vault!r}") from exc
+
+    async def _run() -> dict[UUID, dict[str, int]]:
+        from sqlalchemy import select
+
+        from app.models.vault import Vault
+
+        async with async_session_maker() as session:
+            if all_active:
+                vault_ids = list(
+                    (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
+                )
+            elif vault:
+                vault_ids = [UUID(vault)]
+            else:
+                raise ValueError("Pass --vault <UUID> or --all-active")
+
+            summaries = {
+                vault_id: await room_service.backfill_merge_rooms_for_vault(session, vault_id, dry_run=not apply)
+                for vault_id in vault_ids
+            }
+            if apply:
+                await session.commit()
+            return summaries
+
+    try:
+        summaries = asyncio.run(_run())
+    except (ValueError, typer.BadParameter) as exc:
+        typer.echo(f"Backfill failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    for vault_id, summary in summaries.items():
+        typer.echo(f"  {vault_id}: merged={summary['merged']}")
     typer.echo("Applied." if apply else "Dry run — pass --apply to persist.")
 
 

@@ -27,7 +27,5 @@ GRID_BUILD_Y_MAX = 15
 def room_slot_starts() -> tuple[list[int], list[int]]:
     """Build-slot unit offsets left and right of the elevator shaft."""
     left = [0, UNITS_PER_ROOM]
-    right = [
-        SHAFT_X + ELEVATOR_UNITS + index * UNITS_PER_ROOM for index in range(RIGHT_SLOT_COUNT)
-    ]
+    right = [SHAFT_X + ELEVATOR_UNITS + index * UNITS_PER_ROOM for index in range(RIGHT_SLOT_COUNT)]
     return left, right

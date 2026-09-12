@@ -3,7 +3,7 @@ import logging
 import operator
 
 from pydantic import UUID4
-from sqlmodel import and_, or_, select
+from sqlmodel import and_, func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomTypeEnum
@@ -11,7 +11,6 @@ from app.crud.base import CRUDBase
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
 from app.utils.exceptions import (
-    InsufficientResourcesException,
     UniqueRoomViolationException,
 )
 
@@ -194,6 +193,37 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return response.scalars().first()
 
     @staticmethod
+    async def get_adjacent_mergeable_rooms(
+        *,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        name: str,
+        tier: int,
+        coordinate_x: int,
+        coordinate_y: int,
+        size: int,
+    ) -> list[Room]:
+        """Same-name/same-tier rooms on the same row whose footprint touches the candidate footprint.
+
+        A room is mergeable when its right edge is exactly one unit left of the candidate's
+        left edge, or its left edge is exactly one unit right of the candidate's right edge.
+        The live footprint is ``coalesce(size, size_min)``.
+        """
+        existing_size = func.coalesce(Room.size, Room.size_min)
+        query = select(Room).where(
+            Room.vault_id == vault_id,
+            Room.name == name,
+            Room.tier == tier,
+            Room.coordinate_y == coordinate_y,
+            Room.coordinate_x.is_not(None),
+            or_(
+                (Room.coordinate_x + existing_size) == coordinate_x,
+                (coordinate_x + size) == Room.coordinate_x,
+            ),
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
     async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate) -> int:
         """
         Calculate the price of building a room in a vault.
@@ -225,18 +255,6 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
             )
             if existing_unique_room.scalars().first():
                 raise UniqueRoomViolationException(room_name=obj_in.name)
-
-    async def expand_room(self, db_session: AsyncSession, existing_room: Room, additional_size: int) -> Room:
-        """Expand the size of the existing room."""
-        info = f"Expanding room {existing_room.name} (ID: {existing_room.id}) by {additional_size} units."
-        logger.info(msg=info)
-        if existing_room.size_min + additional_size > existing_room.size_max:
-            raise InsufficientResourcesException(resource_name="room size", resource_amount=additional_size)
-        existing_room.size_min += additional_size
-        await self.update(
-            db_session=db_session, obj_in=RoomUpdate(size_min=existing_room.size_min), id=existing_room.id
-        )
-        return existing_room
 
     @staticmethod
     def requires_recalculation(room_obj: RoomCreate | Room | RoomRead) -> bool:

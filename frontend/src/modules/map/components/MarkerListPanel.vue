@@ -110,7 +110,12 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
       </div>
 
       <div class="panel-body">
-        <div v-for="group in groups" :key="group.type" class="marker-group">
+        <div
+          v-for="group in groups"
+          :key="group.type"
+          class="marker-group"
+          :class="{ 'marker-group-vault': group.type === 'vault' }"
+        >
           <button
             type="button"
             class="group-header"
@@ -324,7 +329,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 /* Vault type styling */
-.marker-group:last-child .group-icon {
+.marker-group-vault .group-icon {
   color: var(--color-warning);
 }
 

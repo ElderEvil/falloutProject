@@ -246,4 +246,41 @@ describe('MarkerListPanel', () => {
       expect(wrapper.text()).toContain('No markers yet')
     })
   })
+
+  describe('Vault group styling', () => {
+    it('should vault-style only the vault group', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [createLocation('origin', 'Megaton')],
+          vaultMarkers: [createVault('Vault 88')],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      const vaultGroups = wrapper.findAll('.marker-group-vault')
+      expect(vaultGroups).toHaveLength(1)
+      expect(vaultGroups[0].text()).toContain('Vault Signal')
+    })
+
+    it('should NOT vault-style the last location group when no vault markers exist', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [
+            createLocation('origin', 'Megaton'),
+            createLocation('discovery', 'Unknown Ruins'),
+          ],
+          vaultMarkers: [],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.find('.marker-group-vault').exists()).toBe(false)
+
+      const groups = wrapper.findAll('.marker-group')
+      const lastGroup = groups[groups.length - 1]
+      expect(lastGroup.classes()).not.toContain('marker-group-vault')
+    })
+  })
 })

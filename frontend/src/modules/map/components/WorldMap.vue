@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import { UButton } from '@/core/components/ui'
-import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type {
+  DiscoveryRouteRead,
+  MarkerClickPayload,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import TerrainLayer from './TerrainLayer.vue'
-import { spreadMarkers } from '../utils/spreadMarkers'
+import { useMapSpread } from '../composables/useMapSpread'
+import { useMarkerSelection } from '../composables/useMarkerSelection'
 import { tracePoints } from '../utils/tracePath'
 import { useMapZoomPan } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
@@ -21,12 +27,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { discoveryRoutes: () => [] })
 
 const emit = defineEmits<{
-  (
-    e: 'marker-click',
-    payload:
-      | { kind: 'location'; data: WastelandLocationWithDwellers }
-      | { kind: 'vault'; data: VaultMarkerRead }
-  ): void
+  (e: 'marker-click', payload: MarkerClickPayload): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -69,14 +70,14 @@ const {
   onDragEnd,
 } = useMapZoomPan()
 
-const svgRef = ref<SVGSVGElement | null>(null)
-const selectedMarkerId = ref<string | null>(null)
-const hasDragMoved = ref(false)
 const mapStore = useMapStore()
+const svgRef = ref<SVGSVGElement | null>(null)
+const vaultMarkers = toRef(props, 'vaultMarkers')
 
-function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
-  return loc.type === 'discovery' && loc.is_unlocked !== false && !mapStore.isLocationViewed(loc.vault_id, loc.id)
-}
+const { spreadMap, getSpread } = useMapSpread(visibleLocations, vaultMarkers)
+
+const { selectedMarkerId, hasDragMoved, onLocationClick, onVaultClick, onPanelMarkerSelect } =
+  useMarkerSelection(vaultMarkers, spreadMap, focusOnMarker, emit)
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -104,81 +105,7 @@ function handleMouseUp() {
 }
 
 // ── Grid lines ─────────────────────────────────────────────────────────
-const gridLines = computed(() => {
-  const lines: number[] = []
-  for (let i = 0; i <= 160; i += 10) {
-    lines.push(i)
-  }
-  return lines
-})
-
-// ── Spread markers ─────────────────────────────────────────────────────
-const spreadMap = computed(() => {
-  const allInputs = [
-    ...visibleLocations.value.map((loc) => ({
-      id: `loc-${loc.id}`,
-      x: loc.coord_x,
-      y: loc.coord_y,
-    })),
-    ...props.vaultMarkers.map((vm, idx) => ({
-      id: `vault-${idx}`,
-      x: vm.coord_x,
-      y: vm.coord_y,
-    })),
-  ]
-  return spreadMarkers(allInputs, {
-    collisionRadius: 7.2,
-    maxDisplace: 4.0,
-    iterations: 5,
-  })
-})
-
-function getSpread(id: string, fallbackX: number, fallbackY: number) {
-  const result = spreadMap.value.get(id)
-  return result ?? { renderX: fallbackX, renderY: fallbackY }
-}
-
-// ── Marker interactions ────────────────────────────────────────────────
-function onLocationClick(loc: WastelandLocationWithDwellers) {
-  if (hasDragMoved.value) return
-  selectedMarkerId.value = `loc-${loc.id}`
-  emit('marker-click', { kind: 'location', data: loc })
-}
-
-function onVaultClick(marker: VaultMarkerRead) {
-  if (hasDragMoved.value) return
-  const idx = props.vaultMarkers.indexOf(marker)
-  selectedMarkerId.value = `vault-${idx}`
-  emit('marker-click', { kind: 'vault', data: marker })
-}
-
-function onPanelMarkerSelect(payload: {
-  kind: 'location' | 'vault'
-  data: WastelandLocationWithDwellers | VaultMarkerRead
-}) {
-  const id =
-    payload.kind === 'location'
-      ? `loc-${(payload.data as WastelandLocationWithDwellers).id}`
-      : `vault-${props.vaultMarkers.indexOf(payload.data as VaultMarkerRead)}`
-
-  const pos = spreadMap.value.get(id)
-  if (pos) {
-    focusOnMarker(pos.renderX, pos.renderY)
-  } else if (payload.kind === 'location') {
-    // Hidden single-dweller visited marker — focus its raw coords
-    focusOnMarker(
-      (payload.data as WastelandLocationWithDwellers).coord_x,
-      (payload.data as WastelandLocationWithDwellers).coord_y
-    )
-  } else {
-    focusOnMarker(
-      (payload.data as VaultMarkerRead).coord_x,
-      (payload.data as VaultMarkerRead).coord_y
-    )
-  }
-  selectedMarkerId.value = id
-  emit('marker-click', payload as any)
-}
+const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
 </script>
 
 <template>
@@ -199,63 +126,63 @@ function onPanelMarkerSelect(payload: {
         focusable="false"
         @mousedown="handleMouseDown"
       >
-      <!-- Terrain layer (bottom — behind grid and markers) -->
-      <TerrainLayer />
+        <!-- Terrain layer (bottom — behind grid and markers) -->
+        <TerrainLayer />
 
-      <!-- Grid lines -->
-      <line
-        v-for="pos in gridLines"
-        :key="`h-${pos}`"
-        :x1="0"
-        :y1="pos"
-        :x2="160"
-        :y2="pos"
-        class="grid-line"
-      />
-      <line
-        v-for="pos in gridLines"
-        :key="`v-${pos}`"
-        :x1="pos"
-        :y1="0"
-        :x2="pos"
-        :y2="160"
-        class="grid-line"
-      />
+        <!-- Grid lines -->
+        <line
+          v-for="pos in gridLines"
+          :key="`h-${pos}`"
+          :x1="0"
+          :y1="pos"
+          :x2="160"
+          :y2="pos"
+          class="grid-line"
+        />
+        <line
+          v-for="pos in gridLines"
+          :key="`v-${pos}`"
+          :x1="pos"
+          :y1="0"
+          :x2="pos"
+          :y2="160"
+          class="grid-line"
+        />
 
-      <!-- Discovery routes (per-exploration trail) -->
-      <polyline
-        v-for="(route, i) in discoveryRouteLines"
-        :key="`route-${i}`"
-        :points="route"
-        class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
-        fill="none"
-      />
+        <!-- Discovery routes (per-exploration trail) -->
+        <polyline
+          v-for="(route, i) in discoveryRouteLines"
+          :key="`route-${i}`"
+          :points="route"
+          class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
+          fill="none"
+        />
 
-      <!-- Location markers (spread-adjusted positions) -->
-      <MapMarker
-        v-for="loc in visibleLocations"
-        :key="`loc-${loc.id}`"
-        :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
-        :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
-        :name="loc.name"
-        :type="loc.type"
-        :is_unlocked="loc.is_unlocked"
-        :unseen="isUnseenDiscovery(loc)"
-        :selected="selectedMarkerId === `loc-${loc.id}`"
-        @click="onLocationClick(loc)"
-      />
+        <!-- Location markers (spread-adjusted positions) -->
+        <MapMarker
+          v-for="loc in visibleLocations"
+          :key="`loc-${loc.id}`"
+          :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
+          :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
+          :name="loc.name"
+          :type="loc.type"
+          :is_unlocked="loc.is_unlocked"
+          :unseen="mapStore.isUnseenDiscovery(loc)"
+          :selected="selectedMarkerId === `loc-${loc.id}`"
+          @click="onLocationClick(loc)"
+        />
 
-      <!-- Vault markers (spread-adjusted positions) -->
-      <MapMarker
-        v-for="(vm, idx) in vaultMarkers"
-        :key="`vault-${idx}`"
-        :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
-        :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
-        :name="vm.name"
-        :type="vm.type"
-        :selected="selectedMarkerId === `vault-${idx}`"
-        @click="onVaultClick(vm)"
-      />
+        <!-- Vault markers (spread-adjusted positions) -->
+        <MapMarker
+          v-for="(vm, idx) in vaultMarkers"
+          :key="`vault-${idx}`"
+          :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
+          :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
+          :name="vm.name"
+          :type="vm.type"
+          :selected="selectedMarkerId === `vault-${idx}`"
+          @click="onVaultClick(vm)"
+        />
       </svg>
 
       <!-- Zoom controls overlay -->
@@ -263,7 +190,13 @@ function onPanelMarkerSelect(payload: {
         <UButton variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
           <Icon icon="mdi:plus" class="zoom-icon" />
         </UButton>
-        <UButton variant="ghost" size="xs" aria-label="Zoom out" class="zoom-btn" @click="zoomOut()">
+        <UButton
+          variant="ghost"
+          size="xs"
+          aria-label="Zoom out"
+          class="zoom-btn"
+          @click="zoomOut()"
+        >
           <Icon icon="mdi:minus" class="zoom-icon" />
         </UButton>
         <UButton

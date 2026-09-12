@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getHealthDisplay } from '@/modules/dwellers/models/dweller'
@@ -14,6 +14,7 @@ import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
+import { useRoomLookup } from '../../composables/useRoomLookup'
 
 interface Props {
   dwellers: DwellerShort[]
@@ -30,10 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const visibleColumns = computed(() => orderedVisibleColumns(props.columns))
-const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, room])))
-
-const roomName = (roomId: string | null | undefined) =>
-  roomId ? roomsById.value.get(roomId)?.name : undefined
+const { roomName } = useRoomLookup(toRef(props, 'rooms'))
 
 const cellClass = (align?: 'left' | 'right') =>
   align === 'right'

@@ -1,7 +1,11 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useIntervalFn, useLocalStorage } from '@vueuse/core'
-import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type {
+  DiscoveryRouteRead,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
 import * as mapService from '../services/mapService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
@@ -25,9 +29,7 @@ export const useMapStore = defineStore('map', () => {
     }
   )
 
-  function viewedKey(vaultId: string, locationId: string): string {
-    return `${vaultId}:${locationId}`
-  }
+  const viewedKey = (vaultId: string, locationId: string) => `${vaultId}:${locationId}`
 
   // Polling control (30s interval per plan D13)
   const {
@@ -65,14 +67,15 @@ export const useMapStore = defineStore('map', () => {
   const unlockedPlacesCount = computed(
     () => locations.value.filter((loc) => loc.is_unlocked).length
   )
-  const hasUnseenDiscoveries = computed(() =>
-    locations.value.some(
-      (loc) =>
-        loc.type === 'discovery' &&
-        loc.is_unlocked !== false &&
-        !viewedLocationKeys.value.has(viewedKey(loc.vault_id, loc.id))
+  const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
+
+  function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
+    return (
+      loc.type === 'discovery' &&
+      loc.is_unlocked !== false &&
+      !viewedLocationKeys.value.has(viewedKey(loc.vault_id, loc.id))
     )
-  )
+  }
 
   function markLocationViewed(vaultId: string, locationId: string): void {
     const key = viewedKey(vaultId, locationId)
@@ -150,6 +153,7 @@ export const useMapStore = defineStore('map', () => {
     viewedLocationKeys,
     unlockedPlacesCount,
     hasUnseenDiscoveries,
+    isUnseenDiscovery,
     markLocationViewed,
     isLocationViewed,
     fetchMap,

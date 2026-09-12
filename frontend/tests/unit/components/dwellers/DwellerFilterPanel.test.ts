@@ -125,6 +125,24 @@ describe('DwellerFilterPanel', () => {
 
       expect(store.tableColumns).toContain('rarity')
     })
+
+    it('applies a column preset', async () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
+      const store = useDwellerStore().filter
+
+      store.setViewMode('table')
+      await wrapper.vm.$nextTick()
+
+      const vitalsButton = wrapper
+        .findAll('.view-toggle-btn')
+        .find((btn) => btn.text().includes('Vitals'))
+      expect(vitalsButton).toBeDefined()
+
+      await vitalsButton!.trigger('click')
+
+      expect(store.tableColumns).toContain('health')
+      expect(store.tableColumns).not.toContain('room')
+    })
   })
 
   describe('Component Structure', () => {

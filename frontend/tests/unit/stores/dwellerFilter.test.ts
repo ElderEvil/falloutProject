@@ -589,5 +589,21 @@ describe('DwellerFilter Store', () => {
 
       expect(store.tableColumns.length).toBeGreaterThan(0)
     })
+
+    it('applyTablePreset replaces the visible columns in catalog order', () => {
+      const store = useDwellerFilterStore()
+      store.applyTablePreset('vitals')
+
+      expect(store.tableColumns).toEqual(['portrait', 'name', 'status', 'health', 'happiness'])
+    })
+
+    it('ignores an unknown preset', () => {
+      const store = useDwellerFilterStore()
+      const before = [...store.tableColumns]
+
+      store.applyTablePreset('does-not-exist')
+
+      expect(store.tableColumns).toEqual(before)
+    })
   })
 })

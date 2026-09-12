@@ -6,6 +6,7 @@ import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
   DEFAULT_TABLE_COLUMNS,
   DWELLER_TABLE_COLUMNS,
+  DWELLER_TABLE_PRESETS,
   type DwellerTableColumnId,
 } from '@/modules/dwellers/models/dwellerTable'
 import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
@@ -245,13 +246,22 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     viewMode.value = mode
   }
 
+  function sortColumns(ids: readonly DwellerTableColumnId[]): DwellerTableColumnId[] {
+    const order = DWELLER_TABLE_COLUMNS.map((column) => column.id)
+    return [...ids].sort((a, b) => order.indexOf(a) - order.indexOf(b))
+  }
+
   function toggleTableColumn(columnId: DwellerTableColumnId): void {
     const next = tableColumns.value.includes(columnId)
       ? tableColumns.value.filter((id) => id !== columnId)
       : [...tableColumns.value, columnId]
     if (next.length === 0) return
-    const order = DWELLER_TABLE_COLUMNS.map((column) => column.id)
-    tableColumns.value = [...next].sort((a, b) => order.indexOf(a) - order.indexOf(b))
+    tableColumns.value = sortColumns(next)
+  }
+
+  function applyTablePreset(presetId: string): void {
+    const preset = DWELLER_TABLE_PRESETS.find((item) => item.id === presetId)
+    if (preset) tableColumns.value = sortColumns(preset.columns)
   }
 
   return {
@@ -278,5 +288,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setSortDirection,
     setViewMode,
     toggleTableColumn,
+    applyTablePreset,
   }
 })

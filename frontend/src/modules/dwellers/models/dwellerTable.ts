@@ -41,6 +41,40 @@ export const DEFAULT_TABLE_COLUMNS: DwellerTableColumnId[] = DWELLER_TABLE_COLUM
   (column) => column.defaultVisible
 ).map((column) => column.id)
 
+export interface DwellerTablePreset {
+  id: string
+  label: string
+  icon: string
+  columns: DwellerTableColumnId[]
+}
+
+export const DWELLER_TABLE_PRESETS: readonly DwellerTablePreset[] = [
+  {
+    id: 'roster',
+    label: 'Roster',
+    icon: 'mdi:format-list-bulleted',
+    columns: ['portrait', 'name', 'level', 'status', 'room'],
+  },
+  {
+    id: 'vitals',
+    label: 'Vitals',
+    icon: 'mdi:heart-pulse',
+    columns: ['portrait', 'name', 'health', 'happiness', 'status'],
+  },
+  {
+    id: 'assignments',
+    label: 'Assignments',
+    icon: 'mdi:door-closed',
+    columns: ['portrait', 'name', 'room', 'status'],
+  },
+  {
+    id: 'demographics',
+    label: 'Demographics',
+    icon: 'mdi:account-group',
+    columns: ['portrait', 'name', 'gender', 'age', 'rarity'],
+  },
+]
+
 /** Enabled columns in the canonical catalog order, so toggling never reorders the table. */
 export function orderedVisibleColumns(
   visible: readonly DwellerTableColumnId[]

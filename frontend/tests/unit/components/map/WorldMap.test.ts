@@ -391,7 +391,7 @@ describe('WorldMap', () => {
 
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(true)
 
-      store.markLocationViewed('loc-1')
+      store.markLocationViewed('vault-1', 'loc-1')
       await wrapper.vm.$nextTick()
 
       expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)

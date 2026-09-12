@@ -175,7 +175,7 @@ describe('MapView', () => {
       mountView()
       await flushPromises()
 
-      expect(mapStore.isLocationViewed('loc-1')).toBe(true)
+      expect(mapStore.isLocationViewed('vault-1', 'loc-1')).toBe(true)
       expect(mapStore.hasUnseenDiscoveries).toBe(false)
     })
   })

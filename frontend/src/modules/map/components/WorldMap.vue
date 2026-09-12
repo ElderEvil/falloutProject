@@ -71,7 +71,7 @@ const hasDragMoved = ref(false)
 const mapStore = useMapStore()
 
 function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
-  return loc.type === 'discovery' && loc.is_unlocked !== false && !mapStore.isLocationViewed(loc.id)
+  return loc.type === 'discovery' && loc.is_unlocked !== false && !mapStore.isLocationViewed(loc.vault_id, loc.id)
 }
 
 function getSvgRect(): DOMRect {

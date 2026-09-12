@@ -12,7 +12,11 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const viewedLocationIds = ref<Set<string>>(new Set())
+  const viewedLocationKeys = ref<Set<string>>(new Set())
+
+  function viewedKey(vaultId: string, locationId: string): string {
+    return `${vaultId}:${locationId}`
+  }
 
   // Polling control (30s interval per plan D13)
   const {
@@ -52,18 +56,22 @@ export const useMapStore = defineStore('map', () => {
   )
   const hasUnseenDiscoveries = computed(() =>
     locations.value.some(
-      (loc) => loc.type === 'discovery' && loc.is_unlocked !== false && !viewedLocationIds.value.has(loc.id)
+      (loc) =>
+        loc.type === 'discovery' &&
+        loc.is_unlocked !== false &&
+        !viewedLocationKeys.value.has(viewedKey(loc.vault_id, loc.id))
     )
   )
 
-  function markLocationViewed(locationId: string): void {
-    if (!viewedLocationIds.value.has(locationId)) {
-      viewedLocationIds.value = new Set(viewedLocationIds.value).add(locationId)
+  function markLocationViewed(vaultId: string, locationId: string): void {
+    const key = viewedKey(vaultId, locationId)
+    if (!viewedLocationKeys.value.has(key)) {
+      viewedLocationKeys.value = new Set(viewedLocationKeys.value).add(key)
     }
   }
 
-  function isLocationViewed(locationId: string): boolean {
-    return viewedLocationIds.value.has(locationId)
+  function isLocationViewed(vaultId: string, locationId: string): boolean {
+    return viewedLocationKeys.value.has(viewedKey(vaultId, locationId))
   }
 
   // Actions
@@ -128,7 +136,7 @@ export const useMapStore = defineStore('map', () => {
     discoveryRoutes,
     isLoading,
     error,
-    viewedLocationIds,
+    viewedLocationKeys,
     unlockedPlacesCount,
     hasUnseenDiscoveries,
     markLocationViewed,

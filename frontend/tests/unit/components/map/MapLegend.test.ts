@@ -91,7 +91,7 @@ describe('MapLegend', () => {
     const wrapper = mountLegend()
     expect(discoveryWrapper(wrapper).classes()).toContain('legend-unseen')
 
-    store.markLocationViewed('loc-1')
+    store.markLocationViewed('vault-1', 'loc-1')
     await wrapper.vm.$nextTick()
 
     expect(discoveryWrapper(wrapper).classes()).not.toContain('legend-unseen')

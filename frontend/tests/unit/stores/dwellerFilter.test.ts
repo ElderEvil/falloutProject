@@ -13,6 +13,7 @@ vi.mock('@vueuse/core', () => ({
 }))
 
 import { useDwellerFilterStore, ALL_DWELLERS_FETCH_LIMIT } from '@/modules/dwellers/stores/dwellerFilter'
+import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
 describe('DwellerFilter Store', () => {
   beforeEach(() => {
@@ -33,6 +34,7 @@ describe('DwellerFilter Store', () => {
       expect(store.sortBy).toBe('name')
       expect(store.sortDirection).toBe('asc')
       expect(store.viewMode).toBe('list')
+      expect(store.tableColumns).toEqual(DEFAULT_TABLE_COLUMNS)
     })
   })
 
@@ -552,6 +554,56 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       store.setViewMode('grid')
       expect(store.viewMode).toBe('grid')
+    })
+
+    it('setViewMode accepts the table mode', () => {
+      const store = useDwellerFilterStore()
+      store.setViewMode('table')
+      expect(store.viewMode).toBe('table')
+    })
+
+    it('toggleTableColumn shows and hides columns', () => {
+      const store = useDwellerFilterStore()
+      expect(store.tableColumns).not.toContain('rarity')
+
+      store.toggleTableColumn('rarity')
+      expect(store.tableColumns).toContain('rarity')
+
+      store.toggleTableColumn('level')
+      expect(store.tableColumns).not.toContain('level')
+    })
+
+    it('keeps columns in catalog order regardless of toggle order', () => {
+      const store = useDwellerFilterStore()
+      store.toggleTableColumn('gender')
+      store.toggleTableColumn('rarity')
+
+      expect(store.tableColumns.indexOf('rarity')).toBeLessThan(
+        store.tableColumns.indexOf('gender')
+      )
+    })
+
+    it('never hides the last visible column', () => {
+      const store = useDwellerFilterStore()
+      for (const id of [...store.tableColumns]) store.toggleTableColumn(id)
+
+      expect(store.tableColumns.length).toBeGreaterThan(0)
+    })
+
+    it('applyTablePreset replaces the visible columns in catalog order', () => {
+      const store = useDwellerFilterStore()
+      store.applyTablePreset('vitals')
+
+      expect(store.tableColumns).toEqual(['portrait', 'name', 'status', 'health', 'happiness'])
+    })
+
+    it('ignores an unknown preset', () => {
+      const store = useDwellerFilterStore()
+      const before = [...store.tableColumns]
+
+      store.applyTablePreset('does-not-exist')
+
+      expect(store.tableColumns).toEqual(before)
     })
   })
 })

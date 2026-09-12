@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shallowMount } from '@vue/test-utils'
+import { shallowMount, mount } from '@vue/test-utils'
 import DwellersList from '@/modules/dwellers/components/DwellersList.vue'
 
 describe('DwellersList', () => {
@@ -30,6 +30,23 @@ describe('DwellersList', () => {
     })
 
     expect(wrapper.find('.dweller-grid').exists()).toBe(true)
+  })
+
+  it('renders the table layout for table mode', () => {
+    const wrapper = mount(DwellersList, {
+      props: {
+        dwellers: [],
+        generatingAI: {},
+        isLoading: false,
+        rooms: [],
+        viewMode: 'table',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    expect(wrapper.find('table').exists()).toBe(true)
+    expect(wrapper.find('ul').exists()).toBe(false)
+    expect(wrapper.find('.dweller-grid').exists()).toBe(false)
   })
 
   it('shows the dweller combat power', () => {

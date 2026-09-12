@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getCombatPower, getAbilityConfig, getHealthDisplay } from '@/modules/dwellers/models/dweller'
+import {
+  DEFAULT_TABLE_COLUMNS,
+  type DwellerTableColumnId,
+} from '@/modules/dwellers/models/dwellerTable'
+import type { DwellerViewMode } from '@/modules/dwellers/stores/dwellerFilter'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -13,16 +18,21 @@ import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
 import DwellerListRow from './DwellerListRow.vue'
+import DwellersTable from './table/DwellersTable.vue'
+import { useRoomLookup } from '../composables/useRoomLookup'
 
 interface Props {
   dwellers: DwellerShort[]
   generatingAI: Record<string, boolean>
   isLoading: boolean
   rooms: Room[]
-  viewMode: 'list' | 'grid'
+  viewMode: DwellerViewMode
+  columns?: DwellerTableColumnId[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  columns: () => DEFAULT_TABLE_COLUMNS,
+})
 
 const emit = defineEmits<{
   (e: 'view-details', dwellerId: string): void
@@ -32,17 +42,14 @@ const emit = defineEmits<{
   (e: 'room-click', roomId: string): void
 }>()
 
-const roomsById = computed(() => new Map(props.rooms.map((room) => [room.id, room])))
-
-const getRoomForDweller = (roomId: string | null | undefined) =>
-  roomId ? roomsById.value.get(roomId) : undefined
+const { roomFor } = useRoomLookup(toRef(props, 'rooms'))
 
 // Show a dweller's room-relevant stat (the ability their room needs). Arena
 // rooms have no stat — show combat power instead.
 const getRoomStat = (
   dweller: DwellerShort
 ): { icon: string; label: string; value: number; isPower: boolean } | null => {
-  const room = getRoomForDweller(dweller.room_id)
+  const room = roomFor(dweller.room_id)
   if (!room) return null
   if (room.category === 'arena') {
     return { icon: 'mdi:sword-cross', label: 'Power', value: getCombatPower(dweller), isPower: true }
@@ -102,7 +109,7 @@ const getRoomStat = (
 
       <template #actions>
         <div
-          v-if="getRoomForDweller(dweller.room_id)"
+          v-if="roomFor(dweller.room_id)"
           class="flex cursor-pointer items-center gap-2 rounded border border-theme-primary/30 bg-surface-raised px-3 py-1.5 text-sm font-medium text-theme-primary/80 transition-all hover:bg-surface-hover"
           role="button"
           tabindex="0"
@@ -110,7 +117,7 @@ const getRoomStat = (
           @keydown.enter.prevent.stop="emit('open-room', dweller.room_id!)"
           @keydown.space.prevent.stop="emit('open-room', dweller.room_id!)"
         >
-          {{ getRoomForDweller(dweller.room_id)?.name }}
+          {{ roomFor(dweller.room_id)?.name }}
           <button
             class="ml-auto rounded p-0.5 transition-colors hover:bg-red-500/20"
             aria-label="Unassign from room"
@@ -125,7 +132,7 @@ const getRoomStat = (
     </DwellerListRow>
   </ul>
 
-  <div v-else class="w-full dweller-grid">
+  <div v-else-if="viewMode === 'grid'" class="w-full dweller-grid">
     <template v-if="isLoading">
       <DwellerGridItemSkeleton v-for="i in 6" :key="`grid-skeleton-${i}`" />
     </template>
@@ -134,7 +141,7 @@ const getRoomStat = (
       v-else
       :key="dweller.id"
       :dweller="dweller"
-      :room-name="getRoomForDweller(dweller.room_id)?.name"
+      :room-name="roomFor(dweller.room_id)?.name"
       :room-stat="getRoomStat(dweller)"
       :generating-a-i="generatingAI[dweller.id]"
       @click="emit('view-details', dweller.id)"
@@ -142,6 +149,16 @@ const getRoomStat = (
       @room-click="dweller.room_id && emit('room-click', dweller.room_id)"
     />
   </div>
+
+  <DwellersTable
+    v-else
+    :dwellers="dwellers"
+    :rooms="rooms"
+    :columns="columns"
+    :is-loading="isLoading"
+    @view-details="emit('view-details', $event)"
+    @open-room="emit('open-room', $event)"
+  />
 </template>
 
 <style scoped>

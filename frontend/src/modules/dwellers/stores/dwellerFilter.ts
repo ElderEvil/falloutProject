@@ -3,6 +3,13 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import {
+  DEFAULT_TABLE_COLUMNS,
+  DWELLER_TABLE_PRESETS,
+  canonicalColumnOrder,
+  normalizeTableColumns,
+  type DwellerTableColumnId,
+} from '@/modules/dwellers/models/dwellerTable'
 import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -41,6 +48,7 @@ export type DwellerSortBy =
   | 'agility'
   | 'luck'
 export type SortDirection = 'asc' | 'desc'
+export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
@@ -94,7 +102,17 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
   const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
   const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
-  const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list')
+  const viewMode = useLocalStorage<DwellerViewMode>('dwellerViewMode', 'list')
+  const tableColumns = useLocalStorage<DwellerTableColumnId[]>(
+    'dwellerTableColumns',
+    DEFAULT_TABLE_COLUMNS,
+    {
+      serializer: {
+        read: (raw) => normalizeTableColumns(JSON.parse(raw) as unknown),
+        write: (value) => JSON.stringify(value),
+      },
+    }
+  )
 
   /**
    * Get dweller status - now directly from backend
@@ -231,8 +249,21 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     sortDirection.value = direction
   }
 
-  function setViewMode(mode: 'list' | 'grid'): void {
+  function setViewMode(mode: DwellerViewMode): void {
     viewMode.value = mode
+  }
+
+  function toggleTableColumn(columnId: DwellerTableColumnId): void {
+    const next = tableColumns.value.includes(columnId)
+      ? tableColumns.value.filter((id) => id !== columnId)
+      : [...tableColumns.value, columnId]
+    if (next.length === 0) return
+    tableColumns.value = canonicalColumnOrder(next)
+  }
+
+  function applyTablePreset(presetId: string): void {
+    const preset = DWELLER_TABLE_PRESETS.find((item) => item.id === presetId)
+    if (preset) tableColumns.value = canonicalColumnOrder(preset.columns)
   }
 
   return {
@@ -246,6 +277,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     sortBy,
     sortDirection,
     viewMode,
+    tableColumns,
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
@@ -257,5 +289,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setSortBy,
     setSortDirection,
     setViewMode,
+    toggleTableColumn,
+    applyTablePreset,
   }
 })

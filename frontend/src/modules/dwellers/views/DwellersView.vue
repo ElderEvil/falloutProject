@@ -408,6 +408,7 @@ const handleViewLowHappiness = () => {
               :is-loading="dwellerStore.isLoading"
               :rooms="roomStore.rooms"
               :view-mode="dwellerStore.viewMode"
+              :columns="dwellerStore.tableColumns"
               @view-details="handleViewDetails"
               @generate-ai="generateDwellerInfo"
               @open-room="openRoomModal"

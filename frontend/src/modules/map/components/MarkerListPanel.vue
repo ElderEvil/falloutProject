@@ -199,7 +199,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .marker-list-panel {
-  width: 200px;
+  width: 220px;
   max-height: calc(100% - 16px);
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   border: 1px solid var(--color-theme-primary);
@@ -224,13 +224,13 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .panel-title {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .panel-count {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.6;
 }
 
@@ -251,7 +251,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   width: 100%;
   padding: 4px 8px;
   opacity: 0.75;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   background: transparent;
@@ -296,7 +296,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   color: var(--color-theme-primary);
   cursor: pointer;
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: 12px;
   transition: background var(--transition-fast);
   white-space: nowrap;
   overflow: hidden;
@@ -320,7 +320,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   padding: 12px 8px;
   text-align: center;
   opacity: 0.4;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* Vault type styling */

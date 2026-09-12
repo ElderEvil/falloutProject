@@ -163,16 +163,13 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   position: sticky;
   top: 1rem;
   display: block;
-  height: auto;
-  max-height: calc(100vh - 2rem);
   min-width: 0;
-  overflow: hidden;
 }
 
 .marker-list-wrapper.docked .marker-list-panel {
   width: 100%;
-  height: auto;
-  max-height: 100%;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   background: var(--color-surface);
 }
 

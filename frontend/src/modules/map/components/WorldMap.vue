@@ -286,16 +286,16 @@ function onPanelMarkerSelect(payload: {
 <style scoped>
 .world-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem);
+  grid-template-columns: auto minmax(12rem, 14rem);
   align-items: start;
   gap: 0.75rem;
-  width: fit-content;
-  max-width: min(80rem, 100%);
+  width: 100%;
+  max-width: 80rem;
 }
 
 .world-map-container {
-  width: min(960px, 100%, calc(100vh - 14rem));
-  width: min(960px, 100%, calc(100dvh - 14rem));
+  width: min(960px, calc(100vh - 10rem));
+  width: min(960px, calc(100dvh - 10rem));
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);

@@ -383,6 +383,39 @@ nudge machinery and the duplicated place-name sources as the registry lands).
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent
 coordinates — all test-backed.
 
+### Generic Wasteland Location Groups — Chains & Site Types (Target: TBD)
+
+**User request**: exploration places should include the wasteland's recurring generic fixtures, not only unique named
+locations — Red Rocket, Super Duper Mart, and the rest of the lore's chains and site types.
+
+**Current state:** `backend/app/data/places/seed_places.json` holds 67 rows with `kind` of `place` (62) or `vault`
+(5) — Adams Air Force Base, Diamond City, Concord, Red Rocket, … Each name is effectively a one-off row, so a place
+can only exist once and new content means hand-authoring another named entry.
+
+- ⬜ **Place groups / archetypes** — a reusable taxonomy of wasteland site types (`gas_station` → Red Rocket,
+  `supermarket` → Super Duper Mart, plus `factory`, `metro`, `school`, `hospital`, `military`, `ruin`,
+  `settlement`, `vault_tec`, `brotherhood_outpost`, …) carrying the shared description, loot/encounter weighting,
+  and risk profile. A named row becomes an *instance* of a group rather than a standalone definition.
+- ⬜ **Instances** — several places may share a group (distinct name/coordinates, inherited lore text and
+  behaviour), so the map can host many Red Rockets and Super Duper Marts without duplicating prose or balance data.
+  Keep coordinates name-derived and deterministic, as the shared registry requires.
+- ⬜ **Encounters & loot by group** — exploration event tables key off the group so a gas station plays differently
+  from a military base, and balance edits land in one place.
+- ⬜ **Quest and bio references** — content already names these places (`power_struggle.json` sends the player to
+  the Super Duper Mart, and the bio-place backfill regex lists resolve place names), so resolve references through
+  the group and keep authored quest text working as instances are added.
+
+**Dependencies:** builds on the shared places registry (`WorldLocation` + `PlaceKindEnum`, shipped v2.83/v2.84) and
+the seed strategy in `docs/WORLD_MAP_PLAN.md`. Extend `PlaceKindEnum` or add a sibling group field — do not
+introduce a second world model.
+
+**Open questions:** group as an enum (migration-guarded) vs a seeded table (content-editable); whether a group
+implies a preferred map region or biome; how many instances a group may spawn; whether generic groups can be
+discovered per-instance or unlock as a family.
+
+**Success criteria:** exploration can encounter multiple distinct Red Rocket / Super Duper Mart instances sharing
+group lore and encounter behaviour, and adding a new site type is a data change rather than code.
+
 ### Next Big Feature — Family Relations (future phases — foundation shipped)
 
 **Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,
@@ -569,6 +602,41 @@ persist per dweller; balance pass after play-testing; net-LOC rule applies.
 
 **Success criteria:** race/faction choices change outcomes (combat, incidents, exploration) in legible ways, are
 visible in the dweller dossier, and are covered by per-race/per-faction unit tests.
+
+### Dweller Origins by Race — Reproduction, Radiation & Age Groups (Target: TBD)
+
+**User request**: race should change more than stats — it should change where a dweller *came from* and what they can
+do. Synths were not born, they were made; ghouls are pre-War survivors. That provenance should drive reproduction,
+radiation response, and how age is modelled. Coordinates with **Race & Faction Gameplay Mechanics** (stat/perk
+modifiers) and **Bio Extension** (bio templates) above; this fragment owns provenance and lifecycle.
+
+- ⬜ **Origin model** — record *how* a dweller came to exist (born / manufactured / ghoulified / mutated) instead of
+  inferring it from race. `RaceEnum` + `SynthTypeEnum` + `GhoulFeralnessEnum` + `SuperMutantMutationEnum` already
+  describe state of being; provenance is the missing axis.
+- ⬜ **Reproduction gating** — synths are manufactured and ghouls are sterile in lore, so breeding eligibility
+  becomes a per-race rule read by the breeding service rather than the implicit "any adult pair". Breeding already
+  inherits race from parents; this adds whether a pairing is possible at all, and what a mixed pair implies.
+- ⬜ **Radiation response** — ghouls take no radiation damage (and may heal from it), gen-1/gen-2 synths are
+  mechanical, gen-3 synths are biologically human, super mutants are highly resistant. One race table read by the
+  radiation/tick path, not scattered conditionals.
+- ⬜ **Age groups per race** — decide what `AgeGroupEnum` means for a dweller who was never a child: synths are
+  manufactured at an adult apparent age (track `manufactured_at` instead of a birthday), ghouls may not age
+  conventionally, super mutants age differently again. Open questions to settle first: does a synth have
+  `child`/`teen` rows at all; does a ghoul count as an elder; how do aging/youth/apprentice ticks skip races that do
+  not age.
+- ⬜ **Backstory provenance** — per-origin bio template variants so a synth bio reads as manufactured ("made in the
+  Institute, got out") and a ghoul bio reads as a pre-War survivor, rather than both reading as born.
+
+**Open questions:** provenance as its own column vs derived from `visual_attributes`; how mixed-race pairs (if
+allowed) resolve offspring race; whether sterile races get adoption/apprentice paths so family features stay
+meaningful for them.
+
+**Guardrails:** one options-backed race table (stats, radiation, reproduction, aging); no per-system race branches;
+keep `RaceEnum` as the identity anchor so the race/faction work above is not duplicated.
+
+**Success criteria:** a synth cannot be bred or born and the dossier says why; a ghoul shrugs off radiation; age
+progression produces no nonsensical life stages for races that do not age; per-race unit tests for reproduction
+eligibility, radiation response, and age progression.
 
 ### Bio Extension — Pre-Baked Templates + Living Biographies (Target: next updates — HIGH PRIORITY)
 

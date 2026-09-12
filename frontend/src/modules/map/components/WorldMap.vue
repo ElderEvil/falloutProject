@@ -9,6 +9,7 @@ import MarkerListPanel from './MarkerListPanel.vue'
 import TerrainLayer from './TerrainLayer.vue'
 import { spreadMarkers } from '../utils/spreadMarkers'
 import { useMapZoomPan } from '../composables/useMapZoomPan'
+import { useMapStore } from '../stores/map'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -67,6 +68,11 @@ const {
 const svgRef = ref<SVGSVGElement | null>(null)
 const selectedMarkerId = ref<string | null>(null)
 const hasDragMoved = ref(false)
+const mapStore = useMapStore()
+
+function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
+  return loc.type === 'discovery' && loc.is_unlocked !== false && !mapStore.isLocationViewed(loc.id)
+}
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -230,6 +236,7 @@ function onPanelMarkerSelect(payload: {
         :name="loc.name"
         :type="loc.type"
         :is_unlocked="loc.is_unlocked"
+        :unseen="isUnseenDiscovery(loc)"
         :selected="selectedMarkerId === `loc-${loc.id}`"
         @click="onLocationClick(loc)"
       />

@@ -87,6 +87,9 @@ function retry() {
 const hasNoData = computed(
   () => !mapStore.isLoading && mapStore.locations.length === 0 && mapStore.vaultMarkers.length === 0
 )
+
+const mapPaneSize = 'min(960px, calc(100dvh - 16rem), calc(100vw - 2rem))'
+const mapPaneHeight = 'min(960px, calc(100dvh - 16rem))'
 </script>
 
 <template>
@@ -108,7 +111,8 @@ const hasNoData = computed(
 
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
-            <USkeleton width="100%" height="400px" rounded="lg" />
+            <USkeleton :width="mapPaneSize" :height="mapPaneSize" rounded="lg" />
+            <USkeleton width="100%" :height="mapPaneHeight" rounded="lg" />
           </div>
 
           <!-- Error state -->
@@ -179,7 +183,19 @@ const hasNoData = computed(
 }
 
 .map-skeleton {
-  max-width: 800px;
+  display: grid;
+  grid-template-columns: auto minmax(12rem, 14rem);
+  align-items: start;
+  gap: 0.75rem;
+  width: fit-content;
+  max-width: min(80rem, 100%);
+}
+
+@media (max-width: 64rem) {
+  .map-skeleton {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 800px;
+  }
 }
 
 .empty-state {

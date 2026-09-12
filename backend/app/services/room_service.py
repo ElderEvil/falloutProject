@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from pydantic import UUID4
@@ -14,7 +13,8 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
 from app.crud.training import training as training_crud
-from app.schemas.room import RoomBuild, RoomCreate, RoomRead, RoomUpdate
+from app.models.room import Room
+from app.schemas.room import RoomBuild, RoomCreate, RoomUpdate
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils import room_rules
@@ -27,11 +27,6 @@ from app.utils.exceptions import (
 from app.utils.room_assets import get_room_image_url
 from app.utils.static_data import game_data_store
 
-if TYPE_CHECKING:
-    from app.models.room import Room
-
-from app.models.room import Room as RoomModel
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +34,7 @@ logger = logging.getLogger(__name__)
 class MergeResult:
     """Result of an attempted adjacent-room merge."""
 
-    room: RoomModel | None
+    room: Room | None
     absorbed_ids: list[UUID4]
     merged: bool
     created: bool = False
@@ -52,7 +47,7 @@ class RoomService:
         self,
         db_session: AsyncSession,
         *,
-        candidate: RoomCreate | RoomModel,
+        candidate: RoomCreate | Room,
         dry_run: bool = False,
     ) -> MergeResult:
         """Merge a candidate footprint with directly adjacent identical rooms.
@@ -75,6 +70,9 @@ class RoomService:
         capacity_formula = getattr(candidate, "capacity_formula", None)
         output_formula = getattr(candidate, "output_formula", None)
         candidate_id = getattr(candidate, "id", None)
+
+        if coordinate_x is None or coordinate_y is None:
+            return MergeResult(room=None, absorbed_ids=[], merged=False)
 
         adjacent = await crud.room.get_adjacent_mergeable_rooms(
             db_session=db_session,
@@ -104,7 +102,7 @@ class RoomService:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
 
         leftmost_existing_x = min(
-            (room.coordinate_x for room in group),
+            (room.coordinate_x for room in group if room.coordinate_x is not None),
             default=coordinate_x + 1,
         )
         survivor_is_candidate = coordinate_x < leftmost_existing_x
@@ -112,9 +110,11 @@ class RoomService:
         if survivor_is_candidate:
             survivor_room = None
             absorbed = group
+            source_for_preview: RoomCreate | Room = candidate
         else:
             survivor_room = next(room for room in group if room.coordinate_x == leftmost_existing_x)
             absorbed = [room for room in group if room.id != survivor_room.id]
+            source_for_preview = survivor_room
 
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
@@ -132,8 +132,7 @@ class RoomService:
 
         if dry_run:
             preview_id = candidate_id or uuid4()
-            source_for_preview = candidate if survivor_is_candidate else survivor_room
-            preview = RoomModel.model_construct(
+            preview = Room.model_construct(
                 id=preview_id,
                 vault_id=vault_id,
                 name=name,
@@ -165,30 +164,32 @@ class RoomService:
         created = False
         if survivor_is_candidate:
             if candidate_id is None:
-                create_data = {
-                    "vault_id": vault_id,
-                    "name": name,
-                    "category": candidate.category,
-                    "ability": candidate.ability,
-                    "population_required": candidate.population_required,
-                    "base_cost": candidate.base_cost,
-                    "incremental_cost": candidate.incremental_cost,
-                    "t2_upgrade_cost": candidate.t2_upgrade_cost,
-                    "t3_upgrade_cost": candidate.t3_upgrade_cost,
-                    "capacity": new_capacity,
-                    "output": new_output,
-                    "size_min": candidate.size_min,
-                    "size_max": size_max,
-                    "size": total_size,
-                    "tier": tier,
-                    "coordinate_x": coordinate_x,
-                    "coordinate_y": coordinate_y,
-                    "image_url": new_image_url,
-                    "speedup_multiplier": candidate.speedup_multiplier,
-                    "capacity_formula": capacity_formula,
-                    "output_formula": output_formula,
-                }
-                survivor_room = await crud.room.create(db_session, obj_in=RoomCreate(**create_data))
+                survivor_room = await crud.room.create(
+                    db_session,
+                    obj_in=RoomCreate(
+                        vault_id=vault_id,
+                        name=name,
+                        category=candidate.category,
+                        ability=candidate.ability,
+                        population_required=candidate.population_required,
+                        base_cost=candidate.base_cost,
+                        incremental_cost=candidate.incremental_cost,
+                        t2_upgrade_cost=candidate.t2_upgrade_cost,
+                        t3_upgrade_cost=candidate.t3_upgrade_cost,
+                        capacity=new_capacity,
+                        output=new_output,
+                        size_min=candidate.size_min,
+                        size_max=size_max,
+                        size=total_size,
+                        tier=tier,
+                        coordinate_x=coordinate_x,
+                        coordinate_y=coordinate_y,
+                        image_url=new_image_url,
+                        speedup_multiplier=candidate.speedup_multiplier,
+                        capacity_formula=capacity_formula,
+                        output_formula=output_formula,
+                    ),
+                )
                 created = True
             else:
                 survivor_room = await crud.room.update(
@@ -201,7 +202,7 @@ class RoomService:
                         image_url=new_image_url,
                     ),
                 )
-        else:
+        elif survivor_room is not None:
             survivor_room = await crud.room.update(
                 db_session=db_session,
                 id=survivor_room.id,
@@ -212,6 +213,8 @@ class RoomService:
                     image_url=new_image_url,
                 ),
             )
+        else:
+            return MergeResult(room=None, absorbed_ids=[], merged=False)
 
         if absorbed_ids:
             await crud.dweller.reassign_dwellers_between_rooms(
@@ -251,7 +254,7 @@ class RoomService:
             if room.id in absorbed_ids or room.name.lower() in {"elevator", "vault door"}:
                 continue
 
-            current: RoomModel = room
+            current: Room = room
             while True:
                 result = await self.merge_adjacent_rooms(
                     db_session,
@@ -259,6 +262,8 @@ class RoomService:
                     dry_run=dry_run,
                 )
                 if not result.merged:
+                    break
+                if result.room is None:
                     break
                 current = result.room
                 absorbed_ids.update(result.absorbed_ids)
@@ -270,7 +275,7 @@ class RoomService:
         self,
         db_session: AsyncSession,
         room_request: RoomBuild,
-    ) -> RoomRead:
+    ) -> Room:
         """Build a new room in a vault.
 
         Args:
@@ -291,13 +296,27 @@ class RoomService:
             if room_template is None or room_template.name.lower() == "vault door":
                 raise VaultOperationException(detail=f"Room cannot be built: {room_request.room_name}")
             room_data = RoomCreate(
-                **room_template.model_dump()
-                | {
-                    "vault_id": room_request.vault_id,
-                    "size": room_template.size_min,
-                    "coordinate_x": room_request.coordinate_x,
-                    "coordinate_y": room_request.coordinate_y,
-                }
+                vault_id=room_request.vault_id,
+                name=room_template.name,
+                category=room_template.category,
+                ability=room_template.ability,
+                population_required=room_template.population_required,
+                base_cost=room_template.base_cost,
+                incremental_cost=room_template.incremental_cost,
+                t2_upgrade_cost=room_template.t2_upgrade_cost,
+                t3_upgrade_cost=room_template.t3_upgrade_cost,
+                capacity=room_template.capacity,
+                output=room_template.output,
+                size_min=room_template.size_min,
+                size_max=room_template.size_max,
+                size=room_template.size_min,
+                tier=room_template.tier,
+                coordinate_x=room_request.coordinate_x,
+                coordinate_y=room_request.coordinate_y,
+                image_url=room_template.image_url,
+                speedup_multiplier=room_template.speedup_multiplier,
+                capacity_formula=room_template.capacity_formula,
+                output_formula=room_template.output_formula,
             )
             room, created = await self._build(db_session=db_session, obj_in=room_data)
         except (InsufficientResourcesException, NoSpaceAvailableException, UniqueRoomViolationException):
@@ -309,7 +328,7 @@ class RoomService:
                 await user_service.record_vault_statistic(db_session, room.vault_id, "total_rooms_built")
             return room
 
-    async def _build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[RoomRead, bool]:
+    async def _build(self, *, db_session: AsyncSession, obj_in: RoomCreate) -> tuple[Room, bool]:
         """Build a room from a full create payload, expanding when the same room exists."""
         vault = await crud.vault.get(db_session, id=obj_in.vault_id)
 
@@ -366,7 +385,7 @@ class RoomService:
         await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 
         merge_result = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in)
-        if merge_result.merged:
+        if merge_result.merged and merge_result.room is not None:
             survivor = merge_result.room
             price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
             await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price)
@@ -417,7 +436,7 @@ class RoomService:
         self,
         db_session: AsyncSession,
         room_id: UUID4,
-    ) -> RoomRead:
+    ) -> Room:
         """Destroy a room and refund a portion of its cost.
 
         Args:
@@ -436,7 +455,7 @@ class RoomService:
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
-    async def _destroy(self, db_session: AsyncSession, room_id: UUID4) -> RoomRead:
+    async def _destroy(self, db_session: AsyncSession, room_id: UUID4) -> Room:
         room = await crud.room.get(db_session, room_id)
         vault = await crud.vault.get(db_session, id=room.vault_id)
 
@@ -470,7 +489,7 @@ class RoomService:
         self,
         db_session: AsyncSession,
         room_id: UUID4,
-    ) -> RoomRead:
+    ) -> Room:
         """Upgrade a room to the next tier.
 
         Args:
@@ -490,7 +509,7 @@ class RoomService:
         except ValueError as e:
             raise VaultOperationException(detail=str(e)) from e
 
-    async def _upgrade(self, db_session: AsyncSession, room_id: UUID4) -> RoomRead:
+    async def _upgrade(self, db_session: AsyncSession, room_id: UUID4) -> Room:
         room = await crud.room.get(db_session, room_id)
         vault = await crud.vault.get(db_session, id=room.vault_id)
 

@@ -86,9 +86,19 @@ const placeRoom = async (x: number, y: number) => {
   }
 
   try {
-    await roomStore.buildRoom(selectedRoom.name, placementX, y, authStore.token as string, vaultId)
+    const result = await roomStore.buildRoom(
+      selectedRoom.name,
+      placementX,
+      y,
+      authStore.token as string,
+      vaultId
+    )
     roomStore.deselectRoom()
-    toast.success(`${selectedRoom.name} built successfully!`)
+    const message =
+      result === 'extended'
+        ? `${selectedRoom.name} extended!`
+        : `${selectedRoom.name} built successfully!`
+    toast.success(message)
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Failed to build room')
   }

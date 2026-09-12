@@ -76,7 +76,8 @@ export const useRoomStore = defineStore('room', () => {
     coordinateY: number,
     token: string,
     vaultId: string
-  ) {
+  ): Promise<'built' | 'extended'> {
+    let result: 'built' | 'extended' = 'built'
     try {
       const roomData: RoomBuild = {
         vault_id: vaultId,
@@ -89,7 +90,14 @@ export const useRoomStore = defineStore('room', () => {
           Authorization: `Bearer ${token}`,
         },
       })
-      rooms.value.push(response.data)
+      const existingIndex = rooms.value.findIndex((room) => room.id === response.data.id)
+      if (existingIndex !== -1) {
+        rooms.value[existingIndex] = response.data
+        result = 'extended'
+      } else {
+        rooms.value.push(response.data)
+        result = 'built'
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
@@ -99,6 +107,7 @@ export const useRoomStore = defineStore('room', () => {
     }
     // Refresh vault to update caps (non-throwing)
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
+    return result
   }
 
   async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {

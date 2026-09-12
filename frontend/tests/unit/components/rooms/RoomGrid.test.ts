@@ -7,10 +7,17 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { id: 'vault-1' } }),
+}))
 
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    const { toasts } = useToast()
+    toasts.value = []
   })
 
   const mockRoom = {
@@ -428,6 +435,59 @@ describe('RoomGrid', () => {
       })
 
       expect(wrapper.props('highlightedRoomId')).toBeNull()
+    })
+  })
+
+  describe('Room placement', () => {
+    const dinerTemplate = {
+      name: 'Diner',
+      category: 'production',
+      ability: 'agility',
+      base_cost: 100,
+      t2_upgrade_cost: 200,
+      t3_upgrade_cost: 400,
+      size_min: 3,
+      size_max: 9,
+      tier: 1,
+      speedup_multiplier: 1,
+    }
+
+    it('shows a built toast for a new room', async () => {
+      const roomStore = useRoomStore()
+      const authStore = useAuthStore()
+      const { toasts } = useToast()
+
+      authStore.token = 'mock-token'
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.find('.empty:not(.level-locked)')
+      await cell.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      const successToast = toasts.value.find((toast) => toast.variant === 'success')
+      expect(successToast?.message).toBe('Diner built successfully!')
+    })
+
+    it('shows an extended toast when the room was merged into an existing one', async () => {
+      const roomStore = useRoomStore()
+      const authStore = useAuthStore()
+      const { toasts } = useToast()
+
+      authStore.token = 'mock-token'
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('extended')
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.find('.empty:not(.level-locked)')
+      await cell.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      const successToast = toasts.value.find((toast) => toast.variant === 'success')
+      expect(successToast?.message).toBe('Diner extended!')
     })
   })
 

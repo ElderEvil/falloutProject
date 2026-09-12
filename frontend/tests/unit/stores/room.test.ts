@@ -4,8 +4,40 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
+import type { Room } from '@/modules/rooms/models/room'
 
 vi.mock('@/core/plugins/axios')
+
+function makeRoom(overrides: Partial<Room> = {}): Room {
+  return {
+    id: 'room-1',
+    name: 'Power Generator',
+    category: 'production',
+    ability: 'strength',
+    population_required: 0,
+    base_cost: 100,
+    incremental_cost: 0,
+    t2_upgrade_cost: 200,
+    t3_upgrade_cost: 400,
+    capacity: 6,
+    output: 10,
+    size_min: 3,
+    size_max: 9,
+    size: 3,
+    tier: 1,
+    coordinate_x: 0,
+    coordinate_y: 0,
+    image_url: null,
+    speedup_multiplier: 1,
+    arena_last_fight_at: null,
+    arena_fight_started_at: null,
+    arena_fighter_a_id: null,
+    arena_fighter_b_id: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
 
 describe('Room Store', () => {
   beforeEach(() => {
@@ -166,25 +198,23 @@ describe('Room Store', () => {
 
   describe('buildRoom', () => {
     it('should build a new room and refresh vault', async () => {
-      const newRoom = {
+      const newRoom = makeRoom({
         id: 'room-3',
         name: 'Water Treatment',
-        type: 'water',
-        level: 1,
-        position_x: 2,
-        position_y: 0,
-        vault_id: 'vault-1',
-      }
+        category: 'production',
+        ability: 'perception',
+        coordinate_x: 2,
+        coordinate_y: 0,
+      })
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: newRoom })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
 
       const store = useRoomStore()
-      const vaultStore = useVaultStore()
-      vaultStore.loadedVaults['vault-1'] = { id: 'vault-1', bottle_caps: 1000 } as any
 
-      await store.buildRoom('Water Treatment', 2, 0, 'test-token', 'vault-1')
+      const result = await store.buildRoom('Water Treatment', 2, 0, 'test-token', 'vault-1')
 
+      expect(result).toBe('built')
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/rooms/build/',
         {
@@ -197,7 +227,32 @@ describe('Room Store', () => {
           headers: { Authorization: 'Bearer test-token' },
         })
       )
-      expect(store.rooms).toContainEqual(newRoom)
+      expect(store.rooms).toHaveLength(1)
+      expect(store.rooms[0]).toEqual(newRoom)
+    })
+
+    it('should replace an existing room when the response id is already present', async () => {
+      const existingRoom = makeRoom({ id: 'room-1', name: 'Power Generator', size: 3, coordinate_x: 0 })
+      const extendedRoom = makeRoom({
+        id: 'room-1',
+        name: 'Power Generator',
+        size: 6,
+        coordinate_x: 0,
+        capacity: 12,
+        output: 20,
+      })
+
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: extendedRoom })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+
+      const store = useRoomStore()
+      store.rooms = [existingRoom]
+
+      const result = await store.buildRoom('Power Generator', 3, 0, 'test-token', 'vault-1')
+
+      expect(result).toBe('extended')
+      expect(store.rooms).toHaveLength(1)
+      expect(store.rooms[0]).toEqual(extendedRoom)
     })
 
     it('should throw error with detail message', async () => {

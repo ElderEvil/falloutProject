@@ -56,6 +56,11 @@ class RoomBase(SQLModel):
             return 2
         return 1
 
+    @property
+    def segment_count(self) -> int:
+        """How many base segments this room occupies; merged rooms span more than one."""
+        return max((self.size or self.size_min) // self.size_min, 1)
+
 
 class Room(BaseUUIDModel, RoomBase, TimeStampMixin, table=True):
     vault_id: UUID4 = Field(default=None, foreign_key="vault.id", index=True)

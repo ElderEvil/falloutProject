@@ -7,7 +7,7 @@ import type { Incident } from '@/modules/combat/models/incident'
 import type { Room } from '../models/room'
 import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { getRoomImageUrl } from '@/core/utils/image'
-
+import { getRoomSegmentCount } from '../utils/room'
 interface Props {
   room: Room
   showRoomImages: boolean
@@ -58,8 +58,9 @@ const canUpgrade = (r: Room): boolean => {
 }
 
 const getUpgradeCost = (r: Room): number => {
-  if (r.tier === 1 && r.t2_upgrade_cost) return r.t2_upgrade_cost
-  if (r.tier === 2 && r.t3_upgrade_cost) return r.t3_upgrade_cost
+  const segments = getRoomSegmentCount(r)
+  if (r.tier === 1 && r.t2_upgrade_cost) return r.t2_upgrade_cost * segments
+  if (r.tier === 2 && r.t3_upgrade_cost) return r.t3_upgrade_cost * segments
   return 0
 }
 

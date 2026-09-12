@@ -561,6 +561,43 @@ class TestDestroy:
             assert mock_deposit.call_args.kwargs["amount"] == 375
 
     @pytest.mark.asyncio
+    async def test_destroy_refund_scales_upgrade_cost_for_merged_segments(self, mock_session):
+        """A merged upgraded room refunds the tier cost for every absorbed segment."""
+        room = _make_room(
+            category=RoomTypeEnum.CAPACITY,
+            base_cost=200,
+            incremental_cost=50,
+            size=9,
+            size_min=3,
+            tier=2,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+        )
+        with (
+            patch("app.crud.room.room.get", new_callable=AsyncMock, return_value=room),
+            patch("app.utils.room_rules.validate_elevator_destroy", new_callable=AsyncMock),
+            patch.object(CRUDBase, "delete", new=AsyncMock(return_value=room)),
+            patch("app.crud.vault.vault.get", new_callable=AsyncMock) as mock_vault_get,
+            patch(
+                "app.services.vault_service.vault_service.deposit_caps",
+                new_callable=AsyncMock,
+            ) as mock_deposit,
+            patch(
+                "app.services.vault_service.vault_service.recalculate_vault_attributes",
+                new_callable=AsyncMock,
+            ),
+            patch("app.services.room_service.game_config") as mock_game_config,
+        ):
+            vault_mock = MagicMock()
+            vault_mock.id = room.vault_id
+            mock_vault_get.return_value = vault_mock
+            mock_game_config.resource.destroy_room_refund_rate = 0.5
+
+            await RoomService().destroy_room(db_session=mock_session, room_id=room.id)
+
+            assert mock_deposit.call_args.kwargs["amount"] == 1125
+
+    @pytest.mark.asyncio
     async def test_destroy_different_case_vault_door(self, mock_session):
         """Verify that 'VAULT DOOR' (any case) is blocked."""
         vault_door = _make_room(name="VAULT DOOR")
@@ -606,7 +643,7 @@ class TestUpgrade:
             capacity=20,
             output=100,
             size=3,
-            size_min=1,
+            size_min=3,
             size_max=6,
             t2_upgrade_cost=500,
             t3_upgrade_cost=1500,
@@ -681,6 +718,45 @@ class TestUpgrade:
             assert room.capacity == 36
             assert room.output == 72
             mock_image.assert_called_once_with(room.name, tier=2, size=9)
+
+    @pytest.mark.asyncio
+    async def test_upgrade_charges_every_merged_segment(self, mock_session):
+        """Upgrading an extended room charges the tier cost once per segment."""
+        room = _make_room(
+            tier=1,
+            capacity=30,
+            output=60,
+            size=9,
+            size_min=3,
+            size_max=9,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            category=RoomTypeEnum.CAPACITY,
+        )
+
+        with (
+            patch("app.crud.room.room.get", new_callable=AsyncMock, return_value=room),
+            patch("app.crud.room.room.update", new_callable=AsyncMock),
+            patch("app.crud.vault.vault.get", new_callable=AsyncMock) as mock_vault_get,
+            patch(
+                "app.services.vault_service.vault_service.withdraw_caps",
+                new_callable=AsyncMock,
+            ) as mock_withdraw,
+            patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock),
+            patch("app.services.room_service.event_bus") as mock_event_bus,
+            patch(
+                "app.services.room_service.get_room_image_url",
+                return_value="/static/room_images/FOS Test 2-3.png",
+            ),
+        ):
+            vault_mock = MagicMock()
+            vault_mock.id = room.vault_id
+            mock_vault_get.return_value = vault_mock
+            mock_event_bus.emit = AsyncMock()
+
+            await RoomService().upgrade_room(db_session=mock_session, room_id=room.id)
+
+            assert mock_withdraw.call_args.kwargs["amount"] == 1500
 
     @pytest.mark.asyncio
     async def test_upgrade_no_further_tiers_after_max_tier_check(self, mock_session):

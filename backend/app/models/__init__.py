@@ -25,6 +25,5 @@ from .training import Training
 from .user import User
 from .user_profile import UserProfile
 from .vault import Vault
-from .wasteland_location import DwellerLocation, WastelandLocation
 from .weapon import Weapon
-from .world_location import VaultLocationState, WorldLocation
+from .world_location import DwellerLocation, VaultLocationState, WorldLocation

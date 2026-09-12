@@ -28,6 +28,7 @@ from app.cli.dweller_bios import dweller_bios as _dweller_bios
 from app.cli.family_scenario import app as family_scenario
 from app.cli.ops import app as ops
 from app.cli.pregen_dwellers import pregen_dwellers as _pregen_dwellers
+from app.cli.seed_places import seed_places as _seed_places
 from app.cli.simulate_exploration import simulate as simulate_exploration
 from app.cli.simulate_happiness import simulate as simulate_happiness
 from app.cli.simulate_incidents import simulate as simulate_incidents
@@ -67,6 +68,12 @@ cli.command(
     name="dweller-bios",
     help="Dev/QA: fill missing bios for existing dwellers + world-map place markers",
 )(_dweller_bios)
+
+# Register seed-places as a flat command
+cli.command(
+    name="seed-places",
+    help="Ensure canonical world-place registry rows from seed_places.json",
+)(_seed_places)
 
 logger = logging.getLogger(__name__)
 

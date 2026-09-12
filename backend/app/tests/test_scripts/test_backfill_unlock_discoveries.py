@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation
+from app.models.world_location import DwellerLocation
 from app.services.discovery_backfill_service import discovery_backfill_service
 from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service

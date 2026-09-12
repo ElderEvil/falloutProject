@@ -17,7 +17,7 @@ from typing import Annotated
 import typer
 from pydantic import UUID4
 
-from app.crud.wasteland_location import wasteland_location
+from app.crud.world_location import world_location
 from app.services.pregen_service import pregen_service
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -75,7 +75,7 @@ def dweller_bios(
                     f"| bio: {result.bio_length} chars"
                 )
 
-            map_locations = await wasteland_location.get_by_vault(session, vault_id)
+            map_locations = await world_location.get_states_by_vault(session, vault_id)
             typer.echo(f"\n✓ Updated bios for {len(results)} dwellers in vault {vault_id}")
             typer.echo(f"  Total map locations in vault: {len(map_locations)}")
 

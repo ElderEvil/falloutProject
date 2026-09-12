@@ -46,6 +46,7 @@ from app.api.deps import get_redis_client
 from app.db.session import get_async_session
 from app.schemas.user import UserCreate
 from app.services.dweller_service import dweller_service
+from app.tests.factory.vaults import random_vault_number
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
 from main import app
@@ -178,7 +179,7 @@ def vault_data_fixture():
     import random
 
     return {
-        "number": random.randint(1, 999),  # Must be < 1000 per validation
+        "number": random_vault_number(),  # Must be < 1000 per validation; seeded numbers reserved
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
@@ -240,7 +241,7 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":
 
     # Create vault
     vault_data = {
-        "number": random.randint(1, 999),  # Must be < 1000 per validation
+        "number": random_vault_number(),  # Must be < 1000 per validation; seeded numbers reserved
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
@@ -439,7 +440,7 @@ async def room_with_dwellers_fixture(
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
     vault_in = VaultCreateWithUserID(
-        number=random.randint(1, 999),
+        number=random_vault_number(),
         bottle_caps=1000,
         population_max=50,  # Set population max to allow dwellers
         user_id=user.id,

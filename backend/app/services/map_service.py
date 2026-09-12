@@ -12,19 +12,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 from pydantic import UUID4  # ruff: ignore[typing-only-third-party-import]
-from sqlalchemy.exc import IntegrityError
 
-from app.core.enums import RarityEnum  # ruff: ignore[typing-only-first-party-import]
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, RarityEnum
 from app.core.game_config import game_config
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault import vault as vault_crud
-from app.crud.wasteland_location import wasteland_location as wl_crud
+from app.crud.world_location import world_location as wl_crud
 from app.models.notification import NotificationPriority, NotificationType
-from app.models.wasteland_location import (
-    DwellerLocationRelationEnum,
-    LocationTypeEnum,
-    WastelandLocation,
-)
+from app.models.world_location import WorldLocation
 from app.schemas.wasteland_location import (
     DiscoveryRoutePoint,
     DiscoveryRouteRead,
@@ -34,7 +29,7 @@ from app.schemas.wasteland_location import (
     WastelandLocationWithDwellers,
 )
 from app.services.notification_service import notification_service
-from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name, seeded_vault_specs
+from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -80,40 +75,17 @@ class MapService:
     # home marker
     # ------------------------------------------------------------------
 
-    async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WastelandLocation:
-        """Idempotent home-vault marker at (50.0, 50.0).
-
-        Does NOT use ``get_or_create`` because the coordinates must be exact.
-        """
-        vault_name = f"Vault {vault.number:03}"
-        normalized = normalize_place_name(vault_name)
-
-        # Fast path — already exists
-        existing = await wl_crud.get_by_normalized(db_session, vault.id, normalized)
-        if existing is not None:
-            return existing
-
-        obj = WastelandLocation(
-            name=vault_name,
-            normalized_name=normalized,
-            type=LocationTypeEnum.HOME_VAULT,
-            coord_x=50.0,
-            coord_y=50.0,
+    async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
+        """Idempotent home-vault registry row at exactly (50.0, 50.0) + per-vault HOME_VAULT state."""
+        home = await wl_crud.get_or_create_home_marker(db_session, vault)
+        await wl_crud.get_or_create_state(
+            db_session,
+            vault.id,
+            home.id,
+            LocationTypeEnum.HOME_VAULT,
             description=f"Your vault — Vault {vault.number:03}",
-            vault_id=vault.id,
         )
-        db_session.add(obj)
-        try:
-            await db_session.commit()
-        except IntegrityError:
-            await db_session.rollback()
-            existing = await wl_crud.get_by_normalized(db_session, vault.id, normalized)
-            if existing is not None:
-                return existing
-            raise
-        else:
-            await db_session.refresh(obj)
-            return obj
+        return home
 
     async def link_home_origin(self, db_session: AsyncSession, dweller: Dweller, vault: Vault) -> None:
         """Ensure the home marker exists and link *dweller* to it as ORIGIN — best-effort."""
@@ -215,11 +187,16 @@ class MapService:
 
         # --- origin ---
         if not self._should_skip(effective_origin):
-            origin_location = await wl_crud.get_or_create(
+            origin_location = await wl_crud.get_or_create_location(
                 db_session,
-                vault_id=dweller.vault_id,
-                name=effective_origin[:64],
-                type=LocationTypeEnum.ORIGIN,
+                effective_origin[:64],
+                commit=False,
+            )
+            await wl_crud.get_or_create_state(
+                db_session,
+                dweller.vault_id,
+                origin_location.id,
+                LocationTypeEnum.ORIGIN,
                 commit=False,
             )
             await wl_crud.link_dweller(
@@ -240,11 +217,16 @@ class MapService:
             # do not create a visited entry that collides with the origin row
             if n_name == origin_normalized:
                 continue
-            loc = await wl_crud.get_or_create(
+            loc = await wl_crud.get_or_create_location(
                 db_session,
-                vault_id=dweller.vault_id,
-                name=name,
-                type=LocationTypeEnum.VISITED,
+                name,
+                commit=False,
+            )
+            await wl_crud.get_or_create_state(
+                db_session,
+                dweller.vault_id,
+                loc.id,
+                LocationTypeEnum.VISITED,
                 commit=False,
             )
             await wl_crud.link_dweller(
@@ -292,14 +274,19 @@ class MapService:
         exploration_id: UUID4,
         dweller_id: UUID4,
         location_name: str,
-    ) -> WastelandLocation | None:
-        """Upsert a DISCOVERY row and unlock it for the exploring dweller (best-effort)."""
+    ) -> WorldLocation | None:
+        """Upsert a DISCOVERY state and unlock the place for the exploring dweller (best-effort)."""
         try:
-            location = await wl_crud.get_or_create(
+            location = await wl_crud.get_or_create_location(
                 db_session,
-                vault_id=vault_id,
-                name=location_name[:64],
-                type=LocationTypeEnum.DISCOVERY,
+                location_name[:64],
+                commit=False,
+            )
+            await wl_crud.get_or_create_state(
+                db_session,
+                vault_id,
+                location.id,
+                LocationTypeEnum.DISCOVERY,
                 exploration_id=exploration_id,
                 commit=False,
             )
@@ -371,13 +358,14 @@ class MapService:
         location_id: UUID4,
     ) -> WastelandLocationWithDwellers:
         """Return a single location with its linked dweller references."""
-        location = await wl_crud.get_by_id(db_session, location_id)
         from app.utils.exceptions import ResourceNotFoundException
 
-        if location is None or location.vault_id != vault.id:
-            raise ResourceNotFoundException(WastelandLocation, identifier=location_id)
+        pair = await wl_crud.get_state_with_location(db_session, vault.id, location_id)
+        if pair is None:
+            raise ResourceNotFoundException(WorldLocation, identifier=location_id)
+        location, state = pair
 
-        refs_map = await wl_crud.get_dweller_refs(db_session, [location.id])
+        refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, [location.id])
         refs = refs_map.get(location.id, [])
 
         dweller_refs = [
@@ -392,16 +380,16 @@ class MapService:
         ]
 
         return WastelandLocationWithDwellers(
-            id=location.id,
+            id=state.location_id,
             name=location.name,
             normalized_name=location.normalized_name,
-            type=location.type,
+            type=state.type,
             coord_x=round(location.coord_x * WORLD_SCALE, 1),
             coord_y=round(location.coord_y * WORLD_SCALE, 1),
-            description=location.description,
-            vault_id=location.vault_id,
-            exploration_id=location.exploration_id,
-            created_at=location.created_at,
+            description=state.description,
+            vault_id=vault.id,
+            exploration_id=state.exploration_id,
+            created_at=state.created_at,
             dwellers=dweller_refs,
             is_unlocked=any(r.is_unlocked for r in dweller_refs),
         )
@@ -417,13 +405,13 @@ class MapService:
         await self.ensure_home_marker(db_session, vault)
 
         # --- persisted locations ---
-        rows = await wl_crud.get_by_vault(db_session, vault.id)
-        location_ids = [r.id for r in rows]
-        dweller_refs_map = await wl_crud.get_dweller_refs(db_session, location_ids)
+        pairs = await wl_crud.get_states_by_vault(db_session, vault.id)
+        location_ids = [state.location_id for _, state in pairs]
+        dweller_refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, location_ids)
 
         locations: list[WastelandLocationWithDwellers] = []
-        for row in rows:
-            refs = dweller_refs_map.get(row.id, [])
+        for location, state in pairs:
+            refs = dweller_refs_map.get(state.location_id, [])
             dweller_refs = [
                 DwellerRef(
                     dweller_id=r["dweller_id"],
@@ -437,37 +425,37 @@ class MapService:
             location_unlocked = any(r.is_unlocked for r in dweller_refs)
 
             # When filtering, keep HOME_VAULT and unlocked locations; drop locked ones
-            if unlocked_only and row.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
+            if unlocked_only and state.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
                 continue
 
             locations.append(
                 WastelandLocationWithDwellers(
-                    id=row.id,
-                    name=row.name,
-                    normalized_name=row.normalized_name,
-                    type=row.type,
-                    coord_x=round(row.coord_x * WORLD_SCALE, 1),
-                    coord_y=round(row.coord_y * WORLD_SCALE, 1),
-                    description=row.description,
-                    vault_id=row.vault_id,
-                    exploration_id=row.exploration_id,
-                    created_at=row.created_at,
+                    id=state.location_id,
+                    name=location.name,
+                    normalized_name=location.normalized_name,
+                    type=state.type,
+                    coord_x=round(location.coord_x * WORLD_SCALE, 1),
+                    coord_y=round(location.coord_y * WORLD_SCALE, 1),
+                    description=state.description,
+                    vault_id=vault.id,
+                    exploration_id=state.exploration_id,
+                    created_at=state.created_at,
                     dwellers=dweller_refs,
                     is_unlocked=location_unlocked,
                 )
             )
 
-        # --- computed vault markers ---
-        specs = seeded_vault_specs(vault.number)
+        # --- seeded NPC vault signals (persisted registry rows) ---
+        seeded_vaults = await wl_crud.get_seeded_vaults(db_session)
         vault_markers = [
             VaultMarkerRead(
-                name=s.name,
-                coord_x=round(s.coord_x * WORLD_SCALE, 1),
-                coord_y=round(s.coord_y * WORLD_SCALE, 1),
+                name=row.name,
+                coord_x=round(row.coord_x * WORLD_SCALE, 1),
+                coord_y=round(row.coord_y * WORLD_SCALE, 1),
                 type="vault",
-                description="Unexplored vault signal — raiding available in a future update.",
+                description=row.description or "Unexplored vault signal — raiding available in a future update.",
             )
-            for s in specs
+            for row in seeded_vaults
         ]
 
         discovery_routes = await self._get_discovery_routes(db_session, vault.id)

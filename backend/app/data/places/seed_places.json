@@ -1,0 +1,578 @@
+[
+  {
+    "name": "Adams Air Force Base",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Arefu",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Big Town",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Bunker Hill",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Cambridge",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Canterbury Commons",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Concord",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "County Crossing",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Covenant",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Diamond City",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Filly",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Galaxy News Radio",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Goodneighbor",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Graygarden",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Hollywood",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Jamaica Plain",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Jefferson Memorial",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Lexington",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Little Lamplight",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Megaton",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "National Archives",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Novac",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Nuka-World",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Oberland Station",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Paradise Falls",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Primm",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Quincy",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Raven Rock",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Republic of Dave",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Rivet City",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Sanctuary Hills",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Shady Sands",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Somerville Place",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Tenpenny Tower",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "The Boneyard",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "The Citadel",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "The Institute",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "The Nucleus",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "The Slog",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault 32",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault 33",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault 101",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault 111",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin"
+    ]
+  },
+  {
+    "name": "Appalachia",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Big MT",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Far Harbor",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Fort Hagen",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Mass Pike Tunnel",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Museum of Freedom",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Point Lookout",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Poseidon Energy",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Red Rocket",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Starlight Drive-In",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault-Tec HQ",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Capital Wasteland",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Commonwealth",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Divide",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Glowing Sea",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Mojave desert",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Zion Canyon",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "the Pitt",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "visited"
+    ]
+  },
+  {
+    "name": "Nuka-Cola Plant",
+    "kind": "place",
+    "description": null,
+    "roles": [
+      "origin",
+      "visited"
+    ]
+  },
+  {
+    "name": "Vault 274",
+    "kind": "vault",
+    "vault_number": 274,
+    "coord_x": 65.4,
+    "coord_y": 55.9,
+    "description": "Unexplored vault signal — raiding available in a future update.",
+    "roles": []
+  },
+  {
+    "name": "Vault 077",
+    "kind": "vault",
+    "vault_number": 77,
+    "coord_x": 88.9,
+    "coord_y": 19.3,
+    "description": "Unexplored vault signal — raiding available in a future update.",
+    "roles": []
+  },
+  {
+    "name": "Vault 871",
+    "kind": "vault",
+    "vault_number": 871,
+    "coord_x": 65.3,
+    "coord_y": 53.1,
+    "description": "Unexplored vault signal — raiding available in a future update.",
+    "roles": []
+  },
+  {
+    "name": "Vault 242",
+    "kind": "vault",
+    "vault_number": 242,
+    "coord_x": 68.2,
+    "coord_y": 67.0,
+    "description": "Unexplored vault signal — raiding available in a future update.",
+    "roles": []
+  },
+  {
+    "name": "Vault 521",
+    "kind": "vault",
+    "vault_number": 521,
+    "coord_x": 55.4,
+    "coord_y": 72.3,
+    "description": "Unexplored vault signal — raiding available in a future update.",
+    "roles": []
+  }
+]

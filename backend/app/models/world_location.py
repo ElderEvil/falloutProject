@@ -12,9 +12,8 @@ import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, SQLModel
 
-from app.core.enums import PlaceKindEnum
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
 from app.models.base import BaseUUIDModel, TimeStampMixin
-from app.models.wasteland_location import LocationTypeEnum
 
 
 class WorldLocationBase(SQLModel):
@@ -79,3 +78,23 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
     exploration_id: UUID4 | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
 
     __table_args__ = (sa.UniqueConstraint("vault_id", "location_id", name="uq_vault_location_state"),)
+
+
+class DwellerLocationBase(SQLModel):
+    """Shared fields for a dweller's link to a world location."""
+
+    relation: DwellerLocationRelationEnum
+    is_unlocked: bool = Field(default=False)
+
+
+class DwellerLocation(BaseUUIDModel, DwellerLocationBase, TimeStampMixin, table=True):
+    """Junction linking a dweller to a canonical world location with a relation type."""
+
+    __tablename__ = "dwellerlocation"
+
+    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    location_id: UUID4 = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
+
+    __table_args__ = (
+        sa.UniqueConstraint("dweller_id", "location_id", "relation", name="uq_dweller_location_relation"),
+    )

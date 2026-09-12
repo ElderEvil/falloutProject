@@ -126,3 +126,31 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
     assert vault.population_max == initial_population_max + 8, (
         f"Expected population_max to increase by 8, but went from {initial_population_max} to {vault.population_max}"
     )
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_seeded_vault_number(async_session: AsyncSession) -> None:
+    """Vault numbers claimed by seeded NPC signals are reserved."""
+    from app.utils.exceptions import ValidationException
+    from app.utils.place_seed import get_seeded_vault_numbers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    reserved = min(get_seeded_vault_numbers())
+
+    with pytest.raises(ValidationException, match="reserved"):
+        await crud.vault.create(
+            async_session,
+            obj_in=VaultCreateWithUserID(**{**create_fake_vault(), "number": reserved}, user_id=user.id),
+        )
+    with pytest.raises(ValidationException, match="reserved"):
+        await crud.vault.create_with_user_id(
+            db_session=async_session,
+            obj_in=VaultCreateWithUserID(**{**create_fake_vault(), "number": reserved}, user_id=user.id),
+            user_id=user.id,
+        )
+
+    allowed = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
+    )
+    assert allowed.number not in get_seeded_vault_numbers()

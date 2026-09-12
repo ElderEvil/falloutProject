@@ -50,7 +50,7 @@ async def send_chat_notification(
 async def maybe_unlock_places(db_session: AsyncSession, dweller: DwellerReadFull) -> list[UnlockedPlace]:
     """Unlock the dweller's associated places after 3+ user messages (best-effort)."""
     from app.crud.chat_message import chat_message as chat_crud
-    from app.crud.wasteland_location import wasteland_location as wl_crud
+    from app.crud.world_location import world_location as wl_crud
 
     try:
         async with db_session.begin_nested():

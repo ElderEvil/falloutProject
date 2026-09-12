@@ -553,27 +553,30 @@ class TestMaybeUnlockPlaces:
         chat_dweller: DwellerReadFull,
     ) -> None:
         """After 3 user messages to a dweller, their linked places get unlocked."""
+        from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
         from app.crud.chat_message import chat_message as chat_crud
-        from app.crud.wasteland_location import wasteland_location as wl_crud
+        from app.crud.world_location import world_location as wl_crud
         from app.models.chat_message import ChatMessageCreate
-        from app.models.wasteland_location import (
-            DwellerLocation,
-            DwellerLocationRelationEnum,
-            LocationTypeEnum,
-            WastelandLocation,
-        )
+        from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 
         # Create a location and link it to the chat_dweller
-        loc = WastelandLocation(
+        loc = WorldLocation(
             name="Megaton",
             normalized_name="megaton",
-            type=LocationTypeEnum.ORIGIN,
+            kind=PlaceKindEnum.PLACE,
             coord_x=30.0,
             coord_y=40.0,
             description="Test",
-            vault_id=vault.id,
         )
         async_session.add(loc)
+        await async_session.flush()
+        state = VaultLocationState(
+            vault_id=vault.id,
+            location_id=loc.id,
+            type=LocationTypeEnum.ORIGIN,
+            description="Test",
+        )
+        async_session.add(state)
         await async_session.flush()
 
         link = DwellerLocation(

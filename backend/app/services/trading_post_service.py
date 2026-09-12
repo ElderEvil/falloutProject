@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RarityEnum
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
-from app.crud.wasteland_location import wasteland_location as wl_crud
+from app.crud.world_location import world_location as wl_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerReadLess

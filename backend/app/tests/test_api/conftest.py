@@ -25,6 +25,7 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.tests.factory.vaults import random_vault_number
 from app.tests.utils.utils import get_gender_based_name, get_name_two_words, get_stats_by_rarity
 
 fake = Faker()
@@ -43,7 +44,7 @@ def get_generic_items_data():
 @pytest.fixture(name="vault_data")
 def vault_data_fixture():
     return {
-        "number": random.randint(1, 999),  # Must be < 1000 per validation
+        "number": random_vault_number(),  # Must be < 1000 per validation; seeded numbers reserved
         "bottle_caps": random.randint(100, 1_000_000),
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
@@ -161,7 +162,7 @@ async def vault_with_caps_fixture(async_session: AsyncSession) -> Vault:
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
 
     vault_in = VaultCreateWithUserID(
-        number=random.randint(1, 999),
+        number=random_vault_number(),
         bottle_caps=10000,
         happiness=50,
         power=50,

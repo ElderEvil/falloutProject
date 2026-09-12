@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import UUID4
 from sqlmodel import SQLModel
 
-from app.models.wasteland_location import DwellerLocationRelationEnum, LocationTypeEnum
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 
 
 class WastelandLocationRead(SQLModel):

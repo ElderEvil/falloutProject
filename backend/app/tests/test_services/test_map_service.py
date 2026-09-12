@@ -8,10 +8,10 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import LocationTypeEnum
 from app.models.dweller import Dweller
 from app.models.notification import Notification
 from app.models.vault import Vault
-from app.core.enums import LocationTypeEnum
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
@@ -181,7 +181,7 @@ async def test_get_location_detail_includes_is_unlocked(
     """get_location_detail returns is_unlocked on location and dweller refs."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
 
-    from app.models.world_location import VaultLocationState, WorldLocation
+    from app.models.world_location import VaultLocationState
 
     loc_row = (
         await async_session.execute(

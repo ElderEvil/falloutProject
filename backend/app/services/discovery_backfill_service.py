@@ -28,9 +28,7 @@ class DiscoveryBackfillService:
         fixed = 0
         for location, state in await wl_crud.get_discovery_states(db_session, vault_id):
             exploration = (
-                await exploration_crud.get_or_none(db_session, state.exploration_id)
-                if state.exploration_id
-                else None
+                await exploration_crud.get_or_none(db_session, state.exploration_id) if state.exploration_id else None
             )
             if exploration is None:
                 logger.warning("No exploration %s for location %s", state.exploration_id, location.name)

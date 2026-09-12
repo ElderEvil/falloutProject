@@ -8,9 +8,9 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service

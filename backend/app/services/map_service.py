@@ -453,8 +453,7 @@ class MapService:
                 coord_x=round(row.coord_x * WORLD_SCALE, 1),
                 coord_y=round(row.coord_y * WORLD_SCALE, 1),
                 type="vault",
-                description=row.description
-                or "Unexplored vault signal — raiding available in a future update.",
+                description=row.description or "Unexplored vault signal — raiding available in a future update.",
             )
             for row in seeded_vaults
         ]

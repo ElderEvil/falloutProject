@@ -9,12 +9,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import LocationTypeEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.llm_interaction import LLMInteraction
 from app.models.vault import Vault
-from app.core.enums import LocationTypeEnum
 from app.models.world_location import VaultLocationState
 from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
 from app.services.exploration.event_generator import event_generator

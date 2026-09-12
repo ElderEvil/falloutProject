@@ -553,10 +553,10 @@ class TestMaybeUnlockPlaces:
         chat_dweller: DwellerReadFull,
     ) -> None:
         """After 3 user messages to a dweller, their linked places get unlocked."""
+        from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
         from app.crud.chat_message import chat_message as chat_crud
         from app.crud.world_location import world_location as wl_crud
         from app.models.chat_message import ChatMessageCreate
-        from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
         from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 
         # Create a location and link it to the chat_dweller

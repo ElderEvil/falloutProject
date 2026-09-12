@@ -141,7 +141,7 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
     from app import crud
     from app.models.llm_interaction import LLMInteraction
     from app.models.notification import Notification, NotificationType
-    from app.models.wasteland_location import DwellerLocation, WastelandLocation
+    from app.models.world_location import DwellerLocation, WorldLocation
 
     dweller.bio = "Original biography."
     await async_session.commit()
@@ -155,7 +155,7 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
     result = MagicMock(output=output)
     result.usage.return_value = MagicMock(input_tokens=3, output_tokens=2, total_tokens=5)
     agent = "bio_extension_agent" if extend else "backstory_agent"
-    original = crud.wasteland_location.link_dweller
+    original = crud.world_location.link_dweller
 
     async def fail_after_link(*args, **kwargs):
         await original(*args, **kwargs)
@@ -163,7 +163,7 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
 
     with (
         patch(f"app.services.dweller_ai.{agent}.run", new=AsyncMock(return_value=result)),
-        patch.object(crud.wasteland_location, "link_dweller", new=fail_after_link),
+        patch.object(crud.world_location, "link_dweller", new=fail_after_link),
     ):
         if extend:
             await dweller_ai.extend_bio(async_session, dweller_id, user)
@@ -177,5 +177,5 @@ async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(a
     assert interaction.total_tokens == 5
     notification = (await async_session.execute(select(Notification))).scalar_one()
     assert notification.notification_type == NotificationType.MAP_REGISTRATION_FAILED
-    assert (await async_session.execute(select(func.count()).select_from(WastelandLocation))).scalar_one() == 0
+    assert (await async_session.execute(select(func.count()).select_from(WorldLocation))).scalar_one() == 0
     assert (await async_session.execute(select(func.count()).select_from(DwellerLocation))).scalar_one() == 0

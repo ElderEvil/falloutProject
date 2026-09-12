@@ -15,7 +15,7 @@ from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation
+from app.models.world_location import DwellerLocation
 from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,

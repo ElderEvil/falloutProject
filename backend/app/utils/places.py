@@ -9,7 +9,6 @@ reproducible — and identical for every viewer (shared world).
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
 
 #: Place origins that should never produce a map marker.
 GENERIC_ORIGIN_SKIP: frozenset[str] = frozenset({"", "wasteland", "the wasteland", "unknown"})
@@ -76,49 +75,3 @@ def collision_nudge(base: tuple[float, float], occupied: set[tuple[float, float]
         if candidate not in occupied:
             return candidate
     return (_clamp_to_grid(base[0]), _clamp_to_grid(base[1]))
-
-
-@dataclass(frozen=True)
-class VaultSeed:
-    """Deterministic seed data for a world-map vault marker."""
-
-    name: str
-    coord_x: float
-    coord_y: float
-
-
-#: Fixed global seed — viewer-independent so every player sees the same wasteland.
-#: Never derive this from a viewer's vault id.
-_NEIGHBOR_VAULT_SEED = b"wasteland:neighbor-vaults"
-
-
-def seeded_vault_specs(home_number: int | None = None) -> list[VaultSeed]:
-    """Generate 3-7 deterministic neighbor-vault marker specs for the shared world.
-
-    Numbers are drawn in the 1-999 range from a chained sha256 stream seeded by
-    a fixed global constant (not the viewer's vault id), so every player sees
-    the same neighbor vaults at the same coordinates. ``home_number`` is
-    retained only for call-site compatibility and does not affect the roster.
-
-    Coordinates come from the schematic hash of the vault name, nudged away
-    from the home-vault origin (50, 50) and from every previously seeded marker.
-    """
-    del home_number
-    digest = hashlib.sha256(_NEIGHBOR_VAULT_SEED).digest()
-    count = 3 + digest[0] % 5
-    specs: list[VaultSeed] = []
-    occupied: set[tuple[float, float]] = {(50.0, 50.0)}
-    numbers: set[int] = set()
-    counter = 0
-    while len(specs) < count:
-        number = int.from_bytes(digest[:2], "big") % 999 + 1
-        digest = hashlib.sha256(digest + bytes([counter])).digest()
-        counter += 1
-        if number in numbers:
-            continue
-        numbers.add(number)
-        name = f"Vault {number:03}"
-        coord = collision_nudge(schematic_coords(normalize_place_name(name)), occupied)
-        occupied.add(coord)
-        specs.append(VaultSeed(name=name, coord_x=coord[0], coord_y=coord[1]))
-    return specs

@@ -49,6 +49,7 @@ from app.services.ai_settings_service import ai_settings_service
 from app.services.health_check import HealthCheckService
 from app.services.objective_evaluators import evaluator_manager
 from app.services.objective_notifications import register_objective_event_handlers
+from app.services.place_seed_service import seed_places_from_json
 from app.services.websocket_manager import manager
 from app.utils.exceptions import DomainError, QuotaExceededException
 from app.utils.seed_objectives import seed_objectives_from_json
@@ -99,6 +100,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     async for session in get_async_session():
         quest_count = await seed_quests_from_json(session)
         objective_count = await seed_objectives_from_json(session)
+        place_count = await seed_places_from_json(session)
 
         # Re-apply the DB AI-provider profile so the chat agent uses the
         # configured provider across restarts (a profile only takes effect
@@ -109,6 +111,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             logger.info("Quest seeding complete: %d quests added", quest_count)
         if objective_count > 0:
             logger.info("Objective seeding complete: %d objectives added", objective_count)
+        if place_count > 0:
+            logger.info("Place seeding complete: %d places added", place_count)
         break
 
     logger.info("Fallout Shelter API startup complete")

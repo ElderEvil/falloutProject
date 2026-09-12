@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from app.core.enums import DwellerLocationRelationEnum
 from app.crud.exploration import exploration as exploration_crud
-from app.crud.wasteland_location import wasteland_location as wl_crud
-from app.models.wasteland_location import DwellerLocationRelationEnum
+from app.crud.world_location import world_location as wl_crud
 
 if TYPE_CHECKING:
     from pydantic import UUID4
@@ -26,24 +26,24 @@ class DiscoveryBackfillService:
     ) -> int:
         """Link every discovery location to the dweller who found it."""
         fixed = 0
-        for location in await wl_crud.get_discoveries_with_exploration(db_session, vault_id):
+        for location, state in await wl_crud.get_discovery_states(db_session, vault_id):
             exploration = (
-                await exploration_crud.get_or_none(db_session, location.exploration_id)
-                if location.exploration_id
+                await exploration_crud.get_or_none(db_session, state.exploration_id)
+                if state.exploration_id
                 else None
             )
             if exploration is None:
-                logger.warning("No exploration %s for location %s", location.exploration_id, location.name)
+                logger.warning("No exploration %s for location %s", state.exploration_id, location.name)
                 continue
 
             link = await wl_crud.get_dweller_link(
-                db_session, exploration.dweller_id, location.id, DwellerLocationRelationEnum.VISITED
+                db_session, exploration.dweller_id, state.location_id, DwellerLocationRelationEnum.VISITED
             )
             was_locked = link is None or not link.is_unlocked
             await wl_crud.link_dweller(
                 db_session,
                 exploration.dweller_id,
-                location.id,
+                state.location_id,
                 DwellerLocationRelationEnum.VISITED,
                 is_unlocked=True,
             )

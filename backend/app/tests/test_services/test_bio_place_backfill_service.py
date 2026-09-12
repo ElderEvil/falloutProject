@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation, WastelandLocation
+from app.models.world_location import VaultLocationState
 from app.services.bio_place_backfill_service import bio_place_backfill_service, extract_places_from_bio
 from app.services.map_service import map_service
 
@@ -104,5 +104,5 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session
 
     assert counts == {active_vault.id: 1}
 
-    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     assert all(r.vault_id == active_vault.id for r in rows)

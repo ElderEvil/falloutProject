@@ -14,7 +14,8 @@ from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.llm_interaction import LLMInteraction
 from app.models.vault import Vault
-from app.models.wasteland_location import LocationTypeEnum, WastelandLocation
+from app.core.enums import LocationTypeEnum
+from app.models.world_location import VaultLocationState
 from app.schemas.exploration_event import DiscoveryEventSchema, ExplorationEvent
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
@@ -118,10 +119,10 @@ async def test_process_event_register_discovery_failure_does_not_break_event(
     assert len(result.events) == 1
     assert result.events[0]["location_name"] == "Glowing Crater"
 
-    # No DISCOVERY WastelandLocation row (register_discovery failed)
-    location_stmt = select(WastelandLocation).where(
-        WastelandLocation.type == LocationTypeEnum.DISCOVERY,
-        WastelandLocation.vault_id == vault.id,
+    # No DISCOVERY state row (register_discovery failed)
+    location_stmt = select(VaultLocationState).where(
+        VaultLocationState.type == LocationTypeEnum.DISCOVERY,
+        VaultLocationState.vault_id == vault.id,
     )
     locations = (await async_session.execute(location_stmt)).scalars().all()
     assert len(locations) == 0

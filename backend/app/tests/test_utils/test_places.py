@@ -5,7 +5,6 @@ from app.utils.places import (
     collision_nudge,
     normalize_place_name,
     schematic_coords,
-    seeded_vault_specs,
 )
 
 

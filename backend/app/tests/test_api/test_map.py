@@ -10,11 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
-from app.models.wasteland_location import (
-    DwellerLocationRelationEnum,
-    LocationTypeEnum,
-    WastelandLocation,
-)
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 from app.schemas.common import GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service
@@ -93,10 +89,10 @@ async def test_get_location_detail_with_dwellers(
     )
 
     # Fetch the persisted location
-    from app.crud.wasteland_location import wasteland_location as wl_crud
+    from app.crud.world_location import world_location as wl_crud
 
     normalized = "rivet city"
-    loc = await wl_crud.get_by_normalized(async_session, vault.id, normalized)
+    loc = await wl_crud.get_registry_by_normalized(async_session, normalized)
     assert loc is not None
 
     response = await async_client.get(

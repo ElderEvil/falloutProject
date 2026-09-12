@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from app.crud.dweller import dweller as dweller_crud
 from app.services.map_service import map_service
+from app.services.place_seed_service import get_origin_places, get_visited_places
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,133 +23,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Known place lists mirror the template-based bio filler. They are used to
-# recover origin/visited places from free-text bios for existing vaults.
-# Expanded for lore dwellers (Rivet City, Tenpenny Tower, Paradise Falls,
-# Vault 101/32/33, The Citadel, GNR, Shady Sands, Filly, etc.)
-_KNOWN_ORIGIN_PLACES: list[str] = [
-    "Adams Air Force Base",
-    "Arefu",
-    "Big Town",
-    "Bunker Hill",
-    "Cambridge",
-    "Canterbury Commons",
-    "Concord",
-    "County Crossing",
-    "Covenant",
-    "Diamond City",
-    "Filly",
-    "Galaxy News Radio",
-    "Goodneighbor",
-    "Graygarden",
-    "Hollywood",
-    "Jamaica Plain",
-    "Jefferson Memorial",
-    "Lexington",
-    "Little Lamplight",
-    "Megaton",
-    "National Archives",
-    "Novac",
-    "Nuka-World",
-    "Oberland Station",
-    "Paradise Falls",
-    "Primm",
-    "Quincy",
-    "Raven Rock",
-    "Republic of Dave",
-    "Rivet City",
-    "Sanctuary Hills",
-    "Shady Sands",
-    "Somerville Place",
-    "Tenpenny Tower",
-    "The Boneyard",
-    "The Citadel",
-    "The Institute",
-    "The Nucleus",
-    "The Slog",
-    "Vault 32",
-    "Vault 33",
-    "Vault 101",
-    "Vault 111",
-]
 
-_KNOWN_VISITED_PLACES: list[str] = [
-    "Adams Air Force Base",
-    "Arefu",
-    "Appalachia",
-    "Big MT",
-    "Big Town",
-    "Bunker Hill",
-    "Canterbury Commons",
-    "Concord",
-    "Diamond City",
-    "Far Harbor",
-    "Filly",
-    "Fort Hagen",
-    "Galaxy News Radio",
-    "Goodneighbor",
-    "Hollywood",
-    "Jefferson Memorial",
-    "Lexington",
-    "Little Lamplight",
-    "Mass Pike Tunnel",
-    "Megaton",
-    "Museum of Freedom",
-    "National Archives",
-    "Novac",
-    "Paradise Falls",
-    "Point Lookout",
-    "Poseidon Energy",
-    "Primm",
-    "Quincy",
-    "Raven Rock",
-    "Red Rocket",
-    "Republic of Dave",
-    "Rivet City",
-    "Sanctuary Hills",
-    "Shady Sands",
-    "Starlight Drive-In",
-    "Tenpenny Tower",
-    "The Boneyard",
-    "The Citadel",
-    "The Institute",
-    "The Nucleus",
-    "The Slog",
-    "Vault 32",
-    "Vault 33",
-    "Vault 101",
-    "Vault-Tec HQ",
-    "the Capital Wasteland",
-    "the Commonwealth",
-    "the Divide",
-    "the Glowing Sea",
-    "the Mojave desert",
-    " Zion Canyon",
-    "the Pitt",
-]
-
-
-def _build_origin_regex() -> re.Pattern[str]:
+def _build_origin_regex(places: list[str]) -> re.Pattern[str]:
     """Build a compiled regex that matches any known origin place (case-insensitive, word-boundary)."""
-    patterns = [r"\b" + re.escape(place) + r"\b" for place in _KNOWN_ORIGIN_PLACES]
+    patterns = [r"\b" + re.escape(place) + r"\b" for place in places]
     return re.compile("|".join(patterns), re.IGNORECASE)
 
 
-def _build_visited_regex() -> re.Pattern[str]:
-    """Build a compiled regex that matches any known visited place (case-insensitive, word-boundary).
-
-    Visited places may have leading/trailing spaces in the list (e.g. " Zion Canyon");
-    we strip them before building the regex so the pattern matches naturally in text.
-    """
-    patterns = []
-    for place in _KNOWN_VISITED_PLACES:
-        stripped = place.strip()
-        patterns.append(r"\b" + re.escape(stripped) + r"\b")
+def _build_visited_regex(places: list[str]) -> re.Pattern[str]:
+    """Build a compiled regex that matches any known visited place (case-insensitive, word-boundary)."""
+    patterns = [r"\b" + re.escape(place.strip()) + r"\b" for place in places]
     return re.compile("|".join(patterns), re.IGNORECASE)
 
 
-_ORIGIN_RE = _build_origin_regex()
-_VISITED_RE = _build_visited_regex()
+_ORIGIN_RE = _build_origin_regex(get_origin_places())
+_VISITED_RE = _build_visited_regex(get_visited_places())
 
 
 def extract_places_from_bio(bio: str | None) -> tuple[str | None, list[str]]:
@@ -158,7 +47,7 @@ def extract_places_from_bio(bio: str | None) -> tuple[str | None, list[str]]:
     - *origin_place*: the first matched origin place (preserving original casing
       from the known origin list), or ``None``.
     - *visited_places*: deduplicated list of visited place matches (preserving
-      the trimmed canonical form from ``_KNOWN_VISITED_PLACES``), excluding any
+      the trimmed canonical form from the known visited list), excluding any
       place that was already picked as the origin.
     """
     if not bio:
@@ -168,7 +57,7 @@ def extract_places_from_bio(bio: str | None) -> tuple[str | None, list[str]]:
     origin_match = _ORIGIN_RE.search(bio)
     if origin_match:
         matched_text = origin_match.group(0)
-        for place in _KNOWN_ORIGIN_PLACES:
+        for place in get_origin_places():
             if place.lower() == matched_text.lower():
                 origin_place = place
                 break
@@ -183,7 +72,7 @@ def extract_places_from_bio(bio: str | None) -> tuple[str | None, list[str]]:
         normalized = matched_text.lower()
         if normalized in seen_normalized:
             continue
-        for place in _KNOWN_VISITED_PLACES:
+        for place in get_visited_places():
             if place.strip().lower() == normalized:
                 visited_places.append(place.strip())
                 seen_normalized.add(normalized)

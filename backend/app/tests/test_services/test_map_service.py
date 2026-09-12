@@ -11,10 +11,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.dweller import Dweller
 from app.models.notification import Notification
 from app.models.vault import Vault
-from app.models.wasteland_location import DwellerLocation, LocationTypeEnum, WastelandLocation
+from app.core.enums import LocationTypeEnum
+from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.common import RarityEnum
 from app.services.map_service import map_service
-from app.utils.places import normalize_place_name, seeded_vault_specs
+from app.utils.places import normalize_place_name
 
 # ---------------------------------------------------------------------------
 # register_bio_places
@@ -47,7 +48,7 @@ async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, va
     dweller.rarity = RarityEnum.LEGENDARY
     await map_service.register_bio_places(async_session, dweller, origin_place="Arefu", visited_places=legendary_names)
 
-    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert len(origin_rows) == 1
@@ -63,7 +64,7 @@ async def test_register_bio_places_skips_visited_wasteland(
         async_session, dweller, origin_place="Megaton", visited_places=["the wasteland", "unknown"]
     )
 
-    rows = (await async_session.execute(select(WastelandLocation))).scalars().all()
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     # Only the origin should exist
     assert len(rows) == 1
     assert rows[0].type == LocationTypeEnum.ORIGIN
@@ -82,7 +83,7 @@ async def test_register_discovery_forced_db_error_logged_not_raised(
 
     # Monkeypatch get_or_create to raise an SQLAlchemyError
     with patch(
-        "app.crud.wasteland_location.wasteland_location.get_or_create",
+        "app.crud.world_location.world_location.get_or_create_location",
         side_effect=SQLAlchemyError("forced"),
     ):
         # Must NOT raise
@@ -108,9 +109,9 @@ async def test_register_bio_places_retries_a_transient_failure(
 ) -> None:
     """One transient write error still creates all three fixture links."""
     dweller.rarity = RarityEnum.LEGENDARY
-    from app.crud.wasteland_location import wasteland_location
+    from app.crud.world_location import world_location
 
-    original_get_or_create = wasteland_location.get_or_create
+    original_get_or_create = world_location.get_or_create_location
     attempts = 0
 
     async def fail_once(*args, **kwargs):
@@ -120,7 +121,7 @@ async def test_register_bio_places_retries_a_transient_failure(
             raise SQLAlchemyError("transient")
         return await original_get_or_create(*args, **kwargs)
 
-    with patch.object(wasteland_location, "get_or_create", side_effect=fail_once):
+    with patch.object(world_location, "get_or_create_location", side_effect=fail_once):
         await map_service.register_bio_places(
             async_session,
             dweller,
@@ -180,18 +181,20 @@ async def test_get_location_detail_includes_is_unlocked(
     """get_location_detail returns is_unlocked on location and dweller refs."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
 
-    from app.models.wasteland_location import WastelandLocation
+    from app.models.world_location import VaultLocationState, WorldLocation
 
     loc_row = (
         await async_session.execute(
-            select(WastelandLocation).where(
-                WastelandLocation.vault_id == vault.id,
-                WastelandLocation.name == "Megaton",
+            select(VaultLocationState)
+            .join(WorldLocation, WorldLocation.id == VaultLocationState.location_id)
+            .where(
+                VaultLocationState.vault_id == vault.id,
+                WorldLocation.name == "Megaton",
             )
         )
     ).scalar_one()
 
-    detail = await map_service.get_location_detail(async_session, vault, loc_row.id)
+    detail = await map_service.get_location_detail(async_session, vault, loc_row.location_id)
 
     assert hasattr(detail, "is_unlocked")
     assert detail.is_unlocked is False

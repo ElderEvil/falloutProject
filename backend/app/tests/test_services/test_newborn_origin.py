@@ -14,12 +14,8 @@ from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
-from app.models.wasteland_location import (
-    DwellerLocation,
-    DwellerLocationRelationEnum,
-    LocationTypeEnum,
-    WastelandLocation,
-)
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.models.world_location import DwellerLocation
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.services.family.breeding_service import BreedingService

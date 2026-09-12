@@ -215,4 +215,20 @@ class PlaceKindEnum(StrEnum):
     VAULT = "vault"
 
 
+class LocationTypeEnum(StrEnum):
+    """Type of wasteland location — per-vault fog classification."""
+
+    ORIGIN = "origin"
+    VISITED = "visited"
+    DISCOVERY = "discovery"
+    HOME_VAULT = "home_vault"
+
+
+class DwellerLocationRelationEnum(StrEnum):
+    """How a dweller relates to a world location."""
+
+    ORIGIN = "origin"
+    VISITED = "visited"
+
+
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

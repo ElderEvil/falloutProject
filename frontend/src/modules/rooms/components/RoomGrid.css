@@ -30,7 +30,6 @@
 .room-grid {
   display: grid;
   grid-template-columns: repeat(28, minmax(0, 1fr)); /* overridden inline from FLOOR_UNITS */
-  grid-template-rows: repeat(16, 104px) repeat(9, 60px);
   gap: 2px;
   width: 100%;
   max-width: 100%;

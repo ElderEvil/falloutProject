@@ -65,8 +65,9 @@ const showDetailModal = ref(false)
 const selectedRoomForDetail = ref<Room | null>(null)
 
 // Grid geometry comes from the backend (room store); 3 units per room, 1 per elevator.
-const { floorUnits, shaftX, roomSlotStarts, unitsPerRoom } = storeToRefs(roomStore)
-const GRID_ROWS = 16
+const { floorUnits, shaftX, roomSlotStarts, unitsPerRoom, buildYMax, yMax } = storeToRefs(roomStore)
+const buildRowCount = computed(() => buildYMax.value + 1)
+const lockedRowCount = computed(() => Math.max(yMax.value - buildYMax.value, 0))
 
 onMounted(() => {
   if (authStore.token) roomStore.fetchGridConfig(authStore.token as string)
@@ -108,6 +109,7 @@ const isValidPlacementAt = (x: number, y: number) => {
   if (!roomStore.selectedRoom) return false
   const selected = roomStore.selectedRoom
   const isElevator = selected.name.toLowerCase() === 'elevator'
+  if (isElevator ? x !== shaftX.value : !roomSlotStarts.value.includes(x)) return false
   const cellsCount = isElevator ? 1 : selected.size_min
   const cells = Array.from({ length: cellsCount }, (_, i) => ({ x: x + i, y }))
   return cells.every((cell) => {
@@ -144,7 +146,7 @@ const isRangeOccupied = (x: number, span: number, y: number) => {
 // the grid reads as rooms instead of unit-wide slivers.
 const gridCells = computed(() => {
   const cells: Array<{ x: number; y: number; key: string; span: number }> = []
-  for (let y = 0; y < GRID_ROWS; y++) {
+  for (let y = 0; y < buildRowCount.value; y++) {
     for (const x of roomSlotStarts.value) {
       if (!isRangeOccupied(x, unitsPerRoom.value, y)) {
         cells.push({ x, y, key: `${x}-${y}`, span: unitsPerRoom.value })
@@ -301,7 +303,10 @@ const closeDetailModal = () => {
     <div
       class="room-grid"
       :class="{ 'critical-power': isPowerOutage }"
-      :style="{ gridTemplateColumns: `repeat(${floorUnits}, minmax(0, 1fr))` }"
+      :style="{
+        gridTemplateColumns: `repeat(${floorUnits}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${buildRowCount}, 104px) repeat(${lockedRowCount}, 60px)`,
+      }"
     >
       <RoomGridCell
         v-for="room in rooms"
@@ -369,19 +374,19 @@ const closeDetailModal = () => {
         </span>
       </div>
 
-      <!-- Locked rows indicator (16-25) -->
+      <!-- Locked rows below the buildable area -->
       <div
-        v-for="y in 9"
+        v-for="y in lockedRowCount"
         :key="`locked-${y}`"
         class="locked-row"
         :style="{
-          gridRow: GRID_ROWS + y,
+          gridRow: buildRowCount + y,
           gridColumn: '1 / -1',
         }"
       >
         <Icon icon="mdi:lock" class="locked-icon" />
         <span class="locked-text"
-          >Locked Area - Future Expansion (Row {{ GRID_ROWS + y - 1 }})</span
+          >Locked Area - Future Expansion (Row {{ buildRowCount + y - 1 }})</span
         >
       </div>
     </div>

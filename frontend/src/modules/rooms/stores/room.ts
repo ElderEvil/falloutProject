@@ -4,7 +4,7 @@ import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
 import type { components } from '@/core/types/api.generated'
 import type { Room, RoomBuild, RoomTemplate } from '../models/room'
-import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM } from '../models/grid'
+import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM, BUILD_Y_MAX, Y_MAX } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
@@ -107,6 +107,8 @@ export const useRoomStore = defineStore('room', () => {
     }
     // Refresh vault to update caps (non-throwing)
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
+    // A merge can absorb several rooms, so resync the list instead of trusting one response.
+    await fetchRooms(vaultId, token)
     return result
   }
 
@@ -177,6 +179,8 @@ export const useRoomStore = defineStore('room', () => {
       ? [...config.left_slot_starts, ...config.right_slot_starts]
       : [...ROOM_SLOT_STARTS]
   })
+  const buildYMax = computed(() => gridConfig.value?.build_y_max ?? BUILD_Y_MAX)
+  const yMax = computed(() => gridConfig.value?.y_max ?? Y_MAX)
 
   async function fetchGridConfig(token: string): Promise<void> {
     try {
@@ -200,6 +204,8 @@ export const useRoomStore = defineStore('room', () => {
     shaftX,
     unitsPerRoom,
     roomSlotStarts,
+    buildYMax,
+    yMax,
     // Actions
     fetchRooms,
     fetchGridConfig,

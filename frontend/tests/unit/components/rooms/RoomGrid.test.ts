@@ -322,7 +322,7 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
-        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 3 },
+        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 6, coordinate_y: 3 },
       ]
       roomStore.selectedRoom = {
         name: 'Elevator',
@@ -345,7 +345,13 @@ describe('RoomGrid', () => {
       // Level 4 has no elevator (locked) but is directly below the level-3
       // elevator, so an elevator preview there must be valid. While placing
       // an elevator the locked styling is lifted so the cell is interactive.
-      const cell = wrapper.findAll('.empty').find((c) => (c.element as HTMLElement).style.gridRow === '5')!
+      const cell = wrapper
+        .findAll('.empty')
+        .find(
+          (c) =>
+            (c.element as HTMLElement).style.gridRow === '5' &&
+            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
+        )!
       expect(cell.classes()).not.toContain('level-locked')
       await cell.trigger('mouseenter')
 
@@ -792,6 +798,45 @@ describe('RoomGrid', () => {
       await dropOn(wrapper, 'adult-3')
 
       expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123', 'mock-token')
+    })
+  })
+
+  describe('Slot and row geometry', () => {
+    it('rejects a regular room preview on the elevator shaft column', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = []
+      roomStore.selectedRoom = {
+        name: 'Diner',
+        category: 'production',
+        ability: 'agility',
+        base_cost: 100,
+        t2_upgrade_cost: 200,
+        t3_upgrade_cost: 400,
+        size_min: 3,
+        size_max: 9,
+        tier: 1,
+        speedup_multiplier: 1,
+      }
+      roomStore.isPlacingRoom = true
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const shaftCell = wrapper
+        .findAll('.empty')
+        .find(
+          (c) =>
+            (c.element as HTMLElement).style.gridRow === '2' &&
+            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
+        )!
+
+      await shaftCell.trigger('mouseenter')
+
+      expect(shaftCell.classes()).not.toContain('valid-placement')
+    })
+
+    it('renders the locked rows below the buildable area', () => {
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+
+      expect(wrapper.findAll('.locked-row')).toHaveLength(10)
     })
   })
 })

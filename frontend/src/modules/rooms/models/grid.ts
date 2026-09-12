@@ -8,6 +8,8 @@
 export const UNITS_PER_ROOM = 3
 export const FLOOR_UNITS = 28
 export const SHAFT_X = 6
+export const Y_MAX = 25
+export const BUILD_Y_MAX = 15
 
 export const LEFT_SLOT_STARTS = [0, UNITS_PER_ROOM]
 export const RIGHT_SLOT_STARTS = Array.from(

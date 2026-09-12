@@ -32,6 +32,8 @@ export function useHoverPreview() {
     if (!hoverPosition.value || !roomStore.selectedRoom) return false
     const selected = roomStore.selectedRoom
     const isElevator = selected.name.toLowerCase() === 'elevator'
+    const originX = hoverPosition.value.x
+    if (isElevator ? originX !== roomStore.shaftX : !roomStore.roomSlotStarts.includes(originX)) return false
     return previewCells.value.every((cell) => {
       const inBounds = cell.x >= 0 && cell.x < roomStore.floorUnits
       if (!inBounds) return false

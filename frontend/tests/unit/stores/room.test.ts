@@ -208,7 +208,9 @@ describe('Room Store', () => {
       })
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: newRoom })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [newRoom] })
 
       const store = useRoomStore()
 
@@ -243,7 +245,9 @@ describe('Room Store', () => {
       })
 
       vi.mocked(axios.post).mockResolvedValueOnce({ data: extendedRoom })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [extendedRoom] })
 
       const store = useRoomStore()
       store.rooms = [existingRoom]
@@ -253,6 +257,25 @@ describe('Room Store', () => {
       expect(result).toBe('extended')
       expect(store.rooms).toHaveLength(1)
       expect(store.rooms[0]).toEqual(extendedRoom)
+    })
+
+    it('drops rooms absorbed by a merge when the refetched list omits them', async () => {
+      const survivor = makeRoom({ id: 'room-1', name: 'Power Generator', size: 9, coordinate_x: 0 })
+      const absorbedA = makeRoom({ id: 'room-2', name: 'Power Generator', size: 3, coordinate_x: 3 })
+      const absorbedB = makeRoom({ id: 'room-3', name: 'Power Generator', size: 3, coordinate_x: 6 })
+
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [survivor] })
+
+      const store = useRoomStore()
+      store.rooms = [survivor, absorbedA, absorbedB]
+
+      const result = await store.buildRoom('Power Generator', 3, 1, 'test-token', 'vault-1')
+
+      expect(result).toBe('extended')
+      expect(store.rooms).toEqual([survivor])
     })
 
     it('should throw error with detail message', async () => {

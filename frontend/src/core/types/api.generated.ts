@@ -2899,6 +2899,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rooms/grid-config/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Grid Config
+         * @description Grid geometry for the vault view; the backend owns the unit layout.
+         */
+        get: operations["read_grid_config_api_v1_rooms_grid_config__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rooms/": {
         parameters: {
             query?: never;
@@ -6163,6 +6183,25 @@ export interface components {
          * @enum {string}
          */
         GhoulFeralnessEnum: "sane" | "wild" | "feral";
+        /** GridConfig */
+        GridConfig: {
+            /** Units Per Room */
+            units_per_room: number;
+            /** Elevator Units */
+            elevator_units: number;
+            /** Floor Units */
+            floor_units: number;
+            /** Shaft X */
+            shaft_x: number;
+            /** Left Slot Starts */
+            left_slot_starts: number[];
+            /** Right Slot Starts */
+            right_slot_starts: number[];
+            /** Y Max */
+            y_max: number;
+            /** Build Y Max */
+            build_y_max: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -13193,6 +13232,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_grid_config_api_v1_rooms_grid_config__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GridConfig"];
                 };
             };
         };

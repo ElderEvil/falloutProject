@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.grid_config import GRID_BUILD_X_MAX
+from app.core.grid_config import ELEVATOR_UNITS, FLOOR_UNITS, GRID_BUILD_X_MAX, SHAFT_X, UNITS_PER_ROOM
 from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
@@ -430,3 +430,21 @@ class TestRoomBuildValidation:
             RoomBuild(
                 vault_id=uuid4(), room_name="Power Generator", coordinate_x=coordinate_x, coordinate_y=coordinate_y
             )
+
+
+@pytest.mark.asyncio
+async def test_grid_config_is_served_from_backend_constants(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """The vault grid geometry is owned by the backend and served to the UI."""
+    response = await async_client.get("/rooms/grid-config/", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["units_per_room"] == UNITS_PER_ROOM
+    assert data["elevator_units"] == ELEVATOR_UNITS
+    assert data["floor_units"] == FLOOR_UNITS
+    assert data["shaft_x"] == SHAFT_X
+    assert data["right_slot_starts"][0] == SHAFT_X + ELEVATOR_UNITS
+    assert len(data["left_slot_starts"]) == 2

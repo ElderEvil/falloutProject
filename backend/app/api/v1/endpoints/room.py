@@ -9,10 +9,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_room_access
 from app.db.session import get_async_session
+from app.schemas.grid import GridConfig, grid_config
 from app.schemas.room import RoomBuild, RoomCreateWithoutVaultID, RoomRead
 from app.services.room_service import room_service
 
 router = APIRouter(prefix="/rooms", tags=["Room"])
+
+
+@router.get("/grid-config/", response_model=GridConfig)
+async def read_grid_config(_: CurrentActiveUser) -> GridConfig:
+    """Grid geometry for the vault view; the backend owns the unit layout."""
+    return grid_config()
 
 
 @router.get("/", response_model=list[RoomRead])

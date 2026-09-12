@@ -243,6 +243,62 @@ describe('Map Store', () => {
     })
   })
 
+  describe('Viewed location state', () => {
+    it('should start with no viewed locations and no unseen discoveries', () => {
+      const store = useMapStore()
+      expect(store.viewedLocationKeys.size).toBe(0)
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should report unseen discoveries until each is marked viewed', () => {
+      const store = useMapStore()
+      store.locations = [mockLocation, mockLocation2]
+
+      expect(store.hasUnseenDiscoveries).toBe(true)
+
+      store.markLocationViewed('vault-1', 'loc-1')
+
+      expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should ignore locked discoveries when deriving unseen state', () => {
+      const store = useMapStore()
+      store.locations = [{ ...mockLocation, is_unlocked: false }]
+
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should keep viewed ids across map refreshes', async () => {
+      const store = useMapStore()
+      store.markLocationViewed('vault-1', 'loc-1')
+
+      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
+      await store.fetchMap('vault-1', 'test-token')
+
+      expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
+    })
+
+    it('should scope viewed state per vault for the same location id', () => {
+      const store = useMapStore()
+      store.markLocationViewed('vault-1', 'loc-1')
+
+      expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
+      expect(store.isLocationViewed('vault-2', 'loc-1')).toBe(false)
+    })
+
+    it('should keep a discovery unseen in another vault with the same location id', () => {
+      const store = useMapStore()
+      store.markLocationViewed('vault-1', 'loc-1')
+
+      store.locations = [{ ...mockLocation, vault_id: 'vault-1' }]
+      expect(store.hasUnseenDiscoveries).toBe(false)
+
+      store.locations = [{ ...mockLocation, vault_id: 'vault-2' }]
+      expect(store.hasUnseenDiscoveries).toBe(true)
+    })
+  })
+
   describe('Stale-response guard', () => {
     it('should drop poll response after stopPolling invalidates context', async () => {
       vi.useFakeTimers()

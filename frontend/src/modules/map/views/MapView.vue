@@ -34,6 +34,7 @@ function handleMarkerClick(
   if (payload.kind === 'location') {
     selectedLocation.value = payload.data
     selectedVaultMarker.value = null
+    mapStore.markLocationViewed(payload.data.vault_id, payload.data.id)
   } else {
     selectedLocation.value = null
     selectedVaultMarker.value = payload.data

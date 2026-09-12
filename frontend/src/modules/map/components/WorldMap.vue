@@ -9,6 +9,7 @@ import MarkerListPanel from './MarkerListPanel.vue'
 import TerrainLayer from './TerrainLayer.vue'
 import { spreadMarkers } from '../utils/spreadMarkers'
 import { useMapZoomPan } from '../composables/useMapZoomPan'
+import { useMapStore } from '../stores/map'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -36,8 +37,16 @@ const visibleLocations = computed(() =>
 
 const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
 
+// Expeditions start at the home vault — anchor every trail there.
+const homeCoords = computed(() => {
+  const home = props.locations.find((loc) => loc.type === 'home_vault')
+  return home ? `${home.coord_x},${home.coord_y}` : '80,80'
+})
+
 const discoveryRouteLines = computed(() =>
-  props.discoveryRoutes.map((route) => route.points.map((point) => `${point.coord_x},${point.coord_y}`).join(' '))
+  props.discoveryRoutes.map((route) =>
+    [homeCoords.value, ...route.points.map((point) => `${point.coord_x},${point.coord_y}`)].join(' ')
+  )
 )
 
 // ── Zoom & Pan ────────────────────────────────────────────────────────
@@ -59,6 +68,11 @@ const {
 const svgRef = ref<SVGSVGElement | null>(null)
 const selectedMarkerId = ref<string | null>(null)
 const hasDragMoved = ref(false)
+const mapStore = useMapStore()
+
+function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
+  return loc.type === 'discovery' && loc.is_unlocked !== false && !mapStore.isLocationViewed(loc.vault_id, loc.id)
+}
 
 function getSvgRect(): DOMRect {
   return svgRef.value?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0)
@@ -222,6 +236,7 @@ function onPanelMarkerSelect(payload: {
         :name="loc.name"
         :type="loc.type"
         :is_unlocked="loc.is_unlocked"
+        :unseen="isUnseenDiscovery(loc)"
         :selected="selectedMarkerId === `loc-${loc.id}`"
         @click="onLocationClick(loc)"
       />
@@ -278,15 +293,17 @@ function onPanelMarkerSelect(payload: {
 <style scoped>
 .world-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 800px) minmax(12rem, 14rem);
-  align-items: stretch;
-  gap: 1rem;
-  width: 100%;
-  max-width: 65rem;
+  grid-template-columns: auto minmax(12rem, 14rem);
+  align-items: start;
+  gap: 0.75rem;
+  width: fit-content;
+  max-width: min(80rem, 100%);
 }
 
 .world-map-container {
-  width: 100%;
+  width: min(960px, calc(100vh - 13rem));
+  width: min(960px, calc(100dvh - 13rem));
+  max-width: min(100%, calc(100vw - 2rem));
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);

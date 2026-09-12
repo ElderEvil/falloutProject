@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
+import { useMapStore } from '@/modules/map/stores/map'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
 // Stub child components that need complex DOM (Iconify, UTooltip)
 const MapMarkerStub = {
   name: 'MapMarker',
-  props: ['x', 'y', 'name', 'type', 'selected'],
+  props: ['x', 'y', 'name', 'type', 'selected', 'unseen', 'is_unlocked'],
   template: '<g class="map-marker-stub" />',
 }
 
@@ -66,6 +68,10 @@ function createVaultMarkers(count: number): VaultMarkerRead[] {
 }
 
 describe('WorldMap', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
   describe('Marker rendering', () => {
     it('should render 7 markers given 3 locations + 4 vault markers', () => {
       const locations = createLocations(3)
@@ -136,7 +142,36 @@ describe('WorldMap', () => {
       })
 
       const route = wrapper.find('polyline')
-      expect(route.attributes('points')).toBe('20,30 20,30')
+      expect(route.attributes('points')).toBe('80,80 20,30 20,30')
+    })
+
+    it('anchors trails at the home vault coordinates', () => {
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations: [
+            {
+              id: 'home-1',
+              type: 'home_vault',
+              coord_x: 50,
+              coord_y: 50,
+            } as WastelandLocationWithDwellers,
+          ],
+          vaultMarkers: [],
+          discoveryRoutes: [
+            {
+              exploration_id: 'expl-1',
+              points: [
+                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T00:00:00Z' },
+                { location_id: 'loc-1', coord_x: 20, coord_y: 30, timestamp: '2026-01-01T01:00:00Z' },
+              ],
+            },
+          ],
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const route = wrapper.find('polyline')
+      expect(route.attributes('points')).toBe('50,50 20,30 20,30')
     })
   })
 
@@ -309,6 +344,85 @@ describe('WorldMap', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('marker-click')).toBeUndefined()
+    })
+  })
+
+  describe('Unseen discovery wiring', () => {
+    function discoveryLocation(
+      id: string,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ): WastelandLocationWithDwellers {
+      return {
+        id,
+        name: `Discovery ${id}`,
+        normalized_name: `discovery ${id}`,
+        type: 'discovery',
+        coord_x: 10,
+        coord_y: 20,
+        description: 'An uncharted signal',
+        vault_id: 'vault-1',
+        exploration_id: null,
+        created_at: null,
+        is_unlocked: true,
+        dwellers: [],
+        ...overrides,
+      } as WastelandLocationWithDwellers
+    }
+
+    it('should pass unseen=true to an unlocked discovery the player has not viewed', () => {
+      const locations = [discoveryLocation('loc-1')]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [] },
+        global: { stubs: defaultStubs },
+      })
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      expect(markers).toHaveLength(1)
+      expect(markers[0].props('unseen')).toBe(true)
+    })
+
+    it('should pass unseen=false once the discovery has been viewed', async () => {
+      const store = useMapStore()
+      const locations = [discoveryLocation('loc-1')]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [] },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(true)
+
+      store.markLocationViewed('vault-1', 'loc-1')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
+    })
+
+    it('should pass unseen=false to locked discoveries even when unviewed', () => {
+      const locations = [discoveryLocation('loc-1', { is_unlocked: false })]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [] },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
+    })
+
+    it('should pass unseen=false to non-discovery locations', () => {
+      const locations = [
+        discoveryLocation('loc-1', {
+          type: 'visited' as const,
+          dwellers: [
+            { dweller_id: 'd-1', first_name: 'A', last_name: null, relation: 'visited' },
+            { dweller_id: 'd-2', first_name: 'B', last_name: null, relation: 'visited' },
+          ],
+        }),
+      ]
+      const wrapper = mount(WorldMap, {
+        props: { locations, vaultMarkers: [] },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.findAllComponents(MapMarkerStub)[0].props('unseen')).toBe(false)
     })
   })
 

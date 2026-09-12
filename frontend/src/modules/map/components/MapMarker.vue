@@ -9,11 +9,13 @@ interface Props {
   type: 'home_vault' | 'origin' | 'visited' | 'discovery' | 'vault'
   selected?: boolean
   is_unlocked?: boolean
+  unseen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selected: false,
   is_unlocked: true,
+  unseen: false,
 })
 
 const emit = defineEmits<{
@@ -53,6 +55,7 @@ const isLocked = computed(
 )
 const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
+const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
 
 const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 </script>
@@ -76,12 +79,14 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
          of <g> - wrapping it in HTML elements (e.g. a tooltip <div>) collapses
          it to 0x0 in Chromium and the marker becomes invisible. -->
     <title>{{ tooltipText }}</title>
-    <foreignObject x="-3" y="-3" width="6" height="6">
+    <circle v-if="selected" class="marker-select-ring" r="4.2" />
+    <circle v-if="selected" class="marker-select-ping" r="4.2" />
+    <foreignObject x="-3.5" y="-3.5" width="7" height="7">
       <div
         v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
         class="marker-icon"
         :class="{
-          'marker-discovery': isDiscovery,
+          'marker-discovery': shouldPulse,
           'marker-vault': isVault,
         }"
       >
@@ -89,7 +94,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
       </div>
     </foreignObject>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
-    <text class="marker-label" x="0" y="-4.2" text-anchor="middle" aria-hidden="true">{{
+    <text class="marker-label" x="0" y="-3.4" text-anchor="middle" aria-hidden="true">{{
       displayLabel
     }}</text>
   </g>
@@ -106,7 +111,8 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 }
 
 .map-marker:focus-visible {
-  outline: 1px solid var(--color-theme-primary);
+  outline: none;
+  filter: drop-shadow(0 0 4px var(--color-theme-primary));
 }
 
 .marker-icon {
@@ -120,6 +126,24 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 
 .marker-discovery {
   animation: discovery-pulse 2s ease-in-out infinite;
+}
+
+.marker-select-ring {
+  fill: none;
+  stroke: var(--color-theme-primary);
+  stroke-width: 0.4;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.marker-select-ping {
+  fill: none;
+  stroke: var(--color-theme-primary);
+  stroke-width: 0.4;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: select-ping 600ms ease-out 1;
 }
 
 .marker-vault {
@@ -139,7 +163,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 .marker-label {
   fill: var(--color-theme-primary);
   font-family: var(--font-family-mono);
-  font-size: 2px;
+  font-size: 2.4px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -170,6 +194,24 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
   50% {
     opacity: 1;
     transform: scale(1.15);
+  }
+}
+
+@keyframes select-ping {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-discovery,
+  .marker-select-ping {
+    animation: none;
   }
 }
 </style>

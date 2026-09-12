@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 
@@ -73,6 +73,17 @@ const groups = computed<MarkerGroup[]>(() => {
 
 const totalCount = computed(() => props.locations.length + props.vaultMarkers.length)
 
+// Per-group collapse state (expanded by default)
+const collapsedGroups = ref(new Set<string>())
+
+function toggleGroup(type: string) {
+  if (collapsedGroups.value.has(type)) {
+    collapsedGroups.value.delete(type)
+  } else {
+    collapsedGroups.value.add(type)
+  }
+}
+
 function handleItemClick(item: MarkerGroup['items'][number]) {
   emit('marker-select', { kind: item.kind, data: item.data } as any)
 }
@@ -99,22 +110,39 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
       </div>
 
       <div class="panel-body">
-        <div v-for="group in groups" :key="group.type" class="marker-group">
-          <div class="group-header">
+        <div
+          v-for="group in groups"
+          :key="group.type"
+          class="marker-group"
+          :class="{ 'marker-group-vault': group.type === 'vault' }"
+        >
+          <button
+            type="button"
+            class="group-header"
+            :aria-expanded="!collapsedGroups.has(group.type)"
+            :aria-label="`${group.label}, ${group.items.length} markers`"
+            @click="toggleGroup(group.type)"
+          >
+            <Icon
+              :icon="collapsedGroups.has(group.type) ? 'mdi:chevron-right' : 'mdi:chevron-down'"
+              class="group-chevron"
+            />
             <Icon :icon="group.icon" class="group-icon" />
             <span class="group-label">{{ group.label }}</span>
             <span class="group-count">{{ group.items.length }}</span>
-          </div>
-
-          <button
-            v-for="item in group.items"
-            :key="item.id"
-            class="marker-row"
-            :class="{ selected: selectedMarkerId === item.id }"
-            @click="handleItemClick(item)"
-          >
-            <span class="marker-name">{{ item.name }}</span>
           </button>
+
+          <div v-show="!collapsedGroups.has(group.type)">
+            <button
+              v-for="item in group.items"
+              :key="item.id"
+              class="marker-row"
+              :class="{ selected: selectedMarkerId === item.id }"
+              @click="handleItemClick(item)"
+            >
+              <span class="marker-name">{{ item.name }}</span>
+            </button>
+          </div>
         </div>
 
         <div v-if="groups.length === 0" class="empty-state">No markers yet</div>
@@ -137,16 +165,16 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .marker-list-wrapper.docked {
-  position: static;
+  position: sticky;
+  top: 1rem;
   display: block;
-  height: 100%;
   min-width: 0;
 }
 
 .marker-list-wrapper.docked .marker-list-panel {
   width: 100%;
-  max-height: none;
-  height: 100%;
+  max-height: min(960px, calc(100vh - 13rem));
+  max-height: min(960px, calc(100dvh - 13rem));
   background: var(--color-surface);
 }
 
@@ -176,14 +204,14 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .marker-list-panel {
-  width: 200px;
+  width: 220px;
   max-height: calc(100% - 16px);
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   border: 1px solid var(--color-theme-primary);
   border-radius: 2px;
   box-shadow: 0 0 10px var(--color-theme-glow);
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: 14px;
   color: var(--color-theme-primary);
   display: flex;
   flex-direction: column;
@@ -201,13 +229,13 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .panel-title {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .panel-count {
-  font-size: 9px;
+  font-size: 12px;
   opacity: 0.6;
 }
 
@@ -225,11 +253,28 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  opacity: 0.5;
-  font-size: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  opacity: 0.75;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-header:hover {
+  opacity: 1;
+}
+
+.group-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .group-icon {
@@ -256,7 +301,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   color: var(--color-theme-primary);
   cursor: pointer;
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: 12px;
   transition: background var(--transition-fast);
   white-space: nowrap;
   overflow: hidden;
@@ -280,11 +325,11 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   padding: 12px 8px;
   text-align: center;
   opacity: 0.4;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* Vault type styling */
-.marker-group:last-child .group-icon {
+.marker-group-vault .group-icon {
   color: var(--color-warning);
 }
 

@@ -165,5 +165,18 @@ describe('MapView', () => {
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('location')).toEqual(mockLocation2)
     })
+
+    it('should mark the location viewed when ?place= opens its modal', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [mockLocation, mockLocation2]
+      mapStore.isLoading = false
+
+      mockRoute.query = { place: 'loc-1' }
+      mountView()
+      await flushPromises()
+
+      expect(mapStore.isLocationViewed('vault-1', 'loc-1')).toBe(true)
+      expect(mapStore.hasUnseenDiscoveries).toBe(false)
+    })
   })
 })

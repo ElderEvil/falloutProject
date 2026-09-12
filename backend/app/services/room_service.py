@@ -455,7 +455,7 @@ class RoomService:
         if db_obj.tier >= 3 and db_obj.t3_upgrade_cost:
             refundable_total += db_obj.t3_upgrade_cost
 
-        refund = int(refundable_total * game_config.resource.destroy_room_refund_rate)
+        refund = int(refundable_total * db_obj.segment_count * game_config.resource.destroy_room_refund_rate)
 
         await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False)
 
@@ -501,9 +501,9 @@ class RoomService:
             raise ValueError(msg)
 
         if room.tier == 1 and room.t2_upgrade_cost:
-            upgrade_cost = room.t2_upgrade_cost
+            upgrade_cost = room.t2_upgrade_cost * room.segment_count
         elif room.tier == 2 and room.t3_upgrade_cost:
-            upgrade_cost = room.t3_upgrade_cost
+            upgrade_cost = room.t3_upgrade_cost * room.segment_count
         else:
             msg = f"No upgrade cost defined for room {room.name} at tier {room.tier}"
             raise ValueError(msg)

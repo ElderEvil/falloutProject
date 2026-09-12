@@ -13,6 +13,16 @@ export function getTrainingRoomCapacity(room: Pick<Room, 'size' | 'size_min'>): 
 }
 
 /**
+ * How many base segments a room occupies. Merged rooms span more than one, and
+ * build/upgrade/refund costs are charged per segment.
+ */
+export function getRoomSegmentCount(room: Pick<Room, 'size' | 'size_min'>): number {
+  const size = room.size ?? room.size_min ?? 3
+  const minSize = room.size_min ?? 3
+  return Math.max(Math.floor(size / minSize), 1)
+}
+
+/**
  * A level is buildable when it has an elevator on it. Row 0 is always
  * buildable because the vault door anchors it.
  */

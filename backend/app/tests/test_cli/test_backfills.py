@@ -34,11 +34,34 @@ def test_merge_rooms_help():
     assert "--apply" in plain_output
 
 
+def _mock_session_lookup(vault: MagicMock | None) -> AsyncMock:
+    """Session whose first vault lookup returns the given vault (or nothing)."""
+    execute_result = MagicMock()
+    execute_result.scalar_one_or_none.return_value = vault
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=execute_result)
+    session.commit = AsyncMock()
+    session.rollback = AsyncMock()
+    return session
+
+
+def _patch_session(session: AsyncMock):
+    patcher = patch("app.cli.backfills.async_session_maker")
+    mock_session_maker = patcher.start()
+    mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=session)
+    mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+    return patcher
+
+
 def test_merge_rooms_dry_run_default(mock_backfill):
     vault_id = uuid4()
     mock_backfill.return_value = {"merged": 2}
+    patcher = _patch_session(_mock_session_lookup(MagicMock(id=vault_id, is_deleted=False)))
 
-    result = runner.invoke(cli, ["backfill", "merge-rooms", "--vault", str(vault_id)])
+    try:
+        result = runner.invoke(cli, ["backfill", "merge-rooms", "--vault", str(vault_id)])
+    finally:
+        patcher.stop()
 
     assert result.exit_code == 0
     mock_backfill.assert_awaited_once()
@@ -52,14 +75,49 @@ def test_merge_rooms_dry_run_default(mock_backfill):
 def test_merge_rooms_apply(mock_backfill):
     vault_id = uuid4()
     mock_backfill.return_value = {"merged": 2}
+    patcher = _patch_session(_mock_session_lookup(MagicMock(id=vault_id, is_deleted=False)))
 
-    result = runner.invoke(cli, ["backfill", "merge-rooms", "--vault", str(vault_id), "--apply"])
+    try:
+        result = runner.invoke(cli, ["backfill", "merge-rooms", "--vault", str(vault_id), "--apply"])
+    finally:
+        patcher.stop()
 
     assert result.exit_code == 0
     mock_backfill.assert_awaited_once()
     call_kwargs = mock_backfill.call_args.kwargs
     assert call_kwargs["dry_run"] is False
     assert "Applied." in result.output
+
+
+def test_merge_rooms_rejects_missing_or_deleted_vault(mock_backfill):
+    """A vault that is missing or soft-deleted is rejected instead of silently processed."""
+    vault_id = uuid4()
+    patcher = _patch_session(_mock_session_lookup(None))
+
+    try:
+        result = runner.invoke(cli, ["backfill", "merge-rooms", "--vault", str(vault_id)])
+    finally:
+        patcher.stop()
+
+    assert result.exit_code != 0
+    assert "not found or deleted" in result.output
+    mock_backfill.assert_not_awaited()
+
+
+def test_layout_rejects_missing_or_deleted_vault():
+    vault_id = uuid4()
+    patcher = _patch_session(_mock_session_lookup(None))
+
+    try:
+        result = runner.invoke(
+            cli,
+            ["backfill", "backfill-vault-layout", "--vault", str(vault_id)],
+        )
+    finally:
+        patcher.stop()
+
+    assert result.exit_code != 0
+    assert "not found or deleted" in result.output
 
 
 def test_merge_rooms_all_active(mock_backfill):
@@ -118,7 +176,7 @@ def test_layout_apply_refuses_invalid_layout():
         ),
         patch("app.cli.backfills.async_session_maker") as mock_session_maker,
     ):
-        mock_session = AsyncMock()
+        mock_session = _mock_session_lookup(MagicMock(id=vault_id, is_deleted=False))
         mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
 

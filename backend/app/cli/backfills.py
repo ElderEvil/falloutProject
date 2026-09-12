@@ -197,7 +197,11 @@ def backfill_vault_layout(
                     (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
                 )
             elif vault:
-                vault_ids = [UUID(vault)]
+                try:
+                    vault_obj = await crud.vault.get(session, UUID(vault))
+                except ResourceNotFoundException as exc:
+                    raise ValueError(f"Vault {vault} not found or deleted") from exc
+                vault_ids = [vault_obj.id]
             else:
                 raise ValueError("Pass --vault <UUID> or --all-active")
 
@@ -266,7 +270,11 @@ def backfill_merge_rooms(
                     (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
                 )
             elif vault:
-                vault_ids = [UUID(vault)]
+                try:
+                    vault_obj = await crud.vault.get(session, UUID(vault))
+                except ResourceNotFoundException as exc:
+                    raise ValueError(f"Vault {vault} not found or deleted") from exc
+                vault_ids = [vault_obj.id]
             else:
                 raise ValueError("Pass --vault <UUID> or --all-active")
 

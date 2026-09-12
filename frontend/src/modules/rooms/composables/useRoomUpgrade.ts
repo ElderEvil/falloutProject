@@ -6,6 +6,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useRoomDestroy } from './useRoomDestroy'
+import { getRoomSegmentCount } from '../utils/room'
 
 export function useRoomUpgrade(
   room: Ref<Room | null>,
@@ -34,9 +35,9 @@ export function useRoomUpgrade(
 
     let upgradeCost = 0
     if (r.tier === 1 && r.t2_upgrade_cost) {
-      upgradeCost = r.t2_upgrade_cost
+      upgradeCost = r.t2_upgrade_cost * getRoomSegmentCount(r)
     } else if (r.tier === 2 && r.t3_upgrade_cost) {
-      upgradeCost = r.t3_upgrade_cost
+      upgradeCost = r.t3_upgrade_cost * getRoomSegmentCount(r)
     }
 
     return {

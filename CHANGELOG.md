@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.86.0 (2026-09-12)
+
+### Features
+
+* **dwellers:** add a roster table view with configurable columns ([#594](https://github.com/ElderEvil/falloutProject/issues/594)) 9313d10
+
 ## 2.85.0 (2026-09-12)
 
 ### Features

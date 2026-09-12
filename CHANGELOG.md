@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.84.1 (2026-09-12)
+
+### Bug Fixes
+
+* **map:** docked marker panel scroll + wider map layout ([#592](https://github.com/ElderEvil/falloutProject/issues/592)) 79ebb4b
+
+### Documentation
+
+* add dwellers table view (configurable columns) roadmap item 41b23f5
+* consolidate shared-places-registry plan and cleanup records eb2d923, closes #584 581/#583
+* fix registry phase table split by phase 4 decision block 019517d
+* record registry phases 2-3 shipment e4371da
+
 ## 2.84.0 (2026-09-12)
 
 ### Features

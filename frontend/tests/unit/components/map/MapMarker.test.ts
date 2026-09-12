@@ -100,4 +100,137 @@ describe('MapMarker', () => {
     expect(g.classes()).not.toContain('marker-locked')
     expect(g.find('.marker-label').text()).toBe('Vault 101')
   })
+
+  it('pulses an unlocked discovery only while unseen', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'discovery',
+        is_unlocked: true,
+        unseen: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-icon').classes()).toContain('marker-discovery')
+  })
+
+  it('stops the pulse once an unseen discovery becomes seen', async () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'discovery',
+        is_unlocked: true,
+        unseen: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-icon').classes()).toContain('marker-discovery')
+
+    await wrapper.setProps({ unseen: false })
+
+    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+  })
+
+  it('never pulses locked discoveries, even while unseen', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Hidden Place',
+        type: 'discovery',
+        is_unlocked: false,
+        unseen: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+  })
+
+  it('never pulses non-discovery types, even while unseen', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Old Shack',
+        type: 'visited',
+        is_unlocked: true,
+        unseen: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+  })
+
+  it('renders selection as a static ring without pulse animation', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'discovery',
+        is_unlocked: true,
+        unseen: false,
+        selected: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-select-ring').exists()).toBe(true)
+    expect(wrapper.find('.marker-icon').classes()).not.toContain('marker-discovery')
+  })
+
+  it('renders no selection ring when unselected', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'discovery',
+        is_unlocked: true,
+        unseen: true,
+        selected: false,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-select-ring').exists()).toBe(false)
+    expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
+  })
+
+  it('emits a single ping element on the click transition', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Sunken Church',
+        type: 'visited',
+        selected: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    expect(wrapper.find('.marker-select-ping').exists()).toBe(true)
+  })
 })

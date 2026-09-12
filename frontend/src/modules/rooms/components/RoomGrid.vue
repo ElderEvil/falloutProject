@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -63,19 +64,19 @@ const { showRoomImages } = useRoomRendering()
 const showDetailModal = ref(false)
 const selectedRoomForDetail = ref<Room | null>(null)
 
-// Grid configuration
-const GRID_COLS = 8 // Expanded from 4 to accommodate more rooms
-const GRID_ROWS = 16 // Expanded from 8 (rows 16-25 locked for future expansion)
+// Grid geometry comes from the backend (room store); 3 units per room, 1 per elevator.
+const { floorUnits, shaftX, roomSlotStarts, unitsPerRoom } = storeToRefs(roomStore)
+const GRID_ROWS = 16
+
+onMounted(() => {
+  if (authStore.token) roomStore.fetchGridConfig(authStore.token as string)
+})
 
 const placeRoom = async (x: number, y: number) => {
   if (!roomStore.selectedRoom || !roomStore.isPlacingRoom) return
 
   const selectedRoom = roomStore.selectedRoom
-  const roomSizeMin = selectedRoom.size_min
-  const cellsCount = Math.ceil(roomSizeMin / 3)
-
-  // Calculate placement X based on room size
-  const placementX = cellsCount === 1 ? x : x - Math.floor(cellsCount / 2)
+  const placementX = x
 
   // Get vault ID from route
   const vaultId = route.params.id as string
@@ -97,17 +98,15 @@ const isValidPlacementAt = (x: number, y: number) => {
   if (!roomStore.selectedRoom) return false
   const selected = roomStore.selectedRoom
   const isElevator = selected.name.toLowerCase() === 'elevator'
-  const roomSize = selected.size_min
-  const cellsCount = Math.ceil(roomSize / 3)
-  const startX = cellsCount === 1 ? x : x - Math.floor(cellsCount / 2)
-  const cells = Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
+  const cellsCount = isElevator ? 1 : selected.size_min
+  const cells = Array.from({ length: cellsCount }, (_, i) => ({ x: x + i, y }))
   return cells.every((cell) => {
-    const inBounds = cell.x >= 0 && cell.x < GRID_COLS
+    const inBounds = cell.x >= 0 && cell.x < floorUnits.value
     if (!inBounds) return false
     const occupied = roomStore.rooms.some(
       (room: Room) =>
         (room.coordinate_x ?? 0) <= cell.x &&
-        (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
+        (room.coordinate_x ?? 0) + (room.size || room.size_min) > cell.x &&
         (room.coordinate_y ?? 0) === cell.y,
     )
     if (occupied) return false
@@ -122,24 +121,27 @@ const handleEmptyCellClick = (x: number, y: number) => {
   }
 }
 
-// Helper to check if a cell is occupied by a room
-const isCellOccupied = (x: number, y: number) => {
+// Helper to check whether a unit range is occupied by a room
+const isRangeOccupied = (x: number, span: number, y: number) => {
   return rooms.value.some((r) => {
     const roomX = r.coordinate_x ?? 0
-    const roomY = r.coordinate_y ?? 0
-    const roomWidth = Math.ceil((r.size || r.size_min) / 3)
-    return roomY === y && roomX <= x && roomX + roomWidth > x
+    const roomWidth = r.size || r.size_min
+    return (r.coordinate_y ?? 0) === y && roomX < x + span && roomX + roomWidth > x
   })
 }
 
-// Generate grid cells for all levels
+// Build cells are room-slot sized (3 units), plus the 1-unit elevator shaft, so
+// the grid reads as rooms instead of unit-wide slivers.
 const gridCells = computed(() => {
-  const cells: Array<{ x: number; y: number; key: string }> = []
+  const cells: Array<{ x: number; y: number; key: string; span: number }> = []
   for (let y = 0; y < GRID_ROWS; y++) {
-    for (let x = 0; x < GRID_COLS; x++) {
-      if (!isCellOccupied(x, y)) {
-        cells.push({ x, y, key: `${x}-${y}` })
+    for (const x of roomSlotStarts.value) {
+      if (!isRangeOccupied(x, unitsPerRoom.value, y)) {
+        cells.push({ x, y, key: `${x}-${y}`, span: unitsPerRoom.value })
       }
+    }
+    if (!isRangeOccupied(shaftX.value, 1, y)) {
+      cells.push({ x: shaftX.value, y, key: `shaft-${y}`, span: 1 })
     }
   }
   return cells
@@ -286,7 +288,11 @@ const closeDetailModal = () => {
       @review-incidents="emit('reviewIncidents')"
     />
 
-    <div class="room-grid" :class="{ 'critical-power': isPowerOutage }">
+    <div
+      class="room-grid"
+      :class="{ 'critical-power': isPowerOutage }"
+      :style="{ gridTemplateColumns: `repeat(${floorUnits}, minmax(0, 1fr))` }"
+    >
       <RoomGridCell
         v-for="room in rooms"
         :key="room.id"
@@ -313,7 +319,7 @@ const closeDetailModal = () => {
         :key="cell.key"
         :style="{
           gridRow: cell.y + 1,
-          gridColumn: cell.x + 1,
+          gridColumn: `${cell.x + 1} / span ${cell.span}`,
         }"
         class="room empty"
         :class="{

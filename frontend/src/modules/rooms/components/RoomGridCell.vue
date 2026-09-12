@@ -34,7 +34,7 @@ const emit = defineEmits<{
 // Styles for grid placement
 const gridStyle = computed(() => {
   const col = (props.room.coordinate_x ?? 0) + 1
-  const span = props.room.size === 1 ? 1 : Math.ceil((props.room.size || props.room.size_min) / 3)
+  const span = props.room.size || props.room.size_min
   return {
     gridRow: (props.room.coordinate_y ?? 0) + 1,
     gridColumn: `${col} / span ${span}`,
@@ -46,10 +46,6 @@ const gridStyle = computed(() => {
 const isRoomAffectedByOutage = (): boolean => {
   if (!props.isPowerOutage) return false
   return props.room.ability?.toLowerCase() !== 'strength'
-}
-
-const getAbilityLetter = (ability: string | null | undefined): string => {
-  return getAbilityConfig(ability)?.letter ?? ''
 }
 
 const getAbilityIcon = (ability: string | null | undefined): string => {
@@ -77,6 +73,14 @@ const handleIncidentClick = (event: MouseEvent | KeyboardEvent) => {
 const attentionCount = computed(() =>
   props.room.name.toLowerCase() === "overseer's office" ? (props.overseerAttentionCount ?? 0) : 0
 )
+
+// 1-unit cells (elevator, vault door, etc.) render icon-only — text would not fit.
+const isSmallCell = computed(() => (props.room.size ?? props.room.size_min ?? 3) <= 1)
+
+const cellTitle = computed(() => {
+  const tier = props.room.tier ? ` (Tier ${props.room.tier})` : ''
+  return `${props.room.name}${tier}`
+})
 </script>
 
 <template>
@@ -90,6 +94,7 @@ const attentionCount = computed(() =>
       highlighted,
       'power-outage': isRoomAffectedByOutage(),
     }"
+    :title="cellTitle"
     draggable="false"
     role="button"
     tabindex="0"
@@ -109,18 +114,17 @@ const attentionCount = computed(() =>
         class="room-background-image"
         draggable="false"
       />
-      <div class="room-info-overlay">
+      <!-- 1-unit cells (elevator etc.): icon only, no text -->
+      <div v-if="isSmallCell" class="small-cell-icon">
+        <Icon icon="mdi:elevator" class="small-cell-icon-svg" />
+      </div>
+      <!-- Regular rooms: compact single-line overlay -->
+      <div v-else class="room-info-overlay">
         <div class="room-header">
-          <h3 class="room-name">
-            {{ room.name }}
-            <span v-if="room.ability" class="ability-letter"
-              >({{ getAbilityLetter(room.ability) }})</span
-            >
-          </h3>
+          <h3 class="room-name">{{ room.name }}</h3>
           <Icon v-if="room.ability" :icon="getAbilityIcon(room.ability)" class="ability-icon" />
         </div>
-        <p class="room-category">{{ room.category }}</p>
-        <div v-if="room.tier" class="room-tier">Tier {{ room.tier }}</div>
+        <div v-if="room.tier" class="room-tier">T{{ room.tier }}</div>
       </div>
       <div v-if="isDraggingOver" class="drop-indicator">
         <Icon icon="mdi:account-plus" class="h-6 w-6" />
@@ -208,54 +212,72 @@ const attentionCount = computed(() =>
   left: 0;
   z-index: 2;
   background: rgba(0, 0, 0, 0.85);
-  padding: 2px 6px;
+  padding: 2px 4px;
   border-radius: 0 0 4px 4px;
   backdrop-filter: blur(3px);
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   box-sizing: border-box;
-  margin-bottom: auto;
+}
+
+.small-cell-icon {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.small-cell-icon-svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-theme-primary);
+  filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.4));
 }
 
 .room-name {
-  font-size: 0.75em;
-  margin-bottom: 2px;
+  font-size: 0.7rem;
   color: var(--color-theme-primary);
   font-weight: 600;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-}
-
-.room-category {
-  font-size: 0.65em;
-  color: var(--color-gray-200);
-  font-weight: 500;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .room-tier {
-  font-size: 0.6em;
+  font-size: 0.55rem;
   color: var(--color-warning);
-  margin-top: 1px;
-  font-weight: 600;
+  font-weight: 700;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.3;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .room-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-}
-
-.ability-letter {
-  color: var(--color-theme-primary);
-  font-weight: 700;
-  margin-left: 2px;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
 }
 
 .ability-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   color: var(--color-theme-primary);
   flex-shrink: 0;
 }
@@ -405,8 +427,7 @@ const attentionCount = computed(() =>
 }
 
 /* Power outage child overrides */
-.room.power-outage .room-name,
-.room.power-outage .room-category {
+.room.power-outage .room-name {
   color: var(--color-gray-500);
 }
 </style>

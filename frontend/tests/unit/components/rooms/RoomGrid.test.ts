@@ -249,7 +249,7 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
-        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size_min: 1 },
+        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size: 1, size_min: 1 },
       ]
       roomStore.selectedRoom = {
         name: 'Diner',
@@ -272,7 +272,9 @@ describe('RoomGrid', () => {
         .findAll('.empty:not(.level-locked)')
         .find((item) => {
           const style = item.element as HTMLElement
-          return style.style.gridColumn === '2' && style.style.gridRow === '2'
+          return (
+            parseInt(style.style.gridColumn, 10) === 4 && style.style.gridRow === '2'
+          )
         })!
 
       await cell.trigger('mouseenter')
@@ -583,6 +585,69 @@ describe('RoomGrid', () => {
       // Verify startTraining was called and returned null (failure)
       expect(startTrainingSpy).toHaveBeenCalled()
       expect(await startTrainingSpy.mock.results[0].value).toBeNull()
+    })
+  })
+
+  describe('Small cell (elevator) rendering', () => {
+    const elevatorRoom = {
+      ...mockRoom,
+      id: 'elev-1',
+      name: 'Elevator',
+      category: 'misc',
+      ability: null,
+      coordinate_x: 0,
+      coordinate_y: 1,
+      size: 1,
+      size_min: 1,
+    }
+
+    it('renders an elevator icon and no info overlay for 1-unit cells', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: elevatorRoom,
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.room-info-overlay').exists()).toBe(false)
+      expect(wrapper.find('.small-cell-icon').exists()).toBe(true)
+      expect(wrapper.find('.small-cell-icon-svg').exists()).toBe(true)
+    })
+
+    it('renders a compact info overlay for regular 3-unit rooms', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: mockRoom,
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.room-info-overlay').exists()).toBe(true)
+      expect(wrapper.find('.small-cell-icon').exists()).toBe(false)
+      expect(wrapper.find('.room-name').text()).toBe('Power Generator')
+    })
+
+    it('exposes room name and tier as a native title tooltip', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: { ...mockRoom, tier: 2 },
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.built-room').attributes('title')).toBe('Power Generator (Tier 2)')
     })
   })
 

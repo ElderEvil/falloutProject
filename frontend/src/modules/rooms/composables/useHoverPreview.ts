@@ -22,11 +22,10 @@ export function useHoverPreview() {
   const previewCells = computed(() => {
     if (!hoverPosition.value || !roomStore.selectedRoom) return []
     const { x, y } = hoverPosition.value
-    const roomSize = roomStore.selectedRoom.size_min
-    const cellsCount = Math.ceil(roomSize / 3)
-    // Center the room preview on hover cell for multi-cell rooms
-    const startX = cellsCount === 1 ? x : x - Math.floor(cellsCount / 2)
-    return Array.from({ length: cellsCount }, (_, i) => ({ x: startX + i, y }))
+    const selected = roomStore.selectedRoom
+    const isElevator = selected.name.toLowerCase() === 'elevator'
+    const cellsCount = isElevator ? 1 : selected.size_min
+    return Array.from({ length: cellsCount }, (_, i) => ({ x: x + i, y }))
   })
 
   const isValidPlacement = computed(() => {
@@ -34,12 +33,12 @@ export function useHoverPreview() {
     const selected = roomStore.selectedRoom
     const isElevator = selected.name.toLowerCase() === 'elevator'
     return previewCells.value.every((cell) => {
-      const inBounds = cell.x >= 0 && cell.x < 8
+      const inBounds = cell.x >= 0 && cell.x < roomStore.floorUnits
       if (!inBounds) return false
       const occupied = roomStore.rooms.some(
         (room: Room) =>
           (room.coordinate_x ?? 0) <= cell.x &&
-          (room.coordinate_x ?? 0) + Math.ceil((room.size || room.size_min) / 3) > cell.x &&
+          (room.coordinate_x ?? 0) + (room.size || room.size_min) > cell.x &&
           (room.coordinate_y ?? 0) === cell.y
       )
       if (occupied) return false

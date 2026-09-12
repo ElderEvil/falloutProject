@@ -1,14 +1,19 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
+import type { components } from '@/core/types/api.generated'
 import type { Room, RoomBuild, RoomTemplate } from '../models/room'
+import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+
+type GridConfig = components['schemas']['GridConfig']
 
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
+  const gridConfig = ref<GridConfig | null>(null)
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
@@ -153,14 +158,42 @@ export const useRoomStore = defineStore('room', () => {
     isPlacingRoom.value = false
   }
 
+  // Grid geometry is owned by the backend; local defaults cover the first paint.
+  const floorUnits = computed(() => gridConfig.value?.floor_units ?? FLOOR_UNITS)
+  const shaftX = computed(() => gridConfig.value?.shaft_x ?? SHAFT_X)
+  const unitsPerRoom = computed(() => gridConfig.value?.units_per_room ?? UNITS_PER_ROOM)
+  const roomSlotStarts = computed(() => {
+    const config = gridConfig.value
+    return config
+      ? [...config.left_slot_starts, ...config.right_slot_starts]
+      : [...ROOM_SLOT_STARTS]
+  })
+
+  async function fetchGridConfig(token: string): Promise<void> {
+    try {
+      const response = await axios.get<GridConfig>('/api/v1/rooms/grid-config/', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      gridConfig.value = response.data
+    } catch (error) {
+      handleStoreError(error, 'Failed to fetch grid config')
+    }
+  }
+
   return {
     // State
     rooms,
+    gridConfig,
     availableRooms,
     selectedRoom,
     isPlacingRoom,
+    floorUnits,
+    shaftX,
+    unitsPerRoom,
+    roomSlotStarts,
     // Actions
     fetchRooms,
+    fetchGridConfig,
     fetchBuildableRooms,
     buildRoom,
     destroyRoom,

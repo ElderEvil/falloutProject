@@ -130,6 +130,12 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .legend-color-discovery.legend-unseen .legend-icon {
+    animation: none;
+  }
+}
+
 @media (max-width: 768px) {
   .map-legend {
     font-size: 8px;

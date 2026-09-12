@@ -207,4 +207,11 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
     transform: scale(1.8);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-discovery,
+  .marker-select-ping {
+    animation: none;
+  }
+}
 </style>

@@ -79,8 +79,8 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
          of <g> - wrapping it in HTML elements (e.g. a tooltip <div>) collapses
          it to 0x0 in Chromium and the marker becomes invisible. -->
     <title>{{ tooltipText }}</title>
-    <circle v-if="selected" class="marker-select-ring" r="4.2" />
-    <circle v-if="selected" class="marker-select-ping" r="4.2" />
+    <circle v-if="selected" class="marker-select-ring" r="3.1" />
+    <circle v-if="selected" class="marker-select-ping" r="3.1" />
     <foreignObject x="-3.5" y="-3.5" width="7" height="7">
       <div
         v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
@@ -142,6 +142,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
   fill: none;
   stroke: var(--color-theme-primary);
   stroke-width: 0.4;
+  opacity: 0;
   pointer-events: none;
   transform-box: fill-box;
   transform-origin: center;
@@ -206,7 +207,7 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
   }
   100% {
     opacity: 0;
-    transform: scale(1.8);
+    transform: scale(1.5);
   }
 }
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.85.0 (2026-09-12)
+
+### Features
+
+* **map:** polish fixes, hand-drawn trails, and map-module cleanup ([#593](https://github.com/ElderEvil/falloutProject/issues/593)) 001f82d
+
 ## 2.84.1 (2026-09-12)
 
 ### Bug Fixes

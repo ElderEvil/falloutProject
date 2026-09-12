@@ -19,6 +19,7 @@ from app.core.enums import (
 )
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
+from app.core.grid_config import SHAFT_X
 from app.crud import dweller as dweller_crud
 from app.crud import outfit as outfit_crud
 from app.crud import room as room_crud
@@ -89,7 +90,7 @@ class VaultService:
         def mk(specs: list[tuple[str, int, int]]) -> list[RoomCreate]:
             return [self._build_room(rooms_by_name, n, vault_id, x, y) for n, x, y in specs]
 
-        infrastructure = mk([("vault door", 0, 0), ("elevator", 0, 1), ("elevator", 0, 2), ("elevator", 0, 3)])
+        infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]])
         if is_boosted:
             living_template = rooms_by_name.get("living room")
             cap_per = (
@@ -100,27 +101,27 @@ class VaultService:
             expected_dwellers = 25
             needed_living = (expected_dwellers + cap_per - 1) // cap_per
             extra_living = BOOSTED_LIVING_ROOM_COORDINATES[: max(0, needed_living - 1)]
-            capacity_specs = [("living room", 2, 1), ("storage room", 2, 2)] + [
+            capacity_specs = [("living room", 7, 1), ("storage room", 7, 2)] + [
                 ("living room", x, y) for x, y in extra_living
             ]
         else:
-            capacity_specs = [("living room", 2, 1), ("storage room", 2, 2)]
+            capacity_specs = [("living room", 7, 1), ("storage room", 7, 2)]
         capacity = mk(capacity_specs)
         production = mk(
-            [("power generator", 1, 1), ("diner", 1, 2), ("water treatment", 1, 3)]
-            + ([("medbay", 7, 1), ("science lab", 7, 2)] if is_boosted else [])
+            [("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)]
+            + ([("medbay", 22, 1), ("science lab", 19, 2)] if is_boosted else [])
         )
-        misc = mk([("radio studio", 2, 3)] + ([("overseer's office", 6, 2)] if is_boosted else []))
-        arena = mk([("arena", 6, 3)] if is_boosted else [])
+        misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
+        arena = mk([("arena", 10, 3)] if is_boosted else [])
         training = mk(
             [
-                ("weight room", 3, 1),
-                ("armory", 3, 2),
-                ("athletics room", 4, 1),
-                ("classroom", 4, 2),
-                ("game room", 5, 1),
-                ("fitness room", 5, 2),
-                ("lounge", 6, 1),
+                ("weight room", 10, 1),
+                ("athletics room", 13, 1),
+                ("game room", 16, 1),
+                ("lounge", 19, 1),
+                ("armory", 10, 2),
+                ("classroom", 13, 2),
+                ("fitness room", 16, 2),
             ]
             if is_boosted
             else []

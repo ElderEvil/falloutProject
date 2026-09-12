@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -11,6 +12,8 @@ from typer.testing import CliRunner
 from app.cli.main import cli
 
 runner = CliRunner()
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @pytest.fixture
@@ -25,9 +28,10 @@ def mock_backfill():
 def test_merge_rooms_help():
     result = runner.invoke(cli, ["backfill", "merge-rooms", "--help"])
     assert result.exit_code == 0
-    assert "--vault" in result.output
-    assert "--all-active" in result.output
-    assert "--apply" in result.output
+    plain_output = ANSI_ESCAPE.sub("", result.output)
+    assert "--vault" in plain_output
+    assert "--all-active" in plain_output
+    assert "--apply" in plain_output
 
 
 def test_merge_rooms_dry_run_default(mock_backfill):

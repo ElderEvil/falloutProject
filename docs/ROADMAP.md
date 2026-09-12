@@ -617,8 +617,14 @@ modifiers) and **Bio Extension** (bio templates) above; this fragment owns prove
   becomes a per-race rule read by the breeding service rather than the implicit "any adult pair". Breeding already
   inherits race from parents; this adds whether a pairing is possible at all, and what a mixed pair implies.
 - ⬜ **Radiation response** — ghouls take no radiation damage (and may heal from it), gen-1/gen-2 synths are
-  mechanical, gen-3 synths are biologically human, super mutants are highly resistant. One race table read by the
-  radiation/tick path, not scattered conditionals.
+  mechanical, gen-3 synths are biologically human, super mutants are highly resistant — all read by the
+  radiation/tick path rather than scattered conditionals.
+- ⬜ **Rule lookup dimensions** — rules are deliberately not race-only: radiation differs by synth generation, and
+  lifecycle rules key off provenance. Key the table by `(race, state of being)` using the enums that already exist
+  (`RaceEnum` × `SynthTypeEnum | GhoulFeralnessEnum | SuperMutantMutationEnum`), falling back to `(race, none)` and
+  then to a human default. Lifecycle rules (reproduction, aging) key off provenance, which is derivable from the
+  race/state pair for synths and ghouls but explicit for edge cases. Settle and document that precedence before
+  implementation so no rule is expressed twice.
 - ⬜ **Age groups per race** — decide what `AgeGroupEnum` means for a dweller who was never a child: synths are
   manufactured at an adult apparent age (track `manufactured_at` instead of a birthday), ghouls may not age
   conventionally, super mutants age differently again. Open questions to settle first: does a synth have
@@ -631,12 +637,14 @@ modifiers) and **Bio Extension** (bio templates) above; this fragment owns prove
 allowed) resolve offspring race; whether sterile races get adoption/apprentice paths so family features stay
 meaningful for them.
 
-**Guardrails:** one options-backed race table (stats, radiation, reproduction, aging); no per-system race branches;
-keep `RaceEnum` as the identity anchor so the race/faction work above is not duplicated.
+**Guardrails:** one options-backed identity table keyed by `(race, state of being)` with a race-only fallback and
+provenance for lifecycle rules; no per-system race branches; keep `RaceEnum` as the identity anchor so the
+race/faction work above is not duplicated.
 
-**Success criteria:** a synth cannot be bred or born and the dossier says why; a ghoul shrugs off radiation; age
-progression produces no nonsensical life stages for races that do not age; per-race unit tests for reproduction
-eligibility, radiation response, and age progression.
+**Success criteria:** a synth cannot be bred or born and the dossier says why; a ghoul shrugs off radiation while a
+gen-3 synth takes it like a human and a gen-1 synth takes none; age progression produces no nonsensical life stages
+for races that do not age; unit tests exercise the same `(race, state of being)` → rule lookup the runtime uses,
+plus reproduction eligibility and age progression.
 
 ### Bio Extension — Pre-Baked Templates + Living Biographies (Target: next updates — HIGH PRIORITY)
 

@@ -243,6 +243,43 @@ describe('Map Store', () => {
     })
   })
 
+  describe('Viewed location state', () => {
+    it('should start with no viewed locations and no unseen discoveries', () => {
+      const store = useMapStore()
+      expect(store.viewedLocationIds.size).toBe(0)
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should report unseen discoveries until each is marked viewed', () => {
+      const store = useMapStore()
+      store.locations = [mockLocation, mockLocation2]
+
+      expect(store.hasUnseenDiscoveries).toBe(true)
+
+      store.markLocationViewed('loc-1')
+
+      expect(store.isLocationViewed('loc-1')).toBe(true)
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should ignore locked discoveries when deriving unseen state', () => {
+      const store = useMapStore()
+      store.locations = [{ ...mockLocation, is_unlocked: false }]
+
+      expect(store.hasUnseenDiscoveries).toBe(false)
+    })
+
+    it('should keep viewed ids across map refreshes', async () => {
+      const store = useMapStore()
+      store.markLocationViewed('loc-1')
+
+      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
+      await store.fetchMap('vault-1', 'test-token')
+
+      expect(store.isLocationViewed('loc-1')).toBe(true)
+    })
+  })
+
   describe('Stale-response guard', () => {
     it('should drop poll response after stopPolling invalidates context', async () => {
       vi.useFakeTimers()

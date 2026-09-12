@@ -12,6 +12,7 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const viewedLocationIds = ref<Set<string>>(new Set())
 
   // Polling control (30s interval per plan D13)
   const {
@@ -49,6 +50,21 @@ export const useMapStore = defineStore('map', () => {
   const unlockedPlacesCount = computed(
     () => locations.value.filter((loc) => loc.is_unlocked).length
   )
+  const hasUnseenDiscoveries = computed(() =>
+    locations.value.some(
+      (loc) => loc.type === 'discovery' && loc.is_unlocked !== false && !viewedLocationIds.value.has(loc.id)
+    )
+  )
+
+  function markLocationViewed(locationId: string): void {
+    if (!viewedLocationIds.value.has(locationId)) {
+      viewedLocationIds.value = new Set(viewedLocationIds.value).add(locationId)
+    }
+  }
+
+  function isLocationViewed(locationId: string): boolean {
+    return viewedLocationIds.value.has(locationId)
+  }
 
   // Actions
   async function fetchMap(vaultId: string, token: string): Promise<void> {
@@ -107,15 +123,16 @@ export const useMapStore = defineStore('map', () => {
   }
 
   return {
-    // State
     locations,
     vaultMarkers,
     discoveryRoutes,
     isLoading,
     error,
-    // Getters
+    viewedLocationIds,
     unlockedPlacesCount,
-    // Actions
+    hasUnseenDiscoveries,
+    markLocationViewed,
+    isLocationViewed,
     fetchMap,
     refreshMap,
     startPolling,

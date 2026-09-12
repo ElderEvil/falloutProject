@@ -33,6 +33,12 @@ repos:
 
   - repo: local
     hooks:
+      - id: ty
+        name: ty type check (changed backend files)
+        entry: bash -c 'cd backend && uv run ty check --output-format concise --exit-zero-on-warning "${@#backend/}"' --
+        language: system
+        files: ^backend/.*\.py$
+        types: [python]
       - id: frontend-lint-format
         name: frontend lint+format (staged)
         entry: sh -c 'cd frontend && pnpm exec vp staged'
@@ -43,5 +49,5 @@ repos:
 # sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
 ci:
   autoupdate_schedule: weekly
-  skip: [frontend-lint-format]
+  skip: [ty, frontend-lint-format]
   submodules: false

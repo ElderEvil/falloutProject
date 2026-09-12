@@ -142,14 +142,14 @@ class VaultLayoutBackfillService:
         elevators_to_add: list[int],
         shaft_x: int,
     ) -> tuple[int, int, bool]:
-        spans = [
-            (
-                targets.get(room.id, (room.coordinate_x or 0, room.coordinate_y or 0))[1],
-                targets.get(room.id, (room.coordinate_x or 0, room.coordinate_y or 0))[0],
-                targets.get(room.id, (room.coordinate_x or 0, room.coordinate_y or 0))[0] + _size(room) - 1,
-            )
-            for room in rooms
-        ]
+        spans: list[tuple[int, int, int]] = []
+        elevator_spans: set[tuple[int, int, int]] = {(y, shaft_x, shaft_x) for y in elevators_to_add}
+        for room in rooms:
+            position = targets.get(room.id, (room.coordinate_x or 0, room.coordinate_y or 0))
+            span = (position[1], position[0], position[0] + _size(room) - 1)
+            spans.append(span)
+            if is_elevator(room.name):
+                elevator_spans.add(span)
         spans.extend((y, shaft_x, shaft_x) for y in elevators_to_add)
 
         overlaps = 0
@@ -157,9 +157,14 @@ class VaultLayoutBackfillService:
         floor_width_ok = all(end < FLOOR_UNITS for _, _, end in spans)
         for y in {span[0] for span in spans}:
             level = sorted((span for span in spans if span[0] == y), key=itemgetter(1))
-            for index, (_, start, end) in enumerate(level):
+            for index, span in enumerate(level):
+                _, start, end = span
                 if index + 1 < len(level) and level[index + 1][1] <= end:
                     overlaps += 1
+                # Elevators are anchored by the shaft above them, so a level holding
+                # only the shaft is valid rather than floating.
+                if span in elevator_spans:
+                    continue
                 touches = (index > 0 and level[index - 1][2] + 1 == start) or (
                     index + 1 < len(level) and level[index + 1][1] == end + 1
                 )

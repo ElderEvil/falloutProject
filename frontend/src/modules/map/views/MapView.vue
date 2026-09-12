@@ -88,8 +88,8 @@ const hasNoData = computed(
   () => !mapStore.isLoading && mapStore.locations.length === 0 && mapStore.vaultMarkers.length === 0
 )
 
-const mapPaneSize = 'min(960px, calc(100dvh - 16rem), calc(100vw - 2rem))'
-const mapPaneHeight = 'min(960px, calc(100dvh - 16rem))'
+const mapPaneSize = 'min(var(--map-pane-size), calc(100vw - 2rem))'
+const mapPaneHeight = 'var(--map-pane-size)'
 </script>
 
 <template>

@@ -238,8 +238,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
 }
 
 .world-map-container {
-  width: min(960px, calc(100vh - 16rem));
-  width: min(960px, calc(100dvh - 16rem));
+  width: var(--map-pane-size);
   max-width: min(100%, calc(100vw - 2rem));
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);

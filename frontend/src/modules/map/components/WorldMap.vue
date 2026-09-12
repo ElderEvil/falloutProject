@@ -8,6 +8,7 @@ import MapLegend from './MapLegend.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import TerrainLayer from './TerrainLayer.vue'
 import { spreadMarkers } from '../utils/spreadMarkers'
+import { tracePoints } from '../utils/tracePath'
 import { useMapZoomPan } from '../composables/useMapZoomPan'
 import { useMapStore } from '../stores/map'
 
@@ -38,14 +39,17 @@ const visibleLocations = computed(() =>
 const knownLocations = computed(() => props.locations.filter((loc) => loc.is_unlocked !== false))
 
 // Expeditions start at the home vault — anchor every trail there.
-const homeCoords = computed(() => {
+const homeCoords = computed<[number, number]>(() => {
   const home = props.locations.find((loc) => loc.type === 'home_vault')
-  return home ? `${home.coord_x},${home.coord_y}` : '80,80'
+  return home ? [home.coord_x, home.coord_y] : [80, 80]
 })
 
 const discoveryRouteLines = computed(() =>
   props.discoveryRoutes.map((route) =>
-    [homeCoords.value, ...route.points.map((point) => `${point.coord_x},${point.coord_y}`)].join(' ')
+    tracePoints([
+      homeCoords.value,
+      ...route.points.map((point): [number, number] => [point.coord_x, point.coord_y]),
+    ])
   )
 )
 

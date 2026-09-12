@@ -143,7 +143,10 @@ describe('WorldMap', () => {
       })
 
       const route = wrapper.find('polyline')
-      expect(route.attributes('points')).toBe('80,80 20,30 20,30')
+      const points = route.attributes('points')!.split(' ')
+      expect(points[0]).toBe('80,80')
+      expect(points.at(-1)).toBe('20,30')
+      expect(points.length).toBeGreaterThan(3)
     })
 
     it('anchors trails at the home vault coordinates', () => {
@@ -172,7 +175,9 @@ describe('WorldMap', () => {
       })
 
       const route = wrapper.find('polyline')
-      expect(route.attributes('points')).toBe('50,50 20,30 20,30')
+      const points = route.attributes('points')!.split(' ')
+      expect(points[0]).toBe('50,50')
+      expect(points.at(-1)).toBe('20,30')
     })
   })
 

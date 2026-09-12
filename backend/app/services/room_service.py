@@ -13,6 +13,7 @@ from app.core.enums import RoomActionEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.core.grid_config import GRID_X_MAX, GRID_X_MIN, GRID_Y_MAX, GRID_Y_MIN
+from app.crud.training import training as training_crud
 from app.schemas.room import RoomBuild, RoomCreate, RoomRead, RoomUpdate
 from app.services.user_service import user_service
 from app.services.vault_service import vault_service
@@ -149,7 +150,7 @@ class RoomService:
                 size_max=size_max,
                 size=total_size,
                 tier=tier,
-                coordinate_x=leftmost_existing_x,
+                coordinate_x=coordinate_x if survivor_is_candidate else leftmost_existing_x,
                 coordinate_y=coordinate_y,
                 image_url=new_image_url,
                 speedup_multiplier=source_for_preview.speedup_multiplier,
@@ -214,6 +215,12 @@ class RoomService:
 
         if absorbed_ids:
             await crud.dweller.reassign_dwellers_between_rooms(
+                db_session=db_session,
+                vault_id=vault_id,
+                from_room_ids=absorbed_ids,
+                to_room_id=survivor_room.id,
+            )
+            await training_crud.reassign_room_training(
                 db_session=db_session,
                 vault_id=vault_id,
                 from_room_ids=absorbed_ids,
@@ -338,6 +345,7 @@ class RoomService:
             obj_in.coordinate_x,
             obj_in.coordinate_y,
             obj_in.size if obj_in.size is not None else obj_in.size_min,
+            tier=obj_in.tier,
         )
 
         if obj_in.name.lower() == "vault door":

@@ -193,7 +193,9 @@ def backfill_vault_layout(
 
         async with async_session_maker() as session:
             if all_active:
-                vault_ids = list((await session.execute(select(Vault.id))).scalars().all() or [])
+                vault_ids = list(
+                    (await session.execute(select(Vault.id).where(~Vault.is_deleted))).scalars().all() or []
+                )
             elif vault:
                 vault_ids = [UUID(vault)]
             else:
@@ -204,6 +206,14 @@ def backfill_vault_layout(
                 for vault_id in vault_ids
             }
             if apply:
+                invalid = sorted(
+                    str(vault_id)
+                    for vault_id, summary in summaries.items()
+                    if summary["overlaps"] or summary["floating"] or not summary["floor_width_ok"]
+                )
+                if invalid:
+                    await session.rollback()
+                    raise ValueError(f"Refusing to persist invalid layouts for: {', '.join(invalid)}")
                 await session.commit()
             return summaries
 

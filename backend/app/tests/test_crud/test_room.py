@@ -259,6 +259,8 @@ class TestGetAdjacentMergeableRooms:
         )
 
         assert result == []
+        query = mock_session.execute.call_args.args[0]
+        assert query.compile().params["name_1"] == "Diner"
 
     @pytest.mark.asyncio
     async def test_different_row_not_returned(self, room_crud, mock_session):
@@ -276,6 +278,8 @@ class TestGetAdjacentMergeableRooms:
         )
 
         assert result == []
+        query = mock_session.execute.call_args.args[0]
+        assert query.compile().params["coordinate_y_1"] == 3
 
 
 # =============================================================================

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -9,7 +10,9 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.models.dweller import Dweller
 from app.models.room import Room
+from app.models.training import Training
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
@@ -129,7 +132,7 @@ async def _create_existing_room(
     )
 
 
-async def _create_dweller_in_room(session: AsyncSession, vault_id: UUID, room: Room) -> None:
+async def _create_dweller_in_room(session: AsyncSession, vault_id: UUID, room: Room) -> Dweller:
     dweller_in = DwellerCreate(
         vault_id=vault_id,
         first_name="Test",
@@ -156,6 +159,7 @@ async def _create_dweller_in_room(session: AsyncSession, vault_id: UUID, room: R
     session.add(dweller)
     await session.commit()
     await session.refresh(dweller)
+    return dweller
 
 
 @pytest.fixture
@@ -486,3 +490,46 @@ async def test_backfill_merge_rooms_idempotent(async_session: AsyncSession, rich
 
     assert first["merged"] == 1
     assert second["merged"] == 0
+
+
+@pytest.mark.asyncio
+async def test_backfill_dry_run_matches_apply_for_chain(async_session: AsyncSession, rich_vault: Vault):
+    """Dry-run reports the same merge count as apply for a three-room chain."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    for coordinate_x in (0, 3, 6):
+        await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=coordinate_x)
+
+    dry = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
+    applied = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
+
+    assert dry["merged"] == applied["merged"] == 2
+
+
+@pytest.mark.asyncio
+async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_vault: Vault):
+    """Training sessions of absorbed rooms move to the surviving room before deletion."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
+    training = Training(
+        vault_id=rich_vault.id,
+        dweller_id=dweller.id,
+        room_id=absorbed.id,
+        stat_being_trained=SPECIALEnum.STRENGTH,
+        current_stat_value=5,
+        target_stat_value=6,
+        started_at=datetime.utcnow(),
+        estimated_completion_at=datetime.utcnow(),
+    )
+    async_session.add(training)
+    await async_session.commit()
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        survivor, _ = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=0, tier=1),
+        )
+
+    await async_session.refresh(training)
+    assert survivor.size == 6
+    assert training.room_id == survivor.id

@@ -44,16 +44,22 @@ class VaultLayoutBackfillService:
     async def relayout(self, db_session: AsyncSession, vault_id: UUID, *, dry_run: bool = True) -> dict:
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
         if not rooms:
-            return {"rooms": 0, "moved": 0, "elevators_to_add": 0, "overlaps": 0, "floating": 0}
+            return {
+                "rooms": 0,
+                "moved": 0,
+                "elevators_to_add": 0,
+                "overlaps": 0,
+                "floating": 0,
+                "floor_width_ok": True,
+            }
 
         door = next((room for room in rooms if room.name.lower() == "vault door"), None)
-        if door is not None:
-            door.coordinate_x = 0
-            door.coordinate_y = 0
         shaft_x = door.size if door is not None and door.size is not None else 6
 
         max_y = max((room.coordinate_y or 0) for room in rooms)
         targets: dict[UUID, tuple[int, int]] = {}
+        if door is not None:
+            targets[door.id] = (0, 0)
 
         for y in range(max_y + 1):
             level = [room for room in rooms if (room.coordinate_y or 0) == y]

@@ -68,6 +68,26 @@ class CRUDTraining(CRUDBase[Training, TrainingCreate, TrainingUpdate]):
         result = await db_session.execute(query)
         return list(result.scalars().all())
 
+    async def reassign_room_training(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID4,
+        from_room_ids: list[UUID4],
+        to_room_id: UUID4,
+    ) -> int:
+        """Move every training session of the source rooms into the destination room."""
+        if not from_room_ids:
+            return 0
+        result = await db_session.execute(
+            select(Training).where(Training.vault_id == vault_id, Training.room_id.in_(from_room_ids))
+        )
+        sessions = result.scalars().all()
+        for session in sessions:
+            session.room_id = to_room_id
+            db_session.add(session)
+        return len(sessions)
+
     async def get_dwellers_for_trainings(
         self,
         db_session: AsyncSession,

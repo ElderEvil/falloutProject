@@ -34,6 +34,7 @@ async def validate_build_placement(
     coordinate_x: int,
     coordinate_y: int,
     size: int,
+    tier: int | None = None,
 ) -> None:
     """Enforce R1 (elevator stacking), R2 (level access), and footprint rules."""
     if is_elevator(room_name):
@@ -54,6 +55,9 @@ async def validate_build_placement(
                     "elevators must be built directly under another elevator."
                 )
             )
+        await _validate_footprint(
+            db_session, vault_id, room_name, coordinate_x, coordinate_y, size, tier=tier, require_adjacency=False
+        )
         return
 
     if coordinate_y > 0:
@@ -74,7 +78,7 @@ async def validate_build_placement(
                 )
             )
 
-    await _validate_footprint(db_session, vault_id, room_name, coordinate_x, coordinate_y, size)
+    await _validate_footprint(db_session, vault_id, room_name, coordinate_x, coordinate_y, size, tier=tier)
 
 
 def _room_span(room: Room) -> tuple[int, int]:
@@ -89,6 +93,8 @@ async def _validate_footprint(
     coordinate_x: int,
     coordinate_y: int,
     size: int,
+    tier: int | None = None,
+    require_adjacency: bool = True,
 ) -> None:
     """Reject overlapping footprints and rooms that touch nothing on their level."""
     rooms_on_level = list(
@@ -109,7 +115,11 @@ async def _validate_footprint(
     )
 
     expansion = next(
-        (room for room in rooms_on_level if room.coordinate_x == coordinate_x and room.name == room_name),
+        (
+            room
+            for room in rooms_on_level
+            if room.coordinate_x == coordinate_x and room.name == room_name and (tier is None or room.tier == tier)
+        ),
         None,
     )
     start = coordinate_x
@@ -126,7 +136,7 @@ async def _validate_footprint(
                 detail=(f"Cannot build {room_name} at ({coordinate_x}, {coordinate_y}): overlaps {room.name}.")
             )
 
-    if expansion is not None:
+    if expansion is not None or not require_adjacency:
         return
 
     touches_existing = any(

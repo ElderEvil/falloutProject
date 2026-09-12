@@ -82,6 +82,57 @@ def test_merge_rooms_all_active(mock_backfill):
     mock_backfill.assert_awaited_once()
 
 
+def test_merge_rooms_all_active_excludes_deleted_vaults(mock_backfill):
+    mock_backfill.return_value = {"merged": 0}
+
+    with patch("app.cli.backfills.async_session_maker") as mock_session_maker:
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.all.return_value = [uuid4()]
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=execute_result)
+        mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        result = runner.invoke(cli, ["backfill", "merge-rooms", "--all-active"])
+
+    assert result.exit_code == 0
+    assert "is_deleted" in str(mock_session.execute.call_args.args[0])
+
+
+def test_layout_apply_refuses_invalid_layout():
+    vault_id = uuid4()
+    invalid_summary = {
+        "rooms": 2,
+        "moved": 1,
+        "elevators_to_add": 0,
+        "overlaps": 1,
+        "floating": 0,
+        "floor_width_ok": True,
+    }
+
+    with (
+        patch(
+            "app.services.vault_layout_backfill_service.vault_layout_backfill_service.relayout",
+            new_callable=AsyncMock,
+            return_value=invalid_summary,
+        ),
+        patch("app.cli.backfills.async_session_maker") as mock_session_maker,
+    ):
+        mock_session = AsyncMock()
+        mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        result = runner.invoke(
+            cli,
+            ["backfill", "backfill-vault-layout", "--vault", str(vault_id), "--apply"],
+        )
+
+    assert result.exit_code != 0
+    assert "invalid layouts" in result.output
+    mock_session.commit.assert_not_awaited()
+    mock_session.rollback.assert_awaited()
+
+
 def test_merge_rooms_requires_vault_or_all_active():
     result = runner.invoke(cli, ["backfill", "merge-rooms"])
     assert result.exit_code != 0

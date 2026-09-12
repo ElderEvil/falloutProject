@@ -1,37 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { MARKER_TYPES } from '../models/markerTypeMeta'
 import { useMapStore } from '../stores/map'
 
-interface LegendItem {
-  type: string
-  icon: string
-  label: string
-  colorClass: string
-}
-
-const legendItems: LegendItem[] = [
-  {
-    type: 'home_vault',
-    icon: 'mdi:home-city',
-    label: 'Home Vault',
-    colorClass: 'legend-color-home',
-  },
-  { type: 'origin', icon: 'mdi:flag', label: 'Origin', colorClass: 'legend-color-origin' },
-  { type: 'visited', icon: 'mdi:eye', label: 'Visited', colorClass: 'legend-color-visited' },
-  {
-    type: 'discovery',
-    icon: 'mdi:compass',
-    label: 'Discovery',
-    colorClass: 'legend-color-discovery',
-  },
-  {
-    type: 'vault',
-    icon: 'mdi:radioactive',
-    label: 'Vault Signal',
-    colorClass: 'legend-color-vault',
-  },
-]
+const legendItems = MARKER_TYPES
 
 const mapStore = useMapStore()
 const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
@@ -43,7 +16,10 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
     <div v-for="item in legendItems" :key="item.type" class="legend-item">
       <span
         class="legend-icon-wrapper"
-        :class="[item.colorClass, item.type === 'discovery' && hasUnseen ? 'legend-unseen' : '']"
+        :class="{
+          'legend-vault': item.type === 'vault',
+          'legend-unseen': item.type === 'discovery' && hasUnseen,
+        }"
       >
         <Icon :icon="item.icon" class="legend-icon" />
       </span>
@@ -97,26 +73,19 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
 .legend-icon {
   width: 12px;
   height: 12px;
+  color: var(--color-theme-primary);
 }
 
 .legend-label {
   white-space: nowrap;
 }
 
-/* Color variants matching MapMarker type colors */
-.legend-color-home .legend-icon,
-.legend-color-origin .legend-icon,
-.legend-color-visited .legend-icon,
-.legend-color-discovery .legend-icon {
-  color: var(--color-theme-primary);
-}
-
-.legend-color-vault .legend-icon {
+.legend-vault .legend-icon {
   color: var(--color-warning);
   opacity: 0.85;
 }
 
-.legend-color-discovery.legend-unseen .legend-icon {
+.legend-unseen .legend-icon {
   animation: legend-pulse 2s ease-in-out infinite;
 }
 
@@ -131,7 +100,7 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .legend-color-discovery.legend-unseen .legend-icon {
+  .legend-unseen .legend-icon {
     animation: none;
   }
 }

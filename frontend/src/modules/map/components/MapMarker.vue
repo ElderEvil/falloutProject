@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { markerTypeMeta } from '../models/markerTypeMeta'
 
 interface Props {
   x: number
@@ -29,24 +30,9 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-const typeIcons: Record<string, string> = {
-  home_vault: 'mdi:home-city',
-  origin: 'mdi:flag',
-  visited: 'mdi:eye',
-  discovery: 'mdi:compass',
-  vault: 'mdi:radioactive',
-}
-
-const typeLabels: Record<string, string> = {
-  home_vault: 'Home Vault',
-  origin: 'Origin',
-  visited: 'Visited',
-  discovery: 'Discovery',
-  vault: 'Vault Signal',
-}
-
-const icon = computed(() => typeIcons[props.type] ?? 'mdi:map-marker')
-const label = computed(() => typeLabels[props.type] ?? props.type)
+const meta = computed(() => markerTypeMeta(props.type))
+const icon = computed(() => meta.value.icon)
+const label = computed(() => meta.value.label)
 const isDiscovery = computed(() => props.type === 'discovery')
 const isVault = computed(() => props.type === 'vault')
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useMapStore } from '../stores/map'
 
 interface LegendItem {
   type: string
@@ -30,13 +32,19 @@ const legendItems: LegendItem[] = [
     colorClass: 'legend-color-vault',
   },
 ]
+
+const mapStore = useMapStore()
+const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
 </script>
 
 <template>
   <div class="map-legend" role="complementary" aria-label="Map legend">
     <div class="legend-title">MAP KEY</div>
     <div v-for="item in legendItems" :key="item.type" class="legend-item">
-      <span class="legend-icon-wrapper" :class="item.colorClass">
+      <span
+        class="legend-icon-wrapper"
+        :class="[item.colorClass, item.type === 'discovery' && hasUnseen ? 'legend-unseen' : '']"
+      >
         <Icon :icon="item.icon" class="legend-icon" />
       </span>
       <span class="legend-label">{{ item.label }}</span>
@@ -108,7 +116,7 @@ const legendItems: LegendItem[] = [
   opacity: 0.85;
 }
 
-.legend-color-discovery .legend-icon {
+.legend-color-discovery.legend-unseen .legend-icon {
   animation: legend-pulse 2s ease-in-out infinite;
 }
 

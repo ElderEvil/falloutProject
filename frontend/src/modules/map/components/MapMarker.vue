@@ -118,6 +118,8 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 .marker-icon {
   width: 100%;
   height: 100%;
+  padding: 9%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

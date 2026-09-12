@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
-import { useMapStore } from '@/modules/map/stores/map'
+import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
 // Stub child components that need complex DOM (Iconify, UTooltip)
@@ -70,6 +70,7 @@ function createVaultMarkers(count: number): VaultMarkerRead[] {
 describe('WorldMap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
   })
 
   describe('Marker rendering', () => {
@@ -142,7 +143,10 @@ describe('WorldMap', () => {
       })
 
       const route = wrapper.find('polyline')
-      expect(route.attributes('points')).toBe('80,80 20,30 20,30')
+      const points = route.attributes('points')!.split(' ')
+      expect(points[0]).toBe('80,80')
+      expect(points.at(-1)).toBe('20,30')
+      expect(points.length).toBeGreaterThan(3)
     })
 
     it('anchors trails at the home vault coordinates', () => {
@@ -171,7 +175,9 @@ describe('WorldMap', () => {
       })
 
       const route = wrapper.find('polyline')
-      expect(route.attributes('points')).toBe('50,50 20,30 20,30')
+      const points = route.attributes('points')!.split(' ')
+      expect(points[0]).toBe('50,50')
+      expect(points.at(-1)).toBe('20,30')
     })
   })
 

@@ -1,9 +1,15 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { useIntervalFn } from '@vueuse/core'
-import type { DiscoveryRouteRead, WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import { useIntervalFn, useLocalStorage } from '@vueuse/core'
+import type {
+  DiscoveryRouteRead,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
 import * as mapService from '../services/mapService'
 import { handleStoreError } from '@/core/utils/errorHandler'
+
+export const VIEWED_LOCATIONS_STORAGE_KEY = 'map:viewed-location-keys'
 
 export const useMapStore = defineStore('map', () => {
   // State
@@ -12,11 +18,18 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  const viewedLocationKeys = ref<Set<string>>(new Set())
+  const viewedLocationKeys = useLocalStorage<Set<string>>(
+    VIEWED_LOCATIONS_STORAGE_KEY,
+    new Set(),
+    {
+      serializer: {
+        read: (raw) => new Set<string>(JSON.parse(raw) as string[]),
+        write: (value) => JSON.stringify([...value]),
+      },
+    }
+  )
 
-  function viewedKey(vaultId: string, locationId: string): string {
-    return `${vaultId}:${locationId}`
-  }
+  const viewedKey = (vaultId: string, locationId: string) => `${vaultId}:${locationId}`
 
   // Polling control (30s interval per plan D13)
   const {
@@ -51,17 +64,15 @@ export const useMapStore = defineStore('map', () => {
   let _pollGeneration = 0
 
   // Getters
-  const unlockedPlacesCount = computed(
-    () => locations.value.filter((loc) => loc.is_unlocked).length
-  )
-  const hasUnseenDiscoveries = computed(() =>
-    locations.value.some(
-      (loc) =>
-        loc.type === 'discovery' &&
-        loc.is_unlocked !== false &&
-        !viewedLocationKeys.value.has(viewedKey(loc.vault_id, loc.id))
+  const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
+
+  function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
+    return (
+      loc.type === 'discovery' &&
+      loc.is_unlocked !== false &&
+      !viewedLocationKeys.value.has(viewedKey(loc.vault_id, loc.id))
     )
-  )
+  }
 
   function markLocationViewed(vaultId: string, locationId: string): void {
     const key = viewedKey(vaultId, locationId)
@@ -137,8 +148,8 @@ export const useMapStore = defineStore('map', () => {
     isLoading,
     error,
     viewedLocationKeys,
-    unlockedPlacesCount,
     hasUnseenDiscoveries,
+    isUnseenDiscovery,
     markLocationViewed,
     isLocationViewed,
     fetchMap,

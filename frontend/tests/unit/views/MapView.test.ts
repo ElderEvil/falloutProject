@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import MapView from '@/modules/map/views/MapView.vue'
-import { useMapStore } from '@/modules/map/stores/map'
+import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 
 vi.mock('@/modules/map/services/mapService', () => ({
   getVaultMap: vi.fn().mockResolvedValue({ locations: [], vault_markers: [] }),
@@ -66,6 +66,7 @@ describe('MapView', () => {
       JSON.stringify({ id: 'u1', username: 'test', email: 'test@test.com' })
     )
     setActivePinia(createPinia())
+    localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
     mapStore = useMapStore()
     mockRoute.query = {}
     vi.clearAllMocks()

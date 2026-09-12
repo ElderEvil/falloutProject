@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import type {
+  MarkerClickPayload,
+  WastelandLocationWithDwellers,
+  VaultMarkerRead,
+} from '../models/map'
+import { MARKER_TYPES } from '../models/markerTypeMeta'
 
 interface Props {
   locations: WastelandLocationWithDwellers[]
@@ -16,12 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (
-    e: 'marker-select',
-    payload:
-      | { kind: 'location'; data: WastelandLocationWithDwellers }
-      | { kind: 'vault'; data: VaultMarkerRead }
-  ): void
+  (e: 'marker-select', payload: MarkerClickPayload): void
 }>()
 
 // Panel open/close state
@@ -39,14 +39,6 @@ interface MarkerGroup {
   }>
 }
 
-const typeOrder: Array<{ type: string; label: string; icon: string }> = [
-  { type: 'home_vault', label: 'Home Vault', icon: 'mdi:home-city' },
-  { type: 'origin', label: 'Origin', icon: 'mdi:flag' },
-  { type: 'visited', label: 'Visited', icon: 'mdi:eye' },
-  { type: 'discovery', label: 'Discovery', icon: 'mdi:compass' },
-  { type: 'vault', label: 'Vault Signal', icon: 'mdi:radioactive' },
-]
-
 const groups = computed<MarkerGroup[]>(() => {
   const byType = new Map<string, MarkerGroup['items']>()
 
@@ -61,14 +53,14 @@ const groups = computed<MarkerGroup[]>(() => {
     byType.get(vm.type)!.push({ id: `vault-${i}`, name: vm.name, kind: 'vault', data: vm })
   }
 
-  return typeOrder
-    .filter((t) => byType.has(t.type) && byType.get(t.type)!.length > 0)
-    .map((t) => ({
+  return MARKER_TYPES.filter((t) => byType.has(t.type) && byType.get(t.type)!.length > 0).map(
+    (t) => ({
       type: t.type,
       label: t.label,
       icon: t.icon,
       items: byType.get(t.type)!,
-    }))
+    })
+  )
 })
 
 const totalCount = computed(() => props.locations.length + props.vaultMarkers.length)
@@ -85,7 +77,7 @@ function toggleGroup(type: string) {
 }
 
 function handleItemClick(item: MarkerGroup['items'][number]) {
-  emit('marker-select', { kind: item.kind, data: item.data } as any)
+  emit('marker-select', { kind: item.kind, data: item.data } as MarkerClickPayload)
 }
 </script>
 
@@ -103,7 +95,12 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
     </button>
 
     <!-- Panel -->
-    <aside v-show="props.docked || isOpen" class="marker-list-panel" role="complementary" aria-label="Marker list">
+    <aside
+      v-show="props.docked || isOpen"
+      class="marker-list-panel"
+      role="complementary"
+      aria-label="Marker list"
+    >
       <div class="panel-header">
         <span class="panel-title">MARKERS</span>
         <span class="panel-count">{{ totalCount }}</span>
@@ -173,8 +170,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 
 .marker-list-wrapper.docked .marker-list-panel {
   width: 100%;
-  max-height: min(960px, calc(100vh - 13rem));
-  max-height: min(960px, calc(100dvh - 13rem));
+  max-height: var(--map-pane-size);
   background: var(--color-surface);
 }
 

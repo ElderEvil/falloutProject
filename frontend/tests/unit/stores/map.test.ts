@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { nextTick } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { useMapStore } from '@/modules/map/stores/map'
+import { useMapStore, VIEWED_LOCATIONS_STORAGE_KEY } from '@/modules/map/stores/map'
 
 // Mock the map service module
 vi.mock('@/modules/map/services/mapService', () => ({
@@ -60,6 +61,7 @@ describe('Map Store', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.removeItem(VIEWED_LOCATIONS_STORAGE_KEY)
     vi.clearAllMocks()
   })
 
@@ -296,6 +298,19 @@ describe('Map Store', () => {
 
       store.locations = [{ ...mockLocation, vault_id: 'vault-2' }]
       expect(store.hasUnseenDiscoveries).toBe(true)
+    })
+
+    it('should persist viewed state across a page reload (new store instance)', async () => {
+      const store = useMapStore()
+      store.markLocationViewed('vault-1', 'loc-1')
+      await nextTick()
+
+      setActivePinia(createPinia())
+      const reloaded = useMapStore()
+
+      expect(reloaded.isLocationViewed('vault-1', 'loc-1')).toBe(true)
+      reloaded.locations = [mockLocation]
+      expect(reloaded.hasUnseenDiscoveries).toBe(false)
     })
   })
 

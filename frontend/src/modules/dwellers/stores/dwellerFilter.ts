@@ -3,6 +3,11 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+import {
+  DEFAULT_TABLE_COLUMNS,
+  DWELLER_TABLE_COLUMNS,
+  type DwellerTableColumnId,
+} from '@/modules/dwellers/models/dwellerTable'
 import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -41,6 +46,7 @@ export type DwellerSortBy =
   | 'agility'
   | 'luck'
 export type SortDirection = 'asc' | 'desc'
+export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
@@ -94,7 +100,11 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
   const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
   const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
-  const viewMode = useLocalStorage<'list' | 'grid'>('dwellerViewMode', 'list')
+  const viewMode = useLocalStorage<DwellerViewMode>('dwellerViewMode', 'list')
+  const tableColumns = useLocalStorage<DwellerTableColumnId[]>(
+    'dwellerTableColumns',
+    DEFAULT_TABLE_COLUMNS
+  )
 
   /**
    * Get dweller status - now directly from backend
@@ -231,8 +241,17 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     sortDirection.value = direction
   }
 
-  function setViewMode(mode: 'list' | 'grid'): void {
+  function setViewMode(mode: DwellerViewMode): void {
     viewMode.value = mode
+  }
+
+  function toggleTableColumn(columnId: DwellerTableColumnId): void {
+    const next = tableColumns.value.includes(columnId)
+      ? tableColumns.value.filter((id) => id !== columnId)
+      : [...tableColumns.value, columnId]
+    if (next.length === 0) return
+    const order = DWELLER_TABLE_COLUMNS.map((column) => column.id)
+    tableColumns.value = [...next].sort((a, b) => order.indexOf(a) - order.indexOf(b))
   }
 
   return {
@@ -246,6 +265,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     sortBy,
     sortDirection,
     viewMode,
+    tableColumns,
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
@@ -257,5 +277,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setSortBy,
     setSortDirection,
     setViewMode,
+    toggleTableColumn,
   }
 })

@@ -3,6 +3,11 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import { getCombatPower, getAbilityConfig, getHealthDisplay } from '@/modules/dwellers/models/dweller'
+import {
+  DEFAULT_TABLE_COLUMNS,
+  type DwellerTableColumnId,
+} from '@/modules/dwellers/models/dwellerTable'
+import type { DwellerViewMode } from '@/modules/dwellers/stores/dwellerFilter'
 import type { Room } from '@/modules/rooms/models/room'
 import DwellerPortrait from './DwellerPortrait.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
@@ -13,16 +18,20 @@ import DwellerGridItem from './grid/DwellerGridItem.vue'
 import DwellerCardSkeleton from './cards/DwellerCardSkeleton.vue'
 import DwellerGridItemSkeleton from './grid/DwellerGridItemSkeleton.vue'
 import DwellerListRow from './DwellerListRow.vue'
+import DwellersTable from './table/DwellersTable.vue'
 
 interface Props {
   dwellers: DwellerShort[]
   generatingAI: Record<string, boolean>
   isLoading: boolean
   rooms: Room[]
-  viewMode: 'list' | 'grid'
+  viewMode: DwellerViewMode
+  columns?: DwellerTableColumnId[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  columns: () => DEFAULT_TABLE_COLUMNS,
+})
 
 const emit = defineEmits<{
   (e: 'view-details', dwellerId: string): void
@@ -125,7 +134,7 @@ const getRoomStat = (
     </DwellerListRow>
   </ul>
 
-  <div v-else class="w-full dweller-grid">
+  <div v-else-if="viewMode === 'grid'" class="w-full dweller-grid">
     <template v-if="isLoading">
       <DwellerGridItemSkeleton v-for="i in 6" :key="`grid-skeleton-${i}`" />
     </template>
@@ -142,6 +151,16 @@ const getRoomStat = (
       @room-click="dweller.room_id && emit('room-click', dweller.room_id)"
     />
   </div>
+
+  <DwellersTable
+    v-else
+    :dwellers="dwellers"
+    :rooms="rooms"
+    :columns="columns"
+    :is-loading="isLoading"
+    @view-details="emit('view-details', $event)"
+    @open-room="emit('open-room', $event)"
+  />
 </template>
 
 <style scoped>

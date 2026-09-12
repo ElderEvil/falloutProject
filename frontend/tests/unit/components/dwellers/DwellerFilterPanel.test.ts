@@ -8,6 +8,8 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 describe('DwellerFilterPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.removeItem('dwellerViewMode')
+    localStorage.removeItem('dwellerTableColumns')
   })
 
   describe('Status Filters', () => {
@@ -86,6 +88,42 @@ describe('DwellerFilterPanel', () => {
 
       const sortDirectionBtn = wrapper.find('.sort-direction-button')
       expect(sortDirectionBtn.exists()).toBe(true)
+    })
+  })
+
+  describe('View modes', () => {
+    it('switches to the table view', async () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
+      const store = useDwellerStore().filter
+
+      const tableButton = wrapper
+        .findAll('.view-toggle-btn')
+        .find((btn) => btn.text().includes('Table'))
+      expect(tableButton).toBeDefined()
+
+      await tableButton!.trigger('click')
+
+      expect(store.viewMode).toBe('table')
+    })
+
+    it('shows the column picker only in table mode and toggles a column', async () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
+      const store = useDwellerStore().filter
+
+      expect(wrapper.text()).not.toContain('Columns')
+
+      store.setViewMode('table')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Columns')
+      const rarityButton = wrapper
+        .findAll('.view-toggle-btn')
+        .find((btn) => btn.text().includes('Rarity'))
+      expect(rarityButton).toBeDefined()
+
+      await rarityButton!.trigger('click')
+
+      expect(store.tableColumns).toContain('rarity')
     })
   })
 

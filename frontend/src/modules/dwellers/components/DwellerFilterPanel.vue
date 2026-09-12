@@ -8,6 +8,7 @@ import {
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
+import { DWELLER_TABLE_COLUMNS } from '../models/dwellerTable'
 
 interface Props {
   showStatusFilter?: boolean
@@ -171,6 +172,36 @@ const toggleSortDirection = () => {
             <Icon icon="mdi:view-grid" width="18" height="18" />
             <span>Grid</span>
           </button>
+          <button
+            :class="['view-toggle-btn', dwellerStore.viewMode === 'table' ? 'active' : '']"
+            @click="dwellerStore.setViewMode('table')"
+          >
+            <Icon icon="mdi:table" width="18" height="18" />
+            <span>Table</span>
+          </button>
+        </div>
+      </div>
+
+      <div v-if="showViewToggle && dwellerStore.viewMode === 'table'" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:table-column" />
+          <span>Columns</span>
+        </div>
+        <div class="view-toggle-controls">
+          <button
+            v-for="column in DWELLER_TABLE_COLUMNS"
+            :key="column.id"
+            type="button"
+            :class="[
+              'view-toggle-btn',
+              dwellerStore.tableColumns.includes(column.id) ? 'active' : '',
+            ]"
+            :aria-pressed="dwellerStore.tableColumns.includes(column.id)"
+            @click="dwellerStore.toggleTableColumn(column.id)"
+          >
+            <Icon :icon="column.icon" width="18" height="18" />
+            <span>{{ column.label }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -256,6 +287,7 @@ const toggleSortDirection = () => {
 
 .view-toggle-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.375rem;
 }
 

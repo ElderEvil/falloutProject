@@ -160,7 +160,7 @@
 }
 
 :root {
-    --map-pane-size: min(960px, calc(100dvh - 16rem));
+    --map-pane-size: max(0px, min(960px, calc(100dvh - 16rem)));
 }
 
 /* === GLOBAL STYLES === */

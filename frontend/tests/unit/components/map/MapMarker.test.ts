@@ -231,6 +231,6 @@ describe('MapMarker', () => {
       },
     })
 
-    expect(wrapper.find('.marker-select-ping').exists()).toBe(true)
+    expect(wrapper.findAll('.marker-select-ping')).toHaveLength(1)
   })
 })

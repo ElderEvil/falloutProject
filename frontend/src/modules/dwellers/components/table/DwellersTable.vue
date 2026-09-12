@@ -132,6 +132,8 @@ function activate(dwellerId: string) {
               type="button"
               class="rounded px-1.5 py-0.5 text-left transition-colors hover:bg-surface-hover"
               @click.stop="emit('open-room', dweller.room_id!)"
+              @keydown.enter.stop
+              @keydown.space.stop
             >
               {{ roomName(dweller.room_id) }}
             </button>

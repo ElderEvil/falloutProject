@@ -97,6 +97,14 @@ describe('DwellersTable', () => {
       expect(wrapper.emitted('open-room')?.[0]).toEqual(['room-1'])
       expect(wrapper.emitted('view-details')).toBeUndefined()
     })
+
+    it('does not activate the row when the room button handles the key', async () => {
+      const wrapper = mountTable(['room'])
+
+      await wrapper.find('tbody td button').trigger('keydown.enter')
+
+      expect(wrapper.emitted('view-details')).toBeUndefined()
+    })
   })
 
   describe('States', () => {

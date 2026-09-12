@@ -50,11 +50,94 @@ runtime fix.
 | Backend `ruff check` | clean |
 | Backfill idempotency (re-run reports 0 changes) | verified |
 
+## Shared Places Registry — active plan of record (former Phase D, promoted)
+
+**Decision:** the map moves to a shared world with a canonical **places registry**. This promotes the former
+Phase D sketch (`WorldLocation` + `VaultLocationState`) from *"deferred until cross-vault queries justify it"* to
+the active foundation. Cross-vault **state** features — raiding, visits, leaderboards, fallen-dweller
+encounters — remain deferred (see below). The registry exists so geography is globally consistent and lore is
+authored once; it does not introduce live shared simulation.
+
+### Target model
+
+| Table | Scope | Contents |
+|---|---|---|
+| `WorldLocation` | global canonical | `normalized_name` (unique merge key), `kind` (`PLACE` / `VAULT`), `vault_number` (partial-unique; real-vault link), `coord_x/y`, canonical `description`, `source` (`seed` / `emergent`) |
+| `VaultLocationState` | per-vault fog | `vault_id`, `location_id`, `type` (unchanged `LocationTypeEnum`), `exploration_id`, per-vault `description`, first-seen |
+| `DwellerLocation` | per-dweller relation | unchanged semantics; FK repointed to `WorldLocation` |
+
+- **Coordinates live in the registry**, derived from `schematic_coords(name)` plus a **registry-level** collision
+  nudge (one global occupied set, first-insert-wins) instead of today's per-vault nudge. Names remain coordinate
+  authority; a curated seed may override coordinates on first insert only.
+- `type` (ORIGIN / VISITED / DISCOVERY / HOME_VAULT) is **per-vault** and moves unchanged onto
+  `VaultLocationState` — a place is one player's origin and another's discovery. The `locationtype` PG enum is
+  reused, so no `DROP VALUE` problem; only `placekind` is new.
+- API/wire shape is unchanged (the service layer owns it); no compatibility view.
+
+### Phases
+
+| Phase | Scope | Gate |
+|---|---|---|
+| **0** | Docs + decisions (this change) | — |
+| **1** | ✅ Shipped in v2.83.0 as an additive revision (schema + idempotent backfill; repoint + drop moved to phase 2) | Row-count parity old vs new; PG integration migration test |
+| **2** | Rewire services/CRUD onto registry + state (`register_bio_places`, `get_vault_map`, `ensure_home_marker`) **plus** the FK swap + drop of the old table | Existing `test_map_service` / `test_map` / `test_discovery_events` pass **unmodified** |
+| **3** | Seed JSON + idempotent loader; NPC vault rows; delete hardcoded `_KNOWN_*` lists and runtime `seeded_vault_specs` path | Golden test: seeded roster matches old `seeded_vault_specs()` output |
+| **4** | ✅ Shipped in v2.82.0 — Race mechanics: newborn race, breeding eligibility, ghoul radiation immunity | Breeding tests preserved; new eligibility + inheritance covered |
+
+Phase 4 decisions (locked):
+- **Breeding rule:** a simple per-race `can_breed` boolean (in `app/options/races.py`) — not a pair-compatibility
+  matrix. Non-humans do not give birth; they enter the population via recruitment, seeding, recycling, and mutation.
+- **Newborn race:** inherit from the parents, with a configurable **mutation chance** to roll a different race
+  (weighted by `race_weights`). This is how non-humans arise from breeding and stay rare.
+- **Race effects:** ghoul **radiation immunity** ships in phase 4 (no radiation gain for ghouls); other per-race
+  effects stay in the separate parked "Race & Faction Gameplay Mechanics" roadmap item.
+| **5** | Map presentation: registry lore on markers, region/tag filtering, fog UX | Frontend contract verified (no `types:generate` diff) |
+| **6** | *Deferred:* raids, visits, fallen dwellers, leaderboards | Revisit with product direction |
+
+Phases 1–3 (registry) and phase 4 (race) shipped independently: race first (v2.82.0), then registry phase 1
+(v2.83.0).
+
+### Migration strategy (phases 1–2)
+
+Two revisions, one per phase, so each PR stays green. Phase 1 (shipped in v2.83.0, additive): create `placekind` +
+both tables; backfill `WorldLocation` by iterating the current rows ordered by `created_at, id`, deduping on
+`normalized_name` (a `HOME_VAULT` row wins ties), assigning `schematic_coords` + registry-level nudge; backfill
+`VaultLocationState` (carrying `type`, `exploration_id`, description, first-seen); add `placekind` to
+`PG_ENUM_LABELS_SNAPSHOT` in the same commit. Phase 2 re-runs the idempotent backfill to absorb drift, repoints
+`DwellerLocation` via a normalized-name join, and drops `wastelandlocation`. Coordinate divergences from the old
+per-vault nudge are accepted as a one-time re-layout (documented deviation from the earlier Phase D.1 wording).
+Zero data loss is proven by PostgreSQL integration tests.
+
+### Seed strategy (phase 3)
+
+One `backend/app/data/places/seed_places.json` = the union of curated sources (the bio-place regex lists, template
+origin/visited places, the procedural place pool). Combinatorial discovery names and AI free-form names are **not**
+seeded — they register emergently. Upsert by `normalized_name` (`DO NOTHING` for name/coords; seed-owned
+description/tags only), run idempotently on startup plus a `fo-cli seed-places` escape hatch, so seed edits never
+need a migration.
+
+### Risks
+
+- **FK swap on `DwellerLocation`** — single-transaction revision + per-vault 1:1 name mapping + count assertions +
+  PG integration test.
+- **Marker shifts** from dropping per-vault nudge — cosmetic (≤3 grid units); divergences logged; changelog note.
+- **Discovery semantics** — discovery routes already project from `Exploration.events` (Phase A), so they survive
+  the table swap; keep `type` / `exploration_id` / `is_unlocked` semantics byte-identical and let the unmodified
+  discovery/map suites prove it.
+
+### Open decisions (settle before the noted phase)
+
+1. ✅ **Breeding rule shape** — per-race `can_breed` boolean (decided).
+2. ✅ **Newborn race** — inheritance + configurable mutation chance (decided).
+3. ✅ **Race effects** — ghoul radiation immunity in phase 4; rest parked (decided).
+4. ⬜ **Seed scope** — confirm excluding combinatorial discovery names (emergent). *(before phase 3)*
+5. ✅ **Ordering** — resolved by events: race shipped first (v2.82.0), registry phases follow.
+
 ## Deferred multiplayer phases (parked)
 
-Raiding and the social/multiplayer layers are intentionally deferred while the single-vault experience is
-polished. The contracts below are retained for when multiplayer is revisited; nothing here is being implemented
-now.
+Raiding and the social/multiplayer **state** layers remain deferred. The registry they would depend on (formerly
+Phase D.1) is now the **active plan of record** above. Everything below is retained for when that state work is
+revisited; nothing in this section is being implemented now.
 
 ### Phase B — async raiding
 
@@ -80,13 +163,15 @@ now.
 
 ### Phase D — social world registry
 
-1. Introduce `WorldLocation` (normalized-name authority and canonical coordinates) plus
-   `VaultLocationState` (discovered/unlocked/first-seen metadata). Backfill per-vault rows by normalized name
-   and compare coordinates before merging; retain conflicts for review rather than silently moving markers.
+1. **Promoted** — `WorldLocation` (normalized-name authority and canonical coordinates) plus
+   `VaultLocationState` (discovered/unlocked/first-seen metadata) are now the active plan of record above. The
+   coordinate-conflict policy there supersedes the earlier "retain conflicts for review" wording: canonical
+   coordinates are recomputed from the name (the authority) and divergences are logged.
 2. Vault visits require an explicit friends/permission graph and versioned, read-only vault snapshots. Map and
    leaderboard responses use privacy-safe aggregate data, pagination, and rate limits.
 3. Add observability before global queries: registry conflict count, route projection failures, raid resolution
-   retries, and per-vault map payload size. Migrate only once cross-vault queries, not speculation, justify it.
+   retries, and per-vault map payload size. The registry above ships on the shared-places goal; cross-vault
+   *state* queries still wait until they, not speculation, justify their own work.
 
 ## Deferred outside the map plan
 

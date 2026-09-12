@@ -71,15 +71,45 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   reward delivery, and prerequisite rules.
 - [ ] **Infrastructure batch** — clean up health checks, storage, email, WebSocket/streaming, notifications, and
   backfill services without hiding operational failures.
-- [ ] **Persistence-boundary hardening (Area 1)** — the AST guard is blind to `text()`, `session.execute()`, and
-  `session.get()` in services, and 20+ sites use them to bypass CRUD. Three slices, one branch each:
-  1. **Advisory-lock SQL + guard teeth** — centralize the `pg_try_advisory_lock`/`unlock` raw SQL (incident_tick,
-     incident_spawning, arena_service) plus the health-check `SELECT 1` behind one infra helper; extend the guard
-     to flag `text(`, `.execute(`, and `.get(` in services so this class stays dead.
-  2. **Session-read sweep A (game loop core)** — route `db_session.get()` through CRUD getters in quest_service
-     (7 sites), incident tick/spawning, map, radio, item, happiness, and transfer services.
-  3. **Session-read sweep B (rest) + proof** — same treatment for user, ai_usage, breeding, and the three
-     backfill services; final proof is a green guard with zero new baseline entries.
+- [x] **Persistence-boundary hardening (Area 1)** — shipped #578/#579/#580: advisory locks + pg ping centralized in
+  `app/core/db_locks.py`; all 23 direct session reads routed through CRUD; the guard now flags `text(`, `.execute(`,
+  and `<session>.get(` in services with **zero** baseline entries. Fixed a latent bug along the way (`incident_tick`
+  read pause state by the wrong PK, so paused vaults kept processing incidents).
+  - ⬜ **Follow-up: advisory-lock connection pinning** — a session-level advisory lock is acquired and released on
+    `db_session`, which may hand out a different pooled connection after intermediate commits. Currently bounded
+    because the tick actors run through `task_session()` (fresh engine per run, disposed at run end), so the lock is
+    freed on dispose — latent, not live. Harden by pinning the lock to a dedicated `AsyncConnection` for its full
+    lifetime, plus a real-PostgreSQL integration test that commits between acquire and release.
+- [ ] **Upward-dependency elimination (Area 2)** — nothing below the API layer may import `app.api`.
+  - **Shipped #581:** pregnancy vault-access check moved out of CRUD; `get_static_game_data` relocated to
+    `app/core/game_data.py`; `test_lower_layers_do_not_depend_on_api` scans `crud/` + `services/` (no baseline).
+  - ⬜ **CRUD commit deferral (narrow, corrected scope)** — the earlier "CRUD never commits" framing was too broad.
+    `SERVICE_LAYER.md`'s target is aspirational and explicitly grandfathers legacy CRUD commits; `notification.create`
+    and `CRUDBase.update` already commit by default (`commit: bool = True`). Deferring the commit is only justified
+    where a service must compose **multiple** mutations into one atomic unit (an internal commit would force a
+    premature partial commit) — and it must not become flush-only, which silently loses a mutation for any caller
+    that forgets to commit. So: keep CRUD committing by default; add a `commit` opt-out only for methods a service
+    actually composes, characterization tests first. No notification / relationship / quest-party method qualifies.
+    (A `crud/notification.py` attempt was reverted for exactly this reason.)
+  - ⬜ **CRUD business logic** — item/room/dweller rules still in CRUD (`item_base.convert_to_junk`, `room` formula
+    evaluator/build-price, `dweller` template reservation + XP curve), `mixins.complete` completion orchestration,
+    and `quest.get_multi_for_vault` which writes on a read path.
+- [ ] **Endpoint hygiene (Area 3)** — map `DomainError` to HTTP in one API-boundary handler instead of per-endpoint
+  `except DomainError -> HTTPException` remaps (auth, training, relationship, user, game_control, pregnancy, quest,
+  exploration, radio); thin the fat handlers (`game_control.get_game_balance_settings`, `dweller` revive/dead-list,
+  `quest.start_quest`); stop endpoints issuing `select()`/`db_session.get()` and calling CRUD for state changes.
+- [ ] **Debug surface** — shipped #583: the unauthenticated, state-mutating `/debug` router is replaced by
+  `fo-cli debug` commands (evaluators wired as at startup); remaining `/pregnancies/debug/*` routes to reassess.
+- [ ] **Oversized-module splits (Area 4)** — seam maps ready for `vault_service` (807), `crud/dweller` (760),
+  `reward_service` (635), `breeding_service` (601), `family_scenario_service` (570), `ai_service` (563),
+  `exploration/rewards_service` (557), `dweller_ai` (540), `map_service` (483), `objective_evaluators` (469),
+  `arena_service` (464), `health_check` (462) — plus `relationship_service`/`notification_service`/`radio_service`
+  (all >400). Use the `combat/` + `game_tick/` facade pattern; deleting a grandfathered top-level name requires
+  removing its `SERVICE_NAME_GRANDFATHER` entry in the same commit.
+- [ ] **Duplication clusters (Area 4)** — ranked: item builders (`reward_service` vs `exploration/rewards_service` vs
+  vault seeding), health/radiation appliers (`event_service` trio vs `radiation_service` vs `incident_round`),
+  `notify_owner` + `create_and_send` repetition, `LETTER_TO_STAT` vs `ABILITY_TO_STAT_MAP`, prod helpers duplicated
+  into test utils/factories, CRUD "get dwellers by vault" variants.
 
 **Rewrite rules:** keep each batch below 100 files; preserve public service singleton names during migration; add
 characterization/regression tests before changing behavior; move reusable queries into existing CRUD modules instead
@@ -273,6 +303,14 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
   fix), quest party-roster rendering, and the discovery-unlock fix (`register_discovery` links the exploring
   dweller; v2.46.1 backfill script repairs pre-fix rows).
 
+**Direction — Shared Places Registry (multiplayer foundation):** the map moves to a shared world with a
+canonical places registry (`WorldLocation` + `VaultLocationState`). Coordinates become global (name-derived, no
+per-vault drift), lore is authored once, and the fragmented place-name sources (bio-place backfill regex lists,
+dweller templates, procedural pool) collapse into one JSON seed. Cross-vault **state** — raids, visits,
+leaderboards, fallen-dweller encounters — stays deferred; the registry is only the geography those would build on.
+Phases 0–6, the migration strategy, and the seed strategy live in `docs/WORLD_MAP_PLAN.md`; race mechanics shipped
+first (v2.82.0), registry phase 1 (tables + backfill) shipped in v2.83.0, service cutover follows.
+
 **Current focus — World Map + exploration polish (easy first, hard planned):**
 
 - ✅ **Shipped** — locked-marker discoverability hint. The locked modal (`MarkerDetailModal.vue`) shows
@@ -299,12 +337,14 @@ context for the player's own dwellers. Feature contract: `docs/features/WORLD_MA
 Feature description: `docs/features/WASTELAND_JOURNAL.md`; delivery checklist and verification:
 `docs/WORLD_MAP_PLAN.md`.
 
-**Out of scope:** multiplayer world simulation, async-PvP raids, cross-vault fallen dwellers, friends, visits, and
-leaderboards are not planned work. Revisit only with a separate product direction; no map architecture should be
-optimized around them now.
+**Out of scope:** multiplayer **state** — live world simulation, async-PvP raids, cross-vault fallen dwellers,
+friends, visits, and leaderboards — remains unplanned; revisit only with a separate product direction. The shared
+places registry is explicitly in scope as the foundation those features would build on, without optimizing the
+registry itself around them.
 
-**Guardrails:** keep map state vault-local and exploration-led; no global location registry or cross-vault simulation;
-respect the v2.35+ net-LOC constraint (journal polish deletes more than it adds).
+**Guardrails:** keep per-vault discovery/unlock state vault-local; the registry owns only shared geography (name,
+coordinates, canonical lore) and no live simulation; respect the v2.35+ net-LOC constraint (claw back per-vault
+nudge machinery and the duplicated place-name sources as the registry lands).
 
 **Success criteria:** the near-term release delivers a legible per-explorer journey (loot + health-change trail +
 map route), discovery events deep-link to their map marker, and neighbor vaults sit at globally-consistent

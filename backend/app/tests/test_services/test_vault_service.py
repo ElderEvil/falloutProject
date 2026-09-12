@@ -1,11 +1,15 @@
 """Tests for vault service - initialization, resources, medical transfers."""
 
+from operator import itemgetter
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from pydantic import UUID4, ValidationError
 
 from app.core.game_config import game_config
+from app.core.game_data import get_static_game_data
+from app.core.grid_config import FLOOR_UNITS, SHAFT_X
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.storage import Storage
@@ -46,6 +50,22 @@ OTHER_DWELLER_ID = UUID4("82345678-1234-4abc-9def-8234567890ab")
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _layout_issues(rooms: list[RoomCreate]) -> tuple[int, int, bool]:
+    """Count overlaps and floating rooms, and check the floor width, on the unit grid."""
+    spans = [(room.coordinate_y, room.coordinate_x, room.coordinate_x + room.size - 1) for room in rooms]
+    overlaps = 0
+    floating = 0
+    for level_y in {span[0] for span in spans}:
+        level = sorted((span for span in spans if span[0] == level_y), key=itemgetter(1))
+        for index, (_, start, end) in enumerate(level):
+            overlaps += int(index + 1 < len(level) and level[index + 1][1] <= end)
+            touches = (index > 0 and level[index - 1][2] + 1 == start) or (
+                index + 1 < len(level) and level[index + 1][1] == end + 1
+            )
+            floating += int(not touches)
+    return overlaps, floating, all(end < FLOOR_UNITS for _, _, end in spans)
 
 
 def _make_room_create(
@@ -725,6 +745,29 @@ class TestUpdateVaultResources:
 @pytest.mark.asyncio
 class TestInitiateVault:
     """Integration-style tests for the full initiate_vault orchestration."""
+
+    async def test_prepared_initial_rooms_fit_the_unit_grid(self) -> None:
+        """Standard and boosted layouts sit on unit slots with no overlaps or floating rooms."""
+        game_data = await get_static_game_data()
+        vault_id = uuid4()
+
+        for is_boosted in (False, True):
+            prepared = VaultService()._prepare_initial_rooms(game_data.rooms, vault_id, is_boosted)
+            rooms = [
+                *prepared.infrastructure,
+                *prepared.capacity,
+                *prepared.production,
+                *prepared.misc,
+                *prepared.training,
+                *prepared.arena,
+            ]
+
+            assert _layout_issues(rooms) == (0, 0, True)
+
+            elevators = sorted(
+                (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"
+            )
+            assert elevators == [(SHAFT_X, 0), (SHAFT_X, 1), (SHAFT_X, 2), (SHAFT_X, 3)]
 
     async def test_initiate_vault_boosted(self) -> None:
         """Boosted vault includes training sessions."""

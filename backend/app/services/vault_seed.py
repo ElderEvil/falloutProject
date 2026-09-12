@@ -6,7 +6,7 @@ from app.core.enums import OutfitTypeEnum, RarityEnum, SPECIALEnum, WeaponSubtyp
 from app.models import Room
 from app.schemas.room import RoomCreate
 
-BOOSTED_LIVING_ROOM_COORDINATES = ((4, 3), (5, 3), (3, 3), (7, 3), (1, 3), (2, 3))
+BOOSTED_LIVING_ROOM_COORDINATES = ((16, 3), (19, 3), (22, 3), (25, 3), (7, 0), (10, 0))
 BOOSTED_TRAINING_STATS = (
     SPECIALEnum.STRENGTH,
     SPECIALEnum.PERCEPTION,

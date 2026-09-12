@@ -90,9 +90,7 @@ class VaultService:
         def mk(specs: list[tuple[str, int, int]]) -> list[RoomCreate]:
             return [self._build_room(rooms_by_name, n, vault_id, x, y) for n, x, y in specs]
 
-        infrastructure = mk(
-            [("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]]
-        )
+        infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]])
         if is_boosted:
             living_template = rooms_by_name.get("living room")
             cap_per = (

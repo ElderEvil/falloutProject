@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.1 (2026-09-12)
+
+### Bug Fixes
+
+* **rooms:** charge and refund extended rooms per merged segment ([#596](https://github.com/ElderEvil/falloutProject/issues/596)) a1dea40
+
 ## 2.87.0 (2026-09-12)
 
 ### Features

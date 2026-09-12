@@ -448,7 +448,8 @@ class RoomService:
 
         db_obj = await crud.room.delete(db_session, id=room_id)
 
-        refundable_total = db_obj.base_cost + (db_obj.incremental_cost or 0)
+        merge_segments = max((db_obj.size or db_obj.size_min) // db_obj.size_min, 1)
+        refundable_total = (db_obj.base_cost + (db_obj.incremental_cost or 0)) * merge_segments
 
         if db_obj.tier >= 2 and db_obj.t2_upgrade_cost:
             refundable_total += db_obj.t2_upgrade_cost

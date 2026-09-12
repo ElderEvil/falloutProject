@@ -303,6 +303,7 @@ function onPanelMarkerSelect(payload: {
 .world-map-container {
   width: min(960px, calc(100vh - 13rem));
   width: min(960px, calc(100dvh - 13rem));
+  max-width: min(100%, calc(100vw - 2rem));
   aspect-ratio: 1 / 1;
   border: 1px solid var(--color-theme-primary);
   background-color: var(--color-terminal-background);

@@ -94,6 +94,15 @@ const gridLines = computed(() => {
   return lines
 })
 
+// Coordinate labels every 20 units along edges
+const coordLabels = computed(() => {
+  const labels: number[] = []
+  for (let i = 0; i <= 160; i += 20) {
+    labels.push(i)
+  }
+  return labels
+})
+
 // ── Spread markers ─────────────────────────────────────────────────────
 const spreadMap = computed(() => {
   const allInputs = [
@@ -173,6 +182,12 @@ function onPanelMarkerSelect(payload: {
       @mouseleave="handleMouseUp"
       @wheel.prevent="handleWheel"
     >
+      <!-- Map sector label — top-left cartographic stamp -->
+      <div class="map-sector-stamp" aria-hidden="true">
+        <span class="sector-label">SECTOR 7G</span>
+        <span class="sector-sub">WASTELAND SURVEY</span>
+      </div>
+
       <svg
         ref="svgRef"
         :viewBox="viewBox"
@@ -181,62 +196,91 @@ function onPanelMarkerSelect(payload: {
         focusable="false"
         @mousedown="handleMouseDown"
       >
-      <!-- Terrain layer (bottom — behind grid and markers) -->
-      <TerrainLayer />
+        <!-- SVG defs for map-specific effects -->
+        <defs>
+          <!-- Discovery trail gradient — phosphor decay -->
+          <linearGradient id="trail-decay" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--color-theme-accent)" stop-opacity="0.7" />
+            <stop offset="100%" stop-color="var(--color-theme-accent)" stop-opacity="0.15" />
+          </linearGradient>
+        </defs>
 
-      <!-- Grid lines -->
-      <line
-        v-for="pos in gridLines"
-        :key="`h-${pos}`"
-        :x1="0"
-        :y1="pos"
-        :x2="160"
-        :y2="pos"
-        class="grid-line"
-      />
-      <line
-        v-for="pos in gridLines"
-        :key="`v-${pos}`"
-        :x1="pos"
-        :y1="0"
-        :x2="pos"
-        :y2="160"
-        class="grid-line"
-      />
+        <!-- Terrain layer (bottom — behind grid and markers) -->
+        <TerrainLayer />
 
-      <!-- Discovery routes (per-exploration trail) -->
-      <polyline
-        v-for="(route, i) in discoveryRouteLines"
-        :key="`route-${i}`"
-        :points="route"
-        class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
-        fill="none"
-      />
+        <!-- Grid lines -->
+        <line
+          v-for="pos in gridLines"
+          :key="`h-${pos}`"
+          :x1="0"
+          :y1="pos"
+          :x2="160"
+          :y2="pos"
+          class="grid-line"
+        />
+        <line
+          v-for="pos in gridLines"
+          :key="`v-${pos}`"
+          :x1="pos"
+          :y1="0"
+          :x2="pos"
+          :y2="160"
+          class="grid-line"
+        />
 
-      <!-- Location markers (spread-adjusted positions) -->
-      <MapMarker
-        v-for="loc in visibleLocations"
-        :key="`loc-${loc.id}`"
-        :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
-        :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
-        :name="loc.name"
-        :type="loc.type"
-        :is_unlocked="loc.is_unlocked"
-        :selected="selectedMarkerId === `loc-${loc.id}`"
-        @click="onLocationClick(loc)"
-      />
+        <!-- Coordinate labels along edges (every 20 units) -->
+        <text
+          v-for="pos in coordLabels"
+          :key="`cl-top-${pos}`"
+          :x="pos"
+          :y="3"
+          class="coord-label"
+          text-anchor="middle"
+          aria-hidden="true"
+        >{{ pos }}</text>
+        <text
+          v-for="pos in coordLabels"
+          :key="`cl-left-${pos}`"
+          :x="3"
+          :y="pos + 1"
+          class="coord-label"
+          text-anchor="start"
+          aria-hidden="true"
+        >{{ pos }}</text>
 
-      <!-- Vault markers (spread-adjusted positions) -->
-      <MapMarker
-        v-for="(vm, idx) in vaultMarkers"
-        :key="`vault-${idx}`"
-        :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
-        :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
-        :name="vm.name"
-        :type="vm.type"
-        :selected="selectedMarkerId === `vault-${idx}`"
-        @click="onVaultClick(vm)"
-      />
+        <!-- Discovery routes (per-exploration trail) -->
+        <polyline
+          v-for="(route, i) in discoveryRouteLines"
+          :key="`route-${i}`"
+          :points="route"
+          class="discovery-trail"
+          fill="none"
+        />
+
+        <!-- Location markers (spread-adjusted positions) -->
+        <MapMarker
+          v-for="loc in visibleLocations"
+          :key="`loc-${loc.id}`"
+          :x="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderX"
+          :y="getSpread(`loc-${loc.id}`, loc.coord_x, loc.coord_y).renderY"
+          :name="loc.name"
+          :type="loc.type"
+          :is_unlocked="loc.is_unlocked"
+          :selected="selectedMarkerId === `loc-${loc.id}`"
+          @click="onLocationClick(loc)"
+        />
+
+        <!-- Vault markers (spread-adjusted positions) -->
+        <MapMarker
+          v-for="(vm, idx) in vaultMarkers"
+          :key="`vault-${idx}`"
+          :x="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderX"
+          :y="getSpread(`vault-${idx}`, vm.coord_x, vm.coord_y).renderY"
+          :name="vm.name"
+          :type="vm.type"
+          :selected="selectedMarkerId === `vault-${idx}`"
+          @click="onVaultClick(vm)"
+        />
       </svg>
 
       <!-- Zoom controls overlay -->
@@ -319,6 +363,55 @@ function onPanelMarkerSelect(payload: {
   stroke: var(--color-theme-primary);
   stroke-width: 0.15;
   stroke-opacity: 0.12;
+}
+
+/* Coordinate labels — cartographic reference */
+.coord-label {
+  fill: var(--color-theme-primary);
+  font-family: var(--font-family-mono);
+  font-size: 1.6px;
+  opacity: 0.2;
+  letter-spacing: 0.02em;
+}
+
+/* Discovery trail — phosphor decay treatment */
+.discovery-trail {
+  stroke: var(--color-theme-accent);
+  stroke-width: 0.4;
+  opacity: 0.55;
+  stroke-dasharray: 2 2;
+  stroke-linecap: round;
+}
+
+/* Map sector stamp — top-left cartographic identity */
+.map-sector-stamp {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sector-label {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--color-theme-primary);
+  opacity: 0.35;
+}
+
+.sector-sub {
+  font-family: var(--font-family-mono);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: var(--color-theme-primary);
+  opacity: 0.2;
+  text-transform: uppercase;
 }
 
 /* Zoom controls overlay */

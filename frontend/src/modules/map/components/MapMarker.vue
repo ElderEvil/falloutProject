@@ -76,6 +76,13 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
          of <g> - wrapping it in HTML elements (e.g. a tooltip <div>) collapses
          it to 0x0 in Chromium and the marker becomes invisible. -->
     <title>{{ tooltipText }}</title>
+
+    <!-- Phosphor glow halo — atmospheric depth behind the icon -->
+    <circle cx="0" cy="0" r="4.5" class="marker-halo" />
+
+    <!-- Selection ring — animated when selected -->
+    <circle v-if="selected" cx="0" cy="0" r="5.5" class="marker-select-ring" />
+
     <foreignObject x="-3" y="-3" width="6" height="6">
       <div
         v-bind="{ xmlns: 'http://www.w3.org/1999/xhtml' }"
@@ -98,6 +105,39 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
 <style scoped>
 .map-marker {
   transition: transform 150ms ease;
+}
+
+/* Phosphor glow halo — subtle atmospheric depth */
+.marker-halo {
+  fill: var(--color-theme-primary);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.map-marker:hover .marker-halo,
+.map-marker:focus-visible .marker-halo {
+  opacity: 0.12;
+}
+
+.marker-type-vault .marker-halo {
+  fill: var(--color-warning);
+}
+
+.marker-locked .marker-halo {
+  fill: var(--color-theme-primary);
+}
+
+/* Selection ring — animated phosphor pulse */
+.marker-select-ring {
+  fill: none;
+  stroke: var(--color-theme-primary);
+  stroke-width: 0.2;
+  opacity: 0.7;
+  animation: select-pulse 2s ease-in-out infinite;
+}
+
+.marker-type-vault .marker-select-ring {
+  stroke: var(--color-warning);
 }
 
 .map-marker:hover .marker-icon,
@@ -170,6 +210,18 @@ const tooltipText = computed(() => `${displayLabel.value} (${label.value})`)
   50% {
     opacity: 1;
     transform: scale(1.15);
+  }
+}
+
+@keyframes select-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    r: 5.5;
+  }
+  50% {
+    opacity: 0.3;
+    r: 6.5;
   }
 }
 </style>

@@ -105,6 +105,20 @@ const hasNoData = computed(
             subtitle="Track discoveries, expeditions & the wider wasteland."
           />
 
+          <!-- Cartographic status bar -->
+          <div class="map-status-bar" aria-hidden="true">
+            <span class="status-item">
+              <span class="status-dot"></span>
+              SURVEY ACTIVE
+            </span>
+            <span class="status-item status-coords">
+              GRID 160×160
+            </span>
+            <span class="status-item">
+              SIGNALS: {{ mapStore.locations.length + mapStore.vaultMarkers.length }}
+            </span>
+          </div>
+
           <!-- Loading skeleton -->
           <div v-if="mapStore.isLoading" class="map-skeleton">
             <USkeleton width="100%" height="400px" rounded="lg" />
@@ -118,6 +132,10 @@ const hasNoData = computed(
 
           <!-- Empty state -->
           <div v-else-if="hasNoData" class="empty-state">
+            <div class="empty-signal-icon" aria-hidden="true">
+              <span class="signal-ring"></span>
+              <span class="signal-ring signal-ring-outer"></span>
+            </div>
             <p class="empty-text terminal-glow-subtle">
               The wasteland is uncharted. Recruit dwellers and send explorers to fill the map.
             </p>
@@ -177,6 +195,48 @@ const hasNoData = computed(
   text-shadow: 0 0 2px var(--color-theme-glow);
 }
 
+/* Cartographic status bar */
+.map-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.375rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 15%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-theme-primary);
+  opacity: 0.5;
+  max-width: 800px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.status-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-theme-primary);
+  animation: status-blink 2s steps(1) infinite;
+}
+
+.status-coords {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .map-skeleton {
   max-width: 800px;
 }
@@ -185,6 +245,47 @@ const hasNoData = computed(
   max-width: 800px;
   padding: 4rem 2rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-signal-icon {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1rem;
+}
+
+.signal-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.4;
+  animation: signal-ping 3s ease-out infinite;
+}
+
+.signal-ring-outer {
+  width: 24px;
+  height: 24px;
+  animation-delay: 0.5s;
+  opacity: 0.2;
+}
+
+@keyframes signal-ping {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
 }
 
 .empty-text {

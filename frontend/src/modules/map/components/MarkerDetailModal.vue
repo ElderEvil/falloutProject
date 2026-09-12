@@ -109,31 +109,35 @@ function dwellerDisplayName(first: string, last: string | null) {
 
 <template>
   <UModal v-model="isOpen" :title="modalTitle" size="md" surface="base">
-    <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
-      <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
-      <h3 class="mt-4 text-lg font-bold text-theme-primary">Unknown Location</h3>
-      <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
-        Chat with a dweller who has been here to uncover this place.
-      </p>
-      <div v-if="dwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
-        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">KNOWN CONTACTS</p>
-        <button
-          v-for="d in dwellers"
-          :key="d.dweller_id"
-          type="button"
-          class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-          @click="goToDwellerChat(d.dweller_id)"
-        >
-          <span class="text-sm text-theme-primary underline underline-offset-2">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
-          <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
-        </button>
+    <div v-if="isLocked" class="locked-location-view">
+      <div class="locked-scanline-header" aria-hidden="true"></div>
+      <div class="flex flex-col items-center py-6 text-center">
+        <Icon icon="mdi:lock-question" class="locked-icon" />
+        <h3 class="mt-4 text-lg font-bold text-theme-primary terminal-glow-subtle">Unknown Location</h3>
+        <p class="mt-2 max-w-sm text-sm leading-6 text-theme-primary/60">
+          Chat with a dweller who has been here to uncover this place.
+        </p>
+        <div v-if="dwellers" class="mt-4 w-full max-w-sm space-y-1.5 text-left">
+          <p class="section-label">KNOWN CONTACTS</p>
+          <button
+            v-for="d in dwellers"
+            :key="d.dweller_id"
+            type="button"
+            class="dweller-contact flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+            @click="goToDwellerChat(d.dweller_id)"
+          >
+            <span class="text-sm text-theme-primary underline underline-offset-2">{{ dwellerDisplayName(d.first_name, d.last_name) }}</span>
+            <Icon icon="mdi:message-text-outline" class="h-4 w-4 text-theme-primary/60" />
+          </button>
+        </div>
       </div>
     </div>
     <div v-else class="space-y-5">
-      <section class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+      <section class="field-report-section">
+        <div class="field-report-scanline" aria-hidden="true"></div>
         <div class="flex items-start justify-between gap-4">
           <div>
-            <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">WASTELAND FIELD REPORT</p>
+            <p class="section-label">WASTELAND FIELD REPORT</p>
             <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
           </div>
           <UBadge :variant="badgeVariant" size="md">{{ placeType }}</UBadge>
@@ -151,13 +155,17 @@ function dwellerDisplayName(first: string, last: string | null) {
         </div>
       </section>
 
-      <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
-        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
+      <section class="site-notes-section">
+        <p class="section-label">SITE NOTES</p>
         <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
       </section>
 
       <section v-if="dwellers" class="border-t border-theme-primary/20 pt-4">
-        <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">Linked Dwellers</h4>
+        <h4 class="mb-2 text-sm font-bold uppercase text-theme-primary">
+          <span class="text-theme-primary/40">[</span>
+          Linked Dwellers
+          <span class="text-theme-primary/40">]</span>
+        </h4>
         <ul class="space-y-1.5">
           <li v-for="d in dwellers" :key="d.dweller_id">
             <button type="button" class="dweller-entry flex w-full items-center justify-between gap-3 rounded border border-theme-primary/20 bg-surface px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50" @click="goToDweller(d.dweller_id)">
@@ -170,3 +178,73 @@ function dwellerDisplayName(first: string, last: string | null) {
     </div>
   </UModal>
 </template>
+
+<style scoped>
+.locked-location-view {
+  position: relative;
+  overflow: hidden;
+}
+
+.locked-scanline-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--color-theme-primary) 0px,
+    var(--color-theme-primary) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.15;
+}
+
+.locked-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-theme-primary);
+  opacity: 0.3;
+  animation: locked-static 3s steps(3) infinite;
+}
+
+.field-report-section {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+  background-color: var(--color-surface-sunken);
+  padding: 1rem;
+}
+
+.field-report-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-theme-primary);
+  opacity: 0.1;
+}
+
+.site-notes-section {
+  border-left: 2px solid color-mix(in srgb, var(--color-theme-primary) 50%, transparent);
+  background-color: var(--color-surface);
+  padding: 1rem;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-theme-primary);
+  opacity: 0.6;
+}
+
+@keyframes locked-static {
+  0%, 100% { opacity: 0.3; }
+  33% { opacity: 0.2; }
+  66% { opacity: 0.35; }
+}
+</style>

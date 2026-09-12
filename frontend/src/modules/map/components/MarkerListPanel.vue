@@ -94,7 +94,11 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
     <!-- Panel -->
     <aside v-show="props.docked || isOpen" class="marker-list-panel" role="complementary" aria-label="Marker list">
       <div class="panel-header">
-        <span class="panel-title">MARKERS</span>
+        <span class="panel-title">
+          <span class="panel-bracket">[</span>
+          MARKERS
+          <span class="panel-bracket">]</span>
+        </span>
         <span class="panel-count">{{ totalCount }}</span>
       </div>
 
@@ -113,6 +117,7 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
             :class="{ selected: selectedMarkerId === item.id }"
             @click="handleItemClick(item)"
           >
+            <span class="marker-row-indicator" aria-hidden="true"></span>
             <span class="marker-name">{{ item.name }}</span>
           </button>
         </div>
@@ -204,6 +209,14 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.panel-bracket {
+  opacity: 0.4;
+  font-weight: 700;
 }
 
 .panel-count {
@@ -247,9 +260,11 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .marker-row {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 100%;
-  padding: 3px 8px 3px 22px;
+  padding: 3px 8px 3px 10px;
   text-align: left;
   background: transparent;
   border: none;
@@ -260,7 +275,6 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   transition: background var(--transition-fast);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .marker-row:hover {
@@ -272,8 +286,24 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   box-shadow: inset 2px 0 0 var(--color-theme-primary);
 }
 
+.marker-row-indicator {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-theme-primary);
+  opacity: 0.25;
+  flex-shrink: 0;
+}
+
+.marker-row.selected .marker-row-indicator {
+  opacity: 1;
+  box-shadow: 0 0 4px var(--color-theme-glow);
+}
+
 .marker-name {
   pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .empty-state {
@@ -286,6 +316,10 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 /* Vault type styling */
 .marker-group:last-child .group-icon {
   color: var(--color-warning);
+}
+
+.marker-group:last-child .marker-row-indicator {
+  background: var(--color-warning);
 }
 
 /* Scrollbar styling */

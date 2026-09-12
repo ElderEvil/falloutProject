@@ -34,7 +34,11 @@ const legendItems: LegendItem[] = [
 
 <template>
   <div class="map-legend" role="complementary" aria-label="Map legend">
-    <div class="legend-title">MAP KEY</div>
+    <div class="legend-title">
+      <span class="legend-bracket">[</span>
+      MAP KEY
+      <span class="legend-bracket">]</span>
+    </div>
     <div v-for="item in legendItems" :key="item.type" class="legend-item">
       <span class="legend-icon-wrapper" :class="item.colorClass">
         <Icon :icon="item.icon" class="legend-icon" />
@@ -68,6 +72,14 @@ const legendItems: LegendItem[] = [
   opacity: 0.6;
   margin-bottom: 4px;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.legend-bracket {
+  opacity: 0.4;
+  font-weight: 700;
 }
 
 .legend-item {

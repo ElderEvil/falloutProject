@@ -135,9 +135,10 @@ uv run fo-cli backfill merge-rooms --all-active           # preview
 uv run fo-cli backfill merge-rooms --all-active --apply   # persist
 ```
 
-Scope a single vault with `--vault <uuid>` instead of `--all-active`. Both commands skip deleted vaults, and
-`backfill-vault-layout --apply` refuses to commit a layout that still has overlaps, floating rooms, or a floor
-wider than the grid. Run `backfill-vault-layout` before `merge-rooms` when both are needed.
+Scope a single vault with `--vault <uuid>` instead of `--all-active`: `--all-active` skips deleted vaults, while
+`--vault <uuid>` targets that vault directly and fails when it is missing or deleted. `backfill-vault-layout
+--apply` refuses to commit a layout that still has overlaps, floating rooms, or a floor wider than the grid. Run
+`backfill-vault-layout` before `merge-rooms` when both are needed.
 
 To run them against a cluster, execute inside the backend pod so it uses the deployed database and image:
 

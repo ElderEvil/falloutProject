@@ -1,14 +1,19 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '@/core/plugins/axios'
 import { AxiosError } from 'axios'
+import type { components } from '@/core/types/api.generated'
 import type { Room, RoomBuild, RoomTemplate } from '../models/room'
+import { FLOOR_UNITS, ROOM_SLOT_STARTS, SHAFT_X, UNITS_PER_ROOM, BUILD_Y_MAX, Y_MAX } from '../models/grid'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+
+type GridConfig = components['schemas']['GridConfig']
 
 export const useRoomStore = defineStore('room', () => {
   // State
   const rooms = ref<Room[]>([])
+  const gridConfig = ref<GridConfig | null>(null)
   const availableRooms = ref<RoomTemplate[]>([])
   const selectedRoom = ref<RoomTemplate | null>(null)
   const isPlacingRoom = ref(false)
@@ -71,7 +76,8 @@ export const useRoomStore = defineStore('room', () => {
     coordinateY: number,
     token: string,
     vaultId: string
-  ) {
+  ): Promise<'built' | 'extended'> {
+    let result: 'built' | 'extended' = 'built'
     try {
       const roomData: RoomBuild = {
         vault_id: vaultId,
@@ -84,7 +90,14 @@ export const useRoomStore = defineStore('room', () => {
           Authorization: `Bearer ${token}`,
         },
       })
-      rooms.value.push(response.data)
+      const existingIndex = rooms.value.findIndex((room) => room.id === response.data.id)
+      if (existingIndex !== -1) {
+        rooms.value[existingIndex] = response.data
+        result = 'extended'
+      } else {
+        rooms.value.push(response.data)
+        result = 'built'
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to build room')
       if (error instanceof AxiosError && error.response?.data?.detail) {
@@ -94,6 +107,9 @@ export const useRoomStore = defineStore('room', () => {
     }
     // Refresh vault to update caps (non-throwing)
     await refreshVaultSafely(vaultId, token, 'Failed to refresh vault after building room')
+    // A merge can absorb several rooms, so resync the list instead of trusting one response.
+    await fetchRooms(vaultId, token)
+    return result
   }
 
   async function destroyRoom(roomId: string, token: string, vaultId: string): Promise<void> {
@@ -153,14 +169,46 @@ export const useRoomStore = defineStore('room', () => {
     isPlacingRoom.value = false
   }
 
+  // Grid geometry is owned by the backend; local defaults cover the first paint.
+  const floorUnits = computed(() => gridConfig.value?.floor_units ?? FLOOR_UNITS)
+  const shaftX = computed(() => gridConfig.value?.shaft_x ?? SHAFT_X)
+  const unitsPerRoom = computed(() => gridConfig.value?.units_per_room ?? UNITS_PER_ROOM)
+  const roomSlotStarts = computed(() => {
+    const config = gridConfig.value
+    return config
+      ? [...config.left_slot_starts, ...config.right_slot_starts]
+      : [...ROOM_SLOT_STARTS]
+  })
+  const buildYMax = computed(() => gridConfig.value?.build_y_max ?? BUILD_Y_MAX)
+  const yMax = computed(() => gridConfig.value?.y_max ?? Y_MAX)
+
+  async function fetchGridConfig(token: string): Promise<void> {
+    try {
+      const response = await axios.get<GridConfig>('/api/v1/rooms/grid-config/', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      gridConfig.value = response.data
+    } catch (error) {
+      handleStoreError(error, 'Failed to fetch grid config')
+    }
+  }
+
   return {
     // State
     rooms,
+    gridConfig,
     availableRooms,
     selectedRoom,
     isPlacingRoom,
+    floorUnits,
+    shaftX,
+    unitsPerRoom,
+    roomSlotStarts,
+    buildYMax,
+    yMax,
     // Actions
     fetchRooms,
+    fetchGridConfig,
     fetchBuildableRooms,
     buildRoom,
     destroyRoom,

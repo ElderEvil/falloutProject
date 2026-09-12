@@ -443,7 +443,7 @@ const handleIncidentResponded = async () => {
           </div>
 
           <!-- Room Grid with Floating Build Button -->
-          <div class="relative">
+          <div class="relative w-full">
             <RoomGrid
               :incidents="activeIncidents"
               :highlightedRoomId="highlightedRoomId"

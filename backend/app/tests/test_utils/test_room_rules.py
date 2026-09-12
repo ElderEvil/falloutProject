@@ -7,6 +7,7 @@ import pytest
 
 from app.models.room import Room
 from app.schemas.common import RoomTypeEnum
+from app.utils.exceptions import VaultOperationException
 from app.utils.room_rules import is_elevator, validate_build_placement, validate_elevator_destroy
 
 
@@ -48,18 +49,54 @@ class TestValidateBuildPlacement:
     async def test_elevator_rejected_without_elevator_above(self, mock_session):
         mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
         with pytest.raises(Exception, match="directly under another elevator"):
-            await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4)
+            await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4, 1)
 
     @pytest.mark.asyncio
     async def test_elevator_allowed_with_elevator_above(self, mock_session):
         mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Elevator"))
-        await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4)
+        await validate_build_placement(mock_session, uuid4(), "Elevator", 0, 4, 1)
 
     @pytest.mark.asyncio
     async def test_non_elevator_rejected_without_elevator_on_level(self, mock_session):
         mock_session.execute.return_value = _make_mock_execute_result(scalars_first=None)
         with pytest.raises(Exception, match="has no elevator"):
-            await validate_build_placement(mock_session, uuid4(), "Diner", 2, 5)
+            await validate_build_placement(mock_session, uuid4(), "Diner", 2, 5, 3)
+
+    @pytest.mark.asyncio
+    async def test_overlapping_footprint_rejected(self, mock_session):
+        vault_id = uuid4()
+        elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
+        existing = _make_room(name="Diner", coordinate_x=3, coordinate_y=2, size=3, vault_id=vault_id)
+        mock_session.execute.side_effect = [
+            _make_mock_execute_result(scalars_first=elevator),
+            _make_mock_execute_result(scalars_all=[elevator, existing]),
+        ]
+
+        with pytest.raises(Exception, match="overlaps Diner"):
+            await validate_build_placement(mock_session, vault_id, "Medbay", 4, 2, 3)
+
+    @pytest.mark.asyncio
+    async def test_floating_room_rejected(self, mock_session):
+        vault_id = uuid4()
+        elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
+        mock_session.execute.side_effect = [
+            _make_mock_execute_result(scalars_first=elevator),
+            _make_mock_execute_result(scalars_all=[elevator]),
+        ]
+
+        with pytest.raises(Exception, match="next to another room"):
+            await validate_build_placement(mock_session, vault_id, "Medbay", 5, 2, 3)
+
+    @pytest.mark.asyncio
+    async def test_adjacent_room_allowed(self, mock_session):
+        vault_id = uuid4()
+        elevator = _make_room(name="Elevator", coordinate_x=0, coordinate_y=2, size=1, vault_id=vault_id)
+        mock_session.execute.side_effect = [
+            _make_mock_execute_result(scalars_first=elevator),
+            _make_mock_execute_result(scalars_all=[elevator]),
+        ]
+
+        await validate_build_placement(mock_session, vault_id, "Medbay", 1, 2, 3)
 
 
 class TestValidateElevatorDestroy:
@@ -105,3 +142,30 @@ class TestValidateElevatorDestroy:
 
         with pytest.raises(ValueError, match="Cannot destroy this elevator"):
             await validate_elevator_destroy(mock_session, elevator)
+
+
+@pytest.mark.asyncio
+async def test_elevator_overlapping_existing_room_rejected(mock_session):
+    """An elevator stacked under another elevator still cannot overlap a room on its level."""
+    vault_id = uuid4()
+    occupied = _make_room(name="Diner", coordinate_x=6, coordinate_y=5, vault_id=vault_id)
+    elevator_above = _make_mock_execute_result(
+        scalars_first=_make_room(name="Elevator", coordinate_y=4, vault_id=vault_id)
+    )
+    rooms_on_level = _make_mock_execute_result(scalars_all=[occupied])
+    mock_session.execute.side_effect = [elevator_above, rooms_on_level]
+
+    with pytest.raises(VaultOperationException, match="overlaps"):
+        await validate_build_placement(mock_session, vault_id, "Elevator", 6, 5, 1)
+
+
+@pytest.mark.asyncio
+async def test_same_name_different_tier_at_occupied_coordinate_rejected(mock_session):
+    """A same-name room of another tier does not bypass the overlap check."""
+    vault_id = uuid4()
+    occupied = _make_room(name="Diner", coordinate_x=0, coordinate_y=0, tier=2, vault_id=vault_id)
+    rooms_on_level = _make_mock_execute_result(scalars_all=[occupied])
+    mock_session.execute.side_effect = [rooms_on_level]
+
+    with pytest.raises(VaultOperationException, match="overlaps"):
+        await validate_build_placement(mock_session, vault_id, "Diner", 0, 0, 3, tier=1)

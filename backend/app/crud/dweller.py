@@ -155,6 +155,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         query = select(self.model).where(self.model.room_id == room_id, ~self.model.is_deleted)
         return (await db_session.execute(query)).scalars().all()
 
+    async def reassign_dwellers_between_rooms(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID4,
+        from_room_ids: list[UUID4],
+        to_room_id: UUID4,
+    ) -> int:
+        """Move every dweller of the source rooms into the destination room."""
+        if not from_room_ids:
+            return 0
+        dwellers = await self.get_by_room_ids(db_session, vault_id=vault_id, room_ids=from_room_ids)
+        for dweller in dwellers:
+            dweller.room_id = to_room_id
+            db_session.add(dweller)
+        return len(dwellers)
+
     async def get_aging_youth(
         self, db_session: AsyncSession, vault_id: UUID4, age_group: AgeGroupEnum, born_before: datetime
     ) -> Sequence[Dweller]:

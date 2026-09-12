@@ -14,7 +14,6 @@ from app.schemas.room import RoomCreate, RoomUpdate
 from app.services.room_service import RoomService
 from app.utils.exceptions import (
     InsufficientResourcesException,
-    NoSpaceAvailableException,
     ResourceNotFoundException,
     UniqueRoomViolationException,
     VaultOperationException,
@@ -203,26 +202,84 @@ class TestCheckIsUniqueRoom:
 
 
 # =============================================================================
-# expand_room
+# get_adjacent_mergeable_rooms
 # =============================================================================
 
 
-class TestExpandRoom:
+class TestGetAdjacentMergeableRooms:
     @pytest.mark.asyncio
-    async def test_valid_expansion(self, room_crud, mock_session):
-        room = _make_room(size_min=2, size_max=6)
-        room_crud.update = AsyncMock(return_value=room)
+    async def test_finds_right_neighbor(self, room_crud, mock_session):
+        vault_id = uuid4()
+        right_room = _make_room(vault_id=vault_id, name="Diner", coordinate_x=5, coordinate_y=2, size=3)
+        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[right_room])
 
-        result = await room_crud.expand_room(db_session=mock_session, existing_room=room, additional_size=3)
-        assert result.size_min == 5
-        room_crud.update.assert_called_once()
+        result = await room_crud.get_adjacent_mergeable_rooms(
+            db_session=mock_session,
+            vault_id=vault_id,
+            name="Diner",
+            tier=1,
+            coordinate_x=2,
+            coordinate_y=2,
+            size=3,
+        )
+
+        assert result == [right_room]
 
     @pytest.mark.asyncio
-    async def test_exceeds_max_size(self, room_crud, mock_session):
-        room = _make_room(size_min=4, size_max=6)
+    async def test_finds_left_neighbor(self, room_crud, mock_session):
+        vault_id = uuid4()
+        left_room = _make_room(vault_id=vault_id, name="Diner", coordinate_x=0, coordinate_y=2, size=3)
+        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[left_room])
 
-        with pytest.raises(InsufficientResourcesException):
-            await room_crud.expand_room(db_session=mock_session, existing_room=room, additional_size=5)
+        result = await room_crud.get_adjacent_mergeable_rooms(
+            db_session=mock_session,
+            vault_id=vault_id,
+            name="Diner",
+            tier=1,
+            coordinate_x=3,
+            coordinate_y=2,
+            size=3,
+        )
+
+        assert result == [left_room]
+
+    @pytest.mark.asyncio
+    async def test_different_name_not_returned(self, room_crud, mock_session):
+        vault_id = uuid4()
+        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
+
+        result = await room_crud.get_adjacent_mergeable_rooms(
+            db_session=mock_session,
+            vault_id=vault_id,
+            name="Diner",
+            tier=1,
+            coordinate_x=2,
+            coordinate_y=2,
+            size=3,
+        )
+
+        assert result == []
+        query = mock_session.execute.call_args.args[0]
+        assert query.compile().params["name_1"] == "Diner"
+
+    @pytest.mark.asyncio
+    async def test_different_row_not_returned(self, room_crud, mock_session):
+        vault_id = uuid4()
+        mock_session.execute.return_value = _make_mock_execute_result(scalars_all=[])
+
+        result = await room_crud.get_adjacent_mergeable_rooms(
+            db_session=mock_session,
+            vault_id=vault_id,
+            name="Diner",
+            tier=1,
+            coordinate_x=2,
+            coordinate_y=3,
+            size=3,
+        )
+
+        assert result == []
+        query = mock_session.execute.call_args.args[0]
+        assert query.compile().params["coordinate_y_1"] == 3
 
 
 # =============================================================================
@@ -250,7 +307,9 @@ class TestBuild:
             ),
             pytest.param({"coordinate_x": GRID_X_MIN - 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-below-min"),
             pytest.param({"coordinate_x": GRID_X_MAX + 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-above-max"),
-            pytest.param({"coordinate_x": 8, "size_min": 3}, "Room exceeds grid width", id="exceeds-grid-width"),
+            pytest.param(
+                {"coordinate_x": GRID_X_MAX, "size_min": 3}, "Room exceeds grid width", id="exceeds-grid-width"
+            ),
             pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MIN - 1}, "Invalid Y coordinate", id="y-below-min"),
             pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MAX + 1}, "Invalid Y coordinate", id="y-above-max"),
         ],
@@ -277,6 +336,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value={"vault door"},
             ),
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Vault Door"))
 
@@ -296,6 +356,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value=False,
             ),
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             # The room sits on level 2; an elevator on that level passes the
             # elevator gating so this test exercises the dweller check
@@ -306,11 +367,11 @@ class TestBuild:
                 await RoomService()._build(db_session=mock_session, obj_in=room_in)
 
     @pytest.mark.asyncio
-    async def test_room_exists_at_coordinates_same_name_expand(self, mock_session):
+    async def test_adjacent_same_name_room_merges(self, mock_session):
         room_in = _make_room_create(name="Diner", coordinate_x=2, coordinate_y=2, size_min=2)
         vault_mock = MagicMock()
         vault_mock.id = room_in.vault_id
-        existing_room = _make_room(name="Diner", coordinate_x=2, coordinate_y=2, tier=1)
+        merged_room = _make_room(name="Diner", coordinate_x=2, coordinate_y=2, tier=1)
 
         with (
             patch("app.crud.vault.vault.get", new_callable=AsyncMock, return_value=vault_mock),
@@ -320,48 +381,30 @@ class TestBuild:
                 return_value=True,
             ),
             patch(
-                "app.crud.room.room.get_room_by_coordinates",
+                "app.services.room_service.RoomService.merge_adjacent_rooms",
                 new_callable=AsyncMock,
-                return_value=existing_room,
+                return_value=MagicMock(merged=True, room=merged_room, absorbed_ids=[uuid4()], created=False),
+            ) as mock_merge,
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
+            patch(
+                "app.crud.room.room.get_room_build_price",
+                new_callable=AsyncMock,
+                return_value=100,
             ),
             patch(
-                "app.crud.room.room.expand_room",
+                "app.services.vault_service.vault_service.withdraw_caps",
                 new_callable=AsyncMock,
-                return_value=existing_room,
-            ) as mock_expand,
+            ),
+            patch(
+                "app.services.vault_service.vault_service.recalculate_vault_attributes",
+                new_callable=AsyncMock,
+            ),
+            patch("app.services.room_service.event_bus") as mock_event_bus,
         ):
-            level_elevator = _make_room(name="Elevator", vault_id=room_in.vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
+            mock_event_bus.emit = AsyncMock()
             result = await RoomService()._build(db_session=mock_session, obj_in=room_in)
-            mock_expand.assert_called_once()
-            assert result == (existing_room, False)
-
-    @pytest.mark.asyncio
-    async def test_room_exists_at_coordinates_different_name(self, mock_session):
-        room_in = _make_room_create(name="Diner", coordinate_x=2, coordinate_y=2)
-        vault_mock = MagicMock()
-        vault_mock.id = room_in.vault_id
-        existing_room = _make_room(name="Power Generator", coordinate_x=2, coordinate_y=2, tier=1)
-
-        with (
-            patch("app.crud.vault.vault.get", new_callable=AsyncMock, return_value=vault_mock),
-            patch(
-                "app.services.vault_service.vault_service.is_enough_dwellers",
-                new_callable=AsyncMock,
-                return_value=True,
-            ),
-            patch(
-                "app.crud.room.room.get_room_by_coordinates",
-                new_callable=AsyncMock,
-                return_value=existing_room,
-            ),
-        ):
-            level_elevator = _make_room(name="Elevator", vault_id=room_in.vault_id, coordinate_y=2)
-            mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
-
-            with pytest.raises(NoSpaceAvailableException):
-                await RoomService()._build(db_session=mock_session, obj_in=room_in)
+            mock_merge.assert_called_once()
+            assert result == (merged_room, False)
 
 
 # =============================================================================
@@ -378,8 +421,10 @@ class TestBuildElevatorGating:
     async def test_non_elevator_allowed_with_elevator_on_level(self, mock_session):
         vault_id = uuid4()
         room_in = _make_room_create(name="Diner", vault_id=vault_id, coordinate_x=2, coordinate_y=5)
-        level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=0, coordinate_y=5)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
+        level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=5, coordinate_y=5, size=1)
+        mock_session.execute.return_value = _make_mock_execute_result(
+            scalars_first=level_elevator, scalars_all=[level_elevator]
+        )
 
         with (
             patch("app.crud.vault.vault.get", new_callable=AsyncMock, return_value=MagicMock(id=vault_id)),
@@ -399,9 +444,9 @@ class TestBuildElevatorGating:
             patch("app.services.room_service.event_bus") as mock_event_bus,
             patch("app.services.room_service.get_room_image_url", return_value="/static/room_images/test.png"),
             patch(
-                "app.crud.room.room.get_room_by_coordinates",
+                "app.services.room_service.RoomService.merge_adjacent_rooms",
                 new_callable=AsyncMock,
-                return_value=None,
+                return_value=MagicMock(merged=False, room=None, absorbed_ids=[]),
             ),
             patch(
                 "app.crud.room.room.create",

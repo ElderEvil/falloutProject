@@ -7,10 +7,17 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { id: 'vault-1' } }),
+}))
 
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    const { toasts } = useToast()
+    toasts.value = []
   })
 
   const mockRoom = {
@@ -249,7 +256,7 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
-        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size_min: 1 },
+        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 1, size: 1, size_min: 1 },
       ]
       roomStore.selectedRoom = {
         name: 'Diner',
@@ -272,7 +279,9 @@ describe('RoomGrid', () => {
         .findAll('.empty:not(.level-locked)')
         .find((item) => {
           const style = item.element as HTMLElement
-          return style.style.gridColumn === '2' && style.style.gridRow === '2'
+          return (
+            parseInt(style.style.gridColumn, 10) === 4 && style.style.gridRow === '2'
+          )
         })!
 
       await cell.trigger('mouseenter')
@@ -313,7 +322,7 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       roomStore.rooms = [
         mockRoom,
-        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 3 },
+        { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 6, coordinate_y: 3 },
       ]
       roomStore.selectedRoom = {
         name: 'Elevator',
@@ -336,7 +345,13 @@ describe('RoomGrid', () => {
       // Level 4 has no elevator (locked) but is directly below the level-3
       // elevator, so an elevator preview there must be valid. While placing
       // an elevator the locked styling is lifted so the cell is interactive.
-      const cell = wrapper.findAll('.empty').find((c) => (c.element as HTMLElement).style.gridRow === '5')!
+      const cell = wrapper
+        .findAll('.empty')
+        .find(
+          (c) =>
+            (c.element as HTMLElement).style.gridRow === '5' &&
+            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
+        )!
       expect(cell.classes()).not.toContain('level-locked')
       await cell.trigger('mouseenter')
 
@@ -426,6 +441,59 @@ describe('RoomGrid', () => {
       })
 
       expect(wrapper.props('highlightedRoomId')).toBeNull()
+    })
+  })
+
+  describe('Room placement', () => {
+    const dinerTemplate = {
+      name: 'Diner',
+      category: 'production',
+      ability: 'agility',
+      base_cost: 100,
+      t2_upgrade_cost: 200,
+      t3_upgrade_cost: 400,
+      size_min: 3,
+      size_max: 9,
+      tier: 1,
+      speedup_multiplier: 1,
+    }
+
+    it('shows a built toast for a new room', async () => {
+      const roomStore = useRoomStore()
+      const authStore = useAuthStore()
+      const { toasts } = useToast()
+
+      authStore.token = 'mock-token'
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.find('.empty:not(.level-locked)')
+      await cell.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      const successToast = toasts.value.find((toast) => toast.variant === 'success')
+      expect(successToast?.message).toBe('Diner built successfully!')
+    })
+
+    it('shows an extended toast when the room was merged into an existing one', async () => {
+      const roomStore = useRoomStore()
+      const authStore = useAuthStore()
+      const { toasts } = useToast()
+
+      authStore.token = 'mock-token'
+      roomStore.selectedRoom = dinerTemplate
+      roomStore.isPlacingRoom = true
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('extended')
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const cell = wrapper.find('.empty:not(.level-locked)')
+      await cell.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      const successToast = toasts.value.find((toast) => toast.variant === 'success')
+      expect(successToast?.message).toBe('Diner extended!')
     })
   })
 
@@ -586,6 +654,69 @@ describe('RoomGrid', () => {
     })
   })
 
+  describe('Small cell (elevator) rendering', () => {
+    const elevatorRoom = {
+      ...mockRoom,
+      id: 'elev-1',
+      name: 'Elevator',
+      category: 'misc',
+      ability: null,
+      coordinate_x: 0,
+      coordinate_y: 1,
+      size: 1,
+      size_min: 1,
+    }
+
+    it('renders an elevator icon and no info overlay for 1-unit cells', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: elevatorRoom,
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.room-info-overlay').exists()).toBe(false)
+      expect(wrapper.find('.small-cell-icon').exists()).toBe(true)
+      expect(wrapper.find('.small-cell-icon-svg').exists()).toBe(true)
+    })
+
+    it('renders a compact info overlay for regular 3-unit rooms', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: mockRoom,
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.room-info-overlay').exists()).toBe(true)
+      expect(wrapper.find('.small-cell-icon').exists()).toBe(false)
+      expect(wrapper.find('.room-name').text()).toBe('Power Generator')
+    })
+
+    it('exposes room name and tier as a native title tooltip', () => {
+      const wrapper = mount(RoomGridCell, {
+        props: {
+          room: { ...mockRoom, tier: 2 },
+          showRoomImages: false,
+          isPowerOutage: false,
+          selected: false,
+          isDraggingOver: false,
+          highlighted: false,
+        },
+      })
+
+      expect(wrapper.find('.built-room').attributes('title')).toBe('Power Generator (Tier 2)')
+    })
+  })
+
   describe('Apprentice drop gating', () => {
     const productionRoom = {
       id: 'production-room-123',
@@ -667,6 +798,45 @@ describe('RoomGrid', () => {
       await dropOn(wrapper, 'adult-3')
 
       expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123', 'mock-token')
+    })
+  })
+
+  describe('Slot and row geometry', () => {
+    it('rejects a regular room preview on the elevator shaft column', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = []
+      roomStore.selectedRoom = {
+        name: 'Diner',
+        category: 'production',
+        ability: 'agility',
+        base_cost: 100,
+        t2_upgrade_cost: 200,
+        t3_upgrade_cost: 400,
+        size_min: 3,
+        size_max: 9,
+        tier: 1,
+        speedup_multiplier: 1,
+      }
+      roomStore.isPlacingRoom = true
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const shaftCell = wrapper
+        .findAll('.empty')
+        .find(
+          (c) =>
+            (c.element as HTMLElement).style.gridRow === '2' &&
+            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
+        )!
+
+      await shaftCell.trigger('mouseenter')
+
+      expect(shaftCell.classes()).not.toContain('valid-placement')
+    })
+
+    it('renders the locked rows below the buildable area', () => {
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+
+      expect(wrapper.findAll('.locked-row')).toHaveLength(10)
     })
   })
 })

@@ -111,6 +111,7 @@ class RoomService:
             obj_in.name,
             obj_in.coordinate_x,
             obj_in.coordinate_y,
+            obj_in.size if obj_in.size is not None else obj_in.size_min,
         )
 
         if obj_in.name.lower() == "vault door":

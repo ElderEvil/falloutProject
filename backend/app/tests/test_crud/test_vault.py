@@ -110,7 +110,7 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
         t3_upgrade_cost=1500,
         size_min=3,
         size_max=9,
-        coordinate_x=2,
+        coordinate_x=1,
         coordinate_y=2,
     )
 

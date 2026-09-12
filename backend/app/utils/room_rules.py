@@ -33,8 +33,9 @@ async def validate_build_placement(
     room_name: str,
     coordinate_x: int,
     coordinate_y: int,
+    size: int,
 ) -> None:
-    """Enforce R1 (elevator stacking) and R2 (level access) before a build."""
+    """Enforce R1 (elevator stacking), R2 (level access), and footprint rules."""
     if is_elevator(room_name):
         elevator_above = await db_session.execute(
             select(Room).where(
@@ -72,6 +73,72 @@ async def validate_build_placement(
                     f"level {coordinate_y} has no elevator. Build an elevator first."
                 )
             )
+
+    await _validate_footprint(db_session, vault_id, room_name, coordinate_x, coordinate_y, size)
+
+
+def _room_span(room: Room) -> tuple[int, int]:
+    size = room.size if room.size is not None else room.size_min
+    return room.coordinate_x, room.coordinate_x + size - 1
+
+
+async def _validate_footprint(
+    db_session: AsyncSession,
+    vault_id: UUID4,
+    room_name: str,
+    coordinate_x: int,
+    coordinate_y: int,
+    size: int,
+) -> None:
+    """Reject overlapping footprints and rooms that touch nothing on their level."""
+    rooms_on_level = list(
+        (
+            await db_session.execute(
+                select(Room).where(
+                    and_(
+                        Room.vault_id == vault_id,
+                        Room.coordinate_y == coordinate_y,
+                        Room.coordinate_x.is_not(None),
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+        or []
+    )
+
+    expansion = next(
+        (room for room in rooms_on_level if room.coordinate_x == coordinate_x and room.name == room_name),
+        None,
+    )
+    start = coordinate_x
+    end = coordinate_x + size - 1
+    if expansion is not None:
+        end = _room_span(expansion)[1] + size
+
+    for room in rooms_on_level:
+        if room is expansion:
+            continue
+        room_start, room_end = _room_span(room)
+        if start <= room_end and room_start <= end:
+            raise VaultOperationException(
+                detail=(f"Cannot build {room_name} at ({coordinate_x}, {coordinate_y}): overlaps {room.name}.")
+            )
+
+    if expansion is not None:
+        return
+
+    touches_existing = any(
+        _room_span(room)[1] + 1 == start or end + 1 == _room_span(room)[0] for room in rooms_on_level
+    )
+    if not touches_existing:
+        raise VaultOperationException(
+            detail=(
+                f"Cannot build {room_name} at ({coordinate_x}, {coordinate_y}): "
+                "rooms must be built next to another room or an elevator."
+            )
+        )
 
 
 async def validate_elevator_destroy(db_session: AsyncSession, elevator_room: Room) -> None:

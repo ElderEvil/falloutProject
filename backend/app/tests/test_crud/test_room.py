@@ -250,7 +250,9 @@ class TestBuild:
             ),
             pytest.param({"coordinate_x": GRID_X_MIN - 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-below-min"),
             pytest.param({"coordinate_x": GRID_X_MAX + 1, "coordinate_y": 2}, "Invalid X coordinate", id="x-above-max"),
-            pytest.param({"coordinate_x": 8, "size_min": 3}, "Room exceeds grid width", id="exceeds-grid-width"),
+            pytest.param(
+                {"coordinate_x": GRID_X_MAX, "size_min": 3}, "Room exceeds grid width", id="exceeds-grid-width"
+            ),
             pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MIN - 1}, "Invalid Y coordinate", id="y-below-min"),
             pytest.param({"coordinate_x": 2, "coordinate_y": GRID_Y_MAX + 1}, "Invalid Y coordinate", id="y-above-max"),
         ],
@@ -277,6 +279,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value={"vault door"},
             ),
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             mock_session.execute.return_value = _make_mock_execute_result(scalars_first=_make_room(name="Vault Door"))
 
@@ -296,6 +299,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value=False,
             ),
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             # The room sits on level 2; an elevator on that level passes the
             # elevator gating so this test exercises the dweller check
@@ -329,6 +333,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value=existing_room,
             ) as mock_expand,
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             level_elevator = _make_room(name="Elevator", vault_id=room_in.vault_id, coordinate_y=2)
             mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
@@ -356,6 +361,7 @@ class TestBuild:
                 new_callable=AsyncMock,
                 return_value=existing_room,
             ),
+            patch("app.services.room_service.room_rules.validate_build_placement", new_callable=AsyncMock),
         ):
             level_elevator = _make_room(name="Elevator", vault_id=room_in.vault_id, coordinate_y=2)
             mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
@@ -378,8 +384,10 @@ class TestBuildElevatorGating:
     async def test_non_elevator_allowed_with_elevator_on_level(self, mock_session):
         vault_id = uuid4()
         room_in = _make_room_create(name="Diner", vault_id=vault_id, coordinate_x=2, coordinate_y=5)
-        level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=0, coordinate_y=5)
-        mock_session.execute.return_value = _make_mock_execute_result(scalars_first=level_elevator)
+        level_elevator = _make_room(name="Elevator", vault_id=vault_id, coordinate_x=5, coordinate_y=5, size=1)
+        mock_session.execute.return_value = _make_mock_execute_result(
+            scalars_first=level_elevator, scalars_all=[level_elevator]
+        )
 
         with (
             patch("app.crud.vault.vault.get", new_callable=AsyncMock, return_value=MagicMock(id=vault_id)),

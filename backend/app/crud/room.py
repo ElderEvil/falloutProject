@@ -74,6 +74,12 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return response.scalars().all()
 
     @staticmethod
+    async def get_all_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
+        """Every room of a vault, for layout/migration passes."""
+        response = await db_session.execute(select(Room).where(Room.vault_id == vault_id))
+        return list(response.scalars().all() or [])
+
+    @staticmethod
     async def get_existing_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
         """Get set of lowercase room names that exist in a vault."""
         response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))

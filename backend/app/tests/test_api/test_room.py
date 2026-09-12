@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
+from app.core.grid_config import GRID_BUILD_X_MAX
 from app.crud.user_profile import profile_crud
 from app.models.room import Room
 from app.models.vault import Vault
@@ -87,7 +88,7 @@ async def test_build_room_uses_backend_template(
     payload = {
         "vault_id": str(vault.id),
         "room_name": "Power Generator",
-        "coordinate_x": 3,
+        "coordinate_x": 1,
         "coordinate_y": 2,
     }
     response = await async_client.post(
@@ -423,7 +424,7 @@ class TestRoomBuildValidation:
         )
         assert (room.coordinate_x, room.coordinate_y) == (coordinate_x, coordinate_y)
 
-    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(-1, 0), (8, 0), (0, -1), (0, 16)])
+    @pytest.mark.parametrize(("coordinate_x", "coordinate_y"), [(-1, 0), (GRID_BUILD_X_MAX + 1, 0), (0, -1), (0, 16)])
     def test_build_rejects_coordinates_outside_rendered_grid(self, coordinate_x: int, coordinate_y: int) -> None:
         with pytest.raises(ValidationError):
             RoomBuild(

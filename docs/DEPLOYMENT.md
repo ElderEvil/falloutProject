@@ -116,6 +116,36 @@ deployment manifest is added; do not provision an unused worker log volume.
 The Gateway-specific secret patch and API verification steps are documented in
 [Pydantic AI Gateway Setup](backend/PYDANTIC_AI_GATEWAY.md).
 
+### Room layout data backfills
+
+The unit-grid release changed how vault rooms are placed and extended. Existing vaults keep their previous
+coordinates and duplicate rooms until these backfills run once against the deployed database. Both commands are
+dry-run by default, print a per-vault summary, and are idempotent, so re-running them is safe.
+
+```bash
+cd backend
+
+# 1. Re-lay vaults onto the unit grid: door at the origin, elevator shaft beside it,
+#    resource rooms left of the shaft, every other room to the right.
+uv run fo-cli backfill backfill-vault-layout --all-active           # preview
+uv run fo-cli backfill backfill-vault-layout --all-active --apply   # persist
+
+# 2. Merge adjacent same-name/same-tier rooms into extended rooms.
+uv run fo-cli backfill merge-rooms --all-active           # preview
+uv run fo-cli backfill merge-rooms --all-active --apply   # persist
+```
+
+Scope a single vault with `--vault <uuid>` instead of `--all-active`. Both commands skip deleted vaults, and
+`backfill-vault-layout --apply` refuses to commit a layout that still has overlaps, floating rooms, or a floor
+wider than the grid. Run `backfill-vault-layout` before `merge-rooms` when both are needed.
+
+To run them against a cluster, execute inside the backend pod so it uses the deployed database and image:
+
+```bash
+kubectl -n fallout exec deployment/backend -- uv run fo-cli backfill backfill-vault-layout --all-active --apply
+kubectl -n fallout exec deployment/backend -- uv run fo-cli backfill merge-rooms --all-active --apply
+```
+
 ## Production Email: Mailcow on Hetzner
 
 Local development uses **Mailpit** as a dev-only SMTP sink (no real emails leave the machine). Production uses a

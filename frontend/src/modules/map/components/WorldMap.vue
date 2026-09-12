@@ -278,11 +278,11 @@ function onPanelMarkerSelect(payload: {
 <style scoped>
 .world-map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 800px) minmax(12rem, 14rem);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 960px) minmax(12rem, 14rem);
+  align-items: start;
   gap: 1rem;
   width: 100%;
-  max-width: 65rem;
+  max-width: 80rem;
 }
 
 .world-map-container {

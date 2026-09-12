@@ -41,6 +41,22 @@ export const DEFAULT_TABLE_COLUMNS: DwellerTableColumnId[] = DWELLER_TABLE_COLUM
   (column) => column.defaultVisible
 ).map((column) => column.id)
 
+export function canonicalColumnOrder(
+  ids: readonly DwellerTableColumnId[]
+): DwellerTableColumnId[] {
+  const order = DWELLER_TABLE_COLUMNS.map((column) => column.id)
+  return [...ids].sort((a, b) => order.indexOf(a) - order.indexOf(b))
+}
+
+export function normalizeTableColumns(value: unknown): DwellerTableColumnId[] {
+  if (!Array.isArray(value)) return DEFAULT_TABLE_COLUMNS
+  const known = new Set<string>(DWELLER_TABLE_COLUMNS.map((column) => column.id))
+  const unique = [...new Set(value)].filter((id): id is DwellerTableColumnId =>
+    known.has(id as string)
+  )
+  return unique.length > 0 ? canonicalColumnOrder(unique) : DEFAULT_TABLE_COLUMNS
+}
+
 export interface DwellerTablePreset {
   id: string
   label: string

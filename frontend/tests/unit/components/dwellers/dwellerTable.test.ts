@@ -3,6 +3,8 @@ import {
   DWELLER_TABLE_COLUMNS,
   DWELLER_TABLE_PRESETS,
   DEFAULT_TABLE_COLUMNS,
+  canonicalColumnOrder,
+  normalizeTableColumns,
   orderedVisibleColumns,
 } from '@/modules/dwellers/models/dwellerTable'
 
@@ -35,5 +37,25 @@ describe('dwellerTable model', () => {
       expect(preset.columns.length).toBeGreaterThan(0)
       for (const id of preset.columns) expect(known.has(id)).toBe(true)
     }
+  })
+
+  it('sorts columns into catalog order', () => {
+    expect(canonicalColumnOrder(['room', 'name', 'level'])).toEqual(['name', 'level', 'room'])
+  })
+
+  it('normalizes persisted columns, dropping unknown and duplicate ids', () => {
+    expect(normalizeTableColumns(['room', 'room', 'bogus', 'name'])).toEqual(['name', 'room'])
+  })
+
+  it('falls back to the defaults for an empty persisted array', () => {
+    expect(normalizeTableColumns([])).toEqual(DEFAULT_TABLE_COLUMNS)
+  })
+
+  it('falls back to the defaults when only retired ids are persisted', () => {
+    expect(normalizeTableColumns(['retired-a', 'retired-b'])).toEqual(DEFAULT_TABLE_COLUMNS)
+  })
+
+  it('falls back to the defaults for a non-array value', () => {
+    expect(normalizeTableColumns(null)).toEqual(DEFAULT_TABLE_COLUMNS)
   })
 })

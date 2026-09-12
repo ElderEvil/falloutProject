@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.3 (2026-09-12)
+
+### Bug Fixes
+
+* **rooms:** stop flagging a shaft-only level as a floating layout ([#598](https://github.com/ElderEvil/falloutProject/issues/598)) f2d51a1
+
 ## 2.87.2 (2026-09-12)
 
 ### Bug Fixes

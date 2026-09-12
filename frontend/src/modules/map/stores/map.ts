@@ -64,9 +64,6 @@ export const useMapStore = defineStore('map', () => {
   let _pollGeneration = 0
 
   // Getters
-  const unlockedPlacesCount = computed(
-    () => locations.value.filter((loc) => loc.is_unlocked).length
-  )
   const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
 
   function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
@@ -151,7 +148,6 @@ export const useMapStore = defineStore('map', () => {
     isLoading,
     error,
     viewedLocationKeys,
-    unlockedPlacesCount,
     hasUnseenDiscoveries,
     isUnseenDiscovery,
     markLocationViewed,

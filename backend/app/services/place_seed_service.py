@@ -76,22 +76,22 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
             coord_x, coord_y = collision_nudge(schematic_coords(normalized), occupied)
             vault_number = None
         occupied.add((round(coord_x, 1), round(coord_y, 1)))
-        db_session.add(
-            WorldLocation(
-                name=entry["name"][:64],
-                normalized_name=normalized,
-                kind=kind,
-                vault_number=vault_number,
-                coord_x=coord_x,
-                coord_y=coord_y,
-                description=entry.get("description"),
-                source="seed",
-            )
-        )
         try:
-            await db_session.flush()
+            async with db_session.begin_nested():
+                db_session.add(
+                    WorldLocation(
+                        name=entry["name"][:64],
+                        normalized_name=normalized,
+                        kind=kind,
+                        vault_number=vault_number,
+                        coord_x=coord_x,
+                        coord_y=coord_y,
+                        description=entry.get("description"),
+                        source="seed",
+                    )
+                )
+                await db_session.flush()
         except IntegrityError:
-            await db_session.rollback()
             reselect = await world_location_crud.get_registry_by_normalized(db_session, normalized)
             if reselect is None:
                 raise

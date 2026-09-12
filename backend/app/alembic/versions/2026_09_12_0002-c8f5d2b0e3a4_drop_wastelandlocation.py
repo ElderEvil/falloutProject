@@ -43,14 +43,18 @@ _PHASE1_MODULE = "2026_09_12_0001-b7e4c1a9f2d3_add_world_place_registry.py"
 def upgrade() -> None:
     _rerun_phase1_backfill()
     _assert_only_dwellerlocation_references_old_table()
-    _swap_dwellerlocation_fk("wastelandlocation", "worldlocation")
+    _drop_dwellerlocation_fk("wastelandlocation")
+    _remap_dwellerlocation_to_registry()
+    _create_dwellerlocation_fk("worldlocation")
     op.drop_table("wastelandlocation")
 
 
 def downgrade() -> None:
     _create_wastelandlocation()
     _rebuild_wastelandlocation_rows()
-    _swap_dwellerlocation_fk("worldlocation", "wastelandlocation")
+    _drop_dwellerlocation_fk("worldlocation")
+    _remap_dwellerlocation_to_legacy()
+    _create_dwellerlocation_fk("wastelandlocation")
 
     op.drop_index(op.f("ix_vaultlocationstate_location_id"), table_name="vaultlocationstate")
     op.drop_index(op.f("ix_vaultlocationstate_vault_id"), table_name="vaultlocationstate")
@@ -130,8 +134,8 @@ def _assert_only_dwellerlocation_references_old_table() -> None:
         raise RuntimeError(f"Unexpected FKs reference wastelandlocation: {unexpected}")
 
 
-def _swap_dwellerlocation_fk(from_table: str, to_table: str) -> None:
-    """Repoint ``dwellerlocation.location_id`` from one table to the other."""
+def _drop_dwellerlocation_fk(from_table: str) -> None:
+    """Drop the FK on ``dwellerlocation.location_id``, expecting it on ``from_table``."""
     matches = _dwellerlocation_fk_names()
     if len(matches) != 1:  # pragma: no cover - defensive
         raise RuntimeError(f"Expected exactly one FK on dwellerlocation.location_id, found: {matches}")
@@ -140,6 +144,10 @@ def _swap_dwellerlocation_fk(from_table: str, to_table: str) -> None:
         raise RuntimeError(f"dwellerlocation.location_id references {current_target}, expected {from_table}")
 
     op.drop_constraint(constraint_name, "dwellerlocation", type_="foreignkey")
+
+
+def _create_dwellerlocation_fk(to_table: str) -> None:
+    """Create the FK on ``dwellerlocation.location_id`` referencing ``to_table``."""
     op.create_foreign_key(
         f"fk_dwellerlocation_location_id_{to_table}",
         "dwellerlocation",
@@ -148,6 +156,65 @@ def _swap_dwellerlocation_fk(from_table: str, to_table: str) -> None:
         ["id"],
         ondelete="CASCADE",
     )
+
+
+def _remap_dwellerlocation_to_registry() -> None:
+    """Point every link at its canonical registry row, then prove none were missed.
+
+    Each legacy row became exactly one state reusing its id, so joining links
+    through ``vaultlocationstate.id`` resolves the winner's registry id — even
+    for rows that lost the dedupe and have no registry row of their own.
+    """
+    bind = op.get_bind()
+    bind.execute(
+        sa.text(
+            """
+            UPDATE dwellerlocation dl
+            SET location_id = s.location_id
+            FROM vaultlocationstate s
+            WHERE s.id = dl.location_id
+            """
+        )
+    )
+    unmapped = bind.execute(
+        sa.text(
+            """
+            SELECT count(*)
+            FROM dwellerlocation dl
+            LEFT JOIN worldlocation gl ON gl.id = dl.location_id
+            WHERE gl.id IS NULL
+            """
+        )
+    ).scalar_one()
+    if unmapped:  # pragma: no cover - defensive; fail loudly rather than orphan links
+        raise RuntimeError(f"{unmapped} dwellerlocation rows do not resolve to a registry row")
+
+
+def _remap_dwellerlocation_to_legacy() -> None:
+    """Point every link back at its own vault's rebuilt row, then prove none were missed."""
+    bind = op.get_bind()
+    bind.execute(
+        sa.text(
+            """
+            UPDATE dwellerlocation dl
+            SET location_id = s.id
+            FROM vaultlocationstate s, dweller d
+            WHERE s.location_id = dl.location_id AND s.vault_id = d.vault_id AND d.id = dl.dweller_id
+            """
+        )
+    )
+    unmapped = bind.execute(
+        sa.text(
+            """
+            SELECT count(*)
+            FROM dwellerlocation dl
+            LEFT JOIN wastelandlocation wl ON wl.id = dl.location_id
+            WHERE wl.id IS NULL
+            """
+        )
+    ).scalar_one()
+    if unmapped:  # pragma: no cover - defensive; fail loudly rather than orphan links
+        raise RuntimeError(f"{unmapped} dwellerlocation rows do not resolve to a rebuilt row")
 
 
 def _create_wastelandlocation() -> None:

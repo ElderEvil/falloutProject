@@ -200,3 +200,67 @@ async def test_get_location_detail_includes_is_unlocked(
     assert detail.is_unlocked is False
     assert len(detail.dwellers) == 1
     assert detail.dwellers[0].is_unlocked is False
+
+
+@pytest.mark.asyncio
+async def test_vault_map_hides_other_vault_dwellers(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """Two vaults sharing a place name see only their own dwellers."""
+    from faker import Faker
+
+    from app import crud
+    from app.schemas.dweller import DwellerCreate
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
+
+    fake = Faker()
+    user = await crud.user.create(
+        db_session=async_session,
+        obj_in=UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password()),
+    )
+    vault2 = await crud.vault.create(
+        db_session=async_session,
+        obj_in=VaultCreateWithUserID(
+            number=999,
+            bottle_caps=1000,
+            happiness=50,
+            power=10,
+            food=10,
+            water=10,
+            population_max=50,
+            user_id=user.id,
+        ),
+    )
+    dweller2 = await crud.dweller.create(
+        db_session=async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault2.id)
+    )
+
+    await map_service.register_bio_places(async_session, dweller, origin_place="Megaton", visited_places=[])
+    await map_service.register_bio_places(async_session, dweller2, origin_place="Megaton", visited_places=[])
+
+    map_a = await map_service.get_vault_map(async_session, vault)
+    megaton_a = next(loc for loc in map_a.locations if loc.normalized_name == "megaton")
+    assert {ref.dweller_id for ref in megaton_a.dwellers} == {dweller.id}
+
+    map_b = await map_service.get_vault_map(async_session, vault2)
+    megaton_b = next(loc for loc in map_b.locations if loc.normalized_name == "megaton")
+    assert {ref.dweller_id for ref in megaton_b.dwellers} == {dweller2.id}
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_location_conflict_keeps_outer_transaction(async_session: AsyncSession) -> None:
+    """A flush conflict returns the existing row without killing outer work."""
+    from app.crud.world_location import world_location
+
+    existing = await world_location.get_or_create_location(async_session, "Race Town")
+    await async_session.commit()
+
+    outer = await world_location.get_or_create_location(async_session, "Outer Town", commit=False)
+    with patch.object(world_location, "get_registry_by_normalized", side_effect=[None, existing]):
+        recovered = await world_location.get_or_create_location(async_session, "Race Town", commit=False)
+    assert recovered.id == existing.id
+    await async_session.commit()
+    persisted = await world_location.get_registry_by_normalized(async_session, "outer town")
+    assert persisted is not None
+    assert persisted.id == outer.id

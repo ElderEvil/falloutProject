@@ -83,8 +83,15 @@ class CRUDWorldLocation:
             description=description,
         )
         if not commit:
-            db_session.add(obj)
-            await db_session.flush()
+            try:
+                async with db_session.begin_nested():
+                    db_session.add(obj)
+                    await db_session.flush()
+            except IntegrityError:
+                existing = await self.get_registry_by_normalized(db_session, normalized)
+                if existing is not None:
+                    return existing
+                raise
             return obj
 
         try:
@@ -125,8 +132,15 @@ class CRUDWorldLocation:
             coord_y=50.0,
         )
         if not commit:
-            db_session.add(obj)
-            await db_session.flush()
+            try:
+                async with db_session.begin_nested():
+                    db_session.add(obj)
+                    await db_session.flush()
+            except IntegrityError:
+                existing = await self.get_registry_by_normalized(db_session, normalized)
+                if existing is not None:
+                    return existing
+                raise
             return obj
 
         try:
@@ -237,8 +251,15 @@ class CRUDWorldLocation:
             exploration_id=exploration_id,
         )
         if not commit:
-            db_session.add(obj)
-            await db_session.flush()
+            try:
+                async with db_session.begin_nested():
+                    db_session.add(obj)
+                    await db_session.flush()
+            except IntegrityError:
+                existing = await self.get_state(db_session, vault_id, location_id)
+                if existing is not None:
+                    return existing
+                raise
             return obj
 
         try:
@@ -323,10 +344,22 @@ class CRUDWorldLocation:
             relation=relation,
             is_unlocked=is_unlocked,
         )
-        db_session.add(link)
         if not commit:
-            await db_session.flush()
+            try:
+                async with db_session.begin_nested():
+                    db_session.add(link)
+                    await db_session.flush()
+            except IntegrityError:
+                result = await db_session.execute(stmt)
+                existing = result.scalar_one_or_none()
+                if existing is not None:
+                    if is_unlocked and not existing.is_unlocked:
+                        existing.is_unlocked = True
+                        db_session.add(existing)
+                    return existing
+                raise
             return link
+        db_session.add(link)
         try:
             await db_session.commit()
         except IntegrityError:
@@ -345,11 +378,14 @@ class CRUDWorldLocation:
             await db_session.refresh(link)
             return link
 
-    async def get_dweller_refs(self, db_session: AsyncSession, location_ids: list[UUID4]) -> dict[UUID4, list[dict]]:
+    async def get_dweller_refs(
+        self, db_session: AsyncSession, vault_id: UUID4, location_ids: list[UUID4]
+    ) -> dict[UUID4, list[dict]]:
         """Batch-load dweller references for a list of location ids.
 
-        Returns a dict mapping ``location_id`` → list of ``{dweller_id,
-        first_name, last_name, relation}`` dicts.  A single query — no N+1.
+        Only dwellers belonging to ``vault_id`` are returned: registry rows are
+        shared globally, but each vault sees just its own dwellers. A single
+        query — no N+1.
         """
         if not location_ids:
             return {}
@@ -364,7 +400,10 @@ class CRUDWorldLocation:
                 DwellerLocation.is_unlocked,
             )
             .join(Dweller, Dweller.id == DwellerLocation.dweller_id)
-            .where(DwellerLocation.location_id.in_(location_ids))
+            .where(
+                DwellerLocation.location_id.in_(location_ids),
+                Dweller.vault_id == vault_id,
+            )
         )
         result = await db_session.execute(stmt)
         rows = result.all()

@@ -365,7 +365,7 @@ class MapService:
             raise ResourceNotFoundException(WorldLocation, identifier=location_id)
         location, state = pair
 
-        refs_map = await wl_crud.get_dweller_refs(db_session, [location.id])
+        refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, [location.id])
         refs = refs_map.get(location.id, [])
 
         dweller_refs = [
@@ -407,7 +407,7 @@ class MapService:
         # --- persisted locations ---
         pairs = await wl_crud.get_states_by_vault(db_session, vault.id)
         location_ids = [state.location_id for _, state in pairs]
-        dweller_refs_map = await wl_crud.get_dweller_refs(db_session, location_ids)
+        dweller_refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, location_ids)
 
         locations: list[WastelandLocationWithDwellers] = []
         for location, state in pairs:

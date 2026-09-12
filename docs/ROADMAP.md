@@ -290,6 +290,39 @@ storage lifecycle requires otherwise.
 **Success criteria**: each dweller concern has one clear schema owner, API contracts remain backward-compatible, and
 the database remains simple until its shape demonstrably needs to change.
 
+### Dwellers Table View — Configurable Columns (Target: TBD)
+
+**Focus**: Give the Dwellers tab a roster-style **table** view: one dweller per row, aligned and sortable columns,
+with the player choosing which columns to show. Today the tab offers `viewMode: 'list' | 'grid'`
+(`stores/dwellerFilter.ts`); `DwellerListRow` is a flex card row (portrait, name/level, identity badges), not an
+aligned grid, and it cannot be compared column-by-column.
+
+**Proposed columns** (grouped so related data reads together):
+- **Identity** — portrait, first name, last name.
+- **Demographics** — gender, age group, rarity (grouped as one badge cluster).
+- **Progression** — level.
+- **Vitals** — current/max HP, happiness.
+- **Assignment** — room (or unassigned), status (idle, working, exploring, training, on quest).
+
+**Configurability** (brainstorm target):
+- Per-column show/hide persisted with the existing filters; sensible default set (portrait, name, level, status,
+  room).
+- Column presets for common intents ("Roster", "Vitals", "Assignments") instead of making everyone build a layout.
+- Sticky header; row click → dweller detail; reuse `DwellerPortrait`, `DwellerRarityBadge`, `DwellerGenderBadge`,
+  `DwellerAgeBadge` rather than new badge variants.
+
+**Open questions for the brainstorm:**
+- Add a third `viewMode: 'table'`, or replace the current list mode with the table?
+- Which columns survive small screens — responsive subset, or horizontal scroll?
+- Sorting/grouping: by level, name, room, status, rarity? Group-by-room to mirror the vault layout?
+- Does the table need multi-select to feed the existing bulk actions (`DwellerBulkActions`)?
+
+**Non-goals** (unless the brainstorm says otherwise): new backend endpoints or schema changes — every column
+derives from existing compact dweller responses; an editable spreadsheet grid.
+
+**Success criteria**: an overseer can scan and compare dwellers at a glance, pick the columns that matter, and have
+that preference persist — without regressing the existing list/grid modes.
+
 ### World Map — Single-Vault Exploration (Target: TBD)
 
 **Focus**: Preserve the wasteland map as a legible, per-vault exploration surface: discoveries, routes, and journal

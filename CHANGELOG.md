@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.2 (2026-09-12)
+
+### Bug Fixes
+
+* **vault:** seed new vaults on the unit grid with a stacked elevator shaft ([#597](https://github.com/ElderEvil/falloutProject/issues/597)) fe713d2
+
 ## 2.87.1 (2026-09-12)
 
 ### Bug Fixes

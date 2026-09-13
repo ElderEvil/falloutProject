@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.92.0 (2026-09-13)
+
+### Features
+
+* **chat:** dwellers propose biography entries from conversation ([#608](https://github.com/ElderEvil/falloutProject/issues/608)) f62a409
+
 ## 2.91.0 (2026-09-13)
 
 ### Features

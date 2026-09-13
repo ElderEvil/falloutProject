@@ -223,9 +223,7 @@ class DwellerAIService:
             logger.warning(msg)
 
         entries = bio_service.with_origin(dweller_obj, full_bio)
-        await dweller_crud.update(
-            db_session, dweller_id, DwellerUpdate(bio=compile_bio(entries), bio_entries=entries)
-        )
+        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=compile_bio(entries), bio_entries=entries))
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)
         registered = await self._register_map_places_best_effort(

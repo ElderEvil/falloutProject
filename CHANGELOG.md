@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.95.0 (2026-09-13)
+
+### Features
+
+* **map:** group wasteland places into site-type archetypes ([#613](https://github.com/ElderEvil/falloutProject/issues/613)) 277e1fa
+
 ## 2.94.0 (2026-09-13)
 
 ### Features

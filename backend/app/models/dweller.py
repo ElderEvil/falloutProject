@@ -17,7 +17,7 @@ from app.core.enums import (
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
 
-BIO_MAX_CHARS = 1_024
+BIO_MAX_CHARS = 2_048
 
 if TYPE_CHECKING:
     from app.models.notification import Notification

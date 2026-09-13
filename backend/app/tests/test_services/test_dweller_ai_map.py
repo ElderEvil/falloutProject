@@ -89,25 +89,23 @@ async def test_generate_backstory_map_service_raising_is_swallowed(
 @patch("app.services.dweller_ai.dweller_crud")
 @patch("app.services.dweller_ai.bio_extension_agent")
 @patch("app.services.dweller_ai.quota_service")
-async def test_extend_bio_length_guard_truncates_at_1024(
+async def test_extend_bio_length_guard_truncates_at_the_bio_cap(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
     mock_crud: MagicMock,
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """Bio of 950 chars + 300-char extension → stored bio ≤ 1024, ends with '...'."""
+    """A bio already near the cap plus an extension is truncated with an ellipsis."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_map.register_bio_places = AsyncMock()
 
-    # 950-char existing bio
-    existing_bio = "A" * 950
+    existing_bio = "A" * (BIO_MAX_CHARS - 100)
     mock_dweller = _make_dweller_mock(bio=existing_bio)
     mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
     mock_crud.update = AsyncMock()
 
-    # 300-char extension (combined = 1250 > 1024)
     output = ExtendedBio(
         extended_bio="B" * 300,
         visited_places=[],

@@ -665,7 +665,8 @@ The two-part fix shipped as `bio_entries` (structured, append-only) compiled int
   - **User dialogues** — the chat agent may propose a `bio_addendum` action card; the player confirms it and the
     detail lands as a `dialogue` entry (opt-in, 240-char cap, deduped against the current bio).
 - ✅ **Bio model** — `bio_entries` JSONB behind `Dweller.bio`, source-tagged `template` / `legacy` /
-  `exploration` / `family` / `dialogue`, 12-entry cap that never drops the origin, 1024-char render cap.
+  `exploration` / `family` / `dialogue`, 12-entry cap that never drops the origin, 2048-char render cap
+  (raised from 1024 so a full AI-authored origin still leaves room for life entries).
 - ✅ **AI upgrade path** — `extend_bio` rewrites the origin entry, so `bio` always equals the compiled entries
   and the dossier never diverges from the stored text.
 

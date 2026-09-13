@@ -42,6 +42,7 @@ from app.core.config import settings
 # Compare against the live PG enum type name (`typname`) and labels (`enumlabel`).
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT"},
+    "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
     "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},

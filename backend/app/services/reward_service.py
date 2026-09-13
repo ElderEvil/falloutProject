@@ -169,7 +169,7 @@ class RewardService:
         if self._medication_kind(str(item_name)) == "stimpak":
             return await self.grant_stimpak(db_session, vault_id, quantity, emit_event=emit_event)
         if self._medication_kind(str(item_name)) == "radaway":
-            return await self.grant_radaway(db_session, vault_id, quantity)
+            return await self.grant_radaway(db_session, vault_id, quantity, emit_event=emit_event)
 
         if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
             raise ValueError(f"Unsupported item_type: {item_type}")
@@ -359,9 +359,13 @@ class RewardService:
             db_session, vault_id, amount, RewardType.STIMPAK, "stimpack", emit_event=emit_event
         )
 
-    async def grant_radaway(self, db_session: AsyncSession, vault_id: UUID4, amount: int) -> dict[str, Any]:
+    async def grant_radaway(
+        self, db_session: AsyncSession, vault_id: UUID4, amount: int, *, emit_event: bool = False
+    ) -> dict[str, Any]:
         """Grant radaways to random dweller in vault."""
-        return await self._grant_medication(db_session, vault_id, amount, RewardType.RADAWAY, "radaway")
+        return await self._grant_medication(
+            db_session, vault_id, amount, RewardType.RADAWAY, "radaway", emit_event=emit_event
+        )
 
     async def _grant_medication(
         self,
@@ -607,7 +611,9 @@ class RewardService:
                     db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
                 )
             case RewardType.RADAWAY:
-                return await self.grant_radaway(db_session, vault_id, reward_data.get("amount", 1))
+                return await self.grant_radaway(
+                    db_session, vault_id, reward_data.get("amount", 1), emit_event=emit_event
+                )
             case RewardType.LUNCHBOX:
                 return await self.grant_lunchbox(db_session, vault_id)
             case _:

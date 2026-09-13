@@ -80,6 +80,9 @@ async def test_scrap_outfit_success(
     vault_in = VaultCreateWithUserID(**vault_data)
     vault = await crud.vault.create(async_session, vault_in)
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 5
+    async_session.add(storage)
+    await async_session.flush()
     outfit_in = OutfitCreate(**create_fake_outfit(), storage_id=str(storage.id))
     outfit = await crud.outfit.create(async_session, outfit_in)
 

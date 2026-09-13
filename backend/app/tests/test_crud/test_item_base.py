@@ -15,6 +15,7 @@ from app.schemas.common import ItemTypeEnum, JunkTypeEnum, RarityEnum
 from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidItemAssignmentException,
+    ResourceConflictException,
     ResourceNotFoundException,
 )
 
@@ -338,7 +339,14 @@ async def test_scrap_success() -> None:
     item = _make_mock_item(Weapon, item_id="w-scrap", storage_id="st-1")
     session.get = AsyncMock(return_value=item)
 
-    with patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk)]) as mock_cvt:
+    with (
+        patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk)]) as mock_cvt,
+        patch(
+            "app.crud.storage.storage.get_info",
+            new_callable=AsyncMock,
+            return_value={"used_space": 1, "max_space": 10, "available_space": 9, "utilization_pct": 10.0},
+        ),
+    ):
         results = await crud.scrap(db_session=session, item_id="w-scrap")
 
     session.get.assert_called_once_with(Weapon, "w-scrap")
@@ -346,6 +354,29 @@ async def test_scrap_success() -> None:
     session.delete.assert_called_once_with(item)
     session.commit.assert_called_once()
     assert len(results) == 1
+
+
+@pytest.mark.asyncio
+async def test_scrap_rejects_when_junk_would_exceed_capacity() -> None:
+    """A scrap whose junk would overflow storage is rejected before anything changes."""
+    session = _new_session()
+    crud = CRUDItem(Weapon)
+    item = _make_mock_item(Weapon, item_id="w-full", storage_id="st-1")
+    session.get = AsyncMock(return_value=item)
+
+    with (
+        patch.object(crud, "convert_to_junk", return_value=[MagicMock(spec=Junk), MagicMock(spec=Junk)]),
+        patch(
+            "app.crud.storage.storage.get_info",
+            new_callable=AsyncMock,
+            return_value={"used_space": 1, "max_space": 1, "available_space": 0, "utilization_pct": 100.0},
+        ),
+        pytest.raises(ResourceConflictException, match="Storage is full"),
+    ):
+        await crud.scrap(db_session=session, item_id="w-full")
+
+    session.delete.assert_not_called()
+    session.commit.assert_not_called()
 
 
 @pytest.mark.asyncio

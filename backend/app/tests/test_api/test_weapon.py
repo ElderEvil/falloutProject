@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -6,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import JunkTypeEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
+from app.models.junk import Junk
 from app.schemas.vault import VaultCreateWithUserID
 from app.schemas.weapon import WeaponCreate
 from app.tests.factory.items import create_fake_weapon
@@ -103,6 +106,9 @@ async def test_scrap_weapon_success(
     vault_in = VaultCreateWithUserID(**vault_data)
     vault = await crud.vault.create(async_session, vault_in)
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 5
+    async_session.add(storage)
+    await async_session.flush()
     weapon_in = WeaponCreate(**create_fake_weapon(), storage_id=str(storage.id))
     weapon = await crud.weapon.create(async_session, weapon_in)
 
@@ -114,6 +120,35 @@ async def test_scrap_weapon_success(
     # Weapon should be deleted as part of scrap
     read_response = await async_client.get(f"/weapons/{weapon.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_scrap_weapon_rejects_when_junk_would_exceed_capacity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Scrapping replaces one item with junk; it must not push storage past capacity."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 1
+    async_session.add(storage)
+    await async_session.flush()
+    weapon = await crud.weapon.create(async_session, WeaponCreate(**create_fake_weapon(), storage_id=str(storage.id)))
+
+    two_junk = [
+        Junk(name="Steel", junk_type=JunkTypeEnum.STEEL, rarity=RarityEnum.COMMON, description="Scrap", value=2),
+        Junk(name="Leather", junk_type=JunkTypeEnum.LEATHER, rarity=RarityEnum.COMMON, description="Scrap", value=2),
+    ]
+    with patch("app.crud.item_base.CRUDItem.convert_to_junk", return_value=two_junk):
+        response = await async_client.post(f"/weapons/{weapon.id}/scrap/", headers=superuser_token_headers)
+
+    assert response.status_code == 409
+    # The weapon survives a rejected scrap.
+    assert await crud.weapon.get_or_none(async_session, weapon.id) is not None
 
 
 @pytest.mark.asyncio

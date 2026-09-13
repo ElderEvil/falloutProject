@@ -1,0 +1,107 @@
+[
+  {
+    "key": "settlement",
+    "label": "Settlement",
+    "icon": "mdi:home-group",
+    "risk": "low",
+    "description": "A lived-in community: traders, scavengers, and the odd hired gun. Safer than the open wastes, never truly safe."
+  },
+  {
+    "key": "city",
+    "label": "City",
+    "icon": "mdi:city",
+    "risk": "medium",
+    "description": "A dense pre-war metropolis, rebuilt in the rubble. Everything is for sale, including information."
+  },
+  {
+    "key": "gas_station",
+    "label": "Gas Station",
+    "icon": "mdi:gas-station",
+    "risk": "low",
+    "description": "A roadside fuel stop, picked over a hundred times but never quite empty."
+  },
+  {
+    "key": "supermarket",
+    "label": "Supermarket",
+    "icon": "mdi:cart",
+    "risk": "low",
+    "description": "A pre-war grocery with aisles of salvage and a stockroom nobody has fully cleared."
+  },
+  {
+    "key": "factory",
+    "label": "Factory",
+    "icon": "mdi:factory",
+    "risk": "medium",
+    "description": "Industrial machinery and raw scrap, guarded by whatever moved in after the bombs."
+  },
+  {
+    "key": "metro",
+    "label": "Metro",
+    "icon": "mdi:subway-variant",
+    "risk": "medium",
+    "description": "Collapsed transit tunnels: a shortcut for the bold and a den for everything else."
+  },
+  {
+    "key": "military",
+    "label": "Military Site",
+    "icon": "mdi:shield-sword",
+    "risk": "high",
+    "description": "Armored remnants of the old world, still holding ordnance worth dying for."
+  },
+  {
+    "key": "brotherhood_outpost",
+    "label": "Brotherhood Outpost",
+    "icon": "mdi:shield",
+    "risk": "high",
+    "description": "A steel-and-lasers chapter holding, jealous of its technology and its borders."
+  },
+  {
+    "key": "research",
+    "label": "Research Facility",
+    "icon": "mdi:flask",
+    "risk": "high",
+    "description": "Labs and think tanks where the pre-war world experimented on things it could not control."
+  },
+  {
+    "key": "power",
+    "label": "Power Facility",
+    "icon": "mdi:lightning-bolt",
+    "risk": "medium",
+    "description": "Reactors and substations humming with a current that never learned to stop."
+  },
+  {
+    "key": "entertainment",
+    "label": "Entertainment",
+    "icon": "mdi:ferris-wheel",
+    "risk": "low",
+    "description": "Theatres, parks, and drive-ins — the old world's amusements, now quieter."
+  },
+  {
+    "key": "landmark",
+    "label": "Landmark",
+    "icon": "mdi:bank",
+    "risk": "medium",
+    "description": "A monument the wasteland still navigates by, for whatever it is worth now."
+  },
+  {
+    "key": "vault_tec",
+    "label": "Vault-Tec Site",
+    "icon": "mdi:radioactive",
+    "risk": "medium",
+    "description": "Vault-Tec property. The door is the only honest part of it."
+  },
+  {
+    "key": "ruin",
+    "label": "Ruins",
+    "icon": "mdi:wall",
+    "risk": "medium",
+    "description": "A settlement that did not make it — bones of a town, loot for whoever braves them."
+  },
+  {
+    "key": "region",
+    "label": "Wasteland Region",
+    "icon": "mdi:map",
+    "risk": "high",
+    "description": "A stretch of the wastes too large to cross in one trip and too hostile to forget."
+  }
+]

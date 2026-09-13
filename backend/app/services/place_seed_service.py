@@ -47,9 +47,16 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
         normalized = normalize_place_name(entry["name"])
         existing = await world_location_crud.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
-            if existing.source == "seed" and entry.get("description") != existing.description:
-                existing.description = entry.get("description")
-                db_session.add(existing)
+            if existing.source == "seed":
+                changed = False
+                if entry.get("description") != existing.description:
+                    existing.description = entry.get("description")
+                    changed = True
+                if entry.get("group") != existing.group_key:
+                    existing.group_key = entry.get("group")
+                    changed = True
+                if changed:
+                    db_session.add(existing)
             continue
         kind = PlaceKindEnum.VAULT if entry["kind"] == "vault" else PlaceKindEnum.PLACE
         if kind == PlaceKindEnum.VAULT:
@@ -70,6 +77,7 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
                         coord_x=coord_x,
                         coord_y=coord_y,
                         description=entry.get("description"),
+                        group_key=entry.get("group"),
                         source="seed",
                     )
                 )

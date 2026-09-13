@@ -396,13 +396,16 @@ locations — Red Rocket, Super Duper Mart, and the rest of the lore's chains an
 (5) — Adams Air Force Base, Diamond City, Concord, Red Rocket, … Each name is effectively a one-off row, so a place
 can only exist once and new content means hand-authoring another named entry.
 
-- ⬜ **Place groups / archetypes** — a reusable taxonomy of wasteland site types (`gas_station` → Red Rocket,
-  `supermarket` → Super Duper Mart, plus `factory`, `metro`, `school`, `hospital`, `military`, `ruin`,
-  `settlement`, `vault_tec`, `brotherhood_outpost`, …) carrying the shared description, loot/encounter weighting,
-  and risk profile. A named row becomes an *instance* of a group rather than a standalone definition.
-- ⬜ **Instances** — several places may share a group (distinct name/coordinates, inherited lore text and
+- ✅ **Place groups / archetypes** — a reusable taxonomy of wasteland site types (`gas_station` → Red Rocket,
+  `supermarket` → Super Duper Mart, plus `factory`, `metro`, `hospital`, `military`, `ruin`, `settlement`,
+  `vault_tec`, …) carrying the shared description, icon, and risk profile. A named row becomes an *instance* of a
+  group rather than a standalone definition. **Shipped:** the catalog is
+  `backend/app/data/places/place_groups.json` and every `WorldLocation` carries a `group_key`; the map surfaces the
+  group on the marker detail and legend. Loot/encounter weighting is not wired yet.
+- ✅ **Instances** — several places may share a group (distinct name/coordinates, inherited lore text and
   behaviour), so the map can host many Red Rockets and Super Duper Marts without duplicating prose or balance data.
-  Keep coordinates name-derived and deterministic, as the shared registry requires.
+  **Shipped:** gas stations and supermarkets seed multiple named instances (Red Rocket ×3, Super Duper Mart ×2)
+  that share a group; coordinates stay name-derived and deterministic.
 - ⬜ **Encounters & loot by group** — exploration event tables key off the group so a gas station plays differently
   from a military base, and balance edits land in one place.
 - ⬜ **Quest and bio references** — content already names these places (`power_struggle.json` sends the player to

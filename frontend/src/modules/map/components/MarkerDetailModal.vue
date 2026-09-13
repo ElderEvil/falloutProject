@@ -6,6 +6,7 @@ import UModal from '@/core/components/ui/UModal.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
+import { useMapStore } from '../stores/map'
 
 interface Props {
   modelValue: boolean
@@ -21,8 +22,15 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const route = useRoute()
+const mapStore = useMapStore()
 
 const vaultId = computed(() => route.params.id as string)
+
+// The marker's site-type archetype, when the place maps to a catalog group.
+const placeGroup = computed(() => {
+  const key = props.location?.group_key
+  return key ? (mapStore.placeGroupByKey.get(key) ?? null) : null
+})
 
 const isOpen = computed({
   get: () => props.modelValue,
@@ -136,7 +144,17 @@ function dwellerDisplayName(first: string, last: string | null) {
             <p class="text-xs font-bold tracking-[0.14em] text-theme-primary/60">WASTELAND FIELD REPORT</p>
             <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
           </div>
-          <UBadge :variant="badgeVariant" size="md">{{ placeType }}</UBadge>
+          <div class="flex flex-col items-end gap-1.5">
+            <UBadge :variant="badgeVariant" size="md">{{ placeType }}</UBadge>
+            <span
+              v-if="placeGroup"
+              class="flex items-center gap-1 text-xs text-theme-primary/70"
+              :title="placeGroup.description"
+            >
+              <Icon :icon="placeGroup.icon" class="h-3.5 w-3.5" />
+              {{ placeGroup.label }}
+            </span>
+          </div>
         </div>
         <div class="mt-4 grid grid-cols-2 gap-3">
           <TerminalMetric icon="mdi:map-marker" label="MAP COORDINATES" :value="coordinates" compact />

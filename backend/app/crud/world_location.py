@@ -12,6 +12,7 @@ from sqlmodel import col, func, select
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
 from app.models.dweller import Dweller
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
+from app.utils.place_groups import group_for_place_name
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
 if TYPE_CHECKING:
@@ -81,6 +82,7 @@ class CRUDWorldLocation:
             coord_x=coord_x,
             coord_y=coord_y,
             description=description,
+            group_key=group_for_place_name(name),
         )
         if not commit:
             try:

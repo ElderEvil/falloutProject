@@ -24,11 +24,13 @@ from app.schemas.wasteland_location import (
     DiscoveryRoutePoint,
     DiscoveryRouteRead,
     DwellerRef,
+    PlaceGroupRead,
     VaultMapResponse,
     VaultMarkerRead,
     WastelandLocationWithDwellers,
 )
 from app.services.notification_service import notification_service
+from app.utils.place_groups import load_place_groups
 from app.utils.places import GENERIC_ORIGIN_SKIP, WORLD_SCALE, normalize_place_name
 
 if TYPE_CHECKING:
@@ -393,6 +395,7 @@ class MapService:
             coord_x=round(location.coord_x * WORLD_SCALE, 1),
             coord_y=round(location.coord_y * WORLD_SCALE, 1),
             description=state.description,
+            group_key=location.group_key,
             vault_id=vault.id,
             exploration_id=state.exploration_id,
             created_at=state.created_at,
@@ -443,6 +446,7 @@ class MapService:
                     coord_x=round(location.coord_x * WORLD_SCALE, 1),
                     coord_y=round(location.coord_y * WORLD_SCALE, 1),
                     description=state.description,
+                    group_key=location.group_key,
                     vault_id=vault.id,
                     exploration_id=state.exploration_id,
                     created_at=state.created_at,
@@ -469,6 +473,7 @@ class MapService:
             locations=locations,
             vault_markers=vault_markers,
             discovery_routes=discovery_routes,
+            place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
         )
 
 

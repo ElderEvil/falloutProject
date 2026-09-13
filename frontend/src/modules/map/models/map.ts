@@ -6,6 +6,7 @@ export type VaultMarkerRead = components['schemas']['VaultMarkerRead']
 export type DiscoveryRouteRead = components['schemas']['DiscoveryRouteRead']
 export type VaultMapResponse = components['schemas']['VaultMapResponse']
 export type DwellerRef = components['schemas']['DwellerRef']
+export type PlaceGroup = components['schemas']['PlaceGroupRead']
 
 export type MarkerClickPayload =
   | { kind: 'location'; data: WastelandLocationWithDwellers }

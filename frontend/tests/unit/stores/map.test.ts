@@ -93,6 +93,28 @@ describe('Map Store', () => {
       expect(store.error).toBeNull()
     })
 
+    it('stores the place-group catalog and indexes it by key', async () => {
+      const store = useMapStore()
+      const groups = [
+        {
+          key: 'gas_station',
+          label: 'Gas Station',
+          icon: 'mdi:gas-station',
+          risk: 'low',
+          description: 'A roadside fuel stop.',
+        },
+      ]
+      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({
+        ...mockMapResponse,
+        place_groups: groups,
+      })
+
+      await store.fetchMap('vault-1', 'test-token')
+
+      expect(store.placeGroups).toEqual(groups)
+      expect(store.placeGroupByKey.get('gas_station')?.label).toBe('Gas Station')
+    })
+
     it('should set loading state correctly during fetch', async () => {
       const store = useMapStore()
       let loadingDuringRequest = false

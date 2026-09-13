@@ -21,9 +21,20 @@ class WastelandLocationRead(SQLModel):
     coord_x: float
     coord_y: float
     description: str | None
+    group_key: str | None = None
     vault_id: UUID4
     exploration_id: UUID4 | None
     created_at: datetime | None
+
+
+class PlaceGroupRead(SQLModel):
+    """A wasteland site-type archetype from the group catalog."""
+
+    key: str
+    label: str
+    icon: str
+    risk: str
+    description: str
 
 
 class DwellerRef(SQLModel):
@@ -75,3 +86,4 @@ class VaultMapResponse(SQLModel):
     locations: list[WastelandLocationWithDwellers]
     vault_markers: list[VaultMarkerRead]
     discovery_routes: list[DiscoveryRouteRead] = []
+    place_groups: list[PlaceGroupRead] = []

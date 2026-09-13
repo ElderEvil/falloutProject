@@ -8,6 +8,12 @@ const legendItems = MARKER_TYPES
 
 const mapStore = useMapStore()
 const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
+
+// Site-type archetypes actually present on this map, in catalog order.
+const siteGroups = computed(() => {
+  const present = new Set(mapStore.locations.map((loc) => loc.group_key).filter(Boolean))
+  return mapStore.placeGroups.filter((group) => present.has(group.key))
+})
 </script>
 
 <template>
@@ -25,6 +31,16 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
       </span>
       <span class="legend-label">{{ item.label }}</span>
     </div>
+
+    <template v-if="siteGroups.length">
+      <div class="legend-title legend-title-spaced">SITE TYPES</div>
+      <div v-for="group in siteGroups" :key="group.key" class="legend-item">
+        <span class="legend-icon-wrapper">
+          <Icon :icon="group.icon" class="legend-icon" />
+        </span>
+        <span class="legend-label">{{ group.label }}</span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -52,6 +68,10 @@ const hasUnseen = computed(() => mapStore.hasUnseenDiscoveries)
   opacity: 0.6;
   margin-bottom: 4px;
   text-transform: uppercase;
+}
+
+.legend-title-spaced {
+  margin-top: 6px;
 }
 
 .legend-item {

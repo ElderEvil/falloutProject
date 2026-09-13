@@ -25,6 +25,9 @@ class WorldLocationBase(SQLModel):
     coord_x: float = Field(ge=0, le=100)
     coord_y: float = Field(ge=0, le=100)
     description: str | None = Field(default=None, max_length=255)
+    # Site-type archetype key (see data/places/place_groups.json). A data-defined
+    # string rather than an enum so new site types need no migration.
+    group_key: str | None = Field(default=None, max_length=32, index=True)
     source: str = Field(default="emergent", max_length=16)
 
 

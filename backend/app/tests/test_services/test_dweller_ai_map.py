@@ -140,14 +140,14 @@ async def test_extend_bio_length_guard_truncates_at_1024(
 @patch("app.services.dweller_ai.dweller_crud")
 @patch("app.services.dweller_ai.bio_extension_agent")
 @patch("app.services.dweller_ai.quota_service")
-async def test_extend_bio_records_a_reflection_entry(
+async def test_extend_bio_rewrites_the_origin_entry(
     mock_quota: MagicMock,
     mock_agent: MagicMock,
     mock_crud: MagicMock,
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """Extension keeps the structured narrative in sync with the stored bio."""
+    """Extension grows the origin story so the stored bio stays its compiled form."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_map.register_bio_places = AsyncMock()
@@ -170,9 +170,10 @@ async def test_extend_bio_records_a_reflection_entry(
         user=mock_user,
     )
 
-    entries = mock_crud.update.call_args[0][2].bio_entries
-    assert [entry["source"] for entry in entries] == ["legacy", "reflection"]
-    assert entries[-1]["text"] == "More details."
+    update = mock_crud.update.call_args[0][2]
+    assert [entry["source"] for entry in update.bio_entries] == ["template"]
+    assert update.bio_entries[0]["text"] == update.bio
+    assert "More details." in update.bio
 
 
 @patch("app.services.dweller_ai.llm_interaction_crud")

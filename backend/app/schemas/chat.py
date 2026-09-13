@@ -86,6 +86,19 @@ class NoAction(BaseModel):
     reason: str | None = Field(None, max_length=200, description="Optional explanation")
 
 
+class BioAddendumAction(BaseModel):
+    """Suggestion to record a durable detail from the conversation into the biography."""
+
+    action_type: Literal["bio_addendum"] = "bio_addendum"
+    bio_text: str = Field(
+        ...,
+        min_length=8,
+        max_length=240,
+        description="First-person detail to append to the dweller's biography",
+    )
+    reason: str = Field(..., max_length=200, description="Why this detail is worth keeping")
+
+
 ActionSuggestion = Annotated[
     AssignToRoomAction
     | StartTrainingAction
@@ -93,6 +106,7 @@ ActionSuggestion = Annotated[
     | RecallExplorationAction
     | RequestStimpakAction
     | RequestRadawayAction
+    | BioAddendumAction
     | NoAction,
     Field(discriminator="action_type"),
 ]

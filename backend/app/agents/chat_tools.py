@@ -20,6 +20,7 @@ from app.models.relationship import Relationship
 from app.models.room import Room
 from app.schemas.chat import (
     AssignToRoomAction,
+    BioAddendumAction,
     NoAction,
     RecallExplorationAction,
     RequestRadawayAction,
@@ -242,6 +243,7 @@ async def parse_action_suggestion(
     | RecallExplorationAction
     | RequestStimpakAction
     | RequestRadawayAction
+    | BioAddendumAction
     | NoAction
 ):
     """Convert agent output to action suggestion schema with deterministic enrichment.
@@ -339,6 +341,13 @@ async def parse_action_suggestion(
         if medical_status.available_radaways <= 0:
             return NoAction(reason="No RadAway is available")
         return RequestRadawayAction(reason=output.action_reason or "Radiation is at least 30%")
+    if output.action_type == "bio_addendum":
+        text = (output.action_bio_text or "").strip()
+        if len(text) < 8:
+            return NoAction(reason="Nothing durable enough to record")
+        if text.lower() in (dweller.bio or "").lower():
+            return NoAction(reason="Already recorded in the biography")
+        return BioAddendumAction(bio_text=text, reason=output.action_reason or "Worth remembering")
     return NoAction(reason=output.action_reason)
 
 

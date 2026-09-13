@@ -14,6 +14,7 @@ from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
 from app.schemas.dweller import (
+    BioAddendumRequest,
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
@@ -32,6 +33,7 @@ from app.schemas.dweller import (
 )
 from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
+from app.services.bio_service import bio_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
 from app.services.family.death_service import death_service
@@ -254,6 +256,19 @@ async def extend_bio(
 ) -> DwellerReadFull:
     """Append new AI-generated detail to a dweller's existing biography."""
     return await dweller_ai.extend_bio(db_session=db_session, dweller_id=dweller_id, user=user)
+
+
+@router.post("/{dweller_id}/bio/addendum/", response_model=DwellerReadFull)
+async def add_bio_addendum(
+    dweller_id: UUID4,
+    request: BioAddendumRequest,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> DwellerReadFull:
+    """Record a player-confirmed conversation detail into the dweller's biography."""
+    await verify_dweller_access(dweller_id, user, db_session)
+    await bio_service.append_entry(db_session, dweller_id, "dialogue", request.text, ref={"source": "chat"})
+    return await crud.dweller.get_full_info(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)

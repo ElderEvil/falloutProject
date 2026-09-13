@@ -50,6 +50,8 @@ const actionIcon = (action: ActionSuggestion) => {
       return 'mdi:medical-bag'
     case 'request_radaway':
       return 'mdi:radiation'
+    case 'bio_addendum':
+      return 'mdi:notebook-edit-outline'
     case 'no_action':
       return 'mdi:help-circle-outline'
   }
@@ -69,19 +71,30 @@ const actionLabel = (action: ActionSuggestion) => {
       return 'Give Stimpak'
     case 'request_radaway':
       return 'Give RadAway'
+    case 'bio_addendum':
+      return 'Add to biography'
     case 'no_action':
       return 'No action'
   }
 }
 
-const actionConfirmLabel = (action: ActionSuggestion, isPerformingAction: boolean) =>
-  isPerformingAction
-    ? 'Processing...'
-    : action.action_type === 'request_stimpak'
-      ? 'Give Stimpak'
-      : action.action_type === 'request_radaway'
-        ? 'Give RadAway'
-        : 'Confirm'
+/** What the confirm button will actually do; a bio addendum shows the exact text. */
+const actionDetail = (action: ActionSuggestion) =>
+  action.action_type === 'bio_addendum' ? `“${action.bio_text}”` : action.reason
+
+const actionConfirmLabel = (action: ActionSuggestion, isPerformingAction: boolean) => {
+  if (isPerformingAction) return 'Processing...'
+  switch (action.action_type) {
+    case 'request_stimpak':
+      return 'Give Stimpak'
+    case 'request_radaway':
+      return 'Give RadAway'
+    case 'bio_addendum':
+      return 'Remember'
+    default:
+      return 'Confirm'
+  }
+}
 
 const messageContentSegments = (
   content: string,
@@ -248,7 +261,7 @@ const messageContentSegments = (
           <p class="action-suggestion-text">
             {{ actionLabel(message.actionSuggestion) }}
           </p>
-          <p class="action-suggestion-reason">{{ message.actionSuggestion.reason }}</p>
+          <p class="action-suggestion-reason">{{ actionDetail(message.actionSuggestion) }}</p>
         </div>
         <div class="action-suggestion-actions">
           <button

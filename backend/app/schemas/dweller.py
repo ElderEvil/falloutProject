@@ -226,6 +226,12 @@ class DwellerRename(SQLModel):
     )
 
 
+class BioAddendumRequest(SQLModel):
+    """A durable, player-confirmed conversation detail to append to a biography."""
+
+    text: str = Field(min_length=8, max_length=240)
+
+
 class DwellerReadLess(SQLModel):
     id: UUID4
     first_name: str

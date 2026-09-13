@@ -731,6 +731,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/{dweller_id}/bio/addendum/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Bio Addendum
+         * @description Record a player-confirmed conversation detail into the dweller's biography.
+         */
+        post: operations["add_bio_addendum_api_v1_dwellers__dweller_id__bio_addendum__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}/generate_visual_attributes/": {
         parameters: {
             query?: never;
@@ -4528,6 +4548,35 @@ export interface components {
             /** Assignments */
             assignments: components["schemas"]["DwellerAssignmentItem"][];
         };
+        /**
+         * BioAddendumAction
+         * @description Suggestion to record a durable detail from the conversation into the biography.
+         */
+        BioAddendumAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "bio_addendum";
+            /**
+             * Bio Text
+             * @description First-person detail to append to the dweller's biography
+             */
+            bio_text: string;
+            /**
+             * Reason
+             * @description Why this detail is worth keeping
+             */
+            reason: string;
+        };
+        /**
+         * BioAddendumRequest
+         * @description A durable, player-confirmed conversation detail to append to a biography.
+         */
+        BioAddendumRequest: {
+            /** Text */
+            text: string;
+        };
         /** Body_change_password_api_v1_auth_change_password_put */
         Body_change_password_api_v1_auth_change_password_put: {
             /** Current Password */
@@ -4993,7 +5042,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion based on conversation context
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -6084,7 +6133,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -10297,6 +10346,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerReadFull"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_bio_addendum_api_v1_dwellers__dweller_id__bio_addendum__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BioAddendumRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

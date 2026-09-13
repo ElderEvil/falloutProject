@@ -31,7 +31,7 @@ BIO_ENTRY_CAP = 12
 # Single authority for how entry sources group into dossier sections; the
 # frontend mirrors these keys for labels and falls back for anything unknown.
 BIO_SECTIONS: dict[str, tuple[str, ...]] = {
-    "origin": ("template", "legacy", "reflection"),
+    "origin": ("template", "legacy"),
     "exploration": ("exploration",),
     "family": ("family",),
     "dialogue": ("dialogue",),

@@ -216,7 +216,7 @@ class DwellerAIService:
             msg = f"Extended bio exceeded max length, truncated to {BIO_MAX_CHARS} characters"
             logger.warning(msg)
 
-        entries = bio_service.with_entry(dweller_obj, "reflection", extended_bio)
+        entries = bio_service.replace_origin(full_bio)
         await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio, bio_entries=entries))
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)

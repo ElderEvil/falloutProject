@@ -650,30 +650,30 @@ gen-3 synth takes it like a human and a gen-1 synth takes none; age progression 
 for races that do not age; unit tests exercise the same `(race, state of being)` → rule lookup the runtime uses,
 plus reproduction eligibility and age progression.
 
-### Bio Extension — Pre-Baked Templates + Living Biographies (Target: next updates — HIGH PRIORITY)
+### Bio Extension — Living Biographies (shipped; tuning remains)
 
-**User request**: dwellers should feel alive. Bios today are either empty or one-shot AI-generated text that
-never changes. Two-part fix, reusing existing systems end to end.
+**User request**: dwellers should feel alive. Bios were either empty or one-shot AI text that never changed.
+The two-part fix shipped as `bio_entries` (structured, append-only) compiled into `Dweller.bio`.
 
-- ⬜ **Pre-baked template bios** — a library of lore-safe bio templates in `backend/app/options/` (per
-  race/faction/personality archetypes, with slot-filled name/origin variants). Applied at dweller creation
-  (vault initiation, radio recruitment, breeding) so **every** dweller has a readable bio out of the box — no
-  AI generation required, no cost, no latency.
-- ⬜ **Action-driven bio updates** — append/rewrite bio entries when life happens:
-  - **Exploration** — visited locations and notable events (the exploration event log and `DwellerLocation`
-    relations already record the raw material; the bio writer just summarizes deltas).
-  - **Marriage/breeding** — partner and children references when `partner_id`/parents are set (breeding service
-    already owns these transitions).
-  - **User dialogues** — the dweller chat agent already produces structured action cards; let it propose bio
-    addenda from memorable conversations (opt-in, size-capped).
-- ⬜ **Bio model** — keep `Dweller.bio` as the rendered text but store structured entries (timestamped,
-  source-tagged: `template` / `exploration` / `family` / `dialogue`) so updates are additive and re-renderable
-  instead of lossy string edits. Blocker: decide JSONB column vs side-table before implementation.
-- ⬜ **AI upgrade path** — template bio first, optional AI rewrite of the compiled bio via the existing
-  generation service for users who want richer text (quota rules already apply).
+- ✅ **Pre-baked template bios** — lore-safe templates in `backend/app/options/bios.py` (per race, with
+  origin/visited slot filling) render at dweller creation, so every dweller has a readable bio with no AI cost.
+  Newborn arrival prose lives beside them as `render_newborn_bio`.
+- ✅ **Action-driven bio updates** — entries append when life happens:
+  - **Exploration** — a first visit to a place records one deduped `exploration` entry.
+  - **Marriage/breeding** — marriage writes a `family` entry to both partners, birth to both parents, and the
+    newborn's arrival prose becomes the child's origin entry.
+  - **User dialogues** — the chat agent may propose a `bio_addendum` action card; the player confirms it and the
+    detail lands as a `dialogue` entry (opt-in, 240-char cap, deduped against the current bio).
+- ✅ **Bio model** — `bio_entries` JSONB behind `Dweller.bio`, source-tagged `template` / `legacy` /
+  `exploration` / `family` / `dialogue`, 12-entry cap that never drops the origin, 1024-char render cap.
+- ✅ **AI upgrade path** — `extend_bio` rewrites the origin entry, so `bio` always equals the compiled entries
+  and the dossier never diverges from the stored text.
+
+**Remaining:** ⬜ retention tuning for `dialogue` entries (currently dropped first under the entry cap) once
+real conversation volume is visible.
 
 **Reuse:** options library, generation service + quotas, exploration event log, breeding service transitions,
-chat agent action cards. **Blocker:** structured-entry storage decision (JSONB vs side-table).
+chat agent action cards.
 
 ### Boosted Vault Rarity & Race/Faction Diversity (Target: next updates — HIGH PRIORITY)
 

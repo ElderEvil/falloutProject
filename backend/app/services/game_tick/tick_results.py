@@ -41,6 +41,10 @@ class TrainingStats(TypedDict, total=False):
     error: str
 
 
+class CraftingStats(TypedDict, total=False):
+    completed: int
+
+
 class EventsStats(TypedDict, total=False):
     triggered: int
     events: list[dict[str, Any]]
@@ -80,6 +84,7 @@ class TickUpdates(TypedDict, total=False):
     dwellers: DwellersStats
     apprenticeships: ApprenticeStats
     training: TrainingStats
+    crafting: CraftingStats
     happiness: dict[str, Any]
     breeding: BreedingStats
     events: EventsStats

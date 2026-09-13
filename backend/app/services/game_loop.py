@@ -15,11 +15,12 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.services.game_tick import dwellers_tick, family_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick
 from app.services.game_tick.tick_results import (
     AgeStats,
     ApprenticeStats,
     BreedingStats,
+    CraftingStats,
     DwellersStats,
     EventsStats,
     ExplorationStats,
@@ -158,6 +159,9 @@ class GameLoopService:
         training_update = await self._process_training(db_session, vault_id)
         results["updates"]["training"] = training_update
 
+        crafting_update = await self._process_crafting(db_session, vault_id)
+        results["updates"]["crafting"] = crafting_update
+
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
 
@@ -249,6 +253,10 @@ class GameLoopService:
     async def _process_training(self, db_session: AsyncSession, vault_id: UUID4) -> TrainingStats:
         """Process all active training sessions for a vault."""
         return await dwellers_tick.process_training(db_session, vault_id)
+
+    async def _process_crafting(self, db_session: AsyncSession, vault_id: UUID4) -> CraftingStats:
+        """Advance the workshop crafting queue for a vault."""
+        return await crafting_tick.process_crafting(db_session, vault_id)
 
     async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
         """Process happiness updates for all dwellers in a vault."""

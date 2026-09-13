@@ -14,7 +14,15 @@
     "charisma": 1,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Tattered longcoat",
@@ -31,7 +39,15 @@
     "charisma": 2,
     "intelligence": 0,
     "agility": 0,
-    "luck": 2
+    "luck": 2,
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Autumn's uniform",
@@ -48,7 +64,15 @@
     "charisma": 1,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Bittercup's outfit",
@@ -65,7 +89,15 @@
     "charisma": 1,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Confessor Cromwell's rags",
@@ -82,7 +114,15 @@
     "charisma": 1,
     "intelligence": 1,
     "agility": 0,
-    "luck": 2
+    "luck": 2,
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Elder robe",
@@ -99,7 +139,15 @@
     "charisma": 4,
     "intelligence": 0,
     "agility": 3,
-    "luck": 0
+    "luck": 0,
+    "stat": "charisma",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Eulogy Jones' suit",
@@ -116,7 +164,15 @@
     "charisma": 2,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Heavy synth armor",
@@ -133,6 +189,14 @@
     "charisma": 3,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "endurance",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

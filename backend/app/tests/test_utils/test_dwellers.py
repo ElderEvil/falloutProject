@@ -113,27 +113,53 @@ def test_vault_start_config_rare_chances() -> None:
     assert game_config.vault_start.boosted_rare_chance == 0.12
 
 
-def test_crafting_config_rejects_incomplete_cost_maps() -> None:
-    """A map without every rarity would KeyError on the common fallback."""
+def test_crafting_config_rejects_incomplete_junk_recipe() -> None:
+    """A recipe without every craftable rarity would KeyError on the common fallback."""
     from app.core.game_config import CraftingConfig
 
     with pytest.raises(ValidationError, match="missing rarities"):
-        CraftingConfig(junk_cost_by_rarity={"rare": 6, "legendary": 12})
+        CraftingConfig(junk_recipe_by_rarity={"common": {"common": 3}, "rare": {"common": 3, "rare": 3}})
 
 
-def test_crafting_config_rejects_negative_costs() -> None:
-    """A negative junk cost would slice eligible[:cost] from the wrong end."""
+def test_crafting_config_rejects_unknown_material_rarity() -> None:
+    from app.core.game_config import CraftingConfig
+
+    with pytest.raises(ValidationError, match="Unknown material rarities"):
+        CraftingConfig(
+            junk_recipe_by_rarity={
+                "common": {"common": 3},
+                "rare": {"common": 3, "rare": 3},
+                "legendary": {"common": 3, "rare": 3, "legendary": 3, "mythic": 1},
+            }
+        )
+
+
+def test_crafting_config_rejects_negative_material_counts() -> None:
+    """A negative count would consume the wrong junk."""
     from app.core.game_config import CraftingConfig
 
     with pytest.raises(ValidationError, match="non-negative"):
-        CraftingConfig(junk_cost_by_rarity={"common": -1, "rare": 6, "legendary": 12})
+        CraftingConfig(
+            junk_recipe_by_rarity={
+                "common": {"common": -1},
+                "rare": {"common": 3, "rare": 3},
+                "legendary": {"common": 3, "rare": 3, "legendary": 3},
+            }
+        )
 
 
 def test_crafting_config_normalizes_rarity_keys() -> None:
     from app.core.game_config import CraftingConfig
 
-    config = CraftingConfig(junk_cost_by_rarity={"Common": 3, "RARE": 6, "legendary": 12})
+    config = CraftingConfig(
+        junk_recipe_by_rarity={
+            "Common": {"Common": 3},
+            "RARE": {"common": 3, "rare": 3},
+            "legendary": {"common": 3, "rare": 3, "legendary": 3},
+        }
+    )
 
+    assert config.junk_recipe("rare") == {"common": 3, "rare": 3}
     assert config.junk_cost("rare") == 6
     assert config.junk_cost("unknown") == 3
 

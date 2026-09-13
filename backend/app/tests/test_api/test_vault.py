@@ -269,3 +269,47 @@ async def test_vault_initiate_superuser_creates_25_dwellers(
     assert vault_with_counts.dweller_count == 25, (
         f"Expected 25 dwellers for superuser, got {vault_with_counts.dweller_count}"
     )
+
+
+@pytest.mark.smoke
+@pytest.mark.asyncio
+async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Boosted vaults seed both workshops plus materials, with capacity to hold them."""
+    from uuid import UUID
+
+    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 203})
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    vault = await crud.vault.get(async_session, vault_id)
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id)
+    storage = await crud.storage.storage.get_by_vault(async_session, vault_id)
+    rooms = await crud.room.get_all_by_vault(async_session, vault_id)
+    junk = await crud.junk.get_in_storage(async_session, storage.id)
+
+    assert {room.name for room in rooms if room.category.value == "crafting"} == {
+        "Weapon workshop",
+        "Outfit workshop",
+    }
+
+    # Every junk type the craftable catalog accepts, across all three rarities.
+    assert {(item.junk_type.value, item.rarity.value) for item in junk} >= {
+        ("steel", "common"),
+        ("leather", "common"),
+        ("circuitry", "common"),
+        ("cloth", "common"),
+        ("steel", "rare"),
+        ("leather", "rare"),
+        ("circuitry", "rare"),
+        ("cloth", "rare"),
+        ("steel", "legendary"),
+        ("circuitry", "legendary"),
+    }
+
+    assert vault.population_max >= len(dwellers)
+    used_space = await crud.storage.storage.count_items(async_session, storage.id)
+    assert storage.max_space > used_space

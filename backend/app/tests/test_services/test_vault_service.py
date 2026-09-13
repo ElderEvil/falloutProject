@@ -760,9 +760,13 @@ class TestInitiateVault:
                 *prepared.misc,
                 *prepared.training,
                 *prepared.arena,
+                *prepared.crafting,
             ]
 
             assert _layout_issues(rooms) == (0, 0, True)
+            assert len(prepared.crafting) == (2 if is_boosted else 0)
+            if is_boosted:
+                assert {room.name for room in prepared.crafting} == {"Weapon workshop", "Outfit workshop"}
 
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"

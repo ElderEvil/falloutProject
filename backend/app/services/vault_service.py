@@ -29,13 +29,15 @@ from app.crud.vault import vault as vault_crud
 from app.models import Dweller, Room, Storage
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
-from app.schemas.room import RoomCreate
+from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.resource_manager import ResourceManager, compute_medical_capacity
 from app.services.training_service import training_service
 from app.services.vault_seed import (
+    BOOSTED_CRAFTING_ROOM_SPECS,
     BOOSTED_LIVING_ROOM_COORDINATES,
     BOOSTED_LOADOUTS,
+    BOOSTED_SEED_JUNK,
     BOOSTED_TRAINING_STATS,
     SEED_OUTFITS,
     SEED_WEAPONS,
@@ -60,7 +62,9 @@ class VaultService:
         self.resource_manager = ResourceManager()
 
     @staticmethod
-    def _build_room(rooms_by_name: dict[str, RoomCreate], name: str, vault_id: UUID4, x: int, y: int) -> RoomCreate:
+    def _build_room(
+        rooms_by_name: dict[str, RoomCreateWithoutVaultID], name: str, vault_id: UUID4, x: int, y: int
+    ) -> RoomCreate:
         template = rooms_by_name.get(name.lower())
         if template is None:
             raise ValueError(f"Room template '{name}' not found")
@@ -75,13 +79,15 @@ class VaultService:
         return RoomCreate(**data)
 
     @staticmethod
-    def _prepare_room_data(rooms: list[RoomCreate], room_name: str, vault_id: UUID4, x: int, y: int) -> dict:
+    def _prepare_room_data(
+        rooms: list[RoomCreateWithoutVaultID], room_name: str, vault_id: UUID4, x: int, y: int
+    ) -> dict:
         rooms_by_name = {r.name.lower(): r for r in rooms}
         return VaultService._build_room(rooms_by_name, room_name, vault_id, x, y).model_dump()
 
     def _prepare_initial_rooms(
         self,
-        rooms: list[RoomCreate],
+        rooms: list[RoomCreateWithoutVaultID],
         vault_id: UUID4,
         is_boosted: bool,
     ) -> PreparedRooms:
@@ -101,7 +107,8 @@ class VaultService:
             expected_dwellers = 25
             needed_living = (expected_dwellers + cap_per - 1) // cap_per
             extra_living = BOOSTED_LIVING_ROOM_COORDINATES[: max(0, needed_living - 1)]
-            capacity_specs = [("living room", 7, 1), ("storage room", 7, 2)] + [
+            # A second storage room keeps room for the seeded gear and crafting materials.
+            capacity_specs = [("living room", 7, 1), ("storage room", 7, 2), ("storage room", 25, 1)] + [
                 ("living room", x, y) for x, y in extra_living
             ]
         else:
@@ -113,6 +120,7 @@ class VaultService:
         )
         misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
         arena = mk([("arena", 10, 3)] if is_boosted else [])
+        crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
         training = mk(
             [
                 ("weight room", 10, 1),
@@ -133,6 +141,7 @@ class VaultService:
             misc=misc,
             training=training,
             arena=arena,
+            crafting=crafting,
         )
 
     async def _create_initial_rooms(
@@ -151,7 +160,7 @@ class VaultService:
         for room in created_capacity:
             if room.category == RoomTypeEnum.CAPACITY:
                 if room.ability == SPECIALEnum.CHARISMA:
-                    vault.population_max += room.capacity or 0
+                    vault.population_max = (vault.population_max or 0) + (room.capacity or 0)
                 elif room.ability == SPECIALEnum.ENDURANCE and room.capacity:
                     await storage_crud.adjust_max_space(db_session, vault.id, room.capacity)
 
@@ -172,10 +181,13 @@ class VaultService:
         created_misc = await create_batch(prepared.misc)
         created_training = await create_batch(prepared.training)
         created_arena = await create_batch(prepared.arena)
+        created_crafting = await create_batch(prepared.crafting)
 
         await db_session.commit()
         await db_session.refresh(vault)
-        for room in created_production + created_training + created_misc + created_capacity + created_arena:
+        for room in (
+            created_production + created_training + created_misc + created_capacity + created_arena + created_crafting
+        ):
             await db_session.refresh(room)
 
         return vault, CreatedRooms(
@@ -184,6 +196,7 @@ class VaultService:
             misc=created_misc,
             capacity=created_capacity,
             arena=created_arena,
+            crafting=created_crafting,
         )
 
     def _roll_initial_rarity(self, is_boosted: bool) -> RarityEnum:
@@ -367,34 +380,50 @@ class VaultService:
             self.logger.exception("Failed to start training sessions")
             raise
 
-    async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4) -> None:
-        """Create initial weapons and outfits for testing."""
+    async def _seed_boosted_junk(self, db_session: AsyncSession, storage_id: UUID4) -> None:
+        """Drop craftable materials into a vault so item creation is testable."""
+        from app.models.junk import Junk
+        from app.services.exploration.data_loader import load_junk_items
 
-        from app.models.outfit import Outfit
-        from app.models.weapon import Weapon
-        from app.utils.outfit_assets import get_outfit_image_url
-        from app.utils.weapon_assets import get_weapon_image_url
+        catalog = {
+            (str(entry["junk_type"]).lower(), str(entry["rarity"]).lower()): entry for entry in load_junk_items()
+        }
+        seeded = 0
+        for junk_type, rarity, count in BOOSTED_SEED_JUNK:
+            entry = catalog.get((junk_type.value, rarity.value))
+            if entry is None:
+                continue
+            for _ in range(count):
+                db_session.add(
+                    Junk(
+                        name=str(entry["name"]),
+                        junk_type=junk_type,
+                        rarity=rarity,
+                        value=entry.get("value"),
+                        description=str(entry.get("description") or entry["name"]),
+                        storage_id=storage_id,
+                    )
+                )
+                seeded += 1
+        if seeded:
+            await db_session.commit()
+            self.logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
+
+    async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False) -> None:
+        """Create initial weapons and outfits for testing, plus crafting junk when boosted."""
+
+        from app.utils.item_factory import build_outfit, build_weapon
 
         storage = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage:
             return
 
-        weapons = [
-            Weapon(
-                **{**weapon_data, "image_url": get_weapon_image_url(weapon_data["name"])},
-                storage_id=storage.id,
-            )
-            for weapon_data in SEED_WEAPONS
-        ]
-        outfits = [
-            Outfit(
-                **{**outfit_data, "image_url": get_outfit_image_url(outfit_data["name"])},
-                storage_id=storage.id,
-            )
-            for outfit_data in SEED_OUTFITS
-        ]
+        weapons = [build_weapon(data, data["rarity"], storage.id) for data in SEED_WEAPONS]
+        outfits = [build_outfit(data, data["rarity"], storage.id) for data in SEED_OUTFITS]
         await weapon_crud.create_many(db_session, weapons)
         await outfit_crud.create_many(db_session, outfits)
+        if is_boosted:
+            await self._seed_boosted_junk(db_session, storage.id)
         self.logger.info(f"Created initial items for vault {vault_id}")
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
@@ -463,6 +492,8 @@ class VaultService:
         - All 7 training rooms (one for each SPECIAL stat)
         - 2 additional living rooms (3 total for 13+ dwellers)
         - 7 additional dwellers assigned to training rooms (13 total)
+        - Both crafting workshops, a second storage room, and a stock of
+          steel/leather/circuitry/cloth junk so timed crafting is testable.
         """
         # Create vault and storage
         vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
@@ -532,8 +563,8 @@ class VaultService:
         if assigned == 0:
             self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
 
-        # Create initial weapons and outfits for testing
-        await self._create_initial_items(db_session, vault_db_obj.id)
+        # Create initial weapons, outfits, and (boosted) crafting materials for testing
+        await self._create_initial_items(db_session, vault_db_obj.id, is_boosted)
 
         return vault_db_obj
 
@@ -553,7 +584,7 @@ class VaultService:
         dweller_id: UUID4,
         stimpaks: int,
         radaways: int,
-    ) -> dict:
+    ) -> MedicalTransferResponse:
         """Transfer medical supplies from vault storage to a dweller's inventory.
 
         Dwellers can carry max 15 stimpaks and 15 radaways each.
@@ -626,14 +657,15 @@ class VaultService:
         )
 
     @staticmethod
-    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int, room_capacity: int | None) -> int:
+    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int | None, room_capacity: int | None) -> int:
+        base = current_capacity or 0
         if room_capacity is None:
-            return current_capacity
+            return base
 
         if action in {RoomActionEnum.BUILD, RoomActionEnum.UPGRADE}:
-            return current_capacity + room_capacity
+            return base + room_capacity
         if action == RoomActionEnum.DESTROY:
-            return current_capacity - room_capacity
+            return base - room_capacity
         msg = f"Invalid room action: {action}"
         raise ValueError(msg)
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.93.0 (2026-09-13)
+
+### Features
+
+* **crafting:** timed workshop order queue ([#609](https://github.com/ElderEvil/falloutProject/issues/609)) 675567f
+
 ## 2.92.0 (2026-09-13)
 
 ### Features

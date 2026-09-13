@@ -463,6 +463,42 @@ stage-transition logic.
 
 ---
 
+### Seeded Families — Couples, Children & Family Apprentices (Target: TBD)
+
+**Focus**: vaults should feel like families from the first minute. Today's seed creates capable but unrelated
+dwellers; this seeds coherent households instead — one or more couples with their children, a teen child
+apprenticing at a working parent's production job.
+
+**Scope:**
+
+- 🔲 **Seeded couples.** Create partners as a pair — set `partner_id` both ways, seed the relationship row, and
+  start at a committed stage (partnered or MARRIED) so the v2.42 lineage API shows the household immediately.
+- 🔲 **Children.** Give couples one or more children seeded as `CHILD` or `TEEN`, linked to both parents so lineage,
+  the family-tree rows, and bio `family` entries read correctly.
+- 🔲 **Family apprentices.** When a parent works a production room, seed a teen child as an apprentice of that room —
+  reusing the existing apprentice lifecycle (`apprentice_stat` / `apprentice_started_at`,
+  `_seed_youth_apprentice`), keyed to the room's ability. No apprenticeship when no parent works production.
+- 🔲 **Lore.** Bios/dossier sections name spouse, children, and parents so the seeded household reads as a family
+  rather than a roster.
+- 🔲 **Both vault types.** Standard vaults seed at least one family; boosted vaults seed a few (they already seed
+  youth apprentices — extend that into whole households) while staying within housing capacity.
+
+**Reuse:** `Dweller.partner_id`, the relationship/affinity/marriage system, `AgeGroupEnum`, the existing youth
+apprentice seeding, and living-biography sections. No new family model.
+
+**Open questions:** how many families per vault type; children start as `CHILD` vs `TEEN`; partnered vs MARRIED at
+seed; what happens when a parent is reassigned off production; whether every child is blood-linked to both parents;
+keeping the roster within `population_max`.
+
+**Guardrails:** create through the service layer (never CRUD directly) so lineage, events, and game-loop side
+effects match REST behaviour; keep counts within capacity; respect the v2.35+ net-LOC constraint.
+
+**Success criteria:** a freshly created vault contains coherent families — the lineage API returns each child's
+parents and each couple's partnership, at least one teen apprentices at a parent's production room, bios name the
+family, and both standard and boosted seeding are test-backed.
+
+---
+
 ### Overseer Reports — CodeRabbit Review Follow-ups (Target: TBD)
 
 **Focus**: Follow-ups from the CodeRabbit review of the Overseer Reports PR (#449). The two stability fixes shipped

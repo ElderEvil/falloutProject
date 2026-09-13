@@ -46,6 +46,49 @@ const STAT_META: Record<string, { icon: string, label: string }> = {
 
 const statMeta = (stat: string) =>
   STAT_META[stat.toLowerCase()] ?? { icon: 'mdi:star', label: stat.toUpperCase() }
+
+const JUNK_TYPE_META: Record<string, { icon: string, label: string }> = {
+  circuitry: { icon: 'mdi:chip', label: 'Circuitry' },
+  leather: { icon: 'mdi:bag-personal', label: 'Leather' },
+  adhesive: { icon: 'mdi:tape', label: 'Adhesive' },
+  cloth: { icon: 'mdi:tshirt-crew-outline', label: 'Cloth' },
+  science: { icon: 'mdi:flask', label: 'Science' },
+  steel: { icon: 'mdi:anvil', label: 'Steel' },
+  valuables: { icon: 'mdi:diamond-stone', label: 'Valuables' },
+}
+
+const junkTypeMeta = (junkType: string) =>
+  JUNK_TYPE_META[junkType.toLowerCase()] ?? { icon: 'mdi:wrench', label: junkType }
+
+const RARITY_FILTERS = ['all', 'common', 'rare', 'legendary'] as const
+const rarityFilter = ref<(typeof RARITY_FILTERS)[number]>('all')
+const onlyCraftable = ref(false)
+const search = ref('')
+
+const filteredRecipes = computed(() =>
+  recipes.value.filter((recipe) => {
+    if (rarityFilter.value !== 'all' && recipe.rarity !== rarityFilter.value) return false
+    if (onlyCraftable.value && !recipe.can_craft) return false
+    const term = search.value.trim().toLowerCase()
+    return term === '' || recipe.name.toLowerCase().includes(term)
+  }),
+)
+
+function formatDuration(seconds: number): string {
+  if (seconds >= 3600) {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.round((seconds % 3600) / 60)
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`
+  }
+  return `${Math.max(1, Math.round(seconds / 60))}m`
+}
+
+/** "3 common · 3 rare" — what the recipe consumes, by material rarity. */
+function materialsLabel(recipe: CraftingRecipe): string {
+  return Object.entries(recipe.junk_materials)
+    .map(([material, needed]) => `${needed} ${material}`)
+    .join(' · ')
+}
 const craftableCount = computed(() => recipes.value.filter(recipe => recipe.can_craft).length)
 const queue = computed(() =>
   orders.value.filter(order => order.status !== 'collected' && order.item_type === props.itemType),
@@ -124,12 +167,6 @@ async function handleCollect(order: CraftingOrder) {
   } finally {
     busyKey.value = null
   }
-}
-
-function costLabel(recipe: CraftingRecipe): string {
-  const parts = [`${recipe.junk_cost} junk`]
-  if (recipe.caps_cost > 0) parts.push(`${recipe.caps_cost} caps`)
-  return parts.join(' · ')
 }
 
 onMounted(() => {
@@ -215,9 +252,30 @@ watch(() => [props.vaultId, props.itemType], loadAll)
         No craftable {{ itemType }}s are catalogued.
       </p>
 
-      <ul v-else class="max-h-64 space-y-2 overflow-y-auto pr-1">
+      <div v-else class="mb-2 flex flex-wrap items-center gap-2 text-xs">
+        <input
+          v-model="search"
+          type="search"
+          placeholder="Search schematics…"
+          class="min-w-32 flex-1 rounded-sm border border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-theme-primary placeholder:text-theme-primary/40"
+        />
+        <select
+          v-model="rarityFilter"
+          class="rounded-sm border border-theme-primary/30 bg-surface-sunken/60 px-2 py-1 text-theme-primary"
+        >
+          <option v-for="rarity in RARITY_FILTERS" :key="rarity" :value="rarity">
+            {{ rarity === 'all' ? 'All rarities' : rarity }}
+          </option>
+        </select>
+        <label class="flex items-center gap-1.5 text-theme-primary/80">
+          <input v-model="onlyCraftable" type="checkbox" />
+          Craftable now
+        </label>
+      </div>
+
+      <ul v-if="filteredRecipes.length > 0" class="max-h-64 space-y-2 overflow-y-auto pr-1">
         <li
-          v-for="recipe in recipes"
+          v-for="recipe in filteredRecipes"
           :key="recipe.name"
           class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
         >
@@ -229,16 +287,35 @@ watch(() => [props.vaultId, props.itemType], loadAll)
               <span class="shrink-0 text-[0.65rem] uppercase tracking-wider text-theme-primary/50">
                 {{ recipe.rarity }}
               </span>
-            </div>
-            <div class="mt-0.5 flex items-center gap-2 text-xs text-theme-primary/70">
-              <Icon icon="mdi:wrench" class="h-3.5 w-3.5 shrink-0" />
-              <span>{{ costLabel(recipe) }}</span>
-              <span v-if="recipe.missing_junk > 0" class="text-danger/80">
-                (missing {{ recipe.missing_junk }} scrap)
-              </span>
               <span class="ml-auto flex shrink-0 items-center gap-1 text-theme-accent/80">
                 <Icon :icon="statMeta(recipe.stat).icon" class="h-3.5 w-3.5" />
-                {{ statMeta(recipe.stat).label }}
+                {{ statMeta(recipe.stat).label }} {{ recipe.ability_sum }}
+              </span>
+            </div>
+            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-theme-primary/70">
+              <span
+                v-for="(needed, material) in recipe.junk_materials"
+                :key="material"
+                class="flex items-center gap-1"
+                :class="{
+                  'text-danger/80': (recipe.available_junk[material] ?? 0) < needed,
+                }"
+              >
+                <Icon icon="mdi:wrench" class="h-3.5 w-3.5 shrink-0" />
+                {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
+              </span>
+              <span class="flex items-center gap-1 opacity-80">
+                <Icon
+                  v-for="junkType in recipe.junk_types"
+                  :key="junkType"
+                  :icon="junkTypeMeta(junkType).icon"
+                  class="h-3.5 w-3.5 shrink-0"
+                  :title="junkTypeMeta(junkType).label"
+                />
+              </span>
+              <span class="flex items-center gap-1">
+                <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />
+                {{ formatDuration(recipe.duration_seconds) }}
               </span>
             </div>
           </div>
@@ -247,7 +324,7 @@ watch(() => [props.vaultId, props.itemType], loadAll)
             size="sm"
             class="shrink-0"
             :disabled="!recipe.can_craft || busyKey !== null"
-            :title="recipe.can_craft ? `Queue ${recipe.name}` : 'Not enough materials'"
+            :title="recipe.can_craft ? `Queue ${recipe.name}` : materialsLabel(recipe)"
             @click="handleStart(recipe)"
           >
             <Icon
@@ -259,6 +336,10 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           </UButton>
         </li>
       </ul>
+
+      <p v-else class="py-4 text-center text-sm text-theme-primary/70">
+        No schematics match those filters.
+      </p>
 
       <p class="mt-2 text-[0.7rem] text-theme-primary/50">
         Materials come from scrapping gear and wasteland salvage. Dwellers working the workshop finish orders

@@ -4952,6 +4952,35 @@ export interface components {
             value?: number | null;
             /** Stat */
             stat: string;
+            /**
+             * Junk Types
+             * @default []
+             */
+            junk_types: string[];
+            /**
+             * Junk Materials
+             * @default {}
+             */
+            junk_materials: {
+                [key: string]: number;
+            };
+            /**
+             * Available Junk
+             * @default {}
+             */
+            available_junk: {
+                [key: string]: number;
+            };
+            /**
+             * Ability Sum
+             * @default 0
+             */
+            ability_sum: number;
+            /**
+             * Duration Seconds
+             * @default 0
+             */
+            duration_seconds: number;
             /** Junk Cost */
             junk_cost: number;
             /** Caps Cost */

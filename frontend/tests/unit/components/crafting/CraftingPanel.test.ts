@@ -26,6 +26,11 @@ const recipe = (overrides: Partial<CraftingRecipe> = {}): CraftingRecipe =>
     rarity: 'common',
     value: 20,
     stat: 'agility',
+    junk_types: ['circuitry', 'steel'],
+    junk_materials: { common: 3 },
+    available_junk: { common: 5 },
+    ability_sum: 0,
+    duration_seconds: 3600,
     junk_cost: 3,
     caps_cost: 0,
     can_craft: true,
@@ -77,7 +82,39 @@ describe('CraftingPanel', () => {
 
     expect(craftingService.listRecipes).toHaveBeenCalledWith('vault-1', 'weapon')
     expect(wrapper.text()).toContain('Pipe pistol')
-    expect(wrapper.text()).toContain('3 junk')
+    expect(wrapper.text()).toContain('5/3 common')
+    expect(wrapper.text()).toContain('1h')
+  })
+
+  it('flags a material shortfall and explains the recipe', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({ can_craft: false, junk_materials: { common: 3, rare: 3 }, available_junk: { common: 3, rare: 0 }, missing_junk: 3 }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('0/3 rare')
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+  })
+
+  it('filters schematics by rarity, craftability and name', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([
+      recipe({ name: 'Pipe pistol', rarity: 'common', can_craft: true }),
+      recipe({ name: 'Baseball bat', rarity: 'rare', can_craft: false, junk_materials: { common: 3, rare: 3 } }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Pipe pistol')
+    expect(wrapper.text()).toContain('Baseball bat')
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[0].setValue(true)
+    expect(wrapper.text()).toContain('Pipe pistol')
+    expect(wrapper.text()).not.toContain('Baseball bat')
+
+    await wrapper.find('input[type="search"]').setValue('baseball')
+    expect(wrapper.text()).toContain('No schematics match those filters')
   })
 
   it('shows the stat each schematic keys off, and the crew total in the queue', async () => {
@@ -93,15 +130,14 @@ describe('CraftingPanel', () => {
     expect(wrapper.text()).toContain('AGI 14')
   })
 
-  it('disables starting and shows the shortfall when materials are missing', async () => {
+  it('disables starting when the recipe cannot be afforded', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({ can_craft: false, junk_cost: 6, missing_junk: 4 }),
+      recipe({ can_craft: false, junk_materials: { common: 3, rare: 3 }, available_junk: { common: 3, rare: 0 }, missing_junk: 3 }),
     ])
     const wrapper = mountPanel()
     await flushPromises()
 
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('missing 4 scrap')
   })
 
   it('queues an order, refreshes and reports it', async () => {

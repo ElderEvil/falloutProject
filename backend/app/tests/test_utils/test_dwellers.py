@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.core.game_config import DwellerConfig, game_config
+from app.options.bios import render_bio
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.common import AgeGroupEnum, RarityEnum
@@ -13,7 +14,6 @@ from app.utils.dwellers import (
     _PLACE_POOL,
     _calendar_years_ago,
     _procedural_bio_places,
-    _render_template_bio,
     create_random_common_dweller,
 )
 
@@ -28,14 +28,42 @@ def test_place_pool_has_no_unregistrable_names() -> None:
 
 
 def test_render_template_bio_no_visited() -> None:
-    assert _render_template_bio("Megaton", []) == "Born in Megaton. Before the vault, I wandered the wastes alone."
+    assert render_bio("Megaton", [], race=RaceOption.HUMAN) == (
+        "Born in Megaton. Before the vault, I wandered the wastes alone."
+    )
 
 
 def test_render_template_bio_single_visited() -> None:
-    assert (
-        _render_template_bio("Megaton", ["Rivet City"])
-        == "Born in Megaton. Before the vault, I wandered through Rivet City."
+    assert render_bio("Megaton", ["Rivet City"], race=None) == (
+        "Born in Megaton. Before the vault, I wandered through Rivet City."
     )
+
+
+@pytest.mark.parametrize(
+    ("race", "marker"),
+    [
+        (RaceOption.GHOUL, "before the bombs"),
+        (RaceOption.SYNTH, "I was not born"),
+        (RaceOption.SUPER_MUTANT, "vats"),
+    ],
+)
+def test_render_bio_non_human_voice(race: RaceOption, marker: str) -> None:
+    """Non-human bios frame the shared origin pool in a lore-safe way."""
+    rng = random.Random(7)
+    visited = render_bio("Megaton", ["Rivet City", "Diamond City"], race=race, rng=rng)
+    assert marker in visited
+    assert "Rivet City" in visited
+    assert "Diamond City" in visited
+    assert "Born in Megaton" not in visited
+
+    assert "Born in Megaton" not in render_bio("Megaton", [], race=race, rng=rng)
+
+
+def test_procedural_bio_places_scales_with_rarity() -> None:
+    """Visited counts stay tight: 1/2/3 for common/rare/legendary."""
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.COMMON)[1]) == 1
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.RARE)[1]) == 2
+    assert len(_procedural_bio_places(random.Random(3), RarityEnum.LEGENDARY)[1]) == 3
 
 
 def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:

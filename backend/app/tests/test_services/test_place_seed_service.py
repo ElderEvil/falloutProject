@@ -105,3 +105,23 @@ async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession)
 
     location = await wl_crud.get_or_create_location(async_session, "Red Rocket")
     assert location.group_key == "gas_station"
+
+
+@pytest.mark.asyncio
+async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSession) -> None:
+    """A row that predates the taxonomy gets its group on the next seed run, whatever its source."""
+    from app.crud.world_location import world_location as wl_crud
+
+    await seed_places_from_json(async_session, commit=False)
+    red_rocket = await wl_crud.get_registry_by_normalized(async_session, "red rocket")
+    assert red_rocket is not None
+    red_rocket.group_key = None
+    red_rocket.source = "emergent"
+    async_session.add(red_rocket)
+    await async_session.flush()
+
+    await seed_places_from_json(async_session, commit=False)
+    await async_session.flush()
+
+    await async_session.refresh(red_rocket)
+    assert red_rocket.group_key == "gas_station"

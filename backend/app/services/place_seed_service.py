@@ -47,16 +47,20 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
         normalized = normalize_place_name(entry["name"])
         existing = await world_location_crud.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
-            if existing.source == "seed":
-                changed = False
-                if entry.get("description") != existing.description:
-                    existing.description = entry.get("description")
-                    changed = True
-                if entry.get("group") != existing.group_key:
-                    existing.group_key = entry.get("group")
-                    changed = True
-                if changed:
-                    db_session.add(existing)
+            changed = False
+            # The seed owns canonical lore and the site-type group. Descriptions
+            # only refresh for seed rows (emergent rows may carry place-specific
+            # text), but grouping is a shared taxonomy fact, so it backfills any
+            # row whose name is now in the roster — the retroactive-update path
+            # for registries that predate a group (or a newly added instance).
+            if existing.source == "seed" and entry.get("description") != existing.description:
+                existing.description = entry.get("description")
+                changed = True
+            if entry.get("group") != existing.group_key:
+                existing.group_key = entry.get("group")
+                changed = True
+            if changed:
+                db_session.add(existing)
             continue
         kind = PlaceKindEnum.VAULT if entry["kind"] == "vault" else PlaceKindEnum.PLACE
         if kind == PlaceKindEnum.VAULT:

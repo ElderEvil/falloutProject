@@ -22,6 +22,9 @@ class NotificationType(StrEnum):
     TRAINING_COMPLETE = "training_complete"
     TRAINING_STARTED = "training_started"
 
+    # Crafting events
+    CRAFTING_COMPLETE = "crafting_complete"
+
     # Social events
     RELATIONSHIP_FORMED = "relationship_formed"
     PREGNANCY_DETECTED = "pregnancy_detected"

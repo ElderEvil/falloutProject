@@ -240,6 +240,27 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_crafting_complete(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        order_count: int = 1,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that one or more workshop orders are ready to collect."""
+        title = "Workshop Order Ready" if order_count == 1 else f"{order_count} Workshop Orders Ready"
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.CRAFTING_COMPLETE,
+            priority=NotificationPriority.NORMAL,
+            title=title,
+            message="Collect the finished item from the crafting panel.",
+            meta_data=meta_data or {"order_count": order_count},
+        )
+
+    @staticmethod
     async def notify_baby_born(
         db: AsyncSession,
         user_id: UUID,

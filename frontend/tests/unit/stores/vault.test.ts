@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { nextTick, ref, type Ref } from 'vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useToast } from '@/core/composables/useToast'
 import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
 
@@ -273,6 +274,27 @@ describe('Vault Store', () => {
         water: 86,
       })
       expect(store.resourceRates['vault-1']).toEqual({ power: 10, food: -5, water: 5 })
+    })
+
+    it('toasts when a workshop order completes', async () => {
+      const store = useVaultStore()
+      const { toasts } = useToast()
+      toasts.value = []
+      store.loadedVaults = { 'vault-1': mockVault }
+
+      store.startGameTickSse('vault-1', 'test-token')
+      ;(sseMock.event as Ref<{ event: string; data: unknown } | null>).value = {
+        event: 'tick',
+        data: {
+          seconds_passed: 60,
+          updates: { crafting: { completed: 2 } },
+        },
+      }
+      await nextTick()
+
+      expect(toasts.value.some((t) => t.message === '2 workshop orders are ready to collect')).toBe(
+        true
+      )
     })
   })
 

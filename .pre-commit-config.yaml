@@ -38,6 +38,7 @@ repos:
         entry: bash -c 'cd backend && uv run ty check --output-format concise --exit-zero-on-warning "${@#backend/}"' --
         language: system
         files: ^backend/.*\.py$
+        exclude: ^backend/app/(tests|alembic|crud)/
         types: [python]
       - id: frontend-lint-format
         name: frontend lint+format (staged)

@@ -182,7 +182,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
     @staticmethod
     async def get_room_by_coordinates(
-        *, db_session: AsyncSession, vault_id: int, x_coord: int, y_coord: int
+        *, db_session: AsyncSession, vault_id: UUID4, x_coord: int, y_coord: int
     ) -> Room | None:
         """Retrieve a room by its coordinates in a vault."""
         response = await db_session.execute(

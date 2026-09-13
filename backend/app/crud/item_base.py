@@ -14,7 +14,12 @@ from app.crud.base import CRUDBase
 from app.models import Outfit, Storage, Vault, Weapon
 from app.models.dweller import Dweller
 from app.models.junk import Junk
-from app.utils.exceptions import ContentNoChangeException, InvalidItemAssignmentException, ResourceNotFoundException
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    InvalidItemAssignmentException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+)
 
 
 async def get_items_by_vault(
@@ -314,6 +319,15 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         storage_id = item.storage_id
 
         junk_list = self.convert_to_junk(item)
+
+        # Scrapping replaces one item with one or more junk, and selling is the way
+        # to free space, so reject a scrap that would push storage past capacity.
+        if storage_id:
+            from app.crud.storage import storage as storage_crud
+
+            info = await storage_crud.get_info(db_session, storage_id)
+            if info["used_space"] - 1 + len(junk_list) > info["max_space"]:
+                raise ResourceConflictException("Storage is full")
 
         # Assign junk items to the same storage and add to session
         for junk in junk_list:

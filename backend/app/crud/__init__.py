@@ -1,4 +1,3 @@
-from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 
@@ -9,6 +8,7 @@ from .exploration import exploration
 from .game_state import game_state_crud
 from .incident import incident_crud
 from .item_base import CRUDItem
+from .junk import junk
 from .llm_interaction import llm_interaction
 from .objective import objective_crud
 from .pregnancy import pregnancy
@@ -21,4 +21,3 @@ from .world_location import world_location
 # Create CRUD instances directly using CRUDItem
 weapon = CRUDItem(Weapon)
 outfit = CRUDItem(Outfit)
-junk = CRUDItem(Junk)

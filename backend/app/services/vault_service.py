@@ -755,13 +755,19 @@ class VaultService:
 
         return credited
 
-    async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int):
-        """Withdraw the specified amount from the vault's bottle caps as part of a spending operation."""
+    async def withdraw_caps(self, *, db_session: AsyncSession, vault_obj: Vault, amount: int, commit: bool = True):
+        """Withdraw the specified amount from the vault's bottle caps as part of a spending operation.
+
+        Pass ``commit=False`` to compose the deduction with other writes into one transaction.
+        """
         if vault_obj.bottle_caps < amount:
             amount_needed = amount - vault_obj.bottle_caps
             raise InsufficientResourcesException(resource_name="bottle caps", resource_amount=amount_needed)
         await vault_crud.update(
-            db_session, id=vault_obj.id, obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount)
+            db_session,
+            id=vault_obj.id,
+            obj_in=VaultUpdate(bottle_caps=vault_obj.bottle_caps - amount),
+            commit=commit,
         )
 
     @staticmethod

@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     arena,
     auth,
     chat,
+    crafting,
     dweller,
     email,
     exploration,
@@ -38,6 +39,7 @@ api_router.include_router(system.router)
 api_router.include_router(auth.router)
 api_router.include_router(ai_settings.router)
 api_router.include_router(chat.router)
+api_router.include_router(crafting.router)
 api_router.include_router(email.router)
 api_router.include_router(dweller.router)
 api_router.include_router(exploration.router)

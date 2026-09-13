@@ -4,6 +4,7 @@ import random
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from app.core.game_config import DwellerConfig, game_config
 from app.options.bios import render_bio, render_newborn_bio
@@ -110,6 +111,31 @@ def test_vault_start_config_rare_chances() -> None:
     """Standard seeding stays at 4% RARE; boosted vaults get the 12% P0 boost."""
     assert game_config.vault_start.standard_rare_chance == 0.04
     assert game_config.vault_start.boosted_rare_chance == 0.12
+
+
+def test_crafting_config_rejects_incomplete_cost_maps() -> None:
+    """A map without every rarity would KeyError on the common fallback."""
+    from app.core.game_config import CraftingConfig
+
+    with pytest.raises(ValidationError, match="missing rarities"):
+        CraftingConfig(junk_cost_by_rarity={"rare": 6, "legendary": 12})
+
+
+def test_crafting_config_rejects_negative_costs() -> None:
+    """A negative junk cost would slice eligible[:cost] from the wrong end."""
+    from app.core.game_config import CraftingConfig
+
+    with pytest.raises(ValidationError, match="non-negative"):
+        CraftingConfig(junk_cost_by_rarity={"common": -1, "rare": 6, "legendary": 12})
+
+
+def test_crafting_config_normalizes_rarity_keys() -> None:
+    from app.core.game_config import CraftingConfig
+
+    config = CraftingConfig(junk_cost_by_rarity={"Common": 3, "RARE": 6, "legendary": 12})
+
+    assert config.junk_cost("rare") == 6
+    assert config.junk_cost("unknown") == 3
 
 
 def test_render_newborn_bio_links_both_parents(monkeypatch: pytest.MonkeyPatch) -> None:

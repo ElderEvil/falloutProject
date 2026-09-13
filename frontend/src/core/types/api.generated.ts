@@ -408,6 +408,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crafting/vault/{vault_id}/recipes/{item_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Crafting Recipes
+         * @description List craftable items of one type with their costs and affordability.
+         *
+         *     Returns:
+         *         Recipe list for the vault's workshop.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        get: operations["list_crafting_recipes_api_v1_crafting_vault__vault_id__recipes__item_type__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crafting/vault/{vault_id}/craft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Craft Item
+         * @description Craft one catalog item at its matching workshop.
+         *
+         *     Returns:
+         *         The crafted item and the materials spent.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        post: operations["craft_item_api_v1_crafting_vault__vault_id__craft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/email/test": {
         parameters: {
             query?: never;
@@ -4706,6 +4758,80 @@ export interface components {
         CountResponse: {
             /** Count */
             count: number;
+        };
+        /**
+         * CraftRequest
+         * @description Craft one catalog item at its matching workshop.
+         */
+        CraftRequest: {
+            /** Item Name */
+            item_name: string;
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "weapon" | "outfit";
+        };
+        /**
+         * CraftResultRead
+         * @description The crafted item plus the materials that were spent.
+         */
+        CraftResultRead: {
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "weapon" | "outfit";
+            /**
+             * Item Id
+             * Format: uuid4
+             */
+            item_id: string;
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Junk Spent */
+            junk_spent: number;
+            /** Caps Spent */
+            caps_spent: number;
+        };
+        /**
+         * CraftingRecipeRead
+         * @description One craftable catalog entry with its cost and current affordability.
+         */
+        CraftingRecipeRead: {
+            /** Name */
+            name: string;
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "weapon" | "outfit";
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Junk Cost */
+            junk_cost: number;
+            /** Caps Cost */
+            caps_cost: number;
+            /** Can Craft */
+            can_craft: boolean;
+            /**
+             * Missing Junk
+             * @default 0
+             */
+            missing_junk: number;
+        };
+        /**
+         * CraftingRecipesRead
+         * @description Recipe list for a vault's workshops.
+         */
+        CraftingRecipesRead: {
+            /**
+             * Recipes
+             * @default []
+             */
+            recipes: components["schemas"]["CraftingRecipeRead"][];
         };
         /**
          * DeathCauseBreakdown
@@ -9663,6 +9789,73 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_crafting_recipes_api_v1_crafting_vault__vault_id__recipes__item_type__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                item_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftingRecipesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    craft_item_api_v1_crafting_vault__vault_id__craft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftResultRead"];
+                };
             };
             /** @description Validation Error */
             422: {

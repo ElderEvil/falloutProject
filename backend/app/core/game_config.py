@@ -17,7 +17,7 @@ from typing import Any
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.enums import SPECIALEnum, WeaponTypeEnum
+from app.core.enums import RarityEnum, SPECIALEnum, WeaponTypeEnum
 from app.core.grid_config import (
     GRID_BUILD_X_MAX,
     GRID_BUILD_Y_MAX,
@@ -899,6 +899,44 @@ class ExplorationConfig(BaseSettings):
         return value_map.get(rarity_str.lower(), self.junk_value_common)
 
 
+class CraftingConfig(BaseSettings):
+    """Instant crafting costs at the weapon and outfit workshops."""
+
+    junk_cost_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"common": 3, "rare": 6, "legendary": 12},
+        description="Junk materials required, keyed by the crafted item's rarity",
+    )
+    caps_cost_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"common": 0, "rare": 100, "legendary": 500},
+        description="Bottle caps required, keyed by the crafted item's rarity",
+    )
+
+    @field_validator("junk_cost_by_rarity", "caps_cost_by_rarity", mode="before")
+    @classmethod
+    def validate_cost_maps(cls, v: dict[str, int]) -> dict[str, int]:
+        """Require every rarity and non-negative costs.
+
+        ``junk_cost``/``caps_cost`` fall back to the ``common`` entry, so a map
+        without it raises KeyError on lookup; a negative junk cost would slice
+        ``eligible[:cost]`` from the end and consume the wrong materials.
+        """
+        normalized = {str(key).lower(): cost for key, cost in v.items()}
+        required = {rarity.value for rarity in RarityEnum}
+        if missing := required - normalized.keys():
+            raise ValueError(f"Crafting cost map is missing rarities: {sorted(missing)}")
+        if any(isinstance(cost, bool) or not isinstance(cost, int) or cost < 0 for cost in normalized.values()):
+            raise ValueError("Crafting costs must be non-negative integers")
+        return normalized
+
+    def junk_cost(self, rarity: str) -> int:
+        """Junk materials needed to craft an item of this rarity."""
+        return self.junk_cost_by_rarity.get(rarity.lower(), self.junk_cost_by_rarity["common"])
+
+    def caps_cost(self, rarity: str) -> int:
+        """Bottle caps needed to craft an item of this rarity."""
+        return self.caps_cost_by_rarity.get(rarity.lower(), self.caps_cost_by_rarity["common"])
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -922,6 +960,7 @@ class GameConfig(BaseSettings):
     bio: BioConfig = Field(default_factory=BioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
+    crafting: CraftingConfig = Field(default_factory=CraftingConfig)
 
 
 # Singleton instance

@@ -37,6 +37,20 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         response = await db_session.execute(query)
         return response.scalars().all()
 
+    async def lock_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Vault:
+        """Lock a vault row and return its current committed state.
+
+        Spending services (crafting) serialize on this row so two concurrent
+        requests cannot both validate the same caps and materials.
+        """
+        result = await db_session.execute(
+            select(self.model)
+            .where(self.model.id == vault_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalars().one()
+
     async def update_storage(self, db_session: AsyncSession, vault_id: UUID4, new_space_max: int) -> Storage:
         """Update the storage max space for a vault (delegates to storage CRUD)."""
         from app.crud.storage import storage as storage_crud

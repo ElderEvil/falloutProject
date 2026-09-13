@@ -25,10 +25,15 @@ interface ResourceTickUpdate {
   }
 }
 
+interface CraftingTickUpdate {
+  completed?: number
+}
+
 interface GameTickUpdate {
   seconds_passed?: number
   updates?: {
     resources?: ResourceTickUpdate
+    crafting?: CraftingTickUpdate
   }
 }
 
@@ -283,6 +288,16 @@ export const useVaultStore = defineStore('vault', () => {
               ])
             ) as ResourceRates
           }
+        }
+
+        // A finished workshop order surfaces beyond the bell (progression red line).
+        const completedOrders = tickData?.updates?.crafting?.completed ?? 0
+        if (completedOrders > 0) {
+          toast.success(
+            completedOrders === 1
+              ? 'A workshop order is ready to collect'
+              : `${completedOrders} workshop orders are ready to collect`
+          )
         }
       }
     )

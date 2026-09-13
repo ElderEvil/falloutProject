@@ -67,6 +67,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "LEVEL_UP",
         "TRAINING_COMPLETE",
         "TRAINING_STARTED",
+        "CRAFTING_COMPLETE",
         "RELATIONSHIP_FORMED",
         "PREGNANCY_DETECTED",
         "BABY_BORN",

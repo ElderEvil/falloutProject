@@ -482,3 +482,29 @@ async def test_list_orders_returns_the_queue(async_session: AsyncSession, vault:
     orders = await crafting_service.list_orders(async_session, vault.id)
 
     assert [order.item_name for order in orders] == [COMMON_WEAPON]
+
+
+@pytest.mark.asyncio
+async def test_crafting_tick_notifies_owner_when_order_completes(async_session: AsyncSession, vault: Vault) -> None:
+    """A finished order both flips to completed and signals the owner (bell + toast)."""
+    from app.models.notification import Notification, NotificationType
+    from app.services.game_tick import crafting_tick
+
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+
+    # Make the order due without pre-completing it, so the tick does the work.
+    order.estimated_completion_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(order)
+    await async_session.commit()
+
+    stats = await crafting_tick.process_crafting(async_session, vault.id)
+
+    assert stats["completed"] == 1
+    await async_session.refresh(order)
+    assert order.status == CraftingOrderStatus.COMPLETED
+
+    result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
+    assert any(n.notification_type == NotificationType.CRAFTING_COMPLETE for n in result.scalars().all())

@@ -1,5 +1,5 @@
 import axios from '@/core/plugins/axios'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 export interface DwellerQueryParams {
   status?: string
@@ -31,5 +31,14 @@ export async function getDwellersByVault(
   const response = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   })
+  return response.data
+}
+
+export async function appendBioAddendum(dwellerId: string, text: string, token: string): Promise<Dweller> {
+  const response = await axios.post<Dweller>(
+    `/api/v1/dwellers/${dwellerId}/bio/addendum/`,
+    { text },
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
   return response.data
 }

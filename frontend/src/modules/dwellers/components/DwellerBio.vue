@@ -37,7 +37,7 @@ interface BioSection {
 const SECTION_ORDER: KnownSectionKey[] = ['origin', 'exploration', 'family', 'dialogue']
 
 const SECTION_META: Record<KnownSectionKey, { label: string, icon: string, sources: string[] }> = {
-  origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy', 'reflection'] },
+  origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy'] },
   exploration: { label: 'FIELD LOG', icon: 'mdi:map-marker-path', sources: ['exploration'] },
   family: { label: 'FAMILY RECORD', icon: 'mdi:account-group', sources: ['family'] },
   dialogue: { label: 'TRANSMISSION LOG', icon: 'mdi:message-text-outline', sources: ['dialogue'] },

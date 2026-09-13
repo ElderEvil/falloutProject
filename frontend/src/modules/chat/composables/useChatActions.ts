@@ -14,6 +14,7 @@ import { startTraining } from '@/modules/progression/services/trainingService'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '@/modules/map/stores/map'
+import { appendBioAddendum } from '@/modules/dwellers/services/dwellerService'
 
 export interface UseChatActionsOptions {
   dwellerId: string
@@ -247,6 +248,24 @@ export function useChatActions(options: UseChatActionsOptions) {
     }
   }
 
+  const handleBioAddendum = async (bioText: string): Promise<boolean> => {
+    if (!authStore.token) return false
+
+    isPerformingAction.value = true
+    try {
+      const updated = await appendBioAddendum(options.dwellerId, bioText, authStore.token)
+      // Cache the returned dweller so the biography panel shows the new entry immediately.
+      dwellerStore.detailedDwellers[options.dwellerId] = updated
+      toast.success(`Recorded in ${options.dwellerName}'s biography`)
+      return true
+    } catch {
+      toast.error('Failed to update biography')
+      return false
+    } finally {
+      isPerformingAction.value = false
+    }
+  }
+
   const handleActionConfirm = async (action: ActionSuggestion, messageIndex: number) => {
     if (!action) return
 
@@ -265,6 +284,8 @@ export function useChatActions(options: UseChatActionsOptions) {
       success = await handleMedicalRequest('stimpack')
     } else if (action.action_type === 'request_radaway') {
       success = await handleMedicalRequest('radaway')
+    } else if (action.action_type === 'bio_addendum') {
+      success = await handleBioAddendum(action.bio_text)
     }
 
     if (success && options.messages.value[messageIndex]) {

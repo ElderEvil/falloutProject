@@ -1,11 +1,7 @@
 """Living biographies — structured entries compiled into Dweller.bio.
 
-Red-phase targets (all fail before bio_service lands):
-- appending wraps legacy bio text as one entry and recompiles;
-- template entries render first, later entries chronologically;
-- entry count caps at 12 (oldest non-template dropped);
-- rendered text caps at 1024 chars;
-- repeat visits to one place record a single exploration entry.
+Covers entry composition (legacy wrapping, ordering, caps, origin rewrites),
+the dedupe/normalization rules on append, and the rendered-bio size guard.
 """
 
 import pytest
@@ -27,6 +23,7 @@ from app.services.bio_service import (
 )
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import ContentNoChangeException, ValidationException
 
 TEMPLATE = "Born in Megaton. Before the vault, I wandered the wastes alone."
 
@@ -117,11 +114,49 @@ def test_with_entry_wraps_legacy_bio_once() -> None:
     assert [entry["source"] for entry in entries] == ["legacy", "family"]
 
 
-def test_replace_origin_discards_prior_entries() -> None:
-    entries = bio_service.replace_origin("New origin.")
+def test_with_origin_preserves_life_entries() -> None:
+    """Rewriting the origin must not discard marriage, birth, or visit entries."""
+    dweller = Dweller(
+        first_name="Test",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        bio="Old origin.",
+        bio_entries=[
+            make_entry("template", "Old origin."),
+            make_entry("family", "Married Jane.", ref={"partner_id": "p1"}),
+            make_entry("exploration", "Visited Rivet City.", ref={"place": "Rivet City"}),
+        ],
+    )
 
-    assert [entry["source"] for entry in entries] == ["template"]
+    entries = bio_service.with_origin(dweller, "New origin.")
+
+    assert [entry["source"] for entry in entries] == ["template", "family", "exploration"]
     assert entries[0]["text"] == "New origin."
+    assert entries[1]["ref"] == {"partner_id": "p1"}
+    assert entries[2]["ref"] == {"place": "Rivet City"}
+
+
+def test_origin_text_prefers_the_origin_entry() -> None:
+    dweller = Dweller(
+        first_name="Test",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        bio="Compiled text.",
+        bio_entries=[make_entry("template", "Origin."), make_entry("family", "Married Jane.")],
+    )
+
+    assert bio_service.origin_text(dweller) == "Origin."
+
+
+def test_origin_text_falls_back_to_bio() -> None:
+    dweller = Dweller(
+        first_name="Test",
+        gender=GenderEnum.MALE,
+        rarity=RarityEnum.COMMON,
+        bio="Legacy text.",
+    )
+
+    assert bio_service.origin_text(dweller) == "Legacy text."
 
 
 @pytest.mark.asyncio
@@ -162,3 +197,24 @@ async def test_template_entry_seeded_at_creation(async_session: AsyncSession) ->
     assert dweller.bio_entries
     assert dweller.bio_entries[0]["source"] == "template"
     assert dweller.bio_entries[0]["text"] == dweller.bio
+
+
+@pytest.mark.asyncio
+async def test_append_entry_rejects_blank_text(async_session: AsyncSession) -> None:
+    """Whitespace passes a raw length check but records nothing."""
+    dweller = await _make_dweller(async_session, TEMPLATE)
+
+    with pytest.raises(ValidationException):
+        await bio_service.append_entry(async_session, dweller.id, "dialogue", "          ")
+
+
+@pytest.mark.asyncio
+async def test_append_entry_strips_and_rejects_duplicate_dialogue(async_session: AsyncSession) -> None:
+    """Repeated dialogue requests must not stack identical entries."""
+    dweller = await _make_dweller(async_session, TEMPLATE)
+
+    updated = await bio_service.append_entry(async_session, dweller.id, "dialogue", "  I keep a wrench.  ")
+    assert updated.bio_entries[-1]["text"] == "I keep a wrench."
+
+    with pytest.raises(ContentNoChangeException):
+        await bio_service.append_entry(async_session, dweller.id, "dialogue", "I keep a wrench.")

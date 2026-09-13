@@ -226,3 +226,42 @@ async def test_read_dweller_lineage_not_found(
     """GET /dwellers/{id}/lineage returns 404 for a non-existent dweller."""
     response = await async_client.get(f"/dwellers/{uuid4()}/lineage", headers=superuser_token_headers)
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_add_bio_addendum_records_dialogue_entry(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    room: Room,
+    dweller_data: dict,
+) -> None:
+    """A confirmed conversation detail lands as a dialogue entry and recompiles the bio."""
+    dweller_data.update({"vault_id": str(room.vault_id)})
+    dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+
+    response = await async_client.post(
+        f"/dwellers/{dweller.id}/bio/addendum/",
+        json={"text": "I keep a lucky wrench under my bunk."},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    entries = body["bio_entries"]
+    assert any(entry["source"] == "dialogue" and "lucky wrench" in entry["text"] for entry in entries)
+    assert "lucky wrench" in body["bio"]
+
+
+@pytest.mark.asyncio
+async def test_add_bio_addendum_rejects_short_text(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    response = await async_client.post(
+        f"/dwellers/{uuid4()}/bio/addendum/",
+        json={"text": "short"},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 422

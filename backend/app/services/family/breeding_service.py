@@ -372,7 +372,7 @@ class BreedingService:
             str(mother.vault_id),
         )
         child.bio = newborn_bio
-        child.bio_entries = bio_service.replace_origin(newborn_bio)
+        child.bio_entries = bio_service.with_origin(child, newborn_bio)
         logger.info(f"Generated newborn bio for {child.first_name}: {newborn_bio[:50]}...")
 
         await db_session.commit()

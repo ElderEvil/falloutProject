@@ -74,6 +74,31 @@ describe('ChatMessageList', () => {
     expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
   })
 
+  it('renders a bio addendum with the exact text that would be recorded', async () => {
+    const wrapper = mountList(
+      [
+        {
+          type: 'dweller',
+          content: 'I keep it under my bunk.',
+          actionSuggestion: {
+            action_type: 'bio_addendum',
+            bio_text: 'I keep a lucky wrench under my bunk.',
+            reason: 'Worth remembering',
+          },
+        },
+      ],
+      { latestActionSuggestionIndex: 0 }
+    )
+
+    expect(wrapper.text()).toContain('Add to biography')
+    expect(wrapper.text()).toContain('I keep a lucky wrench under my bunk.')
+    expect(wrapper.find('.action-confirm-btn').text()).toContain('Remember')
+    expect(wrapper.find('[data-icon="mdi:notebook-edit-outline"]').exists()).toBe(true)
+
+    await wrapper.find('.action-confirm-btn').trigger('click')
+    expect(wrapper.emitted('confirmAction')?.[0]?.[0]).toMatchObject({ action_type: 'bio_addendum' })
+  })
+
   it('renders dweller avatars via DwellerPortrait with the app-standard fallback', () => {
     const dwellerMessage = [{ type: 'dweller', content: 'Hi' }] as ChatMessageDisplay[]
 

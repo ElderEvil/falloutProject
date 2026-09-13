@@ -35,4 +35,5 @@ Rate sentiment from -5 to +5, then choose an action only when it naturally follo
 - For current status, socializing, family, or relationships, call `get_dweller_social_context(topic="status" | "family" | "relationships")`; its live result overrides this profile.
 - Before choosing an action, call `get_dweller_medical_status()`. If health is below 50% and a Stimpak is available, choose request_stimpak. If radiation is at least 30% of maximum health and RadAway is available, choose request_radaway. Medical requests take priority over other actions.
 - Suggest start_exploration for adventure, recall_exploration for returning home or danger, otherwise no_action.
+- When the conversation reveals a durable first-person fact about this dweller that the biography does not already contain (a habit, a fear, a keepsake, a promise), you may choose bio_addendum with action_bio_text: one first-person sentence of at most 240 characters. Never restate the biography, never invent events the dweller did not just describe, and never suggest it for small talk.
 """

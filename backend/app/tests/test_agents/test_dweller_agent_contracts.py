@@ -18,7 +18,13 @@ from app.agents.dweller_chat_agent import (
     parse_action_suggestion,
     validate_dweller_chat_output,
 )
-from app.schemas.chat import MedicalAidStatus, NoAction, RequestRadawayAction, RequestStimpakAction
+from app.schemas.chat import (
+    BioAddendumAction,
+    MedicalAidStatus,
+    NoAction,
+    RequestRadawayAction,
+    RequestStimpakAction,
+)
 from app.schemas.common import DwellerStatusEnum, SPECIALEnum
 from app.services.medical_service import get_dweller_medical_status
 
@@ -102,6 +108,57 @@ def test_no_action_rejects_gameplay_payload() -> None:
 
     with pytest.raises(ModelRetry, match="no_action must not include: action_room_id"):
         validate_dweller_chat_output(output)
+
+
+def test_bio_addendum_requires_text() -> None:
+    """A bio addendum without text has nothing to record."""
+    output = _output(action_type="bio_addendum")
+
+    with pytest.raises(ModelRetry, match="action_bio_text"):
+        validate_dweller_chat_output(output)
+
+
+def test_bio_addendum_rejects_foreign_payload() -> None:
+    """A bio addendum is a narrative action and carries no gameplay fields."""
+    output = _output(
+        action_type="bio_addendum",
+        action_bio_text="I keep a lucky wrench under my bunk.",
+        action_stat=SPECIALEnum.STRENGTH,
+    )
+
+    with pytest.raises(ModelRetry, match="must not include: action_stat"):
+        validate_dweller_chat_output(output)
+
+
+@pytest.mark.asyncio
+async def test_bio_addendum_is_suggested_for_new_detail() -> None:
+    """A durable, previously unrecorded detail becomes an actionable card."""
+    output = _output(action_type="bio_addendum", action_bio_text="I keep a lucky wrench under my bunk.")
+
+    result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
+
+    assert isinstance(result, BioAddendumAction)
+    assert result.bio_text == "I keep a lucky wrench under my bunk."
+
+
+@pytest.mark.asyncio
+async def test_bio_addendum_is_skipped_when_already_recorded() -> None:
+    """Restating the biography must not create a duplicate entry."""
+    dweller = _make_dweller()
+    output = _output(action_type="bio_addendum", action_bio_text=dweller.bio)
+
+    result = await parse_action_suggestion(output, _medical_session(), dweller)
+
+    assert isinstance(result, NoAction)
+
+
+@pytest.mark.asyncio
+async def test_bio_addendum_is_skipped_when_too_short() -> None:
+    output = _output(action_type="bio_addendum", action_bio_text="short")
+
+    result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
+
+    assert isinstance(result, NoAction)
 
 
 @pytest.mark.asyncio

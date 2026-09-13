@@ -17,6 +17,7 @@ ACTION_TYPES = Literal[
     "recall_exploration",
     "request_stimpak",
     "request_radaway",
+    "bio_addendum",
     "no_action",
 ]
 
@@ -28,6 +29,7 @@ ACTION_PAYLOAD_FIELDS = (
     "action_stimpaks",
     "action_radaways",
     "action_exploration_id",
+    "action_bio_text",
 )
 
 REQUIRED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
@@ -37,6 +39,7 @@ REQUIRED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
     "recall_exploration": (),
     "request_stimpak": (),
     "request_radaway": (),
+    "bio_addendum": ("action_bio_text",),
     "no_action": (),
 }
 
@@ -47,6 +50,7 @@ ALLOWED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
     "recall_exploration": (),
     "request_stimpak": (),
     "request_radaway": (),
+    "bio_addendum": ("action_bio_text",),
     "no_action": (),
 }
 
@@ -64,6 +68,11 @@ class DwellerChatOutput(BaseModel):
     action_stimpaks: int | None = Field(None, ge=0, le=25, description="Exploration stimpaks")
     action_radaways: int | None = Field(None, ge=0, le=25, description="Exploration radaways")
     action_exploration_id: UUID4 | None = Field(None, description="Exploration ID for recall")
+    action_bio_text: str | None = Field(
+        None,
+        max_length=240,
+        description="Durable first-person bio detail revealed by the conversation",
+    )
 
 
 @dataclass

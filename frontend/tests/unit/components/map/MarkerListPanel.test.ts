@@ -74,6 +74,28 @@ describe('MarkerListPanel', () => {
       expect(wrapper.find('.marker-list-panel').isVisible()).toBe(true)
     })
 
+    it('shows the site-type group for a location', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [{ ...createLocation('visited', 'Red Rocket'), group_key: 'gas_station' }],
+          vaultMarkers: [],
+          placeGroups: [
+            {
+              key: 'gas_station',
+              label: 'Gas Station',
+              icon: 'mdi:gas-station',
+              risk: 'low',
+              description: 'A roadside fuel stop.',
+            },
+          ],
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.text()).toContain('Gas Station')
+    })
+
     it('should keep the index visible without a toggle when docked', () => {
       const wrapper = mount(MarkerListPanel, {
         props: {

@@ -70,9 +70,7 @@ class CraftingService:
         return [str(junk_type).lower() for junk_type in types]
 
     @staticmethod
-    def _spend_plan(
-        junk: list[Junk], rarity: RarityEnum, types: list[str]
-    ) -> tuple[list[Junk], dict[str, int]]:
+    def _spend_plan(junk: list[Junk], rarity: RarityEnum, types: list[str]) -> tuple[list[Junk], dict[str, int]]:
         """Pick the exact materials this rarity needs, plus any per-material shortfall.
 
         Each tier requires its own rarity, so cheaper scrap cannot substitute for

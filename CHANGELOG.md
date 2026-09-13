@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.4 (2026-09-13)
+
+### Bug Fixes
+
+* **quests:** route medication ITEM rewards to dweller stock ([#602](https://github.com/ElderEvil/falloutProject/issues/602)) 81eb49e
+
+### Documentation
+
+* **roadmap:** capture race origins and generic place groups ([#599](https://github.com/ElderEvil/falloutProject/issues/599)) 16cda86
+* **roadmap:** close incidents batch with per-incident commit policy ([#601](https://github.com/ElderEvil/falloutProject/issues/601)) afca9eb, closes #573 #574 #449
+
 ## 2.87.3 (2026-09-12)
 
 ### Bug Fixes

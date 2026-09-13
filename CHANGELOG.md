@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.87.5 (2026-09-13)
+
+### Bug Fixes
+
+* **quests:** legendary template dweller, supplies tab, reward roadmap refresh ([#603](https://github.com/ElderEvil/falloutProject/issues/603)) 0fe253a
+
 ## 2.87.4 (2026-09-13)
 
 ### Bug Fixes

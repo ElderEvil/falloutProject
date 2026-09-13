@@ -12,7 +12,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "perception"
   },
   {
     "name": "T-45d power armor",
@@ -27,7 +28,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "perception"
   },
   {
     "name": "T-45f power armor",
@@ -42,7 +44,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "perception"
   },
   {
     "name": "T-51a power armor",
@@ -57,7 +60,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   },
   {
     "name": "T-51d power armor",
@@ -72,7 +76,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   },
   {
     "name": "T-51f power armor",
@@ -87,7 +92,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   },
   {
     "name": "T-60a power armor",
@@ -102,7 +108,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "endurance"
   },
   {
     "name": "T-60d power armor",
@@ -117,7 +124,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "endurance"
   },
   {
     "name": "T-60f power armor",
@@ -132,7 +140,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "endurance"
   },
   {
     "name": "X-01 Mk I power armor",
@@ -147,7 +156,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   },
   {
     "name": "X-01 Mk IV power armor",
@@ -162,7 +172,8 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   },
   {
     "name": "X-01 Mk VI power armor",
@@ -177,6 +188,7 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength"
   }
 ]

@@ -74,7 +74,15 @@ async def _add_workshop(async_session: AsyncSession, vault: Vault, name: str) ->
     return room
 
 
-async def _add_worker(async_session: AsyncSession, vault: Vault, room: Room, index: int = 0) -> Dweller:
+async def _add_worker(
+    async_session: AsyncSession,
+    vault: Vault,
+    room: Room,
+    index: int = 0,
+    **stats: int,
+) -> Dweller:
+    base = {"strength": 5, "perception": 5, "endurance": 5, "charisma": 5, "intelligence": 5, "agility": 5, "luck": 5}
+    base.update(stats)
     dweller = await crud.dweller.create(
         async_session,
         obj_in=DwellerCreate(
@@ -88,14 +96,8 @@ async def _add_worker(async_session: AsyncSession, vault: Vault, room: Room, ind
             health=100,
             radiation=0,
             happiness=50,
-            strength=5,
-            perception=5,
-            endurance=5,
-            charisma=5,
-            intelligence=5,
-            agility=5,
-            luck=5,
             vault_id=vault.id,
+            **base,
         ),
     )
     # room_id is not part of the create schema; assign it like the breeding path does.
@@ -302,7 +304,8 @@ async def test_start_order_insufficient_caps(async_session: AsyncSession, vault:
 
 
 @pytest.mark.asyncio
-async def test_workers_shorten_the_order_duration(async_session: AsyncSession, vault: Vault) -> None:
+async def test_item_stat_shortens_the_order_duration(async_session: AsyncSession, vault: Vault) -> None:
+    """The item names the stat (pistols want agility) and the crew supplies the points."""
     storage = await _make_storage(async_session, vault)
     room = await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON) * 2)
@@ -311,17 +314,34 @@ async def test_workers_shorten_the_order_duration(async_session: AsyncSession, v
 
     solo = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
     solo_seconds = (solo.estimated_completion_at - solo.started_at).total_seconds()
-    assert solo.workers_at_start == 0
+    assert solo.required_stat == "agility"
+    assert solo.ability_sum_at_start == 0
     assert solo_seconds == unstaffed
 
-    await _add_worker(async_session, vault, room)
-    await _add_worker(async_session, vault, room, index=1)
+    await _add_worker(async_session, vault, room, agility=7)
+    await _add_worker(async_session, vault, room, index=1, agility=7)
 
     staffed = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
     staffed_seconds = (staffed.estimated_completion_at - staffed.started_at).total_seconds()
 
-    assert staffed.workers_at_start == 2
+    assert staffed.ability_sum_at_start == 14
     assert staffed_seconds < solo_seconds
+    assert staffed_seconds == crafting_service.order_duration_seconds(RarityEnum.COMMON, 14)
+
+
+@pytest.mark.asyncio
+async def test_unrelated_stats_do_not_speed_the_craft(async_session: AsyncSession, vault: Vault) -> None:
+    """A pistol keys off agility, so a strength-heavy worker adds nothing."""
+    storage = await _make_storage(async_session, vault)
+    room = await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+
+    await _add_worker(async_session, vault, room, strength=10, agility=1)
+
+    order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
+
+    assert order.required_stat == "agility"
+    assert order.ability_sum_at_start == 1
 
 
 @pytest.mark.asyncio

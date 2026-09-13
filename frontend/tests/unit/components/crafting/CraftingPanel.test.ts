@@ -25,6 +25,7 @@ const recipe = (overrides: Partial<CraftingRecipe> = {}): CraftingRecipe =>
     item_type: 'weapon',
     rarity: 'common',
     value: 20,
+    stat: 'agility',
     junk_cost: 3,
     caps_cost: 0,
     can_craft: true,
@@ -46,7 +47,8 @@ const order = (overrides: Partial<CraftingOrder> = {}): CraftingOrder =>
     completed_at: null,
     junk_spent: 3,
     caps_spent: 0,
-    workers_at_start: 0,
+    required_stat: 'agility',
+    ability_sum_at_start: 0,
     ...overrides,
   }) as CraftingOrder
 
@@ -76,6 +78,19 @@ describe('CraftingPanel', () => {
     expect(craftingService.listRecipes).toHaveBeenCalledWith('vault-1', 'weapon')
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).toContain('3 junk')
+  })
+
+  it('shows the stat each schematic keys off, and the crew total in the queue', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([recipe({ stat: 'perception' })])
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ required_stat: 'agility', ability_sum_at_start: 14 }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('PER')
+    expect(wrapper.find('[data-icon="mdi:run-fast"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('AGI 14')
   })
 
   it('disables starting and shows the shortfall when materials are missing', async () => {

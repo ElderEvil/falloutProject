@@ -31,6 +31,19 @@ let ticker: number | null = null
 
 const itemIcon = computed(() => (props.itemType === 'weapon' ? 'mdi:sword-cross' : 'mdi:tshirt-crew'))
 const workshopLabel = computed(() => (props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'))
+
+const STAT_META: Record<string, { icon: string, label: string }> = {
+  strength: { icon: 'mdi:arm-flex', label: 'STR' },
+  perception: { icon: 'mdi:eye', label: 'PER' },
+  endurance: { icon: 'mdi:heart', label: 'END' },
+  charisma: { icon: 'mdi:account-voice', label: 'CHA' },
+  intelligence: { icon: 'mdi:brain', label: 'INT' },
+  agility: { icon: 'mdi:run-fast', label: 'AGI' },
+  luck: { icon: 'mdi:clover', label: 'LUK' },
+}
+
+const statMeta = (stat: string) =>
+  STAT_META[stat.toLowerCase()] ?? { icon: 'mdi:star', label: stat.toUpperCase() }
 const craftableCount = computed(() => recipes.value.filter(recipe => recipe.can_craft).length)
 const queue = computed(() => orders.value.filter(order => order.status !== 'collected'))
 
@@ -157,6 +170,10 @@ watch(() => [props.vaultId, props.itemType], loadAll)
               <span class="truncate text-sm font-bold" :class="getRarityTextClass(order.rarity)">
                 {{ order.item_name }}
               </span>
+              <span class="flex shrink-0 items-center gap-1 text-xs text-theme-accent/80">
+                <Icon :icon="statMeta(order.required_stat).icon" class="h-3.5 w-3.5" />
+                {{ statMeta(order.required_stat).label }} {{ order.ability_sum_at_start }}
+              </span>
               <span class="ml-auto shrink-0 text-xs text-theme-primary/70">{{ remainingLabel(order) }}</span>
             </div>
             <div class="mt-1.5 flex items-center gap-2">
@@ -208,6 +225,10 @@ watch(() => [props.vaultId, props.itemType], loadAll)
               <span>{{ costLabel(recipe) }}</span>
               <span v-if="recipe.missing_junk > 0" class="text-danger/80">
                 (missing {{ recipe.missing_junk }} scrap)
+              </span>
+              <span class="ml-auto flex shrink-0 items-center gap-1 text-theme-accent/80">
+                <Icon :icon="statMeta(recipe.stat).icon" class="h-3.5 w-3.5" />
+                {{ statMeta(recipe.stat).label }}
               </span>
             </div>
           </div>

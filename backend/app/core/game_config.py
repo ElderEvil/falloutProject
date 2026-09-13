@@ -914,11 +914,10 @@ class CraftingConfig(BaseSettings):
         default_factory=lambda: {"common": 120, "rare": 600, "legendary": 1800},
         description="Base workshop order duration in seconds, keyed by rarity",
     )
-    worker_speedup: float = Field(
-        default=0.25,
+    craft_speed_per_stat: float = Field(
+        default=0.05,
         ge=0.0,
-        le=1.0,
-        description="Fraction of the base duration removed per dweller working the workshop",
+        description="Duration reduction per point of the item's stat among the workshop's dwellers",
     )
     min_order_seconds: int = Field(default=30, ge=1, description="Floor for a sped-up order duration")
 

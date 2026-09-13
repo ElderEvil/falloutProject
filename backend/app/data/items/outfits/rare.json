@@ -13,7 +13,8 @@
     "charisma": 2,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "perception"
   },
   {
     "name": "RobCo R&D suit",
@@ -29,7 +30,8 @@
     "charisma": 0,
     "intelligence": 4,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "intelligence"
   },
   {
     "name": "Robot armor",
@@ -45,6 +47,7 @@
     "charisma": 0,
     "intelligence": 0,
     "agility": 0,
-    "luck": 2
+    "luck": 2,
+    "stat": "strength"
   }
 ]

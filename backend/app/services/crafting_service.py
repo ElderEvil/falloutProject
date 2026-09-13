@@ -104,6 +104,7 @@ class CraftingService:
                     item_type=item_type,
                     rarity=rarity,
                     value=entry.get("value"),
+                    stat=self._required_stat(entry),
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
                     can_craft=shortfall == 0 and vault.bottle_caps >= caps_cost,
@@ -114,11 +115,20 @@ class CraftingService:
         return sorted(recipes, key=lambda recipe: (_RARITY_ORDER[recipe.rarity], recipe.name))
 
     @staticmethod
-    def order_duration_seconds(rarity: RarityEnum, workers: int) -> int:
-        """Base duration for the rarity, shortened by the dwellers working the workshop."""
+    def _required_stat(entry: dict[str, Any]) -> str:
+        """The dweller SPECIAL that speeds this item's craft, from the catalog."""
+        return str(entry.get("stat") or "strength").lower()
+
+    @staticmethod
+    def order_duration_seconds(rarity: RarityEnum, ability_sum: int) -> int:
+        """Base duration for the rarity, shortened by the crew's total in the item's stat.
+
+        Mirrors room production: the item names the stat (pistols want agility),
+        and the dwellers working that workshop supply the points.
+        """
         base = game_config.crafting.order_seconds(rarity.value)
-        speedup = min(1.0, workers * game_config.crafting.worker_speedup)
-        return max(game_config.crafting.min_order_seconds, int(base * (1 - speedup)))
+        speedup = max(0, ability_sum) * game_config.crafting.craft_speed_per_stat
+        return max(game_config.crafting.min_order_seconds, int(base / (1 + speedup)))
 
     @staticmethod
     async def _workshop_room(db_session: AsyncSession, vault_id: UUID4, workshop: str) -> Room | None:
@@ -167,7 +177,9 @@ class CraftingService:
         for junk_item in spent:
             await db_session.delete(junk_item)
 
-        workers = await crud.dweller.count_in_room(db_session, room.id)
+        workers = await crud.dweller.get_by_room(db_session, room.id)
+        required_stat = self._required_stat(entry)
+        ability_sum = sum(int(getattr(dweller, required_stat, 0) or 0) for dweller in workers)
         now = datetime.utcnow()
         order = CraftingOrder(
             vault_id=vault_id,
@@ -176,17 +188,18 @@ class CraftingService:
             item_type=item_type,
             rarity=rarity,
             started_at=now,
-            estimated_completion_at=now + timedelta(seconds=self.order_duration_seconds(rarity, workers)),
+            estimated_completion_at=now + timedelta(seconds=self.order_duration_seconds(rarity, ability_sum)),
+            required_stat=required_stat,
+            ability_sum_at_start=ability_sum,
             junk_spent=len(spent),
             caps_spent=caps_cost,
-            workers_at_start=workers,
         )
         db_session.add(order)
         await db_session.commit()
         await db_session.refresh(order)
         logger.info(
             f"Queued {item_type} '{order.item_name}' ({rarity.value}) for vault {vault_id} "
-            f"with {workers} worker(s) in {self.order_duration_seconds(rarity, workers)}s"
+            f"with {required_stat} {ability_sum} in {self.order_duration_seconds(rarity, ability_sum)}s"
         )
         return order
 

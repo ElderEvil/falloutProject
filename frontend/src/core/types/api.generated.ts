@@ -4862,11 +4862,8 @@ export interface components {
          * @description The crafted item plus the materials that were spent.
          */
         CraftResultRead: {
-            /**
-             * Item Type
-             * @enum {string}
-             */
-            item_type: "weapon" | "outfit";
+            /** Item Type */
+            item_type: string;
             /**
              * Item Id
              * Format: uuid4
@@ -4919,8 +4916,10 @@ export interface components {
             junk_spent: number;
             /** Caps Spent */
             caps_spent: number;
-            /** Workers At Start */
-            workers_at_start: number;
+            /** Required Stat */
+            required_stat: string;
+            /** Ability Sum At Start */
+            ability_sum_at_start: number;
         };
         /**
          * CraftingOrderStatus
@@ -4951,6 +4950,8 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Value */
             value?: number | null;
+            /** Stat */
+            stat: string;
             /** Junk Cost */
             junk_cost: number;
             /** Caps Cost */

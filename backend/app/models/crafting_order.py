@@ -43,7 +43,9 @@ class CraftingOrderBase(SQLModel):
     # Materials the order already consumed, kept for display and auditing.
     junk_spent: int = Field(default=0, ge=0)
     caps_spent: int = Field(default=0, ge=0)
-    workers_at_start: int = Field(default=0, ge=0)
+    # The SPECIAL this item's craft is keyed to, and the crew's total in it at start.
+    required_stat: str = Field(max_length=16)
+    ability_sum_at_start: int = Field(default=0, ge=0)
 
     def is_active(self) -> bool:
         return self.status == CraftingOrderStatus.ACTIVE

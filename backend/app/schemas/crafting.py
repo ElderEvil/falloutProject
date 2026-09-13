@@ -19,6 +19,7 @@ class CraftingRecipeRead(SQLModel):
     item_type: CraftableItemType
     rarity: RarityEnum
     value: int | None = None
+    stat: str
     junk_cost: int
     caps_cost: int
     can_craft: bool
@@ -61,7 +62,8 @@ class CraftingOrderCreate(SQLModel):
     estimated_completion_at: datetime
     junk_spent: int = Field(default=0, ge=0)
     caps_spent: int = Field(default=0, ge=0)
-    workers_at_start: int = Field(default=0, ge=0)
+    required_stat: str = Field(max_length=16)
+    ability_sum_at_start: int = Field(default=0, ge=0)
 
 
 class CraftingOrderUpdate(SQLModel):
@@ -87,7 +89,8 @@ class CraftingOrderRead(SQLModel):
     completed_at: datetime | None = None
     junk_spent: int
     caps_spent: int
-    workers_at_start: int
+    required_stat: str
+    ability_sum_at_start: int
 
 
 class CraftingOrdersRead(SQLModel):

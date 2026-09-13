@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.96.0 (2026-09-13)
+
+### Features
+
+* **map:** show the site-type group on each marker in the list ([#614](https://github.com/ElderEvil/falloutProject/issues/614)) 7c45f4e
+
 ## 2.95.0 (2026-09-13)
 
 ### Features

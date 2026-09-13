@@ -4,12 +4,12 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.crud.item_base import CRUDItem
+from app.crud.base import CRUDBase
 from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkUpdate
 
 
-class CRUDJunk(CRUDItem[Junk, JunkCreate, JunkUpdate]):
+class CRUDJunk(CRUDBase[Junk, JunkCreate, JunkUpdate]):
     """Junk always lives in storage; crafting consumes it from there."""
 
     async def get_in_storage(self, db_session: AsyncSession, storage_id: UUID4) -> list[Junk]:

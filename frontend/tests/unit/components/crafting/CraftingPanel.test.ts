@@ -97,4 +97,21 @@ describe('CraftingPanel', () => {
 
     expect(wrapper.text()).toContain('No craftable weapons are catalogued')
   })
+
+  it('ignores a stale response when the workshop changes mid-flight', async () => {
+    let resolveFirst: (value: CraftingRecipe[]) => void = () => {}
+    vi.mocked(craftingService.listRecipes)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+      .mockImplementationOnce(async () => [recipe({ name: 'Assault rifle' })])
+
+    const wrapper = mountPanel()
+    await wrapper.setProps({ itemType: 'outfit' })
+    await flushPromises()
+
+    resolveFirst([recipe({ name: 'Pipe pistol' })])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Assault rifle')
+    expect(wrapper.text()).not.toContain('Pipe pistol')
+  })
 })

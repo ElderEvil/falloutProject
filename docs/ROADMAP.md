@@ -749,12 +749,11 @@ weapon type) mirrored by the frontend `getCombatPower()`; arena + incidents shar
 
 ## Planned Features (Future)
 
-### Weapon & Outfit Crafting — Instant (Target: next release)
+### Weapon & Outfit Crafting — Timed Queue (Target: TBD)
 
-**Focus**: Make the two already-buildable Crafting rooms (`Weapon workshop`, `Outfit workshop`) actually do
-something. They exist in `rooms.json` with costs and population gates but are inert — `ability: null`, nothing
-in the tick, no service. Crafting closes the loop between the junk that scrapping and exploration already
-produce and the weapons/outfits the vault actually wants.
+**Focus**: The two Crafting rooms (`Weapon workshop`, `Outfit workshop`) went from inert to functional with the
+instant crafting ship below; the remaining work is the queue that makes them feel like Fallout Shelter's
+workshops rather than a shop menu.
 
 - ✅ **Instant craft** — pay junk plus caps at the matching workshop and the item lands in storage immediately.
   The recipe list is the existing item catalogs filtered by a `craftable` flag (already authored across the

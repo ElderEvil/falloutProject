@@ -59,10 +59,10 @@ class CraftingService:
 
     @staticmethod
     def _eligible_junk(junk: list[Junk], rarity: RarityEnum) -> list[Junk]:
-        """Junk that may pay for this rarity, cheapest and least rare first."""
+        """Junk that may pay for this rarity, cheapest first (rarity breaks ties)."""
         threshold = _RARITY_ORDER[rarity]
         eligible = [item for item in junk if _RARITY_ORDER[RarityEnum(item.rarity)] >= threshold]
-        return sorted(eligible, key=lambda item: (_RARITY_ORDER[RarityEnum(item.rarity)], item.value or 0, item.name))
+        return sorted(eligible, key=lambda item: (item.value or 0, _RARITY_ORDER[RarityEnum(item.rarity)], item.name))
 
     @staticmethod
     def _cost(rarity: RarityEnum) -> tuple[int, int]:
@@ -73,9 +73,14 @@ class CraftingService:
         entry = next((item for item in catalog if str(item.get("name", "")).lower() == item_name.lower()), None)
         if entry is None:
             raise ValidationException(f"Unknown {item_type}: {item_name}")
-        if not entry.get("craftable", True):
+        if not entry.get("craftable", False):
             raise ValidationException(f"{entry['name']} cannot be crafted")
         return entry
+
+    @staticmethod
+    def _fits_after_swap(max_space: int, used_space: int, junk_spent: int) -> bool:
+        """Consuming junk frees its slots before the crafted item takes one."""
+        return max_space - used_space + junk_spent - 1 >= 0
 
     async def list_recipes(self, db_session: AsyncSession, vault_id: UUID4, item_type: str) -> list[CraftingRecipeRead]:
         """Craftable entries for one item type, with costs and current affordability."""
@@ -85,15 +90,16 @@ class CraftingService:
         vault = await crud.vault.get(db_session, vault_id)
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         junk: list[Junk] = await crud.junk.get_in_storage(db_session, storage.id) if storage else []
-        has_space = bool(storage) and await crud.storage.get_available_space(db_session, storage.id) >= 1
+        info = await crud.storage.get_storage_info(db_session, storage.id) if storage else None
 
         recipes: list[CraftingRecipeRead] = []
         for entry in await self._catalog(item_type):
-            if not entry.get("craftable", True):
+            if not entry.get("craftable", False):
                 continue
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
             shortfall = max(0, junk_cost - len(self._eligible_junk(junk, rarity)))
+            has_space = info is not None and self._fits_after_swap(info["max_space"], info["used_space"], junk_cost)
             recipes.append(
                 CraftingRecipeRead(
                     name=str(entry["name"]),
@@ -121,7 +127,7 @@ class CraftingService:
         if item_type not in CRAFTABLE_ITEM_TYPES:
             raise ValidationException(f"Unknown craftable item type: {item_type}")
 
-        vault = await crud.vault.get(db_session, vault_id)
+        vault = await crud.vault.lock_for_update(db_session, vault_id)
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         if storage is None:
             raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
@@ -141,10 +147,11 @@ class CraftingService:
                 resource_name=f"{rarity.value} junk", resource_amount=junk_cost - len(eligible)
             )
 
-        if await crud.storage.get_available_space(db_session, storage.id) < 1:
+        spent = eligible[:junk_cost]
+        info = await crud.storage.get_storage_info(db_session, storage.id)
+        if not self._fits_after_swap(info["max_space"], info["used_space"], len(spent)):
             raise ResourceConflictException("Storage is full")
 
-        spent = eligible[:junk_cost]
         if caps_cost:
             await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
         for junk_item in spent:

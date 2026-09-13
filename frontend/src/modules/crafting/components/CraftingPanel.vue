@@ -24,6 +24,7 @@ const toast = useToast()
 const recipes = ref<CraftingRecipe[]>([])
 const isLoading = ref(false)
 const craftingName = ref<string | null>(null)
+let loadSequence = 0
 
 const itemIcon = computed(() => (props.itemType === 'weapon' ? 'mdi:sword-cross' : 'mdi:tshirt-crew'))
 const workshopLabel = computed(() => (props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'))
@@ -32,14 +33,18 @@ const craftableCount = computed(() => recipes.value.filter(recipe => recipe.can_
 
 async function loadRecipes() {
   if (!props.vaultId) return
+  const sequence = ++loadSequence
   isLoading.value = true
   try {
-    recipes.value = await craftingService.listRecipes(props.vaultId, props.itemType)
+    const loaded = await craftingService.listRecipes(props.vaultId, props.itemType)
+    if (sequence !== loadSequence) return
+    recipes.value = loaded
   } catch (error) {
+    if (sequence !== loadSequence) return
     toast.error(getErrorMessage(error) || 'Failed to load crafting recipes')
     recipes.value = []
   } finally {
-    isLoading.value = false
+    if (sequence === loadSequence) isLoading.value = false
   }
 }
 

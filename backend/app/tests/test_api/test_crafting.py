@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.core.enums import JunkTypeEnum, RarityEnum, RoomTypeEnum
+from app.core.game_config import game_config
 from app.models.junk import Junk
 from app.models.room import Room
 from app.models.storage import Storage
@@ -84,8 +85,8 @@ async def test_list_recipes_returns_costs(
     assert recipes
     pipe_pistol = next(recipe for recipe in recipes if recipe["name"] == "Pipe pistol")
     assert pipe_pistol["can_craft"] is True
-    assert pipe_pistol["junk_cost"] == 3
-    assert pipe_pistol["caps_cost"] == 0
+    assert pipe_pistol["junk_cost"] == game_config.crafting.junk_cost("common")
+    assert pipe_pistol["caps_cost"] == game_config.crafting.caps_cost("common")
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,7 @@ async def test_craft_item_returns_result(
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Pipe pistol"
-    assert body["junk_spent"] == 3
+    assert body["junk_spent"] == game_config.crafting.junk_cost("common")
     assert body["item_type"] == "weapon"
 
 

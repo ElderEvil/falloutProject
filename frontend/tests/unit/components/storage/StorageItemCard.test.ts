@@ -83,4 +83,19 @@ describe('StorageItemCard', () => {
     expect(text).toContain('Gender:')
     expect(text).toContain('female')
   })
+
+  it('renders generic supplies without inventory actions', () => {
+    const wrapper = mount(StorageItemCard, {
+      props: {
+        item: { name: 'Nuka-Cola Quantum', rarity: 'rare', value: 50, item_type: 'consumable' },
+        itemType: 'consumable',
+        count: 2,
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    expect(wrapper.text()).toContain('Nuka-Cola Quantum')
+    expect(wrapper.text()).toContain('×2')
+    expect(wrapper.findAll('button')).toHaveLength(0)
+  })
 })

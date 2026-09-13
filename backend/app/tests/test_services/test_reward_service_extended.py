@@ -176,6 +176,62 @@ async def test_grant_item_storage_full_raises(async_session: AsyncSession) -> No
 
 
 @pytest.mark.asyncio
+async def test_grant_item_legendary_dweller_uses_canonical_template(async_session: AsyncSession) -> None:
+    """ITEM-type Legendary Dweller must materialize a canonical template, not a name-split random."""
+    from app.utils.static_data import game_data_store
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+
+    result = await reward_service.grant_item(
+        async_session,
+        vault.id,
+        {"item_name": "Legendary Dweller", "quantity": 1, "rarity": "legendary"},
+    )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert dweller.rarity == "legendary"
+    legendary_names = {
+        (template.first_name, template.last_name) for template in game_data_store.get_dwellers_by_rarity("legendary")
+    }
+    assert (dweller.first_name, dweller.last_name) in legendary_names
+
+
+@pytest.mark.asyncio
+async def test_grant_item_legendary_dweller_exhausted_pool_keeps_canonical_name(
+    async_session: AsyncSession,
+) -> None:
+    """Exhausted legendary pool still grants a canonical name, not 'Legendary Dweller'."""
+    from app.utils.static_data import game_data_store
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+
+    with patch.object(reward_service, "_pick_legendary_template_id", new=AsyncMock(return_value=None)):
+        result = await reward_service.grant_item(
+            async_session,
+            vault.id,
+            {"item_name": "Legendary Dweller", "quantity": 1, "rarity": "legendary"},
+        )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert dweller.rarity == "legendary"
+    legendary_names = {
+        (template.first_name, template.last_name) for template in game_data_store.get_dwellers_by_rarity("legendary")
+    }
+    assert (dweller.first_name, dweller.last_name) in legendary_names
+    assert (dweller.first_name, dweller.last_name) != ("Legendary", "Dweller")
+
+
+@pytest.mark.asyncio
 async def test_grant_dweller_item_uses_reward_name(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))

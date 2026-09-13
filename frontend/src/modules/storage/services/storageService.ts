@@ -5,11 +5,13 @@ type StorageSpaceResponse = components['schemas']['StorageSpaceResponse']
 type WeaponRead = components['schemas']['WeaponRead']
 type OutfitRead = components['schemas']['OutfitRead']
 type JunkRead = components['schemas']['JunkRead']
+type ItemRead = components['schemas']['ItemRead']
 
 export interface StorageItemsResponse {
   weapons: WeaponRead[]
   outfits: OutfitRead[]
   junk: JunkRead[]
+  items: ItemRead[]
 }
 
 export const storageService = {

@@ -132,8 +132,10 @@ audit; objectives need deliberate in-game validation rather than relying only on
   protection. Add a regression test for every bug found before changing the implementation.
   - **In progress:** `building`, `population`, and state-based `training` quests now settle directly from validated
     vault progress; `exploration` and `combat` retain the timed-party path. `quest_type` remains presentation metadata.
-  - **Verified gap:** authored generic `ITEM` rewards include medication, lunchboxes, junk, Nuka-Cola Quantum, and a
-    Legendary Dweller; delivery currently supports only weapon/outfit items and does not honor item quantities.
+  - **Shipped:** generic `ITEM` delivery now covers weapon/outfit/junk plus quantity-honoring generic rows;
+    medication `ITEM`s (Stimpak/RadAway) route to dweller stock so treatment can spend them, the Legendary Dweller
+    `ITEM` materializes a canonical legendary template, and the storage view shows generic supplies in their own
+    tab. Remaining: lunchbox opening (no open mechanic exists yet — a feature, not a correctness fix).
   - **Verified gap:** chains persist predecessor links and hide locked entries, but do not yet model an explicit
     chain lifecycle or requirement-driven unlock feedback.
 - [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,

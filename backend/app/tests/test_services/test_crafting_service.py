@@ -108,12 +108,18 @@ async def _add_worker(
     return dweller
 
 
-async def _add_junk(async_session: AsyncSession, storage: Storage, rarity: RarityEnum, count: int) -> None:
+async def _add_junk(
+    async_session: AsyncSession,
+    storage: Storage,
+    rarity: RarityEnum,
+    count: int,
+    junk_type: JunkTypeEnum = JunkTypeEnum.STEEL,
+) -> None:
     for index in range(count):
         async_session.add(
             Junk(
-                name=f"Steel {rarity.value}{index}",
-                junk_type=JunkTypeEnum.STEEL,
+                name=f"{junk_type.value[:6]}{rarity.value}{index}",
+                junk_type=junk_type,
                 rarity=rarity,
                 value=game_config.exploration.get_junk_value(rarity.value),
                 description="Test material",
@@ -206,8 +212,9 @@ async def test_catalog_entries_without_craftable_flag_are_excluded(
 async def test_start_order_consumes_materials_and_caps(async_session: AsyncSession, vault: Vault) -> None:
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
-    common_count = _junk_cost(RarityEnum.COMMON)
-    rare_count = _junk_cost(RarityEnum.RARE) + 2
+    recipe = game_config.crafting.junk_recipe("rare")
+    common_count = recipe["common"] + 2
+    rare_count = recipe["rare"] + 2
     await _add_junk(async_session, storage, RarityEnum.COMMON, common_count)
     await _add_junk(async_session, storage, RarityEnum.RARE, rare_count)
     vault.bottle_caps = 1_000
@@ -217,37 +224,59 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
 
     assert order.status == CraftingOrderStatus.ACTIVE
     assert order.item_name == RARE_WEAPON
-    assert order.junk_spent == _junk_cost(RarityEnum.RARE)
+    assert order.junk_spent == game_config.crafting.junk_cost("rare")
     assert order.caps_spent == _caps_cost(RarityEnum.RARE)
     assert order.progress == 0.0
     assert order.estimated_completion_at > order.started_at
 
     rarities = await _junk_rarities(async_session)
-    assert len(rarities) == common_count + rare_count - order.junk_spent
-    assert rarities.count(RarityEnum.COMMON) == common_count
-    assert rarities.count(RarityEnum.RARE) == rare_count - order.junk_spent
+    assert rarities.count(RarityEnum.COMMON) == common_count - recipe["common"]
+    assert rarities.count(RarityEnum.RARE) == rare_count - recipe["rare"]
 
     refreshed = await crud.vault.get(async_session, vault.id)
     assert refreshed.bottle_caps == 1_000 - order.caps_spent
 
 
 @pytest.mark.asyncio
-async def test_start_order_spends_cheapest_eligible_materials_first(async_session: AsyncSession, vault: Vault) -> None:
+async def test_only_the_items_junk_types_count(async_session: AsyncSession, vault: Vault) -> None:
+    """A melee item takes steel/leather, so circuitry scrap cannot pay for it."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
-    rare_cost = _junk_cost(RarityEnum.RARE)
-    await _add_junk(async_session, storage, RarityEnum.COMMON, rare_cost)
-    await _add_junk(async_session, storage, RarityEnum.RARE, rare_cost)
-    await _add_junk(async_session, storage, RarityEnum.LEGENDARY, 2)
-    vault.bottle_caps = 1_000
-    await async_session.commit()
+    await _add_junk(async_session, storage, RarityEnum.COMMON, 10, JunkTypeEnum.CIRCUITRY)
+    await _add_junk(async_session, storage, RarityEnum.RARE, 10, JunkTypeEnum.CIRCUITRY)
 
-    await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
+    with pytest.raises(InsufficientResourcesException):
+        await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
 
-    rarities = await _junk_rarities(async_session)
-    assert rarities.count(RarityEnum.COMMON) == rare_cost
-    assert rarities.count(RarityEnum.RARE) == 0
-    assert rarities.count(RarityEnum.LEGENDARY) == 2
+
+@pytest.mark.asyncio
+async def test_each_tier_needs_its_own_rarity(async_session: AsyncSession, vault: Vault) -> None:
+    """A rare order needs common AND rare materials; rare-only stock is not enough."""
+    storage = await _make_storage(async_session, vault)
+    await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.RARE, 10)
+
+    with pytest.raises(InsufficientResourcesException):
+        await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
+
+
+@pytest.mark.asyncio
+async def test_recipe_reports_stock_and_projected_time(async_session: AsyncSession, vault: Vault) -> None:
+    """The recipe carries the have/need counts and the crew's projected duration."""
+    storage = await _make_storage(async_session, vault)
+    room = await _add_workshop(async_session, vault, "Weapon workshop")
+    await _add_junk(async_session, storage, RarityEnum.COMMON, 5)
+    await _add_worker(async_session, vault, room, agility=8)
+
+    recipes = await crafting_service.list_recipes(async_session, vault.id, "weapon")
+    pipe_pistol = next(recipe for recipe in recipes if recipe.name == COMMON_WEAPON)
+
+    assert pipe_pistol.junk_types == ["circuitry", "steel"]
+    assert pipe_pistol.junk_materials == {"common": 3}
+    assert pipe_pistol.available_junk == {"common": 5}
+    assert pipe_pistol.ability_sum == 8
+    assert pipe_pistol.duration_seconds == crafting_service.order_duration_seconds(RarityEnum.COMMON, 8)
+    assert pipe_pistol.duration_seconds < crafting_service.order_duration_seconds(RarityEnum.COMMON, 0)
 
 
 @pytest.mark.asyncio
@@ -431,7 +460,7 @@ async def test_collect_order_rejects_full_storage(async_session: AsyncSession, v
 async def test_collect_order_outfit_lands_in_storage(async_session: AsyncSession, vault: Vault) -> None:
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Outfit workshop")
-    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
+    await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.CLOTH)
     order = await crafting_service.start_order(async_session, vault.id, COMMON_OUTFIT, "outfit")
     await _finish_queue(async_session, vault.id)
 

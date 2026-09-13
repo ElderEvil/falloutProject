@@ -14,7 +14,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Sturdy vault suit",
@@ -31,7 +38,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Heavy vault suit",
@@ -48,6 +62,13 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

@@ -900,35 +900,43 @@ class ExplorationConfig(BaseSettings):
 
 
 class CraftingConfig(BaseSettings):
-    """Instant crafting costs at the weapon and outfit workshops."""
+    """Workshop crafting costs and the order queue."""
 
-    junk_cost_by_rarity: dict[str, int] = Field(
-        default_factory=lambda: {"common": 3, "rare": 6, "legendary": 12},
-        description="Junk materials required, keyed by the crafted item's rarity",
+    junk_recipe_by_rarity: dict[str, dict[str, int]] = Field(
+        default_factory=lambda: {
+            "common": {"common": 3},
+            "rare": {"common": 3, "rare": 3},
+            "legendary": {"common": 3, "rare": 3, "legendary": 3},
+        },
+        description="Junk materials per crafted rarity, keyed by the material's own rarity",
     )
     caps_cost_by_rarity: dict[str, int] = Field(
         default_factory=lambda: {"common": 0, "rare": 100, "legendary": 500},
         description="Bottle caps required, keyed by the crafted item's rarity",
     )
     order_seconds_by_rarity: dict[str, int] = Field(
-        default_factory=lambda: {"common": 120, "rare": 600, "legendary": 1800},
-        description="Base workshop order duration in seconds, keyed by rarity",
+        default_factory=lambda: {"common": 3600, "rare": 21600, "legendary": 86400},
+        description="Base workshop order duration in seconds (1h / 6h / 24h), keyed by rarity",
     )
     craft_speed_per_stat: float = Field(
         default=0.05,
         ge=0.0,
         description="Duration reduction per point of the item's stat among the workshop's dwellers",
     )
-    min_order_seconds: int = Field(default=30, ge=1, description="Floor for a sped-up order duration")
+    min_order_fraction: float = Field(
+        default=0.25,
+        gt=0.0,
+        le=1.0,
+        description="Fastest an order can get, as a fraction of its base duration",
+    )
 
-    @field_validator("junk_cost_by_rarity", "caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
+    @field_validator("caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
     @classmethod
     def validate_cost_maps(cls, v: dict[str, int]) -> dict[str, int]:
         """Require every rarity and non-negative costs.
 
-        ``junk_cost``/``caps_cost`` fall back to the ``common`` entry, so a map
-        without it raises KeyError on lookup; a negative junk cost would slice
-        ``eligible[:cost]`` from the end and consume the wrong materials.
+        ``caps_cost`` falls back to the ``common`` entry, so a map without it
+        raises KeyError on lookup.
         """
         normalized = {str(key).lower(): cost for key, cost in v.items()}
         required = {rarity.value for rarity in RarityEnum}
@@ -938,9 +946,36 @@ class CraftingConfig(BaseSettings):
             raise ValueError("Crafting costs must be non-negative integers")
         return normalized
 
+    @field_validator("junk_recipe_by_rarity", mode="before")
+    @classmethod
+    def validate_junk_recipe(cls, v: dict[str, dict[str, int]]) -> dict[str, dict[str, int]]:
+        """Require a material breakdown for every craftable rarity.
+
+        A missing item rarity would KeyError on lookup, and a negative material
+        count would consume the wrong junk.
+        """
+        required = {rarity.value for rarity in RarityEnum}
+        normalized: dict[str, dict[str, int]] = {}
+        for item_rarity, materials in v.items():
+            if not isinstance(materials, dict):
+                raise TypeError("Crafting junk recipes must map material rarities to counts")
+            counts = {str(material).lower(): count for material, count in materials.items()}
+            if unknown := set(counts) - required:
+                raise ValueError(f"Unknown material rarities: {sorted(unknown)}")
+            if any(isinstance(c, bool) or not isinstance(c, int) or c < 0 for c in counts.values()):
+                raise ValueError("Junk material counts must be non-negative integers")
+            normalized[str(item_rarity).lower()] = counts
+        if missing := required - normalized.keys():
+            raise ValueError(f"Crafting junk recipe is missing rarities: {sorted(missing)}")
+        return normalized
+
+    def junk_recipe(self, rarity: str) -> dict[str, int]:
+        """Material breakdown for an item of this rarity, keyed by material rarity."""
+        return self.junk_recipe_by_rarity.get(rarity.lower(), self.junk_recipe_by_rarity["common"])
+
     def junk_cost(self, rarity: str) -> int:
-        """Junk materials needed to craft an item of this rarity."""
-        return self.junk_cost_by_rarity.get(rarity.lower(), self.junk_cost_by_rarity["common"])
+        """Total junk materials needed to craft an item of this rarity."""
+        return sum(self.junk_recipe(rarity).values())
 
     def caps_cost(self, rarity: str) -> int:
         """Bottle caps needed to craft an item of this rarity."""

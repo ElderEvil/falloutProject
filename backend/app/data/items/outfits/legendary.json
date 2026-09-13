@@ -15,7 +15,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Tattered longcoat",
@@ -33,7 +40,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 2,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Autumn's uniform",
@@ -51,7 +65,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Bittercup's outfit",
@@ -69,7 +90,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Confessor Cromwell's rags",
@@ -87,7 +115,14 @@
     "intelligence": 1,
     "agility": 0,
     "luck": 2,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Elder robe",
@@ -105,7 +140,14 @@
     "intelligence": 0,
     "agility": 3,
     "luck": 0,
-    "stat": "charisma"
+    "stat": "charisma",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Eulogy Jones' suit",
@@ -123,7 +165,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "Heavy synth armor",
@@ -141,6 +190,13 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "endurance"
+    "stat": "endurance",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

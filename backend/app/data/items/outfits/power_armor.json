@@ -13,7 +13,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-45d power armor",
@@ -29,7 +36,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-45f power armor",
@@ -45,7 +59,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "perception"
+    "stat": "perception",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-51a power armor",
@@ -61,7 +82,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-51d power armor",
@@ -77,7 +105,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-51f power armor",
@@ -93,7 +128,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-60a power armor",
@@ -109,7 +151,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "endurance"
+    "stat": "endurance",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-60d power armor",
@@ -125,7 +174,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "endurance"
+    "stat": "endurance",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "T-60f power armor",
@@ -141,7 +197,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "endurance"
+    "stat": "endurance",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "X-01 Mk I power armor",
@@ -157,7 +220,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "X-01 Mk IV power armor",
@@ -173,7 +243,14 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   },
   {
     "name": "X-01 Mk VI power armor",
@@ -189,6 +266,13 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

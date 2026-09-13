@@ -16,7 +16,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import RarityEnum, RoomTypeEnum
+from app.core.enums import JunkTypeEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.models.crafting_order import CraftingOrder, CraftingOrderStatus
@@ -63,11 +63,38 @@ class CraftingService:
         return await asyncio.to_thread(loader)
 
     @staticmethod
-    def _eligible_junk(junk: list[Junk], rarity: RarityEnum) -> list[Junk]:
-        """Junk that may pay for this rarity, cheapest first (rarity breaks ties)."""
-        threshold = _RARITY_ORDER[rarity]
-        eligible = [item for item in junk if _RARITY_ORDER[RarityEnum(item.rarity)] >= threshold]
-        return sorted(eligible, key=lambda item: (item.value or 0, _RARITY_ORDER[RarityEnum(item.rarity)], item.name))
+    def craft_types(entry: dict[str, Any]) -> list[str]:
+        """Junk types this item accepts, from its catalog craft block."""
+        craft = entry.get("craft") or {}
+        types = craft.get("types") or []
+        return [str(junk_type).lower() for junk_type in types]
+
+    @staticmethod
+    def _spend_plan(
+        junk: list[Junk], rarity: RarityEnum, types: list[str]
+    ) -> tuple[list[Junk], dict[str, int]]:
+        """Pick the exact materials this rarity needs, plus any per-material shortfall.
+
+        Each tier requires its own rarity, so cheaper scrap cannot substitute for
+        a legendary requirement, and only the item's listed junk types count.
+        Within a material rarity the cheapest pieces go first.
+        """
+        recipe = game_config.crafting.junk_recipe(rarity.value)
+        allowed = {junk_type.lower() for junk_type in types}
+        pools: dict[str, list[Junk]] = {material: [] for material in recipe}
+        for item in junk:
+            key = RarityEnum(item.rarity).value
+            if key in pools and (not allowed or JunkTypeEnum(item.junk_type).value in allowed):
+                pools[key].append(item)
+
+        plan: list[Junk] = []
+        shortfall: dict[str, int] = {}
+        for material, needed in recipe.items():
+            pool = sorted(pools[material], key=lambda item: (item.value or 0, item.name))
+            plan.extend(pool[:needed])
+            if len(pool) < needed:
+                shortfall[material] = needed - len(pool)
+        return plan, shortfall
 
     @staticmethod
     def _cost(rarity: RarityEnum) -> tuple[int, int]:
@@ -91,28 +118,56 @@ class CraftingService:
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         junk: list[Junk] = await crud.junk.get_in_storage(db_session, storage.id) if storage else []
 
+        # The recipe view reports what the crew would achieve, so the panel never
+        # has to infer timing or stock from other endpoints.
+        room = await self._workshop_room(db_session, vault_id, self.workshop_name(item_type))
+        crew = await crud.dweller.get_by_room(db_session, room.id) if room else []
+
         recipes: list[CraftingRecipeRead] = []
         for entry in await self._catalog(item_type):
             if not entry.get("craftable", False):
                 continue
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
-            shortfall = max(0, junk_cost - len(self._eligible_junk(junk, rarity)))
+            craft_types = self.craft_types(entry)
+            _, shortfall = self._spend_plan(junk, rarity, craft_types)
+            missing = sum(shortfall.values())
+            required_stat = self._required_stat(entry)
+            ability_sum = sum(int(getattr(dweller, required_stat, 0) or 0) for dweller in crew)
+            available = self._available_by_rarity(junk, craft_types)
+            materials = game_config.crafting.junk_recipe(rarity.value)
             recipes.append(
                 CraftingRecipeRead(
                     name=str(entry["name"]),
                     item_type=item_type,
                     rarity=rarity,
                     value=entry.get("value"),
-                    stat=self._required_stat(entry),
+                    stat=required_stat,
+                    junk_types=craft_types,
+                    junk_materials=materials,
+                    available_junk={material: available.get(material, 0) for material in materials},
+                    ability_sum=ability_sum,
+                    duration_seconds=self.order_duration_seconds(rarity, ability_sum),
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
-                    can_craft=shortfall == 0 and vault.bottle_caps >= caps_cost,
-                    missing_junk=shortfall,
+                    can_craft=missing == 0 and vault.bottle_caps >= caps_cost,
+                    missing_junk=missing,
                 )
             )
 
         return sorted(recipes, key=lambda recipe: (_RARITY_ORDER[recipe.rarity], recipe.name))
+
+    @staticmethod
+    def _available_by_rarity(junk: list[Junk], types: list[str]) -> dict[str, int]:
+        """How much usable junk the vault holds, per material rarity."""
+        allowed = {junk_type.lower() for junk_type in types}
+        counts: dict[str, int] = {}
+        for item in junk:
+            if allowed and JunkTypeEnum(item.junk_type).value not in allowed:
+                continue
+            key = RarityEnum(item.rarity).value
+            counts[key] = counts.get(key, 0) + 1
+        return counts
 
     @staticmethod
     def _required_stat(entry: dict[str, Any]) -> str:
@@ -128,7 +183,8 @@ class CraftingService:
         """
         base = game_config.crafting.order_seconds(rarity.value)
         speedup = max(0, ability_sum) * game_config.crafting.craft_speed_per_stat
-        return max(game_config.crafting.min_order_seconds, int(base / (1 + speedup)))
+        floor = int(base * game_config.crafting.min_order_fraction)
+        return max(floor, int(base / (1 + speedup)))
 
     @staticmethod
     async def _workshop_room(db_session: AsyncSession, vault_id: UUID4, workshop: str) -> Room | None:
@@ -165,13 +221,15 @@ class CraftingService:
         rarity = RarityEnum(entry["rarity"])
         junk_cost, caps_cost = self._cost(rarity)
 
-        eligible = self._eligible_junk(await crud.junk.get_in_storage(db_session, storage.id), rarity)
-        if len(eligible) < junk_cost:
+        spent, shortfall = self._spend_plan(
+            await crud.junk.get_in_storage(db_session, storage.id), rarity, self.craft_types(entry)
+        )
+        if shortfall:
+            missing = ", ".join(f"{count} {material}" for material, count in sorted(shortfall.items()))
             raise InsufficientResourcesException(
-                resource_name=f"{rarity.value} junk", resource_amount=junk_cost - len(eligible)
+                resource_name=f"crafting materials ({missing})", resource_amount=sum(shortfall.values())
             )
 
-        spent = eligible[:junk_cost]
         if caps_cost:
             await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
         for junk_item in spent:

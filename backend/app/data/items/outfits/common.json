@@ -14,6 +14,13 @@
     "intelligence": 0,
     "agility": 0,
     "luck": 0,
-    "stat": "strength"
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

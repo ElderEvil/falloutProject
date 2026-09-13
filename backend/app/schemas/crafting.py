@@ -20,6 +20,11 @@ class CraftingRecipeRead(SQLModel):
     rarity: RarityEnum
     value: int | None = None
     stat: str
+    junk_types: list[str] = []
+    junk_materials: dict[str, int] = {}
+    available_junk: dict[str, int] = {}
+    ability_sum: int = 0
+    duration_seconds: int = 0
     junk_cost: int
     caps_cost: int
     can_craft: bool

@@ -221,6 +221,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
       :docked="true"
       :locations="knownLocations"
       :vault-markers="vaultMarkers"
+      :place-groups="mapStore.placeGroups"
       :selected-marker-id="selectedMarkerId"
       @marker-select="onPanelMarkerSelect"
     />

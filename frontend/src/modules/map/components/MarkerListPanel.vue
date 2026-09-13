@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import type {
   MarkerClickPayload,
+  PlaceGroup,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
@@ -11,11 +12,13 @@ import { MARKER_TYPES } from '../models/markerTypeMeta'
 interface Props {
   locations: WastelandLocationWithDwellers[]
   vaultMarkers: VaultMarkerRead[]
+  placeGroups?: PlaceGroup[]
   selectedMarkerId?: string | null
   docked?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  placeGroups: () => [],
   selectedMarkerId: null,
   docked: false,
 })
@@ -27,24 +30,36 @@ const emit = defineEmits<{
 // Panel open/close state
 const isOpen = defineModel<boolean>('open', { default: false })
 
+interface MarkerGroupItem {
+  id: string
+  name: string
+  kind: 'location' | 'vault'
+  data: WastelandLocationWithDwellers | VaultMarkerRead
+  group?: { icon: string; label: string }
+}
+
 interface MarkerGroup {
   type: string
   label: string
   icon: string
-  items: Array<{
-    id: string
-    name: string
-    kind: 'location' | 'vault'
-    data: WastelandLocationWithDwellers | VaultMarkerRead
-  }>
+  items: MarkerGroupItem[]
 }
 
+const groupByKey = computed(() => new Map(props.placeGroups.map((group) => [group.key, group])))
+
 const groups = computed<MarkerGroup[]>(() => {
-  const byType = new Map<string, MarkerGroup['items']>()
+  const byType = new Map<string, MarkerGroupItem[]>()
 
   for (const loc of props.locations) {
     if (!byType.has(loc.type)) byType.set(loc.type, [])
-    byType.get(loc.type)!.push({ id: `loc-${loc.id}`, name: loc.name, kind: 'location', data: loc })
+    const meta = loc.group_key ? groupByKey.value.get(loc.group_key) : undefined
+    byType.get(loc.type)!.push({
+      id: `loc-${loc.id}`,
+      name: loc.name,
+      kind: 'location',
+      data: loc,
+      group: meta ? { icon: meta.icon, label: meta.label } : undefined,
+    })
   }
 
   for (let i = 0; i < props.vaultMarkers.length; i++) {
@@ -138,6 +153,10 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
               @click="handleItemClick(item)"
             >
               <span class="marker-name">{{ item.name }}</span>
+              <span v-if="item.group" class="marker-group-chip">
+                <Icon :icon="item.group.icon" class="marker-group-icon" />
+                {{ item.group.label }}
+              </span>
             </button>
           </div>
         </div>
@@ -288,7 +307,9 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
 }
 
 .marker-row {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   width: 100%;
   padding: 3px 8px 3px 22px;
   text-align: left;
@@ -300,8 +321,22 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   font-size: 12px;
   transition: background var(--transition-fast);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.marker-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+  font-size: 10px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.marker-group-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .marker-row:hover {

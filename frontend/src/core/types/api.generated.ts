@@ -8298,7 +8298,7 @@ export interface components {
             available_space: number;
             /**
              * Utilization Pct
-             * @description Storage utilization percentage
+             * @description Storage utilization percentage; exceeds 100 when items outnumber slots
              */
             utilization_pct: number;
             /**

@@ -186,3 +186,45 @@ async def test_open_lunchbox_unknown_item_404(
         headers=superuser_token_headers,
     )
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_storage_space_reports_over_capacity_instead_of_500(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Scrapping can leave more items than slots; the endpoint must still answer."""
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 2
+    async_session.add(storage)
+    await async_session.flush()
+
+    for index in range(5):
+        async_session.add(
+            Junk(
+                name=f"Overflow {index}",
+                junk_type=JunkTypeEnum.VALUABLES,
+                rarity=RarityEnum.COMMON,
+                description="Over-capacity fixture",
+                storage_id=storage.id,
+            )
+        )
+    await async_session.flush()
+
+    response = await async_client.get(
+        f"/storage/vault/{vault.id}/space",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["used_space"] == 5
+    assert data["max_space"] == 2
+    assert data["available_space"] == 0
+    assert data["utilization_pct"] > 100

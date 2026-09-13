@@ -292,15 +292,26 @@ const closeLunchboxModal = async () => {
             <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
               {{ storageSpace.used_space }}/{{ storageSpace.max_space }} slots used
             </span>
-            <span class="ml-auto text-theme-accent text-xs">
-              {{ storageSpace.utilization_pct.toFixed(0) }}%
+            <span
+              class="ml-auto text-xs"
+              :class="
+                storageSpace.utilization_pct > 100
+                  ? 'font-semibold text-danger'
+                  : 'text-theme-accent'
+              "
+            >
+              {{ storageSpace.utilization_pct.toFixed(0) }}%<template
+                v-if="storageSpace.utilization_pct > 100"
+              >
+                · OVER CAPACITY</template
+              >
             </span>
           </div>
           <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
             <div
               class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
               :style="{
-                '--progress': `${storageSpace.utilization_pct}%`,
+                '--progress': `${Math.min(100, storageSpace.utilization_pct)}%`,
                 width: 'var(--progress)',
               }"
             ></div>

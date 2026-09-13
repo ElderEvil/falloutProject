@@ -13,6 +13,7 @@ from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
 from app.services.reward_service import reward_service
 from app.utils.quest_duration import effective_quest_duration_minutes
@@ -193,8 +194,8 @@ class QuestService:
                 granted_rewards.append(experience_reward)
 
         if granted_rewards:
-            summary = ", ".join(f"{r.get('amount', r.get('name', r.get('dweller_id', '?')))}" for r in granted_rewards)
-            logger.info(f"Granted rewards for quest '{quest.title}': {summary}")
+            granted_models = [granted_reward_adapter.validate_python(reward) for reward in granted_rewards]
+            logger.info(f"Granted rewards for quest '{quest.title}': {format_reward_summary(granted_models)}")
 
         return granted_rewards
 
@@ -250,9 +251,8 @@ class QuestService:
                         meta_data={"old_level": dweller.level - 1, "new_level": dweller.level},
                     )
                 rewards_str = (
-                    ", ".join(
-                        f"{reward.get('amount', reward.get('name', reward.get('type', '?')))}"
-                        for reward in granted_rewards
+                    format_reward_summary(
+                        [granted_reward_adapter.validate_python(reward) for reward in granted_rewards]
                     )
                     or "no rewards"
                 )

@@ -398,22 +398,24 @@ async def test_grant_radaway_success(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_lunchbox(async_session: AsyncSession) -> None:
-    """Test granting a lunchbox reward."""
+    """Granting a lunchbox reward mints one unopened Item; nothing auto-rolls."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
 
-    storage = Storage(vault_id=vault.id, capacity=100, used=0)
+    storage = Storage(vault_id=vault.id, max_space=100)
     async_session.add(storage)
     await async_session.commit()
 
     result = await reward_service.grant_lunchbox(async_session, vault.id)
 
-    assert result["reward_type"] == RewardType.LUNCHBOX
-    assert "items" in result
-    assert "dweller" in result
-    assert len(result["items"]) >= 0
+    assert result["reward_type"] == RewardType.ITEM
+    assert result["item_type"] == "lunchbox"
+    assert "dweller" not in result
+    rows = (await async_session.execute(select(Item))).scalars().all()
+    assert [(item.name, item.item_type) for item in rows] == [("Lunchbox", "lunchbox")]
+    assert (await async_session.execute(select(Dweller))).scalars().all() == []
 
 
 @pytest.mark.asyncio
@@ -643,19 +645,30 @@ async def test_template_reservation_conflict_grants_fallback(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_lunchbox_template_picks_are_distinct(async_session: AsyncSession) -> None:
-    """Concurrent-eligible lunchbox grants pick distinct templates instead of a COMMON fallback."""
+    """Concurrent-eligible lunchbox openings pick distinct templates instead of a COMMON fallback."""
+    from uuid import UUID
+
     from app.utils.static_data import game_data_store
 
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    await async_session.commit()
+
+    first_mint = await reward_service.grant_lunchbox(async_session, vault.id)
+    second_mint = await reward_service.grant_lunchbox(async_session, vault.id)
 
     roster = {f"{t.first_name} {t.last_name or ''}".strip() for t in game_data_store.get_dwellers_by_rarity("rare")}
     with patch("app.services.reward_service.random.choices", return_value=[RarityEnum.RARE]):
-        first = await reward_service.grant_lunchbox(async_session, vault.id)
-        second = await reward_service.grant_lunchbox(async_session, vault.id)
+        first = await reward_service.open_lunchbox(async_session, vault.id, UUID(first_mint["item_id"]))
+        second = await reward_service.open_lunchbox(async_session, vault.id, UUID(second_mint["item_id"]))
 
+    assert first["reward_type"] == RewardType.LUNCHBOX
+    assert len(first["items"]) == 3
     assert first["dweller"]["name"] in roster
     assert second["dweller"]["name"] in roster
     assert first["dweller"]["name"] != second["dweller"]["name"]
+    remaining = (await async_session.execute(select(Item))).scalars().all()
+    assert [item.item_type for item in remaining] == []

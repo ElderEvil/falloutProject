@@ -19,6 +19,7 @@ from app.schemas.quest import (
     QuestRead,
     QuestUpdate,
 )
+from app.schemas.rewards import granted_reward_adapter
 from app.services.quest_service import quest_service
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
@@ -167,7 +168,7 @@ async def claim_quest_rewards(
         quest_id=quest.id,
         quest_title=quest.title,
         is_completed=True,
-        granted_rewards=granted_rewards,
+        granted_rewards=[granted_reward_adapter.validate_python(reward) for reward in granted_rewards],
     )
 
 

@@ -9,6 +9,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import { UCard, UBadge, UButton } from '@/core/components/ui'
+import type { components } from '@/core/types/api.generated'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -130,6 +131,17 @@ const isCompleted = computed(() => {
 })
 const isRewardReady = computed(() => quest.value?.is_reward_ready && !quest.value?.is_completed)
 const showClaimModal = ref(false)
+const grantedRewards = ref<components['schemas']['QuestCompleteResponse']['granted_rewards'] | null>(null)
+
+const closeClaimModal = () => {
+  showClaimModal.value = false
+  grantedRewards.value = null
+}
+
+const openClaimModal = () => {
+  grantedRewards.value = null
+  showClaimModal.value = true
+}
 
 const handleStartQuest = async () => {
   if (!vaultId.value || !questId.value) return
@@ -144,10 +156,10 @@ const handleStartQuest = async () => {
 
 const confirmClaimRewards = async () => {
   if (!vaultId.value || !questId.value) return
-  await questStore.claimQuestRewards(vaultId.value, questId.value)
+  const result = await questStore.claimQuestRewards(vaultId.value, questId.value)
+  grantedRewards.value = result?.granted_rewards ?? null
   await questStore.fetchVaultQuests(vaultId.value)
   quest.value = questStore.vaultQuests.find((item) => item.id === questId.value) ?? quest.value
-  showClaimModal.value = false
 }
 
 const goBack = () => {
@@ -304,7 +316,7 @@ const goBack = () => {
                     Start Quest
                   </UButton>
 
-                  <UButton v-else-if="isRewardReady" variant="primary" class="action-btn" @click="showClaimModal = true">
+                  <UButton v-else-if="isRewardReady" variant="primary" class="action-btn" @click="openClaimModal">
                     <Icon icon="mdi:treasure-chest" class="btn-icon" />
                     Claim Rewards
                   </UButton>
@@ -328,7 +340,8 @@ const goBack = () => {
                 <QuestRewardsModal
                   :quest="quest"
                   :show="showClaimModal"
-                  @close="showClaimModal = false"
+                  :granted-rewards="grantedRewards"
+                  @close="closeClaimModal"
                   @confirm="confirmClaimRewards"
                 />
               </div>

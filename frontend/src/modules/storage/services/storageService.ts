@@ -6,6 +6,8 @@ type WeaponRead = components['schemas']['WeaponRead']
 type OutfitRead = components['schemas']['OutfitRead']
 type JunkRead = components['schemas']['JunkRead']
 type ItemRead = components['schemas']['ItemRead']
+type LunchboxOpened = components['schemas']['LunchboxOpened']
+type LunchboxOpenRequest = components['schemas']['LunchboxOpenRequest']
 
 export interface StorageItemsResponse {
   weapons: WeaponRead[]
@@ -64,5 +66,16 @@ export const storageService = {
    */
   async scrapOutfit(outfitId: string): Promise<void> {
     await axios.post(`/api/v1/outfits/${outfitId}/scrap/`)
+  },
+
+  /**
+   * Open one unopened lunchbox and roll its contents into the vault
+   */
+  async openLunchbox(vaultId: string, itemId: string): Promise<LunchboxOpened> {
+    const response = await axios.post<LunchboxOpened>(
+      `/api/v1/storage/vault/${vaultId}/lunchbox/open`,
+      { item_id: itemId } satisfies LunchboxOpenRequest,
+    )
+    return response.data
   },
 }

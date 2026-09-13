@@ -29,6 +29,15 @@ from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
 
+_LUNCHBOX_ITEM_COUNT = 3
+_LUNCHBOX_ROLL_TABLE = (
+    {"name": "Laser Pistol", "kind": "weapon", "weapon_type": "energy", "weapon_subtype": "pistol", "stat": "luck"},
+    {"name": "Plasma Pistol", "kind": "weapon", "weapon_type": "energy", "weapon_subtype": "pistol", "stat": "luck"},
+    {"name": "Assault Rifle", "kind": "weapon", "weapon_type": "gun", "weapon_subtype": "rifle", "stat": "agility"},
+    {"name": "Vault Suit", "kind": "outfit", "outfit_type": "common_outfit", "stat": "endurance"},
+    {"name": "Combat Armor", "kind": "outfit", "outfit_type": "power_armor", "stat": "endurance"},
+)
+
 
 class RewardService:
     """Service for processing and granting quest/objective rewards."""
@@ -443,66 +452,70 @@ class RewardService:
         }
 
     async def grant_lunchbox(self, db_session: AsyncSession, vault_id: UUID4) -> dict[str, Any]:
-        """Grant a lunchbox (gives random rare dwellers/items).
+        """Mint one unopened lunchbox Item; contents roll when the player opens it."""
+        return await self.grant_item(
+            db_session, vault_id, {"item_type": "lunchbox", "name": "Lunchbox", "rarity": "common"}
+        )
 
-        Lunchbox rewards give:
-        - 3 random items (weapons or outfits)
-        - 1 random dweller
+    async def open_lunchbox(self, db_session: AsyncSession, vault_id: UUID4, item_id: UUID4) -> dict[str, Any]:
+        """Consume one unopened lunchbox and roll its contents.
+
+        Space for the rolled items is verified before the lunchbox row is
+        consumed, so a full storage fails cleanly without losing the box.
+
+        Raises:
+            ResourceNotFoundException: Unknown, foreign-vault, or non-lunchbox row.
+            ResourceConflictException: Storage cannot fit the rolled contents.
         """
-        from app.core.enums import OutfitTypeEnum, WeaponSubtypeEnum, WeaponTypeEnum
-        from app.models.outfit import Outfit
-        from app.models.weapon import Weapon
+        from app.crud.storage import get_unopened_lunchbox
 
-        # Generate 3 random items
-        item_configs = [
-            ("Laser Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
-            ("Plasma Pistol", WeaponTypeEnum.ENERGY, WeaponSubtypeEnum.PISTOL, "luck"),
-            ("Assault Rifle", WeaponTypeEnum.GUN, WeaponSubtypeEnum.RIFLE, "agility"),
-            ("Vault Suit", OutfitTypeEnum.COMMON, None, "endurance"),
-            ("Combat Armor", OutfitTypeEnum.POWER_ARMOR, None, "endurance"),
-        ]
+        item = await get_unopened_lunchbox(db_session, item_id, vault_id)
+        if item is None:
+            raise ResourceNotFoundException(Item, item_id)
+        storage_obj = await self._ensure_storage(db_session, vault_id, _LUNCHBOX_ITEM_COUNT)
+        await db_session.delete(item)
+        granted_items, granted_dweller = await self._roll_lunchbox_contents(db_session, vault_id, storage_obj.id)
+        await persist_reward_change(db_session)
+        await db_session.commit()
+
+        logger.info(f"Opened lunchbox {item_id} in vault {vault_id}: {len(granted_items)} items, 1 dweller")
+        return {
+            "reward_type": RewardType.LUNCHBOX,
+            "items": granted_items,
+            "dweller": granted_dweller,
+        }
+
+    async def _roll_lunchbox_contents(
+        self, db_session: AsyncSession, vault_id: UUID4, storage_id: UUID4
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Roll 3 random items and 1 dweller into storage for a lunchbox opening."""
+        from app.crud.dweller import dweller as dweller_crud
+
         granted_items = []
-        for _ in range(3):
-            name, wtype, subtype, stat = random.choice(item_configs)
-
+        for _ in range(_LUNCHBOX_ITEM_COUNT):
+            entry = random.choice(_LUNCHBOX_ROLL_TABLE)
             rarity = random.choices(
                 [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY],
                 weights=[0.7, 0.2, 0.1],
             )[0]
-
-            if wtype in (WeaponTypeEnum.MELEE, WeaponTypeEnum.GUN, WeaponTypeEnum.ENERGY, WeaponTypeEnum.HEAVY):
-                item = Weapon(
-                    name=name,
-                    rarity=rarity.value,
-                    weapon_type=wtype,
-                    weapon_subtype=subtype,
-                    stat=stat,
-                    damage_min=random.randint(2, 5),
-                    damage_max=random.randint(5, 10),
-                    value=random.randint(50, 200),
-                    image_url=get_weapon_image_url(name),
-                )
+            roll_data = {
+                **entry,
+                "damage_min": random.randint(2, 5),
+                "damage_max": random.randint(5, 10),
+                "value": random.randint(30, 200) if entry["kind"] == "weapon" else random.randint(30, 100),
+            }
+            if entry["kind"] == "weapon":
+                item = self._build_weapon(entry["name"], rarity.value, roll_data, storage_id)
             else:
-                gender = random.choice([GenderEnum.MALE, GenderEnum.FEMALE])
-                item = Outfit(
-                    name=name,
-                    rarity=rarity.value,
-                    outfit_type=wtype,
-                    gender=gender,
-                    value=random.randint(30, 100),
-                    image_url=get_outfit_image_url(name),
-                )
-
-            # Get storage
-            storage = await storage_crud.get_by_vault(db_session, vault_id)
-            if storage:
-                item.storage_id = storage.id
-                db_session.add(item)
-                granted_items.append(
-                    {"name": name, "type": "weapon" if isinstance(item, Weapon) else "outfit", "rarity": rarity.value}
-                )
-
-        from app.crud.dweller import dweller as dweller_crud
+                item = self._build_outfit(entry["name"], rarity.value, roll_data, storage_id)
+            db_session.add(item)
+            granted_items.append(
+                {
+                    "name": entry["name"],
+                    "type": "weapon" if isinstance(item, Weapon) else "outfit",
+                    "rarity": rarity.value,
+                }
+            )
 
         lunchbox_rarity = random.choices(
             [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY], weights=[0.7, 0.2, 0.1]
@@ -522,15 +535,7 @@ class RewardService:
         else:
             dweller_data = self._lunchbox_common_dweller_data(random.randint(1, 5), lunchbox_rarity)
             granted_dweller = await self.grant_dweller(db_session, vault_id, dweller_data)
-
-        await persist_reward_change(db_session)
-
-        logger.info(f"Granted lunchbox to vault {vault_id}: {len(granted_items)} items, 1 dweller")
-        return {
-            "reward_type": RewardType.LUNCHBOX,
-            "items": granted_items,
-            "dweller": granted_dweller,
-        }
+        return granted_items, granted_dweller
 
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID4, quest: Quest

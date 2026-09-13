@@ -1,23 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
+import { formatGrantedReward } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 
-interface QuestCompleteResponse {
-  quest_id: string
-  quest_title: string
-  is_completed: boolean
-  granted_rewards: Array<{
-    type?: string
-    name?: string
-    amount?: number
-    resource_type?: string
-    [key: string]: unknown
-  }>
-}
+type QuestCompleteResponse = components['schemas']['QuestCompleteResponse']
 
 export interface EligibleDweller {
   id: string
@@ -164,14 +155,7 @@ export const useQuestStore = defineStore('quest', () => {
       result = response.data
 
       if (result.granted_rewards && result.granted_rewards.length > 0) {
-        const rewardsText = result.granted_rewards
-          .map((r) => {
-            if (r.name) return `${r.amount ? `${r.amount}× ` : ''}${r.name}`
-            const rewardType = r.reward_type ?? r.type
-            const label = typeof rewardType === 'string' ? rewardType.toLowerCase() : 'reward'
-            return `${r.amount ?? ''} ${label}`.trim()
-          })
-          .join(', ')
+        const rewardsText = result.granted_rewards.map(formatGrantedReward).join(', ')
         toast.success(`Rewards claimed: ${rewardsText}`)
       } else {
         toast.success('Quest rewards claimed!')

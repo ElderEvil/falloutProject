@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { UButton, UModal } from '@/core/components/ui'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
-import type { VaultQuest } from '@/modules/progression/models/quest'
+import type { components } from '@/core/types/api.generated'
+import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
+
+type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 
 vi.mock('@iconify/vue', () => ({
   Icon: {
@@ -80,5 +83,56 @@ describe('QuestRewardsModal', () => {
 
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('confirm')).toHaveLength(1)
+  })
+
+  it('labels authored chance rewards with their roll probability', () => {
+    const chanceQuest = {
+      ...quest,
+      quest_rewards: [
+        {
+          id: 'reward-1',
+          quest_id: 'quest-1',
+          reward_type: 'caps',
+          reward_data: { amount: 100 },
+          reward_chance: 0.5,
+        },
+      ] as QuestReward[],
+    } as VaultQuest
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest: chanceQuest },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).toContain('50% chance')
+  })
+
+  it('renders granted rewards instead of authored definitions after claiming', () => {
+    const granted: GrantedReward[] = [
+      { reward_type: 'caps', amount: 100 },
+      { reward_type: 'dweller', dweller_id: 'dweller-1', name: 'Jane Doe' },
+    ]
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest, grantedRewards: granted },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).toContain('Delivery Confirmed!')
+    expect(wrapper.text()).toContain('100')
+    expect(wrapper.text()).toContain('Jane Doe')
+    expect(wrapper.text()).toContain('Done')
+    expect(wrapper.text()).not.toContain('Confirm & Claim')
+  })
+
+  it('points at Storage when a lunchbox arrived unopened', () => {
+    const granted: GrantedReward[] = [
+      { reward_type: 'item', item_type: 'lunchbox', name: 'Lunchbox', amount: 1, item_id: 'box-1', item_ids: ['box-1'] },
+    ]
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest, grantedRewards: granted },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).toContain('Lunchbox')
+    expect(wrapper.text()).toContain('Storage supplies tab')
   })
 })

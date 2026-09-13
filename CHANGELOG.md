@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.93.2 (2026-09-13)
+
+### Bug Fixes
+
+* **storage:** block scrap that would exceed storage capacity ([#611](https://github.com/ElderEvil/falloutProject/issues/611)) 4d48177
+
 ## 2.93.1 (2026-09-13)
 
 ### Bug Fixes

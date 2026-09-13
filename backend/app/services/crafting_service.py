@@ -77,9 +77,7 @@ class CraftingService:
             raise ValidationException(f"{entry['name']} cannot be crafted")
         return entry
 
-    async def list_recipes(
-        self, db_session: AsyncSession, vault_id: UUID4, item_type: str
-    ) -> list[CraftingRecipeRead]:
+    async def list_recipes(self, db_session: AsyncSession, vault_id: UUID4, item_type: str) -> list[CraftingRecipeRead]:
         """Craftable entries for one item type, with costs and current affordability."""
         if item_type not in CRAFTABLE_ITEM_TYPES:
             raise ValidationException(f"Unknown craftable item type: {item_type}")
@@ -111,9 +109,7 @@ class CraftingService:
 
         return sorted(recipes, key=lambda recipe: (_RARITY_ORDER[recipe.rarity], recipe.name))
 
-    async def craft(
-        self, db_session: AsyncSession, vault_id: UUID4, item_name: str, item_type: str
-    ) -> CraftResultRead:
+    async def craft(self, db_session: AsyncSession, vault_id: UUID4, item_name: str, item_type: str) -> CraftResultRead:
         """Consume junk and caps, then place the crafted item in storage.
 
         Raises:
@@ -150,9 +146,7 @@ class CraftingService:
 
         spent = eligible[:junk_cost]
         if caps_cost:
-            await vault_service.withdraw_caps(
-                db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False
-            )
+            await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
         for junk_item in spent:
             await db_session.delete(junk_item)
 

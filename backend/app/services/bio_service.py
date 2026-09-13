@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import BIO_MAX_CHARS, Dweller
 from app.schemas.dweller import DwellerUpdate
+from app.utils.exceptions import ContentNoChangeException, ValidationException
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class BioEntryOwner(Protocol):
 
 
 BIO_ENTRY_CAP = 12
+BIO_MIN_ENTRY_CHARS = 8
 
 # Single authority for how entry sources group into dossier sections; the
 # frontend mirrors these keys for labels and falls back for anything unknown.
@@ -105,9 +107,21 @@ class BioService:
         return cap_entries(entries)
 
     @staticmethod
-    def replace_origin(text: str) -> list[dict[str, Any]]:
-        """Return a fresh entry list carrying only a new origin story."""
-        return [make_entry("template", text)]
+    def origin_text(dweller: BioEntryOwner) -> str:
+        """The current origin story, falling back to the rendered bio."""
+        for entry in dweller.bio_entries or []:
+            if entry.get("source") in BIO_ORIGIN_SOURCES:
+                return str(entry.get("text") or "")
+        return dweller.bio or ""
+
+    @staticmethod
+    def with_origin(dweller: BioEntryOwner, text: str) -> list[dict[str, Any]]:
+        """Rewrite the origin story, preserving every life entry and its metadata."""
+        existing = list(dweller.bio_entries or [])
+        origin = next((entry for entry in existing if entry.get("source") in BIO_ORIGIN_SOURCES), None)
+        source = str(origin.get("source")) if origin else "template"
+        rest = [entry for entry in existing if entry.get("source") not in BIO_ORIGIN_SOURCES]
+        return cap_entries([make_entry(source, text), *rest])
 
     @staticmethod
     async def _persist(db_session: AsyncSession, dweller_id: UUID4, entries: list[dict[str, Any]]) -> Dweller:
@@ -123,9 +137,28 @@ class BioService:
         text: str,
         ref: dict[str, Any] | None = None,
     ) -> Dweller:
-        """Append one entry and recompile the rendered bio."""
+        """Append one entry and recompile the rendered bio.
+
+        Raises:
+            ValidationException: The text is blank or shorter than the entry floor.
+            ContentNoChangeException: An identical dialogue entry is already recorded.
+        """
+        normalized = text.strip()
+        if len(normalized) < BIO_MIN_ENTRY_CHARS:
+            raise ValidationException(f"Biography entries need at least {BIO_MIN_ENTRY_CHARS} characters")
         dweller = await crud.dweller.get(db_session, dweller_id)
-        return await self._persist(db_session, dweller_id, self.with_entry(dweller, source, text, ref))
+        if source == "dialogue" and self.has_dialogue_entry(dweller, normalized):
+            raise ContentNoChangeException(detail="That detail is already in the biography")
+        return await self._persist(db_session, dweller_id, self.with_entry(dweller, source, normalized, ref))
+
+    @staticmethod
+    def has_dialogue_entry(dweller: BioEntryOwner, text: str) -> bool:
+        """Whether this detail is already recorded in the life log."""
+        candidate = text.strip().lower()
+        return any(
+            entry.get("source") == "dialogue" and str(entry.get("text") or "").strip().lower() == candidate
+            for entry in dweller.bio_entries or []
+        )
 
     async def record_visit(self, db_session: AsyncSession, dweller_id: UUID4, place_name: str) -> Dweller:
         """Record a first visit to a place; repeat visits are a no-op."""

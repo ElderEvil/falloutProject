@@ -253,7 +253,9 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      await appendBioAddendum(options.dwellerId, bioText, authStore.token)
+      const updated = await appendBioAddendum(options.dwellerId, bioText, authStore.token)
+      // Cache the returned dweller so the biography panel shows the new entry immediately.
+      dwellerStore.detailedDwellers[options.dwellerId] = updated
       toast.success(`Recorded in ${options.dwellerName}'s biography`)
       return true
     } catch {

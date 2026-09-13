@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.91.0 (2026-09-13)
+
+### Features
+
+* **crafting:** instant weapon and outfit crafting at the workshops ([#607](https://github.com/ElderEvil/falloutProject/issues/607)) d2de0cb
+
 ## 2.90.0 (2026-09-13)
 
 ### Features

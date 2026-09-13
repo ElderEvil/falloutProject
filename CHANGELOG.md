@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.90.0 (2026-09-13)
+
+### Features
+
+* **dwellers:** structured living biographies with dossier sections ([#606](https://github.com/ElderEvil/falloutProject/issues/606)) dc63e9e
+
 ## 2.89.0 (2026-09-13)
 
 ### Features

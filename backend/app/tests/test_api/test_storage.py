@@ -123,3 +123,66 @@ async def test_get_storage_items_success(
     for item in data["junk"]:
         assert "id" in item
         assert "name" in item
+
+
+@pytest.mark.asyncio
+async def test_open_lunchbox_success(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test POST /storage/vault/{vault_id}/lunchbox/open consumes the box and reveals contents."""
+    from uuid import UUID
+
+    from app.services.reward_service import reward_service
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.max_space = 100
+    async_session.add(storage)
+    await async_session.flush()
+
+    minted = await reward_service.grant_lunchbox(async_session, vault.id)
+
+    response = await async_client.post(
+        f"/storage/vault/{vault.id}/lunchbox/open",
+        json={"item_id": minted["item_id"]},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["reward_type"] == "lunchbox"
+    assert len(data["items"]) == 3
+    assert data["dweller"]["dweller_id"]
+    assert data["dweller"]["name"]
+
+    remaining = await crud.storage.get_unopened_lunchbox(async_session, UUID(minted["item_id"]), vault.id)
+    assert remaining is None
+
+
+@pytest.mark.asyncio
+async def test_open_lunchbox_unknown_item_404(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Test opening an unknown lunchbox returns 404 without distinguishing the cause."""
+    from uuid import uuid4
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+
+    response = await async_client.post(
+        f"/storage/vault/{vault.id}/lunchbox/open",
+        json={"item_id": str(uuid4())},
+        headers=superuser_token_headers,
+    )
+    assert response.status_code == 404

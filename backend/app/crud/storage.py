@@ -199,6 +199,27 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
             "items": list(items_result.scalars().all()),
         }
 
+    async def get_unopened_lunchbox(self, db_session: AsyncSession, item_id: UUID4, vault_id: UUID4) -> Item | None:
+        """Fetch one unopened lunchbox Item scoped to a vault.
+
+        Returns None for unknown, foreign-vault, or non-lunchbox rows alike so
+        callers cannot distinguish them (all surface as 404).
+
+        The row lock makes concurrent openings of the same box single-winner:
+        the loser blocks until the winner commits, then sees no row.
+        """
+        result = await db_session.execute(
+            select(Item)
+            .join(Storage, Item.storage_id == Storage.id)
+            .where(
+                Item.id == item_id,
+                Storage.vault_id == vault_id,
+                Item.item_type == "lunchbox",
+            )
+            .with_for_update()
+        )
+        return result.scalars().first()
+
 
 # Global instance
 storage = CRUDStorage(Storage)
@@ -211,3 +232,4 @@ get_available_space = storage.get_available_space
 update_used_space = storage.update_used_space
 get_storage_info = storage.get_info
 get_all_items = storage.get_all_items
+get_unopened_lunchbox = storage.get_unopened_lunchbox

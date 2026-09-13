@@ -13,6 +13,7 @@ from app.db.session import get_async_session
 from app.schemas.item import ItemRead
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
+from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.vault import MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
@@ -139,3 +140,28 @@ async def transfer_medical_supplies(
         stimpaks=request.stimpaks,
         radaways=request.radaways,
     )
+
+
+@router.post("/vault/{vault_id}/lunchbox/open", response_model=LunchboxOpened)
+async def open_lunchbox(
+    vault_id: UUID4,
+    request: LunchboxOpenRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+) -> LunchboxOpened:
+    """Open one unopened lunchbox and roll its contents into the vault.
+
+    Returns:
+        The rolled items and dweller revealed by the lunchbox.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+        HTTPException: 404 for unknown, foreign-vault, or non-lunchbox rows.
+        HTTPException: 409 when storage cannot fit the rolled contents.
+    """
+    from app.services.reward_service import reward_service
+
+    vault = await get_user_vault_or_403(vault_id, current_user, db_session)
+
+    opened = await reward_service.open_lunchbox(db_session, vault.id, request.item_id)
+    return LunchboxOpened.model_validate(opened)

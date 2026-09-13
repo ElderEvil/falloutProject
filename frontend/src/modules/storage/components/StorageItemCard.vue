@@ -22,6 +22,7 @@ const emit = defineEmits<{
   sell: []
   sellAll: []
   scrap: []
+  open: []
 }>()
 
 const itemIcon = computed(() => getItemIcon(itemType, item as any))
@@ -45,6 +46,8 @@ const itemStats = computed(() =>
 const showSellAll = computed(() => count > 1 && itemType === 'junk')
 
 const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfit' || itemType === 'junk')
+
+const isOpenable = computed(() => itemType === 'lunchbox')
 </script>
 
 <template>
@@ -116,7 +119,7 @@ const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfi
 
       <!-- Footer: value + inventory actions (generic supplies have no sell/scrap endpoints) -->
       <div
-        v-if="isActionable"
+        v-if="isActionable || isOpenable"
         class="mt-auto flex items-center justify-between gap-3 border-t border-(--color-theme-primary)/20 pt-2"
       >
         <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">
@@ -125,6 +128,18 @@ const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfi
         </div>
         <div class="flex flex-wrap justify-end gap-2">
           <UButton
+            v-if="isOpenable"
+            variant="primary"
+            size="sm"
+            @click="emit('open')"
+            title="Open lunchbox"
+            class="font-mono"
+          >
+            <Icon icon="mdi:gift-open" class="h-4 w-4" />
+            Open
+          </UButton>
+          <UButton
+            v-if="isActionable"
             variant="secondary"
             size="sm"
             @click="emit('sell')"
@@ -135,7 +150,7 @@ const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfi
             Sell
           </UButton>
           <UButton
-            v-if="itemType !== 'junk'"
+            v-if="itemType !== 'junk' && isActionable"
             variant="secondary"
             size="sm"
             @click="emit('scrap')"

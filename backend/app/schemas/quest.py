@@ -5,6 +5,7 @@ from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
 
 from app.models.quest import QuestBase
+from app.schemas.rewards import GrantedReward
 from app.utils.partial import optional
 
 
@@ -46,7 +47,7 @@ class QuestCompleteResponse(SQLModel):
     quest_id: UUID4
     quest_title: str
     is_completed: bool = True
-    granted_rewards: list[dict[str, Any]] = []
+    granted_rewards: list[GrantedReward] = []
 
 
 class QuestReadShort(SQLModel):

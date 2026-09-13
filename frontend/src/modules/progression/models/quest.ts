@@ -4,6 +4,9 @@
  * Represents a quest/mission that can be assigned to a vault and completed for rewards.
  * Quests are only accessible when the Overseer's Office is built.
  */
+import type { components } from '@/core/types/api.generated'
+
+export type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 export interface Quest {
   id: string
   title: string
@@ -104,4 +107,120 @@ export interface QuestUpdate {
   long_description?: string
   requirements?: string
   rewards?: string
+}
+
+const GRANTED_ICONS: Record<GrantedReward['reward_type'], string> = {
+  caps: 'mdi:currency-usd',
+  item: 'mdi:package-variant',
+  dweller: 'mdi:account-plus',
+  resource: 'mdi:database',
+  experience: 'mdi:star',
+  stimpak: 'mdi:medical-bag',
+  radaway: 'mdi:radiation',
+}
+
+const GRANTED_LABELS: Record<GrantedReward['reward_type'], string> = {
+  caps: 'Bottle Caps',
+  item: 'Item',
+  dweller: 'New Dweller',
+  resource: 'Resource',
+  experience: 'Experience',
+  stimpak: 'Stimpak',
+  radaway: 'RadAway',
+}
+
+const GRANTED_ITEM_ICONS: Record<string, string> = {
+  weapon: 'mdi:sword-cross',
+  outfit: 'mdi:tshirt-crew',
+  junk: 'mdi:cog',
+  pet: 'mdi:paw',
+  consumable: 'mdi:bottle-tonic',
+  lunchbox: 'mdi:gift',
+}
+
+const GRANTED_ITEM_LABELS: Record<string, string> = {
+  weapon: 'Weapon',
+  outfit: 'Outfit',
+  junk: 'Junk',
+  pet: 'Pet',
+  consumable: 'Consumable',
+  lunchbox: 'Lunchbox',
+}
+
+const GRANTED_RESOURCE_ICONS: Record<string, string> = {
+  power: 'mdi:flash',
+  food: 'mdi:food-apple',
+  water: 'mdi:water',
+}
+
+const GRANTED_RESOURCE_LABELS: Record<string, string> = {
+  power: 'Power',
+  food: 'Food',
+  water: 'Water',
+}
+
+export interface GrantedRewardDisplay {
+  icon: string
+  label: string
+  value: string
+}
+
+/**
+ * Single presentation mapping for settled rewards, shared by toasts,
+ * the quest completion modal, and anywhere else granted rewards render —
+ * so every surface agrees exactly with what settlement delivered.
+ */
+export function describeGrantedReward(reward: GrantedReward): GrantedRewardDisplay {
+  switch (reward.reward_type) {
+    case 'caps':
+      return { icon: GRANTED_ICONS.caps, label: GRANTED_LABELS.caps, value: String(reward.amount) }
+    case 'resource':
+      return {
+        icon: GRANTED_RESOURCE_ICONS[reward.resource_type] ?? GRANTED_ICONS.resource,
+        label: GRANTED_RESOURCE_LABELS[reward.resource_type] ?? GRANTED_LABELS.resource,
+        value: String(reward.amount),
+      }
+    case 'experience':
+      return {
+        icon: GRANTED_ICONS.experience,
+        label: GRANTED_LABELS.experience,
+        value: reward.name ?? `${reward.amount} XP`,
+      }
+    case 'dweller':
+      return { icon: GRANTED_ICONS.dweller, label: GRANTED_LABELS.dweller, value: reward.name }
+    case 'stimpak':
+    case 'radaway':
+      return {
+        icon: GRANTED_ICONS[reward.reward_type],
+        label: GRANTED_LABELS[reward.reward_type],
+        value: String(reward.amount),
+      }
+    case 'item': {
+      const quantity = reward.amount > 1 ? `${reward.amount}x ` : ''
+      return {
+        icon: GRANTED_ITEM_ICONS[reward.item_type] ?? GRANTED_ICONS.item,
+        label: GRANTED_ITEM_LABELS[reward.item_type] ?? GRANTED_LABELS.item,
+        value: `${quantity}${reward.name}`,
+      }
+    }
+  }
+}
+
+/** One-line rendering of a settled reward for toasts and log-style surfaces. */
+export function formatGrantedReward(reward: GrantedReward): string {
+  switch (reward.reward_type) {
+    case 'caps':
+      return `${reward.amount} caps`
+    case 'resource':
+      return `${reward.amount} ${reward.resource_type}`
+    case 'experience':
+      return reward.name ?? `${reward.amount} XP`
+    case 'stimpak':
+    case 'radaway': {
+      const label = reward.reward_type === 'stimpak' ? 'Stimpak' : 'RadAway'
+      return `${reward.amount} ${label}`
+    }
+    default:
+      return describeGrantedReward(reward).value
+  }
 }

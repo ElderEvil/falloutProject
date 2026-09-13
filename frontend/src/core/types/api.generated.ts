@@ -3167,6 +3167,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/vault/{vault_id}/lunchbox/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open Lunchbox
+         * @description Open one unopened lunchbox and roll its contents into the vault.
+         *
+         *     Returns:
+         *         The rolled items and dweller revealed by the lunchbox.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         *         HTTPException: 404 for unknown, foreign-vault, or non-lunchbox rows.
+         *         HTTPException: 409 when storage cannot fit the rolled contents.
+         */
+        post: operations["open_lunchbox_api_v1_storage_vault__vault_id__lunchbox_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stream/notifications": {
         parameters: {
             query?: never;
@@ -4545,6 +4573,16 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CapsGranted */
+        CapsGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "caps";
+            /** Amount */
+            amount: number;
+        };
         /**
          * ChangeEntry
          * @description Individual change entry within a changelog version.
@@ -5139,6 +5177,18 @@ export interface components {
             epitaph: string | null;
             /** Days Until Permanent */
             days_until_permanent?: number | null;
+        };
+        /** DwellerGranted */
+        DwellerGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "dweller";
+            /** Dweller Id */
+            dweller_id: string;
+            /** Name */
+            name: string;
         };
         /**
          * DwellerIdentityOptions
@@ -5910,6 +5960,22 @@ export interface components {
             /** Rarity */
             rarity: string;
         };
+        /** ExperienceGranted */
+        ExperienceGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "experience";
+            /** Amount */
+            amount: number;
+            /** Dweller Ids */
+            dweller_ids?: string[];
+            /** Leveled Up */
+            leveled_up?: string[];
+            /** Name */
+            name?: string | null;
+        };
         /**
          * ExplorationCompleteResponse
          * @description Schema for completed exploration response.
@@ -6469,6 +6535,31 @@ export interface components {
             /** Build Date */
             build_date: string;
         };
+        /** ItemGranted */
+        ItemGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "item";
+            /** Item Type */
+            item_type: string;
+            /** Name */
+            name: string;
+            /**
+             * Amount
+             * @default 1
+             */
+            amount: number;
+            /** Item Id */
+            item_id?: string | null;
+            /** Item Ids */
+            item_ids?: string[];
+            /** Dweller Ids */
+            dweller_ids?: string[];
+            /** Dweller Id */
+            dweller_id?: string | null;
+        };
         /** ItemRead */
         ItemRead: {
             /** Name */
@@ -6619,6 +6710,38 @@ export interface components {
          * @enum {string}
          */
         LocationTypeEnum: "origin" | "visited" | "discovery" | "home_vault";
+        /** LunchboxOpenRequest */
+        LunchboxOpenRequest: {
+            /**
+             * Item Id
+             * Format: uuid4
+             */
+            item_id: string;
+        };
+        /**
+         * LunchboxOpened
+         * @description Payload returned when a player opens an unopened lunchbox Item.
+         */
+        LunchboxOpened: {
+            /**
+             * Reward Type
+             * @default lunchbox
+             * @constant
+             */
+            reward_type: "lunchbox";
+            /** Items */
+            items?: components["schemas"]["LunchboxOpenedItem"][];
+            dweller: components["schemas"]["DwellerGranted"];
+        };
+        /** LunchboxOpenedItem */
+        LunchboxOpenedItem: {
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Rarity */
+            rarity: string;
+        };
         /**
          * ManualRecruitRequest
          * @description Request to manually recruit a dweller for caps.
@@ -6669,6 +6792,20 @@ export interface components {
             dweller_stimpaks: number;
             /** Dweller Radaways */
             dweller_radaways: number;
+        };
+        /** MedicationGranted */
+        MedicationGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "radaway" | "stimpak";
+            /** Amount */
+            amount: number;
+            /** Dweller Id */
+            dweller_id?: string | null;
+            /** Message */
+            message?: string | null;
         };
         /**
          * MessageResponse
@@ -7221,9 +7358,7 @@ export interface components {
              * Granted Rewards
              * @default []
              */
-            granted_rewards: {
-                [key: string]: unknown;
-            }[];
+            granted_rewards: (components["schemas"]["CapsGranted"] | components["schemas"]["ItemGranted"] | components["schemas"]["DwellerGranted"] | components["schemas"]["ResourceGranted"] | components["schemas"]["ExperienceGranted"] | components["schemas"]["MedicationGranted"])[];
         };
         /** QuestCreate */
         QuestCreate: {
@@ -7648,6 +7783,21 @@ export interface components {
              * @description Why the dweller needs a Stimpak
              */
             reason: string;
+        };
+        /** ResourceGranted */
+        ResourceGranted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            reward_type: "resource";
+            /**
+             * Resource Type
+             * @enum {string}
+             */
+            resource_type: "food" | "water" | "power";
+            /** Amount */
+            amount: number;
         };
         /**
          * ResourceLevelWarning
@@ -13561,6 +13711,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MedicalTransferResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_lunchbox_api_v1_storage_vault__vault_id__lunchbox_open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LunchboxOpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LunchboxOpened"];
                 };
             };
             /** @description Validation Error */

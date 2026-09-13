@@ -14,6 +14,7 @@ import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
+import type { components } from '@/core/types/api.generated'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
@@ -61,6 +62,7 @@ const questPartyMembers = ref<DwellerShort[]>([])
 const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
 const showClaimModal = ref(false)
 const claimQuest = ref<VaultQuest | null>(null)
+const grantedRewards = ref<components['schemas']['QuestCompleteResponse']['granted_rewards'] | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -175,14 +177,20 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
 
 const handleClaimRewards = async (questId: string) => {
   claimQuest.value = readyToClaimQuests.value.find((quest) => quest.id === questId) ?? null
+  grantedRewards.value = null
   showClaimModal.value = claimQuest.value !== null
+}
+
+const closeClaimModal = () => {
+  showClaimModal.value = false
+  claimQuest.value = null
+  grantedRewards.value = null
 }
 
 const confirmClaimRewards = async () => {
   if (!vaultId.value || !claimQuest.value) return
-  await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
-  showClaimModal.value = false
-  claimQuest.value = null
+  const result = await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
+  grantedRewards.value = result?.granted_rewards ?? null
 }
 
 const goToQuestDetail = (questId: string) => {
@@ -359,7 +367,8 @@ onMounted(async () => {
           <QuestRewardsModal
             :quest="claimQuest"
             :show="showClaimModal"
-            @close="showClaimModal = false"
+            :granted-rewards="grantedRewards"
+            @close="closeClaimModal"
             @confirm="confirmClaimRewards"
           />
         </PageContentRail>

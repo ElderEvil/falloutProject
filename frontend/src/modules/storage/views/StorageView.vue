@@ -7,12 +7,15 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { storageService, type StorageItemsResponse } from '../services/storageService'
+import type { components } from '@/core/types/api.generated'
+import { handleStoreError } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
+import LunchboxOpenModal from '../components/LunchboxOpenModal.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 const route = useRoute()
@@ -240,7 +243,28 @@ const handleScrapItem = async (
   }
 }
 
-// Get rarity color
+// Lunchbox opening
+const showLunchboxModal = ref(false)
+const lunchboxResult = ref<components['schemas']['LunchboxOpened'] | null>(null)
+
+const handleOpenLunchbox = async (itemId: string) => {
+  if (!vaultId.value) return
+  try {
+    lunchboxResult.value = await storageService.openLunchbox(vaultId.value, itemId)
+    showLunchboxModal.value = true
+  } catch (error: unknown) {
+    handleStoreError(error, 'Failed to open lunchbox')
+  }
+}
+
+const closeLunchboxModal = async () => {
+  showLunchboxModal.value = false
+  lunchboxResult.value = null
+  await fetchStorageData()
+  if (vaultId.value && authStore.token) {
+    await vaultStore.refreshVault(vaultId.value, authStore.token)
+  }
+}
 </script>
 
 <template>
@@ -350,9 +374,15 @@ const handleScrapItem = async (
             @sell="handleSellItem(item.ids[0], activeTab)"
             @sell-all="handleSellItem(item.ids, activeTab)"
             @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+            @open="handleOpenLunchbox(item.ids[0])"
           />
         </div>
         </UTabs>
+        <LunchboxOpenModal
+          :show="showLunchboxModal"
+          :result="lunchboxResult"
+          @close="closeLunchboxModal"
+        />
       </PageContentRail>
     </div>
   </div>

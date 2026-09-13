@@ -135,4 +135,27 @@ describe('QuestRewardsModal', () => {
     expect(wrapper.text()).toContain('Lunchbox')
     expect(wrapper.text()).toContain('Storage supplies tab')
   })
+
+  it('shows the empty state instead of authored rewards for an empty grant', () => {
+    const authoredQuest = {
+      ...quest,
+      quest_rewards: [
+        {
+          id: 'reward-1',
+          quest_id: 'quest-1',
+          reward_type: 'caps',
+          reward_data: { amount: 100 },
+          reward_chance: 1,
+        },
+      ] as QuestReward[],
+    } as VaultQuest
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest: authoredQuest, grantedRewards: [] },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.text()).toContain('Delivery Confirmed!')
+    expect(wrapper.text()).toContain('No rewards listed for this quest')
+    expect(wrapper.text()).not.toContain('100')
+  })
 })

@@ -151,3 +151,33 @@ async def test_open_lunchbox_full_storage_409(async_session: AsyncSession) -> No
 
     remaining = (await async_session.execute(select(Item))).scalars().all()
     assert [item.item_type for item in remaining] == ["lunchbox"]
+
+
+@pytest.mark.asyncio
+async def test_open_lunchbox_twice_second_404(async_session: AsyncSession) -> None:
+    """A consumed box cannot be opened again — sequential double-open is single-winner."""
+    vault = await _vault_with_storage(async_session)
+    minted = await reward_service.grant_lunchbox(async_session, vault.id)
+
+    opened = await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
+    assert len(opened["items"]) == 3
+
+    with pytest.raises(ResourceNotFoundException):
+        await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
+
+
+@pytest.mark.asyncio
+async def test_open_lunchbox_needs_only_net_two_slots(async_session: AsyncSession) -> None:
+    """The consumed box frees its slot, so two free slots fit the three rolled items."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    async_session.add(Storage(vault_id=vault.id, max_space=3))
+    await async_session.commit()
+    minted = await reward_service.grant_lunchbox(async_session, vault.id)
+
+    opened = await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
+
+    assert len(opened["items"]) == 3

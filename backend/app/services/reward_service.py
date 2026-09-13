@@ -462,6 +462,8 @@ class RewardService:
 
         Space for the rolled items is verified before the lunchbox row is
         consumed, so a full storage fails cleanly without losing the box.
+        The box itself frees one slot, so only the two net additional slots
+        are required. The whole opening settles in one deferred transaction.
 
         Raises:
             ResourceNotFoundException: Unknown, foreign-vault, or non-lunchbox row.
@@ -472,11 +474,12 @@ class RewardService:
         item = await get_unopened_lunchbox(db_session, item_id, vault_id)
         if item is None:
             raise ResourceNotFoundException(Item, item_id)
-        storage_obj = await self._ensure_storage(db_session, vault_id, _LUNCHBOX_ITEM_COUNT)
-        await db_session.delete(item)
-        granted_items, granted_dweller = await self._roll_lunchbox_contents(db_session, vault_id, storage_obj.id)
-        await persist_reward_change(db_session)
-        await db_session.commit()
+        storage_obj = await self._ensure_storage(db_session, vault_id, _LUNCHBOX_ITEM_COUNT - 1)
+        async with defer_reward_delivery(db_session):
+            await db_session.delete(item)
+            granted_items, granted_dweller = await self._roll_lunchbox_contents(db_session, vault_id, storage_obj.id)
+            await persist_reward_change(db_session)
+            await db_session.commit()
 
         logger.info(f"Opened lunchbox {item_id} in vault {vault_id}: {len(granted_items)} items, 1 dweller")
         return {

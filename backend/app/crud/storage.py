@@ -204,6 +204,9 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
         Returns None for unknown, foreign-vault, or non-lunchbox rows alike so
         callers cannot distinguish them (all surface as 404).
+
+        The row lock makes concurrent openings of the same box single-winner:
+        the loser blocks until the winner commits, then sees no row.
         """
         result = await db_session.execute(
             select(Item)
@@ -213,6 +216,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
                 Storage.vault_id == vault_id,
                 Item.item_type == "lunchbox",
             )
+            .with_for_update()
         )
         return result.scalars().first()
 

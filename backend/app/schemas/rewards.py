@@ -90,6 +90,7 @@ def format_reward_summary(granted: GrantedReward | list[GrantedReward]) -> str:
 
 
 def _format_single(granted: GrantedReward) -> str:
+    """Render one settled reward; see format_reward_summary for the shared contract."""
     if isinstance(granted, CapsGranted):
         return f"{granted.amount} caps"
     if isinstance(granted, ResourceGranted):

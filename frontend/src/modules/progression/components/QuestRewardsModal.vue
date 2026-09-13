@@ -137,7 +137,7 @@ const hasUnopenedLunchbox = computed(() => (props.grantedRewards ?? []).some(
       />
     </div>
 
-    <div v-else-if="rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div v-else-if="!isGrantedMode && rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <RewardCard
         v-for="reward in rewards"
         :key="reward.id"

@@ -9,7 +9,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
-from app.schemas.crafting import CraftingRecipesRead, CraftRequest, CraftResultRead
+from app.schemas.crafting import (
+    CraftingOrderRead,
+    CraftingOrdersRead,
+    CraftingRecipesRead,
+    CraftRequest,
+    CraftResultRead,
+)
 from app.services.crafting_service import crafting_service
 
 router = APIRouter(prefix="/crafting", tags=["Crafting"])
@@ -37,20 +43,59 @@ async def list_crafting_recipes(
     return CraftingRecipesRead(recipes=recipes)
 
 
-@router.post("/vault/{vault_id}/craft", response_model=CraftResultRead)
-async def craft_item(
+@router.get("/vault/{vault_id}/orders", response_model=CraftingOrdersRead)
+async def list_crafting_orders(
     vault_id: UUID4,
-    request: CraftRequest,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
-) -> CraftResultRead:
-    """Craft one catalog item at its matching workshop.
+) -> CraftingOrdersRead:
+    """List every workshop order for a vault, newest first.
 
     Returns:
-        The crafted item and the materials spent.
+        The vault's crafting queue.
 
     Raises:
         HTTPException: 403 if user lacks access to the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crafting_service.craft(db_session, vault_id, request.item_name, request.item_type)
+    orders = await crafting_service.list_orders(db_session, vault_id)
+    return CraftingOrdersRead(orders=[CraftingOrderRead.model_validate(order) for order in orders])
+
+
+@router.post("/vault/{vault_id}/orders", response_model=CraftingOrderRead, status_code=201)
+async def start_crafting_order(
+    vault_id: UUID4,
+    request: CraftRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> CraftingOrderRead:
+    """Queue a craft at its workshop, consuming materials immediately.
+
+    Returns:
+        The queued order.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    order = await crafting_service.start_order(db_session, vault_id, request.item_name, request.item_type)
+    return CraftingOrderRead.model_validate(order)
+
+
+@router.post("/vault/{vault_id}/orders/{order_id}/collect", response_model=CraftResultRead)
+async def collect_crafting_order(
+    vault_id: UUID4,
+    order_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
+) -> CraftResultRead:
+    """Move a finished order's item into storage.
+
+    Returns:
+        The crafted item and the materials it consumed.
+
+    Raises:
+        HTTPException: 403 if user lacks access to the vault.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await crafting_service.collect_order(db_session, vault_id, order_id)

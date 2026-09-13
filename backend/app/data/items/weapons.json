@@ -8,7 +8,14 @@
         "damage_min": 5,
         "damage_max": 15,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -19,7 +26,14 @@
         "damage_min": 8,
         "damage_max": 18,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -30,7 +44,14 @@
         "damage_min": 3,
         "damage_max": 11,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -41,7 +62,14 @@
         "damage_min": 11,
         "damage_max": 21,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -52,7 +80,14 @@
         "damage_min": 0,
         "damage_max": 8,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -63,7 +98,14 @@
         "damage_min": 19,
         "damage_max": 31,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -74,7 +116,14 @@
         "damage_min": 16,
         "damage_max": 28,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -85,7 +134,14 @@
         "damage_min": 11,
         "damage_max": 16,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -96,7 +152,14 @@
         "damage_min": 13,
         "damage_max": 18,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Melee",
@@ -107,7 +170,14 @@
         "damage_min": 18,
         "damage_max": 26,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "leather"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -118,7 +188,14 @@
         "damage_min": 1,
         "damage_max": 3,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -129,7 +206,14 @@
         "damage_min": 1,
         "damage_max": 2,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -140,7 +224,14 @@
         "damage_min": 2,
         "damage_max": 3,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -151,7 +242,14 @@
         "damage_min": 3,
         "damage_max": 4,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -162,7 +260,14 @@
         "damage_min": 12,
         "damage_max": 13,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -173,7 +278,14 @@
         "damage_min": 5,
         "damage_max": 7,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -184,7 +296,14 @@
         "damage_min": 8,
         "damage_max": 9,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -195,7 +314,14 @@
         "damage_min": 0,
         "damage_max": 2,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -206,7 +332,14 @@
         "damage_min": 16,
         "damage_max": 17,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -217,7 +350,14 @@
         "damage_min": 13,
         "damage_max": 16,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -228,7 +368,14 @@
         "damage_min": 5,
         "damage_max": 6,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -239,7 +386,14 @@
         "damage_min": 4,
         "damage_max": 5,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -250,7 +404,14 @@
         "damage_min": 14,
         "damage_max": 15,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -261,7 +422,14 @@
         "damage_min": 10,
         "damage_max": 11,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -272,7 +440,14 @@
         "damage_min": 13,
         "damage_max": 14,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -283,7 +458,14 @@
         "damage_min": 6,
         "damage_max": 7,
         "value": 10,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Gun",
@@ -294,7 +476,14 @@
         "damage_min": 9,
         "damage_max": 10,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry",
+                "steel"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -305,7 +494,13 @@
         "damage_min": 18,
         "damage_max": 19,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -316,7 +511,13 @@
         "damage_min": 7,
         "damage_max": 8,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -327,7 +528,13 @@
         "damage_min": 11,
         "damage_max": 12,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -338,7 +545,13 @@
         "damage_min": 8,
         "damage_max": 12,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -349,7 +562,13 @@
         "damage_min": 9,
         "damage_max": 11,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -360,7 +579,13 @@
         "damage_min": 10,
         "damage_max": 13,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -371,7 +596,13 @@
         "damage_min": 17,
         "damage_max": 17,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -382,7 +613,13 @@
         "damage_min": 12,
         "damage_max": 13,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -393,7 +630,13 @@
         "damage_min": 17,
         "damage_max": 18,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -404,7 +647,13 @@
         "damage_min": 18,
         "damage_max": 19,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Energy",
@@ -415,7 +664,13 @@
         "damage_min": 14,
         "damage_max": 16,
         "value": 100,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Heavy",
@@ -426,7 +681,14 @@
         "damage_min": 22,
         "damage_max": 23,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Heavy",
@@ -437,7 +699,14 @@
         "damage_min": 15,
         "damage_max": 16,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Heavy",
@@ -448,7 +717,14 @@
         "damage_min": 15,
         "damage_max": 16,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Heavy",
@@ -459,7 +735,14 @@
         "damage_min": 20,
         "damage_max": 21,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "circuitry"
+            ],
+            "unlock": null
+        }
     },
     {
         "weapon_type": "Heavy",
@@ -470,6 +753,13 @@
         "damage_min": 13,
         "damage_max": 15,
         "value": 500,
-        "craftable": true
+        "craftable": true,
+        "craft": {
+            "types": [
+                "steel",
+                "circuitry"
+            ],
+            "unlock": null
+        }
     }
 ]

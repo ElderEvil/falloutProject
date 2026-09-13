@@ -13,6 +13,14 @@
     "charisma": 1,
     "intelligence": 0,
     "agility": 0,
-    "luck": 0
+    "luck": 0,
+    "stat": "strength",
+    "craft": {
+      "types": [
+        "cloth",
+        "leather"
+      ],
+      "unlock": null
+    }
   }
 ]

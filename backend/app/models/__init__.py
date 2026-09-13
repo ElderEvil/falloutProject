@@ -1,6 +1,7 @@
 from .ai_settings import AISettings
 from .arena_match_event import ArenaMatchEvent
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
+from .crafting_order import CraftingOrder, CraftingOrderStatus
 from .dweller import Dweller
 from .exploration import Exploration
 from .game_state import GameState

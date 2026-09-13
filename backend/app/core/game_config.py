@@ -910,8 +910,21 @@ class CraftingConfig(BaseSettings):
         default_factory=lambda: {"common": 0, "rare": 100, "legendary": 500},
         description="Bottle caps required, keyed by the crafted item's rarity",
     )
+    order_seconds_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"common": 120, "rare": 600, "legendary": 1800},
+        description="Base workshop order duration in seconds, keyed by rarity",
+    )
+    worker_speedup: float = Field(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of the base duration removed per dweller working the workshop",
+    )
+    min_order_seconds: int = Field(default=30, ge=1, description="Floor for a sped-up order duration")
 
-    @field_validator("junk_cost_by_rarity", "caps_cost_by_rarity", mode="before")
+    @field_validator(
+        "junk_cost_by_rarity", "caps_cost_by_rarity", "order_seconds_by_rarity", mode="before"
+    )
     @classmethod
     def validate_cost_maps(cls, v: dict[str, int]) -> dict[str, int]:
         """Require every rarity and non-negative costs.
@@ -935,6 +948,10 @@ class CraftingConfig(BaseSettings):
     def caps_cost(self, rarity: str) -> int:
         """Bottle caps needed to craft an item of this rarity."""
         return self.caps_cost_by_rarity.get(rarity.lower(), self.caps_cost_by_rarity["common"])
+
+    def order_seconds(self, rarity: str) -> int:
+        """Base workshop duration for an item of this rarity, before worker speed-up."""
+        return self.order_seconds_by_rarity.get(rarity.lower(), self.order_seconds_by_rarity["common"])
 
 
 class GameConfig(BaseSettings):

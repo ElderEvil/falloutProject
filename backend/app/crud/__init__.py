@@ -3,6 +3,7 @@ from app.models.weapon import Weapon
 
 from . import storage
 from .ai_settings import ai_settings
+from .crafting_order import crafting_order
 from .dweller import dweller
 from .exploration import exploration
 from .game_state import game_state_crud

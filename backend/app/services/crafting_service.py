@@ -1,12 +1,15 @@
-"""Instant crafting at the weapon and outfit workshops.
+"""Workshop crafting — recipe listing and the timed order queue.
 
 Recipes are the existing item catalogs filtered by their ``craftable`` flag;
 costs derive from rarity. Materials are junk of the crafted item's rarity or
-better, spent cheapest-first, so scrapping duplicates feeds crafting.
+better, spent cheapest-first, so scrapping duplicates feeds crafting. Materials
+are consumed when an order starts; the item is collected once the tick marks
+the order complete.
 """
 
 import asyncio
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import UUID4
@@ -16,7 +19,9 @@ from app import crud
 from app.core.enums import RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
+from app.models.crafting_order import CraftingOrder, CraftingOrderStatus
 from app.models.junk import Junk
+from app.models.room import Room
 from app.models.storage import Storage
 from app.schemas.crafting import CraftingRecipeRead, CraftResultRead
 from app.services.exploration import data_loader
@@ -77,11 +82,6 @@ class CraftingService:
             raise ValidationException(f"{entry['name']} cannot be crafted")
         return entry
 
-    @staticmethod
-    def _fits_after_swap(max_space: int, used_space: int, junk_spent: int) -> bool:
-        """Consuming junk frees its slots before the crafted item takes one."""
-        return max_space - used_space + junk_spent - 1 >= 0
-
     async def list_recipes(self, db_session: AsyncSession, vault_id: UUID4, item_type: str) -> list[CraftingRecipeRead]:
         """Craftable entries for one item type, with costs and current affordability."""
         if item_type not in CRAFTABLE_ITEM_TYPES:
@@ -90,7 +90,6 @@ class CraftingService:
         vault = await crud.vault.get(db_session, vault_id)
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         junk: list[Junk] = await crud.junk.get_in_storage(db_session, storage.id) if storage else []
-        info = await crud.storage.get_storage_info(db_session, storage.id) if storage else None
 
         recipes: list[CraftingRecipeRead] = []
         for entry in await self._catalog(item_type):
@@ -99,7 +98,6 @@ class CraftingService:
             rarity = RarityEnum(entry["rarity"])
             junk_cost, caps_cost = self._cost(rarity)
             shortfall = max(0, junk_cost - len(self._eligible_junk(junk, rarity)))
-            has_space = info is not None and self._fits_after_swap(info["max_space"], info["used_space"], junk_cost)
             recipes.append(
                 CraftingRecipeRead(
                     name=str(entry["name"]),
@@ -108,21 +106,37 @@ class CraftingService:
                     value=entry.get("value"),
                     junk_cost=junk_cost,
                     caps_cost=caps_cost,
-                    can_craft=shortfall == 0 and vault.bottle_caps >= caps_cost and has_space,
+                    can_craft=shortfall == 0 and vault.bottle_caps >= caps_cost,
                     missing_junk=shortfall,
                 )
             )
 
         return sorted(recipes, key=lambda recipe: (_RARITY_ORDER[recipe.rarity], recipe.name))
 
-    async def craft(self, db_session: AsyncSession, vault_id: UUID4, item_name: str, item_type: str) -> CraftResultRead:
-        """Consume junk and caps, then place the crafted item in storage.
+    @staticmethod
+    def order_duration_seconds(rarity: RarityEnum, workers: int) -> int:
+        """Base duration for the rarity, shortened by the dwellers working the workshop."""
+        base = game_config.crafting.order_seconds(rarity.value)
+        speedup = min(1.0, workers * game_config.crafting.worker_speedup)
+        return max(game_config.crafting.min_order_seconds, int(base * (1 - speedup)))
+
+    @staticmethod
+    async def _workshop_room(db_session: AsyncSession, vault_id: UUID4, workshop: str) -> Room | None:
+        rooms = await crud.room.get_by_name_pattern(db_session, vault_id, f"%{workshop}%")
+        return rooms[0] if rooms else None
+
+    async def start_order(
+        self, db_session: AsyncSession, vault_id: UUID4, item_name: str, item_type: str
+    ) -> CraftingOrder:
+        """Queue a craft and consume its materials up front.
+
+        Materials are taken at start, not collection, so the queue cannot be
+        filled with orders the vault cannot pay for.
 
         Raises:
             ValidationException: Unknown item type, unknown/uncraftable item, or missing workshop.
             ResourceNotFoundException: Vault has no storage row.
-            InsufficientResourcesException: Not enough eligible junk.
-            ResourceConflictException: Storage cannot hold the crafted item.
+            InsufficientResourcesException: Not enough eligible junk or caps.
         """
         if item_type not in CRAFTABLE_ITEM_TYPES:
             raise ValidationException(f"Unknown craftable item type: {item_type}")
@@ -133,8 +147,8 @@ class CraftingService:
             raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
 
         workshop = self.workshop_name(item_type)
-        room_names = await crud.room.get_existing_room_names(db_session=db_session, vault_id=vault_id)
-        if workshop.lower() not in room_names:
+        room = await self._workshop_room(db_session, vault_id, workshop)
+        if room is None:
             raise ValidationException(f"Build the {workshop} to craft {item_type}s")
 
         entry = await self._find_craftable(item_type, item_name)
@@ -148,34 +162,103 @@ class CraftingService:
             )
 
         spent = eligible[:junk_cost]
-        info = await crud.storage.get_storage_info(db_session, storage.id)
-        if not self._fits_after_swap(info["max_space"], info["used_space"], len(spent)):
-            raise ResourceConflictException("Storage is full")
-
         if caps_cost:
             await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
         for junk_item in spent:
             await db_session.delete(junk_item)
 
+        workers = await crud.dweller.count_in_room(db_session, room.id)
+        now = datetime.utcnow()
+        order = CraftingOrder(
+            vault_id=vault_id,
+            room_id=room.id,
+            item_name=str(entry["name"]),
+            item_type=item_type,
+            rarity=rarity,
+            started_at=now,
+            estimated_completion_at=now + timedelta(seconds=self.order_duration_seconds(rarity, workers)),
+            junk_spent=len(spent),
+            caps_spent=caps_cost,
+            workers_at_start=workers,
+        )
+        db_session.add(order)
+        await db_session.commit()
+        await db_session.refresh(order)
+        logger.info(
+            f"Queued {item_type} '{order.item_name}' ({rarity.value}) for vault {vault_id} "
+            f"with {workers} worker(s) in {self.order_duration_seconds(rarity, workers)}s"
+        )
+        return order
+
+    async def list_orders(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
+        """Every order for a vault, newest first."""
+        return await crud.crafting_order.get_by_vault(db_session, vault_id)
+
+    async def advance_orders(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Advance the queue one tick; returns how many orders just completed."""
+        orders = await crud.crafting_order.get_active_by_vault(db_session, vault_id)
+        if not orders:
+            return 0
+
+        now = datetime.utcnow()
+        completed = 0
+        for order in orders:
+            total = (order.estimated_completion_at - order.started_at).total_seconds()
+            elapsed = (now - order.started_at).total_seconds()
+            order.progress = min(1.0, max(0.0, elapsed / total)) if total > 0 else 1.0
+            if order.estimated_completion_at <= now:
+                order.status = CraftingOrderStatus.COMPLETED
+                order.completed_at = now
+                order.progress = 1.0
+                completed += 1
+            db_session.add(order)
+
+        await db_session.flush()
+        return completed
+
+    async def collect_order(self, db_session: AsyncSession, vault_id: UUID4, order_id: UUID4) -> CraftResultRead:
+        """Move a finished order's item into storage.
+
+        Raises:
+            ResourceNotFoundException: Unknown order, or vault has no storage row.
+            ValidationException: The order is still in the queue.
+            ResourceConflictException: Storage cannot hold the crafted item.
+        """
+        order = await crud.crafting_order.get_for_vault(db_session, order_id, vault_id)
+        if order is None:
+            raise ResourceNotFoundException(CraftingOrder, order_id)
+        if not order.is_completed():
+            raise ValidationException("Order is not ready to collect")
+
+        storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
+        if storage is None:
+            raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
+        info = await crud.storage.get_storage_info(db_session, storage.id)
+        if info["max_space"] - info["used_space"] < 1:
+            raise ResourceConflictException("Storage is full")
+
+        entry = await self._find_craftable(order.item_type, order.item_name)
         crafted = (
-            build_weapon(entry, rarity, storage.id)
-            if item_type == "weapon"
-            else build_outfit(entry, rarity, storage.id)
+            build_weapon(entry, order.rarity, storage.id)
+            if order.item_type == "weapon"
+            else build_outfit(entry, order.rarity, storage.id)
         )
         db_session.add(crafted)
+        order.status = CraftingOrderStatus.COLLECTED
+        db_session.add(order)
         await db_session.commit()
         await db_session.refresh(crafted)
 
-        await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": item_type, "amount": 1})
-        logger.info(f"Crafted {item_type} '{crafted.name}' ({rarity.value}) for vault {vault_id}")
+        await event_bus.emit(GameEvent.ITEM_COLLECTED, vault_id, {"item_type": order.item_type, "amount": 1})
+        logger.info(f"Collected {order.item_type} '{crafted.name}' ({order.rarity.value}) for vault {vault_id}")
 
         return CraftResultRead(
-            item_type=item_type,
+            item_type=order.item_type,
             item_id=crafted.id,
             name=crafted.name,
-            rarity=rarity,
-            junk_spent=len(spent),
-            caps_spent=caps_cost,
+            rarity=order.rarity,
+            junk_spent=order.junk_spent,
+            caps_spent=order.caps_spent,
         )
 
 

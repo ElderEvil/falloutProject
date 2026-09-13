@@ -41,6 +41,10 @@ class TrainingStats(TypedDict, total=False):
     error: str
 
 
+class CraftingStats(TypedDict, total=False):
+    completed: int
+
+
 class EventsStats(TypedDict, total=False):
     triggered: int
     events: list[dict[str, Any]]

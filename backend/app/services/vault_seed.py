@@ -7,13 +7,14 @@ from app.core.enums import JunkTypeEnum, OutfitTypeEnum, RarityEnum, SPECIALEnum
 from app.models import Room
 from app.schemas.room import RoomCreate
 
-# Living rooms are one slot; the workshops are three, so the workshops own the
-# top floor's right side and the living rooms stay on the lower, single-slot rows.
-BOOSTED_LIVING_ROOM_COORDINATES = ((16, 3), (19, 3), (22, 3), (25, 3))
+# The workshops are 3-segment rooms and own the top floor's right side. The
+# living space is one fully merged room (size 9) plus a base room, which is what
+# gives the boosted population its capacity.
 BOOSTED_CRAFTING_ROOM_SPECS: tuple[tuple[str, int, int], ...] = (
     ("Weapon workshop", 7, 0),
     ("Outfit workshop", 16, 0),
 )
+BOOSTED_MERGED_LIVING_ROOM: tuple[str, int, int, int] = ("living room", 16, 3, 9)
 BOOSTED_TRAINING_STATS = (
     SPECIALEnum.STRENGTH,
     SPECIALEnum.PERCEPTION,

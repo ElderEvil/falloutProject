@@ -248,8 +248,8 @@ class TestCreateInitialDwellers:
                 is_boosted=True,
             )
 
-        # 6 production + 4 medbay/science + 7 training + 1 radio + 2 living quarters + 2 apprentices = 22
-        assert call_count == 22
+        # 15 production (3 per room) + 7 training + 1 radio + 2 living quarters + 2 apprentices = 27
+        assert call_count == 27
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -767,6 +767,9 @@ class TestInitiateVault:
             assert len(prepared.crafting) == (2 if is_boosted else 0)
             if is_boosted:
                 assert {room.name for room in prepared.crafting} == {"Weapon workshop", "Outfit workshop"}
+
+            merged_living = [room for room in prepared.capacity if room.name == "Living room" and room.size == 9]
+            assert len(merged_living) == (1 if is_boosted else 0)
 
             elevators = sorted(
                 (room.coordinate_x, room.coordinate_y) for room in rooms if room.name.lower() == "elevator"

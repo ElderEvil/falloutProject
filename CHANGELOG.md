@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.88.0 (2026-09-13)
+
+### Features
+
+* **dwellers:** per-race backstory bios with 1/2/3 visited scaling ([#604](https://github.com/ElderEvil/falloutProject/issues/604)) d106ef8
+
 ## 2.87.5 (2026-09-13)
 
 ### Bug Fixes

@@ -776,6 +776,34 @@ async def test_age_children_progress_through_teen_to_adult(
     assert child.charisma == 6
 
 
+@pytest.mark.asyncio
+async def test_deliver_baby_records_family_entries(
+    async_session: AsyncSession,
+    male_dweller: Dweller,
+    female_dweller: Dweller,
+):
+    """Birth seeds the child's origin entry and narrates parenthood into both parents."""
+    pregnancy = await BreedingService.create_pregnancy(
+        async_session,
+        female_dweller.id,
+        male_dweller.id,
+    )
+    pregnancy.due_at = datetime.utcnow() - timedelta(hours=1)
+    await async_session.commit()
+
+    child = await BreedingService.deliver_baby(async_session, pregnancy.id)
+
+    assert [entry["source"] for entry in child.bio_entries] == ["template"]
+    assert child.bio_entries[0]["text"] == child.bio
+
+    for parent in (female_dweller, male_dweller):
+        refreshed = await crud.dweller.get(async_session, parent.id)
+        family = [entry for entry in refreshed.bio_entries if entry["source"] == "family"]
+        assert len(family) == 1
+        assert child.first_name in family[0]["text"]
+        assert family[0]["ref"]["child_id"] == str(child.id)
+
+
 def test_breeding_config_values():
     """Test that breeding config has valid values."""
     from app.core.game_config import game_config

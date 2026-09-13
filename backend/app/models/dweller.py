@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from pydantic import UUID4
@@ -16,6 +16,8 @@ from app.core.enums import (
     WeaponTypeEnum,
 )
 from app.models.base import BaseUUIDModel, SoftDeleteMixin, SPECIALModel, TimeStampMixin
+
+BIO_MAX_CHARS = 1_024
 
 if TYPE_CHECKING:
     from app.models.notification import Notification
@@ -43,7 +45,8 @@ class DwellerBaseWithoutStats(SQLModel):
         return self.is_adult and self.age_group == AgeGroupEnum.ADULT
 
     # Backstory and appearance
-    bio: str | None = Field(default=None, max_length=1024)
+    bio: str | None = Field(default=None, max_length=BIO_MAX_CHARS)
+    bio_entries: list[dict[str, Any]] = Field(default_factory=list, sa_column=sa.Column(JSONB, nullable=False))
     visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)

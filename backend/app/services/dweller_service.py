@@ -103,7 +103,11 @@ class DwellerService:
         cap_bio_places: bool = True,
     ) -> Dweller:
         """Persist a prepared payload, record the lifetime total and register explicit bio places."""
+        from app.services.bio_service import make_entry
+
         bio_places = payload.pop("_bio_places", None)
+        if payload.get("bio") and not payload.get("bio_entries"):
+            payload["bio_entries"] = [make_entry("template", payload["bio"])]
         dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload)
         await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
         if bio_places and register_bio_places:

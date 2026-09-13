@@ -19,6 +19,7 @@ from app.models.notification import NotificationType
 from app.models.relationship import Relationship
 from app.schemas.dweller import SPECIAL_STATS
 from app.schemas.relationship import CompatibilityScore
+from app.services.bio_service import bio_service
 from app.services.notification_service import NotificationService
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
@@ -301,11 +302,26 @@ class RelationshipService:
         await RelationshipService._apply_marriage_bonus(
             db_session, relationship.dweller_1_id, relationship.dweller_2_id
         )
+        await RelationshipService._record_marriage_bios(db_session, relationship)
         await db_session.refresh(relationship)
         await RelationshipService._notify_marriage(db_session, relationship)
 
         logger.info(f"Married: {relationship.dweller_1_id} ↔ {relationship.dweller_2_id}")
         return relationship
+
+    @staticmethod
+    async def _record_marriage_bios(db_session: AsyncSession, relationship: Relationship) -> None:
+        """Narrate the marriage into both partners' bios."""
+        dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
+        dweller_2 = await dweller_crud.get(db_session, relationship.dweller_2_id)
+        name_1 = f"{dweller_1.first_name} {dweller_1.last_name or ''}".strip()
+        name_2 = f"{dweller_2.first_name} {dweller_2.last_name or ''}".strip()
+        await bio_service.append_entry(
+            db_session, dweller_1.id, "family", f"Married {name_2}.", ref={"partner_id": str(dweller_2.id)}
+        )
+        await bio_service.append_entry(
+            db_session, dweller_2.id, "family", f"Married {name_1}.", ref={"partner_id": str(dweller_1.id)}
+        )
 
     @staticmethod
     async def _notify_marriage(db_session: AsyncSession, relationship: Relationship) -> None:

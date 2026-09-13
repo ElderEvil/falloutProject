@@ -361,3 +361,24 @@ async def test_marry_applies_bonus_once_under_repeated_attempts(
     assert dweller.happiness == min(100, base_1 + expected)
     assert dweller_2.happiness == min(100, base_2 + expected)
     assert notify_count["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_marry_records_family_entries(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+):
+    """Marriage narrates into both partners' structured bios."""
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold
+    await async_session.commit()
+
+    await RelationshipService.marry(async_session, partner_rel.id)
+
+    for partner, other in ((dweller, dweller_2), (dweller_2, dweller)):
+        refreshed = await crud.dweller.get(async_session, partner.id)
+        family = [entry for entry in refreshed.bio_entries if entry["source"] == "family"]
+        assert len(family) == 1
+        assert other.first_name in family[0]["text"]
+        assert family[0]["ref"]["partner_id"] == str(other.id)

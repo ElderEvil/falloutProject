@@ -71,6 +71,12 @@ async def test_get_vault_map_includes_bio_places(
     assert "first_name" in ref
     assert "relation" in ref
 
+    # The group taxonomy rides along: the catalog ships and known names resolve.
+    assert data["place_groups"], "map payload carries the group catalog"
+    assert "settlement" in {group["key"] for group in data["place_groups"]}
+    megaton = next(loc for loc in data["locations"] if loc["name"] == "Megaton")
+    assert megaton["group_key"] == "settlement"
+
 
 @pytest.mark.asyncio
 async def test_get_location_detail_with_dwellers(

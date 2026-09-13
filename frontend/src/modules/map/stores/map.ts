@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useIntervalFn, useLocalStorage } from '@vueuse/core'
 import type {
   DiscoveryRouteRead,
+  PlaceGroup,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
@@ -16,6 +17,7 @@ export const useMapStore = defineStore('map', () => {
   const locations = ref<WastelandLocationWithDwellers[]>([])
   const vaultMarkers = ref<VaultMarkerRead[]>([])
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
+  const placeGroups = ref<PlaceGroup[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const viewedLocationKeys = useLocalStorage<Set<string>>(
@@ -48,6 +50,7 @@ export const useMapStore = defineStore('map', () => {
           locations.value = data.locations
           vaultMarkers.value = data.vault_markers
           discoveryRoutes.value = data.discovery_routes ?? []
+          placeGroups.value = data.place_groups ?? []
         } catch (err) {
           if (gen !== _pollGeneration || vaultId !== _pollVaultId.value) return
           handleStoreError(err, 'Failed to poll map')
@@ -65,6 +68,7 @@ export const useMapStore = defineStore('map', () => {
 
   // Getters
   const hasUnseenDiscoveries = computed(() => locations.value.some(isUnseenDiscovery))
+  const placeGroupByKey = computed(() => new Map(placeGroups.value.map((group) => [group.key, group])))
 
   function isUnseenDiscovery(loc: WastelandLocationWithDwellers): boolean {
     return (
@@ -96,6 +100,7 @@ export const useMapStore = defineStore('map', () => {
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
       discoveryRoutes.value = data.discovery_routes ?? []
+      placeGroups.value = data.place_groups ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
       handleStoreError(err, 'Failed to fetch map')
@@ -135,6 +140,7 @@ export const useMapStore = defineStore('map', () => {
       locations.value = data.locations
       vaultMarkers.value = data.vault_markers
       discoveryRoutes.value = data.discovery_routes ?? []
+      placeGroups.value = data.place_groups ?? []
     } catch (err) {
       if (gen !== _pollGeneration) return
       error.value = handleStoreError(err, 'Failed to refresh map after chat')
@@ -145,6 +151,8 @@ export const useMapStore = defineStore('map', () => {
     locations,
     vaultMarkers,
     discoveryRoutes,
+    placeGroups,
+    placeGroupByKey,
     isLoading,
     error,
     viewedLocationKeys,

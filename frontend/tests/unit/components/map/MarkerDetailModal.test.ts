@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
 import UModal from '@/core/components/ui/UModal.vue'
+import { useMapStore } from '@/modules/map/stores/map'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
 // Mock vue-router
@@ -104,6 +105,29 @@ describe('MarkerDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('origin')
+    })
+
+    it('should render the site-type group when the catalog has it', () => {
+      const store = useMapStore()
+      store.placeGroups = [
+        {
+          key: 'gas_station',
+          label: 'Gas Station',
+          icon: 'mdi:gas-station',
+          risk: 'low',
+          description: 'A roadside fuel stop.',
+        },
+      ]
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ group_key: 'gas_station' }),
+          vaultMarker: null,
+        },
+        global: { stubs: { teleport: true } },
+      })
+
+      expect(wrapper.text()).toContain('Gas Station')
     })
 
     it('should render the description', () => {

@@ -81,3 +81,62 @@ async def test_seed_conflict_rolls_back_only_that_entry(async_session: AsyncSess
     assert inserted == 0
     after = len((await async_session.execute(select(WorldLocation))).scalars().all())
     assert after == before
+
+
+@pytest.mark.asyncio
+async def test_seeded_places_carry_their_group(async_session: AsyncSession) -> None:
+    """Seeded rows get their group key, and instances of a chain share it."""
+    await seed_places_from_json(async_session, commit=False)
+    rows = (
+        (await async_session.execute(select(WorldLocation).where(WorldLocation.kind == PlaceKindEnum.PLACE)))
+        .scalars()
+        .all()
+    )
+    by_name = {row.name: row for row in rows}
+    assert by_name["Red Rocket"].group_key == "gas_station"
+    assert by_name["Red Rocket - Springvale"].group_key == by_name["Red Rocket"].group_key
+    assert by_name["Super Duper Mart"].group_key == "supermarket"
+
+
+@pytest.mark.asyncio
+async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession) -> None:
+    """A known name registered emergently still inherits its group."""
+    from app.crud.world_location import world_location as wl_crud
+
+    location = await wl_crud.get_or_create_location(async_session, "Red Rocket")
+    assert location.group_key == "gas_station"
+
+
+@pytest.mark.asyncio
+async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSession) -> None:
+    """A row that predates the taxonomy gets its group on the next seed run, whatever its source."""
+    from app.crud.world_location import world_location as wl_crud
+
+    await seed_places_from_json(async_session, commit=False)
+    red_rocket = await wl_crud.get_registry_by_normalized(async_session, "red rocket")
+    assert red_rocket is not None
+    red_rocket.group_key = None
+    red_rocket.source = "emergent"
+    async_session.add(red_rocket)
+    await async_session.flush()
+
+    await seed_places_from_json(async_session, commit=False)
+    await async_session.flush()
+
+    await async_session.refresh(red_rocket)
+    assert red_rocket.group_key == "gas_station"
+
+
+@pytest.mark.asyncio
+async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypatch) -> None:
+    """A seed entry whose group is not in the catalog fails before any write."""
+    from app.crud.world_location import world_location as wl_crud
+    from app.services import place_seed_service
+
+    bad = [{"name": "Nowhere Gulch", "kind": "place", "description": None, "roles": [], "group": "not_a_group"}]
+    monkeypatch.setattr(place_seed_service, "load_seed_entries", lambda: bad)
+
+    with pytest.raises(ValueError, match="Unknown place group"):
+        await seed_places_from_json(async_session, commit=False)
+
+    assert await wl_crud.get_registry_by_normalized(async_session, "nowhere gulch") is None

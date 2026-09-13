@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.enums import PlaceKindEnum
 from app.crud.world_location import world_location as world_location_crud
 from app.models.world_location import WorldLocation
+from app.utils.place_groups import validate_group_key
 from app.utils.place_seed import load_seed_entries
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
@@ -45,10 +46,25 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
     inserted = 0
     for entry in entries:
         normalized = normalize_place_name(entry["name"])
+        # Fail loud before any write: every seeded group must exist in the catalog.
+        group = entry.get("group")
+        if group is not None:
+            validate_group_key(group)
         existing = await world_location_crud.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
+            changed = False
+            # The seed owns canonical lore and the site-type group. Descriptions
+            # only refresh for seed rows (emergent rows may carry place-specific
+            # text), but grouping is a shared taxonomy fact, so it backfills any
+            # row whose name is now in the roster — the retroactive-update path
+            # for registries that predate a group (or a newly added instance).
             if existing.source == "seed" and entry.get("description") != existing.description:
                 existing.description = entry.get("description")
+                changed = True
+            if group != existing.group_key:
+                existing.group_key = group
+                changed = True
+            if changed:
                 db_session.add(existing)
             continue
         kind = PlaceKindEnum.VAULT if entry["kind"] == "vault" else PlaceKindEnum.PLACE
@@ -70,6 +86,7 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
                         coord_x=coord_x,
                         coord_y=coord_y,
                         description=entry.get("description"),
+                        group_key=group,
                         source="seed",
                     )
                 )

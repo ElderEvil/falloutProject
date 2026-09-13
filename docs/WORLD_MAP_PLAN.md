@@ -62,7 +62,7 @@ authored once; it does not introduce live shared simulation.
 
 | Table | Scope | Contents |
 |---|---|---|
-| `WorldLocation` | global canonical | `normalized_name` (unique merge key), `kind` (`PLACE` / `VAULT`), `vault_number` (partial-unique; real-vault link), `coord_x/y`, canonical `description`, `source` (`seed` / `emergent`) |
+| `WorldLocation` | global canonical | `normalized_name` (unique merge key), `kind` (`PLACE` / `VAULT`), `vault_number` (partial-unique; real-vault link), `coord_x/y`, canonical `description`, `group_key` (site-type archetype, e.g. `gas_station`), `source` (`seed` / `emergent`) |
 | `VaultLocationState` | per-vault fog | `vault_id`, `location_id`, `type` (unchanged `LocationTypeEnum`), `exploration_id`, per-vault `description`, first-seen |
 | `DwellerLocation` | per-dweller relation | unchanged semantics; FK repointed to `WorldLocation` |
 

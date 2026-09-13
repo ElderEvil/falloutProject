@@ -7240,7 +7240,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -7509,6 +7509,22 @@ export interface components {
             unclaimed_loot: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * PlaceGroupRead
+         * @description A wasteland site-type archetype from the group catalog.
+         */
+        PlaceGroupRead: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Icon */
+            icon: string;
+            /** Risk */
+            risk: string;
+            /** Description */
+            description: string;
         };
         /**
          * PregnancyRead
@@ -8989,6 +9005,11 @@ export interface components {
              * @default []
              */
             discovery_routes: components["schemas"]["DiscoveryRouteRead"][];
+            /**
+             * Place Groups
+             * @default []
+             */
+            place_groups: components["schemas"]["PlaceGroupRead"][];
         };
         /**
          * VaultMarkerRead
@@ -9317,6 +9338,8 @@ export interface components {
             coord_y: number;
             /** Description */
             description: string | null;
+            /** Group Key */
+            group_key?: string | null;
             /**
              * Vault Id
              * Format: uuid4

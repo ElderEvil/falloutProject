@@ -6,7 +6,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "military"
   },
   {
     "name": "Arefu",
@@ -15,7 +16,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Big Town",
@@ -24,7 +26,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Bunker Hill",
@@ -33,7 +36,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Cambridge",
@@ -41,7 +45,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "city"
   },
   {
     "name": "Canterbury Commons",
@@ -50,7 +55,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Concord",
@@ -59,7 +65,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "ruin"
   },
   {
     "name": "County Crossing",
@@ -67,7 +74,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Covenant",
@@ -75,7 +83,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Diamond City",
@@ -84,7 +93,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "city"
   },
   {
     "name": "Filly",
@@ -93,7 +103,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Galaxy News Radio",
@@ -102,7 +113,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "entertainment"
   },
   {
     "name": "Goodneighbor",
@@ -111,7 +123,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Graygarden",
@@ -119,7 +132,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Hollywood",
@@ -128,7 +142,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "city"
   },
   {
     "name": "Jamaica Plain",
@@ -136,7 +151,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "ruin"
   },
   {
     "name": "Jefferson Memorial",
@@ -145,7 +161,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "landmark"
   },
   {
     "name": "Lexington",
@@ -154,7 +171,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "ruin"
   },
   {
     "name": "Little Lamplight",
@@ -163,7 +181,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Megaton",
@@ -172,7 +191,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "National Archives",
@@ -181,7 +201,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "landmark"
   },
   {
     "name": "Novac",
@@ -190,7 +211,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Nuka-World",
@@ -198,7 +220,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "entertainment"
   },
   {
     "name": "Oberland Station",
@@ -206,7 +229,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Paradise Falls",
@@ -215,7 +239,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Primm",
@@ -224,7 +249,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Quincy",
@@ -233,7 +259,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "ruin"
   },
   {
     "name": "Raven Rock",
@@ -242,7 +269,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "military"
   },
   {
     "name": "Republic of Dave",
@@ -251,7 +279,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Rivet City",
@@ -260,7 +289,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Sanctuary Hills",
@@ -269,7 +299,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Shady Sands",
@@ -278,7 +309,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Somerville Place",
@@ -286,7 +318,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Tenpenny Tower",
@@ -295,7 +328,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "The Boneyard",
@@ -304,7 +338,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "The Citadel",
@@ -313,7 +348,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "brotherhood_outpost"
   },
   {
     "name": "The Institute",
@@ -322,7 +358,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "research"
   },
   {
     "name": "The Nucleus",
@@ -331,7 +368,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "The Slog",
@@ -340,7 +378,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "settlement"
   },
   {
     "name": "Vault 32",
@@ -349,7 +388,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "vault_tec"
   },
   {
     "name": "Vault 33",
@@ -358,7 +398,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "vault_tec"
   },
   {
     "name": "Vault 101",
@@ -367,7 +408,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "vault_tec"
   },
   {
     "name": "Vault 111",
@@ -375,7 +417,8 @@
     "description": null,
     "roles": [
       "origin"
-    ]
+    ],
+    "group": "vault_tec"
   },
   {
     "name": "Appalachia",
@@ -383,7 +426,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "Big MT",
@@ -391,7 +435,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "research"
   },
   {
     "name": "Far Harbor",
@@ -399,7 +444,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "Fort Hagen",
@@ -407,7 +453,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "military"
   },
   {
     "name": "Mass Pike Tunnel",
@@ -415,7 +462,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "metro"
   },
   {
     "name": "Museum of Freedom",
@@ -423,7 +471,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "landmark"
   },
   {
     "name": "Point Lookout",
@@ -431,7 +480,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "Poseidon Energy",
@@ -439,7 +489,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "power"
   },
   {
     "name": "Red Rocket",
@@ -447,7 +498,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "gas_station"
   },
   {
     "name": "Starlight Drive-In",
@@ -455,7 +507,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "entertainment"
   },
   {
     "name": "Vault-Tec HQ",
@@ -463,7 +516,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "vault_tec"
   },
   {
     "name": "the Capital Wasteland",
@@ -471,7 +525,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "the Commonwealth",
@@ -479,7 +534,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "the Divide",
@@ -487,7 +543,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "the Glowing Sea",
@@ -495,7 +552,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "the Mojave desert",
@@ -503,7 +561,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "Zion Canyon",
@@ -511,7 +570,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "the Pitt",
@@ -519,7 +579,8 @@
     "description": null,
     "roles": [
       "visited"
-    ]
+    ],
+    "group": "region"
   },
   {
     "name": "Nuka-Cola Plant",
@@ -528,7 +589,8 @@
     "roles": [
       "origin",
       "visited"
-    ]
+    ],
+    "group": "factory"
   },
   {
     "name": "Vault 274",
@@ -536,7 +598,7 @@
     "vault_number": 274,
     "coord_x": 65.4,
     "coord_y": 55.9,
-    "description": "Unexplored vault signal — raiding available in a future update.",
+    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
     "roles": []
   },
   {
@@ -545,7 +607,7 @@
     "vault_number": 77,
     "coord_x": 88.9,
     "coord_y": 19.3,
-    "description": "Unexplored vault signal — raiding available in a future update.",
+    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
     "roles": []
   },
   {
@@ -554,7 +616,7 @@
     "vault_number": 871,
     "coord_x": 65.3,
     "coord_y": 53.1,
-    "description": "Unexplored vault signal — raiding available in a future update.",
+    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
     "roles": []
   },
   {
@@ -563,7 +625,7 @@
     "vault_number": 242,
     "coord_x": 68.2,
     "coord_y": 67.0,
-    "description": "Unexplored vault signal — raiding available in a future update.",
+    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
     "roles": []
   },
   {
@@ -572,7 +634,35 @@
     "vault_number": 521,
     "coord_x": 55.4,
     "coord_y": 72.3,
-    "description": "Unexplored vault signal — raiding available in a future update.",
+    "description": "Unexplored vault signal \u2014 raiding available in a future update.",
     "roles": []
+  },
+  {
+    "name": "Red Rocket - Springvale",
+    "kind": "place",
+    "description": null,
+    "roles": [],
+    "group": "gas_station"
+  },
+  {
+    "name": "Red Rocket - Cambridge",
+    "kind": "place",
+    "description": null,
+    "roles": [],
+    "group": "gas_station"
+  },
+  {
+    "name": "Super Duper Mart",
+    "kind": "place",
+    "description": null,
+    "roles": [],
+    "group": "supermarket"
+  },
+  {
+    "name": "Super Duper Mart - Quincy",
+    "kind": "place",
+    "description": null,
+    "roles": [],
+    "group": "supermarket"
   }
 ]

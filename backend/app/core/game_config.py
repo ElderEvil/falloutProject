@@ -616,7 +616,7 @@ class BioConfig(BaseSettings):
     # Max visited places registered to the world map from a dweller bio, by rarity.
     # Keyed by RarityEnum value string so env overrides stay JSON-friendly.
     visited_by_rarity: dict[str, int] = Field(
-        default={"common": 2, "rare": 4, "legendary": 5},
+        default={"common": 1, "rare": 2, "legendary": 3},
         description="Max visited map places per rarity (common/rare/legendary)",
     )
 

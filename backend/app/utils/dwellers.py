@@ -8,6 +8,7 @@ from faker import Faker
 
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
+from app.options.bios import render_bio
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
@@ -38,7 +39,7 @@ _PLACE_POOL: tuple[str, ...] = (
 )
 
 
-def _procedural_bio_places(rng: random.Random, rarity: RarityEnum) -> tuple[str, list[str]]:
+def _procedural_bio_places(rng: random.Random | ModuleType, rarity: RarityEnum) -> tuple[str, list[str]]:
     """Pick a deterministic origin + rarity-scaled visited places for a bio.
 
     The visited count follows ``game_config.bio.max_visited`` so common dwellers
@@ -52,12 +53,13 @@ def _procedural_bio_places(rng: random.Random, rarity: RarityEnum) -> tuple[str,
     return origin, visited
 
 
-def _render_template_bio(origin: str, visited: list[str]) -> str:
-    if not visited:
-        return f"Born in {origin}. Before the vault, I wandered the wastes alone."
-    if len(visited) == 1:
-        return f"Born in {origin}. Before the vault, I wandered through {visited[0]}."
-    return f"Born in {origin}. Before the vault, I wandered through {', '.join(visited[:-1])}, and {visited[-1]}."
+def _race_from_attributes(attrs: dict[str, Any] | None) -> RaceOption | None:
+    """Read a race from stored visual attributes; None when absent or invalid."""
+    raw = (attrs or {}).get("race")
+    try:
+        return RaceOption(raw) if raw is not None else None
+    except ValueError:
+        return None
 
 
 def get_gender_based_name(gender: GenderEnum, faker: Faker | None = None) -> str:
@@ -66,7 +68,7 @@ def get_gender_based_name(gender: GenderEnum, faker: Faker | None = None) -> str
     return source.first_name_male() if gender == GenderEnum.MALE else source.first_name_female()
 
 
-def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | None = None) -> dict[str, int]:
+def get_stats_by_rarity(rarity: RarityEnum, rng: random.Random | ModuleType | None = None) -> dict[str, int]:
     """Generate stats based on rarity for production use."""
     source = rng if rng is not None else random
     stats_range: tuple[int, int] = STATS_RANGE_BY_RARITY[rarity]
@@ -94,7 +96,7 @@ def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> 
     return identity
 
 
-def _roll_identity(rng: random.Random) -> dict[str, Any]:
+def _roll_identity(rng: random.Random | ModuleType) -> dict[str, Any]:
     """Roll race/faction/state_of_being from game_config weights using ``rng``.
 
     Race follows ``DwellerConfig.race_weights`` (70/15/10/5 by default). Humans
@@ -135,7 +137,7 @@ def create_random_common_dweller(
     When ``seed`` is provided the RNG and the Faker instance are seeded so the
     same call reproduces the same dweller (used by the pregen CLI ``--seed``).
     """
-    rng: random.Random = random.Random(seed) if seed is not None else random
+    rng: random.Random | ModuleType = random.Random(seed) if seed is not None else random
     faker: Faker = Faker() if seed is not None else fake
     if seed is not None:
         faker.seed_instance(seed)
@@ -149,6 +151,7 @@ def create_random_common_dweller(
     youngest_birth_date = _calendar_years_ago(now, 18)
     birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))
     origin, visited = _procedural_bio_places(rng, rarity)
+    identity = _roll_identity(rng)
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -165,8 +168,8 @@ def create_random_common_dweller(
         "happiness": 50,
         "stimpack": 0,
         "radaway": 0,
-        "visual_attributes": _roll_identity(rng),
-        "bio": _render_template_bio(origin, visited),
+        "visual_attributes": identity,
+        "bio": render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng),
         "_bio_places": (origin, visited),
         **stats,
     }
@@ -215,7 +218,13 @@ def create_dweller_from_template(
     data["_bio_places"] = (origin, visited) if origin or visited else None
     if not data.get("bio"):
         origin_fallback, visited_fallback = origin or "Vault 111", visited or []
-        data["bio"] = _render_template_bio(origin_fallback, visited_fallback)
+        attrs = data.get("visual_attributes")
+        data["bio"] = render_bio(
+            origin_fallback,
+            visited_fallback,
+            race=_race_from_attributes(attrs if isinstance(attrs, dict) else None),
+            rng=rng,
+        )
         if data["_bio_places"] is None:
             data["_bio_places"] = (origin_fallback, visited_fallback)
     return data

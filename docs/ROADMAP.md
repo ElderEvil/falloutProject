@@ -9,8 +9,8 @@ AI-powered dweller interactions.
 
 ## In Progress
 
-**Current work:** — _backend service-layer rewrite: vault-batch endgame merged (#572), game-loop tick
-split open (#573), incidents tick-orchestration in flight (see P0)._
+**Current work:** — _backend service-layer rewrite: vault-batch (#572), game-loop split (#573), and
+incidents tick-orchestration (#574) merged; incidents batch closed with per-incident commit policy (see P0)._
 
 ---
 
@@ -56,15 +56,17 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
     Already done earlier: objective-seeding delegation, storage CRUD helpers + item `create_many`, seed tables in
     `services/vault_seed.py`, vault economy core (`deposit/withdraw`, `is_enough_*`, recalculation) canonical in
     `VaultService`, room build/destroy/upgrade orchestration canonical in `RoomService`.
-  - **Open (#573):** `game_loop.py` tick decomposed the same way (878 → ~280-line facade over
+  - **Shipped (#573):** `game_loop.py` tick decomposed the same way (878 → ~280-line facade over
     `services/game_tick/` dwellers + family collaborators), plus a `@pytest.mark.slow` tick perf probe
     (normal vs boosted vault) showing the split is perf-neutral.
 - [ ] **Incidents and combat batch** — isolate incident state transitions, combat calculations, persistence, and
   player-facing events.
-  - **In flight:** math, publishing, round engine, and spawning extracted behind the facade
-    (#569, #571; `incident_service.py` 888 → ~310 lines). Remaining: tick-orchestration extraction
-    (`process_vault_incidents` / `process_all_vaults_incidents` into `combat/incident_tick.py`) plus the deferred
-    single-commit-per-tick finding. Guards hold the ground: any new raw SQL or transport exception fails CI.
+  - **Shipped (#569, #571, #574):** math, publishing, round engine, spawning, and tick orchestration
+    extracted behind the facade (`incident_service.py` 888 → ~310-line facade over `services/combat/`;
+    `process_vault_incidents` / `process_all_vaults_incidents` in `combat/incident_tick.py`). Commit policy
+    decided: per-incident atomicity retained intentionally (background-loop survival; notifications/SSE drain
+    post-commit per #449). Single-commit-per-tick parked pending perf evidence. Guards hold the ground: any new
+    raw SQL or transport exception fails CI.
 - [ ] **Dweller/social batch** — reorganize relationships, breeding, happiness, death, assignment, training, and
   lineage around explicit domain services and CRUD operations.
 - [ ] **Quest/exploration/reward batch** — separate quest settlement, objective evaluation, exploration state,

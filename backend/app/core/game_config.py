@@ -922,9 +922,7 @@ class CraftingConfig(BaseSettings):
     )
     min_order_seconds: int = Field(default=30, ge=1, description="Floor for a sped-up order duration")
 
-    @field_validator(
-        "junk_cost_by_rarity", "caps_cost_by_rarity", "order_seconds_by_rarity", mode="before"
-    )
+    @field_validator("junk_cost_by_rarity", "caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
     @classmethod
     def validate_cost_maps(cls, v: dict[str, int]) -> dict[str, int]:
         """Require every rarity and non-negative costs.

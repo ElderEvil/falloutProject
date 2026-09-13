@@ -24,15 +24,11 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[CraftingOrder]:
         """Every order for a vault, newest first."""
         result = await db_session.execute(
-            select(CraftingOrder)
-            .where(CraftingOrder.vault_id == vault_id)
-            .order_by(CraftingOrder.started_at.desc())
+            select(CraftingOrder).where(CraftingOrder.vault_id == vault_id).order_by(CraftingOrder.started_at.desc())
         )
         return list(result.scalars().all())
 
-    async def get_for_vault(
-        self, db_session: AsyncSession, order_id: UUID4, vault_id: UUID4
-    ) -> CraftingOrder | None:
+    async def get_for_vault(self, db_session: AsyncSession, order_id: UUID4, vault_id: UUID4) -> CraftingOrder | None:
         """One order scoped to its vault, so foreign ids cannot resolve."""
         result = await db_session.execute(
             select(CraftingOrder).where(CraftingOrder.id == order_id, CraftingOrder.vault_id == vault_id)

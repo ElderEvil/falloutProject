@@ -230,9 +230,7 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
-async def test_start_order_spends_cheapest_eligible_materials_first(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_start_order_spends_cheapest_eligible_materials_first(async_session: AsyncSession, vault: Vault) -> None:
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     rare_cost = _junk_cost(RarityEnum.RARE)

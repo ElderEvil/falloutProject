@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.89.0 (2026-09-13)
+
+### Features
+
+* **rewards:** single reward contract plus lunchbox open mechanic ([#605](https://github.com/ElderEvil/falloutProject/issues/605)) 39781f7
+
 ## 2.88.0 (2026-09-13)
 
 ### Features

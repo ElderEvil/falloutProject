@@ -250,12 +250,12 @@ async def test_auto_assign_training_room_sets_training_status(
 
 @pytest.mark.smoke
 @pytest.mark.asyncio
-async def test_vault_initiate_superuser_creates_25_dwellers(
+async def test_vault_initiate_superuser_creates_boosted_population(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test that superuser vault initialization creates 25 dwellers (parity with boosted)."""
+    """Test that superuser (boosted) vault initialization seeds more than 32 dwellers."""
     from uuid import UUID
 
     vault_number = {"number": 202}
@@ -266,6 +266,56 @@ async def test_vault_initiate_superuser_creates_25_dwellers(
     vault_with_counts = await vault_service.get_vault_with_room_and_dweller_count(
         db_session=async_session, vault_id=vault_id
     )
-    assert vault_with_counts.dweller_count == 25, (
-        f"Expected 25 dwellers for superuser, got {vault_with_counts.dweller_count}"
+    assert vault_with_counts.dweller_count > 32, (
+        f"Expected more than 32 dwellers for superuser, got {vault_with_counts.dweller_count}"
     )
+
+
+@pytest.mark.smoke
+@pytest.mark.asyncio
+async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+):
+    """Boosted vaults seed staffed workshops, merged living space, and capacity to match."""
+    from uuid import UUID
+
+    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 203})
+    assert response.status_code == 201
+    vault_id = UUID(response.json()["id"])
+
+    vault = await crud.vault.get(async_session, vault_id)
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id)
+    storage = await crud.storage.storage.get_by_vault(async_session, vault_id)
+    rooms = await crud.room.get_all_by_vault(async_session, vault_id)
+    junk = await crud.junk.get_in_storage(async_session, storage.id)
+
+    workshops = [room for room in rooms if room.category.value == "crafting"]
+    assert {room.name for room in workshops} == {"Weapon workshop", "Outfit workshop"}
+    # Each workshop is staffed so orders get the crew speed-up.
+    assert all(sum(1 for dweller in dwellers if dweller.room_id == room.id) >= 2 for room in workshops)
+
+    # Living space is a merged (size 9) room plus the base room.
+    assert [room.size for room in rooms if room.name == "Living room"].count(9) == 1
+
+    # More than 32 dwellers, with room to spare.
+    assert len(dwellers) > 32
+    assert vault.population_max >= len(dwellers)
+
+    # Every junk type the craftable catalog accepts, across all three rarities.
+    assert {(item.junk_type.value, item.rarity.value) for item in junk} >= {
+        ("steel", "common"),
+        ("leather", "common"),
+        ("circuitry", "common"),
+        ("cloth", "common"),
+        ("steel", "rare"),
+        ("leather", "rare"),
+        ("circuitry", "rare"),
+        ("cloth", "rare"),
+        ("steel", "legendary"),
+        ("circuitry", "legendary"),
+    }
+
+    used_space = await crud.storage.storage.count_items(async_session, storage.id)
+    assert storage.max_space > used_space

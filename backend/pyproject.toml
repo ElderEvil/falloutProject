@@ -237,6 +237,12 @@ python-version = "3.13"
 # Alembic excluded like ruff: generated migrations trip possibly-missing-submodule false positives.
 exclude = ["app/tests", "app/alembic"]
 
+[tool.ty.rules]
+# `@optional()` rebuilds partial models with `create_model()` at runtime, so ty cannot see that every field gained a
+# default and reports missing-argument for each `SomethingUpdate(...)` construction. Ignore that rule rather than
+# sprinkling suppressions at ~40 call sites; revisit if `@optional()` is ever replaced with declared optional fields.
+missing-argument = "ignore"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"

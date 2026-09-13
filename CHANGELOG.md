@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.93.1 (2026-09-13)
+
+### Bug Fixes
+
+* **storage:** report over-capacity instead of 500 ([#610](https://github.com/ElderEvil/falloutProject/issues/610)) fcc1a4c
+
 ## 2.93.0 (2026-09-13)
 
 ### Features

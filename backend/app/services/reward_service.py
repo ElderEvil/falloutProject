@@ -75,6 +75,16 @@ class RewardService:
             )
         return storage_obj
 
+    @staticmethod
+    async def _pick_legendary_template_id(db_session: AsyncSession, vault_id: UUID4) -> str | None:
+        """Pick an unused legendary template id; None when the vault exhausted them."""
+        from app.crud.dweller import dweller as dweller_crud
+        from app.utils.static_data import game_data_store
+
+        active_names = await dweller_crud.lock_vault_for_template(db_session, vault_id)
+        template = game_data_store.pick_template(RarityEnum.LEGENDARY.value, exclude_names=active_names or None)
+        return template.template_id if template is not None else None
+
     async def _grant_as_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
     ) -> dict[str, Any]:
@@ -85,10 +95,14 @@ class RewardService:
             "first_name": first_name or "Legendary",
             "last_name": last_name or None,
         }
+        legendary = item_name.strip().lower() == "legendary dweller"
         dweller_ids: list[str] = []
         last_name: str | None = None
         for _ in range(quantity):
-            result = await self.grant_dweller(db_session, vault_id, dweller_template)
+            if legendary and (template_id := await self._pick_legendary_template_id(db_session, vault_id)):
+                result = await self.grant_dweller(db_session, vault_id, {"template_id": template_id})
+            else:
+                result = await self.grant_dweller(db_session, vault_id, dweller_template)
             dweller_ids.append(result["dweller_id"])
             last_name = result["name"]
         logger.info(f"Granted {quantity} dweller(s) '{item_name}' ({rarity}) to vault {vault_id}")

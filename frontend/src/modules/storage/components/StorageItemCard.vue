@@ -12,7 +12,7 @@ import {
 import { useItemImage } from '@/core/composables/useItemImage'
 interface Props {
   item: any
-  itemType: 'weapon' | 'outfit' | 'junk'
+  itemType: string
   count?: number
 }
 
@@ -43,6 +43,8 @@ const itemStats = computed(() =>
 )
 
 const showSellAll = computed(() => count > 1 && itemType === 'junk')
+
+const isActionable = computed(() => itemType === 'weapon' || itemType === 'outfit' || itemType === 'junk')
 </script>
 
 <template>
@@ -112,8 +114,9 @@ const showSellAll = computed(() => count > 1 && itemType === 'junk')
         </div>
       </div>
 
-      <!-- Footer: value + inventory actions -->
+      <!-- Footer: value + inventory actions (generic supplies have no sell/scrap endpoints) -->
       <div
+        v-if="isActionable"
         class="mt-auto flex items-center justify-between gap-3 border-t border-(--color-theme-primary)/20 pt-2"
       >
         <div class="flex items-center gap-1.5 text-sm font-bold text-(--color-theme-primary)">

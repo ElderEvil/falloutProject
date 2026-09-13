@@ -27,6 +27,13 @@ export const OUTFIT_TYPE_ICONS: Record<string, string> = {
 
 export const JUNK_ICON = 'mdi:wrench'
 
+// Generic storage items share the quest-reward icon language (see QuestRewardsModal ITEM_META)
+export const GENERIC_ITEM_ICONS: Record<string, string> = {
+  consumable: 'mdi:bottle-tonic',
+  lunchbox: 'mdi:gift',
+  pet: 'mdi:paw',
+}
+
 type IconSource = { weapon_subtype?: string; outfit_type?: string }
 
 export function getItemIcon(itemType: string, item: IconSource): string {
@@ -36,7 +43,8 @@ export function getItemIcon(itemType: string, item: IconSource): string {
   if (itemType === 'outfit') {
     return OUTFIT_TYPE_ICONS[item.outfit_type?.toLowerCase() ?? ''] ?? 'mdi:tshirt-crew'
   }
-  return JUNK_ICON
+  if (itemType === 'junk') return JUNK_ICON
+  return GENERIC_ITEM_ICONS[itemType.toLowerCase()] ?? 'mdi:package-variant'
 }
 
 type RarityKey = 'common' | 'rare' | 'legendary'

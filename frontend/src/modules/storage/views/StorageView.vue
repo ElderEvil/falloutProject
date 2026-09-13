@@ -35,6 +35,7 @@ const storageItems = ref<StorageItemsResponse>({
   weapons: [],
   outfits: [],
   junk: [],
+  items: [],
 })
 
 const { run: runFetchStorageData, isLoading } = useAsyncAction(
@@ -51,9 +52,9 @@ const { run: runFetchStorageData, isLoading } = useAsyncAction(
   { context: 'Failed to load storage data', showToast: false }
 )
 
-const activeTab = ref<'weapons' | 'outfits' | 'junk'>('weapons')
+const activeTab = ref<'weapons' | 'outfits' | 'junk' | 'supplies'>('weapons')
 type StorageTab = typeof activeTab.value
-type StorageItem = StorageItemsResponse[StorageTab][number]
+type StorageItem = StorageItemsResponse[Exclude<StorageTab, 'supplies'>][number] | StorageItemsResponse['items'][number]
 interface DisplayStorageItem {
   id: string
   item: StorageItem
@@ -62,13 +63,14 @@ interface DisplayStorageItem {
 }
 
 const selectTab = (tab: string) => {
-  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk') activeTab.value = tab
+  if (tab === 'weapons' || tab === 'outfits' || tab === 'junk' || tab === 'supplies') activeTab.value = tab
 }
 
 const tabs = computed<Array<{ key: StorageTab; label: string }>>(() => [
   { key: 'weapons', label: `Weapons (${weapons.value.length})` },
   { key: 'outfits', label: `Outfits (${outfits.value.length})` },
   { key: 'junk', label: `Junk (${junk.value.length})` },
+  { key: 'supplies', label: `Supplies (${supplies.value.length})` },
 ])
 
 // Fetch storage data
@@ -93,8 +95,9 @@ onMounted(async () => {
 const weapons = computed(() => storageItems.value.weapons || [])
 const outfits = computed(() => storageItems.value.outfits || [])
 const junk = computed(() => storageItems.value.junk || [])
+const supplies = computed(() => storageItems.value.items || [])
 
-const totalItems = computed(() => weapons.value.length + outfits.value.length + junk.value.length)
+const totalItems = computed(() => weapons.value.length + outfits.value.length + junk.value.length + supplies.value.length)
 
 // Group junk items by name and add count
 const groupedJunk = computed(() => {
@@ -119,6 +122,37 @@ const groupedJunk = computed(() => {
   return Array.from(grouped.values())
 })
 
+// Group generic supplies by name and add count
+const groupedSupplies = computed(() => {
+  const grouped = new Map<string, DisplayStorageItem>()
+
+  supplies.value.forEach((supplyItem) => {
+    const key = `${supplyItem.name}-${supplyItem.rarity}`
+    if (grouped.has(key)) {
+      const group = grouped.get(key)!
+      group.count++
+      group.ids.push(supplyItem.id)
+    } else {
+      grouped.set(key, {
+        id: supplyItem.id,
+        item: supplyItem,
+        count: 1,
+        ids: [supplyItem.id],
+      })
+    }
+  })
+
+  return Array.from(grouped.values())
+})
+
+// Card type for the item display: fixed per equipment tab, read off generic supplies
+const cardItemType = (entry: DisplayStorageItem): string => {
+  if (activeTab.value === 'weapons') return 'weapon'
+  if (activeTab.value === 'outfits') return 'outfit'
+  if (activeTab.value === 'junk') return 'junk'
+  return 'item_type' in entry.item ? String(entry.item.item_type) : 'misc'
+}
+
 // Active items based on tab
 const activeItems = computed<DisplayStorageItem[]>(() => {
   switch (activeTab.value) {
@@ -126,6 +160,8 @@ const activeItems = computed<DisplayStorageItem[]>(() => {
       return weapons.value.map((item) => ({ id: item.id, item, count: 1, ids: [item.id] }))
     case 'outfits':
       return outfits.value.map((item) => ({ id: item.id, item, count: 1, ids: [item.id] }))
+    case 'supplies':
+      return groupedSupplies.value
     case 'junk':
       return groupedJunk.value
     default:
@@ -136,7 +172,7 @@ const activeItems = computed<DisplayStorageItem[]>(() => {
 // Sell item handler
 const handleSellItem = async (
   itemId: string | string[],
-  itemType: 'weapon' | 'outfit' | 'junk' | 'weapons' | 'outfits'
+  itemType: string
 ) => {
   try {
     // Normalize type
@@ -309,7 +345,7 @@ const handleScrapItem = async (
             v-for="item in activeItems"
             :key="item.id"
             :item="item.item"
-            :item-type="activeTab === 'weapons' ? 'weapon' : activeTab === 'outfits' ? 'outfit' : 'junk'"
+            :item-type="cardItemType(item)"
             :count="item.count"
             @sell="handleSellItem(item.ids[0], activeTab)"
             @sell-all="handleSellItem(item.ids, activeTab)"

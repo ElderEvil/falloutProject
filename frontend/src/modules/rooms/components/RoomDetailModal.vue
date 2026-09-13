@@ -2,7 +2,7 @@
 import { computed, watch, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import { getRoomDetailParts, hasPart, producesResources, type RoomPart } from '../models/roomParts'
+import { getRoomDetailParts, hasPart, producesResources, craftingItemType, type RoomPart } from '../models/roomParts'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
@@ -16,6 +16,7 @@ import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
+import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
@@ -43,6 +44,7 @@ const modelValueRef = toRef(props, 'modelValue')
 // Which sections this room renders — decided by the part registry, nowhere else.
 const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room))
 const has = (part: RoomPart) => hasPart(parts.value, part)
+const craftingType = computed(() => craftingItemType(props.room))
 
 // Composables
 const {
@@ -168,6 +170,13 @@ watch(
         />
 
         <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
+
+        <CraftingPanel
+          v-if="has('crafting') && craftingType"
+          :vault-id="vaultId"
+          :item-type="craftingType"
+          @crafted="emit('roomUpdated')"
+        />
 
         <DwellerList
           v-if="has('dwellerList')"

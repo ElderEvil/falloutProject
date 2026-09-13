@@ -15,7 +15,6 @@ from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.item import Item
 from app.models.objective import Objective
-from app.models.outfit import Outfit
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward, RewardType
 from app.models.storage import Storage
@@ -23,9 +22,8 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
-from app.utils.outfit_assets import get_outfit_image_url
+from app.utils.item_factory import build_outfit, build_weapon
 from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change, reward_delivery_is_deferred
-from app.utils.weapon_assets import get_weapon_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -146,31 +144,10 @@ class RewardService:
         }
 
     def _build_weapon(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        return Weapon(
-            name=name,
-            rarity=rarity,
-            weapon_type=data.get("weapon_type", "melee"),
-            weapon_subtype=data.get("weapon_subtype", "blunt"),
-            stat=data.get("stat", "strength"),
-            damage_min=data.get("damage_min", 1),
-            damage_max=data.get("damage_max", 3),
-            value=data.get("value"),
-            image_url=get_weapon_image_url(name),
-            storage_id=storage_id,
-        )
+        return build_weapon(data | {"name": name}, rarity, storage_id)
 
     def _build_outfit(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
-        from app.core.enums import OutfitTypeEnum
-
-        return Outfit(
-            name=name,
-            rarity=rarity,
-            outfit_type=OutfitTypeEnum(data.get("outfit_type", OutfitTypeEnum.COMMON)),
-            gender=data.get("gender"),
-            value=data.get("value"),
-            image_url=get_outfit_image_url(name),
-            storage_id=storage_id,
-        )
+        return build_outfit(data | {"name": name}, rarity, storage_id)
 
     def _build_junk(self, name: str, rarity: str, data: dict[str, Any], storage_id: UUID4):
         from app.core.enums import JunkTypeEnum

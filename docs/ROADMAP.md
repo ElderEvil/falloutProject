@@ -749,10 +749,37 @@ weapon type) mirrored by the frontend `getCombatPower()`; arena + incidents shar
 
 ## Planned Features (Future)
 
+### Weapon & Outfit Crafting — Instant (Target: next release)
+
+**Focus**: Make the two already-buildable Crafting rooms (`Weapon workshop`, `Outfit workshop`) actually do
+something. They exist in `rooms.json` with costs and population gates but are inert — `ability: null`, nothing
+in the tick, no service. Crafting closes the loop between the junk that scrapping and exploration already
+produce and the weapons/outfits the vault actually wants.
+
+- ✅ **Instant craft** — pay junk plus caps at the matching workshop and the item lands in storage immediately.
+  The recipe list is the existing item catalogs filtered by a `craftable` flag (already authored across the
+  outfit files, defaulted on for weapons). Cost scales with the item's rarity, and materials are junk of that
+  rarity or better, spent cheapest-first — so scrapping duplicates feeds crafting the items you want.
+- ⬜ **Timed craft queue (FS-authentic)** — replace the instant grant with an order queue: dwellers assigned to
+  the workshop speed completion, the tick advances progress, and the finished item is collected from the room.
+  Reuses the `Training` session shape (`started_at` / `estimated_completion_at` / `progress` / `status`). Build
+  only if the instant loop proves too frictionless in play-testing.
+
+**Reuse:** item catalogs (`weapons.json`, `outfits/*.json`), `junk.json` + `convert_to_junk` scrap output,
+`game_config` for costs, the shared item builders, `RoomTypeEnum.CRAFTING`, and the progression red line for
+surfacing the craft result.
+
+**Non-goals:** per-item authored recipes (costs derive from rarity for now); crafting `craftable: false` items;
+pets.
+
+**Success criteria:** a player with junk can craft a craftable weapon at the Weapon workshop and an outfit at
+the Outfit workshop; materials and caps are consumed in one transaction; the result appears in storage
+immediately.
+
 ### Phase 1: Core Gameplay
 
 - Room management improvements (optimal dweller suggestions)
-- Crafting system (weapons/outfits with recipes)
+- ~~Crafting system (weapons/outfits with recipes)~~ → **shipped as instant crafting** (see above)
 
 ### Phase 2: Advanced Gameplay
 

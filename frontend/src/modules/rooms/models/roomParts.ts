@@ -10,6 +10,7 @@ export type RoomPart =
   | 'info'
   | 'productionStats'
   | 'radioStats'
+  | 'crafting'
   | 'dwellerList'
   | 'arena'
   | 'overseerBriefing'
@@ -35,6 +36,19 @@ export function producesResources(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'production' && !!room.ability
 }
 
+export function isCraftingRoom(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'crafting'
+}
+
+/** Catalog a workshop crafts; workshop name-matching lives only here. */
+export function craftingItemType(room: Room | null): 'weapon' | 'outfit' | null {
+  if (!isCraftingRoom(room) || !room) return null
+  const name = room.name.toLowerCase()
+  if (name.includes('weapon')) return 'weapon'
+  if (name.includes('outfit')) return 'outfit'
+  return null
+}
+
 export function getRoomDetailParts(room: Room | null): RoomPart[] {
   if (!room) return []
 
@@ -46,6 +60,7 @@ export function getRoomDetailParts(room: Room | null): RoomPart[] {
   if (isOverseersOffice(room)) parts.push('overseerBriefing')
   if (isRadioRoom(room)) parts.push('radioStats')
   else if (producesResources(room)) parts.push('productionStats')
+  if (craftingItemType(room)) parts.push('crafting')
   parts.push('dwellerList', 'actions')
   if (isRadioRoom(room)) parts.push('radioControls')
   return parts

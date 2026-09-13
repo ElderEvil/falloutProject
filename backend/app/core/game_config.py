@@ -899,6 +899,27 @@ class ExplorationConfig(BaseSettings):
         return value_map.get(rarity_str.lower(), self.junk_value_common)
 
 
+class CraftingConfig(BaseSettings):
+    """Instant crafting costs at the weapon and outfit workshops."""
+
+    junk_cost_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"common": 3, "rare": 6, "legendary": 12},
+        description="Junk materials required, keyed by the crafted item's rarity",
+    )
+    caps_cost_by_rarity: dict[str, int] = Field(
+        default_factory=lambda: {"common": 0, "rare": 100, "legendary": 500},
+        description="Bottle caps required, keyed by the crafted item's rarity",
+    )
+
+    def junk_cost(self, rarity: str) -> int:
+        """Junk materials needed to craft an item of this rarity."""
+        return self.junk_cost_by_rarity.get(rarity.lower(), self.junk_cost_by_rarity["common"])
+
+    def caps_cost(self, rarity: str) -> int:
+        """Bottle caps needed to craft an item of this rarity."""
+        return self.caps_cost_by_rarity.get(rarity.lower(), self.caps_cost_by_rarity["common"])
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -922,6 +943,7 @@ class GameConfig(BaseSettings):
     bio: BioConfig = Field(default_factory=BioConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
+    crafting: CraftingConfig = Field(default_factory=CraftingConfig)
 
 
 # Singleton instance

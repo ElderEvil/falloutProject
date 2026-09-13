@@ -2,9 +2,11 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import sqlalchemy as sa
 from pydantic import UUID4
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import RarityEnum
@@ -46,6 +48,9 @@ class CraftingOrderBase(SQLModel):
     # The SPECIAL this item's craft is keyed to, and the crew's total in it at start.
     required_stat: str = Field(max_length=16)
     ability_sum_at_start: int = Field(default=0, ge=0)
+    # The catalog entry as it was when the player paid: collection must not depend
+    # on a catalog that can be edited, renamed, or have an item removed.
+    item_snapshot: dict[str, Any] = Field(default_factory=dict, sa_column=sa.Column(JSONB, nullable=False))
 
     def is_active(self) -> bool:
         return self.status == CraftingOrderStatus.ACTIVE

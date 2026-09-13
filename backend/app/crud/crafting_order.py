@@ -35,5 +35,17 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
         )
         return result.scalars().first()
 
+    async def get_for_vault_for_update(
+        self, db_session: AsyncSession, order_id: UUID4, vault_id: UUID4
+    ) -> CraftingOrder | None:
+        """Lock one order while it is collected, so two requests cannot both grant it."""
+        result = await db_session.execute(
+            select(CraftingOrder)
+            .where(CraftingOrder.id == order_id, CraftingOrder.vault_id == vault_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalars().first()
+
 
 crafting_order = CRUDCraftingOrder(CraftingOrder)

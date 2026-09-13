@@ -28,6 +28,8 @@ const busyKey = ref<string | null>(null)
 const now = ref(Date.now())
 let loadSequence = 0
 let ticker: number | null = null
+let lastRecheck = 0
+const RECHECK_MS = 5000
 
 const itemIcon = computed(() => (props.itemType === 'weapon' ? 'mdi:sword-cross' : 'mdi:tshirt-crew'))
 const workshopLabel = computed(() => (props.itemType === 'weapon' ? 'Weapon workshop' : 'Outfit workshop'))
@@ -45,7 +47,9 @@ const STAT_META: Record<string, { icon: string, label: string }> = {
 const statMeta = (stat: string) =>
   STAT_META[stat.toLowerCase()] ?? { icon: 'mdi:star', label: stat.toUpperCase() }
 const craftableCount = computed(() => recipes.value.filter(recipe => recipe.can_craft).length)
-const queue = computed(() => orders.value.filter(order => order.status !== 'collected'))
+const queue = computed(() =>
+  orders.value.filter(order => order.status !== 'collected' && order.item_type === props.itemType),
+)
 
 function remainingSeconds(order: CraftingOrder): number {
   if (order.status !== 'active') return 0
@@ -132,6 +136,12 @@ onMounted(() => {
   loadAll()
   ticker = window.setInterval(() => {
     now.value = Date.now()
+    // The game tick flips an order to completed server-side; re-poll once its
+    // timer has elapsed so Collect appears without closing the panel.
+    if (Date.now() - lastRecheck > RECHECK_MS && queue.value.some(order => remainingSeconds(order) === 0 && order.status === 'active')) {
+      lastRecheck = Date.now()
+      loadAll()
+    }
   }, 1000)
 })
 

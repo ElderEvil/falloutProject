@@ -191,6 +191,7 @@ class CraftingService:
             estimated_completion_at=now + timedelta(seconds=self.order_duration_seconds(rarity, ability_sum)),
             required_stat=required_stat,
             ability_sum_at_start=ability_sum,
+            item_snapshot=dict(entry),
             junk_spent=len(spent),
             caps_spent=caps_cost,
         )
@@ -237,12 +238,14 @@ class CraftingService:
             ValidationException: The order is still in the queue.
             ResourceConflictException: Storage cannot hold the crafted item.
         """
-        order = await crud.crafting_order.get_for_vault(db_session, order_id, vault_id)
+        order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
         if order is None:
             raise ResourceNotFoundException(CraftingOrder, order_id)
         if not order.is_completed():
             raise ValidationException("Order is not ready to collect")
 
+        # Lock the vault so a concurrent collect cannot claim the same free slot.
+        await crud.vault.lock_for_update(db_session, vault_id)
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         if storage is None:
             raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
@@ -250,11 +253,12 @@ class CraftingService:
         if info["max_space"] - info["used_space"] < 1:
             raise ResourceConflictException("Storage is full")
 
-        entry = await self._find_craftable(order.item_type, order.item_name)
+        # Build from the snapshot the order was paid for, not the live catalog.
+        snapshot = order.item_snapshot or {}
         crafted = (
-            build_weapon(entry, order.rarity, storage.id)
+            build_weapon(snapshot, order.rarity, storage.id)
             if order.item_type == "weapon"
-            else build_outfit(entry, order.rarity, storage.id)
+            else build_outfit(snapshot, order.rarity, storage.id)
         )
         db_session.add(crafted)
         order.status = CraftingOrderStatus.COLLECTED

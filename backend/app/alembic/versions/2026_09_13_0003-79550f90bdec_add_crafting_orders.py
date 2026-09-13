@@ -40,6 +40,7 @@ def upgrade() -> None:
         sa.Column("caps_spent", sa.Integer(), nullable=False),
         sa.Column("required_stat", sqlmodel.sql.sqltypes.AutoString(length=16), nullable=False),
         sa.Column("ability_sum_at_start", sa.Integer(), nullable=False),
+        sa.Column("item_snapshot", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(["room_id"], ["room.id"]),
         sa.ForeignKeyConstraint(["vault_id"], ["vault.id"]),

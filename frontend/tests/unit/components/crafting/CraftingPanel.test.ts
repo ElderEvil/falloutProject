@@ -128,6 +128,18 @@ describe('CraftingPanel', () => {
     expect(wrapper.emitted('crafted')).toBeUndefined()
   })
 
+  it('shows only this workshop type in the queue', async () => {
+    vi.mocked(craftingService.listOrders).mockResolvedValue([
+      order({ id: 'w-1', item_type: 'weapon', item_name: 'Pipe pistol' }),
+      order({ id: 'o-1', item_type: 'outfit', item_name: 'Mechanic jumpsuit' }),
+    ])
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Pipe pistol')
+    expect(wrapper.text()).not.toContain('Mechanic jumpsuit')
+  })
+
   it('only offers Collect for a finished order', async () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active' })])
     const wrapper = mountPanel()

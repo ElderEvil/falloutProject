@@ -3,6 +3,7 @@
 import logging
 import random
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -140,6 +141,16 @@ class RewardService:
             storage_id=storage_id,
         )
 
+    @staticmethod
+    def _medication_kind(name: str) -> str | None:
+        """Map a medication item name to its stock kind; None for non-medication."""
+        normalized = name.lower()
+        if "radaway" in normalized or "rad-away" in normalized or "rad away" in normalized:
+            return "radaway"
+        if "stimpak" in normalized:
+            return "stimpak"
+        return None
+
     async def grant_item(
         self, db_session: AsyncSession, vault_id: UUID4, item_data: dict[str, Any], *, emit_event: bool = True
     ) -> dict[str, Any]:
@@ -152,6 +163,13 @@ class RewardService:
 
         if item_type == "dweller":
             return await self._grant_as_dweller(db_session, vault_id, str(item_name), str(item_rarity), quantity)
+
+        # Medication rides the dweller-stock path so it stays usable for treatment;
+        # generic Item rows would be inert (treatment spends carried stock).
+        if self._medication_kind(str(item_name)) == "stimpak":
+            return await self.grant_stimpak(db_session, vault_id, quantity, emit_event=emit_event)
+        if self._medication_kind(str(item_name)) == "radaway":
+            return await self.grant_radaway(db_session, vault_id, quantity)
 
         if item_type not in {"weapon", "outfit", "junk", "consumable", "lunchbox", "pet"}:
             raise ValueError(f"Unsupported item_type: {item_type}")
@@ -315,7 +333,7 @@ class RewardService:
         granted_to: list[str] = []
 
         for raw_id in dweller_ids:
-            dweller_id = UUID4(raw_id) if isinstance(raw_id, str) else raw_id
+            dweller_id = UUID(raw_id) if isinstance(raw_id, str) else raw_id
             dweller_obj = await dweller_crud.get(db_session, id=dweller_id)
             old_level = dweller_obj.level
             await dweller_service.add_experience(db_session, dweller_obj, amount)

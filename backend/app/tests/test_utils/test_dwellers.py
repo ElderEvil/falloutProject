@@ -112,7 +112,11 @@ def test_vault_start_config_rare_chances() -> None:
     assert game_config.vault_start.boosted_rare_chance == 0.12
 
 
-def test_render_newborn_bio_links_both_parents() -> None:
+def test_render_newborn_bio_links_both_parents(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.options import bios
+
+    monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", ("{mother} and {father}.",))
+
     bio = render_newborn_bio("Jane", "John", "m-1", "f-1", "v-1")
 
     assert 'href="/vault/v-1/dwellers/m-1"' in bio
@@ -121,8 +125,23 @@ def test_render_newborn_bio_links_both_parents() -> None:
     assert "John" in bio
 
 
-def test_render_newborn_bio_escapes_parent_names() -> None:
+def test_render_newborn_bio_escapes_parent_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.options import bios
+
+    monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", ("{mother} {father}",))
+
     bio = render_newborn_bio("<script>alert(1)</script>", "John", "m-1", "f-1", "v-1")
 
     assert "<script>" not in bio
     assert "&lt;script&gt;" in bio
+
+
+def test_render_newborn_bio_never_injects_parent_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every authored template must escape a hostile name, placeholders or not."""
+    from app.options import bios
+
+    for template in bios.NEWBORN_BIO_TEMPLATES:
+        monkeypatch.setattr(bios, "NEWBORN_BIO_TEMPLATES", (template,))
+        bio = render_newborn_bio("<script>x</script>", "<b>John</b>", "m-1", "f-1", "v-1")
+        assert "<script>" not in bio
+        assert "<b>" not in bio

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.94.0 (2026-09-13)
+
+### Features
+
+* **crafting:** surface completed workshop orders ([#612](https://github.com/ElderEvil/falloutProject/issues/612)) 890599f
+
 ## 2.93.2 (2026-09-13)
 
 ### Bug Fixes

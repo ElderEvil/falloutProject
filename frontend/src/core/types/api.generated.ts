@@ -434,7 +434,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/crafting/vault/{vault_id}/craft": {
+    "/api/v1/crafting/vault/{vault_id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Crafting Orders
+         * @description List every workshop order for a vault, newest first.
+         *
+         *     Returns:
+         *         The vault's crafting queue.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        get: operations["list_crafting_orders_api_v1_crafting_vault__vault_id__orders_get"];
+        put?: never;
+        /**
+         * Start Crafting Order
+         * @description Queue a craft at its workshop, consuming materials immediately.
+         *
+         *     Returns:
+         *         The queued order.
+         *
+         *     Raises:
+         *         HTTPException: 403 if user lacks access to the vault.
+         */
+        post: operations["start_crafting_order_api_v1_crafting_vault__vault_id__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crafting/vault/{vault_id}/orders/{order_id}/collect": {
         parameters: {
             query?: never;
             header?: never;
@@ -444,16 +480,16 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Craft Item
-         * @description Craft one catalog item at its matching workshop.
+         * Collect Crafting Order
+         * @description Move a finished order's item into storage.
          *
          *     Returns:
-         *         The crafted item and the materials spent.
+         *         The crafted item and the materials it consumed.
          *
          *     Raises:
          *         HTTPException: 403 if user lacks access to the vault.
          */
-        post: operations["craft_item_api_v1_crafting_vault__vault_id__craft_post"];
+        post: operations["collect_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__collect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4843,6 +4879,62 @@ export interface components {
             junk_spent: number;
             /** Caps Spent */
             caps_spent: number;
+        };
+        /**
+         * CraftingOrderRead
+         * @description One queued or finished workshop order.
+         */
+        CraftingOrderRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Room Id
+             * Format: uuid4
+             */
+            room_id: string;
+            /** Item Name */
+            item_name: string;
+            /** Item Type */
+            item_type: string;
+            rarity: components["schemas"]["RarityEnum"];
+            status: components["schemas"]["CraftingOrderStatus"];
+            /** Progress */
+            progress: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Estimated Completion At
+             * Format: date-time
+             */
+            estimated_completion_at: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Junk Spent */
+            junk_spent: number;
+            /** Caps Spent */
+            caps_spent: number;
+            /** Workers At Start */
+            workers_at_start: number;
+        };
+        /**
+         * CraftingOrderStatus
+         * @description Lifecycle of a workshop order.
+         * @enum {string}
+         */
+        CraftingOrderStatus: "active" | "completed" | "collected";
+        /** CraftingOrdersRead */
+        CraftingOrdersRead: {
+            /**
+             * Orders
+             * @default []
+             */
+            orders: components["schemas"]["CraftingOrderRead"][];
         };
         /**
          * CraftingRecipeRead
@@ -9882,7 +9974,38 @@ export interface operations {
             };
         };
     };
-    craft_item_api_v1_crafting_vault__vault_id__craft_post: {
+    list_crafting_orders_api_v1_crafting_vault__vault_id__orders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftingOrdersRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_crafting_order_api_v1_crafting_vault__vault_id__orders_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -9896,6 +10019,38 @@ export interface operations {
                 "application/json": components["schemas"]["CraftRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CraftingOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collect_crafting_order_api_v1_crafting_vault__vault_id__orders__order_id__collect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

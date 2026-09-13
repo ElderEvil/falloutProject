@@ -35,7 +35,7 @@ class CraftRequest(SQLModel):
 class CraftResultRead(SQLModel):
     """The crafted item plus the materials that were spent."""
 
-    item_type: CraftableItemType
+    item_type: str
     item_id: UUID4
     name: str
     rarity: RarityEnum
@@ -88,8 +88,6 @@ class CraftingOrderRead(SQLModel):
     junk_spent: int
     caps_spent: int
     workers_at_start: int
-
-    model_config = {"from_attributes": True}
 
 
 class CraftingOrdersRead(SQLModel):

@@ -17,6 +17,72 @@ const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
 const vaultId = computed(() => ctx.vaultId.value)
 const placeLinks = computed(() => ctx.placeLinks.value)
 
+interface BioEntry {
+  source: string
+  text: string
+  ref?: Record<string, unknown> | null
+  created_at?: string | null
+}
+
+type SectionKey = 'origin' | 'exploration' | 'family' | 'dialogue' | 'other'
+type KnownSectionKey = Exclude<SectionKey, 'other'>
+
+interface BioSection {
+  key: SectionKey
+  label: string
+  icon: string
+  entries: BioEntry[]
+}
+
+const SECTION_ORDER: KnownSectionKey[] = ['origin', 'exploration', 'family', 'dialogue']
+
+const SECTION_META: Record<KnownSectionKey, { label: string, icon: string, sources: string[] }> = {
+  origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy', 'reflection'] },
+  exploration: { label: 'FIELD LOG', icon: 'mdi:map-marker-path', sources: ['exploration'] },
+  family: { label: 'FAMILY RECORD', icon: 'mdi:account-group', sources: ['family'] },
+  dialogue: { label: 'TRANSMISSION LOG', icon: 'mdi:message-text-outline', sources: ['dialogue'] },
+}
+
+const normalizedEntries = computed<BioEntry[]>(() => {
+  const raw = dweller.value?.bio_entries
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return bio.value ? [{ source: 'template', text: bio.value }] : []
+  }
+  return raw.map((entry) => ({
+    source: String(entry.source ?? 'legacy'),
+    text: String(entry.text ?? ''),
+    ref: (entry.ref ?? null) as Record<string, unknown> | null,
+    created_at: (entry.created_at ?? null) as string | null,
+  })).filter(entry => entry.text.trim().length > 0)
+})
+
+// Sources the sections above claim; anything else still renders under RECORD
+// rather than disappearing when the backend adds a new entry source.
+const KNOWN_SOURCES = new Set(SECTION_ORDER.flatMap(key => SECTION_META[key].sources))
+
+const sections = computed<BioSection[]>(() => {
+  const known: BioSection[] = SECTION_ORDER.map((key) => {
+    const meta = SECTION_META[key]
+    return {
+      key,
+      label: meta.label,
+      icon: meta.icon,
+      entries: normalizedEntries.value.filter(entry => meta.sources.includes(entry.source)),
+    }
+  })
+  const knownSources = KNOWN_SOURCES
+  const unclaimed = normalizedEntries.value.filter(entry => !knownSources.has(entry.source))
+  if (unclaimed.length > 0) {
+    known.push({
+      key: 'other',
+      label: 'RECORD',
+      icon: 'mdi:note-text-outline',
+      entries: unclaimed,
+    })
+  }
+  return known.filter(section => section.entries.length > 0)
+})
+
 const PURIFY_OPTIONS = {
   ALLOWED_TAGS: ['br', 'em', 'strong', 'a'],
   ALLOWED_ATTR: ['href', 'class'],
@@ -30,26 +96,22 @@ function buildPlaceRegex(links: MapPlaceLink[]): RegExp | null {
   return new RegExp(pattern, 'gi')
 }
 
-const sanitizedBio = computed(() => {
-  if (!bio.value) return null
-  const clean = DOMPurify.sanitize(bio.value, PURIFY_OPTIONS)
-
-  // Without placeLinks or vaultId, render as-is (backward compatible)
+// Place-name linkification runs on a DOM fragment instead of the serialized
+// HTML string: matching decoded text-node data resolves entity-encoded
+// characters (e.g. `&amp;` already parsed to `&`) correctly, and the browser
+// safely re-encodes entities when serializing the fragment back to HTML.
+function linkifyText(text: string): string {
+  const clean = DOMPurify.sanitize(text, PURIFY_OPTIONS)
   if (!vaultId.value || !placeLinks.value.length) return clean
 
   const regex = buildPlaceRegex(placeLinks.value)
   if (!regex) return clean
 
-  // Build a lookup: lowercase place name → locationId
   const lookup = new Map<string, string>()
   for (const link of placeLinks.value) {
     lookup.set(link.name.toLowerCase(), link.locationId)
   }
 
-  // Linkify on a DOM fragment instead of the serialized HTML string. Matching
-  // against decoded text-node data makes entity-encoded characters (e.g.
-  // `&amp;` already parsed to `&`) resolve correctly; the browser then safely
-  // re-encodes entities when serializing the fragment back to HTML.
   const container = document.createElement('div')
   container.innerHTML = clean
 
@@ -89,7 +151,11 @@ const sanitizedBio = computed(() => {
   }
 
   return container.innerHTML
-})
+}
+
+function entryHtml(text: string): string {
+  return linkifyText(text)
+}
 </script>
 
 <template>
@@ -147,9 +213,37 @@ const sanitizedBio = computed(() => {
         </UTooltip>
       </div>
     </div>
+
     <div class="bio-content">
-      <template v-if="sanitizedBio">
-        <p class="bio-text" v-html="sanitizedBio"></p>
+      <template v-if="sections.length > 0">
+        <div class="bio-text bio-sections">
+          <section
+            v-for="(section, index) in sections"
+            :key="section.key"
+            class="bio-section"
+            :class="`bio-section-${section.key}`"
+          >
+            <div class="bio-section-rule" :class="{ 'rule-first': index === 0 }">
+              <Icon :icon="section.icon" class="bio-section-icon" />
+              <span class="bio-section-label">{{ section.label }}</span>
+              <span class="bio-section-dashes" aria-hidden="true"></span>
+            </div>
+            <ul class="bio-entry-list">
+              <li
+                v-for="(entry, entryIndex) in section.entries"
+                :key="`${section.key}-${entryIndex}`"
+                class="bio-entry"
+              >
+                <span
+                  v-if="section.key !== 'origin'"
+                  class="bio-entry-marker"
+                  aria-hidden="true"
+                >&gt;</span>
+                <p class="bio-entry-text" v-html="entryHtml(entry.text)"></p>
+              </li>
+            </ul>
+          </section>
+        </div>
       </template>
       <template v-else>
         <div class="bio-placeholder">
@@ -198,13 +292,84 @@ const sanitizedBio = computed(() => {
   border-radius: 4px;
 }
 
+.bio-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.bio-section-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.bio-section-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  color: var(--color-theme-primary);
+  opacity: 0.65;
+}
+
+.bio-section-label {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-theme-primary);
+  opacity: 0.75;
+}
+
+/* Dashed rule reads as the terminal `------` section separator. */
+.bio-section-dashes {
+  flex: 1;
+  min-width: 2rem;
+  border-bottom: 1px dashed var(--color-theme-primary);
+  opacity: 0.35;
+}
+
+.bio-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bio-entry {
+  display: flex;
+  gap: 0.6rem;
+  padding-left: 0.5rem;
+}
+
+.bio-entry-marker {
+  flex-shrink: 0;
+  color: var(--color-theme-primary);
+  opacity: 0.55;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.bio-entry-text,
 .bio-text {
   max-width: 70ch;
+  margin: 0;
   line-height: 1.7;
   color: var(--color-theme-primary);
   font-size: 1rem;
   text-shadow: 0 0 3px var(--color-theme-glow);
   white-space: pre-wrap;
+}
+
+/* The origin story is the dweller's own voice: inset it as a quoted passage. */
+.bio-section-origin .bio-entry-text {
+  padding-left: 0.85rem;
+  border-left: 2px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
+  font-style: italic;
+  opacity: 0.92;
 }
 
 .bio-placeholder {

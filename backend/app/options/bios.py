@@ -13,6 +13,7 @@ seeded generation stays reproducible.
 
 from __future__ import annotations
 
+import html
 import random
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,55 @@ from app.options.races import RaceOption
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+NEWBORN_BIO_TEMPLATES = (
+    "Born during a {event}. {mother} and {father} couldn't be prouder.",
+    "Arrived during {event}. The vault celebrates this new life.",
+    "Entered the world during {event}. A blessing for {mother} and {father}.",
+    "Born under {event}. {father} and {mother} welcome their bundle of joy.",
+    "Came into existence during {event}. A new hope for the vault.",
+    "Born during {event}. {mother} and {father} are overjoyed.",
+    "First cry echoed through the vault during {event}. Precious to {mother} and {father}.",
+    "Entered the shelter during {event}. {father} and {mother} celebrate.",
+    "Born amidst {event}. A miracle for {mother} and {father}.",
+    "Came from {mother} and {father} during {event}. The vault grows.",
+)
+
+NEWBORN_EVENTS = (
+    "a quiet night",
+    "a vault celebration",
+    "a rad-storm",
+    "an emergency drill",
+    "a power outage",
+    "the weekly ration distribution",
+    "a radio broadcast",
+    "the morning shift change",
+    "a rare sunny day",
+    "the lunch hour",
+    "the night watch",
+    "a calm afternoon",
+    "the vault door sealing",
+    "a happiness surge",
+    "the quarterly inventory",
+)
+
+
+def render_newborn_bio(
+    mother_name: str,
+    father_name: str,
+    mother_id: str,
+    father_id: str,
+    vault_id: str,
+) -> str:
+    """Render a newborn's arrival bio, linking both parents."""
+    template = random.choice(NEWBORN_BIO_TEMPLATES)
+    event = random.choice(NEWBORN_EVENTS)
+    max_name_len = 30
+    safe_mother_name = html.escape(mother_name[:max_name_len])
+    safe_father_name = html.escape(father_name[:max_name_len])
+    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
+    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
+    return template.format(mother=mother_link, father=father_link, event=event)
 
 
 def _join_visited(visited: list[str]) -> str:

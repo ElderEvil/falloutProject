@@ -27,6 +27,7 @@ def optional(without_fields: list[str] | None = None) -> Callable[[Model], Model
         def make_field_optional(field: FieldInfo, default: Any = None) -> tuple[Any, FieldInfo]:
             new = deepcopy(field)
             new.default = default
+            new.default_factory = None  # Pydantic rejects a factory alongside a None default.
             new.annotation = field.annotation | None
             return new.annotation, new
 

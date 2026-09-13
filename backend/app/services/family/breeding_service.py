@@ -1,9 +1,9 @@
 """Service for managing dweller breeding, pregnancy, and child growth."""
 
-import html
 import logging
 import random
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,58 +23,13 @@ from app.crud.relationship import relationship_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
+from app.options.bios import render_newborn_bio
 from app.options.races import can_breed
 from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
+from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
 
 logger = logging.getLogger(__name__)
-
-# Random event templates for newborn bios (100-200 chars)
-NEWBORN_BIO_TEMPLATES = [
-    "Born during a {event}. {mother} and {father} couldn't be prouder.",
-    "Arrived during {event}. The vault celebrates this new life.",
-    "Entered the world during {event}. A blessing for {mother} and {father}.",
-    "Born under {event}. {father} and {mother} welcome their bundle of joy.",
-    "Came into existence during {event}. A new hope for the vault.",
-    "Born during {event}. {mother} and {father} are overjoyed.",
-    "First cry echoed through the vault during {event}. Precious to {mother} and {father}.",
-    "Entered the shelter during {event}. {father} and {mother} celebrate.",
-    "Born amidst {event}. A miracle for {mother} and {father}.",
-    "Came from {mother} and {father} during {event}. The vault grows.",
-]
-
-NEWBORN_EVENTS = [
-    "a quiet night",
-    "a vault celebration",
-    "a rad-storm",
-    "an emergency drill",
-    "a power outage",
-    "the weekly ration distribution",
-    "a radio broadcast",
-    "the morning shift change",
-    "a rare sunny day",
-    "the lunch hour",
-    "the night watch",
-    "a calm afternoon",
-    "the vault door sealing",
-    "a happiness surge",
-    "the quarterly inventory",
-]
-
-
-def _generate_newborn_bio(mother_name: str, father_name: str, mother_id: str, father_id: str, vault_id: str) -> str:
-    template = random.choice(NEWBORN_BIO_TEMPLATES)
-    event = random.choice(NEWBORN_EVENTS)
-
-    # Truncate names to a safe max length before escaping
-    max_name_len = 30
-    safe_mother_name = html.escape(mother_name[:max_name_len])
-    safe_father_name = html.escape(father_name[:max_name_len])
-
-    mother_link = f'<a href="/vault/{vault_id}/dwellers/{mother_id}" class="dweller-link">{safe_mother_name}</a>'
-    father_link = f'<a href="/vault/{vault_id}/dwellers/{father_id}" class="dweller-link">{safe_father_name}</a>'
-
-    return template.format(mother=mother_link, father=father_link, event=event)
 
 
 class BreedingService:
@@ -382,7 +337,7 @@ class BreedingService:
             last_name = father.last_name
 
         # Create a child dweller
-        child_data = {
+        child_data: dict[str, Any] = {
             "first_name": first_name,
             "last_name": last_name,
             "gender": child_gender,
@@ -409,7 +364,7 @@ class BreedingService:
         child.parent_1_id = mother.id
         child.parent_2_id = father.id
 
-        newborn_bio = _generate_newborn_bio(
+        newborn_bio = render_newborn_bio(
             mother.first_name,
             father.first_name,
             str(mother.id),
@@ -417,6 +372,7 @@ class BreedingService:
             str(mother.vault_id),
         )
         child.bio = newborn_bio
+        child.bio_entries = bio_service.replace_origin(newborn_bio)
         logger.info(f"Generated newborn bio for {child.first_name}: {newborn_bio[:50]}...")
 
         await db_session.commit()
@@ -435,6 +391,24 @@ class BreedingService:
         await db_session.refresh(pregnancy)
 
         logger.info(f"Baby delivered: {child.first_name} {child.last_name}, Mother={mother.id}, Father={father.id}")
+
+        child_name = f"{child.first_name} {child.last_name or ''}".strip()
+        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
+        father_name = f"{father.first_name} {father.last_name or ''}".strip()
+        await bio_service.append_entry(
+            db_session,
+            mother.id,
+            "family",
+            f"Became a parent: {child_name} was born.",
+            ref={"child_id": str(child.id), "partner_id": str(father.id), "partner_name": father_name},
+        )
+        await bio_service.append_entry(
+            db_session,
+            father.id,
+            "family",
+            f"Became a parent: {child_name} was born.",
+            ref={"child_id": str(child.id), "partner_id": str(mother.id), "partner_name": mother_name},
+        )
 
         # Increment birth statistics for the vault owner (best-effort, don't fail birth on stats error)
         await BreedingService._increment_birth_statistics(db_session, mother, child, vault_id)

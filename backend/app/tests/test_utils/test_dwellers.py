@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from app.core.game_config import DwellerConfig, game_config
-from app.options.bios import render_bio
+from app.options.bios import render_bio, render_newborn_bio
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.common import AgeGroupEnum, RarityEnum
@@ -110,3 +110,19 @@ def test_vault_start_config_rare_chances() -> None:
     """Standard seeding stays at 4% RARE; boosted vaults get the 12% P0 boost."""
     assert game_config.vault_start.standard_rare_chance == 0.04
     assert game_config.vault_start.boosted_rare_chance == 0.12
+
+
+def test_render_newborn_bio_links_both_parents() -> None:
+    bio = render_newborn_bio("Jane", "John", "m-1", "f-1", "v-1")
+
+    assert 'href="/vault/v-1/dwellers/m-1"' in bio
+    assert 'href="/vault/v-1/dwellers/f-1"' in bio
+    assert "Jane" in bio
+    assert "John" in bio
+
+
+def test_render_newborn_bio_escapes_parent_names() -> None:
+    bio = render_newborn_bio("<script>alert(1)</script>", "John", "m-1", "f-1", "v-1")
+
+    assert "<script>" not in bio
+    assert "&lt;script&gt;" in bio

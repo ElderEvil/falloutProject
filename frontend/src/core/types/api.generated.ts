@@ -4928,6 +4928,10 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[];
             /** Visual Attributes */
             visual_attributes?: {
                 [key: string]: unknown;
@@ -5075,6 +5079,10 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[];
             /** Visual Attributes */
             visual_attributes?: {
                 [key: string]: unknown;
@@ -5266,6 +5274,10 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[];
             /** Visual Attributes */
             visual_attributes?: {
                 [key: string]: unknown;
@@ -5406,6 +5418,10 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[];
             /** Visual Attributes */
             visual_attributes?: {
                 [key: string]: unknown;
@@ -5616,6 +5632,10 @@ export interface components {
             rarity: components["schemas"]["RarityEnum"];
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[];
             /** Visual Attributes */
             visual_attributes?: {
                 [key: string]: unknown;
@@ -5783,6 +5803,10 @@ export interface components {
             rarity?: components["schemas"]["RarityEnum"] | null;
             /** Bio */
             bio?: string | null;
+            /** Bio Entries */
+            bio_entries?: {
+                [key: string]: unknown;
+            }[] | null;
             visual_attributes?: components["schemas"]["DwellerVisualAttributes"] | null;
             /** Image Url */
             image_url?: string | null;

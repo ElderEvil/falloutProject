@@ -131,3 +131,32 @@ async def test_process_event_register_discovery_failure_does_not_break_event(
     llm_count_stmt = select(LLMInteraction)
     llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
     assert len(llm_rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_discovery_records_one_bio_visit(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A discovery narrates into the explorer's bio; rediscovery does not duplicate it."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    await async_session.refresh(exploration)
+
+    mock_event = DiscoveryEventSchema(
+        description="Your dweller has discovered Rusty Depot in the wasteland.",
+        location_name="Rusty Depot",
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        _make_expired_exploration(exploration)
+        await exploration_service.process_event(async_session, exploration)
+        await async_session.refresh(exploration)
+        _make_expired_exploration(exploration)
+        await exploration_service.process_event(async_session, exploration)
+
+    refreshed = await crud.dweller.get(async_session, dweller.id)
+    visits = [entry for entry in refreshed.bio_entries if entry["source"] == "exploration"]
+    assert len(visits) == 1
+    assert visits[0]["text"] == "Visited Rusty Depot."
+    assert visits[0]["ref"]["place"] == "Rusty Depot"

@@ -123,6 +123,105 @@ describe('DwellerBio', () => {
     })
   })
 
+  describe('sectioned formatting', () => {
+    it('falls back to a single origin section when only bio text exists', () => {
+      ctx.dweller = ref({ first_name: 'John', bio: 'John is a vault dweller.' } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const sections = wrapper.findAll('.bio-section')
+      expect(sections).toHaveLength(1)
+      expect(sections[0].classes()).toContain('bio-section-origin')
+      expect(sections[0].text()).toContain('ORIGIN')
+      expect(wrapper.find('.bio-section-dashes').exists()).toBe(true)
+    })
+
+    it('groups structured entries into labelled sections', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'template', text: 'Born in Megaton.' },
+          { source: 'exploration', text: 'Visited Rivet City.' },
+          { source: 'family', text: 'Married Jane.' },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const sections = wrapper.findAll('.bio-section')
+      expect(sections.map(s => s.classes()[1])).toEqual([
+        'bio-section-origin',
+        'bio-section-exploration',
+        'bio-section-family',
+      ])
+      expect(wrapper.text()).toContain('ORIGIN')
+      expect(wrapper.text()).toContain('FIELD LOG')
+      expect(wrapper.text()).toContain('FAMILY RECORD')
+    })
+
+    it('keeps entry order within a section', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'exploration', text: 'Visited Rivet City.' },
+          { source: 'exploration', text: 'Visited Diamond City.' },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const entries = wrapper.findAll('.bio-entry-text').map(node => node.text())
+      expect(entries).toEqual(['Visited Rivet City.', 'Visited Diamond City.'])
+      expect(wrapper.findAll('.bio-entry-marker').length).toBeGreaterThan(0)
+    })
+
+    it('skips empty entries and sections', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'template', text: 'Born in Megaton.' },
+          { source: 'dialogue', text: '   ' },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      expect(wrapper.findAll('.bio-section')).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('TRANSMISSION LOG')
+    })
+
+    it('shows unknown sources under a fallback section instead of dropping them', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'template', text: 'Born in Megaton.' },
+          { source: 'trading', text: 'Sold a weapon at the Trading Post.' },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      expect(wrapper.text()).toContain('RECORD')
+      expect(wrapper.text()).toContain('Sold a weapon at the Trading Post.')
+    })
+
+    it('linkifies places inside entries', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'exploration', text: 'Visited Rivet City.' },
+        ],
+      } as unknown as Dweller) as never
+      ctx.vaultId = ref('v1') as never
+      ctx.placeLinks = ref([{ name: 'Rivet City', locationId: 'loc9' }]) as never
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const anchor = wrapper.find('.bio-place-link')
+      expect(anchor.text()).toBe('Rivet City')
+      expect(anchor.attributes('href')).toBe('/vault/v1/map?place=loc9')
+    })
+  })
+
   describe('place links', () => {
     const links: MapPlaceLink[] = [
       { name: 'Living Quarters', locationId: 'loc1' },

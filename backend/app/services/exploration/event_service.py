@@ -124,6 +124,18 @@ class EventService:
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
 
+        if location_name and location is not None and dweller_obj is not None:
+            try:
+                from app.services.bio_service import bio_service
+
+                await bio_service.record_visit(db_session, exploration.dweller_id, location_name)
+            except Exception:
+                logger.exception(
+                    "Failed to record bio visit: dweller=%s location=%r",
+                    exploration.dweller_id,
+                    location_name,
+                )
+
         sse_extra: dict[str, Any] = {}
         if dweller_obj is not None:
             sse_extra = {"health": dweller_obj.health, "radiation": dweller_obj.radiation}

@@ -14,9 +14,11 @@ from app.crud.dweller import dweller as dweller_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
+from app.models.dweller import BIO_MAX_CHARS
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
+from app.services.bio_service import bio_service, truncate_bio
 from app.services.map_service import map_service
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -32,7 +34,6 @@ from app.utils.exceptions import (
 logger = logging.getLogger(__name__)
 
 BIO_MAX_LENGTH = 900
-BIO_DB_MAX_LENGTH = 1_024  # matches Dweller.bio Field(max_length=1024)
 
 # Visual-attribute fields that may only reflect items the dweller owns/equips.
 EQUIPMENT_RESTRICTED_FIELDS = ("accessory", "object_held")
@@ -137,11 +138,15 @@ class DwellerAIService:
 
         # Keep generated biographies within the prompt's rendering-friendly upper bound.
         if len(backstory) > BIO_MAX_LENGTH:
-            backstory = backstory[: BIO_MAX_LENGTH - 3] + "..."
+            backstory = truncate_bio(backstory, BIO_MAX_LENGTH)
             msg = f"Backstory exceeded max length, truncated to {BIO_MAX_LENGTH} characters"
             logger.warning(msg)
 
-        await dweller_crud.update(db_session, dweller_obj.id, DwellerUpdate(bio=backstory))
+        await dweller_crud.update(
+            db_session,
+            dweller_obj.id,
+            DwellerUpdate(bio=backstory, bio_entries=bio_service.replace_origin(backstory)),
+        )
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)
         registered = await self._register_map_places_best_effort(
@@ -205,13 +210,14 @@ class DwellerAIService:
 
         full_bio = f"{dweller_obj.bio}\n\n{extended_bio}"
 
-        # Length guard (D15): ensure the combined bio fits within the model's max_length=1024
-        if len(full_bio) > BIO_DB_MAX_LENGTH:
-            full_bio = full_bio[: BIO_DB_MAX_LENGTH - 3] + "..."
-            msg = f"Extended bio exceeded max length, truncated to {BIO_DB_MAX_LENGTH} characters"
+        # Length guard (D15): ensure the combined bio fits within the model's max_length
+        if len(full_bio) > BIO_MAX_CHARS:
+            full_bio = truncate_bio(full_bio)
+            msg = f"Extended bio exceeded max length, truncated to {BIO_MAX_CHARS} characters"
             logger.warning(msg)
 
-        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio))
+        entries = bio_service.with_entry(dweller_obj, "reflection", extended_bio)
+        await dweller_crud.update(db_session, dweller_id, DwellerUpdate(bio=full_bio, bio_entries=entries))
 
         # Register bio-extracted places on the world map (best-effort; after bio commit)
         registered = await self._register_map_places_best_effort(

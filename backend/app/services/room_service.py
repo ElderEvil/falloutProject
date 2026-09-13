@@ -250,7 +250,8 @@ class RoomService:
         absorbed_ids: set[UUID4] = set()
         merged_count = 0
 
-        for room in sorted(rooms, key=lambda room: (room.coordinate_y, room.coordinate_x)):
+        positioned = [room for room in rooms if room.coordinate_x is not None and room.coordinate_y is not None]
+        for room in sorted(positioned, key=lambda room: (room.coordinate_y, room.coordinate_x)):
             if room.id in absorbed_ids or room.name.lower() in {"elevator", "vault door"}:
                 continue
 

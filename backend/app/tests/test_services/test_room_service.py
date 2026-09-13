@@ -493,6 +493,19 @@ async def test_backfill_merge_rooms_idempotent(async_session: AsyncSession, rich
 
 
 @pytest.mark.asyncio
+async def test_backfill_skips_unplaced_rooms_without_sort_crash(async_session: AsyncSession, rich_vault: Vault):
+    """Unplaced (NULL-coordinate) rooms must not crash the backfill sort."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+    await _create_existing_room(async_session, rich_vault.id, name="Storage", coordinate_x=None, coordinate_y=None)
+
+    summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
+
+    assert summary["merged"] == 1
+
+
+@pytest.mark.asyncio
 async def test_backfill_dry_run_matches_apply_for_chain(async_session: AsyncSession, rich_vault: Vault):
     """Dry-run reports the same merge count as apply for a three-room chain."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)

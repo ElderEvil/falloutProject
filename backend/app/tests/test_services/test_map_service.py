@@ -24,7 +24,7 @@ from app.utils.places import normalize_place_name
 
 @pytest.mark.asyncio
 async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """VISITED cap follows rarity: COMMON→2, LEGENDARY→5 for 6 provided names each."""
+    """VISITED cap follows rarity: COMMON→1, LEGENDARY→3 for 6 provided names each."""
     common_names = [
         "Megaton",
         "Rivet City",
@@ -52,7 +52,7 @@ async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, va
     origin_rows = [r for r in rows if r.type == LocationTypeEnum.ORIGIN]
     visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
     assert len(origin_rows) == 1
-    assert len(visited_rows) == 7
+    assert len(visited_rows) == 4
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app import crud
 from app.crud.user_profile import profile_crud
@@ -55,6 +56,53 @@ async def test_grant_item_supported_generic_type_creates_item(
     assert item is not None
     assert item.name == name
     assert item.item_type == item_type
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("item_name", "stock_field", "reward_type"),
+    [("Stimpak", "stimpack", RewardType.STIMPAK), ("RadAway", "radaway", RewardType.RADAWAY)],
+)
+async def test_grant_item_medication_credits_dweller_stock(
+    async_session: AsyncSession, item_name: str, stock_field: str, reward_type: RewardType
+) -> None:
+    """ITEM-type medication must land in dweller stock, not as inert generic rows."""
+    from app.schemas.dweller import DwellerCreate
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    dweller_in = DwellerCreate(
+        first_name="Med",
+        last_name="Test",
+        gender=GenderEnum.FEMALE,
+        rarity=RarityEnum.COMMON,
+        level=1,
+        experience=0,
+        max_health=100,
+        health=100,
+        radiation=0,
+        happiness=50,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
+        vault_id=vault.id,
+    )
+    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+
+    result = await reward_service.grant_item(async_session, vault.id, {"item_name": item_name, "quantity": 3})
+
+    assert result["reward_type"] == reward_type
+    assert result["amount"] == 3
+    await async_session.refresh(dweller)
+    assert getattr(dweller, stock_field) == 3
+    assert (await async_session.execute(select(Item))).scalars().all() == []
 
 
 @pytest.mark.asyncio

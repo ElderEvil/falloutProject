@@ -56,6 +56,40 @@ async def test_register_bio_places_rarity_scaled(async_session: AsyncSession, va
 
 
 @pytest.mark.asyncio
+async def test_register_bio_places_uncapped_for_curated_templates(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Curated template places bypass the rarity cap: all 4 register for a legendary."""
+    dweller.rarity = RarityEnum.LEGENDARY
+    await map_service.register_bio_places(
+        async_session,
+        dweller,
+        origin_place="Rivet City",
+        visited_places=["National Archives", "Megaton", "Canterbury Commons", "Tenpenny Tower"],
+        cap_visited=False,
+    )
+
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    assert len(visited_rows) == 4
+
+
+@pytest.mark.asyncio
+async def test_template_dweller_creation_registers_all_curated_places(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """Abraham Washington's 4 curated visits all reach the map despite the legendary cap of 3."""
+    from app.services.dweller_service import dweller_service
+
+    dweller = await dweller_service.create_dweller_from_template(async_session, vault.id, "abraham-washington")
+
+    rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
+    visited_rows = [r for r in rows if r.type == LocationTypeEnum.VISITED]
+    assert dweller.bio.startswith("Curator of the Capitol Preservation Society")
+    assert len(visited_rows) == 4
+
+
+@pytest.mark.asyncio
 async def test_register_bio_places_skips_visited_wasteland(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:

@@ -1,10 +1,13 @@
 """Tests for the place-group (archetype) catalog."""
 
+import pytest
+
 from app.utils.place_groups import (
     get_place_group,
     group_for_place_name,
     load_place_groups,
     seeded_place_groups,
+    validate_group_key,
 )
 
 
@@ -43,3 +46,10 @@ def test_get_place_group_returns_catalog_entry() -> None:
     assert entry["label"] == "Gas Station"
     assert get_place_group(None) is None
     assert get_place_group("not_a_group") is None
+
+
+def test_validate_group_key_accepts_known_and_rejects_unknown() -> None:
+    """Every write path validates the key against the catalog."""
+    assert validate_group_key("gas_station") == "gas_station"
+    with pytest.raises(ValueError, match="Unknown place group"):
+        validate_group_key("not_a_group")

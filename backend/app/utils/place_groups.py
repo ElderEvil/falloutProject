@@ -50,10 +50,26 @@ def place_groups_by_key() -> dict[str, dict[str, Any]]:
     return {group["key"]: group for group in load_place_groups()}
 
 
+def validate_group_key(key: str) -> str:
+    """Return ``key`` when it exists in the catalog, else raise.
+
+    Called on every path that can persist a group key so an unknown site type
+    fails loud instead of reaching storage or a caller's mapping.
+    """
+    if key not in place_groups_by_key():
+        raise ValueError(f"Unknown place group {key!r}")
+    return key
+
+
 @lru_cache(maxsize=1)
 def seeded_place_groups() -> dict[str, str]:
-    """Normalized seeded place name -> group key."""
-    return {normalize_place_name(entry["name"]): entry["group"] for entry in load_seed_entries() if entry.get("group")}
+    """Normalized seeded place name -> group key, validated against the catalog."""
+    mapping = {
+        normalize_place_name(entry["name"]): entry["group"] for entry in load_seed_entries() if entry.get("group")
+    }
+    for key in set(mapping.values()):
+        validate_group_key(key)
+    return mapping
 
 
 def group_for_place_name(name: str) -> str | None:

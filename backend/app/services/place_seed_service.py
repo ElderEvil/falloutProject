@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.enums import PlaceKindEnum
 from app.crud.world_location import world_location as world_location_crud
 from app.models.world_location import WorldLocation
+from app.utils.place_groups import validate_group_key
 from app.utils.place_seed import load_seed_entries
 from app.utils.places import collision_nudge, normalize_place_name, schematic_coords
 
@@ -45,6 +46,10 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
     inserted = 0
     for entry in entries:
         normalized = normalize_place_name(entry["name"])
+        # Fail loud before any write: every seeded group must exist in the catalog.
+        group = entry.get("group")
+        if group is not None:
+            validate_group_key(group)
         existing = await world_location_crud.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
             changed = False
@@ -56,8 +61,8 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
             if existing.source == "seed" and entry.get("description") != existing.description:
                 existing.description = entry.get("description")
                 changed = True
-            if entry.get("group") != existing.group_key:
-                existing.group_key = entry.get("group")
+            if group != existing.group_key:
+                existing.group_key = group
                 changed = True
             if changed:
                 db_session.add(existing)
@@ -81,7 +86,7 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
                         coord_x=coord_x,
                         coord_y=coord_y,
                         description=entry.get("description"),
-                        group_key=entry.get("group"),
+                        group_key=group,
                         source="seed",
                     )
                 )

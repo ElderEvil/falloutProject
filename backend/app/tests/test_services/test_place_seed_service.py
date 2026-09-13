@@ -125,3 +125,18 @@ async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSessi
 
     await async_session.refresh(red_rocket)
     assert red_rocket.group_key == "gas_station"
+
+
+@pytest.mark.asyncio
+async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypatch) -> None:
+    """A seed entry whose group is not in the catalog fails before any write."""
+    from app.crud.world_location import world_location as wl_crud
+    from app.services import place_seed_service
+
+    bad = [{"name": "Nowhere Gulch", "kind": "place", "description": None, "roles": [], "group": "not_a_group"}]
+    monkeypatch.setattr(place_seed_service, "load_seed_entries", lambda: bad)
+
+    with pytest.raises(ValueError, match="Unknown place group"):
+        await seed_places_from_json(async_session, commit=False)
+
+    assert await wl_crud.get_registry_by_normalized(async_session, "nowhere gulch") is None

@@ -85,6 +85,24 @@ class RewardService:
         template = game_data_store.pick_template(RarityEnum.LEGENDARY.value, exclude_names=active_names or None)
         return template.template_id if template is not None else None
 
+    @staticmethod
+    def _fallback_legendary_identity() -> dict[str, Any]:
+        """Canonical name/rarity for the exhausted-pool fallback.
+
+        Omits template_id on purpose: grant_dweller then rolls procedural stats
+        while keeping a canonical legendary name and rarity.
+        """
+        from app.utils.static_data import game_data_store
+
+        template = game_data_store.pick_template(RarityEnum.LEGENDARY.value)
+        if template is None:
+            return {}
+        return {
+            "first_name": template.first_name,
+            "last_name": template.last_name,
+            "rarity": template.rarity,
+        }
+
     async def _grant_as_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, item_name: str, rarity: str, quantity: int
     ) -> dict[str, Any]:
@@ -102,7 +120,10 @@ class RewardService:
             if legendary and (template_id := await self._pick_legendary_template_id(db_session, vault_id)):
                 result = await self.grant_dweller(db_session, vault_id, {"template_id": template_id})
             else:
-                result = await self.grant_dweller(db_session, vault_id, dweller_template)
+                payload = dweller_template
+                if legendary:
+                    payload = {**dweller_template, **self._fallback_legendary_identity()}
+                result = await self.grant_dweller(db_session, vault_id, payload)
             dweller_ids.append(result["dweller_id"])
             last_name = result["name"]
         logger.info(f"Granted {quantity} dweller(s) '{item_name}' ({rarity}) to vault {vault_id}")

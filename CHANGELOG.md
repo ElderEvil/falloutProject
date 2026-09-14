@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.98.0 (2026-09-14)
+
+### Features
+
+* **dwellers:** show the ideally-matched role on the detail page ([#622](https://github.com/ElderEvil/falloutProject/issues/622)) 03b65cb
+
 ## 2.97.0 (2026-09-14)
 
 ### Features

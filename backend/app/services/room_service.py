@@ -229,6 +229,11 @@ class RoomService:
                 from_room_ids=absorbed_ids,
                 to_room_id=survivor_room.id,
             )
+            # Flush the moves before the rooms go away: deleting an absorbed Room
+            # makes the ORM detach its children by nulling their room_id, which
+            # would otherwise undo the reassignment for dwellers still listed on
+            # that Room's collection.
+            await db_session.flush()
             for room in absorbed:
                 await crud.room.delete(db_session=db_session, id=room.id, soft=False)
 

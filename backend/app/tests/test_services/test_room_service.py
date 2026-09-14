@@ -546,3 +546,39 @@ async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_
     await async_session.refresh(training)
     assert survivor.size == 6
     assert training.room_id == survivor.id
+
+
+@pytest.mark.asyncio
+async def test_build_merge_moves_absorbed_dwellers_to_survivor(async_session: AsyncSession, rich_vault: Vault):
+    """Dwellers of the absorbed room are moved into the surviving merged room."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+    dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
+
+    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
+        survivor, _ = await room_service._build(
+            db_session=async_session,
+            obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=0, tier=1),
+        )
+
+    await async_session.refresh(dweller)
+    assert dweller.room_id == survivor.id
+
+
+@pytest.mark.asyncio
+async def test_backfill_merge_moves_dwellers_into_survivor(async_session: AsyncSession, rich_vault: Vault):
+    """Backfill merges keep dwellers of both rooms in the surviving merged room."""
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+    left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
+    right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+    left_dweller = await _create_dweller_in_room(async_session, rich_vault.id, left)
+    right_dweller = await _create_dweller_in_room(async_session, rich_vault.id, right)
+
+    summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
+
+    assert summary["merged"] == 1
+    survivor = await crud.room.get(async_session, left.id)
+    await async_session.refresh(left_dweller)
+    await async_session.refresh(right_dweller)
+    assert left_dweller.room_id == survivor.id
+    assert right_dweller.room_id == survivor.id

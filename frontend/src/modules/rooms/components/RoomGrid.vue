@@ -100,6 +100,9 @@ const placeRoom = async (x: number, y: number) => {
         ? `${selectedRoom.name} extended!`
         : `${selectedRoom.name} built successfully!`
     toast.success(message)
+    if (result === 'extended') {
+      await dwellerStore.fetchDwellersByVault(vaultId, authStore.token as string)
+    }
   } catch (error) {
     toast.error(error instanceof Error ? error.message : 'Failed to build room')
   }

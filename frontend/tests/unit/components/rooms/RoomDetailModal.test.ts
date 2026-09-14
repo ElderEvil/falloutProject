@@ -454,8 +454,37 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('No dwellers assigned to this room')
-      expect(wrapper.text()).toContain('Drag dwellers from the sidebar to assign them')
+      expect(wrapper.text()).toContain('0 / 2 staffed')
+      expect(wrapper.text()).toContain('Assign dweller')
+    })
+
+    it('assigns a dweller picked from the inline picker', async () => {
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as never)
+      dwellerStore.dwellers = [
+        { ...mockDwellers[0], room_id: null, status: 'idle' },
+      ] as never
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      await wrapper.get('.assign-slot').trigger('click')
+
+      const pickerCard = wrapper
+        .findAll('.dweller-picker .dweller-card')
+        .find((card) => card.text().includes('John'))
+      expect(pickerCard).toBeTruthy()
+      await pickerCard!.trigger('click')
+
+      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
     it('should display relevant SPECIAL stat for each dweller', () => {

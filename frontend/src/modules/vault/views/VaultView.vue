@@ -48,7 +48,7 @@ const toast = useToast()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
-const { playMusic, stopMusic } = useSound()
+const { playMusic } = useSound()
 const { isCollapsed } = useSidePanel()
 const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
@@ -284,11 +284,12 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // Clean up polling when component is unmounted
+  // Clean up polling when component is unmounted. Music is intentionally NOT
+  // stopped: audioManager is a global singleton, so the ambient loop keeps
+  // playing across navigation (issue #620).
   vaultStore.stopResourcePolling()
   incidentStore.stopPolling()
   window.removeEventListener('keydown', handleKeyPress)
-  stopMusic()
 })
 
 const toggleBuildMode = async () => {

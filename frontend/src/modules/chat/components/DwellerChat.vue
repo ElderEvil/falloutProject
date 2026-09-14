@@ -9,7 +9,7 @@ import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
-import { normalizeUnlockedPlaces, useChatMessages } from '../composables/useChatMessages'
+import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
@@ -19,15 +19,19 @@ import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
 
-const props = defineProps<{
-  dwellerId: string
-  dwellerName: string
-  username: string
-  dwellerAvatar?: string
-  vaultId?: string | null
-  dwellerStatus?: string
-  roomName?: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    dwellerId: string
+    dwellerName: string
+    username: string
+    dwellerAvatar?: string
+    vaultId?: string | null
+    dwellerStatus?: string
+    roomName?: string | null
+    dwellerCanExplore?: boolean
+  }>(),
+  { dwellerCanExplore: true }
+)
 
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
@@ -95,6 +99,8 @@ const {
   dwellerAvatarUrl,
   canSend,
   latestActionSuggestionIndex,
+  handleMessagesScroll,
+  appendDwellerResponse,
   loadChatHistory,
   sendMessage,
   retryMessage,
@@ -209,16 +215,7 @@ const sendAudioMessage = async () => {
       placeholderMessage.content = response.data.transcription
     }
 
-    messages.value.push({
-      type: 'dweller',
-      content: response.data.dweller_response,
-      messageId: response.data.dweller_message_id,
-      timestamp: new Date(),
-      audioUrl: response.data.dweller_audio_url,
-      happinessImpact: response.data.happiness_impact || null,
-      actionSuggestion: response.data.action_suggestion || null,
-      unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
-    })
+    appendDwellerResponse(response.data)
 
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)
@@ -276,7 +273,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div ref="chatMessages" class="chat-messages">
+    <div ref="chatMessages" class="chat-messages" @scroll="handleMessagesScroll">
       <div
         v-if="conversationStarters.length"
         class="mb-5 flex flex-wrap gap-2 border-b border-theme-primary/15 pb-4"
@@ -305,6 +302,7 @@ onUnmounted(() => {
         :currently-playing-url="currentlyPlayingUrl"
         :latest-action-suggestion-index="latestActionSuggestionIndex"
         :is-performing-action="isPerformingAction"
+        :dweller-can-explore="dwellerCanExplore"
         :get-happiness-color="getHappinessColor"
         :get-happiness-icon="getHappinessIcon"
         @play-audio="playAudio"

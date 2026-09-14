@@ -96,9 +96,10 @@ describe('ProfileView', () => {
   }
 
   describe('Navigation', () => {
-    it('returns to the active vault from the profile back button', async () => {
+    it('returns to the screen the profile was opened from', async () => {
       mockBothApis()
       vaultStore.activeVaultId = 'vault-1'
+      await router.push('/vault/vault-1')
       await router.push('/profile')
       await router.isReady()
 
@@ -109,7 +110,7 @@ describe('ProfileView', () => {
       })
       await flushPromises()
 
-      await wrapper.find('button[aria-label="Back to Vault"]').trigger('click')
+      await wrapper.find('button[aria-label="Back to Overview"]').trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')

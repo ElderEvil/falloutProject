@@ -6,21 +6,25 @@ import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge
 import type { ActionSuggestion, ChatMessageDisplay, MapDiscovery } from '../models/chat'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 
-defineProps<{
-  messages: ChatMessageDisplay[]
-  vaultId?: string | null
-  placeLinks?: MapPlaceLink[]
-  dwellerName: string
-  username: string
-  dwellerAvatarUrl: string | null
-  userAvatarUrl: string | null
-  isTyping: boolean
-  currentlyPlayingUrl: string | null
-  latestActionSuggestionIndex: number
-  isPerformingAction: boolean
-  getHappinessColor: (delta: number) => string
-  getHappinessIcon: (delta: number) => string
-}>()
+const props = withDefaults(
+  defineProps<{
+    messages: ChatMessageDisplay[]
+    vaultId?: string | null
+    placeLinks?: MapPlaceLink[]
+    dwellerName: string
+    username: string
+    dwellerAvatarUrl: string | null
+    userAvatarUrl: string | null
+    isTyping: boolean
+    currentlyPlayingUrl: string | null
+    latestActionSuggestionIndex: number
+    isPerformingAction: boolean
+    dwellerCanExplore?: boolean
+    getHappinessColor: (delta: number) => string
+    getHappinessIcon: (delta: number) => string
+  }>(),
+  { dwellerCanExplore: true }
+)
 
 const emit = defineEmits<{
   playAudio: [url: string]
@@ -81,6 +85,9 @@ const actionLabel = (action: ActionSuggestion) => {
 /** What the confirm button will actually do; a bio addendum shows the exact text. */
 const actionDetail = (action: ActionSuggestion) =>
   action.action_type === 'bio_addendum' ? `“${action.bio_text}”` : action.reason
+
+const isBlockedExploration = (action: ActionSuggestion) =>
+  action.action_type === 'start_exploration' && !props.dwellerCanExplore
 
 const actionConfirmLabel = (action: ActionSuggestion, isPerformingAction: boolean) => {
   if (isPerformingAction) return 'Processing...'
@@ -264,7 +271,15 @@ const messageContentSegments = (
           <p class="action-suggestion-reason">{{ actionDetail(message.actionSuggestion) }}</p>
         </div>
         <div class="action-suggestion-actions">
+          <span
+            v-if="isBlockedExploration(message.actionSuggestion)"
+            class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-theme-primary/50"
+          >
+            <Icon icon="mdi:account-lock-outline" class="h-4 w-4" />
+            Too young for the wasteland
+          </span>
           <button
+            v-else
             class="action-confirm-btn"
             :disabled="isPerformingAction"
             @click="emit('confirmAction', message.actionSuggestion, index)"

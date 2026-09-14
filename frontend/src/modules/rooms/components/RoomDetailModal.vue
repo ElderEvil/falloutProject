@@ -52,6 +52,7 @@ const {
   dwellerCapacity,
   getAbilityLabel,
   handleUnassignAll,
+  handleAssignDweller,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
 
@@ -184,6 +185,7 @@ watch(
           :dweller-capacity="dwellerCapacity"
           :ability="room.ability"
           @dweller-click="openDwellerDetails"
+          @assign-dweller="handleAssignDweller"
         />
 
         <RadioControls

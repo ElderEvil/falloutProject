@@ -32,7 +32,7 @@ const emit = defineEmits<{
     </UButton>
     <UButton
       @click="emit('recall')"
-      :variant="compact ? 'secondary' : 'danger'"
+      variant="secondary"
       :size="compact ? 'sm' : 'lg'"
       :block="!compact"
       class="flex-1"

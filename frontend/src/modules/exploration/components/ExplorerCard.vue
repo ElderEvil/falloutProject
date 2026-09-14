@@ -30,6 +30,9 @@ const emit = defineEmits<{
 const openDetailView = () =>
   router.push(`/vault/${route.params.id}/exploration/${props.exploration.id}`)
 
+const openDwellerDetail = () =>
+  router.push(`/vault/${route.params.id}/dwellers/${props.exploration.dweller_id}`)
+
 const dwellerName = computed(() =>
   props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
 )
@@ -58,7 +61,12 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   <UCard padding="md" surface="raised" class="explorer-card" :class="{ selected }" @click="openDetailView">
     <!-- Header -->
     <div class="card-header">
-      <div class="dweller-info">
+      <button
+        type="button"
+        class="dweller-info dweller-link"
+        title="Open dweller detail page"
+        @click.stop="openDwellerDetail"
+      >
         <DwellerPortrait
           :image-url="dweller?.image_url"
           :thumbnail-url="dweller?.thumbnail_url"
@@ -83,7 +91,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
           </div>
           <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
         </div>
-      </div>
+      </button>
       <button v-if="selected" class="expand-indicator" title="Event timeline open">
         <Icon icon="mdi:timeline-text" />
       </button>
@@ -190,6 +198,20 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.dweller-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dweller-link:hover .dweller-name {
+  text-decoration: underline;
 }
 
 .dweller-name {

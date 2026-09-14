@@ -32,15 +32,30 @@ interface BioSection {
   label: string
   icon: string
   entries: BioEntry[]
+  /** Log sections accumulate entries, so they fold away behind a count. */
+  collapsible: boolean
 }
 
 const SECTION_ORDER: KnownSectionKey[] = ['origin', 'exploration', 'family', 'dialogue']
 
-const SECTION_META: Record<KnownSectionKey, { label: string; icon: string; sources: string[] }> = {
+const SECTION_META: Record<
+  KnownSectionKey,
+  { label: string; icon: string; sources: string[]; collapsible?: boolean }
+> = {
   origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy'] },
-  exploration: { label: 'FIELD LOG', icon: 'mdi:map-marker-path', sources: ['exploration'] },
+  exploration: {
+    label: 'FIELD LOG',
+    icon: 'mdi:map-marker-path',
+    sources: ['exploration'],
+    collapsible: true,
+  },
   family: { label: 'FAMILY RECORD', icon: 'mdi:account-group', sources: ['family'] },
   dialogue: { label: 'TRANSMISSION LOG', icon: 'mdi:message-text-outline', sources: ['dialogue'] },
+}
+
+/** `FIELD LOG · 2 entries` — the summary states what is behind the fold. */
+function entryCountLabel(count: number): string {
+  return `${count} ${count === 1 ? 'entry' : 'entries'}`
 }
 
 const normalizedEntries = computed<BioEntry[]>(() => {
@@ -70,6 +85,7 @@ const sections = computed<BioSection[]>(() => {
       label: meta.label,
       icon: meta.icon,
       entries: normalizedEntries.value.filter((entry) => meta.sources.includes(entry.source)),
+      collapsible: meta.collapsible ?? false,
     }
   })
   const knownSources = KNOWN_SOURCES
@@ -80,6 +96,7 @@ const sections = computed<BioSection[]>(() => {
       label: 'RECORD',
       icon: 'mdi:note-text-outline',
       entries: unclaimed,
+      collapsible: false,
     })
   }
   return known.filter((section) => section.entries.length > 0)
@@ -223,17 +240,33 @@ function entryHtml(text: string): string {
     <div class="bio-content">
       <template v-if="sections.length > 0">
         <div class="bio-text bio-sections">
-          <section
+          <!-- Log sections render as <details> so the header itself is the toggle;
+               prose sections stay plain. One entry-list block serves both. -->
+          <component
             v-for="(section, index) in sections"
+            :is="section.collapsible ? 'details' : 'section'"
             :key="section.key"
             class="bio-section"
             :class="`bio-section-${section.key}`"
           >
-            <div class="bio-section-rule" :class="{ 'rule-first': index === 0 }">
+            <component
+              :is="section.collapsible ? 'summary' : 'div'"
+              class="bio-section-rule"
+              :class="{ 'rule-first': index === 0 }"
+            >
               <Icon :icon="section.icon" class="bio-section-icon" />
               <span class="bio-section-label">{{ section.label }}</span>
+              <span v-if="section.collapsible" class="bio-section-count">{{
+                entryCountLabel(section.entries.length)
+              }}</span>
               <span class="bio-section-dashes" aria-hidden="true"></span>
-            </div>
+              <Icon
+                v-if="section.collapsible"
+                icon="mdi:chevron-right"
+                class="bio-section-chevron"
+                :ariaHidden="true"
+              />
+            </component>
             <ul class="bio-entry-list">
               <li
                 v-for="(entry, entryIndex) in section.entries"
@@ -246,7 +279,7 @@ function entryHtml(text: string): string {
                 <p class="bio-entry-text" v-html="entryHtml(entry.text)"></p>
               </li>
             </ul>
-          </section>
+          </component>
         </div>
       </template>
       <template v-else>
@@ -317,6 +350,52 @@ function entryHtml(text: string): string {
   opacity: 0.35;
 }
 
+/* Collapsible log sections: the summary is the toggle, so it carries the pointer
+   affordance and a focus ring, and the native disclosure marker is replaced by a
+   chevron that rotates with the section. */
+summary.bio-section-rule {
+  cursor: pointer;
+  list-style: none;
+  border-radius: 2px;
+}
+
+summary.bio-section-rule::-webkit-details-marker {
+  display: none;
+}
+
+summary.bio-section-rule:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+.bio-section-count {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--color-theme-primary);
+  opacity: 0.55;
+  text-transform: none;
+}
+
+/* Reads as `FIELD LOG · 2 entries` without baking a glyph into the count string,
+   so the rendered text stays "2 entries" for anyone reading the DOM or a test. */
+.bio-section-count::before {
+  content: '· ';
+}
+
+.bio-section-chevron {
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--color-theme-primary);
+  opacity: 0.65;
+  transition: transform 0.15s ease;
+}
+
+.bio-section[open] .bio-section-chevron {
+  transform: rotate(90deg);
+}
+
 .bio-entry-list {
   display: flex;
   flex-direction: column;
@@ -351,11 +430,12 @@ function entryHtml(text: string): string {
   white-space: pre-wrap;
 }
 
-/* The origin story is the dweller's own voice: inset it as a quoted passage. */
+/* The origin story is the dweller's own voice: the inset and rule mark it as a
+   quoted passage. Italic is deliberately not used — this is the longest prose
+   on the page and slanting it all hurts extended reading. */
 .bio-section-origin .bio-entry-text {
   padding-left: 0.85rem;
   border-left: 2px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
-  font-style: italic;
   opacity: 0.92;
 }
 

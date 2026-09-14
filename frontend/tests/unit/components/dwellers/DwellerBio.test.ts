@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
 import { ref } from 'vue'
 import DwellerBio from '@/modules/dwellers/components/DwellerBio.vue'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
@@ -172,6 +172,56 @@ describe('DwellerBio', () => {
       const entries = wrapper.findAll('.bio-entry-text').map(node => node.text())
       expect(entries).toEqual(['Visited Rivet City.', 'Visited Diamond City.'])
       expect(wrapper.findAll('.bio-entry-marker').length).toBeGreaterThan(0)
+    })
+
+    it('folds the field log behind a count summary', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'template', text: 'Born in Megaton.' },
+          { source: 'exploration', text: 'Visited Rivet City.' },
+          { source: 'exploration', text: 'Visited Diamond City.' },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const fieldLog = wrapper.find('details.bio-section-exploration')
+      expect(fieldLog.exists()).toBe(true)
+      expect(fieldLog.find('summary').text()).toContain('FIELD LOG')
+      expect(fieldLog.find('summary').text()).toContain('2 entries')
+      expect(fieldLog.attributes('open')).toBeUndefined()
+
+      // Entries stay mounted behind the fold, so expanding needs no refetch.
+      expect(fieldLog.findAll('.bio-entry-text').map(node => node.text())).toEqual([
+        'Visited Rivet City.',
+        'Visited Diamond City.',
+      ])
+    })
+
+    it('uses the singular for a one-entry field log', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [{ source: 'exploration', text: 'Visited Rivet City.' }],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const summary = wrapper.find('details.bio-section-exploration summary')
+      expect(summary.text()).toContain('1 entry')
+      expect(summary.text()).not.toContain('1 entries')
+    })
+
+    it('keeps prose sections expanded as plain sections', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [{ source: 'template', text: 'Born in Megaton.' }],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      expect(wrapper.find('section.bio-section-origin').exists()).toBe(true)
+      expect(wrapper.find('details.bio-section-origin').exists()).toBe(false)
     })
 
     it('skips empty entries and sections', () => {

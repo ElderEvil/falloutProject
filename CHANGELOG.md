@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.100.2 (2026-09-14)
+
+### Bug Fixes
+
+* **dwellers:** resolve legendary portraits against the API origin ([#629](https://github.com/ElderEvil/falloutProject/issues/629)) 7c35515
+
 ## 2.100.1 (2026-09-14)
 
 ### Bug Fixes

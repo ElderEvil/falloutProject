@@ -471,16 +471,16 @@ apprenticing at a working parent's production job.
 
 **Scope:**
 
-- 🔲 **Seeded couples.** Create partners as a pair — set `partner_id` both ways, seed the relationship row, and
+- ✅ **Seeded couples.** Create partners as a pair — set `partner_id` both ways, seed the relationship row, and
   start at a committed stage (partnered or MARRIED) so the v2.42 lineage API shows the household immediately.
-- 🔲 **Children.** Give couples one or more children seeded as `CHILD` or `TEEN`, linked to both parents so lineage,
+- ✅ **Children.** Give couples one or more children seeded as `CHILD` or `TEEN`, linked to both parents so lineage,
   the family-tree rows, and bio `family` entries read correctly.
-- 🔲 **Family apprentices.** When a parent works a production room, seed a teen child as an apprentice of that room —
+- ✅ **Family apprentices.** When a parent works a production room, seed a teen child as an apprentice of that room —
   reusing the existing apprentice lifecycle (`apprentice_stat` / `apprentice_started_at`,
   `_seed_youth_apprentice`), keyed to the room's ability. No apprenticeship when no parent works production.
-- 🔲 **Lore.** Bios/dossier sections name spouse, children, and parents so the seeded household reads as a family
+- ✅ **Lore.** Bios/dossier sections name spouse, children, and parents so the seeded household reads as a family
   rather than a roster.
-- 🔲 **Both vault types.** Standard vaults seed at least one family; boosted vaults seed a few (they already seed
+- ✅ **Both vault types.** Standard vaults seed at least one family; boosted vaults seed a few (they already seed
   youth apprentices — extend that into whole households) while staying within housing capacity.
 
 **Reuse:** `Dweller.partner_id`, the relationship/affinity/marriage system, `AgeGroupEnum`, the existing youth

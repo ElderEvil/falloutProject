@@ -3,7 +3,15 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.core.enums import JunkTypeEnum, OutfitTypeEnum, RarityEnum, SPECIALEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import (
+    JunkTypeEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    RelationshipTypeEnum,
+    SPECIALEnum,
+    WeaponSubtypeEnum,
+    WeaponTypeEnum,
+)
 from app.models import Room
 from app.schemas.room import RoomCreate
 
@@ -25,6 +33,12 @@ BOOSTED_TRAINING_STATS = (
     SPECIALEnum.LUCK,
 )
 YOUTH_APPRENTICE_BIRTH_AGE_HOURS = 13
+# Seeded households: couples start committed so lineage reads immediately.
+SEEDED_COUPLE_STAGE = RelationshipTypeEnum.MARRIED
+SEEDED_COUPLE_AFFINITY = 95
+SEEDED_FAMILIES_STANDARD = 1
+SEEDED_FAMILIES_BOOSTED = 3
+SEEDED_CHILD_AGE_HOURS = 6
 SEED_WEAPONS: list[dict[str, Any]] = [
     {
         "name": "Rusty Pistol",

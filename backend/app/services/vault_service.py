@@ -24,6 +24,7 @@ from app.crud import dweller as dweller_crud
 from app.crud import outfit as outfit_crud
 from app.crud import room as room_crud
 from app.crud import weapon as weapon_crud
+from app.crud.relationship import relationship_crud
 from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Dweller, Room, Storage
@@ -41,6 +42,11 @@ from app.services.vault_seed import (
     BOOSTED_TRAINING_STATS,
     SEED_OUTFITS,
     SEED_WEAPONS,
+    SEEDED_CHILD_AGE_HOURS,
+    SEEDED_COUPLE_AFFINITY,
+    SEEDED_COUPLE_STAGE,
+    SEEDED_FAMILIES_BOOSTED,
+    SEEDED_FAMILIES_STANDARD,
     YOUTH_APPRENTICE_BIRTH_AGE_HOURS,
     CreatedRooms,
     PreparedRooms,
@@ -108,13 +114,14 @@ class VaultService:
 
         infrastructure = mk([("vault door", 0, 0), *[("elevator", SHAFT_X, level) for level in range(4)]])
         if is_boosted:
-            # A merged (size 9) living room plus the base room houses the boosted
-            # population; three storage rooms hold the seeded gear and materials.
+            # Boosted blocks read top to bottom: level 1 is the training block,
+            # level 2 holds the storage row with medbay and science lab side by
+            # side, level 3 the living block; the storage row fuses at seed time.
             capacity_specs = [
-                ("living room", 7, 1, 3),
+                ("living room", 25, 3, 3),
                 ("storage room", 7, 2, 3),
-                ("storage room", 25, 1, 3),
-                ("storage room", 25, 3, 3),
+                ("storage room", 10, 2, 3),
+                ("storage room", 13, 2, 3),
                 BOOSTED_MERGED_LIVING_ROOM,
             ]
         else:
@@ -122,20 +129,20 @@ class VaultService:
         capacity = mk_sized(capacity_specs)
         production = mk(
             [("power generator", 3, 1), ("diner", 3, 2), ("water treatment", 3, 3)]
-            + ([("medbay", 22, 1), ("science lab", 19, 2)] if is_boosted else [])
+            + ([("science lab", 19, 2), ("medbay", 16, 2)] if is_boosted else [])
         )
         misc = mk([("radio studio", 7, 3)] + ([("overseer's office", 22, 2)] if is_boosted else []))
         arena = mk([("arena", 10, 3)] if is_boosted else [])
         crafting = mk(list(BOOSTED_CRAFTING_ROOM_SPECS)) if is_boosted else []
         training = mk(
             [
-                ("weight room", 10, 1),
-                ("athletics room", 13, 1),
-                ("game room", 16, 1),
-                ("lounge", 19, 1),
-                ("armory", 10, 2),
-                ("classroom", 13, 2),
-                ("fitness room", 16, 2),
+                ("weight room", 7, 1),
+                ("athletics room", 10, 1),
+                ("game room", 13, 1),
+                ("lounge", 16, 1),
+                ("armory", 19, 1),
+                ("classroom", 22, 1),
+                ("fitness room", 25, 1),
             ]
             if is_boosted
             else []
@@ -196,6 +203,8 @@ class VaultService:
         ):
             await db_session.refresh(room)
 
+        await self._merge_adjacent_seed_rooms(db_session, vault.id)
+
         return vault, CreatedRooms(
             production=created_production,
             training=created_training,
@@ -205,6 +214,12 @@ class VaultService:
             crafting=created_crafting,
         )
 
+    async def _merge_adjacent_seed_rooms(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Fuse adjacent same-name seed rooms (the boosted storage row) through the standard merge flow."""
+        from app.services.room_service import room_service
+
+        await room_service.backfill_merge_rooms_for_vault(db_session, vault_id, dry_run=False)
+
     def _roll_initial_rarity(self, is_boosted: bool) -> RarityEnum:
         """Roll RARE for initial seeded dwellers; boosted vaults use the higher chance."""
         vault_start = game_config.vault_start
@@ -213,7 +228,7 @@ class VaultService:
 
     async def _seed_working_dweller(
         self, db_session: AsyncSession, vault_id: UUID4, room: Room, boosted_stat: SPECIALEnum, is_boosted: bool
-    ) -> None:
+    ) -> Dweller:
         """Create a dweller and assign it to a room as a worker."""
         from app.services.dweller_service import dweller_service
 
@@ -228,7 +243,9 @@ class VaultService:
             id=dweller_obj.id,
             obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
         )
+        dweller_obj.room_id = room.id
         self.logger.info("Dweller %s assigned to %s", dweller_obj.id, room.name)
+        return dweller_obj
 
     async def _create_initial_dwellers(
         self,
@@ -259,9 +276,19 @@ class VaultService:
                 assignments.extend(
                     (room, SPECIALEnum.INTELLIGENCE, production_crew) for room in created_production_rooms[3:5]
                 )
-            for room, boosted_stat, count in assignments:
-                for _ in range(count):
-                    await self._seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
+            apprentice_rooms = [r for r in created_production_rooms[:2] if r.ability is not None]
+            apprentice_ids = {r.id for r in apprentice_rooms}
+            if is_boosted:
+                # Rooms hosting a family teen keep one slot free, so production
+                # rooms never hold more than three dwellers.
+                assignments = [
+                    (room, stat, count - (1 if room.id in apprentice_ids else 0)) for room, stat, count in assignments
+                ]
+            workers = [
+                await self._seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
+                for room, boosted_stat, count in assignments
+                for _ in range(count)
+            ]
 
             # Crafting crew (boosted only): two dwellers per workshop, keyed to the
             # stats most craftable weapons and outfits use so orders finish faster.
@@ -274,7 +301,9 @@ class VaultService:
                     (outfit_room, SPECIALEnum.STRENGTH),
                     (outfit_room, SPECIALEnum.PERCEPTION),
                 ):
-                    await self._seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
+                    workers.append(
+                        await self._seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted)
+                    )
 
             # Training dwellers (boosted only)
             if is_boosted:
@@ -299,8 +328,13 @@ class VaultService:
             if created_misc_rooms:
                 radio_room = next((r for r in created_misc_rooms if "radio" in r.name.lower()), None)
                 if radio_room:
-                    await self._seed_working_dweller(db_session, vault_id, radio_room, SPECIALEnum.CHARISMA, is_boosted)
+                    workers.append(
+                        await self._seed_working_dweller(
+                            db_session, vault_id, radio_room, SPECIALEnum.CHARISMA, is_boosted
+                        )
+                    )
 
+            living: list[Dweller] = []
             living_rooms = [r for r in created_capacity_rooms if "living" in r.name.lower()]
             if living_rooms:
                 living_room = living_rooms[0]
@@ -321,22 +355,11 @@ class VaultService:
                         id=dweller.id,
                         obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.RESTING),
                     )
+                    dweller.room_id = living_room.id
+                    living.append(dweller)
                     self.logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
 
-            # Youth apprentices (boosted only) — one per production room, so the
-            # apprentice lifecycle is testable end-to-end. Seeded as teens via
-            # _seed_youth_apprentice; the seeded vault intentionally skips the
-            # population gate.
-            if is_boosted:
-                for room in created_production_rooms[:2]:
-                    if room.ability is None:
-                        continue
-                    youth_data = DwellerCreateCommonOverride(special_boost=room.ability)
-                    youth = await dweller_service.create_random_dweller(
-                        db_session, vault_id, youth_data, rarity=self._roll_initial_rarity(is_boosted)
-                    )
-                    await self._seed_youth_apprentice(db_session, youth.id, room)
-                    self.logger.info("Youth %s apprenticed in %s", youth.id, room.name)
+            await self._seed_seeded_families(db_session, vault_id, apprentice_rooms, workers, living, is_boosted)
 
         except Exception:
             self.logger.exception("Failed to create dwellers")
@@ -357,6 +380,115 @@ class VaultService:
                 "apprentice_started_at": datetime.utcnow(),
             },
         )
+
+    async def _pair_seeded_couple(self, db_session: AsyncSession, first: Dweller, second: Dweller) -> None:
+        """Link a seeded couple both ways with a committed relationship row and spouse lore."""
+        from app.services.bio_service import bio_service
+
+        first.partner_id, second.partner_id = second.id, first.id
+        db_session.add_all([first, second])
+        await relationship_crud.create_with_defaults(
+            db_session, first.id, second.id, relationship_type=SEEDED_COUPLE_STAGE, affinity=SEEDED_COUPLE_AFFINITY
+        )
+        first_name = f"{first.first_name} {first.last_name or ''}".strip()
+        second_name = f"{second.first_name} {second.last_name or ''}".strip()
+        await bio_service.append_entry(
+            db_session, first.id, "family", f"Married {second_name}.", ref={"partner_id": str(second.id)}
+        )
+        await bio_service.append_entry(
+            db_session, second.id, "family", f"Married {first_name}.", ref={"partner_id": str(first.id)}
+        )
+
+    async def _seed_family_child(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        mother: Dweller,
+        father: Dweller,
+        room: Room | None,
+        is_boosted: bool,
+    ) -> Dweller:
+        """Create a child linked to both parents; teens apprentice at the working parent's production room."""
+        from app.options.bios import render_newborn_bio
+        from app.services.bio_service import bio_service, make_entry
+        from app.services.dweller_service import dweller_service
+
+        child = await dweller_service.create_random_dweller(
+            db_session,
+            vault_id,
+            DwellerCreateCommonOverride(special_boost=room.ability if room else None),
+            rarity=self._roll_initial_rarity(is_boosted),
+        )
+        surname = father.last_name or child.last_name
+        child_name = f"{child.first_name} {surname or ''}".strip()
+        mother_name = f"{mother.first_name} {mother.last_name or ''}".strip()
+        father_name = f"{father.first_name} {father.last_name or ''}".strip()
+        newborn = render_newborn_bio(mother_name, father_name, str(mother.id), str(father.id), str(vault_id))
+        await dweller_crud.update(
+            db_session,
+            child.id,
+            {
+                "parent_1_id": mother.id,
+                "parent_2_id": father.id,
+                "last_name": surname,
+                "is_adult": False,
+                "age_group": AgeGroupEnum.TEEN if room else AgeGroupEnum.CHILD,
+                "birth_date": datetime.utcnow()
+                - timedelta(hours=YOUTH_APPRENTICE_BIRTH_AGE_HOURS if room else SEEDED_CHILD_AGE_HOURS),
+                "bio": newborn,
+                "bio_entries": [
+                    make_entry(
+                        "template",
+                        newborn,
+                        {"mother_id": str(mother.id), "father_id": str(father.id)},
+                    )
+                ],
+            },
+        )
+        if room:
+            await self._seed_youth_apprentice(db_session, child.id, room)
+        for parent, partner, partner_name in (
+            (mother, father, father_name),
+            (father, mother, mother_name),
+        ):
+            await bio_service.append_entry(
+                db_session,
+                parent.id,
+                "family",
+                f"Became a parent: {child_name} was born.",
+                ref={"child_id": str(child.id), "partner_id": str(partner.id), "partner_name": partner_name},
+            )
+        return child
+
+    async def _seed_seeded_families(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        apprentice_rooms: list[Room],
+        workers: list[Dweller],
+        living: list[Dweller],
+        is_boosted: bool,
+    ) -> None:
+        """Pair seeded adults into households; teens apprentice only in rooms with a reserved slot."""
+        pool = [d for d in (*workers, *living) if d is not None]
+        if len(pool) < 2:
+            return
+        rooms = [r for r in apprentice_rooms if r.ability is not None]
+        rooms_by_id = {r.id: r for r in rooms}
+        used_rooms: set[UUID4] = set()
+        families = SEEDED_FAMILIES_BOOSTED if is_boosted else SEEDED_FAMILIES_STANDARD
+        for _ in range(min(families, len(pool) // 2)):
+            first = pool.pop(0)
+            second = pool.pop(next((j for j, d in enumerate(pool) if d.gender != first.gender), 0))
+            await self._pair_seeded_couple(db_session, first, second)
+            mother = first if first.gender == GenderEnum.FEMALE else second
+            father = second if mother is first else first
+            room = rooms_by_id.get(first.room_id) or rooms_by_id.get(second.room_id)
+            if room is not None and room.id in used_rooms:
+                room = next((r for r in rooms if r.id not in used_rooms), None)
+            if room is not None:
+                used_rooms.add(room.id)
+            await self._seed_family_child(db_session, vault_id, mother, father, room, is_boosted)
 
     async def _start_dweller_training(self, db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
         """Start one training session; domain failures are logged, not raised."""

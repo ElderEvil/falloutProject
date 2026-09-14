@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from pydantic import UUID4, ValidationError
 
+from app import crud
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.core.grid_config import FLOOR_UNITS, SHAFT_X
@@ -15,9 +16,11 @@ from app.models.room import Room
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.schemas.common import (
+    AgeGroupEnum,
     DwellerStatusEnum,
     GenderEnum,
     RarityEnum,
+    RelationshipTypeEnum,
     RoomTypeEnum,
     SPECIALEnum,
 )
@@ -233,9 +236,18 @@ class TestCreateInitialDwellers:
                 side_effect=fake_create_random,
             ),
             patch("app.services.vault_service.dweller_crud.update", new_callable=AsyncMock),
+            patch(
+                "app.services.vault_service.relationship_crud.create_with_defaults",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.services.bio_service.bio_service.append_entry",
+                new_callable=AsyncMock,
+            ),
         ):
             db_session = AsyncMock()
             db_session.commit = AsyncMock()
+            db_session.add_all = MagicMock()
 
             service = VaultService()
             await service._create_initial_dwellers(
@@ -248,8 +260,8 @@ class TestCreateInitialDwellers:
                 is_boosted=True,
             )
 
-        # 15 production (3 per room) + 7 training + 1 radio + 2 living quarters + 2 apprentices = 27
-        assert call_count == 27
+        # 13 production (2 in apprentice rooms, 3 elsewhere) + 7 training + 1 radio + 2 living + 3 family children = 26
+        assert call_count == 26
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
         """Exception during dweller creation logs and re-raises."""
@@ -928,3 +940,177 @@ class TestVaultStartConfig:
         from app.core.game_config import VaultStartConfig
 
         assert VaultStartConfig().initial_resource_pct == 0.8
+
+
+def _seeded_room(vault_id, name: str, category: RoomTypeEnum, ability, x: int, y: int) -> RoomCreate:
+    """Build a persistable seed room mirroring the radio-room fixture shape."""
+    return RoomCreate(
+        name=name,
+        category=category,
+        ability=ability,
+        base_cost=100,
+        incremental_cost=50,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        capacity=8 if category == RoomTypeEnum.CAPACITY else None,
+        output=None,
+        size_min=1,
+        size_max=3,
+        size=3,
+        tier=1,
+        coordinate_x=x,
+        coordinate_y=y,
+        image_url=None,
+        vault_id=vault_id,
+    )
+
+
+def _family_texts(dweller: Dweller) -> list[str]:
+    """Family-section bio entry texts for a dweller."""
+    return [entry.get("text", "") for entry in dweller.bio_entries or [] if entry.get("source") == "family"]
+
+
+@pytest.mark.asyncio
+class TestSeededFamilies:
+    """Seeded households: couples, children, and family apprentices."""
+
+    async def test_standard_vault_seeds_one_committed_family(self, async_session, vault) -> None:
+        """Standard vaults seed a married couple, their teen apprentice, and family lore."""
+        from app.crud.relationship import relationship_crud
+        from app.services.family.lineage_service import lineage_service
+
+        prod_rooms = [
+            await crud.room.create(async_session, _seeded_room(vault.id, name, RoomTypeEnum.PRODUCTION, ability, x, 1))
+            for name, ability, x in (
+                ("Power Generator", SPECIALEnum.STRENGTH, 3),
+                ("Diner", SPECIALEnum.AGILITY, 6),
+                ("Water Treatment", SPECIALEnum.PERCEPTION, 9),
+            )
+        ]
+        living_rooms = [
+            await crud.room.create(
+                async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 12, 1)
+            )
+        ]
+        await VaultService()._create_initial_dwellers(
+            async_session, vault.id, prod_rooms, [], [], living_rooms, is_boosted=False
+        )
+
+        # 6 production workers + 2 living dwellers + 1 family child.
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        assert len(dwellers) == 9
+
+        relationships = await relationship_crud.get_by_vault(async_session, vault.id)
+        assert len(relationships) == 1
+        rel = relationships[0]
+        assert rel.relationship_type == RelationshipTypeEnum.MARRIED
+        assert rel.affinity == 95
+
+        first = await crud.dweller.get(async_session, rel.dweller_1_id)
+        second = await crud.dweller.get(async_session, rel.dweller_2_id)
+        assert first.partner_id == second.id
+        assert second.partner_id == first.id
+
+        children = [d for d in dwellers if d.parent_1_id is not None]
+        assert len(children) == 1
+        child = children[0]
+        assert {child.parent_1_id, child.parent_2_id} == {first.id, second.id}
+        assert child.age_group == AgeGroupEnum.TEEN
+        assert child.room_id in {first.room_id, second.room_id}
+        assert child.room_id in {r.id for r in prod_rooms}
+        parent_room = next(r for r in prod_rooms if r.id == child.room_id)
+        assert child.apprentice_stat == parent_room.ability
+        assert child.apprentice_started_at is not None
+        assert child.status == DwellerStatusEnum.WORKING
+
+        lineage = await lineage_service.get_lineage(async_session, child.id)
+        assert {p.id for p in lineage.parents} == {first.id, second.id}
+        partner_lineage = await lineage_service.get_lineage(async_session, first.id)
+        assert [p.id for p in partner_lineage.partners] == [second.id]
+        assert [c.id for c in partner_lineage.children] == [child.id]
+
+        assert any(second.first_name in text for text in _family_texts(first))
+        assert any(first.first_name in text for text in _family_texts(second))
+        assert any(child.first_name in text for text in _family_texts(first))
+        assert any(child.first_name in text for text in _family_texts(second))
+        origin_refs = [entry.get("ref") or {} for entry in child.bio_entries or [] if entry.get("source") == "template"]
+        assert any(
+            {ref.get("mother_id"), ref.get("father_id")} == {str(first.id), str(second.id)} for ref in origin_refs
+        )
+
+    async def test_boosted_vault_seeds_three_families_in_distinct_rooms(self, async_session, vault) -> None:
+        """Boosted vaults seed three households; teens apprentice in distinct rooms, the third child stays home."""
+        from app.crud.relationship import relationship_crud
+
+        prod_rooms = [
+            await crud.room.create(async_session, _seeded_room(vault.id, name, RoomTypeEnum.PRODUCTION, ability, x, 1))
+            for name, ability, x in (
+                ("Power Generator", SPECIALEnum.STRENGTH, 3),
+                ("Diner", SPECIALEnum.AGILITY, 6),
+                ("Water Treatment", SPECIALEnum.PERCEPTION, 9),
+                ("Medbay", SPECIALEnum.INTELLIGENCE, 12),
+                ("Science Lab", SPECIALEnum.INTELLIGENCE, 15),
+            )
+        ]
+        misc_rooms = [
+            await crud.room.create(
+                async_session, _seeded_room(vault.id, "Radio Studio", RoomTypeEnum.MISC, SPECIALEnum.CHARISMA, 18, 1)
+            )
+        ]
+        living_rooms = [
+            await crud.room.create(
+                async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 21, 1)
+            )
+        ]
+        await VaultService()._create_initial_dwellers(
+            async_session, vault.id, prod_rooms, [], misc_rooms, living_rooms, is_boosted=True
+        )
+
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        relationships = await relationship_crud.get_by_vault(async_session, vault.id)
+        assert len(relationships) == 3
+        assert all(rel.relationship_type == RelationshipTypeEnum.MARRIED for rel in relationships)
+
+        children = [d for d in dwellers if d.parent_1_id is not None]
+        assert len(children) == 3
+        teens = [d for d in children if d.age_group == AgeGroupEnum.TEEN]
+        assert len(teens) == 2
+        apprentice_rooms = set()
+        for child in teens:
+            assert child.age_group == AgeGroupEnum.TEEN
+            room = await crud.room.get(async_session, child.room_id)
+            assert room.ability is not None
+            assert child.apprentice_stat == room.ability
+            apprentice_rooms.add(child.room_id)
+        assert len(apprentice_rooms) == 2
+        assert next(d for d in children if d.age_group == AgeGroupEnum.CHILD).room_id is None
+
+        for room in prod_rooms:
+            assert len([d for d in dwellers if d.room_id == room.id]) <= 3
+
+        vault_after = await crud.vault.get(async_session, vault.id)
+        assert vault_after.population_max >= len(dwellers)
+
+    async def test_family_child_without_production_room_stays_child(self, async_session, vault) -> None:
+        """No working parent means no apprenticeship: the child seeds as an unassigned CHILD."""
+        prod_rooms = [
+            await crud.room.create(
+                async_session, _seeded_room(vault.id, f"Idle Room {i}", RoomTypeEnum.PRODUCTION, None, x, 1)
+            )
+            for i, x in enumerate((3, 6, 9))
+        ]
+        living_rooms = [
+            await crud.room.create(
+                async_session, _seeded_room(vault.id, "Living Room", RoomTypeEnum.CAPACITY, SPECIALEnum.CHARISMA, 12, 1)
+            )
+        ]
+        await VaultService()._create_initial_dwellers(
+            async_session, vault.id, prod_rooms, [], [], living_rooms, is_boosted=False
+        )
+
+        dwellers = await crud.dweller.get_multi_by_vault(async_session, vault.id)
+        children = [d for d in dwellers if d.parent_1_id is not None]
+        assert len(children) == 1
+        assert children[0].age_group == AgeGroupEnum.CHILD
+        assert children[0].apprentice_stat is None
+        assert children[0].room_id is None

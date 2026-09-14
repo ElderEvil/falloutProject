@@ -111,6 +111,30 @@ export function getAbilityConfig(ability: string | null | undefined): AbilityCon
 /** Visual attributes type — generated from backend OpenAPI schema. */
 export type VisualAttributes = components['schemas']['DwellerVisualAttributes']
 
+// The single-letter SPECIAL fields on DwellerReadFull, in the same order the
+// backend ranks them, so ties resolve identically.
+const SPECIAL_LETTERS = ['S', 'P', 'E', 'C', 'I', 'A', 'L'] as const
+type SpecialLetter = (typeof SPECIAL_LETTERS)[number]
+
+const SPECIAL_LETTER_TO_STAT: Record<SpecialLetter, SpecialKey> = {
+  S: 'strength',
+  P: 'perception',
+  E: 'endurance',
+  C: 'charisma',
+  I: 'intelligence',
+  A: 'agility',
+  L: 'luck',
+}
+
+/** Highest SPECIAL stat, mirroring the backend's ``get_highest_special`` (ties keep the earlier stat). */
+export function getHighestSpecial(dweller: Pick<Dweller, SpecialLetter>): SpecialKey {
+  const best = SPECIAL_LETTERS.reduce<SpecialLetter>(
+    (acc, letter) => (dweller[letter] > dweller[acc] ? letter : acc),
+    'S'
+  )
+  return SPECIAL_LETTER_TO_STAT[best]
+}
+
 /** Radiation as a 0-100 share of a dweller's maximum health. */
 export function getRadiationPercentage(
   radiation: number | null | undefined,

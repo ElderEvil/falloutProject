@@ -157,6 +157,8 @@ export function useChatMessages(options: UseChatMessagesOptions) {
 
   const sendMessage = async () => {
     if (userMessage.value.trim()) {
+      // Sending implies wanting to see the reply even if the reader had scrolled up.
+      isNearBottom.value = true
       const isWsConnected = options.chatWs?.state.value === 'connected'
       const messageToSend = userMessage.value
       userMessage.value = ''
@@ -265,11 +267,19 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     return 'mdi:emoticon-neutral'
   }
 
-  // Auto-scroll to bottom
+  // Auto-scroll: follow new messages only while the reader is already near the
+  // bottom; a manual scroll-up into history must not be dragged back down
+  // (issue #620). The scroll listener keeps that judgement current.
+  const isNearBottom = ref(true)
+  const handleMessagesScroll = () => {
+    const el = chatMessages.value
+    if (el) isNearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
   watch(messages, async () => {
     await nextTick()
-    if (chatMessages.value) {
-      chatMessages.value.scrollTop = chatMessages.value.scrollHeight
+    const el = chatMessages.value
+    if (el && isNearBottom.value) {
+      el.scrollTop = el.scrollHeight
     }
   })
 
@@ -284,6 +294,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     dwellerAvatarUrl,
     canSend,
     latestActionSuggestionIndex,
+    handleMessagesScroll,
 
     // Methods
     loadChatHistory,

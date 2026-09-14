@@ -6,7 +6,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { UButton } from '@/core/components/ui'
 import DwellerChat from './DwellerChat.vue'
-import type { Dweller } from '@/modules/dwellers/models/dweller'
+import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
@@ -71,6 +71,7 @@ onMounted(async () => {
           :vault-id="vaultId"
           :dweller-status="dweller.status"
           :room-name="dweller.room?.name"
+          :dweller-can-explore="isMature(dweller)"
         />
       </div>
     </template>
@@ -86,7 +87,8 @@ onMounted(async () => {
 .dweller-chat-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   padding: 20px;
   box-sizing: border-box;
   background-color: var(--color-surface-dark);
@@ -95,6 +97,7 @@ onMounted(async () => {
 
 .chat-container {
   flex: 1;
+  min-height: 0;
   display: flex;
   justify-content: center;
   max-width: 900px;

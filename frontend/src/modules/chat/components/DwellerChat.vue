@@ -19,15 +19,19 @@ import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
 
-const props = defineProps<{
-  dwellerId: string
-  dwellerName: string
-  username: string
-  dwellerAvatar?: string
-  vaultId?: string | null
-  dwellerStatus?: string
-  roomName?: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    dwellerId: string
+    dwellerName: string
+    username: string
+    dwellerAvatar?: string
+    vaultId?: string | null
+    dwellerStatus?: string
+    roomName?: string | null
+    dwellerCanExplore?: boolean
+  }>(),
+  { dwellerCanExplore: true }
+)
 
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
@@ -95,6 +99,7 @@ const {
   dwellerAvatarUrl,
   canSend,
   latestActionSuggestionIndex,
+  handleMessagesScroll,
   loadChatHistory,
   sendMessage,
   retryMessage,
@@ -276,7 +281,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div ref="chatMessages" class="chat-messages">
+    <div ref="chatMessages" class="chat-messages" @scroll="handleMessagesScroll">
       <div
         v-if="conversationStarters.length"
         class="mb-5 flex flex-wrap gap-2 border-b border-theme-primary/15 pb-4"
@@ -305,6 +310,7 @@ onUnmounted(() => {
         :currently-playing-url="currentlyPlayingUrl"
         :latest-action-suggestion-index="latestActionSuggestionIndex"
         :is-performing-action="isPerformingAction"
+        :dweller-can-explore="dwellerCanExplore"
         :get-happiness-color="getHappinessColor"
         :get-happiness-icon="getHappinessIcon"
         @play-audio="playAudio"

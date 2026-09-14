@@ -73,9 +73,9 @@ const handleDragEnd = () => {
 <style scoped>
 .room-dwellers {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  justify-content: space-evenly;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  justify-content: center;
   align-items: center;
   margin-top: 0.5rem;
   padding: 0.5rem;
@@ -84,14 +84,15 @@ const handleDragEnd = () => {
 
 .dweller-avatar {
   position: relative;
-  width: 40px;
-  height: 40px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 40px;
+  aspect-ratio: 1;
   cursor: grab;
   transition: transform 0.2s;
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .dweller-avatar:hover {

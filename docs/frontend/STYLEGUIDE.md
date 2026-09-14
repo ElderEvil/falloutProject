@@ -1,7 +1,7 @@
 # Fallout Shelter Frontend Styleguide
 
-> **Version:** 1.2.0
-> **Last Updated:** 2026-08-30
+> **Version:** 1.3.0
+> **Last Updated:** 2026-09-14
 > **Design System:** TailwindCSS v4 with custom @theme
 
 ## Table of Contents
@@ -410,6 +410,39 @@ This section records the current visual decisions for vault-management screens. 
 </div>
 ```
 
+### Tooltips & Popovers
+
+Hover information has **one mechanism**: `UTooltip`. Native `title=` is retired — it renders in OS chrome, ignores
+the theme, cannot wrap, and is not reliably announced.
+
+| Tier       | Use for                                                            | Rendering                              |
+| ---------- | ------------------------------------------------------------------ | -------------------------------------- |
+| **Hint**   | A short fact or label: a control's purpose, a value's meaning      | One line                               |
+| **Detail** | The same fact with context the player needs to decide              | Multi-line, via `whitespace-pre-line`  |
+
+Detail is **content**, not a different component: both tiers are the same primitive with different copy. If a tip
+needs a second element type to say something, it is a popover (below), not a tooltip.
+
+**Rules**
+
+1. **`UTooltip` for every hover/focus hint.** It already covers hover *and* focus and carries `role="tooltip"`.
+   Never add a native `title` alongside it.
+2. **One string serving sighted and screen-reader users.** Where a control needs an accessible name and also shows
+   a hint, derive both from a single source so they cannot drift apart. A button whose `title` says one thing and
+   whose `aria-label` says another is a bug, not a nuance.
+3. **Never hover-only for anything load-bearing.** Hover is invisible on touch and unavailable to some keyboard
+   users. Anything the player must know to play — progression, warnings, resource state — stays visible without
+   hovering (see `GAME_MECHANICS.md`, progression visibility). A tip may *elaborate*; it may not be the only route
+   to the fact.
+4. **An interactive tip is a popover, not a tooltip.** If the panel holds actions (e.g. happiness modifiers), it
+   opens on click and closes on Escape or outside-click, exactly like `DwellerOverflowMenu` — so it works with
+   keyboard and touch. Non-interactive text stays a tooltip.
+5. **Icons alone are not labels.** An icon-only control always needs an accessible name; the hint is supplementary.
+
+> **Migration status:** 131 native `title=` bindings across 73 files predate this rule (themed tips are ~22 uses).
+> Migrate opportunistically when touching a component; a lint rule banning `title=` in `.vue` templates, with an
+> allowlist for genuine exceptions, is the intended enforcement.
+
 ---
 
 ## Animations & Effects
@@ -511,6 +544,9 @@ Always provide visible focus indicators:
 
 <input aria-label="Search dwellers" placeholder="Search..." />
 ```
+
+An icon-only control always needs an accessible name. If it also shows a hover hint, both must come from one
+string — see [Tooltips & Popovers](#tooltips--popovers).
 
 ### Keyboard Navigation
 

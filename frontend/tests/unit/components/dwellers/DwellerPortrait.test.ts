@@ -57,7 +57,6 @@ describe('DwellerPortrait', () => {
       props: {
         thumbnailUrl: '/static/portraits/lucy.png',
         alt: 'Lucy MacLean portrait',
-        urlMode: 'static',
       },
     })
 

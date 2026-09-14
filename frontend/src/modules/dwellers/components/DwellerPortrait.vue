@@ -10,7 +10,6 @@ interface Props {
   imageClass?: string
   fallbackClass?: string
   fallbackIcon?: string
-  urlMode?: 'normalized' | 'static'
   preferThumbnail?: boolean
 }
 
@@ -20,18 +19,17 @@ const props = withDefaults(defineProps<Props>(), {
   imageClass: '',
   fallbackClass: '',
   fallbackIcon: 'mdi:account',
-  urlMode: 'normalized',
   preferThumbnail: false,
 })
 
 const portraitSource = computed(() =>
   props.preferThumbnail ? props.thumbnailUrl || props.imageUrl : props.imageUrl || props.thumbnailUrl
 )
-const portraitUrl = computed(() => {
-  return props.urlMode === 'static'
-    ? (getStaticImageUrl(portraitSource.value) ?? '')
-    : normalizeImageUrl(portraitSource.value)
-})
+// Backend static paths (/static/...) must resolve against the API origin;
+// data:, blob:, absolute, and schemeless-host URLs pass through unchanged
+// (issue #620). normalizeImageUrl repairs the schemeless-hostname legacy case.
+const portraitUrl = computed(() => getStaticImageUrl(normalizeImageUrl(portraitSource.value)) ?? '')
+
 const isThumbnailPreview = computed(() => portraitSource.value === props.thumbnailUrl && Boolean(props.thumbnailUrl))
 
 const hasImageError = ref(false)

@@ -94,7 +94,7 @@ function activate(dwellerId: string) {
               v-if="column.id === 'portrait'"
               :thumbnail-url="dweller.thumbnail_url"
               alt=""
-              url-mode="static"
+
               fallback-icon="mdi:account-circle"
               image-class="h-9 w-9 rounded object-cover"
               fallback-class="h-9 w-9 text-theme-primary/60"

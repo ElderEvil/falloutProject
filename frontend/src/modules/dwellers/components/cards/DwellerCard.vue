@@ -179,13 +179,14 @@ const canUseRadaway = computed(
             <div class="supply-actions">
               <UTooltip v-if="canUseStimpak" text="Use one Stimpak (heals dweller)">
                 <UButton
+                  class="supply-action-btn"
                   variant="secondary"
                   size="xs"
                   aria-label="Use Stimpack"
                   :loading="usingStimpak"
                   @click="emit('use-stimpak')"
                 >
-                  Use
+                  <Icon icon="mdi:needle" class="supply-issue-icon" />
                 </UButton>
               </UTooltip>
               <UTooltip
@@ -193,6 +194,7 @@ const canUseRadaway = computed(
                 :text="`Issue one Stimpak from vault (${availableStimpaksCount} available)`"
               >
                 <UButton
+                  class="supply-action-btn"
                   variant="ghost"
                   size="xs"
                   aria-label="Issue Stimpack from vault"
@@ -214,13 +216,14 @@ const canUseRadaway = computed(
             <div class="supply-actions">
               <UTooltip v-if="canUseRadaway" text="Use one RadAway (reduces radiation)">
                 <UButton
+                  class="supply-action-btn"
                   variant="secondary"
                   size="xs"
                   aria-label="Use RadAway"
                   :loading="usingRadAway"
                   @click="emit('use-radaway')"
                 >
-                  Use
+                  <Icon icon="mdi:pill" class="supply-issue-icon" />
                 </UButton>
               </UTooltip>
               <UTooltip
@@ -228,6 +231,7 @@ const canUseRadaway = computed(
                 :text="`Issue one RadAway from vault (${availableRadawaysCount} available)`"
               >
                 <UButton
+                  class="supply-action-btn"
                   variant="ghost"
                   size="xs"
                   aria-label="Issue RadAway from vault"
@@ -239,27 +243,6 @@ const canUseRadaway = computed(
               </UTooltip>
             </div>
           </div>
-        </div>
-
-        <div
-          v-if="(dweller.radiation ?? 0) > 0"
-          class="radiation-banner"
-          role="status"
-          :aria-label="`${dweller.radiation} RAD from radiation exposure`"
-        >
-          <Icon icon="mdi:radioactive" class="radiation-icon" :ariaHidden="true" />
-          <span class="radiation-text">{{ dweller.radiation }} HP blocked by radiation</span>
-          <UButton
-            v-if="canUseRadaway"
-            variant="secondary"
-            size="xs"
-            aria-label="Use RadAway to reduce radiation"
-            :loading="usingRadAway"
-            class="radiation-action"
-            @click="emit('use-radaway')"
-          >
-            Use RadAway
-          </UButton>
         </div>
       </div>
     </div>
@@ -468,43 +451,17 @@ const canUseRadaway = computed(
   margin-left: auto;
 }
 
-/* WCAG 2.1 AA touch targets: these micro-actions get hit on phones. */
-.supply-actions :deep(button),
-.radiation-action {
+/* WCAG 2.1 AA touch targets: circular icon buttons, no text to pad. */
+.supply-actions :deep(button) {
   min-width: 2.75rem;
   min-height: 2.75rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  justify-content: center;
 }
 
 .supply-issue-icon {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-.radiation-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--color-warning);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.25);
-}
-
-.radiation-icon {
   width: 1rem;
   height: 1rem;
-  color: var(--color-warning);
-  flex-shrink: 0;
-}
-
-.radiation-text {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--color-warning);
-  white-space: nowrap;
-}
-
-.radiation-action {
-  margin-left: auto;
 }
 </style>

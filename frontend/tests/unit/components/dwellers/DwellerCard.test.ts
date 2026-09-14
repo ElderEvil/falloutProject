@@ -212,44 +212,6 @@ describe('DwellerCard', () => {
     })
   })
 
-  describe('Radiation guidance banner', () => {
-    it('pairs the radiation cause with the inline RadAway action', () => {
-      const wrapper = mount(DwellerCard, {
-        props: { dweller: { ...mockDweller, radiation: 30 }, imageUrl: null, availableRadaways: 2 },
-      })
-
-      const banner = wrapper.find('.radiation-banner')
-      expect(banner.exists()).toBe(true)
-      expect(banner.attributes('role')).toBe('status')
-      expect(banner.text()).toContain('30 HP blocked by radiation')
-      expect(banner.find('[aria-label="Use RadAway to reduce radiation"]').exists()).toBe(true)
-    })
-
-    it('emits use-radaway from the banner action', async () => {
-      const wrapper = mount(DwellerCard, {
-        props: { dweller: { ...mockDweller, radiation: 30 }, imageUrl: null, availableRadaways: 2 },
-      })
-
-      await wrapper.get('[aria-label="Use RadAway to reduce radiation"]').trigger('click')
-      expect(wrapper.emitted('use-radaway')).toBeTruthy()
-    })
-
-    it('omits the banner action when no RadAway can be applied', () => {
-      const wrapper = mount(DwellerCard, {
-        props: { dweller: { ...mockDweller, radiation: 30, radaway: 0 }, imageUrl: null },
-      })
-
-      expect(wrapper.find('.radiation-banner').exists()).toBe(true)
-      expect(wrapper.find('[aria-label="Use RadAway to reduce radiation"]').exists()).toBe(false)
-    })
-
-    it('renders no banner for an unexposed dweller', () => {
-      const wrapper = mount(DwellerCard, { props: { dweller: mockDweller, imageUrl: null } })
-
-      expect(wrapper.find('.radiation-banner').exists()).toBe(false)
-    })
-  })
-
   describe('Away and dead dwellers', () => {
     const actionLabels = (wrapper: ReturnType<typeof mount>) =>
       wrapper

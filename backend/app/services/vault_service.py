@@ -390,6 +390,11 @@ class VaultService:
         await relationship_crud.create_with_defaults(
             db_session, first.id, second.id, relationship_type=SEEDED_COUPLE_STAGE, affinity=SEEDED_COUPLE_AFFINITY
         )
+        bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
+        for dweller in (first, second):
+            await dweller_crud.update(
+                db_session, dweller.id, {"happiness": max(0, min(100, dweller.happiness + bonus))}
+            )
         first_name = f"{first.first_name} {first.last_name or ''}".strip()
         second_name = f"{second.first_name} {second.last_name or ''}".strip()
         await bio_service.append_entry(

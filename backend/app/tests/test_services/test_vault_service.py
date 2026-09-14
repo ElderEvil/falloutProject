@@ -1114,3 +1114,25 @@ class TestSeededFamilies:
         assert children[0].age_group == AgeGroupEnum.CHILD
         assert children[0].apprentice_stat is None
         assert children[0].room_id is None
+
+    async def test_pair_seeded_couple_applies_marriage_bonus(self, async_session, vault) -> None:
+        """Seeded couples start at the normal married happiness state."""
+        from app.crud.relationship import relationship_crud
+        from app.services.dweller_service import dweller_service
+
+        first = await dweller_service.create_random_dweller(
+            async_session, vault.id, DwellerCreateCommonOverride(gender=GenderEnum.MALE)
+        )
+        second = await dweller_service.create_random_dweller(
+            async_session, vault.id, DwellerCreateCommonOverride(gender=GenderEnum.FEMALE)
+        )
+        assert first.happiness == 50
+        await VaultService()._pair_seeded_couple(async_session, first, second)
+
+        bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
+        for dweller_id in (first.id, second.id):
+            dweller = await crud.dweller.get(async_session, dweller_id)
+            assert dweller.happiness == min(100, 50 + bonus)
+        rel = await relationship_crud.get_by_dweller_pair(async_session, first.id, second.id)
+        assert rel is not None
+        assert rel.relationship_type == RelationshipTypeEnum.MARRIED

@@ -80,12 +80,13 @@ const handleDragEnd = () => {
   margin-top: 0.5rem;
   padding: 0.5rem;
   width: 100%;
+  overflow-x: auto;
 }
 
 .dweller-avatar {
   position: relative;
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 28px;
   max-width: 40px;
   aspect-ratio: 1;
   cursor: grab;

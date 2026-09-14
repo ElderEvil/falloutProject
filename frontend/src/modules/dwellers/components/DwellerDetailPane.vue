@@ -11,6 +11,7 @@ import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 import DwellerOverflowMenu from './DwellerOverflowMenu.vue'
+import DwellerRoleMatch from './DwellerRoleMatch.vue'
 import { RevivalSection } from './death'
 import { getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
@@ -73,7 +74,10 @@ const breadcrumbs = computed(() => [
             <span v-if="hasIdentity" class="name-divider" aria-hidden="true" />
             <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" />
           </div>
-          <span v-if="activity" class="activity-caption">{{ activity }}</span>
+          <div class="meta-right">
+            <span v-if="activity" class="activity-caption">{{ activity }}</span>
+            <DwellerRoleMatch />
+          </div>
         </div>
       </div>
     </div>
@@ -193,6 +197,13 @@ const breadcrumbs = computed(() => [
   gap: 0.75rem;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.meta-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .badge-cluster {

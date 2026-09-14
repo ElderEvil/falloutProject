@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.100.1 (2026-09-14)
+
+### Bug Fixes
+
+* **dwellers:** resolve dwellers' portraits against the API origin ([#628](https://github.com/ElderEvil/falloutProject/issues/628)) cbca097
+
 ## 2.100.0 (2026-09-14)
 
 ### Features

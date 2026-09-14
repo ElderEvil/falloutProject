@@ -299,6 +299,11 @@ async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
     # Living space is a merged (size 9) room plus the base room.
     assert [room.size for room in rooms if room.name == "Living room"].count(9) == 1
 
+    # Adjacent seed storage rooms fuse into one merged room at seed time.
+    storages = [room for room in rooms if room.name == "Storage room"]
+    assert len(storages) == 1
+    assert storages[0].size == 9
+
     # More than 32 dwellers, with room to spare.
     assert len(dwellers) > 32
     assert vault.population_max >= len(dwellers)

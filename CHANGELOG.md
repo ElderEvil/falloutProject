@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.99.0 (2026-09-14)
+
+### Features
+
+* **dwellers:** fold the field log behind a count summary ([#623](https://github.com/ElderEvil/falloutProject/issues/623)) 1c34984
+
 ## 2.98.0 (2026-09-14)
 
 ### Features

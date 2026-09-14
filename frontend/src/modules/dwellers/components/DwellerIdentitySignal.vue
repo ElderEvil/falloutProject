@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import DwellerBadge from './DwellerBadge.vue'
 import type { VisualAttributes } from '../models/dweller'
 
 interface Props {
@@ -13,7 +12,6 @@ interface IdentitySignal {
   icon?: string
   monogram?: string
   label: string
-  value: string
 }
 
 const props = withDefaults(defineProps<Props>(), { compact: false })
@@ -63,10 +61,10 @@ const identitySignals = computed<IdentitySignal[]>(() => {
 
   return [attributes.race, attributes.faction, attributes.state_of_being]
     .filter((value): value is NonNullable<typeof value> => value != null)
-    .map((value) => ({
-      ...IDENTITY_CONFIG[value],
-      value: IDENTITY_CONFIG[value]?.label ?? formatLabel(value),
-    }))
+    .map((value) => {
+      const meta = IDENTITY_CONFIG[value]
+      return { icon: meta?.icon, monogram: meta?.monogram, label: meta?.label ?? formatLabel(value) }
+    })
 })
 </script>
 
@@ -76,29 +74,15 @@ const identitySignals = computed<IdentitySignal[]>(() => {
     class="flex flex-wrap items-center gap-1.5"
     aria-label="Dweller identity"
   >
-    <UTooltip
+    <DwellerBadge
       v-for="signal in identitySignals"
-      :key="signal.value"
-      :text="signal.value"
-      position="top"
-    >
-      <div
-        class="flex items-center gap-1.5 rounded-sm border border-theme-primary/40 bg-surface-sunken/70 px-2 py-1 font-mono text-xs text-theme-primary transition-colors hover:border-theme-primary hover:bg-theme-primary/10"
-      >
-        <Icon
-          v-if="signal.icon"
-          :icon="signal.icon"
-          class="h-3.5 w-3.5 shrink-0 text-theme-primary"
-          :ariaHidden="true"
-        />
-        <span
-          v-else
-          class="w-4 shrink-0 text-center font-mono text-[0.65rem] font-bold leading-none tracking-tight"
-          aria-hidden="true"
-          >{{ signal.monogram }}</span
-        >
-        <span v-if="!compact" class="whitespace-nowrap">{{ signal.label }}</span>
-      </div>
-    </UTooltip>
+      :key="signal.label"
+      :icon="signal.icon"
+      :monogram="signal.monogram"
+      color="var(--color-theme-primary)"
+      :label="signal.label"
+      :show-label="!compact"
+      :size="compact ? 'sm' : 'md'"
+    />
   </div>
 </template>

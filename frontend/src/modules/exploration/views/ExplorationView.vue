@@ -469,15 +469,15 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
 .error-icon {
   width: 4rem;
   height: 4rem;
-  color: var(--color-danger, #ef4444);
-  filter: drop-shadow(0 0 10px var(--color-danger, #ef4444));
+  color: var(--color-danger);
+  filter: drop-shadow(0 0 10px var(--color-danger));
 }
 
 .error-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--color-danger, #ef4444);
-  text-shadow: 0 0 6px var(--color-danger, #ef4444);
+  color: var(--color-danger);
+  text-shadow: 0 0 6px var(--color-danger);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }

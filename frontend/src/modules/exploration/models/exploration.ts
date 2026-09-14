@@ -24,13 +24,13 @@ export const EVENT_ICON_MAP: EventMap = {
 }
 
 export const EVENT_COLOR_MAP: EventMap = {
-  combat: '#ff4444',
-  loot: '#FFD700',
-  discovery: '#4169E1',
-  danger: '#ff0000',
-  rest: '#00ced1',
-  item_use: '#00ced1',
-  equip: '#ff9900',
+  combat: 'var(--color-danger)',
+  loot: 'var(--color-rarity-legendary)',
+  discovery: 'var(--color-info)',
+  danger: 'var(--color-danger)',
+  rest: 'var(--color-rarity-rare)',
+  item_use: 'var(--color-rarity-rare)',
+  equip: 'var(--color-warning)',
   default: 'var(--color-theme-primary)',
 }
 

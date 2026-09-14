@@ -9,8 +9,8 @@ const props = defineProps<{
 
 const vitals = computed(() => {
   const items = [
-    { label: 'Health', value: props.exploration.health, icon: 'mdi:heart', color: 'text-[#4caf50]' },
-    { label: 'Radiation', value: props.exploration.radiation, icon: 'mdi:radioactive', color: 'text-[#ffeb3b]' },
+    { label: 'Health', value: props.exploration.health, icon: 'mdi:heart', color: 'text-success' },
+    { label: 'Radiation', value: props.exploration.radiation, icon: 'mdi:radioactive', color: 'text-warning' },
   ]
   return items.filter((v) => v.value != null)
 })
@@ -71,7 +71,7 @@ const vitals = computed(() => {
     >
       <Icon
         icon="mdi:medical-bag"
-        class="mb-1 h-7 w-7 text-[#4caf50] [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
+        class="mb-1 h-7 w-7 text-success [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
         <div
@@ -89,7 +89,7 @@ const vitals = computed(() => {
     >
       <Icon
         icon="mdi:pill"
-        class="mb-1 h-7 w-7 text-[#ffeb3b] [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
+        class="mb-1 h-7 w-7 text-warning [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
         <div
@@ -105,7 +105,7 @@ const vitals = computed(() => {
     >
       <Icon
         icon="mdi:skull"
-        class="mb-1 h-7 w-7 text-[#ff4444] [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
+        class="mb-1 h-7 w-7 text-danger [filter:drop-shadow(0_0_6px_var(--color-theme-glow))]"
       />
       <div class="text-center">
         <div

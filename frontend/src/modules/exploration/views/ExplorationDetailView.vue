@@ -283,8 +283,8 @@ watch(
             class="health-trend mt-4 mb-4 flex flex-wrap items-center gap-4 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3 text-sm"
           >
             <span class="flex items-center gap-1.5">
-              <Icon icon="mdi:heart-broken" class="h-5 w-5 text-[#ff4444]" />
-              <span class="font-bold text-[#ff4444]">-{{ totalDamage }}</span>
+              <Icon icon="mdi:heart-broken" class="h-5 w-5 text-danger" />
+              <span class="font-bold text-danger">-{{ totalDamage }}</span>
               <span class="text-theme-primary/70">damage</span>
             </span>
             <span class="flex items-center gap-1.5">

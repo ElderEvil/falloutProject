@@ -82,7 +82,7 @@ const iconColor = computed(() => {
     case 'medium':
       return 'text-yellow-500'
     default:
-      return 'text-[var(--color-theme-primary)]'
+      return 'text-theme-primary'
   }
 })
 

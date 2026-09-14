@@ -67,9 +67,9 @@ const breadcrumbs = computed(() => [
         <div class="meta-line">
           <div class="meta-left">
             <span class="badge-cluster">
+              <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" />
               <DwellerGenderBadge :gender="dweller.gender" :show-label="true" />
               <DwellerRarityBadge :rarity="dweller.rarity" :show-label="true" />
-              <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" />
             </span>
             <span v-if="hasIdentity" class="name-divider" aria-hidden="true" />
             <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" />

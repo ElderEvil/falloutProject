@@ -48,8 +48,8 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
     :class="[
       'flex flex-col gap-3 rounded-lg border-2 p-4 transition-all duration-200',
       equipped
-        ? 'border-[var(--color-theme-primary)] bg-black/50 shadow-[0_0_12px_var(--color-theme-glow)]'
-        : 'border-[var(--color-theme-glow)] bg-black/30 hover:border-[var(--color-theme-primary)] hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_var(--color-theme-glow)]',
+        ? 'border-theme-primary bg-black/50 shadow-[0_0_12px_var(--color-theme-glow)]'
+        : 'border-(--color-theme-glow) bg-black/30 hover:border-theme-primary hover:bg-black/50 hover:-translate-y-0.5 hover:shadow-glow-md',
     ]"
   >
     <div class="flex items-center gap-3">
@@ -60,22 +60,22 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
         class="h-16 w-16 object-contain"
         @error="onImageError"
       />
-      <Icon v-else :icon="itemIcon" class="h-16 w-16 text-[var(--color-theme-primary)]" />
+      <Icon v-else :icon="itemIcon" class="h-16 w-16 text-theme-primary" />
       <div class="flex-1">
         <h4 class="text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
           {{ item.name }}
         </h4>
-        <p class="text-xs capitalize text-[var(--color-theme-primary)] opacity-70">
+        <p class="text-xs capitalize text-theme-primary opacity-70">
           {{ itemTypeLabel }} • {{ item.rarity }}
         </p>
       </div>
     </div>
 
-    <p class="text-sm leading-snug text-[var(--color-theme-primary)] opacity-80">{{ item.description }}</p>
+    <p class="text-sm leading-snug text-theme-primary opacity-80">{{ item.description }}</p>
 
     <div
       v-if="stats.length > 0"
-      class="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded bg-black/30 p-3 text-sm text-[var(--color-theme-primary)]"
+      class="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded bg-black/30 p-3 text-sm text-theme-primary"
     >
       <div v-for="stat in stats" :key="stat.label" class="flex min-w-0 items-center gap-2">
         <Icon :icon="stat.icon" class="h-4 w-4 shrink-0" />

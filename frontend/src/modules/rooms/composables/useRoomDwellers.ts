@@ -82,12 +82,29 @@ export function useRoomDwellers(
     }
   }
 
+  const handleAssignDweller = async (dwellerId: string): Promise<void> => {
+    if (!room.value) return
+    const token = authStore.token
+    if (typeof token !== 'string') {
+      actionError.value = 'No auth token available'
+      return
+    }
+    try {
+      await dwellerManagementStore.assignDwellerToRoom(dwellerId, room.value.id, token)
+    } catch {
+      actionError.value = 'Failed to assign dweller to room'
+    } finally {
+      emitRoomUpdated()
+    }
+  }
+
   return {
     assignedDwellers,
     dwellerCapacity,
     getAbilityLabel,
     getDwellerStatValue,
     handleUnassignAll,
+    handleAssignDweller,
     openDwellerDetails,
   }
 }

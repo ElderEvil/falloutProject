@@ -140,12 +140,6 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     </h3>
                     <p class="theme-description">{{ theme.description }}</p>
                   </div>
-                  <Icon
-                    v-if="currentTheme.name === theme.name"
-                    icon="mdi:check-circle"
-                    class="check-icon"
-                    :style="{ color: theme.colors.primary }"
-                  />
                 </button>
               </div>
             </UCard>
@@ -450,13 +444,6 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   font-size: 0.75rem;
   color: var(--color-gray-400);
   line-height: 1.2;
-}
-
-.check-icon {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  font-size: 1.25rem;
 }
 
 /* Settings Rows */

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.97.0 (2026-09-14)
+
+### Features
+
+* **dwellers:** rework the dweller detail page ([#621](https://github.com/ElderEvil/falloutProject/issues/621)) 6af21c5
+
 ## 2.96.1 (2026-09-14)
 
 ### Bug Fixes

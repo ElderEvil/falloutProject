@@ -161,7 +161,7 @@ function entryHtml(text: string): string {
 <template>
   <div class="dweller-bio">
     <div class="bio-header">
-      <h3 class="bio-title">Biography</h3>
+      <h3 class="bio-title panel-title">Biography</h3>
       <div class="header-buttons">
         <UTooltip text="Creates or replaces appearance, portrait, and biography" position="top">
           <UButton
@@ -270,13 +270,6 @@ function entryHtml(text: string): string {
   padding-bottom: 0.5rem;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.bio-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .header-buttons {

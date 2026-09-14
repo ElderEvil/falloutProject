@@ -314,6 +314,18 @@ body {
 /* === THEME-AWARE COMPONENT CLASSES === */
 /* These are plain CSS classes that use theme variables */
 
+/* Panel section title — one heading treatment for every detail-panel tab
+   (dweller profile, appearance, stats, equipment, family). */
+.panel-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-theme-primary);
+    text-shadow: 0 0 8px var(--color-theme-glow);
+    border-bottom: 2px solid var(--color-theme-glow);
+    padding-bottom: 0.5rem;
+    margin: 0;
+}
+
 /* Badge intents — see STYLEGUIDE → "Intent & Emphasis Semantics".
    A badge must never out-glow an adjacent button. */
 .badge-info {

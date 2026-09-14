@@ -12,7 +12,7 @@ import DwellerBadge from '../DwellerBadge.vue'
 import DwellerIdentitySignal from '../DwellerIdentitySignal.vue'
 import type { components } from '@/core/types/api.generated'
 import { normalizeImageUrl } from '@/core/utils/image'
-import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '../../models/dweller'
+import { getEffectiveMaxHealth, getHappinessColor, getHappinessLevel, getHealthDisplay, getRadiationPercentage } from '../../models/dweller'
 
 type DwellerDetailRead = components['schemas']['DwellerReadFull']
 
@@ -58,28 +58,7 @@ const healthPercentage = computed(() => {
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.dweller.radiation, props.dweller.max_health))
 
-const happinessLevel = computed(() => {
-  const happiness = props.dweller.happiness || 50
-  if (happiness >= 75) return 'high'
-  if (happiness >= 50) return 'medium'
-  if (happiness >= 25) return 'low'
-  return 'critical'
-})
-
-const happinessColor = computed(() => {
-  switch (happinessLevel.value) {
-    case 'high':
-      return 'var(--color-theme-primary)'
-    case 'medium':
-      return 'var(--color-terminal-green-dark)'
-    case 'low':
-      return 'var(--color-warning)'
-    case 'critical':
-      return 'var(--color-danger)'
-    default:
-      return 'var(--color-theme-primary)'
-  }
-})
+const happinessColor = computed(() => getHappinessColor(getHappinessLevel(props.dweller.happiness)))
 
 const GENDER_META = {
   male: { icon: 'mdi:gender-male', color: '#60a5fa' },
@@ -104,6 +83,10 @@ const canIssueRadaway = computed(() => (props.dweller.radaway || 0) < 15 && (pro
 
 const availableStimpaksCount = computed(() => props.availableStimpaks ?? 0)
 const availableRadawaysCount = computed(() => props.availableRadaways ?? 0)
+
+const showStimpackSection = computed(() => (props.dweller.stimpack || 0) > 0 || availableStimpaksCount.value > 0)
+const showRadawaySection = computed(() => (props.dweller.radaway || 0) > 0 || availableRadawaysCount.value > 0)
+const showInventory = computed(() => showStimpackSection.value || showRadawaySection.value)
 
 const canUseStimpak = computed(
   () => (props.dweller.stimpack || 0) > 0 && props.dweller.health < getEffectiveMaxHealth(props.dweller.radiation, props.dweller.max_health)
@@ -181,8 +164,8 @@ const canUseRadaway = computed(
 
       <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 
-      <div class="inventory-stats">
-        <div class="inventory-item">
+      <div v-if="showInventory" class="inventory-stats">
+        <div v-if="showStimpackSection" class="inventory-item">
           <Icon icon="mdi:medical-bag" class="h-5 w-5 text-green-500 inventory-type-icon" />
           <div class="inventory-count">
             <span class="inventory-value">{{ dweller.stimpack || 0 }}</span>
@@ -219,7 +202,7 @@ const canUseRadaway = computed(
           </div>
         </div>
 
-        <div class="inventory-item">
+        <div v-if="showRadawaySection" class="inventory-item">
           <Icon icon="mdi:radiation" class="h-5 w-5 text-yellow-500 inventory-type-icon" />
           <div class="inventory-count">
             <span class="inventory-value">{{ dweller.radaway || 0 }}</span>

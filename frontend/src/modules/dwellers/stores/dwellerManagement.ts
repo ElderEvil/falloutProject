@@ -7,6 +7,7 @@ import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
+import { useRoomStore } from '@/modules/rooms/stores/room'
 import { getLineage, type LineageResponse } from '../services/lineageService'
 
 type AutoAssignResponse = components['schemas']['AutoAssignResponse']
@@ -141,6 +142,43 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         )?.response?.data?.detail || 'Failed to auto-assign dweller'
       handleStoreError(error, `Failed to auto-assign dweller ${dwellerId}`)
       toast.error(errorMessage)
+      return null
+    }
+  }
+
+  async function assignApprenticeToRoom(
+    dwellerId: string,
+    vaultId: string,
+    token: string
+  ): Promise<Dweller | null> {
+    const roomStore = useRoomStore()
+    try {
+      await roomStore.fetchRooms(vaultId, token)
+      await filterStore.fetchAllDwellers(vaultId, token)
+    } catch (error) {
+      handleStoreError(error, 'Failed to load rooms for apprentice assignment')
+      toast.error('Could not load production rooms')
+      return null
+    }
+
+    const occupiedRoomIds = new Set(
+      filterStore.dwellers
+        .filter((d) => d.apprentice_stat && d.room_id)
+        .map((d) => d.room_id as string)
+    )
+    const target = roomStore.rooms.find(
+      (room) => room.category === 'production' && room.ability && !occupiedRoomIds.has(room.id)
+    )
+    if (!target) {
+      toast.error('Every production room already has an apprentice')
+      return null
+    }
+
+    try {
+      const assigned = await assignDwellerToRoom(dwellerId, target.id, token)
+      toast.success(`Apprenticed in ${target.name}`)
+      return assigned
+    } catch {
       return null
     }
   }
@@ -369,6 +407,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     unassignDwellerFromRoom,
     softDeleteDweller,
     autoAssignToRoom,
+    assignApprenticeToRoom,
     renameDweller,
     updateVisualAttributes,
     unassignAllDwellers,

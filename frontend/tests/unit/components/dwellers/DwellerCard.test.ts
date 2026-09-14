@@ -39,6 +39,8 @@ describe('DwellerCard', () => {
     stimpack: 2,
     radaway: 1,
     status: 'idle',
+    is_adult: true,
+    age_group: 'adult',
     room: null,
   } as any
 
@@ -305,6 +307,38 @@ describe('DwellerCard', () => {
 
       expect(recallButton).toBeUndefined()
     })
+
+    it('disables send to wasteland for a child', () => {
+      const childDweller = { ...mockDweller, is_adult: false, age_group: 'child' }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: childDweller,
+          imageUrl: null,
+        },
+      })
+
+      const sendButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Send to Wasteland'))
+
+      expect(sendButton).toBeDefined()
+      expect(sendButton!.props('disabled')).toBe(true)
+    })
+
+    it('enables send to wasteland for an adult', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: null,
+        },
+      })
+
+      const sendButton = wrapper
+        .findAllComponents({ name: 'UButton' })
+        .find((btn) => btn.text().includes('Send to Wasteland'))
+
+      expect(sendButton!.props('disabled')).toBeFalsy()
+    })
   })
 
   describe('Item Usage', () => {
@@ -321,12 +355,25 @@ describe('DwellerCard', () => {
       expect(useStimpakBtn.attributes('disabled')).toBeUndefined()
     })
 
-    it('should disable stimpack use button when no stimpacks', () => {
+    it('hides the stimpack row when nothing can be used or issued', () => {
       const dwellerNoStimpack = { ...mockDweller, stimpack: 0 }
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: dwellerNoStimpack,
           imageUrl: null,
+        },
+      })
+
+      expect(wrapper.find('[aria-label="Use Stimpack"]').exists()).toBe(false)
+    })
+
+    it('shows the stimpack row when the vault can issue one', () => {
+      const dwellerNoStimpack = { ...mockDweller, stimpack: 0 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: dwellerNoStimpack,
+          imageUrl: null,
+          availableStimpaks: 3,
         },
       })
 
@@ -388,8 +435,8 @@ describe('DwellerCard', () => {
     })
   })
 
-  describe('Coming Soon Features', () => {
-    it('should show locked train stats button', () => {
+  describe('Contextual Room Actions', () => {
+    it('should show only Assign to Room when unassigned', () => {
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: mockDweller,
@@ -397,20 +444,33 @@ describe('DwellerCard', () => {
         },
       })
 
-      const trainButton = wrapper.find('.locked-action-button')
-      expect(trainButton.exists()).toBe(true)
-      expect(wrapper.text()).toContain('Train Stats')
+      expect(wrapper.text()).toContain('Assign to Room')
+      expect(wrapper.text()).not.toContain('Unassign from Room')
     })
 
-    it('should show locked assign pet button', () => {
+    it('should show only Unassign from Room when assigned', () => {
       const wrapper = mount(DwellerCard, {
         props: {
-          dweller: mockDweller,
+          dweller: { ...mockDweller, room: { id: 'r1', name: 'Diner' } },
           imageUrl: null,
         },
       })
 
-      expect(wrapper.text()).toContain('Assign Pet')
+      expect(wrapper.text()).toContain('Unassign from Room')
+      expect(wrapper.text()).not.toContain('Assign to Room')
+    })
+
+    it('labels the assign action as an apprenticeship for youth', () => {
+      const childDweller = { ...mockDweller, is_adult: false, age_group: 'child' }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: childDweller,
+          imageUrl: null,
+        },
+      })
+
+      expect(wrapper.text()).toContain('Assign as Apprentice')
+      expect(wrapper.text()).not.toContain('Assign to Room')
     })
   })
 
@@ -427,20 +487,6 @@ describe('DwellerCard', () => {
       const trainTooltip = tooltips.find((t) => t.props('text')?.includes('Train SPECIAL stats'))
 
       expect(trainTooltip).toBeDefined()
-    })
-
-    it('should have tooltip for assign pet button', () => {
-      const wrapper = mount(DwellerCard, {
-        props: {
-          dweller: mockDweller,
-          imageUrl: null,
-        },
-      })
-
-      const tooltips = wrapper.findAllComponents({ name: 'UTooltip' })
-      const petTooltip = tooltips.find((t) => t.props('text')?.includes('Assign a pet companion'))
-
-      expect(petTooltip).toBeDefined()
     })
   })
 })

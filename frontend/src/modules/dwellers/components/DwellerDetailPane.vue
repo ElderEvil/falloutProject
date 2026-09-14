@@ -6,7 +6,9 @@ import UButton from '@/core/components/ui/UButton.vue'
 import DwellerCard from './cards/DwellerCard.vue'
 import DwellerPanel from './DwellerPanel.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
+import DwellerAlertLine from './DwellerAlertLine.vue'
 import { RevivalSection } from './death'
+import { getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -14,6 +16,7 @@ const ctx = useDwellerDetailContext()
 const dweller = computed(() => ctx.dweller.value!)
 const isDead = computed(() => dweller.value.is_dead === true)
 const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
+const activity = computed(() => getActivitySummary(dweller.value))
 const breadcrumbs = computed(() => [
   { label: 'Vault', to: `/vault/${ctx.vaultId.value}` },
   { label: 'Dwellers', to: `/vault/${ctx.vaultId.value}/dwellers` },
@@ -33,32 +36,36 @@ const breadcrumbs = computed(() => [
 
       <div class="header-info">
         <div class="name-section">
-          <h1 class="dweller-name cursor-pointer select-none" @click="ctx.actions.onHeaderNameClick()">
-            {{ dweller.first_name }} {{ dweller.last_name }}
-          </h1>
-          <UButton
-            v-if="!isDead"
-            @click="ctx.actions.openRenameDialog()"
-            variant="ghost"
-            size="sm"
-            class="rename-btn"
-          >
-            <Icon icon="mdi:pencil" class="h-4 w-4" />
-          </UButton>
-          <UButton
-            v-if="!isDead"
-            @click="ctx.actions.openSoftDeleteDialog()"
-            variant="ghost"
-            size="sm"
-            class="soft-delete-btn"
-            title="Soft-delete this dweller (makes them tradable at the Trading Post)"
-            aria-label="Soft-delete dweller"
-          >
-            <Icon icon="mdi:account-remove" class="h-4 w-4" />
-          </UButton>
+          <div class="name-row">
+            <h1 class="dweller-name cursor-pointer select-none" @click="ctx.actions.onHeaderNameClick()">
+              {{ dweller.first_name }} {{ dweller.last_name }}
+            </h1>
+            <UButton
+              v-if="!isDead"
+              @click="ctx.actions.openRenameDialog()"
+              variant="ghost"
+              size="sm"
+              class="rename-btn"
+            >
+              <Icon icon="mdi:pencil" class="h-4 w-4" />
+            </UButton>
+            <UButton
+              v-if="!isDead"
+              @click="ctx.actions.openSoftDeleteDialog()"
+              variant="ghost"
+              size="sm"
+              class="soft-delete-btn"
+              title="Soft-delete this dweller (makes them tradable at the Trading Post)"
+              aria-label="Soft-delete dweller"
+            >
+              <Icon icon="mdi:account-remove" class="h-4 w-4" />
+            </UButton>
+          </div>
+          <span class="activity-caption">{{ activity }}</span>
         </div>
         <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
       </div>
+      <DwellerAlertLine />
     </div>
 
     <!-- Two-Column Layout -->
@@ -99,14 +106,14 @@ const breadcrumbs = computed(() => [
         <!-- Permanently Dead Notice -->
         <div
           v-else-if="isPermanentlyDead"
-          class="bg-gray-900 border border-red-500/30 rounded-lg p-4 text-center"
+          class="permanent-death-notice"
         >
-          <Icon icon="mdi:grave-stone" class="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <h3 class="text-lg font-bold text-red-500 mb-1">Permanently Deceased</h3>
-          <p class="text-gray-400 text-sm">
+          <Icon icon="mdi:grave-stone" class="permanent-death-icon" />
+          <h3 class="permanent-death-title">Permanently Deceased</h3>
+          <p class="permanent-death-text">
             This dweller has passed beyond the revival window.
           </p>
-          <p v-if="dweller.epitaph" class="text-theme-primary/60 italic mt-3 text-sm">
+          <p v-if="dweller.epitaph" class="permanent-death-epitaph">
             "{{ dweller.epitaph }}"
           </p>
         </div>
@@ -140,8 +147,22 @@ const breadcrumbs = computed(() => [
 
 .name-section {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.name-row {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.activity-caption {
+  font-size: 0.8rem;
+  color: var(--color-theme-primary);
+  opacity: 0.65;
+  letter-spacing: 0.02em;
 }
 
 .dweller-name {
@@ -176,6 +197,40 @@ const breadcrumbs = computed(() => [
   grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
+}
+
+.permanent-death-notice {
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+}
+
+.permanent-death-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  color: var(--color-gray-500);
+}
+
+.permanent-death-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-danger);
+  margin-bottom: 0.25rem;
+}
+
+.permanent-death-text {
+  font-size: 0.875rem;
+  color: var(--color-gray-400);
+}
+
+.permanent-death-epitaph {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
 }
 
 @media (max-width: 1280px) {

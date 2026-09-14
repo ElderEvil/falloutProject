@@ -9,7 +9,7 @@ import { useSendToWasteland } from '@/modules/exploration/composables/useSendToW
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getVaultMap } from '@/modules/map/services/mapService'
-import type { Dweller, MapPlaceLink, RevivalCostResponse } from '../models/dweller'
+import { isMature, type Dweller, type MapPlaceLink, type RevivalCostResponse } from '../models/dweller'
 
 export interface DwellerDetailActions {
   assign(): void
@@ -223,10 +223,20 @@ export function useDwellerDetail(dwellerId: Ref<string>, vaultId: Ref<string>): 
   }
 
   const handleAssign = () =>
-    runAction(() => dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string), {
-      flag: assigning,
-      errorMessage: 'Failed to assign dweller automatically',
-    })
+    runAction(
+      () =>
+        dweller.value && isMature(dweller.value)
+          ? dwellerManagementStore.autoAssignToRoom(dwellerId.value, authStore.token as string)
+          : dwellerManagementStore.assignApprenticeToRoom(
+              dwellerId.value,
+              vaultId.value,
+              authStore.token as string
+            ),
+      {
+        flag: assigning,
+        errorMessage: 'Failed to assign dweller to a room',
+      }
+    )
   const handleUnassign = () =>
     runAction(() => dwellerManagementStore.unassignDwellerFromRoom(dwellerId.value, authStore.token as string), {
       flag: unassigning,

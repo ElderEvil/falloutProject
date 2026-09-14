@@ -62,7 +62,7 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
 
 <template>
   <div class="dweller-stats">
-    <h3 class="stats-title">S.P.E.C.I.A.L.</h3>
+    <h3 class="stats-title panel-title">S.P.E.C.I.A.L.</h3>
     <div class="stats-grid">
       <div
         v-for="stat in stats"
@@ -91,15 +91,6 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.stats-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: var(--glow-1);
-  border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0.375rem;
 }
 
 .stats-grid {

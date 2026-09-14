@@ -235,3 +235,52 @@ export function getStatusConfig(status: string | null | undefined): StatusConfig
   if (!status) return STATUS_CONFIG_MAP.unknown!
   return STATUS_CONFIG_MAP[status] ?? STATUS_CONFIG_MAP.unknown!
 }
+
+export type HappinessLevel = 'high' | 'medium' | 'low' | 'critical'
+
+/** Happiness band shared by the detail card and the status strip. */
+export function getHappinessLevel(happiness: number | null | undefined): HappinessLevel {
+  const value = happiness ?? 50
+  if (value >= 75) return 'high'
+  if (value >= 50) return 'medium'
+  if (value >= 25) return 'low'
+  return 'critical'
+}
+
+/** Theme color for a happiness band. */
+export function getHappinessColor(level: HappinessLevel): string {
+  switch (level) {
+    case 'high':
+      return 'var(--color-theme-primary)'
+    case 'medium':
+      return 'var(--color-terminal-green-dark)'
+    case 'low':
+      return 'var(--color-warning)'
+    case 'critical':
+      return 'var(--color-danger)'
+  }
+}
+
+/** One-line plain-language activity for the status strip. */
+export function getActivitySummary(dweller: Pick<Dweller, 'status' | 'room' | 'is_dead'>): string {
+  if (dweller.is_dead) return 'Deceased'
+  const roomName = dweller.room?.name ?? null
+  switch (dweller.status) {
+    case 'exploring':
+    case 'questing':
+    case 'training':
+    case 'working':
+    case 'fighting':
+    case 'resting': {
+      const label = getStatusConfig(dweller.status).label
+      return roomName ? `${label} · ${roomName}` : label
+    }
+    default:
+      return roomName ?? 'Unassigned'
+  }
+}
+
+/** Adult by both flags, mirroring the backend's ``Dweller.is_mature``. */
+export function isMature(dweller: Pick<Dweller, 'is_adult' | 'age_group'>): boolean {
+  return dweller.is_adult && dweller.age_group === 'adult'
+}

@@ -85,7 +85,7 @@ const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.ke
 <template>
   <div class="appearance-container">
     <div class="appearance-header">
-      <h3 class="appearance-title">Appearance</h3>
+      <h3 class="appearance-title panel-title">Appearance</h3>
       <div class="header-buttons">
         <UTooltip
           v-if="canGenerateAppearance"
@@ -146,13 +146,6 @@ const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.ke
   margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 0.5rem;
-}
-
-.appearance-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .header-buttons {

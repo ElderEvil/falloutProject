@@ -3,7 +3,7 @@ import { onKeyStroke } from '@vueuse/core'
 import apiClient from '@/core/plugins/axios'
 import type { useChatWebSocket } from '@/core/composables/useWebSocket'
 import { handleStoreError } from '@/core/utils/errorHandler'
-import { normalizeImageUrl } from '@/core/utils/image'
+import { getStaticImageUrl } from '@/core/utils/image'
 import { useSound } from '@/core/composables/useSound'
 import type { ChatMessageDisplay, MapDiscovery } from '@/modules/chat/models/chat'
 
@@ -61,7 +61,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
       : options.token?.value
 
   const userAvatar = computed(() => toValue(options.userImageUrl) ?? null)
-  const dwellerAvatarUrl = computed(() => normalizeImageUrl(options.dwellerAvatar))
+  const dwellerAvatarUrl = computed(() => getStaticImageUrl(options.dwellerAvatar))
 
   const canSend = computed(() => userMessage.value.trim().length > 0)
 

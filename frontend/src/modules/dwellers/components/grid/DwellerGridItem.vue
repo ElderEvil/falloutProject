@@ -74,7 +74,7 @@ const getStatColorClass = (value: number) => {
         <DwellerPortrait
           :thumbnail-url="dweller.thumbnail_url"
           alt=""
-          url-mode="static"
+
           image-class="thumbnail-image"
         />
       </template>

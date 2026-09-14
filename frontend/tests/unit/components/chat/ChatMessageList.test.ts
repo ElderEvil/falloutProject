@@ -110,7 +110,7 @@ describe('ChatMessageList', () => {
     // With avatar -> img with the dweller's name as alt
     const withAvatar = mountList(dwellerMessage, { dwellerAvatarUrl: '/media/thumbs/amata.png' })
     const img = withAvatar.find('img.avatar-image')
-    expect(img.attributes('src')).toBe('/media/thumbs/amata.png')
+    expect(img.attributes('src')).toBe('http://localhost:8000/media/thumbs/amata.png')
     expect(img.attributes('alt')).toBe('Amata')
   })
 
@@ -123,7 +123,7 @@ describe('ChatMessageList', () => {
 
     const withAvatar = mountList(userMessage, { userAvatarUrl: '/media/avatars/overseer.png' })
     const img = withAvatar.find('img.avatar-image')
-    expect(img.attributes('src')).toBe('/media/avatars/overseer.png')
+    expect(img.attributes('src')).toBe('http://localhost:8000/media/avatars/overseer.png')
     expect(img.attributes('alt')).toBe('Overseer')
   })
 

@@ -36,7 +36,7 @@ function activate() {
       <DwellerPortrait
         :thumbnail-url="dweller.thumbnail_url"
         alt=""
-        url-mode="static"
+
         fallback-icon="mdi:account-circle"
         image-class="h-16 w-16 rounded object-cover"
         fallback-class="h-16 w-16 text-theme-primary/60"

@@ -234,9 +234,11 @@ const breadcrumbs = computed(() => [
   letter-spacing: -0.5px;
 }
 
+/* Card column grows with the reclaimed panel width; the page keeps the same
+   full-width bounding box the other views use. */
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(400px, 27rem) minmax(0, 1fr);
+  grid-template-columns: minmax(400px, 31rem) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: stretch;
 }

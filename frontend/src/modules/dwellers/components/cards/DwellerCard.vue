@@ -169,78 +169,60 @@ const canUseRadaway = computed(
 
         <XPProgressBar :level="dweller.level" :current-x-p="dweller.experience" />
 
+        <div v-if="showInventory" class="supplies-divider" aria-hidden="true"></div>
+
         <div v-if="showInventory" class="supplies">
           <div v-if="showStimpackSection" class="supply-row supply-stimpack">
-            <Icon icon="mdi:medical-bag" class="supply-icon" :ariaHidden="true" />
-            <span class="supply-name">Stimpack</span>
-            <UTooltip :text="`Carrying ${dweller.stimpack || 0} of 15`">
-              <span class="supply-count">{{ dweller.stimpack || 0 }}</span>
-            </UTooltip>
+            <span class="supply-label">Stimpack {{ dweller.stimpack || 0 }}</span>
             <div class="supply-actions">
-              <UTooltip v-if="canUseStimpak" text="Use one Stimpak (heals dweller)">
-                <UButton
-                  class="supply-action-btn"
-                  variant="secondary"
-                  size="xs"
-                  aria-label="Use Stimpack"
-                  :loading="usingStimpak"
-                  @click="emit('use-stimpak')"
-                >
-                  <Icon icon="mdi:needle" class="supply-issue-icon" />
-                </UButton>
-              </UTooltip>
-              <UTooltip
+              <UButton
                 v-if="canIssueStimpack"
-                :text="`Issue one Stimpak from vault (${availableStimpaksCount} available)`"
+                variant="ghost"
+                size="xs"
+                aria-label="Issue Stimpack from vault"
+                :title="`Issue one from vault stock (${availableStimpaksCount} in vault)`"
+                :loading="issuingMedicalSupply"
+                @click="emit('issue-medical-supply', 'stimpack')"
               >
-                <UButton
-                  class="supply-action-btn"
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Issue Stimpack from vault"
-                  :loading="issuingMedicalSupply"
-                  @click="emit('issue-medical-supply', 'stimpack')"
-                >
-                  <Icon icon="mdi:plus" class="supply-issue-icon" />
-                </UButton>
-              </UTooltip>
+                Get ×{{ availableStimpaksCount }}
+              </UButton>
+              <UButton
+                v-if="canUseStimpak"
+                variant="secondary"
+                size="xs"
+                aria-label="Use Stimpack"
+                :loading="usingStimpak"
+                @click="emit('use-stimpak')"
+              >
+                Use
+              </UButton>
             </div>
           </div>
 
           <div v-if="showRadawaySection" class="supply-row supply-radaway">
-            <Icon icon="mdi:radiation" class="supply-icon" :ariaHidden="true" />
-            <span class="supply-name">RadAway</span>
-            <UTooltip :text="`Carrying ${dweller.radaway || 0} of 15`">
-              <span class="supply-count">{{ dweller.radaway || 0 }}</span>
-            </UTooltip>
+            <span class="supply-label">RadAway {{ dweller.radaway || 0 }}</span>
             <div class="supply-actions">
-              <UTooltip v-if="canUseRadaway" text="Use one RadAway (reduces radiation)">
-                <UButton
-                  class="supply-action-btn"
-                  variant="secondary"
-                  size="xs"
-                  aria-label="Use RadAway"
-                  :loading="usingRadAway"
-                  @click="emit('use-radaway')"
-                >
-                  <Icon icon="mdi:pill" class="supply-issue-icon" />
-                </UButton>
-              </UTooltip>
-              <UTooltip
+              <UButton
                 v-if="canIssueRadaway"
-                :text="`Issue one RadAway from vault (${availableRadawaysCount} available)`"
+                variant="ghost"
+                size="xs"
+                aria-label="Issue RadAway from vault"
+                :title="`Issue one from vault stock (${availableRadawaysCount} in vault)`"
+                :loading="issuingMedicalSupply"
+                @click="emit('issue-medical-supply', 'radaway')"
               >
-                <UButton
-                  class="supply-action-btn"
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Issue RadAway from vault"
-                  :loading="issuingMedicalSupply"
-                  @click="emit('issue-medical-supply', 'radaway')"
-                >
-                  <Icon icon="mdi:plus" class="supply-issue-icon" />
-                </UButton>
-              </UTooltip>
+                Get ×{{ availableRadawaysCount }}
+              </UButton>
+              <UButton
+                v-if="canUseRadaway"
+                variant="secondary"
+                size="xs"
+                aria-label="Use RadAway"
+                :loading="usingRadAway"
+                @click="emit('use-radaway')"
+              >
+                Use
+              </UButton>
             </div>
           </div>
         </div>
@@ -404,16 +386,23 @@ const canUseRadaway = computed(
 }
 
 /* Supplies: one compact row per item, with an action only when that action is
-   actually available. */
+   actually available. The dashed rule above reads as the terminal section
+   separator, so supplies read as their own zone under the bars. */
+.supplies-divider {
+  margin: 0.25rem 0 0.5rem;
+  border-bottom: 1px dashed var(--color-theme-glow);
+  opacity: 0.6;
+}
+
 .supplies {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.55rem 0.6rem;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
 }
 
 .supply-row {
@@ -423,45 +412,27 @@ const canUseRadaway = computed(
   min-width: 0;
 }
 
-.supply-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-  opacity: 0.8;
-}
-
-.supply-name {
-  font-size: 0.7rem;
+.supply-label {
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  opacity: 0.7;
-}
-
-.supply-count {
-  font-weight: 700;
-  font-size: 0.85rem;
+  opacity: 0.8;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 6px var(--color-theme-glow);
+  white-space: nowrap;
 }
 
+/* Actions stretch across the rest of the row; plain UButton kit styling.
+   Only the shared 44px touch height is enforced. */
 .supply-actions {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-left: auto;
+  justify-content: flex-end;
+  flex: 1;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
-/* WCAG 2.1 AA touch targets: circular icon buttons, no text to pad. */
 .supply-actions :deep(button) {
-  min-width: 2.75rem;
   min-height: 2.75rem;
-  padding: 0.25rem;
-  border-radius: 999px;
-  justify-content: center;
-}
-
-.supply-issue-icon {
-  width: 1rem;
-  height: 1rem;
 }
 </style>

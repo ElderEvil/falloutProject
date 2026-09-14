@@ -33,6 +33,11 @@ const isTraining = computed(() => {
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
+/** Away dwellers are out of the vault: room, training and wasteland actions do not apply. */
+const isAway = computed(
+  () => props.dweller.status === 'exploring' || props.dweller.status === 'questing'
+)
+const isGone = computed(() => isAway.value || props.dweller.is_dead)
 const exploreTooltip = computed(() =>
   isMatureDweller.value
     ? 'Send this dweller into the wasteland to scavenge for loot'
@@ -48,7 +53,7 @@ const exploreTooltip = computed(() =>
     </UButton>
 
     <UButton
-      v-if="dweller.room === null"
+      v-if="dweller.room === null && !isGone"
       variant="secondary"
       size="md"
       block
@@ -64,7 +69,7 @@ const exploreTooltip = computed(() =>
     </UButton>
 
     <UButton
-      v-else
+      v-else-if="!isGone"
       variant="secondary"
       size="md"
       block
@@ -78,7 +83,7 @@ const exploreTooltip = computed(() =>
 
     <UTooltip :text="exploreTooltip">
       <UButton
-        v-if="!isExploring && !dweller.is_dead"
+        v-if="!isGone"
         variant="secondary"
         size="md"
         block
@@ -106,6 +111,7 @@ const exploreTooltip = computed(() =>
 
     <UTooltip text="Train SPECIAL stats to improve dweller abilities">
       <UButton
+        v-if="!isGone"
         variant="secondary"
         size="md"
         block

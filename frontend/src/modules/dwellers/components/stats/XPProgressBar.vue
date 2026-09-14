@@ -53,7 +53,15 @@ const barAnimation = computed(() => {
   <div class="xp-bar-container">
     <div class="stat-row">
       <span class="stat-label">Experience</span>
-      <span class="stat-value" :class="{ 'max-level': isMaxLevel }" :title="`${xpInCurrentLevel} of ${xpNeededForNextLevel} XP this level`">
+      <span
+        class="stat-value"
+        :class="{ 'max-level': isMaxLevel }"
+        :title="
+          isMaxLevel
+            ? 'Maximum level reached'
+            : `${xpInCurrentLevel} of ${xpNeededForNextLevel} XP this level`
+        "
+      >
         <template v-if="!isMaxLevel">
           {{ xpInCurrentLevel }}/{{ xpNeededForNextLevel }}
         </template>

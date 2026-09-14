@@ -158,8 +158,85 @@ describe('DwellerCard', () => {
       expect(progressBar.exists()).toBe(true)
       expect(progressBar.props('modelValue')).toBe(80)
     })
+
+    it('describes the maximum level instead of a negative XP remainder', () => {
+      const maxedDweller = { ...mockDweller, level: 50, experience: 50000 }
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: maxedDweller,
+          imageUrl: null,
+        },
+      })
+
+      const value = wrapper.find('.xp-bar-container .stat-value')
+      expect(value.classes()).toContain('max-level')
+      expect(value.attributes('title')).not.toMatch(/-\d/)
+      expect(value.attributes('title')).toContain('Maximum level')
+    })
   })
 
+  describe('Away and dead dwellers', () => {
+    const actionLabels = (wrapper: ReturnType<typeof mount>) =>
+      wrapper
+        .findAllComponents({ name: 'UButton' })
+        .map((btn) => btn.text().trim())
+        .filter(Boolean)
+
+    it('replaces the room actions with Recall while exploring', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'exploring', room: null },
+          imageUrl: null,
+        },
+      })
+
+      const labels = actionLabels(wrapper)
+      expect(labels).toContain('Recall')
+      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Wasteland')
+      expect(labels).not.toContain('Train')
+    })
+
+    it('withholds vault actions from a questing dweller', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'questing', room: null },
+          imageUrl: null,
+        },
+      })
+
+      const labels = actionLabels(wrapper)
+      expect(labels).toContain('Chat')
+      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Wasteland')
+      expect(labels).not.toContain('Train')
+    })
+
+    it('offers no vault actions for a dead dweller', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_dead: true, room: null },
+          imageUrl: null,
+        },
+      })
+
+      const labels = actionLabels(wrapper)
+      expect(labels).not.toContain('Assign')
+      expect(labels).not.toContain('Wasteland')
+      expect(labels).not.toContain('Train')
+    })
+
+    it('does not offer Unassign for a dead dweller that still has a room', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, is_dead: true, room: { id: 'r1', name: 'Diner' } },
+          imageUrl: null,
+        },
+      })
+
+      expect(actionLabels(wrapper)).not.toContain('Unassign')
+    })
+  })
   describe('Inventory Display', () => {
     it('lets the overseer issue one supply from the counter', async () => {
       const wrapper = mount(DwellerCard, {

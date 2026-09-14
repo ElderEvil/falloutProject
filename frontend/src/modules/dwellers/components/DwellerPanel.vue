@@ -18,7 +18,8 @@ watch(
 )
 
 const tabs = dwellerDetailSections.map(({ key, label }) => ({ key, label }))
-const sectionComponent = (key: string) => dwellerDetailSections.find((section) => section.key === key)?.component
+const sectionComponent = (key: string) =>
+  dwellerDetailSections.find((section) => section.key === key)?.component
 </script>
 
 <template>
@@ -43,8 +44,7 @@ const sectionComponent = (key: string) => dwellerDetailSections.find((section) =
   box-shadow: 0 0 15px var(--color-theme-glow);
 }
 
-
 .tab-content {
-  min-height: 400px;
+  min-height: 0;
 }
 </style>

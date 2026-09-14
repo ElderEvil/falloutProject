@@ -19,4 +19,16 @@ export const dwellersRoutes: RouteRecordRaw[] = [
     component: () => import('../views/DwellerDetailView.vue'),
     meta: { requiresAuth: true, hideFromNav: true, parentRoute: '/vault/:id/dwellers' },
   },
+  {
+    path: '/design/dweller-panels',
+    name: 'dwellerPanelLab',
+    component: () => import('../views/PanelHeaderLabView.vue'),
+    meta: { hideFromNav: true },
+  },
+  {
+    path: '/design/dweller-page',
+    name: 'dwellerPageLab',
+    component: () => import('../views/DwellerPageLabView.vue'),
+    meta: { hideFromNav: true },
+  },
 ]

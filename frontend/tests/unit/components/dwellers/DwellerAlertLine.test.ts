@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { ref } from 'vue'
 import DwellerAlertLine from '@/modules/dwellers/components/DwellerAlertLine.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 const healthyAdult = {
@@ -56,7 +59,12 @@ describe('DwellerAlertLine', () => {
   })
 
   it('flags an unassigned youth as missing an apprenticeship', () => {
-    const wrapper = mountAlertLine({ room: null, status: 'idle', is_adult: false, age_group: 'child' })
+    const wrapper = mountAlertLine({
+      room: null,
+      status: 'idle',
+      is_adult: false,
+      age_group: 'child',
+    })
 
     expect(wrapper.text()).toContain('Unassigned — no apprenticeship')
   })

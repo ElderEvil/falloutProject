@@ -15,8 +15,8 @@ const props = withDefaults(
 )
 
 const GENDER_META: Record<Gender, { color: string; icon: string; label: string }> = {
-  male: { color: '#60a5fa', icon: 'mdi:gender-male', label: 'Male' },
-  female: { color: '#f472b6', icon: 'mdi:gender-female', label: 'Female' },
+  male: { color: 'var(--badge-gender-male)', icon: 'mdi:gender-male', label: 'Male' },
+  female: { color: 'var(--badge-gender-female)', icon: 'mdi:gender-female', label: 'Female' },
 }
 
 const meta = computed(() => {

@@ -52,11 +52,15 @@ const exploreTooltip = computed(() =>
       variant="secondary"
       size="md"
       block
+      :title="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
       @click="emit('assign')"
       :disabled="loading"
     >
-      <Icon :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'" class="h-5 w-5 mr-2" />
-      {{ isMatureDweller ? 'Assign to Room' : 'Assign as Apprentice' }}
+      <Icon
+        :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
+        class="h-5 w-5 mr-2"
+      />
+      {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
     </UButton>
 
     <UButton
@@ -64,11 +68,12 @@ const exploreTooltip = computed(() =>
       variant="secondary"
       size="md"
       block
+      title="Unassign from the current room"
       @click="emit('unassign')"
       :disabled="loading"
     >
       <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
-      Unassign from Room
+      Unassign
     </UButton>
 
     <UTooltip :text="exploreTooltip">
@@ -77,11 +82,12 @@ const exploreTooltip = computed(() =>
         variant="secondary"
         size="md"
         block
+        title="Send to the wasteland"
         @click="emit('send-wasteland')"
         :disabled="loading || !isMatureDweller"
       >
         <Icon icon="mdi:map-marker-radius" class="h-5 w-5 mr-2" />
-        Send to Wasteland
+        Wasteland
       </UButton>
     </UTooltip>
 
@@ -90,11 +96,12 @@ const exploreTooltip = computed(() =>
       variant="secondary"
       size="md"
       block
+      title="Recall from the wasteland"
       @click="emit('recall')"
       :disabled="loading"
     >
       <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
-      Recall from Wasteland
+      Recall
     </UButton>
 
     <UTooltip text="Train SPECIAL stats to improve dweller abilities">
@@ -106,7 +113,7 @@ const exploreTooltip = computed(() =>
         :disabled="loading || isTraining"
       >
         <Icon icon="mdi:school" class="h-5 w-5 mr-2" />
-        {{ isTraining ? 'Training In Progress' : 'Train Stats' }}
+        {{ isTraining ? 'Training…' : 'Train' }}
       </UButton>
     </UTooltip>
   </div>
@@ -114,9 +121,14 @@ const exploreTooltip = computed(() =>
 
 <style scoped>
 .actions-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+/* Chat is the primary action, so it keeps a full-width row of its own. */
+.actions-container > :first-child {
+  grid-column: 1 / -1;
 }
 </style>

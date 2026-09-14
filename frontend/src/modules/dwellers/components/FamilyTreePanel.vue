@@ -24,7 +24,7 @@ const isDead = (member: LineageMember) => member.is_dead
 
 <template>
   <div class="family-tree-panel">
-    <div class="family-tree-header">
+    <div class="family-tree-header panel-header">
       <h3 class="family-tree-title panel-title">Family Tree</h3>
       <div class="family-tree-actions">
         <span v-if="lineage" class="tree-generation">Gen {{ lineage.generation }}</span>
@@ -145,13 +145,6 @@ const isDead = (member: LineageMember) => member.is_dead
 </template>
 
 <style scoped>
-.family-tree-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
 .family-tree-actions {
   display: flex;
   align-items: center;

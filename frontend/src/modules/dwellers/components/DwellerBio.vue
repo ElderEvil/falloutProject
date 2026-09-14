@@ -36,7 +36,7 @@ interface BioSection {
 
 const SECTION_ORDER: KnownSectionKey[] = ['origin', 'exploration', 'family', 'dialogue']
 
-const SECTION_META: Record<KnownSectionKey, { label: string, icon: string, sources: string[] }> = {
+const SECTION_META: Record<KnownSectionKey, { label: string; icon: string; sources: string[] }> = {
   origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy'] },
   exploration: { label: 'FIELD LOG', icon: 'mdi:map-marker-path', sources: ['exploration'] },
   family: { label: 'FAMILY RECORD', icon: 'mdi:account-group', sources: ['family'] },
@@ -48,17 +48,19 @@ const normalizedEntries = computed<BioEntry[]>(() => {
   if (!Array.isArray(raw) || raw.length === 0) {
     return bio.value ? [{ source: 'template', text: bio.value }] : []
   }
-  return raw.map((entry) => ({
-    source: String(entry.source ?? 'legacy'),
-    text: String(entry.text ?? ''),
-    ref: (entry.ref ?? null) as Record<string, unknown> | null,
-    created_at: (entry.created_at ?? null) as string | null,
-  })).filter(entry => entry.text.trim().length > 0)
+  return raw
+    .map((entry) => ({
+      source: String(entry.source ?? 'legacy'),
+      text: String(entry.text ?? ''),
+      ref: (entry.ref ?? null) as Record<string, unknown> | null,
+      created_at: (entry.created_at ?? null) as string | null,
+    }))
+    .filter((entry) => entry.text.trim().length > 0)
 })
 
 // Sources the sections above claim; anything else still renders under RECORD
 // rather than disappearing when the backend adds a new entry source.
-const KNOWN_SOURCES = new Set(SECTION_ORDER.flatMap(key => SECTION_META[key].sources))
+const KNOWN_SOURCES = new Set(SECTION_ORDER.flatMap((key) => SECTION_META[key].sources))
 
 const sections = computed<BioSection[]>(() => {
   const known: BioSection[] = SECTION_ORDER.map((key) => {
@@ -67,11 +69,11 @@ const sections = computed<BioSection[]>(() => {
       key,
       label: meta.label,
       icon: meta.icon,
-      entries: normalizedEntries.value.filter(entry => meta.sources.includes(entry.source)),
+      entries: normalizedEntries.value.filter((entry) => meta.sources.includes(entry.source)),
     }
   })
   const knownSources = KNOWN_SOURCES
-  const unclaimed = normalizedEntries.value.filter(entry => !knownSources.has(entry.source))
+  const unclaimed = normalizedEntries.value.filter((entry) => !knownSources.has(entry.source))
   if (unclaimed.length > 0) {
     known.push({
       key: 'other',
@@ -80,7 +82,7 @@ const sections = computed<BioSection[]>(() => {
       entries: unclaimed,
     })
   }
-  return known.filter(section => section.entries.length > 0)
+  return known.filter((section) => section.entries.length > 0)
 })
 
 const PURIFY_OPTIONS = {
@@ -160,7 +162,7 @@ function entryHtml(text: string): string {
 
 <template>
   <div class="dweller-bio">
-    <div class="bio-header">
+    <div class="bio-header panel-header">
       <h3 class="bio-title panel-title">Biography</h3>
       <div class="header-buttons">
         <UTooltip text="Creates or replaces appearance, portrait, and biography" position="top">
@@ -195,7 +197,11 @@ function entryHtml(text: string): string {
             <span>{{ bio ? 'Regenerate biography' : 'Generate biography' }}</span>
           </UButton>
         </UTooltip>
-        <UTooltip v-if="bio" text="Adds new details while keeping the current biography" position="top">
+        <UTooltip
+          v-if="bio"
+          text="Adds new details while keeping the current biography"
+          position="top"
+        >
           <UButton
             class="extend-bio-button"
             variant="secondary"
@@ -234,11 +240,9 @@ function entryHtml(text: string): string {
                 :key="`${section.key}-${entryIndex}`"
                 class="bio-entry"
               >
-                <span
-                  v-if="section.key !== 'origin'"
-                  class="bio-entry-marker"
-                  aria-hidden="true"
-                >&gt;</span>
+                <span v-if="section.key !== 'origin'" class="bio-entry-marker" aria-hidden="true"
+                  >&gt;</span
+                >
                 <p class="bio-entry-text" v-html="entryHtml(entry.text)"></p>
               </li>
             </ul>
@@ -260,16 +264,6 @@ function entryHtml(text: string): string {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.bio-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0.5rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 .header-buttons {

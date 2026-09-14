@@ -117,17 +117,33 @@ const loadHappinessModifiers = async () => {
   cursor: not-allowed;
 }
 
+/* Floating readout: fully opaque so the card's bars and labels can never bleed
+   through, with a faint scanline texture to keep the CRT feel. */
 .happiness-modifiers {
   position: absolute;
   right: 0;
   top: 100%;
   z-index: 10;
   min-width: 220px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--color-theme-glow);
+  background-color: var(--color-surface-sunken);
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.035) 0,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(
+      120% 100% at 50% 0%,
+      color-mix(in srgb, var(--color-theme-primary) 10%, transparent),
+      transparent 70%
+    );
+  border: 1px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 0.75rem;
   margin-top: 0.5rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
   animation: slideDown 0.2s ease-out;
 }
 
@@ -208,14 +224,14 @@ const loadHappinessModifiers = async () => {
   gap: 0.5rem;
   padding: 0.375rem 0.5rem;
   margin-bottom: 0.25rem;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-raised);
   border-radius: 4px;
   font-size: 0.8125rem;
   transition: all 0.2s;
 }
 
 .modifier-item:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-surface-hover);
   transform: translateX(2px);
 }
 

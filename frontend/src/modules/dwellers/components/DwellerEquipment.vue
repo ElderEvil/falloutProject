@@ -84,7 +84,9 @@ const modalIcon = computed(() =>
 
 <template>
   <div class="dweller-equipment">
-    <h3 class="equipment-title panel-title">Equipment</h3>
+    <div class="panel-header">
+      <h3 class="equipment-title panel-title">Equipment</h3>
+    </div>
 
     <div class="equipment-grid">
       <!-- Weapon Slot -->
@@ -103,12 +105,7 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipWeapon"
         />
 
-        <button
-          v-else
-          type="button"
-          class="empty-slot"
-          @click="openWeaponInventory"
-        >
+        <button v-else type="button" class="empty-slot" @click="openWeaponInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </button>
@@ -130,12 +127,7 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipOutfit"
         />
 
-        <button
-          v-else
-          type="button"
-          class="empty-slot"
-          @click="openOutfitInventory"
-        >
+        <button v-else type="button" class="empty-slot" @click="openOutfitInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </button>
@@ -291,5 +283,4 @@ const modalIcon = computed(() =>
   width: 2.5rem;
   height: 2.5rem;
 }
-
 </style>

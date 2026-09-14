@@ -56,11 +56,15 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
   async function softDeleteDweller(dwellerId: string, token: string): Promise<Dweller> {
     try {
-      const response = await axios.post<Dweller>(`/api/v1/dwellers/${dwellerId}/soft-delete`, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await axios.post<Dweller>(
+        `/api/v1/dwellers/${dwellerId}/soft-delete`,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       // Remove the dweller from the active list and detail cache
       filterStore.dwellers = filterStore.dwellers.filter((d) => d.id !== dwellerId)
@@ -358,7 +362,11 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     )
   }
 
-  function autoAssignTrainingDwellers(vaultId: string, token: string, filters?: { ageGroup?: AutoAssignAgeGroup }) {
+  function autoAssignTrainingDwellers(
+    vaultId: string,
+    token: string,
+    filters?: { ageGroup?: AutoAssignAgeGroup }
+  ) {
     return autoAssignDwellers(
       'auto-assign-training',
       vaultId,
@@ -369,7 +377,11 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     )
   }
 
-  function autoAssignAllDwellers(vaultId: string, token: string, filters?: { ageGroup?: AutoAssignAgeGroup }) {
+  function autoAssignAllDwellers(
+    vaultId: string,
+    token: string,
+    filters?: { ageGroup?: AutoAssignAgeGroup }
+  ) {
     return autoAssignDwellers(
       'auto-assign-all',
       vaultId,

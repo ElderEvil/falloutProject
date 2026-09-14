@@ -15,9 +15,9 @@ const props = withDefaults(
 )
 
 const AGE_META: Record<AgeGroup, { color: string; icon: string; label: string }> = {
-  child: { color: '#38bdf8', icon: 'mdi:baby-face-outline', label: 'Child' },
-  teen: { color: '#818cf8', icon: 'mdi:account-school', label: 'Teen' },
-  adult: { color: '#4ade80', icon: 'mdi:account', label: 'Adult' },
+  child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child' },
+  teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen' },
+  adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult' },
 }
 
 const group = computed<AgeGroup>(() => {

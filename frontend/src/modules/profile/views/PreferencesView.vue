@@ -5,6 +5,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useVisualEffects, type EffectIntensity } from '@/core/composables/useVisualEffects'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { useRoomRendering } from '@/core/composables/useRoomRendering'
+import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { audioManager, type AudioBus } from '@/core/audio/audioManager'
 import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
@@ -30,6 +31,7 @@ const {
 
 const { currentTheme, availableThemes, setTheme } = useTheme()
 const { showRoomImages, toggleRoomImages } = useRoomRendering()
+const { isMonochrome, toggleBadgeStyle } = useBadgeStyle()
 const profileStore = useProfileStore()
 
 // Sound settings — local refs mirror the manager so Vue tracks changes.
@@ -93,7 +95,11 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               subtitle="Customize the terminal visual effects and theme. All settings are saved locally."
             >
               <template #back>
-                <PageNavigation back-label="Back to Profile" back-to="/profile" :breadcrumbs="breadcrumbs" />
+                <PageNavigation
+                  back-label="Back to Profile"
+                  back-to="/profile"
+                  :breadcrumbs="breadcrumbs"
+                />
               </template>
             </PageHeader>
 
@@ -277,6 +283,38 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <span class="toggle-slider" :class="{ active: showRoomImages }"></span>
                   </button>
                 </div>
+              </div>
+            </UCard>
+
+            <!-- Badges -->
+            <UCard class="mb-4">
+              <h2
+                class="text-xl font-bold mb-2 flex items-center gap-2"
+                :style="{ color: 'var(--color-theme-primary)' }"
+              >
+                <Icon icon="mdi:palette" class="text-xl" />
+                Badge Colors
+              </h2>
+              <p class="text-gray-400 mb-4 text-xs">
+                Informational badges name their own category with colour. Monochrome renders them
+                all in the terminal's tone — the icons and labels still carry the meaning.
+              </p>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-bold text-sm">Monochrome Badges</h3>
+                  <p class="text-xs text-gray-500">
+                    Draw gender, age and rarity badges in the theme colour instead of their palette
+                  </p>
+                </div>
+                <button
+                  @click="toggleBadgeStyle"
+                  class="toggle-button"
+                  :class="{ active: isMonochrome }"
+                  :aria-label="isMonochrome ? 'Use colourful badges' : 'Use monochrome badges'"
+                >
+                  <span class="toggle-slider" :class="{ active: isMonochrome }"></span>
+                </button>
               </div>
             </UCard>
 

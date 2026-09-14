@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.100.0 (2026-09-14)
+
+### Features
+
+* **exploration:** gate wasteland dispatch behind dweller maturity 802eb6f, closes #620
+* **exploration:** link the explorer card to the dweller detail page 06cc5d6
+* **profile:** return Profile and Settings to the screen they were opened from 4d5b29a, closes #620
+* **rooms:** assign a dweller straight from the room detail modal deda91b, closes #620
+
+### Bug Fixes
+
+* **chat:** pin page breadcrumbs and auto-scroll only while reading at the bottom 283d1ea, closes #620
+* **exploration:** recall button matches the dweller detail styling 41c6c2a
+* **review:** history-pop back nav, explicit deep watch, reset stale room error 6d2db74
+* **theme:** drop the redundant check icon from the theme picker 14c0e36, closes #620
+* **vault:** keep the ambient loop playing across navigation cc94bd9, closes #620
+
+### Documentation
+
+* **frontend:** retire native title tooltips and record detail-page findings 388e4ab
+
+### Code Refactoring
+
+* **chat:** one mapper for dweller chat replies 77ba63f
+* **rooms:** one dweller card for staffing list and picker badcb4e
+
 ## 2.99.0 (2026-09-14)
 
 ### Features

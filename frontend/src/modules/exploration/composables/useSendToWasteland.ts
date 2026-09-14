@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { isMature, type Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useToast } from '@/core/composables/useToast'
 
@@ -16,6 +18,7 @@ export interface PendingExplorer {
  */
 export function useSendToWasteland(vaultId: () => string | null) {
   const authStore = useAuthStore()
+  const { filter: dwellerStore } = useDwellerStore()
   const explorationStore = useExplorationStore()
   const toast = useToast()
 
@@ -23,7 +26,13 @@ export function useSendToWasteland(vaultId: () => string | null) {
   const pendingDweller = ref<PendingExplorer | null>(null)
   const isSending = ref(false)
 
-  const open = (dweller: PendingExplorer) => {
+  const open = (dweller: PendingExplorer, knownDweller?: Dweller) => {
+    const candidate =
+      knownDweller ?? dwellerStore.dwellers.find((subject) => subject.id === dweller.dwellerId)
+    if (candidate && !isMature(candidate)) {
+      toast.error(`${dweller.firstName} is too young for the wasteland`)
+      return
+    }
     pendingDweller.value = dweller
     showModal.value = true
   }

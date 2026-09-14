@@ -15,6 +15,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '@/modules/map/stores/map'
 import { appendBioAddendum } from '@/modules/dwellers/services/dwellerService'
+import { isMature } from '@/modules/dwellers/models/dweller'
 
 export interface UseChatActionsOptions {
   dwellerId: string
@@ -150,6 +151,10 @@ export function useChatActions(options: UseChatActionsOptions) {
       const dweller = dwellerStore.dwellers.find((d) => d.id === options.dwellerId)
       if (!dweller) {
         toast.error('Dweller not found')
+        return false
+      }
+      if (!isMature(dweller)) {
+        toast.error(`${options.dwellerName} is too young for the wasteland`)
         return false
       }
 

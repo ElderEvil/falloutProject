@@ -287,11 +287,14 @@ export function useDwellerDetail(
   }
   const handleSendWasteland = () => {
     if (!dweller.value) return
-    sendWasteland.open({
-      dwellerId: dwellerId.value,
-      firstName: dweller.value.first_name,
-      lastName: dweller.value.last_name ?? undefined,
-    })
+    sendWasteland.open(
+      {
+        dwellerId: dwellerId.value,
+        firstName: dweller.value.first_name,
+        lastName: dweller.value.last_name ?? undefined,
+      },
+      dweller.value
+    )
   }
   const handleSendWastelandConfirm = (payload: {
     duration: number

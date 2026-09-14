@@ -1852,6 +1852,8 @@ describe('DwellerChat', () => {
             agility: 5,
             luck: 5,
             status: 'idle',
+            is_adult: true,
+            age_group: 'adult',
           },
         ],
       })
@@ -1919,7 +1921,9 @@ describe('DwellerChat', () => {
             intelligence: 5,
             agility: 5,
             luck: 5,
-            status: 'working',
+            status: 'idle',
+            is_adult: true,
+            age_group: 'adult',
           },
         ],
       })

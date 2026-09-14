@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.101.0 (2026-09-14)
+
+### Features
+
+* **ui:** unify dweller badges and theme token usage 4fe084d
+* **ui:** unify dweller badges and theme token usage ([#630](https://github.com/ElderEvil/falloutProject/issues/630)) 706ae0d
+
 ## 2.100.2 (2026-09-14)
 
 ### Bug Fixes

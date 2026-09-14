@@ -8,6 +8,7 @@ import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
 import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useBackNavigation } from '@/core/composables/useBackNavigation'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -22,6 +23,9 @@ import type { ProfileUpdate } from '../models/profile'
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
+const backNav = useBackNavigation('Overseer Profile', () =>
+  vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'
+)
 const isEditing = ref(false)
 const avatarLoadFailed = ref(false)
 const activeTab = ref('dossier')
@@ -164,11 +168,6 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const breadcrumbs = computed(() => [
-  { label: 'Vault', to: vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/' },
-  { label: 'Overseer Profile' },
-])
-
 </script>
 
 <template>
@@ -188,9 +187,9 @@ const breadcrumbs = computed(() => [
           >
             <template #back>
               <PageNavigation
-                back-label="Back to Vault"
-                :back-to="vaultStore.activeVaultId ? `/vault/${vaultStore.activeVaultId}` : '/'"
-                :breadcrumbs="breadcrumbs"
+                :back-label="backNav.backLabel()"
+                :back-to="backNav.backPath()"
+                :breadcrumbs="backNav.breadcrumbs()"
               />
             </template>
           </PageHeader>

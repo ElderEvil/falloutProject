@@ -9,7 +9,7 @@ import { getErrorMessage } from '@/core/types/utils'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { ActionSuggestion } from '../models/chat'
 import { useAudioRecorder } from '../composables/useAudioRecorder'
-import { normalizeUnlockedPlaces, useChatMessages } from '../composables/useChatMessages'
+import { useChatMessages } from '../composables/useChatMessages'
 import { useChatAudio } from '../composables/useChatAudio'
 import { useTypingIndicator } from '../composables/useTypingIndicator'
 import { useChatActions } from '../composables/useChatActions'
@@ -100,6 +100,7 @@ const {
   canSend,
   latestActionSuggestionIndex,
   handleMessagesScroll,
+  appendDwellerResponse,
   loadChatHistory,
   sendMessage,
   retryMessage,
@@ -214,16 +215,7 @@ const sendAudioMessage = async () => {
       placeholderMessage.content = response.data.transcription
     }
 
-    messages.value.push({
-      type: 'dweller',
-      content: response.data.dweller_response,
-      messageId: response.data.dweller_message_id,
-      timestamp: new Date(),
-      audioUrl: response.data.dweller_audio_url,
-      happinessImpact: response.data.happiness_impact || null,
-      actionSuggestion: response.data.action_suggestion || null,
-      unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
-    })
+    appendDwellerResponse(response.data)
 
     if (response.data.dweller_audio_url) {
       playAudio(response.data.dweller_audio_url)

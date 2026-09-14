@@ -155,6 +155,27 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     }
   }
 
+  /** Appends a dweller reply from either the text or voice chat response shape. */
+  const appendDwellerResponse = (data: {
+    response?: string
+    dweller_response?: string
+    dweller_message_id: string
+    dweller_audio_url?: string
+    happiness_impact?: ChatMessageDisplay['happinessImpact'] | null
+    unlocked_places?: unknown
+    action_suggestion?: ChatMessageDisplay['actionSuggestion']
+  }) =>
+    messages.value.push({
+      type: 'dweller',
+      content: data.response ?? data.dweller_response ?? '',
+      messageId: data.dweller_message_id,
+      timestamp: new Date(),
+      audioUrl: data.dweller_audio_url || undefined,
+      happinessImpact: data.happiness_impact || null,
+      unlockedPlaces: normalizeUnlockedPlaces(data.unlocked_places),
+      actionSuggestion: data.action_suggestion || null,
+    })
+
   const sendMessage = async () => {
     if (userMessage.value.trim()) {
       // Sending implies wanting to see the reply even if the reader had scrolled up.
@@ -190,15 +211,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
             },
           }
         )
-        messages.value.push({
-          type: 'dweller',
-          content: response.data.response,
-          messageId: response.data.dweller_message_id,
-          timestamp: new Date(),
-          happinessImpact: response.data.happiness_impact || null,
-          unlockedPlaces: normalizeUnlockedPlaces(response.data.unlocked_places),
-          actionSuggestion: response.data.action_suggestion || null,
-        })
+        appendDwellerResponse(response.data)
       } catch (error) {
         const reason = handleStoreError(error, 'Error sending message')
         markUserMessageFailed(reason)
@@ -295,6 +308,7 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     canSend,
     latestActionSuggestionIndex,
     handleMessagesScroll,
+    appendDwellerResponse,
 
     // Methods
     loadChatHistory,

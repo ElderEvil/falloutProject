@@ -288,13 +288,17 @@ export function useChatMessages(options: UseChatMessagesOptions) {
     const el = chatMessages.value
     if (el) isNearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
   }
-  watch(messages, async () => {
-    await nextTick()
-    const el = chatMessages.value
-    if (el && isNearBottom.value) {
-      el.scrollTop = el.scrollHeight
-    }
-  })
+  watch(
+    messages,
+    async () => {
+      await nextTick()
+      const el = chatMessages.value
+      if (el && isNearBottom.value) {
+        el.scrollTop = el.scrollHeight
+      }
+    },
+    { deep: true }
+  )
 
   return {
     // State

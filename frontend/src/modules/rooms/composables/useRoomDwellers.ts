@@ -91,6 +91,8 @@ export function useRoomDwellers(
       actionError.value = 'No auth token available'
       return
     }
+
+    actionError.value = null
     try {
       await dwellerManagementStore.assignDwellerToRoom(dwellerId, room.value.id, token)
     } catch {

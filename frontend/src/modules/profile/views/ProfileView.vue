@@ -188,7 +188,7 @@ const formatDate = (dateString: string) => {
             <template #back>
               <PageNavigation
                 :back-label="backNav.backLabel()"
-                :back-to="backNav.backPath()"
+                :back-to="backNav.backTo()"
                 :breadcrumbs="backNav.breadcrumbs()"
               />
             </template>

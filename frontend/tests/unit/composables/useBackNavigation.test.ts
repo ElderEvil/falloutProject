@@ -16,7 +16,7 @@ describe('useBackNavigation', () => {
     setHistoryState({ back: '/vault/abc' })
     const nav = useBackNavigation('Settings', () => '/')
 
-    expect(nav.backPath()).toBe('/vault/abc')
+    expect(nav.backTo()).toBeUndefined()
     expect(nav.backLabel()).toBe('Back to Overview')
     expect(nav.breadcrumbs()).toEqual([
       { label: 'Overview', to: '/vault/abc' },
@@ -28,6 +28,7 @@ describe('useBackNavigation', () => {
     setHistoryState({ back: '/profile' })
     const nav = useBackNavigation('Settings', () => '/vault/abc')
 
+    expect(nav.backTo()).toBeUndefined()
     expect(nav.backLabel()).toBe('Back to Profile')
     expect(nav.breadcrumbs()).toEqual([
       { label: 'Profile', to: '/profile' },
@@ -40,7 +41,7 @@ describe('useBackNavigation', () => {
     const nav = useBackNavigation('Settings', () => '/')
 
     expect(nav.backLabel()).toBe('Back')
-    expect(nav.backPath()).toBe('/somewhere/else')
+    expect(nav.backTo()).toBeUndefined()
     expect(nav.breadcrumbs()).toEqual([
       { label: 'Previous screen', to: '/somewhere/else' },
       { label: 'Settings' },
@@ -51,7 +52,7 @@ describe('useBackNavigation', () => {
     setHistoryState(null)
     const nav = useBackNavigation('Settings', () => '/vault/abc')
 
-    expect(nav.backPath()).toBe('/vault/abc')
+    expect(nav.backTo()).toBe('/vault/abc')
     expect(nav.backLabel()).toBe('Back to Overview')
     expect(nav.breadcrumbs()).toEqual([])
   })

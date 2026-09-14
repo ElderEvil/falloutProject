@@ -21,15 +21,17 @@ const screenLabel = (path: string | null | undefined): string | null => {
  * previous in-app location in history state; when there is none (deep link or
  * refresh) the given fallback path is used.
  *
- * Returns the back target path, its "Back to X" label, and breadcrumbs that
- * show the entry context, e.g. Profile → Settings.
+ * Returns the label for the back button, an optional explicit backTo only for
+ * the deep-link case (a prior history entry is followed with router.back(),
+ * which keeps history semantics instead of growing the stack), and
+ * breadcrumbs showing the entry context, e.g. Profile → Settings.
  */
 export function useBackNavigation(currentLabel: string, fallback: () => string) {
   const previousPath = () => (window.history.state?.back as string | undefined) ?? null
 
-  const backPath = () => previousPath() ?? fallback()
+  const backTo = (): string | undefined => (previousPath() ? undefined : fallback())
   const backLabel = () => {
-    const label = screenLabel(backPath())
+    const label = screenLabel(previousPath() ?? fallback())
     return label ? `Back to ${label}` : 'Back'
   }
   const breadcrumbs = (): Breadcrumb[] => {
@@ -39,5 +41,5 @@ export function useBackNavigation(currentLabel: string, fallback: () => string) 
     return [crumb, { label: currentLabel }]
   }
 
-  return { backPath, backLabel, breadcrumbs }
+  return { backTo, backLabel, breadcrumbs }
 }

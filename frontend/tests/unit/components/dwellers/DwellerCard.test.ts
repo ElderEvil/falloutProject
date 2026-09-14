@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 
@@ -172,7 +173,7 @@ describe('DwellerCard', () => {
       expect(progressBar.props('modelValue')).toBe(80)
     })
 
-    it('describes the maximum level instead of a negative XP remainder', () => {
+    it('describes the maximum level instead of a negative XP remainder', async () => {
       const maxedDweller = { ...mockDweller, level: 50, experience: 50000 }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -183,8 +184,69 @@ describe('DwellerCard', () => {
 
       const value = wrapper.find('.xp-bar-container .stat-value')
       expect(value.classes()).toContain('max-level')
-      expect(value.attributes('title')).not.toMatch(/-\d/)
-      expect(value.attributes('title')).toContain('Maximum level')
+      expect(value.text()).not.toMatch(/-\d/)
+      vi.useFakeTimers()
+      await wrapper.find('.xp-bar-container .relative > div').trigger('mouseenter')
+      vi.advanceTimersByTime(250)
+      await nextTick()
+      expect(document.body.textContent).toContain('Maximum level')
+      vi.useRealTimers()
+    })
+  })
+
+  describe('App HUD', () => {
+    it('reads progress as one level-first block, not a level row plus an XP row', () => {
+      const wrapper = mount(DwellerCard, { props: { dweller: mockDweller, imageUrl: null } })
+
+      expect(wrapper.text()).toContain('Level 5')
+      expect(wrapper.find('.xp-bar-container .stat-value').text()).toBe('1019 XP to L6')
+    })
+
+    it('hints supply actions through tooltips instead of native titles', () => {
+      const wrapper = mount(DwellerCard, {
+        props: { dweller: mockDweller, imageUrl: null, availableStimpaks: 1 },
+      })
+
+      expect(wrapper.html()).not.toMatch(/title="/)
+      expect(wrapper.find('.supplies .relative').exists()).toBe(true)
+    })
+  })
+
+  describe('Radiation guidance banner', () => {
+    it('pairs the radiation cause with the inline RadAway action', () => {
+      const wrapper = mount(DwellerCard, {
+        props: { dweller: { ...mockDweller, radiation: 30 }, imageUrl: null, availableRadaways: 2 },
+      })
+
+      const banner = wrapper.find('.radiation-banner')
+      expect(banner.exists()).toBe(true)
+      expect(banner.attributes('role')).toBe('status')
+      expect(banner.text()).toContain('30 HP blocked by radiation')
+      expect(banner.find('[aria-label="Use RadAway to reduce radiation"]').exists()).toBe(true)
+    })
+
+    it('emits use-radaway from the banner action', async () => {
+      const wrapper = mount(DwellerCard, {
+        props: { dweller: { ...mockDweller, radiation: 30 }, imageUrl: null, availableRadaways: 2 },
+      })
+
+      await wrapper.get('[aria-label="Use RadAway to reduce radiation"]').trigger('click')
+      expect(wrapper.emitted('use-radaway')).toBeTruthy()
+    })
+
+    it('omits the banner action when no RadAway can be applied', () => {
+      const wrapper = mount(DwellerCard, {
+        props: { dweller: { ...mockDweller, radiation: 30, radaway: 0 }, imageUrl: null },
+      })
+
+      expect(wrapper.find('.radiation-banner').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Use RadAway to reduce radiation"]').exists()).toBe(false)
+    })
+
+    it('renders no banner for an unexposed dweller', () => {
+      const wrapper = mount(DwellerCard, { props: { dweller: mockDweller, imageUrl: null } })
+
+      expect(wrapper.find('.radiation-banner').exists()).toBe(false)
     })
   })
 

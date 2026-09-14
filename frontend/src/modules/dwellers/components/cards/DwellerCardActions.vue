@@ -52,34 +52,38 @@ const exploreTooltip = computed(() =>
       Chat
     </UButton>
 
-    <UButton
-      v-if="dweller.room === null && !isGone"
-      variant="secondary"
-      size="md"
-      block
-      :title="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
-      @click="emit('assign')"
-      :disabled="loading"
+    <UTooltip
+      :text="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
     >
-      <Icon
-        :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
-        class="h-5 w-5 mr-2"
-      />
-      {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
-    </UButton>
+      <UButton
+        v-if="dweller.room === null && !isGone"
+        variant="secondary"
+        size="md"
+        block
+        @click="emit('assign')"
+        :disabled="loading"
+      >
+        <Icon
+          :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
+          class="h-5 w-5 mr-2"
+        />
+        {{ isMatureDweller ? 'Assign' : 'Apprentice' }}
+      </UButton>
+    </UTooltip>
 
-    <UButton
-      v-else-if="!isGone"
-      variant="secondary"
-      size="md"
-      block
-      title="Unassign from the current room"
-      @click="emit('unassign')"
-      :disabled="loading"
-    >
-      <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
-      Unassign
-    </UButton>
+    <UTooltip text="Unassign from the current room">
+      <UButton
+        v-if="dweller.room !== null && !isGone"
+        variant="secondary"
+        size="md"
+        block
+        @click="emit('unassign')"
+        :disabled="loading"
+      >
+        <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
+        Unassign
+      </UButton>
+    </UTooltip>
 
     <UTooltip :text="exploreTooltip">
       <UButton
@@ -87,7 +91,6 @@ const exploreTooltip = computed(() =>
         variant="secondary"
         size="md"
         block
-        title="Send to the wasteland"
         @click="emit('send-wasteland')"
         :disabled="loading || !isMatureDweller"
       >
@@ -96,18 +99,19 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UButton
-      v-if="isExploring"
-      variant="secondary"
-      size="md"
-      block
-      title="Recall from the wasteland"
-      @click="emit('recall')"
-      :disabled="loading"
-    >
-      <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
-      Recall
-    </UButton>
+    <UTooltip text="Recall from the wasteland">
+      <UButton
+        v-if="isExploring"
+        variant="secondary"
+        size="md"
+        block
+        @click="emit('recall')"
+        :disabled="loading"
+      >
+        <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
+        Recall
+      </UButton>
+    </UTooltip>
 
     <UTooltip text="Train SPECIAL stats to improve dweller abilities">
       <UButton

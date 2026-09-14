@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 withDefaults(
   defineProps<{
-    icon: string
+    icon?: string
+    monogram?: string
     color: string
     label: string
     showLabel?: boolean
@@ -14,17 +16,19 @@ withDefaults(
 </script>
 
 <template>
-  <span
-    class="dweller-badge"
-    :class="[`size-${size}`, { 'icon-only': !showLabel }]"
-    :style="{ '--badge-color': color }"
-    :title="label"
-    :aria-label="label"
-    role="img"
-  >
-    <Icon :icon="icon" class="badge-icon" />
-    <span v-if="showLabel" class="badge-label">{{ label }}</span>
-  </span>
+  <UTooltip :text="label" position="top">
+    <span
+      class="dweller-badge"
+      :class="[`size-${size}`, { 'icon-only': !showLabel }]"
+      :style="{ '--badge-color': color }"
+      :aria-label="label"
+      role="img"
+    >
+      <Icon v-if="icon" :icon="icon" class="badge-icon" :ariaHidden="true" />
+      <span v-else-if="monogram" class="badge-monogram" aria-hidden="true">{{ monogram }}</span>
+      <span v-if="showLabel" class="badge-label">{{ label }}</span>
+    </span>
+  </UTooltip>
 </template>
 
 <style scoped>
@@ -69,6 +73,11 @@ withDefaults(
 
 .badge-icon {
   font-size: 1.25em;
+}
+
+.badge-monogram {
+  font-weight: 700;
+  line-height: 1;
 }
 
 .badge-label {

@@ -71,7 +71,7 @@ onUnmounted(() => {
     <!-- Skip to main content link for accessibility -->
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-[var(--color-theme-primary)] focus:text-black focus:px-4 focus:py-2 focus:rounded"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-theme-primary focus:text-black focus:px-4 focus:py-2 focus:rounded"
     >
       Skip to main content
     </a>
@@ -81,7 +81,7 @@ onUnmounted(() => {
         <!-- Vault List Button (main navigation) -->
         <router-link
           to="/"
-          class="text-[var(--color-theme-primary)] hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1"
+          class="text-theme-primary hover:underline font-bold focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-warm rounded px-2 py-1"
           role="menuitem"
           aria-label="Navigate to vaults list"
         >
@@ -94,8 +94,8 @@ onUnmounted(() => {
           v-if="isAuthenticated && versionBadgeVisible"
           @click="showChangelog()"
           :class="[
-            'relative text-[var(--color-theme-primary)] hover:text-[var(--color-theme-glow)]',
-            'focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)]',
+            'relative text-theme-primary hover:text-theme-glow',
+            'focus:outline-none focus:ring-2 focus:ring-theme-primary',
             'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
           ]"
           aria-label="View changelog for new version"
@@ -113,7 +113,7 @@ onUnmounted(() => {
         <router-link
           to="/login"
           v-if="!isAuthenticated"
-          class="text-[var(--color-theme-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
           aria-label="Go to login page"
         >
           Login
@@ -121,7 +121,7 @@ onUnmounted(() => {
         <router-link
           to="/register"
           v-if="!isAuthenticated"
-          class="text-[var(--color-theme-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
+          class="text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1"
           aria-label="Go to registration page"
         >
           Register
@@ -133,7 +133,7 @@ onUnmounted(() => {
             @click="toggleDropdown"
             @keydown.escape="closeDropdown"
             :class="[
-              'text-[var(--color-theme-primary)] hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-[var(--color-theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface-warm)] rounded px-2 py-1 border-2 border-[var(--color-theme-primary)]/30',
+              'text-theme-primary hover:underline hover:bg-theme-primary/10 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-surface-warm rounded px-2 py-1 border-2 border-theme-primary/30',
               isProfileRoute ? 'bg-theme-primary/10 shadow-glow-sm' : '',
             ]"
             :aria-expanded="isDropdownOpen"
@@ -145,14 +145,14 @@ onUnmounted(() => {
           <Transition name="dropdown">
             <div
               v-if="isDropdownOpen"
-              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-[var(--color-theme-primary)]"
+              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary"
               role="menu"
               aria-label="User menu"
               style="z-index: 50"
             >
               <router-link
                 to="/profile"
-                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
                 role="menuitem"
                 aria-label="View profile"
                 @click="isDropdownOpen = false"
@@ -162,7 +162,7 @@ onUnmounted(() => {
               </router-link>
               <router-link
                 to="/preferences"
-                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
                 role="menuitem"
                 aria-label="Display preferences"
                 @click="isDropdownOpen = false"
@@ -172,7 +172,7 @@ onUnmounted(() => {
               </router-link>
               <router-link
                 to="/settings"
-                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
                 role="menuitem"
                 aria-label="Settings"
                 @click="isDropdownOpen = false"
@@ -182,7 +182,7 @@ onUnmounted(() => {
               </router-link>
               <router-link
                 to="/about"
-                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
                 role="menuitem"
                 aria-label="About this application"
                 @click="isDropdownOpen = false"
@@ -192,7 +192,7 @@ onUnmounted(() => {
               </router-link>
               <router-link
                 to="/changelog"
-                class="block px-4 py-2 text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
+                class="block px-4 py-2 text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 transition-colors"
                 role="menuitem"
                 aria-label="View changelog"
                 @click="isDropdownOpen = false"
@@ -203,7 +203,7 @@ onUnmounted(() => {
               <hr class="border-gray-700 my-1" />
               <button
                 @click="logout"
-                class="block w-full px-4 py-2 text-left text-[var(--color-theme-primary)] hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
+                class="block w-full px-4 py-2 text-left text-theme-primary hover:bg-theme-primary/10 focus:outline-none focus:bg-theme-primary/15 rounded-b transition-colors"
                 role="menuitem"
                 aria-label="Logout"
               >

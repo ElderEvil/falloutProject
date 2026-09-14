@@ -154,7 +154,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           v-for="(route, i) in discoveryRouteLines"
           :key="`route-${i}`"
           :points="route"
-          class="stroke-[var(--color-theme-accent)] stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
+          class="stroke-(--color-theme-accent) stroke-[0.4] opacity-[0.55] [stroke-dasharray:2_2] [stroke-linecap:round]"
           fill="none"
         />
 

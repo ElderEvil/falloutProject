@@ -133,7 +133,7 @@ onMounted(() => {
     <!-- Header -->
     <div class="mb-8 text-center">
       <h1
-        class="text-4xl font-bold text-[var(--color-theme-primary)] mb-4 terminal-glow flex items-center justify-center gap-3"
+        class="text-4xl font-bold text-theme-primary mb-4 terminal-glow flex items-center justify-center gap-3"
       >
         <Icon icon="mdi:console-line" class="w-10 h-10" />
         Changelog
@@ -152,7 +152,7 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="Search changelog..."
-            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-terminal-green placeholder-gray-500 focus:outline-none focus:border-[var(--color-theme-primary)] focus:ring-1 focus:ring-[var(--color-theme-primary)]"
+            class="w-full px-4 py-2 bg-surface-warm-dark border border-gray-700 rounded text-terminal-green placeholder-gray-500 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
           />
         </div>
 
@@ -168,7 +168,7 @@ onMounted(() => {
             class="px-3 py-1 rounded border text-sm transition-colors"
             :class="
               isCategorySelected(category)
-                ? 'border-[var(--color-theme-primary)] text-[var(--color-theme-primary)] bg-theme-primary/10'
+                ? 'border-theme-primary text-theme-primary bg-theme-primary/10'
                 : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
             "
           >
@@ -256,7 +256,7 @@ onMounted(() => {
         variant="primary"
         size="lg"
         @click="scrollToTop()"
-        class="shadow-lg shadow-[var(--color-theme-primary)]/50"
+        class="shadow-lg shadow-theme-primary/50"
       >
         ↑ Top
       </UButton>

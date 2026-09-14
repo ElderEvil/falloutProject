@@ -85,6 +85,19 @@ describe('DwellerCard', () => {
       expect(image.attributes('src')).toContain('example.com/image.jpg')
     })
 
+    it('uses the API origin for backend static portraits', () => {
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: mockDweller,
+          imageUrl: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+        },
+      })
+
+      expect(wrapper.find('.portrait-image').attributes('src')).toBe(
+        'http://localhost:8000/static/legendary_dweller_images/FOS_Dw_Butch.png'
+      )
+    })
+
     it('marks a dead dweller portrait as deceased', () => {
       const wrapper = mount(DwellerCard, {
         props: {

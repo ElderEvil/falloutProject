@@ -8,7 +8,7 @@ import HappinessModifierPopover from './HappinessModifierPopover.vue'
 import DwellerCardActions from './DwellerCardActions.vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { components } from '@/core/types/api.generated'
-import { normalizeImageUrl } from '@/core/utils/image'
+import { getStaticImageUrl } from '@/core/utils/image'
 import {
   getEffectiveMaxHealth,
   getHappinessColor,
@@ -47,7 +47,7 @@ const emit = defineEmits<{
 }>()
 
 const getImageUrl = (imagePath: string) => {
-  return normalizeImageUrl(imagePath)
+  return getStaticImageUrl(imagePath) ?? ''
 }
 
 const healthPercentage = computed(() => {

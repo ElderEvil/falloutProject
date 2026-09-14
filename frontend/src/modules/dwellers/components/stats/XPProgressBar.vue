@@ -53,11 +53,19 @@ const barAnimation = computed(() => {
   <div class="xp-bar-container">
     <div class="stat-row">
       <span class="stat-label">Experience</span>
-      <span class="stat-value" :class="{ 'max-level': isMaxLevel }">
+      <span
+        class="stat-value"
+        :class="{ 'max-level': isMaxLevel }"
+        :title="
+          isMaxLevel
+            ? 'Maximum level reached'
+            : `${xpInCurrentLevel} of ${xpNeededForNextLevel} XP this level`
+        "
+      >
         <template v-if="!isMaxLevel">
-          {{ xpInCurrentLevel }} / {{ xpNeededForNextLevel }} XP
+          {{ xpInCurrentLevel }}/{{ xpNeededForNextLevel }}
         </template>
-        <template v-else>MAX LEVEL</template>
+        <template v-else>MAX</template>
       </span>
     </div>
     <UProgressBar :model-value="progressPercentage" :height="10" :animation="barAnimation" />
@@ -76,17 +84,23 @@ const barAnimation = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .stat-label {
   font-weight: 600;
+  font-size: 0.78rem;
   color: var(--color-theme-primary);
   opacity: 0.8;
+  white-space: nowrap;
 }
 
 .stat-value {
   font-weight: 700;
+  font-size: 0.78rem;
   color: var(--color-theme-primary);
+  white-space: nowrap;
 }
 
 .stat-value.max-level {

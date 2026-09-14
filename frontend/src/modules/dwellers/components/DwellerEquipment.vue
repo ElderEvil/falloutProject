@@ -84,7 +84,9 @@ const modalIcon = computed(() =>
 
 <template>
   <div class="dweller-equipment">
-    <h3 class="equipment-title">Equipment</h3>
+    <div class="panel-header">
+      <h3 class="equipment-title panel-title">Equipment</h3>
+    </div>
 
     <div class="equipment-grid">
       <!-- Weapon Slot -->
@@ -103,12 +105,7 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipWeapon"
         />
 
-        <button
-          v-else
-          type="button"
-          class="empty-slot"
-          @click="openWeaponInventory"
-        >
+        <button v-else type="button" class="empty-slot" @click="openWeaponInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip weapon</p>
         </button>
@@ -130,12 +127,7 @@ const modalIcon = computed(() =>
           @unequip="handleUnequipOutfit"
         />
 
-        <button
-          v-else
-          type="button"
-          class="empty-slot"
-          @click="openOutfitInventory"
-        >
+        <button v-else type="button" class="empty-slot" @click="openOutfitInventory">
           <Icon icon="mdi:plus-circle" class="empty-icon" />
           <p class="empty-text">Click to equip outfit</p>
         </button>
@@ -191,15 +183,6 @@ const modalIcon = computed(() =>
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.equipment-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
-  border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0.5rem;
 }
 
 .equipment-grid {
@@ -300,5 +283,4 @@ const modalIcon = computed(() =>
   width: 2.5rem;
   height: 2.5rem;
 }
-
 </style>

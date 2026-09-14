@@ -7,6 +7,7 @@ import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
 import FakeCrashOverlay from '@/core/components/easter-eggs/FakeCrashOverlay.vue'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
 import { useTheme } from '@/core/composables/useTheme'
+import { useBadgeStyle } from '@/core/composables/useBadgeStyle'
 import { useTokenRefresh } from '@/core/composables/useTokenRefresh'
 import { useResourceWarnings } from '@/modules/vault/composables/useResourceWarnings'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
@@ -20,6 +21,10 @@ const { flickering, scanlines, glowClass, flickerOpacity } = visualEffects
 
 // Theme system
 const { currentTheme, setTheme, availableThemes } = useTheme()
+
+// Badge palette preference (colour or monochrome); applied at boot so badges
+// never flash the wrong palette before the preference loads.
+useBadgeStyle()
 
 // Token refresh system (auto-refreshes tokens before expiry)
 const authStore = useAuthStore()

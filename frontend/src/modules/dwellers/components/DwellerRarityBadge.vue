@@ -15,10 +15,10 @@ const props = withDefaults(
 )
 
 const RARITY_META: Record<Rarity, { color: string; icon: string; label: string }> = {
-  common: { color: 'var(--color-rarity-common)', icon: 'mdi:star-outline', label: 'Common' },
-  rare: { color: 'var(--color-rarity-rare)', icon: 'mdi:star', label: 'Rare' },
+  common: { color: 'var(--badge-rarity-common)', icon: 'mdi:star-outline', label: 'Common' },
+  rare: { color: 'var(--badge-rarity-rare)', icon: 'mdi:star', label: 'Rare' },
   legendary: {
-    color: 'var(--color-rarity-legendary)',
+    color: 'var(--badge-rarity-legendary)',
     icon: 'mdi:star-four-points',
     label: 'Legendary',
   },

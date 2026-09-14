@@ -9,7 +9,9 @@ import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
 
 const ctx = useDwellerDetailContext()
 
-const visualAttributes = computed<VisualAttributes | null>(() => ctx.dweller.value?.visual_attributes ?? null)
+const visualAttributes = computed<VisualAttributes | null>(
+  () => ctx.dweller.value?.visual_attributes ?? null
+)
 const generatingAppearance = computed(() => ctx.generatingAppearance.value)
 const isAnyGenerating = computed(() => ctx.isAnyGenerating.value)
 
@@ -79,13 +81,15 @@ const canGenerateAppearance = computed(
   () => !visualAttributes.value || !hasSubstantialAttributes.value
 )
 
-const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.keys(visualAttributes.value).length))
+const hasAttributes = computed(() =>
+  Boolean(visualAttributes.value && Object.keys(visualAttributes.value).length)
+)
 </script>
 
 <template>
   <div class="appearance-container">
-    <div class="appearance-header">
-      <h3 class="appearance-title">Appearance</h3>
+    <div class="appearance-header panel-header">
+      <h3 class="appearance-title panel-title">Appearance</h3>
       <div class="header-buttons">
         <UTooltip
           v-if="canGenerateAppearance"
@@ -109,7 +113,12 @@ const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.ke
         </UTooltip>
 
         <UTooltip v-if="hasAttributes" text="Adjust visual attributes manually" position="top">
-          <UButton @click="ctx.actions.editAppearance()" class="generate-button" variant="secondary" size="sm">
+          <UButton
+            @click="ctx.actions.editAppearance()"
+            class="generate-button"
+            variant="secondary"
+            size="sm"
+          >
             <Icon icon="mdi:pencil" class="h-5 w-5" />
             <span>Edit appearance</span>
           </UButton>
@@ -135,24 +144,6 @@ const hasAttributes = computed(() => Boolean(visualAttributes.value && Object.ke
 <style scoped>
 .appearance-container {
   width: 100%;
-}
-
-.appearance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--color-theme-glow);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.appearance-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .header-buttons {

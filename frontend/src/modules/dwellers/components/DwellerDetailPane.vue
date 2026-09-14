@@ -2,11 +2,17 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import UButton from '@/core/components/ui/UButton.vue'
 import DwellerCard from './cards/DwellerCard.vue'
 import DwellerPanel from './DwellerPanel.vue'
 import DwellerStatusBadge from './stats/DwellerStatusBadge.vue'
+import DwellerAlertLine from './DwellerAlertLine.vue'
+import DwellerGenderBadge from './DwellerGenderBadge.vue'
+import DwellerRarityBadge from './DwellerRarityBadge.vue'
+import DwellerAgeBadge from './DwellerAgeBadge.vue'
+import DwellerIdentitySignal from './DwellerIdentitySignal.vue'
+import DwellerOverflowMenu from './DwellerOverflowMenu.vue'
 import { RevivalSection } from './death'
+import { getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -14,6 +20,11 @@ const ctx = useDwellerDetailContext()
 const dweller = computed(() => ctx.dweller.value!)
 const isDead = computed(() => dweller.value.is_dead === true)
 const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
+const activity = computed(() => getActivitySummary(dweller.value))
+const hasIdentity = computed(() => {
+  const attributes = dweller.value.visual_attributes
+  return Boolean(attributes && (attributes.race ?? attributes.faction ?? attributes.state_of_being))
+})
 const breadcrumbs = computed(() => [
   { label: 'Vault', to: `/vault/${ctx.vaultId.value}` },
   { label: 'Dwellers', to: `/vault/${ctx.vaultId.value}/dwellers` },
@@ -31,33 +42,39 @@ const breadcrumbs = computed(() => [
         :breadcrumbs="breadcrumbs"
       />
 
-      <div class="header-info">
-        <div class="name-section">
-          <h1 class="dweller-name cursor-pointer select-none" @click="ctx.actions.onHeaderNameClick()">
-            {{ dweller.first_name }} {{ dweller.last_name }}
-          </h1>
-          <UButton
-            v-if="!isDead"
-            @click="ctx.actions.openRenameDialog()"
-            variant="ghost"
-            size="sm"
-            class="rename-btn"
-          >
-            <Icon icon="mdi:pencil" class="h-4 w-4" />
-          </UButton>
-          <UButton
-            v-if="!isDead"
-            @click="ctx.actions.openSoftDeleteDialog()"
-            variant="ghost"
-            size="sm"
-            class="soft-delete-btn"
-            title="Soft-delete this dweller (makes them tradable at the Trading Post)"
-            aria-label="Soft-delete dweller"
-          >
-            <Icon icon="mdi:account-remove" class="h-4 w-4" />
-          </UButton>
+      <div class="header-block">
+        <div class="header-info">
+          <div class="name-line">
+            <h1
+              class="dweller-name cursor-pointer select-none"
+              @click="ctx.actions.onHeaderNameClick()"
+            >
+              {{ dweller.first_name }} {{ dweller.last_name }}
+            </h1>
+          </div>
+          <div class="status-line">
+            <DwellerAlertLine />
+            <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
+            <DwellerOverflowMenu
+              v-if="!isDead"
+              @rename="ctx.actions.openRenameDialog()"
+              @soft-delete="ctx.actions.openSoftDeleteDialog()"
+            />
+          </div>
         </div>
-        <DwellerStatusBadge :status="dweller.status" :show-label="true" size="large" />
+
+        <div class="meta-line">
+          <div class="meta-left">
+            <span class="badge-cluster">
+              <DwellerGenderBadge :gender="dweller.gender" :show-label="true" />
+              <DwellerRarityBadge :rarity="dweller.rarity" :show-label="true" />
+              <DwellerAgeBadge :age-group="dweller.age_group" :show-label="true" />
+            </span>
+            <span v-if="hasIdentity" class="name-divider" aria-hidden="true" />
+            <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" />
+          </div>
+          <span v-if="activity" class="activity-caption">{{ activity }}</span>
+        </div>
       </div>
     </div>
 
@@ -97,18 +114,11 @@ const breadcrumbs = computed(() => [
         />
 
         <!-- Permanently Dead Notice -->
-        <div
-          v-else-if="isPermanentlyDead"
-          class="bg-gray-900 border border-red-500/30 rounded-lg p-4 text-center"
-        >
-          <Icon icon="mdi:grave-stone" class="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <h3 class="text-lg font-bold text-red-500 mb-1">Permanently Deceased</h3>
-          <p class="text-gray-400 text-sm">
-            This dweller has passed beyond the revival window.
-          </p>
-          <p v-if="dweller.epitaph" class="text-theme-primary/60 italic mt-3 text-sm">
-            "{{ dweller.epitaph }}"
-          </p>
+        <div v-else-if="isPermanentlyDead" class="permanent-death-notice">
+          <Icon icon="mdi:grave-stone" class="permanent-death-icon" />
+          <h3 class="permanent-death-title">Permanently Deceased</h3>
+          <p class="permanent-death-text">This dweller has passed beyond the revival window.</p>
+          <p v-if="dweller.epitaph" class="permanent-death-epitaph">"{{ dweller.epitaph }}"</p>
         </div>
       </div>
 
@@ -128,7 +138,7 @@ const breadcrumbs = computed(() => [
 .detail-header {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .header-info {
@@ -138,10 +148,71 @@ const breadcrumbs = computed(() => [
   flex-wrap: wrap;
 }
 
-.name-section {
+.header-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.header-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Attributes on the left, the dweller's room pushed to the far right so it
+   sits under the status badge. */
+.meta-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.meta-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.badge-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.name-divider {
+  width: 1px;
+  height: 1.75rem;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+}
+
+.activity-caption {
+  font-size: 0.85rem;
+  color: var(--color-theme-primary);
+  opacity: 0.65;
+  letter-spacing: 0.02em;
 }
 
 .dweller-name {
@@ -152,30 +223,45 @@ const breadcrumbs = computed(() => [
   letter-spacing: -0.5px;
 }
 
-.rename-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.soft-delete-btn {
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  color: var(--color-danger);
-}
-
-.soft-delete-btn:hover {
-  opacity: 1;
-}
-
-.rename-btn:hover {
-  opacity: 1;
-}
-
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
-  gap: 2rem;
-  align-items: start;
+  grid-template-columns: minmax(400px, 27rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.permanent-death-notice {
+  padding: 1rem;
+  text-align: center;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+}
+
+.permanent-death-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  color: var(--color-gray-500);
+}
+
+.permanent-death-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-danger);
+  margin-bottom: 0.25rem;
+}
+
+.permanent-death-text {
+  font-size: 0.875rem;
+  color: var(--color-gray-400);
+}
+
+.permanent-death-epitaph {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
 }
 
 @media (max-width: 1280px) {

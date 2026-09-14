@@ -66,7 +66,8 @@ export function getCombatPower(
 ): number {
   const backendPower = (dweller as { combat_power?: number | null }).combat_power
   if (typeof backendPower === 'number') return Math.round(backendPower)
-  const weights = COMBAT_STAT_WEIGHTS[dweller.weapon_type ?? 'unarmed'] ?? COMBAT_STAT_WEIGHTS.unarmed
+  const weights =
+    COMBAT_STAT_WEIGHTS[dweller.weapon_type ?? 'unarmed'] ?? COMBAT_STAT_WEIGHTS.unarmed
   const statPower = (Object.keys(weights) as SpecialKey[]).reduce(
     (sum, stat) => sum + (dweller[stat] ?? 1) * (weights[stat] ?? 0),
     0
@@ -111,18 +112,28 @@ export function getAbilityConfig(ability: string | null | undefined): AbilityCon
 export type VisualAttributes = components['schemas']['DwellerVisualAttributes']
 
 /** Radiation as a 0-100 share of a dweller's maximum health. */
-export function getRadiationPercentage(radiation: number | null | undefined, maxHealth: number): number {
+export function getRadiationPercentage(
+  radiation: number | null | undefined,
+  maxHealth: number
+): number {
   if (!radiation || radiation <= 0 || maxHealth <= 0) return 0
   return Math.min(100, (radiation / maxHealth) * 100)
 }
 
 /** Health ceiling after radiation damage, kept at one so existing death rules still apply. */
-export function getEffectiveMaxHealth(radiation: number | null | undefined, maxHealth: number): number {
+export function getEffectiveMaxHealth(
+  radiation: number | null | undefined,
+  maxHealth: number
+): number {
   return Math.max(1, maxHealth - Math.max(0, radiation ?? 0))
 }
 
 /** Shows the radiation-reduced maximum while retaining the base maximum for context. */
-export function getHealthDisplay(health: number, maxHealth: number, radiation: number | null | undefined): string {
+export function getHealthDisplay(
+  health: number,
+  maxHealth: number,
+  radiation: number | null | undefined
+): string {
   const effectiveMaxHealth = getEffectiveMaxHealth(radiation, maxHealth)
   return radiation && radiation > 0
     ? `${Math.min(health, effectiveMaxHealth)} / ${effectiveMaxHealth} (${maxHealth})`
@@ -234,4 +245,46 @@ export const STATUS_CONFIG_MAP: Record<string, StatusConfig> = {
 export function getStatusConfig(status: string | null | undefined): StatusConfig {
   if (!status) return STATUS_CONFIG_MAP.unknown!
   return STATUS_CONFIG_MAP[status] ?? STATUS_CONFIG_MAP.unknown!
+}
+
+export type HappinessLevel = 'high' | 'medium' | 'low' | 'critical'
+
+/** Happiness band shared by the detail card and the status strip. */
+export function getHappinessLevel(happiness: number | null | undefined): HappinessLevel {
+  const value = happiness ?? 50
+  if (value >= 75) return 'high'
+  if (value >= 50) return 'medium'
+  if (value >= 25) return 'low'
+  return 'critical'
+}
+
+/** Theme color for a happiness band. */
+export function getHappinessColor(level: HappinessLevel): string {
+  switch (level) {
+    case 'high':
+      return 'var(--color-theme-primary)'
+    case 'medium':
+      return 'var(--color-terminal-green-dark)'
+    case 'low':
+      return 'var(--color-warning)'
+    case 'critical':
+      return 'var(--color-danger)'
+  }
+}
+
+/**
+ * Caption text for the detail header: only what the status badge does not already say.
+ * Returns ``''`` when the badge and the alert line already cover it.
+ */
+export function getActivitySummary(dweller: Pick<Dweller, 'status' | 'room' | 'is_dead'>): string {
+  if (dweller.is_dead) return ''
+  if (dweller.room?.name) return dweller.room.name
+  if (dweller.status === 'exploring') return 'In the wasteland'
+  if (dweller.status === 'questing') return 'On a quest'
+  return ''
+}
+
+/** Adult by both flags, mirroring the backend's ``Dweller.is_mature``. */
+export function isMature(dweller: Pick<Dweller, 'is_adult' | 'age_group'>): boolean {
+  return dweller.is_adult && dweller.age_group === 'adult'
 }

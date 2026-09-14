@@ -10,7 +10,8 @@ interface Props {
 }
 
 interface IdentitySignal {
-  icon: string
+  icon?: string
+  monogram?: string
   label: string
   value: string
 }
@@ -37,12 +38,17 @@ const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
   sane: { icon: 'mdi:head-heart-outline', label: 'Sane' },
   wild: { icon: 'mdi:head-alert-outline', label: 'Wild' },
   feral: { icon: 'mdi:skull-outline', label: 'Feral' },
-  mild: { icon: 'mdi:dna', label: 'Mild Mutation' },
-  average: { icon: 'mdi:dna', label: 'Average Mutation' },
-  behemoth: { icon: 'mdi:arm-flex-outline', label: 'Behemoth' },
-  gen_1: { icon: 'mdi:robot-outline', label: 'Gen 1' },
-  gen_2: { icon: 'mdi:robot-outline', label: 'Gen 2' },
-  gen_3: { icon: 'mdi:robot-happy-outline', label: 'Gen 3' },
+  // Ordered tiers carry a numeral instead of an icon: there is no glyph that
+  // reads as "how mutated", so the icons repeated and told the player nothing.
+  // Synth generations keep the robot glyph — it says "machine" — and the label
+  // carries the generation. Qualitative states (ghoul sane/wild/feral) keep
+  // their icons, since they are not a ladder.
+  gen_1: { icon: 'mdi:robot-outline', label: 'Gen I' },
+  gen_2: { icon: 'mdi:robot-outline', label: 'Gen II' },
+  gen_3: { icon: 'mdi:robot-outline', label: 'Gen III' },
+  mild: { monogram: 'I', label: 'Mild Mutation' },
+  average: { monogram: 'II', label: 'Average Mutation' },
+  behemoth: { monogram: 'III', label: 'Behemoth' },
 }
 
 const formatLabel = (value: string) =>
@@ -57,17 +63,40 @@ const identitySignals = computed<IdentitySignal[]>(() => {
 
   return [attributes.race, attributes.faction, attributes.state_of_being]
     .filter((value): value is NonNullable<typeof value> => value != null)
-    .map((value) => ({ ...IDENTITY_CONFIG[value], value: IDENTITY_CONFIG[value]?.label ?? formatLabel(value) }))
+    .map((value) => ({
+      ...IDENTITY_CONFIG[value],
+      value: IDENTITY_CONFIG[value]?.label ?? formatLabel(value),
+    }))
 })
 </script>
 
 <template>
-  <div v-if="identitySignals.length" class="flex flex-wrap items-center gap-1.5" aria-label="Dweller identity">
-    <UTooltip v-for="signal in identitySignals" :key="signal.value" :text="signal.value" position="top">
+  <div
+    v-if="identitySignals.length"
+    class="flex flex-wrap items-center gap-1.5"
+    aria-label="Dweller identity"
+  >
+    <UTooltip
+      v-for="signal in identitySignals"
+      :key="signal.value"
+      :text="signal.value"
+      position="top"
+    >
       <div
-        class="flex items-center gap-1 rounded-sm border border-theme-primary/40 bg-surface-sunken/70 px-2 py-1 font-mono text-xs text-theme-primary transition-colors hover:border-theme-primary hover:bg-theme-primary/10"
+        class="flex items-center gap-1.5 rounded-sm border border-theme-primary/40 bg-surface-sunken/70 px-2 py-1 font-mono text-xs text-theme-primary transition-colors hover:border-theme-primary hover:bg-theme-primary/10"
       >
-        <Icon :icon="signal.icon" class="h-3.5 w-3.5 shrink-0 text-theme-primary" :ariaHidden="true" />
+        <Icon
+          v-if="signal.icon"
+          :icon="signal.icon"
+          class="h-3.5 w-3.5 shrink-0 text-theme-primary"
+          :ariaHidden="true"
+        />
+        <span
+          v-else
+          class="w-4 shrink-0 text-center font-mono text-[0.65rem] font-bold leading-none tracking-tight"
+          aria-hidden="true"
+          >{{ signal.monogram }}</span
+        >
         <span v-if="!compact" class="whitespace-nowrap">{{ signal.label }}</span>
       </div>
     </UTooltip>

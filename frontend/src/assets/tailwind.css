@@ -314,6 +314,57 @@ body {
 /* === THEME-AWARE COMPONENT CLASSES === */
 /* These are plain CSS classes that use theme variables */
 
+/* Badge accents — the informational palette (gender, age, rarity).
+   One source of truth for every badge tone: monochrome mode repoints the lot at
+   the theme colour instead of each component branching on a flag. */
+:root {
+    --badge-gender-male: #60a5fa;
+    --badge-gender-female: #f472b6;
+    --badge-age-child: #38bdf8;
+    --badge-age-teen: #818cf8;
+    --badge-age-adult: #4ade80;
+    --badge-rarity-common: var(--color-rarity-common);
+    --badge-rarity-rare: var(--color-rarity-rare);
+    --badge-rarity-legendary: var(--color-rarity-legendary);
+}
+
+[data-badge-style="mono"] {
+    --badge-gender-male: var(--color-theme-primary);
+    --badge-gender-female: var(--color-theme-primary);
+    --badge-age-child: var(--color-theme-primary);
+    --badge-age-teen: var(--color-theme-primary);
+    --badge-age-adult: var(--color-theme-primary);
+    --badge-rarity-common: var(--color-theme-primary);
+    --badge-rarity-rare: var(--color-theme-primary);
+    --badge-rarity-legendary: var(--color-theme-primary);
+}
+
+/* Panel header row — the single owner of the section separator. Every detail
+   tab wraps its title and actions in this, so the rule is always full-width and
+   never doubles up with a border on the title itself. */
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--color-theme-glow);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Panel section title — one heading treatment for every detail-panel tab
+   (dweller profile, appearance, stats, equipment, family). The separator is a
+   full-width rule owned by the tab's own header row, so the title itself draws
+   no line and panels cannot end up with two. */
+.panel-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-theme-primary);
+    text-shadow: 0 0 8px var(--color-theme-glow);
+    margin: 0;
+}
+
 /* Badge intents — see STYLEGUIDE → "Intent & Emphasis Semantics".
    A badge must never out-glow an adjacent button. */
 .badge-info {

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.96.1 (2026-09-14)
+
+### Bug Fixes
+
+* **rooms:** keep dwellers in the room they merge into ([#625](https://github.com/ElderEvil/falloutProject/issues/625)) a9962e9
+
+### Documentation
+
+* **roadmap:** plan seeded families (couples, children, family apprentices) ([#615](https://github.com/ElderEvil/falloutProject/issues/615)) 7fe1de5
+
 ## 2.96.0 (2026-09-13)
 
 ### Features

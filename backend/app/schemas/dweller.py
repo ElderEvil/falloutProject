@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
+from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, model_validator
 from sqlmodel import SQLModel
 
 from app.core.enums import (
@@ -271,6 +271,12 @@ class DwellerReadLess(SQLModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def effective_max_health(self) -> int:
+        """Maximum health available after radiation damage."""
+        return max(1, self.max_health - max(0, self.radiation))
+
     # TBD
 
 
@@ -278,6 +284,12 @@ class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def effective_max_health(self) -> int:
+        """Maximum health available after radiation damage."""
+        return max(1, self.max_health - max(0, self.radiation))
 
 
 class DwellerReadWithVaultID(DwellerRead):

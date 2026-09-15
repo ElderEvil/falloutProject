@@ -249,7 +249,7 @@ describe('Incident Store', () => {
       expect(store.isPolling).toBe(false)
     })
 
-    it('pauses polling while the SSE connection is open', async () => {
+    it('keeps refreshing while the stream is open so an overlay can advance', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
@@ -259,10 +259,30 @@ describe('Incident Store', () => {
       await nextTick()
       await vi.advanceTimersByTimeAsync(1000)
 
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      // The stream never carries a round, so a live incident must keep refreshing.
+      expect(incidentApi.getActiveIncidents.mock.calls.length).toBeGreaterThan(1)
+      store.stopPolling()
     })
 
-    it('resumes polling after a closed SSE connection fallback', async () => {
+    it('stays quiet while the stream is open and nothing is live', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+
+      store.startPolling('vault-1', 'token', 1000)
+      sseMock.instance.status.value = 'open'
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      // Nothing to keep current, so the stream alone is enough.
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
+
+    it('keeps polling when the stream closes', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
@@ -272,11 +292,10 @@ describe('Incident Store', () => {
       await nextTick()
       sseMock.instance.status.value = 'closed'
       await nextTick()
-
-      await vi.advanceTimersByTimeAsync(30000)
       await vi.advanceTimersByTimeAsync(10000)
 
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      expect(incidentApi.getActiveIncidents.mock.calls.length).toBeGreaterThan(1)
+      store.stopPolling()
     })
 
     // TODO: Fix timing issue with polling interval references

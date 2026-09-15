@@ -20,7 +20,6 @@ export const useIncidentStore = defineStore('incident', () => {
   const isPolling = ref(false)
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
-  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
   const announcedResolutions = new Set<string>()
 
@@ -140,7 +139,11 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentPolling?.pause()
     incidentPolling = usePolling(
       async () => {
-        if (!sseConnected.value) await fetchIncidents(vaultId, token)
+        // The stream carries spawn, spread and resolution only — never a round — so
+        // an active overlay still needs this refresh to advance its battle log.
+        if (!sseConnected.value || activeIncidentIds.value.length > 0) {
+          await fetchIncidents(vaultId, token)
+        }
       },
       { interval: intervalMs, immediate: false }
     )
@@ -221,24 +224,14 @@ export const useIncidentStore = defineStore('incident', () => {
       }
     )
 
+    // The stream carries spawn, spread and resolution — never a round — so the
+    // interval keeps ticking for as long as the vault is polled and the refresh
+    // itself decides whether a fetch is needed. Pausing it here would freeze any
+    // open overlay on its first fetch.
     watch(
       () => sseInstance?.status.value,
       (status) => {
-        if (status === 'open') {
-          sseConnected.value = true
-          incidentPolling?.pause()
-        } else if (status === 'closed') {
-          sseConnected.value = false
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer)
-            fallbackTimer = null
-          }
-          fallbackTimer = setTimeout(() => {
-            if (!sseConnected.value && isPolling.value) {
-              startIncidentPolling(vaultId, token, 10000)
-            }
-          }, 30000)
-        }
+        sseConnected.value = status === 'open'
       }
     )
   }
@@ -250,10 +243,6 @@ export const useIncidentStore = defineStore('incident', () => {
       sseInstance = null
     }
     sseConnected.value = false
-    if (fallbackTimer) {
-      clearTimeout(fallbackTimer)
-      fallbackTimer = null
-    }
   }
 
   function startPolling(vaultId: string, token: string, intervalMs: number = 10000): void {

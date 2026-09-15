@@ -10,6 +10,7 @@ export default mergeConfig(
       environment: 'jsdom',
       exclude: configDefaults.exclude,
       root: fileURLToPath(new URL('./', import.meta.url)),
+      maxWorkers: process.env.CI ? undefined : 2,
       include: ['tests/**/*.test.ts', 'src/**/__tests__/**/*.test.ts'],
       setupFiles: ['./vitest.setup.ts'],
       coverage: {

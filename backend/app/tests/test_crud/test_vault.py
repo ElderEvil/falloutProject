@@ -157,8 +157,24 @@ async def test_create_rejects_seeded_vault_number(async_session: AsyncSession) -
 
 
 @pytest.mark.asyncio
-async def test_upgrading_storage_room_grows_storage_capacity(async_session: AsyncSession) -> None:
-    """Upgrading a storage room must grow what the vault can hold."""
+@pytest.mark.parametrize(
+    ("segments", "target_tier", "expected_capacity"),
+    [
+        (1, 1, 30),
+        (1, 2, 45),
+        (1, 3, 60),
+        (2, 1, 60),
+        (2, 2, 90),
+        (2, 3, 120),
+        (3, 1, 90),
+        (3, 2, 135),
+        (3, 3, 180),
+    ],
+)
+async def test_storage_capacity_matches_room_width_and_tier(
+    async_session: AsyncSession, segments: int, target_tier: int, expected_capacity: int
+) -> None:
+    """Storage follows Fallout Shelter's 5 * width * (tier + 1) formula."""
     from sqlmodel import select
 
     from app.models.room import Room
@@ -167,30 +183,10 @@ async def test_upgrading_storage_room_grows_storage_capacity(async_session: Asyn
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
-    room_data = RoomCreate(
-        vault_id=vault.id,
-        name="Storage room",
-        category=RoomTypeEnum.CAPACITY,
-        tier=1,
-        size=3,
-        ability=SPECIALEnum.ENDURANCE,
-        capacity_formula="5*S*(L+1)",
-        population_required=None,
-        base_cost=300,
-        incremental_cost=75,
-        t2_upgrade_cost=750,
-        t3_upgrade_cost=1500,
-        size_min=3,
-        size_max=9,
-        coordinate_x=1,
-        coordinate_y=1,
-    )
-
-    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
-    await RoomService()._build(db_session=async_session, obj_in=room_data)
-
-    storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
-    assert storage.max_space == 30, "a tier 1 storage room provides the formula's 30 space"
+    await _add_elevator_on_level(async_session, vault.id, 1)
+    service = RoomService()
+    for x in range(1, segments * 3 + 1, 3):
+        await service._build(db_session=async_session, obj_in=_storage_room(vault.id, x=x, y=1))
 
     room = (
         (await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Storage room")))
@@ -198,13 +194,16 @@ async def test_upgrading_storage_room_grows_storage_capacity(async_session: Asyn
         .first()
     )
 
-    await RoomService().upgrade_room(async_session, room.id)
+    for _ in range(target_tier - 1):
+        await service.upgrade_room(async_session, room.id)
 
     await async_session.refresh(room)
+    storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
     await async_session.refresh(storage)
 
-    assert storage.max_space == 45, "the vault must hold what its storage room provides"
-    assert room.capacity == 45, "tier 2 follows the room's own formula: 5*S*(L+1) at L=2 is 45"
+    assert room.size == segments * 3
+    assert room.capacity == expected_capacity
+    assert storage.max_space == expected_capacity
 
 
 @pytest.mark.asyncio
@@ -277,24 +276,6 @@ def _storage_room(vault_id, x: int = 1, y: int = 1) -> RoomCreate:
         coordinate_x=x,
         coordinate_y=y,
     )
-
-
-@pytest.mark.asyncio
-async def test_merging_storage_segments_counts_the_merged_room_once(async_session: AsyncSession) -> None:
-    """A merge absorbs a room that is already counted, so the vault must not add it twice."""
-    from sqlmodel import select
-
-    from app.models.storage import Storage
-
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    await _add_elevator_on_level(async_session, vault.id, 1)
-
-    await RoomService()._build(db_session=async_session, obj_in=_storage_room(vault.id, x=1, y=1))
-    await RoomService()._build(db_session=async_session, obj_in=_storage_room(vault.id, x=4, y=1))
-
-    storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
-    assert storage.max_space == 60, "one merged room of size 6 provides 5*S*(L+1) = 60, not 30 + 60"
 
 
 @pytest.mark.asyncio

@@ -107,7 +107,10 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   gap: 0.25rem;
   color: var(--color-gray-300);
   font-size: 0.75rem;
+  font-weight: inherit;
+  letter-spacing: 0.05em;
   line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .room-fact + .room-fact {
@@ -121,15 +124,12 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 }
 
 .room-fact > span {
-  color: var(--color-gray-400);
-  font-size: 0.625rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  color: inherit;
 }
 
 .room-fact strong {
-  color: var(--color-theme-primary);
-  font-weight: 600;
+  color: inherit;
+  font-weight: inherit;
 }
 
 .tier-upgraded {

@@ -48,7 +48,8 @@ watch(
     if (!el) return
     if (isAtNewest.value) el.scrollTop = el.scrollHeight
     else hasNewEntries.value = true
-  }
+  },
+  { immediate: true }
 )
 </script>
 

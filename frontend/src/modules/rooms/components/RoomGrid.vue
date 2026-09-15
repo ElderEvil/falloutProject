@@ -252,11 +252,13 @@ const handleIncidentClick = (incidentId: string) => {
 }
 
 // Lets a parent (alert banner, notification click-through) open a room's overlay.
+// Immediate so a deep link set before this grid mounts still opens the room.
 watch(
   () => openRoomId,
   (roomId) => {
     if (roomId && openRoomOverlay(roomId)) emit('roomOpened')
-  }
+  },
+  { immediate: true }
 )
 
 // Upgrade room handler

@@ -190,6 +190,40 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
     })
+
+    it('keeps the last confirmed incident when a refresh fails', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      await store.fetchIncidents('vault-1', 'token')
+
+      vi.mocked(incidentApi.getActiveIncidents).mockRejectedValueOnce(new Error('Network error'))
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.activeIncidentIds).toEqual(['incident-1'])
+      expect(store.incidents.get('incident-1')).toEqual(mockIncident)
+    })
+
+    it('keeps a confirmed list when one incident detail refresh fails', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 2,
+        incidents: [
+          mockIncidentList.incidents[0],
+          { ...mockIncidentList.incidents[0], id: 'incident-2', room_id: 'room-2' },
+        ],
+      })
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce(mockIncident)
+        .mockRejectedValueOnce(new Error('Network error'))
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.activeIncidentIds).toEqual(['incident-1', 'incident-2'])
+    })
   })
 
   describe('assignResponders', () => {

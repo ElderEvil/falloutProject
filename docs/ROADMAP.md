@@ -558,6 +558,36 @@ touching incident handling; any breeding change must keep `population_max=None` 
 
 ---
 
+### Notification Delivery — Per-Tick Batching (Idea, Target: TBD)
+
+**Focus**: Cut real-time delivery churn and make notification creation transaction-safe, without delaying urgent
+surfacing.
+
+**Idea (not yet designed):** server-generated notifications currently push one WebSocket **and** one SSE frame each,
+so a busy tick can emit a burst of N frames, N re-renders, and N sounds. The `notification_service` deferral
+primitive (`create_and_send(commit=False)` → `deliver_deferred_notifications()` / `discard_deferred_notifications()`)
+also exists but is only wired into the incidents tick.
+
+**Sketch to evaluate before building:**
+
+- Split by priority: `URGENT`/`HIGH` keep immediate push; `NORMAL`/`INFO` coalesce into one per-tick batch payload.
+- Frontend iterates the batch and plays the notification sound once per batch.
+- Route **all** notification-producing flows through the deferred drain/discard primitive so a rolled-back
+  transaction cannot leak or lose a notification (today only `incident_tick` is covered).
+- Add a staleness cutoff on drain so returning from an offline stretch cannot dump a burst of stale toasts.
+
+**Explicitly out of scope:** user-action confirmations (build/upgrade/assign success toasts) stay client-side; they
+are synchronous responses to the caller's own request and gain nothing from a server queue.
+
+**Constraints:**
+
+- Must not violate the progression-visibility red line (`docs/backend/GAME_MECHANICS.md`): batched events still need
+  modal/toast surfacing, never notification-only.
+- Ticks are skipped while the vault owner is offline, so delivery timing must tolerate an idle queue.
+- No double-surfacing against the existing SSE + polling + bell paths.
+
+---
+
 ### Next Automated Release — Container Build Efficiency (Target: TBD)
 
 **Focus**: Make release image builds faster and measure runtime-image size without changing deployment behavior.

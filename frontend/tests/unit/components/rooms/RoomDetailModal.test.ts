@@ -248,7 +248,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.room-scene').exists()).toBe(true)
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
-      expect(wrapper.find('.modal-content').element.firstElementChild?.querySelector('.info-grid')).not.toBeNull()
+      expect(wrapper.find('.room-facts').exists()).toBe(true)
     })
 
     it('should display room size', () => {
@@ -259,8 +259,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Room Size')
-      expect(wrapper.text()).toContain('1x merged')
+      expect(wrapper.text()).toContain('Size')
+      expect(wrapper.text()).toContain('1× merged')
     })
 
     it('should display room position', () => {
@@ -283,8 +283,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Required Stat:')
-      expect(wrapper.text()).toContain('S - Strength')
+      expect(wrapper.text()).toContain('Requires: S')
     })
   })
 
@@ -640,7 +639,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.info-grid').exists()).toBe(true)
+      expect(wrapper.find('.room-facts').exists()).toBe(true)
       expect(wrapper.find('.room-management').text()).toContain('Management')
       expect(wrapper.text()).not.toContain('Staffing')
     })

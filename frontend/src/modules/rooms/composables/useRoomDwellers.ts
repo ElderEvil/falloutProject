@@ -1,7 +1,6 @@
 import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { getTrainingRoomCapacity } from '../utils/room'
@@ -26,11 +25,6 @@ export function useRoomDwellers(
     if (!room.value) return 0
     return getTrainingRoomCapacity(room.value)
   })
-
-  const getAbilityLabel = (ability: string) => {
-    const cfg = getAbilityConfig(ability)
-    return cfg ? `${cfg.letter} - ${cfg.label}` : ability
-  }
 
   const roomToken = (): string | null => (typeof authStore.token === 'string' ? authStore.token : null)
 
@@ -116,7 +110,6 @@ export function useRoomDwellers(
   return {
     assignedDwellers,
     dwellerCapacity,
-    getAbilityLabel,
     handleUnassignAll,
     handleUnassignDweller,
     handleAssignDweller,

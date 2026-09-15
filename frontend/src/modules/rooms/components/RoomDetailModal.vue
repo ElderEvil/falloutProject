@@ -10,7 +10,6 @@ import { useRadioRoom } from '../composables/useRadioRoom'
 import UModal from '@/core/components/ui/UModal.vue'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
-import RoomInfoGrid from './RoomInfoGrid.vue'
 import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
@@ -51,7 +50,6 @@ const craftingType = computed(() => craftingItemType(props.room))
 const {
   assignedDwellers,
   dwellerCapacity,
-  getAbilityLabel,
   handleUnassignAll,
   handleUnassignDweller,
   handleAssignDweller,
@@ -113,10 +111,7 @@ watch(
     <template #header>
       <RoomDetailHeader
         v-if="room"
-        :room-name="room.name"
-        :category="room.category"
-        :tier="room.tier"
-        :ability="room.ability"
+        :room="room"
         :resource-icon="resourceIcon"
         :just-upgraded="justUpgraded"
       />
@@ -146,11 +141,6 @@ watch(
       />
 
       <template v-else>
-        <RoomInfoGrid
-          :room="room"
-          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-        />
-
         <RoomPreviewSection
           :room-name="room.name"
           :image-url="room.image_url ?? null"

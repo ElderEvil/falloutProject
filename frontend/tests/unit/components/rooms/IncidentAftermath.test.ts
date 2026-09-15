@@ -23,6 +23,7 @@ const aftermath = (overrides: Partial<Aftermath> = {}): Aftermath =>
     roomName: 'Power Generator',
     outcome: 'victory',
     capsEarned: 50,
+    experienceEarned: 40,
     loot: null,
     unclaimed: [],
     enemiesDefeated: 3,
@@ -51,60 +52,70 @@ describe('IncidentAftermath', () => {
     sellOverflow.mockReset()
   })
 
-  it('summarises a victory with its haul', () => {
+  it('summarises a victory with its haul and experience', () => {
     const text = mountAftermath().text()
 
-    expect(text).toContain('INCIDENT CONTAINED')
+    expect(text).toContain('Incident contained')
     expect(text).toContain('RAIDER ATTACK')
     expect(text).toContain('Power Generator')
+    expect(text).toContain('Experience Gained')
+    expect(text).toContain('+40 XP')
+    expect(text).toContain('Bottle Caps')
     expect(text).toContain('50')
-    expect(text).toContain('40')
+  })
+
+  it('reports the damage the responders took, not dealt', () => {
+    const text = mountAftermath().text()
+
+    expect(text).toContain('Damage Taken')
+    expect(text).not.toContain('Damage Dealt')
   })
 
   it('names a defeat plainly', () => {
     const wrapper = mountAftermath({ aftermath: aftermath({ outcome: 'defeat', capsEarned: 0 }) })
 
-    expect(wrapper.text()).toContain('INCIDENT LOST')
-    expect(wrapper.text()).not.toContain('INCIDENT CONTAINED')
+    expect(wrapper.text()).toContain('Incident lost')
+    expect(wrapper.text()).not.toContain('Incident contained')
   })
 
   it('admits when the outcome was never reported', () => {
     const wrapper = mountAftermath({ aftermath: aftermath({ outcome: 'unknown' }) })
 
-    expect(wrapper.text()).toContain('INCIDENT ENDED')
+    expect(wrapper.text()).toContain('Incident ended')
     expect(wrapper.text()).toContain('outcome was not reported')
   })
 
-  it('lists recovered loot with quantities', () => {
+  it('lists recovered loot with quantities and rarity', () => {
     const wrapper = mountAftermath({
       aftermath: aftermath({
         loot: {
           caps: 50,
           items: [
-            { item_type: 'weapon', name: 'Laser Pistol', quantity: 1 },
-            { item_type: 'junk', name: 'Stimpak', quantity: 3 },
+            { item_type: 'weapon', rarity: 'rare', name: 'Laser Pistol', quantity: 1 },
+            { item_type: 'junk', rarity: 'common', name: 'Stimpak', quantity: 3 },
           ],
         },
       }),
     })
 
-    expect(wrapper.text()).toContain('RECOVERED')
+    expect(wrapper.text()).toContain('Recovered (2)')
     expect(wrapper.text()).toContain('Laser Pistol')
-    expect(wrapper.text()).toContain('3× Stimpak')
+    expect(wrapper.text()).toContain('Stimpak')
+    expect(wrapper.text()).toContain('x3')
   })
 
   it('omits the recovered section when nothing was recovered', () => {
-    expect(mountAftermath().text()).not.toContain('RECOVERED')
+    expect(mountAftermath().text()).not.toContain('Recovered')
   })
 
   it('offers take and sell for loot the vault could not hold', async () => {
     const wrapper = mountAftermath({
       aftermath: aftermath({
-        unclaimed: [{ item_type: 'weapon', name: 'Raider Pistol', quantity: 1 }],
+        unclaimed: [{ item_type: 'weapon', rarity: 'common', name: 'Raider Pistol', quantity: 1 }],
       }),
     })
 
-    expect(wrapper.text()).toContain('HELD — STORAGE FULL')
+    expect(wrapper.text()).toContain('Held — Storage Full (1)')
     expect(wrapper.text()).toContain('Raider Pistol')
 
     const [take, sell] = wrapper.findAll('button')
@@ -116,7 +127,7 @@ describe('IncidentAftermath', () => {
   })
 
   it('omits the held section when everything fit', () => {
-    expect(mountAftermath().text()).not.toContain('HELD')
+    expect(mountAftermath().text()).not.toContain('Held')
   })
 
   it('dismisses its own room summary', async () => {

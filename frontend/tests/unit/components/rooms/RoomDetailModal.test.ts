@@ -1267,6 +1267,7 @@ describe('RoomDetailModal', () => {
       progress: { current: 30, target: 100, label: 'Threat' },
       family: 'intrusion',
       objective: 'defeat',
+      response: { label: 'Send defenders' },
       events: [],
     }
 
@@ -1326,6 +1327,7 @@ describe('RoomDetailModal', () => {
         roomName: 'Power Generator',
         outcome: 'defeat',
         capsEarned: 0,
+        experienceEarned: 0,
         loot: null,
         enemiesDefeated: 2,
         damageDealt: 10,
@@ -1336,7 +1338,7 @@ describe('RoomDetailModal', () => {
         props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
       })
 
-      expect(wrapper.text()).toContain('INCIDENT LOST')
+      expect(wrapper.text()).toContain('Incident lost')
       expect(wrapper.text()).not.toContain('Unassign All Dwellers')
       expect(wrapper.text()).not.toContain('Destroy Room')
     })
@@ -1351,6 +1353,7 @@ describe('RoomDetailModal', () => {
         roomName: 'Power Generator',
         outcome: 'unknown',
         capsEarned: 0,
+        experienceEarned: 0,
         loot: null,
         enemiesDefeated: 0,
         damageDealt: 0,

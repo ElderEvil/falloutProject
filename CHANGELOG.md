@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.104.0 (2026-09-15)
+
+### Features
+
+* **medical:** lock the dweller row for supply mutations a2c4306
+
+### Bug Fixes
+
+* **medical:** base RadAway removal on max health, not current radiation d6cf519
+
+### Documentation
+
+* **map:** record online capability baseline and product direction 69ce9c7
+
 ## 2.103.1 (2026-09-15)
 
 ### Bug Fixes

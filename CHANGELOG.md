@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.106.0 (2026-09-15)
+
+### Features
+
+* **ui:** mute destructive button treatment ([#639](https://github.com/ElderEvil/falloutProject/issues/639)) d894dd8
+
 ## 2.105.0 (2026-09-15)
 
 ### Features

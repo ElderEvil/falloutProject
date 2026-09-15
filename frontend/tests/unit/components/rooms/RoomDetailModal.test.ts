@@ -234,7 +234,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Room Information', () => {
-    it('summarizes staffing capacity above the assigned dwellers', () => {
+    it('keeps staffing capacity on the room scene instead of repeating it in the roster', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -245,7 +245,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.staffing-summary').text()).toContain('1/2 workers · 1/1 apprentice')
+      expect(wrapper.find('.room-scene').text()).toContain('1/2 workers')
+      expect(wrapper.find('.staffing-summary').exists()).toBe(false)
     })
 
     it('should display room size', () => {
@@ -272,7 +273,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('(0, 0)')
     })
 
-    it('should display required stat', () => {
+    it('should display room focus in system details', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
@@ -280,7 +281,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Required Stat')
+      expect(wrapper.text()).toContain('Focus:')
       expect(wrapper.text()).toContain('S - Strength')
     })
   })
@@ -922,6 +923,22 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Dweller Click Navigation', () => {
+    it('should open dweller details from an occupied scene slot', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      await wrapper.get('.scene-dweller').trigger('click')
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        name: 'dwellerDetail',
+        params: { id: 'vault-123', dwellerId: 'dweller-2' },
+      })
+    })
+
     it('should call router.push when dweller card is clicked', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers

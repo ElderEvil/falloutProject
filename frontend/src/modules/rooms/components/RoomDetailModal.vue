@@ -151,6 +151,7 @@ watch(
           :dweller-capacity="dwellerCapacity"
           :assigned-dwellers="assignedDwellers"
           :show-apprentice-slot="producesResources(room)"
+          @activate="openDwellerDetails"
         />
 
         <div class="room-console">
@@ -171,8 +172,6 @@ watch(
             <RoomInfoGrid
               :room="room"
               :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-              :assigned-dweller-count="assignedDwellers.length"
-              :dweller-capacity="dwellerCapacity"
             />
 
             <OverseerBriefing

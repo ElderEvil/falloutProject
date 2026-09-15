@@ -46,23 +46,15 @@ const pickDweller = (dwellerId: string) => {
   emit('assignDweller', dwellerId)
 }
 
-const staffingSummary = computed(() => {
-  const apprenticeText = props.allowApprentice ? ` · ${hasApprentice.value ? 1 : 0}/1 apprentice` : ''
-  return `${workers.value.length}/${props.dwellerCapacity} workers${apprenticeText}`
-})
-
 const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker'))
 </script>
 
 <template>
   <div class="section dweller-section">
-    <div class="staffing-header">
-      <h3 class="section-title dweller-section-title">
-        <Icon icon="mdi:account-group" class="h-5 w-5" />
-        Staffing
-      </h3>
-      <span class="staffing-summary">{{ staffingSummary }}</span>
-    </div>
+    <h3 class="section-title dweller-section-title">
+      <Icon icon="mdi:account-group" class="h-5 w-5" />
+      Staffing
+    </h3>
     <div class="dwellers-list">
       <RoomDwellerCard
         v-for="dweller in assignedDwellers"
@@ -85,7 +77,6 @@ const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Sel
         >
           <Icon icon="mdi:account-plus-outline" class="h-5 w-5" />
           <span>Assign Worker</span>
-          <small>{{ workers.length }}/{{ dwellerCapacity }}</small>
         </button>
         <button
           v-if="allowApprentice"
@@ -96,7 +87,6 @@ const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Sel
         >
           <Icon icon="mdi:school-outline" class="h-5 w-5" />
           <span>Assign Apprentice</span>
-          <small>{{ hasApprentice ? 1 : 0 }}/1</small>
         </button>
       </div>
 
@@ -149,23 +139,8 @@ const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Sel
   border-top: 1px solid var(--color-theme-glow);
 }
 
-.staffing-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
 .dweller-section-title {
   font-weight: 700;
-}
-
-.staffing-summary {
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .dwellers-list {
@@ -198,14 +173,6 @@ const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Sel
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.assign-slot small {
-  margin-left: auto;
-  color: color-mix(in srgb, currentcolor 62%, transparent);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 
 .assign-apprentice {

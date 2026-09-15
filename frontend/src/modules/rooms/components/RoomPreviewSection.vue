@@ -14,6 +14,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false })
+const emit = defineEmits<{
+  activate: [dwellerId: string]
+}>()
 
 const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
 const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
@@ -49,21 +52,28 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 'slot-filled': workerDwellers[slot - 1],
               }"
             >
-              <template v-if="workerDwellers[slot - 1]">
-                <div class="placeholder-dweller">
-                  <span class="dweller-initial">{{ workerDwellers[slot - 1]?.first_name[0] }}</span>
-                </div>
-              </template>
-              <template v-else>
-                <div class="placeholder-dweller empty">
-                  <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
-                </div>
-              </template>
+              <button
+                v-if="workerDwellers[slot - 1]"
+                type="button"
+                class="placeholder-dweller scene-dweller"
+                :aria-label="`Open ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
+                @click="emit('activate', workerDwellers[slot - 1]!.id)"
+              >
+                <span class="dweller-initial">{{ workerDwellers[slot - 1]?.first_name[0] }}</span>
+              </button>
+              <div v-else class="placeholder-dweller empty">
+                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+              </div>
             </div>
             <div v-if="showApprenticeSlot" class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
-              <div class="placeholder-dweller">
+              <button
+                v-if="apprentice"
+                type="button"
+                class="placeholder-dweller scene-dweller"
+                :aria-label="`Open ${apprentice.first_name} ${apprentice.last_name ?? ''}`"
+                @click="emit('activate', apprentice.id)"
+              >
                 <span v-if="apprentice" class="dweller-initial">{{ apprentice.first_name[0] }}</span>
-                <Icon v-else icon="mdi:school-outline" class="h-6 w-6 opacity-30" />
                 <span
                   class="apprentice-marker"
                   :aria-label="
@@ -73,6 +83,12 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 >
                   <Icon icon="mdi:school-outline" />
                   {{ apprentice?.apprentice_stat?.charAt(0).toUpperCase() ?? '+' }}
+                </span>
+              </button>
+              <div v-else class="placeholder-dweller">
+                <Icon icon="mdi:school-outline" class="h-6 w-6 opacity-30" />
+                <span class="apprentice-marker" aria-label="Apprentice slot" role="img">
+                  <Icon icon="mdi:school-outline" />+
                 </span>
               </div>
             </div>
@@ -134,7 +150,6 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 
 .room-image-placeholder.has-image {
   background: transparent;
-  pointer-events: none;
 }
 
 .room-image-container::after {
@@ -232,6 +247,25 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   background: color-mix(in srgb, var(--color-surface-sunken) 80%, #000);
   border: 1px dashed var(--color-theme-glow);
   border-radius: 3px;
+}
+
+.scene-dweller {
+  color: inherit;
+  cursor: pointer;
+}
+
+.scene-dweller:hover,
+.scene-dweller:focus-visible {
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 0.55rem var(--color-theme-glow);
+  outline: none;
+  transform: translateY(-0.15rem);
+}
+
+.apprentice-slot .scene-dweller:hover,
+.apprentice-slot .scene-dweller:focus-visible {
+  border-color: var(--color-warning);
+  box-shadow: 0 0 0.55rem color-mix(in srgb, var(--color-warning) 45%, transparent);
 }
 
 .placeholder-dweller.empty {

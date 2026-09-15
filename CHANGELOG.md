@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.110.0 (2026-09-15)
+
+### Features
+
+* **incidents:** pick responders from the shared dweller row 78dd318
+* **incidents:** rebuild the aftermath as an icon-led summary e5fdc78
+* **incidents:** report the experience a won incident pays aaada02
+
+### Bug Fixes
+
+* **incidents:** allow only one responder assignment at a time 2989acc
+* **incidents:** keep incidents out of the arena 7829734
+* **incidents:** recover a missed resolution outcome from the record 2fef937
+* **incidents:** round the battle log damage deltas e187d0a
+
 ## 2.109.0 (2026-09-15)
 
 ### Features

@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
+import { getRoomSegmentCount, getTrainingRoomCapacity } from '../utils/room'
+import { isTrainingRoom } from '../models/roomParts'
 
 interface Props {
   room: Room
@@ -9,7 +11,13 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.size_min) / 3)}× merged`)
+const roomSegments = computed(() => getRoomSegmentCount(props.room))
+const roomSizeText = computed(() => roomSegments.value > 1 ? `${roomSegments.value}× merged` : `${roomSegments.value}×`)
+const abilityLabel = computed(() => isTrainingRoom(props.room) ? 'Trains' : 'Requires')
+// Training rooms store no resource capacity — show trainee spots instead.
+const displayCapacity = computed(() =>
+  isTrainingRoom(props.room) ? getTrainingRoomCapacity(props.room) : (props.room.capacity || 0)
+)
 </script>
 
 <template>
@@ -24,9 +32,9 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
         <span class="metadata-divider">&middot;</span>
         <span class="metadata-item">Tier {{ room.tier }}</span>
         <span v-if="room.ability" class="metadata-divider">&middot;</span>
-        <span v-if="room.ability" class="metadata-item">Requires: {{ room.ability.charAt(0) }}</span>
+        <span v-if="room.ability" class="metadata-item">{{ abilityLabel }}: {{ room.ability.charAt(0) }}</span>
         <span class="metadata-divider">&middot;</span>
-        <span class="metadata-item">Capacity: {{ room.capacity || 0 }}</span>
+        <span class="metadata-item">Capacity: {{ displayCapacity }}</span>
         <span class="metadata-divider">&middot;</span>
         <span class="metadata-item">Size: {{ roomSizeText }}</span>
         <span class="metadata-divider">&middot;</span>

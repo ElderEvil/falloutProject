@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -254,6 +255,38 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
     })
 
+    it('scales the room scene for 1u and 6u+ footprints', () => {
+      const compact = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 1, size_min: 1 },
+          modelValue: true,
+        },
+      })
+      const wide = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 9, size_min: 3 },
+          modelValue: true,
+        },
+      })
+
+      expect(compact.find('.room-scene').classes()).toContain('room-scene--compact')
+      expect(wide.find('.room-scene').classes()).toContain('room-scene--wide')
+    })
+
+    it('renders one static slot with no assign action for elevators', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Elevator', size: 1, size_min: 1 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.room-scene').classes()).toContain('room-scene--compact')
+      expect(wrapper.findAll('.dweller-sprite-slot')).toHaveLength(1)
+      expect(wrapper.find('.scene-empty-worker').exists()).toBe(false)
+      expect(wrapper.find('.scene-unassign').exists()).toBe(false)
+    })
+
     it('should display room size', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -263,7 +296,66 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Size')
-      expect(wrapper.text()).toContain('1× merged')
+      expect(wrapper.text()).toContain('1×')
+      expect(wrapper.text()).not.toContain('merged')
+    })
+
+    it('should mark truly merged rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 6, size_min: 3 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.text()).toContain('2× merged')
+    })
+
+    it('labels training rooms with Trains instead of Requires', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training', capacity: 0 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.header-metadata').text()).toContain('Trains: S')
+      expect(wrapper.find('.header-metadata').text()).not.toContain('Requires')
+      expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 2')
+    })
+
+    it('shows training progress with cancel and start actions for training rooms', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers
+      useAuthStore().token = 'test-token'
+      const fetchSpy = vi
+        .spyOn(useTrainingStore(), 'fetchRoomTrainings')
+        .mockResolvedValue([
+          {
+            id: 'training-1',
+            dweller_id: 'dweller-2',
+            stat_being_trained: 'strength',
+            status: 'active',
+            progress: 0.5,
+            started_at: new Date(Date.now() - 60000).toISOString(),
+            estimated_completion_at: new Date(Date.now() + 60000).toISOString(),
+            current_stat_value: 9,
+            target_stat_value: 10,
+          },
+        ] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+      expect(wrapper.text()).toContain('Training STRENGTH')
+      expect(wrapper.text()).toContain('Jane Smith')
+      expect(wrapper.text()).toContain('John Doe')
     })
 
     it('should display room position', () => {

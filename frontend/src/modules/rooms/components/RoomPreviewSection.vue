@@ -8,12 +8,14 @@ interface Props {
   roomName: string
   imageUrl: string | null
   roomImageUrl: string | null
+  roomUnits?: number
   dwellerCapacity: number
   assignedDwellers: DwellerShort[]
   showApprenticeSlot?: boolean
+  assignEnabled?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false })
+const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false, roomUnits: 3, assignEnabled: true })
 const emit = defineEmits<{
   activate: [dwellerId: string]
   unassign: [dwellerId: string]
@@ -22,12 +24,17 @@ const emit = defineEmits<{
 }>()
 
 const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
+const sceneSizeClass = computed(() => {
+  if (props.roomUnits <= 1) return 'room-scene--compact'
+  if (props.roomUnits >= 6) return 'room-scene--wide'
+  return null
+})
 const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
 const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
 </script>
 
 <template>
-  <section class="section room-preview-section room-scene" :aria-label="`${roomName} room preview`">
+  <section class="section room-preview-section room-scene" :class="sceneSizeClass" :aria-label="`${roomName} room preview`">
     <h3 class="section-title">
       <Icon icon="mdi:image-outline" class="h-5 w-5" />
       Room Preview
@@ -66,6 +73,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                     />
                   </button>
                   <button
+                    v-if="assignEnabled"
                     type="button"
                     class="scene-unassign"
                     :aria-label="`Unassign ${workerDwellers[slot - 1]?.first_name} ${workerDwellers[slot - 1]?.last_name ?? ''}`"
@@ -76,7 +84,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
                 </div>
               </template>
               <button
-                v-else
+                v-else-if="assignEnabled"
                 type="button"
                 class="placeholder-dweller empty scene-empty-slot scene-empty-worker"
                 aria-label="Assign worker"
@@ -84,6 +92,13 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
               >
                 <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
               </button>
+              <div
+                v-else
+                class="placeholder-dweller empty scene-empty-slot"
+                aria-hidden="true"
+              >
+                <Icon icon="mdi:account-outline" class="h-6 w-6 opacity-30" />
+              </div>
             </div>
             <div v-if="showApprenticeSlot" class="dweller-sprite-slot apprentice-slot" :class="{ 'slot-filled': apprentice }">
               <template v-if="apprentice">
@@ -178,6 +193,24 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   border: 1px solid var(--color-theme-glow);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.8);
+}
+
+.room-scene--compact .room-image-container {
+  min-height: 130px;
+}
+
+.room-scene--wide .room-image-container {
+  min-height: 0;
+  aspect-ratio: 3 / 1;
+}
+
+.room-scene--wide .room-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
 }
 
 .room-image {

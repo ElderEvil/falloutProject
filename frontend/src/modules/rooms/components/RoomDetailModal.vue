@@ -2,7 +2,7 @@
 import { computed, watch, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import { getRoomDetailParts, hasPart, producesResources, craftingItemType, type RoomPart } from '../models/roomParts'
+import { getRoomDetailParts, hasPart, producesResources, craftingItemType, isElevator, type RoomPart } from '../models/roomParts'
 import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
@@ -14,6 +14,7 @@ import ProductionStats from './ProductionStats.vue'
 import DwellerList from './DwellerList.vue'
 import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
+import RoomTrainingSection from './RoomTrainingSection.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
@@ -45,6 +46,9 @@ const modelValueRef = toRef(props, 'modelValue')
 const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room))
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
+const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
+// Elevators keep one static slot for future transit display — no assignment.
+const isElevatorRoom = computed(() => isElevator(props.room))
 
 // Composables
 const {
@@ -55,6 +59,8 @@ const {
   handleAssignDweller,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
+
+const sceneCapacity = computed(() => isElevatorRoom.value ? 1 : dwellerCapacity.value)
 
 const { resourceIcon, roomImageUrl, productionInfo } = useRoomProduction(
   roomRef,
@@ -143,9 +149,11 @@ watch(
           :room-name="room.name"
           :image-url="room.image_url ?? null"
           :room-image-url="roomImageUrl ?? null"
-          :dweller-capacity="dwellerCapacity"
+          :room-units="roomUnits"
+          :dweller-capacity="sceneCapacity"
           :assigned-dwellers="assignedDwellers"
-          :show-apprentice-slot="producesResources(room)"
+          :show-apprentice-slot="producesResources(room) && !isElevatorRoom"
+          :assign-enabled="!isElevatorRoom"
           @activate="openDwellerDetails"
           @unassign="handleUnassignDweller"
           @assign-worker="assignmentMode = 'worker'"
@@ -172,6 +180,12 @@ watch(
         />
 
         <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
+
+        <RoomTrainingSection
+          v-if="has('training')"
+          :room="room"
+          :assigned-dwellers="assignedDwellers"
+        />
 
         <CraftingPanel
           v-if="has('crafting') && craftingType"

@@ -248,6 +248,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.room-scene').exists()).toBe(true)
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
+      expect(wrapper.find('.modal-content').element.firstElementChild?.querySelector('.info-grid')).not.toBeNull()
     })
 
     it('should display room size', () => {

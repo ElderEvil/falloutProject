@@ -68,31 +68,39 @@ const roomSizeText = computed(
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.15rem;
-  padding: 0.5rem 0.6rem;
+  gap: 0.25rem;
+  min-height: 4.25rem;
+  padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
   background: var(--color-surface-sunken);
 }
 
 .info-label {
-  color: var(--color-gray-400);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
+  color: var(--color-gray-300);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .info-value {
   color: var(--color-theme-primary);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+@media (max-width: 480px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

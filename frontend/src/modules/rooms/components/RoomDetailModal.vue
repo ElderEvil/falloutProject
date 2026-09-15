@@ -146,6 +146,11 @@ watch(
       />
 
       <template v-else>
+        <RoomInfoGrid
+          :room="room"
+          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+        />
+
         <RoomPreviewSection
           :room-name="room.name"
           :image-url="room.image_url ?? null"
@@ -164,11 +169,6 @@ watch(
           v-model:assignment-mode="assignmentMode"
           :ability="room.ability"
           @assign-dweller="handleAssignDweller"
-        />
-
-        <RoomInfoGrid
-          :room="room"
-          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
         />
 
         <OverseerBriefing

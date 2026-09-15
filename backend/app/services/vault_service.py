@@ -818,11 +818,20 @@ class VaultService:
         )
 
     @staticmethod
-    def _calculate_new_capacity(action: RoomActionEnum, current_capacity: int | None, room_capacity: int | None) -> int:
+    def _calculate_new_capacity(
+        action: RoomActionEnum,
+        current_capacity: int | None,
+        room_capacity: int | None,
+        previous_capacity: int | None = None,
+    ) -> int:
         base = current_capacity or 0
         if room_capacity is None:
             return base
 
+        # A replacement (upgrade, or a merge absorbing an already-counted room)
+        # swaps the room's own contribution, so only the change counts.
+        if previous_capacity is not None:
+            return base - previous_capacity + room_capacity
         if action in {RoomActionEnum.BUILD, RoomActionEnum.UPGRADE}:
             return base + room_capacity
         if action == RoomActionEnum.DESTROY:
@@ -831,18 +840,29 @@ class VaultService:
         raise ValueError(msg)
 
     async def recalculate_vault_attributes(
-        self, *, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+        self,
+        *,
+        db_session: AsyncSession,
+        vault_obj: Vault,
+        room_obj: Room,
+        action: RoomActionEnum,
+        previous_capacity: int | None = None,
     ) -> Vault:
         """Recalculate the vault attributes based on the newly added or removed room."""
         if room_obj.category == RoomTypeEnum.PRODUCTION and room_obj.capacity is not None:
-            await self._handle_production_room(db_session, vault_obj, room_obj, action)
+            await self._handle_production_room(db_session, vault_obj, room_obj, action, previous_capacity)
         elif room_obj.category == RoomTypeEnum.CAPACITY:
-            await self._handle_capacity_room(db_session, vault_obj, room_obj, action)
+            await self._handle_capacity_room(db_session, vault_obj, room_obj, action, previous_capacity)
 
         return vault_obj
 
     async def _handle_production_room(
-        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+        self,
+        db_session: AsyncSession,
+        vault_obj: Vault,
+        room_obj: Room,
+        action: RoomActionEnum,
+        previous_capacity: int | None = None,
     ) -> None:
         """Handle production room capacity updates."""
         if room_obj.ability not in (
@@ -864,16 +884,23 @@ class VaultService:
         field, current = resource_map[room_obj.ability]
 
         if field:
-            new_capacity = self._calculate_new_capacity(action, current, room_obj.capacity)
+            new_capacity = self._calculate_new_capacity(action, current, room_obj.capacity, previous_capacity)
             await vault_crud.update(db_session=db_session, id=vault_obj.id, obj_in={field: new_capacity}, commit=False)
             await db_session.commit()
 
     async def _handle_capacity_room(
-        self, db_session: AsyncSession, vault_obj: Vault, room_obj: Room, action: RoomActionEnum
+        self,
+        db_session: AsyncSession,
+        vault_obj: Vault,
+        room_obj: Room,
+        action: RoomActionEnum,
+        previous_capacity: int | None = None,
     ) -> None:
         """Handle capacity room updates."""
         if room_obj.ability == SPECIALEnum.CHARISMA:
-            new_population_max = self._calculate_new_capacity(action, vault_obj.population_max or 0, room_obj.capacity)
+            new_population_max = self._calculate_new_capacity(
+                action, vault_obj.population_max or 0, room_obj.capacity, previous_capacity
+            )
             await vault_crud.update(db_session, vault_obj.id, VaultUpdate(population_max=new_population_max))
         elif room_obj.ability == SPECIALEnum.ENDURANCE and room_obj.capacity is not None:
             storage_obj = await storage_crud.get_by_vault(db_session, vault_obj.id)
@@ -882,7 +909,9 @@ class VaultService:
                 storage_obj = await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_obj.id)
 
             current_max_space = storage_obj.max_space
-            new_storage_space_max = self._calculate_new_capacity(action, current_max_space, room_obj.capacity)
+            new_storage_space_max = self._calculate_new_capacity(
+                action, current_max_space, room_obj.capacity, previous_capacity
+            )
             await storage_crud.set_max_space(db_session, vault_obj.id, new_storage_space_max)
 
     async def is_enough_dwellers(

@@ -169,7 +169,7 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
         </div>
         <span v-if="item.action === 'incidents'" class="briefing-respond shrink-0">
           <UButton
-            variant="danger"
+            variant="secondary"
             size="xs"
             aria-label="Respond to active incidents"
             @click="emit('reviewIncidents')"

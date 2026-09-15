@@ -72,8 +72,8 @@ describe('IncidentAftermath', () => {
         loot: {
           caps: 50,
           items: [
-            { type: 'weapon', name: 'Laser Pistol', quantity: 1 },
-            { type: 'outfit', name: 'Stimpak', quantity: 3 },
+            { item_type: 'weapon', name: 'Laser Pistol', quantity: 1 },
+            { item_type: 'junk', name: 'Stimpak', quantity: 3 },
           ],
         },
       }),

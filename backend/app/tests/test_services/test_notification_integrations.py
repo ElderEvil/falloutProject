@@ -101,6 +101,44 @@ class TestIncidentNotifications:
         assert "loot" in call_args.kwargs["meta_data"]
 
     @pytest.mark.asyncio
+    async def test_fire_victory_does_not_promise_caps(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        dweller_in_vault,
+        room_in_vault,
+    ):
+        """A hazard pays in experience, so its notification must not claim caps."""
+        _, vault = user_with_vault
+
+        dweller_in_vault.room_id = room_in_vault.id
+        async_session.add(dweller_in_vault)
+        await async_session.commit()
+
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_in_vault.id,
+            incident_type=IncidentType.FIRE,
+            difficulty=1,
+        )
+        incident.combat_progress = 1  # force immediate containment
+        async_session.add(incident)
+        await async_session.commit()
+        await async_session.refresh(incident)
+
+        incident_service = IncidentService()
+
+        with patch("app.services.combat.incident_publishing.notification_service.create_and_send") as mock_notify:
+            mock_notify.return_value = AsyncMock()
+
+            await incident_service.process_incident(async_session, incident, 60)
+
+        message = mock_notify.call_args.kwargs["message"]
+        assert "caps" not in message
+        assert "experience" in message
+
+    @pytest.mark.asyncio
     async def test_incident_defeat_sends_notification(
         self,
         async_session: AsyncSession,

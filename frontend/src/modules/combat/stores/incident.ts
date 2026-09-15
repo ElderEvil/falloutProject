@@ -187,11 +187,11 @@ export const useIncidentStore = defineStore('incident', () => {
               )
             }
             if (data.success === true) {
-              const capsEarned = data.caps_earned
+              const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
               showSuccess(
-                typeof capsEarned === 'number'
+                capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
-                  : 'Incident contained — vault secure.'
+                  : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
               showError(

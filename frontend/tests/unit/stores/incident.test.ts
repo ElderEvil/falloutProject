@@ -511,6 +511,20 @@ describe('Incident Store', () => {
       store.stopPolling()
     })
 
+    it('announces a hazard victory without promising caps', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 0,
+      })
+
+      expect(sseMock.toast.success).toHaveBeenCalledWith(
+        'Incident resolved — responders earned experience.'
+      )
+      store.stopPolling()
+    })
+
     it('records an unknown outcome when only the poll sees the incident end', async () => {
       const store = useIncidentStore()
       store.incidents.set('incident-1', mockIncident)

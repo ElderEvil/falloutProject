@@ -41,7 +41,7 @@ export interface Incident {
   loot: {
     caps?: number
     items?: Array<{
-      type: string
+      item_type: string
       rarity?: string
       name: string
       quantity?: number

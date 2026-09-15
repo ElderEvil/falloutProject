@@ -335,13 +335,12 @@ async def test_fatal_round_delivers_death_notification_after_commit(
 @pytest.mark.asyncio
 async def test_generate_loot(async_session: AsyncSession, vault: Vault):
     """Test loot generation for different difficulties."""
-    # Test low difficulty (internal threat - caps only)
+    # A hazard pays in experience: no caps, no loot, however severe.
     loot_low = incident_math.generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
-    assert "caps" in loot_low
-    assert loot_low["caps"] >= 25
-    assert loot_low["caps"] <= 75
+    assert loot_low["caps"] == 0
+    assert loot_low["items"] == []
 
-    # Test high difficulty (external threat - caps + items)
+    # An intrusion pays caps scaled by difficulty.
     loot_high = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
     assert loot_high["caps"] >= 250
     assert loot_high["caps"] <= 525

@@ -16,10 +16,14 @@ import RadioControls from './RadioControls.vue'
 import RoomActions from './RoomActions.vue'
 import RoomTrainingSection from './RoomTrainingSection.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
+import RoomIncidentDetail from './RoomIncidentDetail.vue'
+import IncidentAftermath from './IncidentAftermath.vue'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 interface Props {
   room: Room | null
@@ -42,8 +46,18 @@ const assignmentMode = ref<'worker' | 'apprentice' | null>(null)
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
 
+const incidentStore = useIncidentStore()
+const liveIncident = computed(
+  () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
+)
+const liveAftermath = computed(() =>
+  props.room ? (incidentStore.aftermathForRoom(props.room.id) ?? null) : null
+)
+
 // Which sections this room renders — decided by the part registry, nowhere else.
-const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room))
+const parts = computed<RoomPart[]>(() =>
+  getRoomDetailParts(props.room, liveIncident.value, liveAftermath.value)
+)
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
 const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
@@ -59,6 +73,9 @@ const {
   handleAssignDweller,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
+
+const { filter: dwellerStore } = useDwellerStore()
+const vaultDwellers = computed(() => dwellerStore.dwellers)
 
 const sceneCapacity = computed(() => isElevatorRoom.value ? 1 : dwellerCapacity.value)
 
@@ -123,13 +140,26 @@ watch(
 
     <div v-if="room" class="modal-content">
       <!-- Error display -->
-      <div v-if="actionError && !has('arena')" class="error-banner">
+      <div v-if="actionError && !has('arena') && !has('incident') && !has('aftermath')" class="error-banner">
         <Icon icon="mdi:alert-circle" class="h-5 w-5" />
         {{ actionError }}
       </div>
 
+      <RoomIncidentDetail
+        v-if="has('incident') && liveIncident"
+        :incident="liveIncident"
+        :vault-id="props.vaultId"
+        :dwellers="vaultDwellers"
+        :room-image-url="roomImageUrl ?? null"
+      />
+
+      <IncidentAftermath
+        v-else-if="has('aftermath') && liveAftermath"
+        :aftermath="liveAftermath"
+      />
+
       <ArenaRoomDetail
-        v-if="has('arena')"
+        v-else-if="has('arena')"
         :room="room"
         :vault-id="props.vaultId"
         :assigned-dwellers="assignedDwellers"

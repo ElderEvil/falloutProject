@@ -1,22 +1,30 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
-import type { Incident, IncidentListResponse } from '../models/incident'
+import type {
+  Incident,
+  IncidentAftermath,
+  IncidentListResponse,
+  IncidentOutcome,
+} from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useSound } from '@/core/composables/useSound'
 import { useSse } from '@/core/composables/useEventStream'
 import { usePolling } from '@/core/composables/usePolling'
 
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
   const activeIncidentIds = ref<string[]>([])
+  const aftermaths = ref<Map<string, IncidentAftermath>>(new Map())
   const isPolling = ref(false)
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
-  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
+  const announcedResolutions = new Set<string>()
 
   const { success: showSuccess, error: showError } = useToast()
+  const { playSound } = useSound()
 
   // Computed
   const activeIncidents = computed(() => {
@@ -35,14 +43,35 @@ export const useIncidentStore = defineStore('incident', () => {
     return counts
   })
 
+  const aftermathForRoom = (roomId: string): IncidentAftermath | undefined => aftermaths.value.get(roomId)
+
+  const clearAftermath = (roomId: string): void => {
+    aftermaths.value.delete(roomId)
+  }
+
+  const recordAftermath = (incident: Incident, outcome: IncidentOutcome, capsEarned: number): void => {
+    aftermaths.value.set(incident.room_id, {
+      incidentId: incident.id,
+      roomId: incident.room_id,
+      type: incident.type,
+      roomName: incident.room_name,
+      outcome,
+      capsEarned,
+      loot: incident.loot,
+      enemiesDefeated: incident.enemies_defeated,
+      damageDealt: incident.damage_dealt,
+      rounds: incident.events.length,
+    })
+  }
+
   // Actions
   async function fetchIncidents(vaultId: string, token: string): Promise<void> {
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
 
-      // Safety check
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
-        activeIncidentIds.value = []
+        // An unconfirmed list is not a confirmed empty vault; fail closed.
+        handleStoreError(new Error('Malformed incident list response'), 'Failed to fetch incidents')
         return
       }
 
@@ -50,9 +79,20 @@ export const useIncidentStore = defineStore('incident', () => {
       const newIds = response.incidents.map((inc) => inc.id)
       const previousIds = [...activeIncidentIds.value]
 
+      // A resolution the SSE stream never delivered: the incident is simply gone
+      // from the list. The list payload carries no outcome, so record what happened
+      // without claiming a result we cannot know.
+      previousIds
+        .filter((id) => !newIds.includes(id))
+        .forEach((id) => {
+          const vanished = incidents.value.get(id)
+          if (vanished) recordAftermath(vanished, 'unknown', 0)
+        })
+
       // Check for new incidents (spawn notifications)
       const spawned = newIds.filter((id) => !previousIds.includes(id))
       if (spawned.length > 0) {
+        playSound('notification')
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
@@ -64,17 +104,20 @@ export const useIncidentStore = defineStore('incident', () => {
       // Update store
       activeIncidentIds.value = newIds
 
-      // Fetch full details for each incident
+      // Fetch full details for each incident; one failed detail must not discard the confirmed list.
       await Promise.all(
         newIds.map(async (id) => {
-          const incident = await incidentApi.getIncident(vaultId, id, token)
-          incidents.value.set(id, incident)
+          try {
+            const incident = await incidentApi.getIncident(vaultId, id, token)
+            incidents.value.set(id, incident)
+          } catch (error) {
+            handleStoreError(error, 'Failed to refresh incident details')
+          }
         })
       )
     } catch (error) {
+      // Fail closed: a transient failure must not make a live incident vanish.
       handleStoreError(error, 'Failed to fetch incidents')
-      // Don't throw - just set empty state so the app continues working
-      activeIncidentIds.value = []
     }
   }
 
@@ -99,7 +142,11 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentPolling?.pause()
     incidentPolling = usePolling(
       async () => {
-        if (!sseConnected.value) await fetchIncidents(vaultId, token)
+        // The stream carries spawn, spread and resolution only — never a round — so
+        // an active overlay still needs this refresh to advance its battle log.
+        if (!sseConnected.value || activeIncidentIds.value.length > 0) {
+          await fetchIncidents(vaultId, token)
+        }
       },
       { interval: intervalMs, immediate: false }
     )
@@ -130,17 +177,34 @@ export const useIncidentStore = defineStore('incident', () => {
 
           case 'incident_resolved': {
             const resolvedId = data.incident_id as string | undefined
+            const resolved = resolvedId ? incidents.value.get(resolvedId) : undefined
+            const isFirstNotice = resolvedId === undefined || !announcedResolutions.has(resolvedId)
             if (resolvedId) {
+              announcedResolutions.add(resolvedId)
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
             }
-            if (data.success === true) {
-              const capsEarned = data.caps_earned
-              showSuccess(
-                typeof capsEarned === 'number'
-                  ? `Incident victory — recovered ${capsEarned} caps.`
-                  : 'Incident contained — vault secure.'
+            if (!isFirstNotice) break
+            if (resolved) {
+              recordAftermath(
+                resolved,
+                data.success === true ? 'victory' : 'defeat',
+                typeof data.caps_earned === 'number' ? data.caps_earned : 0
               )
+            }
+            if (data.success === true) {
+              const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
+              showSuccess(
+                capsEarned > 0
+                  ? `Incident victory — recovered ${capsEarned} caps.`
+                  : 'Incident resolved — responders earned experience.'
+              )
+            } else if (resolved) {
+              showError(
+                `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
+              )
+            } else {
+              showError('Incident lost — the threat was not contained.')
             }
             break
           }
@@ -163,24 +227,14 @@ export const useIncidentStore = defineStore('incident', () => {
       }
     )
 
+    // The stream carries spawn, spread and resolution — never a round — so the
+    // interval keeps ticking for as long as the vault is polled and the refresh
+    // itself decides whether a fetch is needed. Pausing it here would freeze any
+    // open overlay on its first fetch.
     watch(
       () => sseInstance?.status.value,
       (status) => {
-        if (status === 'open') {
-          sseConnected.value = true
-          incidentPolling?.pause()
-        } else if (status === 'closed') {
-          sseConnected.value = false
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer)
-            fallbackTimer = null
-          }
-          fallbackTimer = setTimeout(() => {
-            if (!sseConnected.value && isPolling.value) {
-              startIncidentPolling(vaultId, token, 10000)
-            }
-          }, 30000)
-        }
+        sseConnected.value = status === 'open'
       }
     )
   }
@@ -192,10 +246,6 @@ export const useIncidentStore = defineStore('incident', () => {
       sseInstance = null
     }
     sseConnected.value = false
-    if (fallbackTimer) {
-      clearTimeout(fallbackTimer)
-      fallbackTimer = null
-    }
   }
 
   function startPolling(vaultId: string, token: string, intervalMs: number = 10000): void {
@@ -222,6 +272,7 @@ export const useIncidentStore = defineStore('incident', () => {
   function clearIncidents(): void {
     incidents.value.clear()
     activeIncidentIds.value = []
+    aftermaths.value.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {
@@ -261,6 +312,7 @@ export const useIncidentStore = defineStore('incident', () => {
     // State
     incidents,
     activeIncidentIds,
+    aftermaths,
     isPolling,
 
     // Computed
@@ -275,6 +327,8 @@ export const useIncidentStore = defineStore('incident', () => {
     stopPolling,
     clearIncidents,
     getIncidentById,
+    aftermathForRoom,
+    clearAftermath,
     spawnDebugIncident,
   }
 })

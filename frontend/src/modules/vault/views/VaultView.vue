@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -17,7 +17,6 @@ import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefi
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
-import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
@@ -26,14 +25,6 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import type { RoomTemplate } from '@/modules/rooms/models/room'
 import { Icon } from '@iconify/vue'
-
-// Lazy load heavy modal
-const CombatModal = defineAsyncComponent({
-  loader: () => import('@/modules/combat/components/incidents/CombatModal.vue'),
-  loadingComponent: ComponentLoader,
-  delay: 200,
-  timeout: 10000,
-})
 
 interface Position {
   x: number
@@ -54,8 +45,7 @@ const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
-const showCombatModal = ref(false)
-const selectedIncidentId = ref<string | null>(null)
+const openRoomId = ref<string | null>(null)
 const highlightedRoomId = ref<string | null>(null)
 
 const buildModeActive = computed(() => showRoomMenu.value || roomStore.isPlacingRoom)
@@ -223,6 +213,7 @@ watch(
   (newRoomId) => {
     if (newRoomId && typeof newRoomId === 'string') {
       highlightedRoomId.value = newRoomId
+      openRoomId.value = newRoomId
       // Clear highlight after 3 seconds
       setTimeout(() => {
         highlightedRoomId.value = null
@@ -309,26 +300,15 @@ const handleRoomSelected = (room: RoomTemplate) => {
   showRoomMenu.value = false
 }
 
+// Incident surfaces open the affected room's overlay, not a separate modal.
 const handleIncidentClicked = (incidentId: string) => {
-  selectedIncidentId.value = incidentId
-  showCombatModal.value = true
+  const incident = incidentStore.getIncidentById(incidentId)
+  if (incident) openRoomId.value = incident.room_id
 }
 
 const reviewActiveIncidents = () => {
   const incident = activeIncidents.value[0]
   if (incident) handleIncidentClicked(incident.id)
-}
-
-const handleCombatModalClose = () => {
-  showCombatModal.value = false
-  selectedIncidentId.value = null
-}
-
-const handleIncidentResponded = async () => {
-  if (vaultId.value && authStore.token) {
-    await vaultStore.refreshVault(vaultId.value, authStore.token)
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-  }
 }
 </script>
 
@@ -448,9 +428,10 @@ const handleIncidentResponded = async () => {
             <RoomGrid
               :incidents="activeIncidents"
               :highlightedRoomId="highlightedRoomId"
+              :open-room-id="openRoomId"
               :overseer-briefing="overseerBriefing"
               :overseer-attention-count="overseerAttentionCount"
-              @incidentClicked="handleIncidentClicked"
+              @room-opened="openRoomId = null"
               @review-incidents="reviewActiveIncidents"
             />
 
@@ -473,15 +454,6 @@ const handleIncidentResponded = async () => {
       </div>
     </div>
 
-    <!-- Combat Modal -->
-    <CombatModal
-      v-if="showCombatModal && selectedIncidentId && vaultId"
-      :incidentId="selectedIncidentId"
-      :vaultId="vaultId"
-      :dwellers="dwellerStore.dwellers"
-      @close="handleCombatModalClose"
-      @responded="handleIncidentResponded"
-    />
   </div>
 </template>
 

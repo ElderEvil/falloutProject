@@ -101,10 +101,13 @@ async def notify_resolution(
     if success:
         if definition.objective.value == "contain":
             title = f"Contained: {incident_name}"
-            message = f"Your dwellers contained {incident_name} and recovered {caps_earned} caps!"
+            outcome = f"Your dwellers contained {incident_name}"
         else:
             title = f"Victory: {incident_name}"
-            message = f"Your dwellers defeated the attackers and recovered {caps_earned} caps!"
+            outcome = "Your dwellers defeated the attackers"
+        # Hazards pay in experience, so claiming recovered caps would be a lie.
+        reward = f" and recovered {caps_earned} caps!" if caps_earned > 0 else ". Responders earned experience."
+        message = f"{outcome}{reward}"
         notification_type = NotificationType.COMBAT_VICTORY
     else:
         title = f"Incident Lost: {incident_name}"

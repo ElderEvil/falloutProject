@@ -1,39 +1,31 @@
 <template>
   <button
     type="button"
-    class="incident-alert"
-    :class="{ pulsing: hasActiveIncidents }"
+    class="incident-alert flex w-full items-center gap-4 overflow-hidden rounded border-2 border-danger px-4 text-left"
+    :class="{ 'badge-live': hasActiveIncidents }"
     :disabled="!primaryIncident"
     :aria-label="primaryIncident ? `Open ${incidentTitle} incident` : 'No active incidents'"
     @click="incidents[0]?.id && $emit('click', incidents[0].id)"
   >
-    <div class="alert-content">
-      <!-- Icon -->
-      <div class="alert-icon">
-        <Icon :icon="incidentIcon" class="icon" />
-      </div>
+    <span
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-danger bg-danger/20"
+    >
+      <Icon :icon="incidentIcon" class="h-6 w-6 text-danger" />
+    </span>
 
-      <!-- Incident Info -->
-      <div class="alert-info">
-        <div class="alert-title">
-          {{ incidentTitle }}
-        </div>
-        <div class="alert-subtitle">
-          {{ incidentSubtitle }}
-        </div>
-      </div>
+    <span class="flex flex-1 flex-col gap-1">
+      <span class="text-base font-bold tracking-wide text-danger">{{ incidentTitle }}</span>
+      <span class="text-xs text-danger">{{ incidentSubtitle }}</span>
+    </span>
 
-      <!-- Timer -->
-      <div class="alert-timer">
-        {{ elapsedTime }}
-      </div>
+    <span class="shrink-0 text-xl font-bold tracking-widest text-danger">{{ elapsedTime }}</span>
 
-      <!-- Count Badge (if multiple) -->
-      <div v-if="incidents.length > 1" class="alert-badge">{{ incidents.length }} ACTIVE</div>
-    </div>
-
-    <!-- Scanline overlay -->
-    <div class="scanline"></div>
+    <span
+      v-if="incidents.length > 1"
+      class="shrink-0 rounded-full bg-danger px-3 py-1 text-xs font-bold text-gray-100"
+    >
+      {{ incidents.length }} ACTIVE
+    </span>
   </button>
 </template>
 
@@ -110,132 +102,19 @@ const elapsedTime = computed(() => {
 
 <style scoped>
 .incident-alert {
-  position: relative;
-  width: 100%;
   height: 60px;
-  background: linear-gradient(180deg, var(--color-surface-dark) 0%, var(--color-surface-dark) 100%);
-  border: 2px solid var(--color-danger);
-  border-radius: 4px;
-  font: inherit;
-  text-align: left;
+  color: var(--color-danger);
   cursor: pointer;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  transition-duration: var(--transition-base);
 }
 
-.incident-alert:hover {
-  border-color: var(--color-danger);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--color-danger) 50%, transparent);
+.incident-alert:disabled {
+  cursor: default;
 }
 
-.incident-alert.pulsing {
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    border-color: var(--color-danger);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--color-danger) 30%, transparent);
-  }
-  50% {
-    border-color: var(--color-danger);
-    box-shadow: 0 0 30px color-mix(in srgb, var(--color-danger) 60%, transparent);
-  }
-}
-
-.alert-content {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 1rem;
-  gap: 1rem;
-}
-
-.alert-icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-  border: 1px solid var(--color-danger);
-  border-radius: 50%;
-}
-
-.alert-icon .icon {
-  width: 24px;
-  height: 24px;
-  color: var(--color-danger);
-}
-
-.alert-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.alert-title {
-  font-family: 'Courier New', monospace;
-  font-size: 1rem;
-  font-weight: bold;
-  color: var(--color-danger);
-  letter-spacing: 0.05em;
-}
-
-.alert-subtitle {
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  color: var(--color-danger);
-}
-
-.alert-timer {
-  flex-shrink: 0;
-  font-family: 'Courier New', monospace;
-  font-size: 1.25rem;
-  font-weight: bold;
-  color: var(--color-danger);
-  letter-spacing: 0.1em;
-}
-
-.alert-badge {
-  flex-shrink: 0;
-  padding: 0.25rem 0.75rem;
-  background: var(--color-danger);
-  color: var(--color-gray-100);
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  font-weight: bold;
-  border-radius: 12px;
-  letter-spacing: 0.05em;
-}
-
-.scanline {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--color-danger) 80%, transparent),
-    transparent
-  );
-  animation: scanline 2s linear infinite;
-  pointer-events: none;
-  z-index: 3;
-}
-
-@keyframes scanline {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(60px);
-  }
+/* Live status rides --glow-3 via .badge-live; hovering promotes it to the
+   interactive tier because this banner is also the entry point to the room. */
+.incident-alert:hover:not(:disabled) {
+  --glow: var(--glow-2);
 }
 </style>

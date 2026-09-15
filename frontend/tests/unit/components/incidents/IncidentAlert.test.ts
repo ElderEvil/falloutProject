@@ -178,14 +178,34 @@ describe('IncidentAlert', () => {
   })
 
   describe('Styling', () => {
-    it('should have pulsing class when incidents exist', () => {
+    it('marks a live incident with the sanctioned live-status tier', () => {
       const wrapper = mount(IncidentAlert, {
         props: {
           incidents: [mockIncident],
         },
       })
 
-      expect(wrapper.find('.incident-alert').classes()).toContain('pulsing')
+      expect(wrapper.find('.incident-alert').classes()).toContain('badge-live')
+    })
+
+    it('leaves the alert quiet when no incident is live', () => {
+      const wrapper = mount(IncidentAlert, {
+        props: {
+          incidents: [],
+        },
+      })
+
+      expect(wrapper.find('.incident-alert').classes()).not.toContain('badge-live')
+    })
+
+    it('hand-rolls no shadow or scanline of its own', () => {
+      const wrapper = mount(IncidentAlert, {
+        props: {
+          incidents: [mockIncident],
+        },
+      })
+
+      expect(wrapper.find('.scanline').exists()).toBe(false)
     })
 
     it('should have red border color', () => {
@@ -197,6 +217,7 @@ describe('IncidentAlert', () => {
 
       const alert = wrapper.find('.incident-alert')
       expect(alert.exists()).toBe(true)
+      expect(alert.classes()).toContain('border-danger')
     })
   })
 

@@ -839,4 +839,26 @@ describe('RoomGrid', () => {
       expect(wrapper.findAll('.locked-row')).toHaveLength(10)
     })
   })
+
+  describe('Room overlay requests', () => {
+    it('opens a room requested before the grid mounted', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [mockRoom]
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'room-123' } })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('roomOpened')).toHaveLength(1)
+    })
+
+    it('ignores an unknown room id', async () => {
+      const roomStore = useRoomStore()
+      roomStore.rooms = [mockRoom]
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [], openRoomId: 'missing' } })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.emitted('roomOpened')).toBeUndefined()
+    })
+  })
 })

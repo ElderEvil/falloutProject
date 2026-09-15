@@ -1,11 +1,86 @@
 """Pure combat math for incidents: power, damage, suppression, and loot rolls."""
 
 import random
+from dataclasses import dataclass
 
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.incident import IncidentType
 from app.utils.combat import total_combat_power
+from app.utils.static_data import game_data_store
+
+
+@dataclass(frozen=True)
+class IncidentRewardTier:
+    """What an incident type pays out, before difficulty scaling."""
+
+    caps_multiplier: float
+    item_kind: str | None = None
+    item_rarity: str | None = None
+    elite_rarity: str | None = None
+    elite_difficulty: int = 7
+
+
+# Hazards pay in experience; infestations in caps; intrusions in caps and gear,
+# escalating to the vault's best salvage.
+INCIDENT_REWARD_TIERS: dict[IncidentType, IncidentRewardTier] = {
+    IncidentType.FIRE: IncidentRewardTier(caps_multiplier=0.0),
+    IncidentType.RADROACH_INFESTATION: IncidentRewardTier(caps_multiplier=0.25),
+    IncidentType.MOLE_RAT_ATTACK: IncidentRewardTier(caps_multiplier=0.5),
+    IncidentType.RADSCORPION_ATTACK: IncidentRewardTier(caps_multiplier=0.5),
+    IncidentType.FERAL_GHOUL_ATTACK: IncidentRewardTier(caps_multiplier=0.6, item_kind="junk", item_rarity="common"),
+    IncidentType.RAIDER_ATTACK: IncidentRewardTier(
+        caps_multiplier=1.0,
+        item_kind="weapon",
+        item_rarity="common",
+        elite_rarity="rare",
+        elite_difficulty=7,
+    ),
+    IncidentType.DEATHCLAW_ATTACK: IncidentRewardTier(
+        caps_multiplier=1.5,
+        item_kind="junk",
+        item_rarity="rare",
+        elite_rarity="legendary",
+        elite_difficulty=8,
+    ),
+}
+
+
+def get_reward_tier(incident_type: IncidentType) -> IncidentRewardTier:
+    """Return the reward tier for an incident type."""
+    return INCIDENT_REWARD_TIERS[incident_type]
+
+
+def _base_caps(difficulty: int) -> int:
+    return random.randint(
+        game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
+        game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
+    )
+
+
+def _catalog_item(kind: str, rarity: str) -> dict | None:
+    """Roll a real catalog item, so granted loot is never a phantom name."""
+    pool = game_data_store.junk_items if kind == "junk" else game_data_store.weapons
+    candidates = [item for item in pool if str(item.rarity).lower() == rarity.lower()]
+    if not candidates:
+        return None
+    chosen = random.choice(candidates)
+    return {"item_type": kind, "rarity": str(chosen.rarity).lower(), "name": chosen.name}
+
+
+def generate_loot(difficulty: int, incident_type: IncidentType) -> dict:
+    """Generate type-tiered loot: difficulty-scaled caps plus a catalog item."""
+    tier = get_reward_tier(incident_type)
+    caps = int(_base_caps(difficulty) * tier.caps_multiplier)
+
+    items: list[dict] = []
+    if tier.item_kind and tier.item_rarity:
+        rarity = tier.elite_rarity if tier.elite_rarity and difficulty >= tier.elite_difficulty else tier.item_rarity
+        item = _catalog_item(tier.item_kind, rarity)
+        if item:
+            items.append(item)
+
+    return {"caps": caps, "items": items}
 
 
 def dweller_combat_power(dwellers: list[Dweller]) -> float:
@@ -39,35 +114,3 @@ def fire_damage(hazard_power: float, seconds: int) -> float:
 def fire_suppression(dweller_power: float, hazard_power: float, seconds: int) -> float:
     """Return fractional containment progress, where one fully extinguishes a fire."""
     return dweller_power / max(1, hazard_power) * seconds / 5
-
-
-def generate_loot(difficulty: int, incident_type: IncidentType) -> dict:
-    """Generate loot rewards based on difficulty and incident type."""
-    caps = random.randint(
-        game_config.combat.loot_caps_min + (difficulty - 1) * game_config.combat.loot_caps_max_per_difficulty // 2,
-        game_config.combat.loot_caps_min + difficulty * game_config.combat.loot_caps_max_per_difficulty,
-    )
-
-    # Internal threats (fire, radroach, mole rat, radscorpion) give caps only
-    # External threats (raider, deathclaw, feral ghoul) give caps + items
-    internal_threats = {
-        IncidentType.FIRE,
-        IncidentType.RADROACH_INFESTATION,
-        IncidentType.MOLE_RAT_ATTACK,
-        IncidentType.RADSCORPION_ATTACK,
-    }
-
-    if incident_type in internal_threats:
-        # Internal threats: caps only, no items
-        return {"caps": caps, "items": []}
-
-    # External threats: caps + weapons/junk based on difficulty
-    items = []
-    if difficulty >= 7:
-        items.append({"type": "weapon", "rarity": "rare", "name": "Heavy Raider Rifle"})
-    elif difficulty >= 4:
-        items.append({"type": "weapon", "rarity": "uncommon", "name": "Raider Pistol"})
-    else:
-        items.append({"type": "junk", "name": "Scrap Metal", "quantity": random.randint(1, 3)})
-
-    return {"caps": caps, "items": items}

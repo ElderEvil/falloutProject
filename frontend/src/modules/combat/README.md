@@ -10,8 +10,7 @@ Combat incidents and equipment module. Manages combat encounter data, weapon and
 
 - `stores/incident.ts` — combat incident state management
 - `stores/equipment.ts` — equipment (weapons/outfits) state management
-- `components/incidents/CombatModal.vue` — combat encounter modal
-- `components/incidents/IncidentAlert.vue` — incident notification alert
+- `components/incidents/IncidentAlert.vue` — incident notification alert (opens the affected room's overlay)
 - `components/equipment/WeaponCard.vue` — weapon equipment display card
 - `components/equipment/OutfitCard.vue` — outfit equipment display card
 - `models/incident.ts` — incident type definitions

@@ -10,6 +10,7 @@ vi.mock('@/modules/combat/api/incident')
 const sseMock = vi.hoisted(() => ({
   instance: null as any,
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  playSound: vi.fn(),
 }))
 
 vi.mock('@/core/composables/useEventStream', () => ({
@@ -18,6 +19,10 @@ vi.mock('@/core/composables/useEventStream', () => ({
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => sseMock.toast,
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => ({ playSound: sseMock.playSound, playMusic: vi.fn(), stopMusic: vi.fn() }),
 }))
 
 describe('Incident Store', () => {
@@ -55,6 +60,16 @@ describe('Incident Store', () => {
     loot: null,
     resolved_at: null,
     duration: 60,
+    elapsed_time: 30,
+    end_time: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    family: 'intrusion',
+    objective: 'defeat',
+    progress: { current: 30, target: 100, label: 'Threat' },
+    risk: { kind: 'casualties', rooms_affected: 1 },
+    response: { label: 'Send' },
+    events: [],
   }
 
   const mockIncidentList: IncidentListResponse = {
@@ -173,6 +188,40 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
     })
+
+    it('keeps the last confirmed incident when a refresh fails', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      await store.fetchIncidents('vault-1', 'token')
+
+      vi.mocked(incidentApi.getActiveIncidents).mockRejectedValueOnce(new Error('Network error'))
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.activeIncidentIds).toEqual(['incident-1'])
+      expect(store.incidents.get('incident-1')).toEqual(mockIncident)
+    })
+
+    it('keeps a confirmed list when one incident detail refresh fails', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 2,
+        incidents: [
+          mockIncidentList.incidents[0],
+          { ...mockIncidentList.incidents[0], id: 'incident-2', room_id: 'room-2' },
+        ],
+      })
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce(mockIncident)
+        .mockRejectedValueOnce(new Error('Network error'))
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.activeIncidentIds).toEqual(['incident-1', 'incident-2'])
+    })
   })
 
   describe('assignResponders', () => {
@@ -234,7 +283,7 @@ describe('Incident Store', () => {
       expect(store.isPolling).toBe(false)
     })
 
-    it('pauses polling while the SSE connection is open', async () => {
+    it('keeps refreshing while the stream is open so an overlay can advance', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
@@ -244,10 +293,30 @@ describe('Incident Store', () => {
       await nextTick()
       await vi.advanceTimersByTimeAsync(1000)
 
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      // The stream never carries a round, so a live incident must keep refreshing.
+      expect(incidentApi.getActiveIncidents.mock.calls.length).toBeGreaterThan(1)
+      store.stopPolling()
     })
 
-    it('resumes polling after a closed SSE connection fallback', async () => {
+    it('stays quiet while the stream is open and nothing is live', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+
+      store.startPolling('vault-1', 'token', 1000)
+      sseMock.instance.status.value = 'open'
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      // Nothing to keep current, so the stream alone is enough.
+      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
+
+    it('keeps polling when the stream closes', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
@@ -257,11 +326,10 @@ describe('Incident Store', () => {
       await nextTick()
       sseMock.instance.status.value = 'closed'
       await nextTick()
-
-      await vi.advanceTimersByTimeAsync(30000)
       await vi.advanceTimersByTimeAsync(10000)
 
-      expect(incidentApi.getActiveIncidents).toHaveBeenCalledTimes(2)
+      expect(incidentApi.getActiveIncidents.mock.calls.length).toBeGreaterThan(1)
+      store.stopPolling()
     })
 
     // TODO: Fix timing issue with polling interval references
@@ -423,6 +491,162 @@ describe('Incident Store', () => {
     })
   })
 
+  describe('Aftermath', () => {
+    const resolveViaSse = async (data: Record<string, unknown>) => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = { event: 'incident', data }
+      await nextTick()
+      return store
+    }
+
+    it('summarises a victory with the caps it recovered', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 50,
+      })
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        incidentId: 'incident-1',
+        roomId: 'room-1',
+        roomName: 'Power Generator',
+        outcome: 'victory',
+        capsEarned: 50,
+        damageDealt: 10,
+        enemiesDefeated: 2,
+        rounds: 0,
+      })
+      store.stopPolling()
+    })
+
+    it('summarises a defeat so the room shows what was lost', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: false,
+      })
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        outcome: 'defeat',
+        capsEarned: 0,
+      })
+      store.stopPolling()
+    })
+
+    it('keeps the summary when the resolution frame is re-delivered', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 50,
+      })
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: {
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+          caps_earned: 50,
+        },
+      }
+      await nextTick()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'victory', capsEarned: 50 })
+      store.stopPolling()
+    })
+
+    it('announces a hazard victory without promising caps', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 0,
+      })
+
+      expect(sseMock.toast.success).toHaveBeenCalledWith(
+        'Incident resolved — responders earned experience.'
+      )
+      store.stopPolling()
+    })
+
+    it('records an unknown outcome when only the poll sees the incident end', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        incidentId: 'incident-1',
+        outcome: 'unknown',
+        capsEarned: 0,
+        roomName: 'Power Generator',
+      })
+    })
+
+    it('invents no aftermath when an incident is merely first seen', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+    })
+
+    it('drops a summary only when it is dismissed', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      store.clearAftermath('room-1')
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+      store.stopPolling()
+    })
+
+    it('clears summaries alongside the incidents', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      store.clearIncidents()
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+      store.stopPolling()
+    })
+  })
+
+  describe('Spawn alert', () => {
+    it('sounds an alert when an incident spawns', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(sseMock.playSound).toHaveBeenCalledWith('notification')
+    })
+  })
+
   describe('SSE notifications', () => {
     it('announces a successful incident resolution', async () => {
       const store = useIncidentStore()
@@ -441,6 +665,89 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
+      store.stopPolling()
+    })
+
+    it('announces a lost incident so a failure is never silent', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: false },
+      }
+      await nextTick()
+
+      expect(store.activeIncidentIds).toEqual([])
+      expect(sseMock.toast.error).toHaveBeenCalledWith(
+        `Incident lost — ${mockIncident.type.replace(/_/g, ' ')} overran ${mockIncident.room_name}.`
+      )
+      store.stopPolling()
+    })
+
+    it('announces a lost incident even when its details were already dropped', async () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-9']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-9', success: false },
+      }
+      await nextTick()
+
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Incident lost — the threat was not contained.')
+      store.stopPolling()
+    })
+    it('announces a lost incident only once when the event is re-delivered', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      const resolvedEvent = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: false },
+      }
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
+
+    it('announces a victory only once when the event is re-delivered', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      const resolvedEvent = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true, caps_earned: 50 },
+      }
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+
+      expect(sseMock.toast.success).toHaveBeenCalledTimes(1)
       store.stopPolling()
     })
   })

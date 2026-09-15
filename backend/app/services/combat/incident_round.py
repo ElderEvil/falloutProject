@@ -83,11 +83,31 @@ async def apply_damage(
 
 
 async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
-    """Generate loot, mark the incident resolved, and award XP. Returns caps for the batch payout."""
+    """Generate loot, hand it to the vault, mark the incident resolved, and award XP."""
+    from app.services.reward_service import reward_service
+    from app.utils.exceptions import ResourceConflictException
+
     incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
     incident.resolve(success=True)
 
     caps_earned = incident.loot.get("caps", 0)
+    stored_items: list[dict] = []
+    for item in incident.loot.get("items", []):
+        try:
+            await reward_service.grant_item(db_session, incident.vault_id, item)
+        except ResourceConflictException:
+            # A full vault must not turn a win into a stuck incident: the fight still
+            # resolves, the item is left behind, and the journal says why.
+            incident_publishing.record_event(
+                db_session,
+                incident,
+                "overflow",
+                f"Storage full — {item['name']} was left behind.",
+            )
+            continue
+        stored_items.append(item)
+    incident.loot = {**incident.loot, "items": stored_items}
+
     await award_combat_xp(db_session, incident, dwellers)
 
     logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")

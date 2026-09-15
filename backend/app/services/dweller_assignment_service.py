@@ -1,6 +1,7 @@
 """Service for intelligent dweller assignment to rooms."""
 
 from collections.abc import Sequence
+from datetime import datetime
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -181,6 +182,60 @@ class DwellerAssignmentService:
 
         return list(unassigned_dwellers)
 
+    async def _assign_room_apprentices(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        rooms: list[Room],
+        assignments: list[dict[str, str]],
+        assigned_dweller_ids: set,
+    ) -> None:
+        """Fill one vacant apprentice slot per production room from unassigned youth.
+
+        Apprentices sit outside worker capacity (see _get_available_slots), so this
+        never places a 3rd dweller into a 2-slot room: at most one youth per room,
+        only where no apprentice already trains.
+        """
+        candidates = [
+            d
+            for d in await crud.dweller.get_unassigned_youth(db_session, vault_id)
+            if d.id not in assigned_dweller_ids and not d.is_mature
+        ]
+        if not candidates:
+            return
+
+        for room in rooms:
+            if not candidates:
+                break
+            if room.category != RoomTypeEnum.PRODUCTION or room.ability is None:
+                continue
+            occupants = await crud.dweller.count_in_room(db_session, room.id)
+            workers = await crud.dweller.count_in_room(db_session, room.id, include_apprentices=False)
+            if occupants > workers:
+                continue
+
+            stat_name = ABILITY_TO_STAT_MAP[room.ability]
+            youth = max(candidates, key=lambda d: getattr(d, stat_name))
+            await crud.dweller.update(
+                db_session,
+                youth.id,
+                {
+                    "room_id": room.id,
+                    "status": determine_status_for_room(room.category, room.name),
+                    "apprentice_stat": room.ability,
+                    "apprentice_started_at": datetime.utcnow(),
+                },
+            )
+            assignments.append(
+                {
+                    "dweller_id": str(youth.id),
+                    "room_id": str(room.id),
+                    "room_name": room.name,
+                }
+            )
+            assigned_dweller_ids.add(youth.id)
+            candidates.remove(youth)
+
     async def unassign_all_dwellers(
         self,
         db_session: AsyncSession,
@@ -269,6 +324,9 @@ class DwellerAssignmentService:
 
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
+        await self._assign_room_apprentices(
+            db_session, vault_id, all_production_rooms, assignments, assigned_dweller_ids
+        )
         return {"assigned_count": len(assignments), "assignments": assignments}
 
     async def auto_assign_training_rooms(
@@ -334,6 +392,7 @@ class DwellerAssignmentService:
                 prefer_lowest_stat,
             )
 
+        await self._assign_room_apprentices(db_session, vault_id, production_rooms, assignments, assigned_dweller_ids)
         return {"assigned_count": len(assignments), "assignments": assignments}
 
 

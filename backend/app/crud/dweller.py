@@ -291,6 +291,20 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             query = query.where(self.model.age_group == age_group)
         return list((await db_session.execute(query)).scalars().all())
 
+    async def get_unassigned_youth(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Idle non-adult dwellers without a room (apprentice candidates)."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.status == DwellerStatusEnum.IDLE)
+            .where(self.model.room_id.is_(None))
+            .where(~self.model.is_adult)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
     async def get_all_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Every dweller row of a vault, no status/deleted filters (tick processing)."""
         result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))

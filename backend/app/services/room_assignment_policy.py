@@ -59,6 +59,6 @@ async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, r
 
 
 def validate_automatic_assignment(dweller: Dweller) -> None:
-    """Keep youth assignments deliberate until apprentice automation has dedicated rules."""
+    """Keep single-dweller auto-assign adult-only; youth are placed by the apprentice pass in room auto-assign flows."""
     if not dweller.is_mature:
         raise ValidationException(detail="Child and teen dwellers must be assigned manually as apprentices")

@@ -529,6 +529,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         ).all()
         return {f"{first_name} {last_name or ''}".strip().casefold() for first_name, last_name in rows}
 
+    async def lock_vault(self, db_session: AsyncSession, vault_id: UUID4) -> None:
+        """Take a row lock on the vault so a check-then-claim flow is atomic.
+
+        The lock is held until the caller's next commit/rollback. SQLite test
+        engines ignore FOR UPDATE; PostgreSQL enforces it in production.
+        """
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+
     async def lock_vault_for_template(self, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
         """Take a row lock on the vault so template reservation is atomic, then return active names.
 
@@ -538,7 +546,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         sees the committed dweller in its fresh name snapshot). SQLite test
         engines ignore FOR UPDATE; PostgreSQL enforces it in production.
         """
-        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+        await self.lock_vault(db_session, vault_id)
         return await self.get_active_template_names(db_session, vault_id)
 
     @staticmethod

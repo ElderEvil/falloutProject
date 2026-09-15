@@ -197,9 +197,18 @@ class DwellerAssignmentService:
         never places a 3rd dweller into a 2-slot room: at most one youth per room,
         only where no apprentice already trains. Honours the caller's age-group
         filter: an adult-only run assigns no apprentices.
+
+        The vault row is locked for the whole pass, and claims are written without
+        intermediate commits, so two concurrent runs cannot both see the same
+        vacant slot or claim the same youth. The lock is released by the single
+        commit at the end (see crud.dweller.lock_vault); the
+        ``uq_dweller_active_apprentice_room`` index remains the integrity backstop
+        for a manual assignment racing the same room.
         """
         if age_group == AgeGroupEnum.ADULT:
             return
+
+        await crud.dweller.lock_vault(db_session, vault_id)
 
         candidates = [
             d
@@ -230,6 +239,7 @@ class DwellerAssignmentService:
                     "apprentice_stat": room.ability,
                     "apprentice_started_at": datetime.utcnow(),
                 },
+                commit=False,
             )
             assignments.append(
                 {
@@ -240,6 +250,8 @@ class DwellerAssignmentService:
             )
             assigned_dweller_ids.add(youth.id)
             candidates.remove(youth)
+
+        await db_session.commit()
 
     async def unassign_all_dwellers(
         self,

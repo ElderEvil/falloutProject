@@ -495,6 +495,48 @@ class TestAutoAssignProductionRooms:
         mock_update.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_apprentice_pass_locks_vault_and_commits_once(self, svc, mock_db):
+        """Concurrent runs cannot both see the same vacant slot: the vault row is
+        locked for the pass and claims are written without intermediate commits."""
+        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
+        youth = _make_dweller(_id=_D1, strength=4)
+        youth.is_adult = False
+        youth.is_mature = False
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
+                new_callable=AsyncMock,
+                return_value=[youth],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.lock_vault",
+                new_callable=AsyncMock,
+            ) as mock_lock,
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
+            await svc.auto_assign_production_rooms(mock_db, "v1")
+
+        mock_lock.assert_awaited_once_with(mock_db, "v1")
+        assert mock_update.call_args.kwargs["commit"] is False
+        mock_db.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_full_rooms_skipped(self, svc, mock_db):
         r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # cap 2
         d1 = _make_dweller(_id=_D1, strength=5)
@@ -633,6 +675,10 @@ class TestAutoAssignAllRooms:
                 "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
                 new_callable=AsyncMock,
                 return_value=[],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.lock_vault",
+                new_callable=AsyncMock,
             ),
         ):
             # Call 1 (production) → returns d1 (not assigned)

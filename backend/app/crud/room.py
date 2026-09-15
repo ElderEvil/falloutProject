@@ -106,7 +106,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
 
     @staticmethod
     async def get_occupied_rooms(db_session: AsyncSession, vault_id: UUID4) -> list[Room]:
-        """Rooms of a vault currently occupied by at least one dweller, elevators excluded."""
+        """Rooms of a vault currently occupied by at least one dweller, elevators and arenas excluded."""
         from app.models.dweller import Dweller
 
         query = (
@@ -116,6 +116,7 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
                 (Room.vault_id == vault_id)
                 & (Dweller.room_id.is_not(None))
                 & (Room.name != "Elevator")  # Exclude elevators
+                & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
             )
             .distinct()
         )
@@ -125,13 +126,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
     async def get_adjacent_rooms(
         db_session: AsyncSession, vault_id: UUID4, *, exclude_room_id: UUID4, coord_x: int, coord_y: int
     ) -> list[Room]:
-        """Rooms within 1-2 grid units of a coordinate, elevators and the origin room excluded."""
+        """Rooms within 1-2 grid units of a coordinate, elevators, arenas and the origin room excluded."""
         query = select(Room).where(
             (Room.vault_id == vault_id)
             & (Room.id != exclude_room_id)
             & (Room.coordinate_x.is_not(None))
             & (Room.coordinate_y.is_not(None))
             & (Room.name != "Elevator")  # Exclude elevators from spread
+            & (Room.category != RoomTypeEnum.ARENA)  # An arena hosts matches, not incidents
             & (
                 # Adjacent horizontally (same floor, next to each other)
                 ((Room.coordinate_y == coord_y) & (Room.coordinate_x.between(coord_x - 2, coord_x + 2)))

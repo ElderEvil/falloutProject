@@ -54,6 +54,89 @@ async def test_spawn_incident_no_rooms(async_session: AsyncSession, vault: Vault
 
 
 @pytest.mark.asyncio
+async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, vault: Vault):
+    """An arena hosts matches; an incident there has no correct UI to open."""
+    from app.schemas.room import RoomCreate
+
+    arena = await crud.room.create(
+        db_session=async_session,
+        obj_in=RoomCreate(
+            name="Arena",
+            category=RoomTypeEnum.ARENA,
+            ability="Strength",
+            population_required=20,
+            base_cost=800,
+            incremental_cost=200,
+            t2_upgrade_cost=3000,
+            t3_upgrade_cost=9000,
+            size_min=6,
+            size_max=6,
+            size=6,
+            tier=1,
+            vault_id=vault.id,
+            coordinate_x=0,
+            coordinate_y=1,
+        ),
+    )
+    dweller_in = DwellerCreate(
+        first_name="Gladiator",
+        last_name="Dweller",
+        gender="male",
+        rarity="common",
+        vault_id=vault.id,
+        room_id=arena.id,
+        strength=5,
+        perception=5,
+        endurance=5,
+        charisma=5,
+        intelligence=5,
+        agility=5,
+        luck=5,
+    )
+    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    dweller.room_id = arena.id
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
+
+    assert incident is None
+
+
+@pytest.mark.asyncio
+async def test_incident_does_not_spread_into_an_arena(async_session: AsyncSession, vault: Vault):
+    """A spread must not carry an incident into an arena either."""
+    from app.schemas.room import RoomCreate
+
+    source = await crud.room.create(
+        db_session=async_session,
+        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=1),
+    )
+    arena = await crud.room.create(
+        db_session=async_session,
+        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=2),
+    )
+    arena.category = RoomTypeEnum.ARENA
+    arena.name = "Arena"
+    async_session.add(arena)
+    await async_session.commit()
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=source.id,
+        incident_type=IncidentType.RADROACH_INFESTATION,
+        difficulty=2,
+    )
+
+    adjacent = await crud.room.get_adjacent_rooms(
+        async_session, vault.id, exclude_room_id=source.id, coord_x=6, coord_y=1
+    )
+
+    assert arena.id not in {room.id for room in adjacent}
+
+
+@pytest.mark.asyncio
 async def test_incident_read_returns_the_latest_journal_entries(async_session: AsyncSession, room_with_dwellers: dict):
     """The compact UI journal must not get stuck on a long incident's opening rounds."""
     room = room_with_dwellers["room"]

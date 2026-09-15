@@ -9,7 +9,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const roomSizeText = computed(() => `${props.room.size ?? props.room.size_min}U`)
+const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.size_min) / 3)}× merged`)
 </script>
 
 <template>

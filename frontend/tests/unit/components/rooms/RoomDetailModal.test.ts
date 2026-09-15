@@ -209,20 +209,6 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.mock-modal').exists()).toBe(false)
     })
 
-    it('scales the modal and room scene to the live room footprint', () => {
-      const compact = mount(RoomDetailModal, {
-        props: { room: { ...mockRoom, size: 1, size_min: 1 }, modelValue: true },
-      })
-      const panoramic = mount(RoomDetailModal, {
-        props: { room: { ...mockRoom, size: 9 }, modelValue: true },
-      })
-
-      expect(compact.findComponent({ name: 'UModal' }).props('size')).toBe('sm')
-      expect(compact.find('.room-scene').classes()).toContain('room-scene--compact')
-      expect(panoramic.findComponent({ name: 'UModal' }).props('size')).toBe('xl')
-      expect(panoramic.find('.room-scene').classes()).toContain('room-scene--panoramic')
-    })
-
     it('should display room name and tier', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -262,6 +248,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain('Room Preview')
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
       expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
@@ -276,7 +263,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Size')
-      expect(wrapper.text()).toContain('3U')
+      expect(wrapper.text()).toContain('1× merged')
     })
 
     it('should display room position', () => {

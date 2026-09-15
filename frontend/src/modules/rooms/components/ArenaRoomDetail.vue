@@ -39,7 +39,6 @@ const emit = defineEmits<{
       :room-name="room.name"
       :image-url="room.image_url ?? null"
       :room-image-url="roomImageUrl"
-      :room-units="room.size ?? room.size_min"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
     />

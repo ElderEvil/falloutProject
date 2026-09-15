@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
+import { IncidentStatus } from '../models/incident'
 import type {
   Incident,
   IncidentAftermath,
@@ -76,6 +77,12 @@ export const useIncidentStore = defineStore('incident', () => {
 
   // The resolution frame carries no held loot, and the cached incident predates the
   // grant, so the aftermath reloads the resolved incident to learn what was held.
+  const outcomeForStatus = (status: IncidentStatus): IncidentOutcome | null => {
+    if (status === IncidentStatus.RESOLVED) return 'victory'
+    if (status === IncidentStatus.FAILED) return 'defeat'
+    return null
+  }
+
   const refreshAftermathOverflow = async (
     vaultId: string,
     incidentId: string,
@@ -90,6 +97,12 @@ export const useIncidentStore = defineStore('incident', () => {
       entry.enemiesDefeated = incident.enemies_defeated
       entry.damageDealt = incident.damage_dealt
       entry.rounds = incident.events.length
+      // A resolution frame that never arrived leaves the outcome unknown, but the record still knows it.
+      const settled = outcomeForStatus(incident.status)
+      if (entry.outcome === 'unknown' && settled) {
+        entry.outcome = settled
+        entry.capsEarned = incident.loot?.caps ?? 0
+      }
     } catch (error) {
       handleStoreError(error, 'Failed to load held incident loot')
     }

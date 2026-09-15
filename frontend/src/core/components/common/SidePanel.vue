@@ -181,20 +181,28 @@ onUnmounted(() => {
     aria-label="Game navigation panel"
   >
     <!-- Toggle Button -->
-    <button
-      @click="toggle"
-      class="toggle-btn"
-      :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
-      :title="`${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)`"
-    >
-      <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
-    </button>
+    <UTooltip :text="`${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)`">
+      <button
+        @click="toggle"
+        class="toggle-btn"
+        :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
+      >
+        <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
+      </button>
+    </UTooltip>
 
     <!-- Navigation Items -->
     <div class="nav-items">
-      <button
+      <UTooltip
         v-for="item in navItems"
         :key="item.id"
+        :text="
+          item.comingSoon
+            ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
+            : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
+        "
+      >
+      <button
         @click="item.path && navigate(item.path)"
         class="nav-item"
         :class="{
@@ -203,11 +211,6 @@ onUnmounted(() => {
         }"
         :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
         :aria-keyshortcuts="item.hotkey"
-        :title="
-          item.comingSoon
-            ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
-            : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
-        "
       >
         <Icon :icon="item.icon" class="nav-icon" />
         <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{
@@ -219,11 +222,14 @@ onUnmounted(() => {
         >
           <Icon icon="mdi:lock" class="lock-icon" />
         </UTooltip>
-        <span v-if="!isCollapsed && item.wip" class="wip-badge" title="Work in progress">WIP</span>
+        <UTooltip v-if="!isCollapsed && item.wip" text="Work in progress">
+          <span class="wip-badge">WIP</span>
+        </UTooltip>
         <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
           item.hotkey
         }}</span>
       </button>
+      </UTooltip>
 
       <!-- Coming Soon Divider -->
       <div v-if="!isCollapsed" class="nav-divider">
@@ -231,11 +237,13 @@ onUnmounted(() => {
       </div>
 
       <!-- Coming Soon Items -->
-      <div
+      <UTooltip
         v-for="item in comingSoonItems"
         :key="item.id"
+        :text="isCollapsed ? `${item.label} - ${item.comingSoon?.phase}` : undefined"
+      >
+      <div
         class="nav-item locked"
-        :title="isCollapsed ? `${item.label} - ${item.comingSoon?.phase}` : undefined"
       >
         <Icon :icon="item.icon" class="nav-icon" />
         <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
@@ -246,6 +254,7 @@ onUnmounted(() => {
           <Icon icon="mdi:lock" class="lock-icon" />
         </UTooltip>
       </div>
+      </UTooltip>
     </div>
   </nav>
 </template>

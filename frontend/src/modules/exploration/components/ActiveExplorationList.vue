@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UBadge } from '@/core/components/ui'
+import { UBadge, UTooltip } from '@/core/components/ui'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
@@ -73,14 +73,11 @@ const riskTitle = (dwellerId: string) => {
         <Icon icon="mdi:account-search" class="inline h-5 w-5" />
         Active Explorers ({{ explorations.length }})
       </h4>
-      <router-link
-        :to="`/vault/${vaultId}/exploration`"
-        class="view-all-btn"
-        title="View full exploration dashboard"
-      >
-        <Icon icon="mdi:arrow-right" class="h-4 w-4" />
-        View All
-      </router-link>
+      <UTooltip text="View full exploration dashboard">
+        <router-link :to="`/vault/${vaultId}/exploration`" class="view-all-btn">
+          <Icon icon="mdi:arrow-right" class="h-4 w-4" /> View All
+        </router-link>
+      </UTooltip>
     </div>
     <div class="explorer-list">
       <div
@@ -96,17 +93,21 @@ const riskTitle = (dwellerId: string) => {
                 >{{ getDwellerById(exploration.dweller_id)?.first_name }}
                 {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
               >
-              <span v-if="isAtRisk(exploration.dweller_id)" :title="riskTitle(exploration.dweller_id)" aria-label="Dweller at risk">
+              <UTooltip v-if="isAtRisk(exploration.dweller_id)" :text="riskTitle(exploration.dweller_id)">
+              <span aria-label="Dweller at risk">
                 <UBadge size="sm" variant="warning">
                   <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
                   AT RISK
                 </UBadge>
               </span>
+              </UTooltip>
             </div>
             <span class="flex shrink-0 items-center gap-1">
-              <span v-if="isReady(exploration)" title="Expedition finished — ready to collect">
+              <UTooltip v-if="isReady(exploration)" text="Expedition finished — ready to collect">
+              <span>
                 <UBadge size="sm" variant="primary">READY</UBadge>
               </span>
+              </UTooltip>
               <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
                 >{{ Math.round(getProgressPercentage(exploration)) }}%</span
               >
@@ -135,10 +136,9 @@ const riskTitle = (dwellerId: string) => {
               <span>{{ exploration.total_caps_found || 0 }}</span>
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
-            <div class="stat-item" :title="`${exploration.enemies_encountered || 0} enemies encountered`">
-              <Icon icon="mdi:skull" class="h-3.5 w-3.5" />
-              <span>{{ exploration.enemies_encountered || 0 }}</span>
-            </div>
+            <UTooltip :text="`${exploration.enemies_encountered || 0} enemies encountered`">
+              <div class="stat-item"><Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{ exploration.enemies_encountered || 0 }}</span></div>
+            </UTooltip>
           </div>
           <div
             v-if="
@@ -146,26 +146,32 @@ const riskTitle = (dwellerId: string) => {
             "
             class="flex min-w-0 flex-col gap-0.5 text-[0.7rem] leading-tight"
           >
-            <span
+            <UTooltip
               v-if="getDwellerWeapon(exploration.dweller_id)"
+              :text="getDwellerWeapon(exploration.dweller_id)?.name"
+            >
+            <span
               class="stat-item min-w-0 text-amber-400"
-              :title="getDwellerWeapon(exploration.dweller_id)?.name"
             >
               <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
               <span class="min-w-0 flex-1 truncate">{{
                 getDwellerWeapon(exploration.dweller_id)?.name
               }}</span>
             </span>
-            <span
+            </UTooltip>
+            <UTooltip
               v-if="getDwellerOutfit(exploration.dweller_id)"
+              :text="getDwellerOutfit(exploration.dweller_id)?.name"
+            >
+            <span
               class="stat-item min-w-0 text-blue-400"
-              :title="getDwellerOutfit(exploration.dweller_id)?.name"
             >
               <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
               <span class="min-w-0 flex-1 truncate">{{
                 getDwellerOutfit(exploration.dweller_id)?.name
               }}</span>
             </span>
+            </UTooltip>
           </div>
         </div>
         <ExplorerActions

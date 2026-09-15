@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h, nextTick } from 'vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 describe('UTooltip', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+  })
+
   it('renders trigger slot content', () => {
     const wrapper = mount(UTooltip, {
       props: { text: 'Test tooltip' },
@@ -48,5 +54,27 @@ describe('UTooltip', () => {
     // Ensure no hardcoded green colors
     expect(html).not.toContain('rgba(0, 255, 0')
     expect(html).not.toContain('#00ff00')
+  })
+
+  it('shows for keyboard focus and links the focused control to its description', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(UTooltip, {
+      attachTo: document.body,
+      props: { text: 'Build a new room' },
+      slots: {
+        default: ({ tooltipId }: { tooltipId: string }) =>
+          h('button', { 'aria-describedby': tooltipId }, 'Build'),
+      },
+    })
+
+    await wrapper.get('button').trigger('focusin')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
+    expect(tooltip).not.toBeNull()
+    expect(wrapper.get('button').attributes('aria-describedby')).toBe(tooltip?.id)
+
+    wrapper.unmount()
   })
 })

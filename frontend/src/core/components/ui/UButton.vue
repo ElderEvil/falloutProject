@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
+import UTooltip from './UTooltip.vue'
 
 /**
  * UButton - Terminal-themed button component wrapping Nuxt UI
@@ -82,20 +83,24 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
-  <button
-    :class="buttonClasses"
-    :disabled="disabled || loading"
-    @click="handleClick"
-    :type="type"
-    :title="title"
-    :aria-label="resolvedAriaLabel"
-    :aria-expanded="ariaExpanded"
-  >
-    <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
-    <span v-if="loading" class="animate-spin">⚙</span>
-    <slot></slot>
-    <component v-if="iconRight" :is="iconRight" class="h-5 w-5" />
-  </button>
+  <UTooltip :text="title">
+    <template #default="{ tooltipId }">
+      <button
+        :class="buttonClasses"
+        :disabled="disabled || loading"
+        @click="handleClick"
+        :type="type"
+        :aria-describedby="title ? tooltipId : undefined"
+        :aria-label="resolvedAriaLabel"
+        :aria-expanded="ariaExpanded"
+      >
+        <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
+        <span v-if="loading" class="animate-spin">⚙</span>
+        <slot></slot>
+        <component v-if="iconRight" :is="iconRight" class="h-5 w-5" />
+      </button>
+    </template>
+  </UTooltip>
 </template>
 
 <style scoped>

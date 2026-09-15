@@ -20,6 +20,7 @@ import ExplorationEventLog from '@/modules/exploration/components/ExplorationEve
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow, RewardsSummary } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
@@ -352,9 +353,11 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
               <Icon icon="mdi:timeline-text" class="mr-2" />
               Event Log
             </div>
-            <button @click="selectedExplorerId = null" class="close-timeline-btn" title="Close">
-              <Icon icon="mdi:close" />
-            </button>
+            <UTooltip text="Close">
+              <button @click="selectedExplorerId = null" class="close-timeline-btn" aria-label="Close event log">
+                <Icon icon="mdi:close" />
+              </button>
+            </UTooltip>
           </div>
           <ExplorationEventLog :events="selectedExploration.events" reverse />
         </div>

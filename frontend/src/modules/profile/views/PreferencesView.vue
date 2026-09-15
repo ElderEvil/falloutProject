@@ -11,7 +11,7 @@ import { useProfileStore } from '../stores/profile'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { UCard, UButton, USlider } from '@/core/components/ui'
+import { UCard, UButton, USlider, UTooltip } from '@/core/components/ui'
 
 const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'Display Preferences' }]
 
@@ -233,17 +233,16 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   </div>
                   <!-- Glow Controls (moved inside setting-info) -->
                   <div class="glow-controls mt-3">
+                    <UTooltip v-for="option in glowIntensityOptions" :key="option.value" :text="option.description">
                     <button
-                      v-for="option in glowIntensityOptions"
-                      :key="option.value"
                       @click="setGlowIntensity(option.value)"
                       class="glow-option"
                       :class="{ active: glowIntensity === option.value }"
                       :aria-label="`Set glow to ${option.label}`"
-                      :title="option.description"
                     >
                       {{ option.label }}
                     </button>
+                    </UTooltip>
                   </div>
                 </div>
               </div>

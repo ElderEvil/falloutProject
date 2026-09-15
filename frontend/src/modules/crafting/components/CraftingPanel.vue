@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UCard, UProgressBar } from '@/core/components/ui'
+import { UButton, UCard, UProgressBar, UTooltip } from '@/core/components/ui'
 import { getRarityTextClass } from '@/core/models/items'
 import { useToast } from '@/core/composables/useToast'
 import { getErrorMessage } from '@/core/utils/errorHandler'
@@ -305,13 +305,9 @@ watch(() => [props.vaultId, props.itemType], loadAll)
                 {{ recipe.available_junk[material] ?? 0 }}/{{ needed }} {{ material }}
               </span>
               <span class="flex items-center gap-1 opacity-80">
-                <Icon
-                  v-for="junkType in recipe.junk_types"
-                  :key="junkType"
-                  :icon="junkTypeMeta(junkType).icon"
-                  class="h-3.5 w-3.5 shrink-0"
-                  :title="junkTypeMeta(junkType).label"
-                />
+                <UTooltip v-for="junkType in recipe.junk_types" :key="junkType" :text="junkTypeMeta(junkType).label">
+                  <Icon :icon="junkTypeMeta(junkType).icon" class="h-3.5 w-3.5 shrink-0" />
+                </UTooltip>
               </span>
               <span class="flex items-center gap-1">
                 <Icon icon="mdi:clock-outline" class="h-3.5 w-3.5 shrink-0" />

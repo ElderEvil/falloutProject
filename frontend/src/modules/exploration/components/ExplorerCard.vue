@@ -8,7 +8,7 @@ import { useExplorationProgress } from '@/modules/exploration/composables/useExp
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import { UBadge, UCard, UProgressBar } from '@/core/components/ui'
+import { UBadge, UCard, UProgressBar, UTooltip } from '@/core/components/ui'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -61,12 +61,8 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   <UCard padding="md" surface="raised" class="explorer-card" :class="{ selected }" @click="openDetailView">
     <!-- Header -->
     <div class="card-header">
-      <button
-        type="button"
-        class="dweller-info dweller-link"
-        title="Open dweller detail page"
-        @click.stop="openDwellerDetail"
-      >
+      <UTooltip text="Open dweller detail page">
+      <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
         <DwellerPortrait
           :image-url="dweller?.image_url"
           :thumbnail-url="dweller?.thumbnail_url"
@@ -79,22 +75,20 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
           <div class="dweller-name">{{ dwellerName }}</div>
           <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
           <div v-if="isReady || isAtRisk" class="badge-row">
-            <span v-if="isReady" title="Expedition finished — ready to collect">
-              <UBadge size="sm" variant="primary">READY</UBadge>
-            </span>
-            <span v-if="isAtRisk" :title="riskTitle" aria-label="Dweller at risk">
-              <UBadge size="sm" variant="warning">
-                <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-                AT RISK
-              </UBadge>
-            </span>
+            <UTooltip v-if="isReady" text="Expedition finished — ready to collect">
+              <span><UBadge size="sm" variant="primary">READY</UBadge></span>
+            </UTooltip>
+            <UTooltip v-if="isAtRisk" :text="riskTitle">
+              <span aria-label="Dweller at risk"><UBadge size="sm" variant="warning"><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</UBadge></span>
+            </UTooltip>
           </div>
           <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
         </div>
       </button>
-      <button v-if="selected" class="expand-indicator" title="Event timeline open">
-        <Icon icon="mdi:timeline-text" />
-      </button>
+      </UTooltip>
+      <UTooltip v-if="selected" text="Event timeline open">
+        <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+      </UTooltip>
     </div>
 
     <!-- Progress Bar -->

@@ -207,10 +207,14 @@ Terminal-themed tooltip.
 **Usage:**
 
 ```vue
-<UTooltip text="Click to build a new room">
-  <UButton>Build</UButton>
+<UTooltip text="Build a new room" v-slot="{ tooltipId }">
+  <UButton :aria-describedby="tooltipId">Build</UButton>
 </UTooltip>
 ```
+
+`UIconButton` applies this pattern automatically: its required `label` is both the accessible name and the
+terminal-styled tooltip text. Use the scoped `tooltipId` for other controls so assistive technology can associate
+the focused control with its tooltip.
 
 ## Importing Components
 

@@ -2,15 +2,13 @@
 /**
  * UTooltip - Terminal-themed tooltip component
  *
- * Features:
- * - Positioning options
- * - Hover and focus triggers
- * - Theme-aware styling (uses CSS variables)
+ * The default slot receives `tooltipId` so the control can set
+ * `aria-describedby` and expose the relationship to assistive technology.
  */
-import { ref, computed } from 'vue'
+import { computed, ref, useId } from 'vue'
 
 interface Props {
-  text: string
+  text?: string
   position?: 'top' | 'bottom' | 'left' | 'right'
   delay?: number
 }
@@ -19,16 +17,20 @@ const { position = 'top', delay = 200, text } = defineProps<Props>()
 
 const isVisible = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
+const tooltipId = useId()
 let timeoutId: number | null = null
 
 const show = () => {
+  if (!text) return
+  if (timeoutId !== null) clearTimeout(timeoutId)
   timeoutId = window.setTimeout(() => {
     isVisible.value = true
+    timeoutId = null
   }, delay)
 }
 
 const hide = () => {
-  if (timeoutId) {
+  if (timeoutId !== null) {
     clearTimeout(timeoutId)
     timeoutId = null
   }
@@ -36,44 +38,29 @@ const hide = () => {
 }
 
 const tooltipPositionStyle = computed(() => {
-  if (!triggerRef.value) return { top: '0px', left: '0px', zIndex: '200' }
+  const triggerElement = triggerRef.value?.firstElementChild as HTMLElement | null
+  if (!triggerElement) return { top: '0px', left: '0px', zIndex: 'var(--z-index-tooltip)' }
 
-  const rect = triggerRef.value.getBoundingClientRect()
-  let top = 0
-  let left = 0
-
-  switch (position) {
-    case 'top':
-      top = rect.top - 8
-      left = rect.left + rect.width / 2
-      break
-    case 'bottom':
-      top = rect.bottom + 8
-      left = rect.left + rect.width / 2
-      break
-    case 'left':
-      top = rect.top + rect.height / 2
-      left = rect.left - 8
-      break
-    case 'right':
-      top = rect.top + rect.height / 2
-      left = rect.right + 8
-      break
+  const rect = triggerElement.getBoundingClientRect()
+  const positions = {
+    top: [rect.top - 8, rect.left + rect.width / 2],
+    bottom: [rect.bottom + 8, rect.left + rect.width / 2],
+    left: [rect.top + rect.height / 2, rect.left - 8],
+    right: [rect.top + rect.height / 2, rect.right + 8],
   }
-
-  const xTranslate = position === 'left' ? '-100%' : '0'
-  const yTranslate = position === 'top' ? '-100%' : '0'
-
-  const transform =
-    position === 'top' || position === 'bottom'
-      ? `translateX(-50%) translateY(${yTranslate})`
-      : `translateY(-50%) translateX(${xTranslate})`
+  const transforms = {
+    top: 'translateX(-50%) translateY(-100%)',
+    bottom: 'translateX(-50%)',
+    left: 'translateY(-50%) translateX(-100%)',
+    right: 'translateY(-50%)',
+  }
+  const [top, left] = positions[position]
 
   return {
     top: `${top}px`,
     left: `${left}px`,
-    zIndex: '200',
-    transform,
+    zIndex: 'var(--z-index-tooltip)',
+    transform: transforms[position],
   }
 })
 
@@ -84,60 +71,48 @@ const arrowPositionClasses = {
   right: 'right-full top-1/2 -translate-y-1/2',
 }
 
-const arrowStyle = computed(() => {
-  const borderColor = 'var(--color-theme-primary)'
-  switch (position) {
-    case 'top':
-      return { borderTopColor: borderColor }
-    case 'bottom':
-      return { borderBottomColor: borderColor }
-    case 'left':
-      return { borderLeftColor: borderColor }
-    case 'right':
-      return { borderRightColor: borderColor }
-    default:
-      return { borderTopColor: borderColor }
-  }
-})
+const arrowBorderProperties = {
+  top: 'borderTopColor',
+  bottom: 'borderBottomColor',
+  left: 'borderLeftColor',
+  right: 'borderRightColor',
+}
+
+const arrowStyle = computed(() => ({
+  [arrowBorderProperties[position]]: 'var(--color-theme-primary)',
+}))
 </script>
 
 <template>
-  <div class="relative inline-block" ref="triggerRef">
-    <!-- Trigger Element -->
-    <div @mouseenter="show" @mouseleave="hide" @focus="show" @blur="hide">
-      <slot></slot>
-    </div>
+  <span
+    ref="triggerRef"
+    class="contents"
+    @mouseenter="show"
+    @mouseleave="hide"
+    @focusin="show"
+    @focusout="hide"
+  >
+    <slot :tooltip-id="tooltipId"></slot>
+  </span>
 
-    <!-- Tooltip (teleported to body to escape stacking context) -->
-    <Teleport to="body">
-      <Transition name="tooltip">
+  <Teleport to="body">
+    <Transition name="tooltip">
+      <div
+        v-if="isVisible && text"
+        :id="tooltipId"
+        class="tooltip-content fixed pointer-events-none max-w-xs rounded bg-black px-3 py-2 font-mono text-sm whitespace-pre-line"
+        :style="tooltipPositionStyle"
+        role="tooltip"
+      >
+        {{ text }}
+
         <div
-          v-if="isVisible"
-          :class="[
-            'fixed',
-            'bg-black',
-            'px-3 py-2 rounded text-sm font-mono',
-            'max-w-xs whitespace-pre-line',
-          ]"
-          :style="tooltipPositionStyle"
-          class="tooltip-content"
-          role="tooltip"
-        >
-          {{ text }}
-
-          <!-- Arrow -->
-          <div
-            :class="[
-              'absolute w-0 h-0',
-              'border-4 border-transparent',
-              arrowPositionClasses[position],
-            ]"
-            :style="arrowStyle"
-          ></div>
-        </div>
-      </Transition>
-    </Teleport>
-  </div>
+          :class="['absolute h-0 w-0 border-4 border-transparent', arrowPositionClasses[position]]"
+          :style="arrowStyle"
+        ></div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

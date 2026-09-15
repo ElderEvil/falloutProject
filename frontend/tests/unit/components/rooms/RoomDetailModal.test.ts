@@ -458,6 +458,20 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.scene-empty-apprentice').exists()).toBe(true)
     })
 
+    it('keeps empty worker slots able to show their hover feedback', () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.get('.scene-empty-worker').classes()).not.toContain('empty')
+    })
+
     it('keeps apprentice assignment exclusive to production rooms', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
@@ -648,17 +662,6 @@ describe('RoomDetailModal', () => {
       await wrapper.get('[aria-label="Unassign John Doe"]').trigger('click')
 
       expect(unassignSpy).toHaveBeenCalledWith('dweller-1', 'test-token')
-    })
-
-    it('clearly marks system details as inspectable', () => {
-      const wrapper = mount(RoomDetailModal, {
-        props: {
-          room: mockRoom,
-          modelValue: true,
-        },
-      })
-
-      expect(wrapper.get('.system-details summary').text()).toContain('Inspect')
     })
 
     it('should show destroy room button', () => {

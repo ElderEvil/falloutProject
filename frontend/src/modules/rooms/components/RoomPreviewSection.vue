@@ -83,7 +83,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
               <button
                 v-else
                 type="button"
-                class="placeholder-dweller empty scene-empty-slot scene-empty-worker"
+                class="placeholder-dweller scene-empty-slot scene-empty-worker"
                 aria-label="Assign worker to this slot"
                 @click="emit('assignWorker')"
               >
@@ -413,11 +413,6 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .apprentice-slot .scene-dweller:focus-visible {
   border-color: var(--color-warning);
   box-shadow: 0 0 0.55rem color-mix(in srgb, var(--color-warning) 45%, transparent);
-}
-
-.placeholder-dweller.empty {
-  background: rgba(128, 128, 128, 0.05);
-  border-color: rgba(128, 128, 128, 0.2);
 }
 
 .slot-filled .placeholder-dweller {

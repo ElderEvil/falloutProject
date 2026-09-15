@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.108.0 (2026-09-15)
+
+### Features
+
+* **incidents:** sound an alert when an incident spawns c267250
+* **incidents:** summarise the aftermath in the room overlay 002a242
+* **incidents:** tier rewards by incident type and hand loot to the vault 80cc528
+* **rooms:** show live incidents as a room detail overlay aa08011
+
+### Bug Fixes
+
+* **incidents:** announce failed resolutions once 4519bba
+* **incidents:** keep incident overlays alive across refresh failures a7e0f35
+* **incidents:** keep refreshing while an incident is live and the stream is up 733b54f
+* **incidents:** let a full vault still resolve an incident 3c61449
+
+### Code Refactoring
+
+* **combat:** retire the combat modal and incident stage 812242f
+* **incidents:** move the incident alert onto the design-system glow tiers df5c796
+
 ## 2.107.1 (2026-09-15)
 
 ### Bug Fixes

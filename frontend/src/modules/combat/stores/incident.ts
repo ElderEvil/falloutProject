@@ -69,9 +69,9 @@ export const useIncidentStore = defineStore('incident', () => {
     try {
       const response: IncidentListResponse = await incidentApi.getActiveIncidents(vaultId, token)
 
-      // Safety check
       if (!response || !response.incidents || !Array.isArray(response.incidents)) {
-        activeIncidentIds.value = []
+        // An unconfirmed list is not a confirmed empty vault; fail closed.
+        handleStoreError(new Error('Malformed incident list response'), 'Failed to fetch incidents')
         return
       }
 
@@ -104,17 +104,20 @@ export const useIncidentStore = defineStore('incident', () => {
       // Update store
       activeIncidentIds.value = newIds
 
-      // Fetch full details for each incident
+      // Fetch full details for each incident; one failed detail must not discard the confirmed list.
       await Promise.all(
         newIds.map(async (id) => {
-          const incident = await incidentApi.getIncident(vaultId, id, token)
-          incidents.value.set(id, incident)
+          try {
+            const incident = await incidentApi.getIncident(vaultId, id, token)
+            incidents.value.set(id, incident)
+          } catch (error) {
+            handleStoreError(error, 'Failed to refresh incident details')
+          }
         })
       )
     } catch (error) {
+      // Fail closed: a transient failure must not make a live incident vanish.
       handleStoreError(error, 'Failed to fetch incidents')
-      // Don't throw - just set empty state so the app continues working
-      activeIncidentIds.value = []
     }
   }
 

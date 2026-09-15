@@ -85,6 +85,17 @@ describe('IncidentBattleLog', () => {
     expect(wrapper.text()).not.toContain('New rounds below')
   })
 
+  it('opens a pre-populated log at the newest round', async () => {
+    const wrapper = mountLog([event({ id: 'e1' }), event({ id: 'e2' })])
+    const log = wrapper.find('[aria-label="Battle log"]').element
+    setScrollMetrics(log, { scrollHeight: 300, clientHeight: 100, scrollTop: 0 })
+
+    await nextTick()
+    await nextTick()
+
+    expect(log.scrollTop).toBe(300)
+  })
+
   it('offers a jump affordance instead of yanking a reader who scrolled away', async () => {
     const wrapper = mountLog([event({ id: 'e1' })])
     const log = wrapper.find('[aria-label="Battle log"]').element

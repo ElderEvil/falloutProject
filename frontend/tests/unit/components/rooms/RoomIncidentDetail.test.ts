@@ -140,4 +140,34 @@ describe('RoomIncidentDetail', () => {
   it('states that room management is locked while the incident is live', () => {
     expect(mountDetail().text()).toContain('Room management is locked')
   })
+
+  it('blocks a second assignment while one is in flight', async () => {
+    let release: (() => void) | undefined
+    assignResponders.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve
+        })
+    )
+
+    const wrapper = mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', combat_power: 90 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 50 }),
+      ],
+    })
+
+    const buttons = wrapper.findAll('button')
+    await buttons[0].trigger('click')
+    await wrapper.vm.$nextTick()
+
+    // Both controls must be inert until the first request settles.
+    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(
+      true
+    )
+    expect(assignResponders).toHaveBeenCalledTimes(1)
+
+    release?.()
+    await wrapper.vm.$nextTick()
+  })
 })

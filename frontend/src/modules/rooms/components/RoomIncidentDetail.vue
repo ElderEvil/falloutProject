@@ -24,6 +24,9 @@ const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
 const assigningDwellerId = ref<string | null>(null)
 const isSendingBest = ref(false)
+// One assignment at a time: both handlers post to the same endpoint, so a second
+// in-flight request would race the first.
+const isAssigning = computed(() => assigningDwellerId.value !== null || isSendingBest.value)
 
 const threatName = computed(() => props.incident.type.replace(/_/g, ' ').toUpperCase())
 const icon = computed(() => getIncidentIcon(props.incident.type))
@@ -52,7 +55,7 @@ const send = async (dwellerIds: string[]) => {
 }
 
 const sendBestDefenders = async () => {
-  if (isSendingBest.value || !bestResponders.value.length) return
+  if (isAssigning.value || !bestResponders.value.length) return
   isSendingBest.value = true
   try {
     await send(bestResponders.value.map((dweller) => dweller.id))
@@ -62,7 +65,7 @@ const sendBestDefenders = async () => {
 }
 
 const assignResponder = async (dwellerId: string) => {
-  if (assigningDwellerId.value) return
+  if (isAssigning.value) return
   assigningDwellerId.value = dwellerId
   try {
     await send([dwellerId])
@@ -100,7 +103,13 @@ const assignResponder = async (dwellerId: string) => {
       </h4>
 
       <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
-        <UButton variant="primary" size="sm" :loading="isSendingBest" @click="sendBestDefenders">
+        <UButton
+          variant="primary"
+          size="sm"
+          :disabled="isAssigning"
+          :loading="isSendingBest"
+          @click="sendBestDefenders"
+        >
           Send best {{ bestResponders.length }}
         </UButton>
         <span class="text-xs text-terminal-green-dim">
@@ -131,7 +140,7 @@ const assignResponder = async (dwellerId: string) => {
             <UButton
               variant="secondary"
               size="sm"
-              :disabled="assigningDwellerId !== null"
+              :disabled="isAssigning"
               :loading="assigningDwellerId === dweller.id"
               @click="assignResponder(dweller.id)"
             >

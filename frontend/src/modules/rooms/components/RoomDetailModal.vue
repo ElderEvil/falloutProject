@@ -45,6 +45,14 @@ const modelValueRef = toRef(props, 'modelValue')
 const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room))
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
+const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
+const modalSize = computed<'sm' | 'md' | 'lg' | 'xl'>(() => {
+  if (has('arena')) return 'xl'
+  if (roomUnits.value <= 1) return 'sm'
+  if (roomUnits.value <= 3) return 'md'
+  if (roomUnits.value <= 6) return 'lg'
+  return 'xl'
+})
 
 // Composables
 const {
@@ -105,7 +113,7 @@ watch(
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     @close="emit('close')"
-    size="lg"
+    :size="modalSize"
   >
     <template #header>
       <RoomDetailHeader
@@ -143,6 +151,7 @@ watch(
           :room-name="room.name"
           :image-url="room.image_url ?? null"
           :room-image-url="roomImageUrl ?? null"
+          :room-units="roomUnits"
           :dweller-capacity="dwellerCapacity"
           :assigned-dwellers="assignedDwellers"
           :show-apprentice-slot="producesResources(room)"

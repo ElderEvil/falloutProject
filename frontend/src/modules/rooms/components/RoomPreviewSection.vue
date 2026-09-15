@@ -8,6 +8,7 @@ interface Props {
   roomName: string
   imageUrl: string | null
   roomImageUrl: string | null
+  roomUnits: number
   dwellerCapacity: number
   assignedDwellers: DwellerShort[]
   showApprenticeSlot?: boolean
@@ -24,10 +25,16 @@ const emit = defineEmits<{
 const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
 const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
 const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
+const sceneSizeClass = computed(() => {
+  if (props.roomUnits <= 1) return 'room-scene--compact'
+  if (props.roomUnits <= 3) return 'room-scene--standard'
+  if (props.roomUnits <= 6) return 'room-scene--wide'
+  return 'room-scene--panoramic'
+})
 </script>
 
 <template>
-  <div class="section room-preview-section room-scene">
+  <div class="section room-preview-section room-scene" :class="sceneSizeClass">
     <h3 class="section-title">
       <Icon icon="mdi:image-outline" class="h-5 w-5" />
       Room Preview
@@ -183,6 +190,22 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.8);
+}
+
+.room-scene--compact .room-image-container {
+  min-height: 130px;
+}
+
+.room-scene--standard .room-image-container {
+  min-height: 160px;
+}
+
+.room-scene--wide .room-image-container {
+  min-height: 210px;
+}
+
+.room-scene--panoramic .room-image-container {
+  min-height: 250px;
 }
 
 .room-image {

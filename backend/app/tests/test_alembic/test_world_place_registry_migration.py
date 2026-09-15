@@ -103,9 +103,12 @@ class TestWorldPlaceRegistryMigration:
 
     @pytest.mark.asyncio
     async def test_home_markers_pinned_and_coords_on_grid(self, live_pg_engine: AsyncEngine) -> None:
+        # Seeded NPC vaults are scattered signals by design; only player home
+        # markers (non-seed VAULT rows) must sit at the centre.
         bad_home = await _scalar(
             live_pg_engine,
-            "SELECT count(*) FROM worldlocation WHERE kind = 'VAULT' AND (coord_x <> 50.0 OR coord_y <> 50.0)",
+            "SELECT count(*) FROM worldlocation WHERE kind = 'VAULT' AND COALESCE(source, '') <> 'seed' "
+            "AND (coord_x <> 50.0 OR coord_y <> 50.0)",
         )
         out_of_range = await _scalar(
             live_pg_engine,

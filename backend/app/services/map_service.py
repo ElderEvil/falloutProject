@@ -80,11 +80,10 @@ class MapService:
     async def ensure_home_marker(self, db_session: AsyncSession, vault: Vault) -> WorldLocation:
         """Idempotent home-vault registry row at exactly (50.0, 50.0) + per-vault HOME_VAULT state."""
         home = await wl_crud.get_or_create_home_marker(db_session, vault)
-        await wl_crud.get_or_create_state(
+        await wl_crud.ensure_home_state(
             db_session,
             vault.id,
             home.id,
-            LocationTypeEnum.HOME_VAULT,
             description=f"Your vault — Vault {vault.number:03}",
         )
         return home

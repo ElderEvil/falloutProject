@@ -26,10 +26,11 @@ from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration import data_loader
 from app.services.exploration.rewards_calculator import rewards_calculator
+from app.services.loot_overflow_service import loot_overflow_service
 from app.services.notification_service import notification_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.outfit_assets import get_outfit_image_url
 from app.utils.weapon_assets import get_weapon_image_url
 
@@ -178,25 +179,6 @@ class RewardsService:
             case _:
                 return self._create_junk_from_loot(item_name, rarity, storage_id)
 
-    def _loot_caps_value(self, loot_item: dict, weapons_data: list[dict], outfits_data: list[dict]) -> int:
-        """Caps granted for selling an unclaimed loot dict. Never silent-zeroes unknown items."""
-        quantity = loot_item.get("quantity", 1) or 1
-        item_name = loot_item.get("item_name", "Unknown Item")
-        rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-        match loot_item.get("item_type", "junk"):
-            case "weapon":
-                weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                if not weapon_data:
-                    raise ValidationException(f"Unknown weapon loot: {item_name}")
-                return (weapon_data.get("value") or 0) * quantity
-            case "outfit":
-                outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                if not outfit_data:
-                    raise ValidationException(f"Unknown outfit loot: {item_name}")
-                return (outfit_data.get("value") or 0) * quantity
-            case _:
-                return game_config.exploration.get_junk_value(rarity.value) * quantity
-
     async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
         """Transfer loot items from exploration to vault storage with space validation.
 
@@ -238,45 +220,25 @@ class RewardsService:
             },
         )
 
-        # Sort loot by rarity (higher priority items first)
-        # Normalize rarity to enum first to ensure consistent priority calculation
-        sorted_loot = sorted(
-            exploration.loot_collected,
-            key=lambda x: game_config.exploration.get_rarity_priority(
-                self._parse_rarity_to_enum(x.get("rarity", "common")).value
-            ),
-            reverse=True,
-        )
+        granted, overflow = loot_overflow_service.grant_or_hold(exploration.loot_collected, available_space)
 
         transferred: list[dict] = []
-        overflow: list[dict] = []
         auto_equip_ids: list[dict] = []
-        items_added = 0
 
         # Load item data for lookups
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
 
-        for loot_item in sorted_loot:
+        for loot_item in granted:
             item_name = loot_item.get("item_name", "Unknown Item")
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
-            quantity = loot_item.get("quantity", 1) or 1
-
-            if item_type in {"stimpak", "radaway"}:
-                # Medical loot is returned via the stimpack/radaway counters in
-                # apply_rewards; creating junk here would double-count it and
-                # burn storage space.
-                continue
-
-            # Convert rarity string to enum
             rarity = self._parse_rarity_to_enum(rarity_str)
             stored_quantity = 0
-            item_unavailable = False
-            while stored_quantity < quantity and items_added < available_space:
+
+            for _ in range(loot_item["quantity"]):
                 item = self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
                 if item is None:
-                    item_unavailable = True
                     break
 
                 db_session.add(item)
@@ -287,7 +249,6 @@ class RewardsService:
                         await db_session.flush()
                         auto_equip_ids.append({"item_type": item_type, "id": item.id})
 
-                items_added += 1
                 stored_quantity += 1
 
             if stored_quantity:
@@ -301,22 +262,6 @@ class RewardsService:
                         "rarity": rarity_str,
                     },
                 )
-
-            if stored_quantity == quantity or item_unavailable:
-                continue
-
-            overflow.append({**loot_item, "quantity": quantity - stored_quantity})
-            logger.warning(
-                "Storage full - item dropped",
-                extra={
-                    "vault_id": str(vault.id),
-                    "item_name": item_name,
-                    "item_type": item_type,
-                    "rarity": rarity_str,
-                    "items_in_storage": items_added,
-                    "max_space": storage.max_space,
-                },
-            )
 
         await db_session.flush()
 
@@ -375,24 +320,13 @@ class RewardsService:
             if not exploration.is_active() and exploration.unclaimed_loot
         ]
 
-    @staticmethod
-    def _pop_unclaimed(exploration: Exploration, unclaimed: list[dict], index: int) -> dict:
-        if index < 0 or index >= len(unclaimed):
-            raise ResourceNotFoundException(Exploration, f"{exploration.id} unclaimed item {index}")
-        return unclaimed.pop(index)
-
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = self._pop_unclaimed(exploration, unclaimed, index)
-        if loot_item.get("item_type") in {"stimpak", "radaway"}:
-            raise ValidationException("Medical supplies are returned automatically")
-        storage = await crud_storage.get_storage_by_vault(db_session, exploration.vault_id)
-        quantity = loot_item.get("quantity", 1) or 1
-        if not isinstance(quantity, int) or quantity < 1:
-            raise ValidationException("Loot quantity must be a positive integer")
-        if not storage or await crud_storage.get_available_space(db_session, storage.id) < quantity:
-            raise ResourceConflictException("Storage is full")
+        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
+        loot_overflow_service.reject_medical(loot_item)
+        quantity = loot_overflow_service.quantity_of(loot_item)
+        storage = await loot_overflow_service.require_space(db_session, exploration.vault_id, quantity)
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
         rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
@@ -415,12 +349,9 @@ class RewardsService:
     ) -> tuple[int, list[dict]]:
         """Sell one overflow item for caps. Needs no storage space."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = self._pop_unclaimed(exploration, unclaimed, index)
-        if loot_item.get("item_type") in {"stimpak", "radaway"}:
-            raise ValidationException("Medical supplies are returned automatically")
-        weapons_data = await asyncio.to_thread(data_loader.load_weapons)
-        outfits_data = await asyncio.to_thread(data_loader.load_outfits)
-        value = self._loot_caps_value(loot_item, weapons_data, outfits_data)
+        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
+        loot_overflow_service.reject_medical(loot_item)
+        value = loot_overflow_service.value_of(loot_item)
         vault = await crud_vault.get(db_session, exploration.vault_id)
         await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
         exploration.unclaimed_loot = unclaimed

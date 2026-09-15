@@ -245,7 +245,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.staffing-summary').text()).toContain('1 / 2 staffed · 1 apprentice')
+      expect(wrapper.find('.staffing-summary').text()).toContain('1/2 workers · 1/1 apprentice')
     })
 
     it('should display room size', () => {
@@ -454,11 +454,54 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('0 / 2 staffed')
-      expect(wrapper.text()).toContain('Assign dweller')
+      expect(wrapper.text()).toContain('0/2 workers')
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.find('.assign-worker').text()).toContain('Assign Worker')
+      expect(wrapper.find('.assign-apprentice').text()).toContain('Assign Apprentice')
+    })
+
+    it('keeps apprentice assignment exclusive to production rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, category: 'SPECIAL', ability: 'CHARISMA', name: 'Radio Studio' },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.assign-worker').exists()).toBe(true)
+      expect(wrapper.find('.assign-apprentice').exists()).toBe(false)
     })
 
     it('assigns a dweller picked from the inline picker', async () => {
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as never)
+      dwellerStore.dwellers = [
+        { ...mockDwellers[0], age_group: 'adult', apprentice_stat: null, room_id: null, status: 'idle' },
+      ] as never
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      await wrapper.get('.assign-worker').trigger('click')
+
+      const pickerCard = wrapper
+        .findAll('.dweller-picker .dweller-card')
+        .find((card) => card.text().includes('John'))
+      expect(pickerCard).toBeTruthy()
+      await pickerCard!.get('.dweller-card__details').trigger('click')
+
+      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+    })
+
+    it('assigns a youth through the dedicated apprentice action', async () => {
       const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
       const authStore = useAuthStore()
       authStore.token = 'test-token'
@@ -476,13 +519,9 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper.get('.assign-slot').trigger('click')
-
-      const pickerCard = wrapper
-        .findAll('.dweller-picker .dweller-card')
-        .find((card) => card.text().includes('John'))
-      expect(pickerCard).toBeTruthy()
-      await pickerCard!.get('.dweller-card__details').trigger('click')
+      await wrapper.get('.assign-apprentice').trigger('click')
+      expect(wrapper.find('.picker-title').text()).toBe('Select Apprentice')
+      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })

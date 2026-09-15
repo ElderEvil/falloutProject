@@ -15,21 +15,30 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { showApprenticeSlot: false })
 
+const sceneImageUrl = computed(() => props.roomImageUrl ?? props.imageUrl)
 const workerDwellers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
 const apprentice = computed(() => props.assignedDwellers.find((dweller) => dweller.apprentice_stat))
 </script>
 
 <template>
-  <div class="room-preview-section">
+  <section class="room-preview-section room-scene" :aria-label="`${roomName} room scene`">
     <div class="preview-container">
       <div class="room-image-container">
-        <img v-if="roomImageUrl" :src="roomImageUrl" :alt="roomName || 'Room'" class="room-image" />
-        <div class="room-image-placeholder" :class="{ 'has-image': imageUrl }">
-          <template v-if="!imageUrl">
+        <img v-if="sceneImageUrl" :src="sceneImageUrl" :alt="roomName || 'Room'" class="room-image" />
+        <div class="room-image-placeholder" :class="{ 'has-image': sceneImageUrl }">
+          <template v-if="!sceneImageUrl">
             <Icon icon="mdi:home-variant-outline" class="h-16 w-16 opacity-30" />
-            <p class="placeholder-text">Room Sprite</p>
-            <p class="placeholder-subtext">No Image Available</p>
+            <p class="placeholder-text">Room Scene</p>
+            <p class="placeholder-subtext">Visual feed unavailable</p>
           </template>
+
+          <div class="scene-readout">
+            <span class="scene-label"><Icon icon="mdi:movie-open-outline" /> Live room scene</span>
+            <span class="scene-status"><Icon icon="mdi:account-hard-hat-outline" /> {{ workerDwellers.length }}/{{ dwellerCapacity }} workers</span>
+            <span v-if="showApprenticeSlot" class="scene-status apprentice-status">
+              <Icon icon="mdi:school-outline" /> {{ apprentice ? 1 : 0 }}/1 apprentice
+            </span>
+          </div>
 
           <div class="dweller-sprites-overlay">
             <div
@@ -71,40 +80,41 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
 .room-preview-section {
-  background: var(--color-surface);
-  padding: 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 42%, transparent);
+  box-shadow: inset 0 0 2rem color-mix(in srgb, var(--color-theme-primary) 5%, transparent);
 }
 
 .preview-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  height: clamp(13rem, 31vw, 22rem);
+  min-height: clamp(13rem, 31vw, 22rem);
 }
 
 .room-image-container {
   position: relative;
-  min-height: 132px;
-  border-radius: 3px;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.8);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-theme-primary) 9%, transparent), transparent 28%),
+    rgba(0, 0, 0, 0.8);
 }
 
 .room-image {
   width: 100%;
-  height: auto;
-  max-height: 190px;
+  height: 100%;
   object-fit: contain;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.7);
   display: block;
 }
 
@@ -118,13 +128,27 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface-sunken);
+  background: linear-gradient(135deg, var(--color-surface-sunken), color-mix(in srgb, var(--color-theme-primary) 8%, transparent));
   padding: 0.75rem;
 }
 
 .room-image-placeholder.has-image {
   background: transparent;
   pointer-events: none;
+}
+
+.room-image-container::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-theme-primary) 7%, transparent) 0,
+    color-mix(in srgb, var(--color-theme-primary) 7%, transparent) 1px,
+    transparent 1px,
+    transparent 4px
+  );
 }
 
 .placeholder-text {
@@ -142,11 +166,50 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   font-style: italic;
 }
 
+.scene-readout {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.7rem;
+  right: 0.7rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: color-mix(in srgb, var(--color-theme-primary) 76%, transparent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px #000;
+}
+
+.scene-label,
+.scene-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.scene-label {
+  color: var(--color-theme-primary);
+}
+
+.scene-label :deep(svg),
+.scene-status :deep(svg) {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.apprentice-status {
+  color: var(--color-warning);
+}
+
 .dweller-sprites-overlay {
   position: absolute;
-  bottom: 0.35rem;
-  left: 0.35rem;
-  right: 0.35rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
   display: flex;
   justify-content: space-evenly;
   z-index: 10;
@@ -166,7 +229,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface-sunken);
+  background: color-mix(in srgb, var(--color-surface-sunken) 80%, #000);
   border: 1px dashed var(--color-theme-glow);
   border-radius: 3px;
 }
@@ -184,7 +247,6 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .apprentice-slot .placeholder-dweller {
   border-color: var(--color-warning);
 }
-
 
 .apprentice-marker {
   position: absolute;

@@ -9,6 +9,7 @@ interface Props {
   assignedDwellers: DwellerShort[]
   dwellerCapacity: number
   ability: string | null
+  allowApprentice: boolean
 }
 
 const props = defineProps<Props>()
@@ -20,26 +21,37 @@ const emit = defineEmits<{
 }>()
 
 const { filter: dwellerStore } = useDwellerStore()
-const isPicking = ref(false)
+type AssignmentMode = 'worker' | 'apprentice'
 
-const hasFreeCapacity = computed(() => props.assignedDwellers.length < props.dwellerCapacity)
+const assignmentMode = ref<AssignmentMode | null>(null)
+
+const workers = computed(() => props.assignedDwellers.filter((dweller) => !dweller.apprentice_stat))
+const hasFreeCapacity = computed(() => workers.value.length < props.dwellerCapacity)
+const hasApprentice = computed(() => props.assignedDwellers.some((dweller) => dweller.apprentice_stat))
+const canAssignApprentice = computed(() => props.allowApprentice && !hasApprentice.value)
 
 const availableDwellers = computed(() =>
   dwellerStore.dwellers
-    .filter((dweller) => !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status))
+    .filter(
+      (dweller) =>
+        !dweller.room_id &&
+        !['dead', 'questing', 'exploring'].includes(dweller.status) &&
+        (assignmentMode.value === 'apprentice' ? dweller.age_group !== 'adult' : dweller.age_group === 'adult')
+    )
     .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
 )
 
 const pickDweller = (dwellerId: string) => {
-  isPicking.value = false
+  assignmentMode.value = null
   emit('assignDweller', dwellerId)
 }
 
 const staffingSummary = computed(() => {
-  const apprenticeCount = props.assignedDwellers.filter((dweller) => dweller.apprentice_stat).length
-  const staffedCount = props.assignedDwellers.length - apprenticeCount
-  return `${staffedCount} / ${props.dwellerCapacity} staffed${apprenticeCount ? ` · ${apprenticeCount} apprentice` : ''}`
+  const apprenticeText = props.allowApprentice ? ` · ${hasApprentice.value ? 1 : 0}/1 apprentice` : ''
+  return `${workers.value.length}/${props.dwellerCapacity} workers${apprenticeText}`
 })
+
+const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker'))
 </script>
 
 <template>
@@ -58,25 +70,40 @@ const staffingSummary = computed(() => {
         :dweller="dweller"
         :ability="ability"
         show-apprentice
+        show-assignment-role
         show-unassign
         @activate="emit('dwellerClick', $event)"
         @unassign="emit('unassignDweller', $event)"
       />
 
-      <button
-        v-if="hasFreeCapacity && !isPicking"
-        type="button"
-        class="assign-slot"
-        @click="isPicking = true"
-      >
-        <Icon icon="mdi:plus" class="h-5 w-5" />
-        <span>Assign dweller</span>
-      </button>
+      <div v-if="!assignmentMode" class="assignment-actions">
+        <button
+          type="button"
+          class="assign-slot assign-worker"
+          :disabled="!hasFreeCapacity"
+          @click="assignmentMode = 'worker'"
+        >
+          <Icon icon="mdi:account-plus-outline" class="h-5 w-5" />
+          <span>Assign Worker</span>
+          <small>{{ workers.length }}/{{ dwellerCapacity }}</small>
+        </button>
+        <button
+          v-if="allowApprentice"
+          type="button"
+          class="assign-slot assign-apprentice"
+          :disabled="!canAssignApprentice"
+          @click="assignmentMode = 'apprentice'"
+        >
+          <Icon icon="mdi:school-outline" class="h-5 w-5" />
+          <span>Assign Apprentice</span>
+          <small>{{ hasApprentice ? 1 : 0 }}/1</small>
+        </button>
+      </div>
 
-      <div v-if="isPicking" class="dweller-picker">
+      <div v-if="assignmentMode" class="dweller-picker">
         <div class="picker-header">
-          <span class="picker-title">Select Dweller</span>
-          <button type="button" class="picker-close" aria-label="Close picker" @click="isPicking = false">
+          <span class="picker-title">{{ pickerTitle }}</span>
+          <button type="button" class="picker-close" aria-label="Close picker" @click="assignmentMode = null">
             <Icon icon="mdi:close" class="h-4 w-4" />
           </button>
         </div>
@@ -149,6 +176,13 @@ const staffingSummary = computed(() => {
   overflow-y: auto;
 }
 
+.assignment-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem;
+}
+
 .assign-slot {
   display: flex;
   align-items: center;
@@ -166,11 +200,35 @@ const staffingSummary = computed(() => {
   transition: all 0.2s;
 }
 
+.assign-slot small {
+  margin-left: auto;
+  color: color-mix(in srgb, currentcolor 62%, transparent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.assign-apprentice {
+  border-color: color-mix(in srgb, var(--color-warning) 70%, transparent);
+  color: var(--color-warning);
+}
+
 .assign-slot:hover,
 .assign-slot:focus-visible {
   border-color: var(--color-theme-primary);
   background: var(--color-surface-hover);
   outline: none;
+}
+
+.assign-apprentice:hover,
+.assign-apprentice:focus-visible {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+
+.assign-slot:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .dweller-picker {

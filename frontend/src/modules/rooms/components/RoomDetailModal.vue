@@ -144,22 +144,23 @@ watch(
       />
 
       <template v-else>
+        <RoomPreviewSection
+          :room-name="room.name"
+          :image-url="room.image_url ?? null"
+          :room-image-url="roomImageUrl ?? null"
+          :dweller-capacity="dwellerCapacity"
+          :assigned-dwellers="assignedDwellers"
+          :show-apprentice-slot="producesResources(room)"
+        />
+
         <div class="room-console">
           <aside class="room-console__crew">
-            <RoomPreviewSection
-              :room-name="room.name"
-              :image-url="room.image_url ?? null"
-              :room-image-url="roomImageUrl ?? null"
-              :dweller-capacity="dwellerCapacity"
-              :assigned-dwellers="assignedDwellers"
-              :show-apprentice-slot="producesResources(room)"
-            />
-
             <DwellerList
               v-if="has('dwellerList')"
               :assigned-dwellers="assignedDwellers"
               :dweller-capacity="dwellerCapacity"
               :ability="room.ability"
+              :allow-apprentice="producesResources(room)"
               @dweller-click="openDwellerDetails"
               @assign-dweller="handleAssignDweller"
               @unassign-dweller="handleUnassignDweller"
@@ -234,7 +235,7 @@ watch(
 
 .room-console {
   display: grid;
-  grid-template-columns: minmax(15rem, 0.7fr) minmax(0, 1.3fr);
+  grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 1.1fr);
   gap: 1rem;
 }
 

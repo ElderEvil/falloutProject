@@ -9,10 +9,15 @@ interface Props {
   dweller: DwellerShort
   ability: string | null
   showApprentice?: boolean
+  showAssignmentRole?: boolean
   showUnassign?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showApprentice: false, showUnassign: false })
+const props = withDefaults(defineProps<Props>(), {
+  showApprentice: false,
+  showAssignmentRole: false,
+  showUnassign: false,
+})
 
 const emit = defineEmits<{
   activate: [dwellerId: string]
@@ -38,6 +43,14 @@ const statValue = (ability: string) => {
         <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
         <div class="dweller-badges">
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+          <DwellerBadge
+            v-if="showAssignmentRole && !dweller.apprentice_stat"
+            icon="mdi:account-hard-hat-outline"
+            color="var(--color-theme-primary)"
+            label="Worker"
+            :show-label="false"
+            size="sm"
+          />
           <DwellerBadge
             v-if="showApprentice && dweller.apprentice_stat"
             icon="mdi:school-outline"

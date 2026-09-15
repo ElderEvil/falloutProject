@@ -93,7 +93,8 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 .room-facts {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  align-self: flex-end;
+  gap: 0;
   flex-shrink: 0;
   text-align: right;
   white-space: nowrap;
@@ -110,8 +111,13 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 }
 
 .room-fact + .room-fact {
-  padding-left: 0.625rem;
-  border-left: 1px solid var(--color-theme-glow);
+  margin-left: 0.625rem;
+}
+
+.room-fact + .room-fact::before {
+  margin-right: 0.625rem;
+  color: var(--color-gray-600);
+  content: '·';
 }
 
 .room-fact > span {
@@ -147,6 +153,7 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   }
 
   .room-facts {
+    align-self: auto;
     width: 100%;
     flex-wrap: wrap;
     text-align: left;

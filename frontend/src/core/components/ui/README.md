@@ -207,10 +207,19 @@ Terminal-themed tooltip.
 **Usage:**
 
 ```vue
-<UTooltip text="Click to build a new room">
+<UTooltip text="Build a new room">
   <UButton>Build</UButton>
 </UTooltip>
 ```
+
+The wrapped control keeps its own root element — `UTooltip` clones the slot's element (or component) vnode and merges
+the pointer/focus listeners (plus `aria-describedby` when `text` is set) onto it, so no wrapper box is introduced and
+layout classes on the control keep working. When the slot is a component, the rendered root element is resolved for
+positioning. `UIconButton` applies this pattern automatically: its required `label` is both the accessible name and
+the terminal-styled tooltip text.
+
+> `UButton` and `UIconButton` keep their `<button>` as the root when there is nothing to show (`UButton` without
+> `title`), so root-level listeners and event triggering on those components behave exactly as before.
 
 ## Importing Components
 

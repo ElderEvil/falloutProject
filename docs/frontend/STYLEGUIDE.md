@@ -439,9 +439,10 @@ needs a second element type to say something, it is a popover (below), not a too
    keyboard and touch. Non-interactive text stays a tooltip.
 5. **Icons alone are not labels.** An icon-only control always needs an accessible name; the hint is supplementary.
 
-> **Migration status:** 131 native `title=` bindings across 73 files predate this rule (themed tips are ~22 uses).
-> Migrate opportunistically when touching a component; a lint rule banning `title=` in `.vue` templates, with an
-> allowlist for genuine exceptions, is the intended enforcement.
+> **Migration status:** legacy browser `title` attributes remain and must be migrated when their component is
+> touched. Do not count raw `title=` matches: `UModal`, `UCard`, and `PageHeader` use `title` as visible semantic
+> content, not as a browser tooltip. A lint rule banning native HTML `title` attributes in `.vue` templates, with
+> an allowlist for genuine exceptions, is the intended enforcement.
 
 ---
 

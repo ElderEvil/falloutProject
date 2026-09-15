@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
+import { UButton, UTooltip } from '@/core/components/ui'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerPlacesBadge from '@/modules/dwellers/components/DwellerPlacesBadge.vue'
 import type { ActionSuggestion, ChatMessageDisplay, MapDiscovery } from '../models/chat'
@@ -163,32 +163,33 @@ const messageContentSegments = (
           {{ message.type === 'user' ? username : dwellerName }}
         </span>
         <div class="flex items-center gap-2">
-          <span
+          <UTooltip
             v-if="message.type === 'dweller' && message.happinessImpact"
+            :text="message.happinessImpact.reason_text"
+          >
+          <span
             class="happiness-indicator"
             :class="getHappinessColor(message.happinessImpact.delta)"
-            :title="message.happinessImpact.reason_text"
           >
             <Icon :icon="getHappinessIcon(message.happinessImpact.delta)" class="h-4 w-4" />
             <span class="text-xs">
               {{ message.happinessImpact.delta > 0 ? '+' : '' }}{{ message.happinessImpact.delta }}
             </span>
           </span>
+          </UTooltip>
           <DwellerPlacesBadge
             v-if="message.type === 'dweller' && message.unlockedPlaces?.length"
             class="map-discovery-indicator happiness-indicator text-theme-primary"
             :count="message.unlockedPlaces.length"
             :title="mapDiscoveryTitle(message.unlockedPlaces)"
           />
-          <button
+          <UTooltip
             v-if="message.audioUrl"
+            :text="currentlyPlayingUrl === message.audioUrl ? 'Stop audio' : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`"
+          >
+          <button
             class="audio-replay-btn"
             :class="{ 'is-playing': currentlyPlayingUrl === message.audioUrl }"
-            :title="
-              currentlyPlayingUrl === message.audioUrl
-                ? 'Stop audio'
-                : `Play ${message.type === 'user' ? 'your' : 'dweller'} audio`
-            "
             :aria-label="
               currentlyPlayingUrl === message.audioUrl
                 ? 'Stop audio playback'
@@ -205,6 +206,7 @@ const messageContentSegments = (
               class="h-4 w-4"
             />
           </button>
+          </UTooltip>
         </div>
       </div>
       <div class="message-content">

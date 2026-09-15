@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IconComponent } from '@/core/types/utils'
+import UTooltip from './UTooltip.vue'
 
 /**
  * UButton - Terminal-themed button component wrapping Nuxt UI
@@ -40,6 +41,9 @@ const {
   icon,
   iconRight,
 } = defineProps<Props>()
+
+// Consumer classes/attrs belong on the real <button>, not the tooltip trigger.
+defineOptions({ inheritAttrs: false })
 
 const resolvedAriaLabel = ariaLabel ?? kebabCaseAriaLabel
 
@@ -82,12 +86,29 @@ const handleClick = (event: MouseEvent) => {
 </script>
 
 <template>
+  <UTooltip v-if="title" :text="title">
+    <button
+      v-bind="$attrs"
+      :class="buttonClasses"
+      :disabled="disabled || loading"
+      @click="handleClick"
+      :type="type"
+      :aria-label="resolvedAriaLabel"
+      :aria-expanded="ariaExpanded"
+    >
+      <component v-if="icon && !loading" :is="icon" class="h-5 w-5" />
+      <span v-if="loading" class="animate-spin">⚙</span>
+      <slot></slot>
+      <component v-if="iconRight" :is="iconRight" class="h-5 w-5" />
+    </button>
+  </UTooltip>
   <button
+    v-else
+    v-bind="$attrs"
     :class="buttonClasses"
     :disabled="disabled || loading"
     @click="handleClick"
     :type="type"
-    :title="title"
     :aria-label="resolvedAriaLabel"
     :aria-expanded="ariaExpanded"
   >

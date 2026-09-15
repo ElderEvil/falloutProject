@@ -18,6 +18,7 @@ import { useToast } from '@/core/composables/useToast'
 import { useMapStore } from '@/modules/map/stores/map'
 import type { MapPlaceLink } from '@/modules/dwellers/models/dweller'
 import ChatMessageList from './ChatMessageList.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -335,14 +336,15 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="chat-input">
-      <button
-        class="mode-toggle-btn"
-        :title="audioMode ? 'Switch to text' : 'Switch to voice'"
-        :aria-label="audioMode ? 'Switch to text input' : 'Switch to voice input'"
-        @click="audioMode = !audioMode"
-      >
-        <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
-      </button>
+      <UTooltip :text="audioMode ? 'Switch to text' : 'Switch to voice'">
+        <button
+          class="mode-toggle-btn"
+          :aria-label="audioMode ? 'Switch to text input' : 'Switch to voice input'"
+          @click="audioMode = !audioMode"
+        >
+          <Icon :icon="audioMode ? 'mdi:keyboard' : 'mdi:microphone'" class="h-5 w-5" />
+        </button>
+      </UTooltip>
       <template v-if="!audioMode">
         <span class="terminal-prompt">&gt;</span>
         <input
@@ -376,23 +378,27 @@ onUnmounted(() => {
           <Icon icon="mdi:microphone" class="h-5 w-5" />
           Ready to record
         </div>
+        <UTooltip v-if="!isRecording" text="Start recording">
         <button
-          v-if="!isRecording"
           class="record-btn"
-          title="Start recording"
           aria-label="Start recording"
           :disabled="isSendingAudio"
           @click="startRecording"
         >
           <Icon icon="mdi:microphone" class="h-6 w-6" />
         </button>
+        </UTooltip>
         <template v-else>
-          <button class="cancel-btn" title="Cancel" aria-label="Cancel recording" @click="cancelRecording">
-            <Icon icon="mdi:close" class="h-5 w-5" />
-          </button>
-          <button class="send-audio-btn" title="Send recording" aria-label="Send recording" @click="sendAudioMessage">
-            <Icon icon="mdi:send" class="h-5 w-5" />
-          </button>
+          <UTooltip text="Cancel recording">
+            <button class="cancel-btn" aria-label="Cancel recording" @click="cancelRecording">
+              <Icon icon="mdi:close" class="h-5 w-5" />
+            </button>
+          </UTooltip>
+          <UTooltip text="Send recording">
+            <button class="send-audio-btn" aria-label="Send recording" @click="sendAudioMessage">
+              <Icon icon="mdi:send" class="h-5 w-5" />
+            </button>
+          </UTooltip>
         </template>
       </template>
     </div>

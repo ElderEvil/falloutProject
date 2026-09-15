@@ -186,7 +186,7 @@ describe('DwellerCard', () => {
       expect(value.classes()).toContain('max-level')
       expect(value.text()).not.toMatch(/-\d/)
       vi.useFakeTimers()
-      await wrapper.find('.xp-bar-container .relative > div').trigger('mouseenter')
+      await wrapper.find('.xp-bar-container .stat-value').trigger('mouseenter')
       vi.advanceTimersByTime(250)
       await nextTick()
       expect(document.body.textContent).toContain('Maximum level')

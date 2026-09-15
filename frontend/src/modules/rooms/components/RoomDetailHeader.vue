@@ -16,24 +16,22 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 <template>
   <div class="modal-header">
     <div class="header-content">
-      <div class="header-identity">
-        <h2 class="room-title">
-          <Icon :icon="resourceIcon" class="room-icon" />
-          {{ room.name }}
-        </h2>
-        <div class="header-metadata">
-          <span class="metadata-item">{{ room.category }} Room</span>
-          <span class="metadata-divider">&middot;</span>
-          <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ room.tier }}</span>
-          <span v-if="room.ability" class="metadata-divider">&middot;</span>
-          <span v-if="room.ability" class="metadata-item">Requires: {{ room.ability.charAt(0) }}</span>
-        </div>
-      </div>
-
-      <div class="room-facts" aria-label="Room information">
-        <span class="room-fact"><span>Capacity</span><strong>{{ room.capacity || 0 }}</strong></span>
-        <span class="room-fact"><span>Size</span><strong>{{ roomSizeText }}</strong></span>
-        <span class="room-fact"><span>Position</span><strong>({{ room.coordinate_x }}, {{ room.coordinate_y }})</strong></span>
+      <h2 class="room-title">
+        <Icon :icon="resourceIcon" class="room-icon" />
+        {{ room.name }}
+      </h2>
+      <div class="header-metadata" aria-label="Room information">
+        <span class="metadata-item">{{ room.category }} Room</span>
+        <span class="metadata-divider">&middot;</span>
+        <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ room.tier }}</span>
+        <span v-if="room.ability" class="metadata-divider">&middot;</span>
+        <span v-if="room.ability" class="metadata-item">Requires: {{ room.ability.charAt(0) }}</span>
+        <span class="metadata-divider">&middot;</span>
+        <span class="metadata-item">Capacity: {{ room.capacity || 0 }}</span>
+        <span class="metadata-divider">&middot;</span>
+        <span class="metadata-item">Size: {{ roomSizeText }}</span>
+        <span class="metadata-divider">&middot;</span>
+        <span class="metadata-item">Position: ({{ room.coordinate_x }}, {{ room.coordinate_y }})</span>
       </div>
     </div>
   </div>
@@ -41,26 +39,20 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 
 <style scoped>
 .modal-header {
-  flex: 1;
-  min-width: 0;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .header-content {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.header-identity {
-  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .room-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0;
   color: var(--color-theme-primary);
@@ -82,6 +74,7 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .metadata-item {
@@ -90,49 +83,6 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 
 .metadata-divider {
   color: var(--color-gray-600);
-}
-
-.room-facts {
-  display: flex;
-  align-items: center;
-  align-self: flex-end;
-  gap: 0;
-  flex-shrink: 0;
-  margin-left: auto;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.room-fact {
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  color: var(--color-gray-300);
-  font-size: 0.75rem;
-  font-weight: inherit;
-  letter-spacing: 0.05em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.room-fact + .room-fact {
-  margin-left: 0.625rem;
-}
-
-.room-fact + .room-fact::before {
-  margin-right: 0.625rem;
-  color: var(--color-gray-600);
-  content: '·';
-}
-
-.room-fact > span {
-  color: inherit;
-}
-
-.room-fact strong {
-  color: inherit;
-  font-weight: inherit;
 }
 
 .tier-upgraded {
@@ -149,22 +99,10 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--color-theme-glow)); }
 }
 
-@media (max-width: 680px) {
-  .header-content {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .room-facts {
-    align-self: auto;
-    width: 100%;
-    flex-wrap: wrap;
-    text-align: left;
+@media (max-width: 720px) {
+  .header-metadata {
     white-space: normal;
   }
-
-  .room-fact {
-    justify-content: flex-start;
-  }
 }
+
 </style>

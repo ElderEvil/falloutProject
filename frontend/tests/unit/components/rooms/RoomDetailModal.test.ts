@@ -248,7 +248,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.room-scene').exists()).toBe(true)
       expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
-      expect(wrapper.find('.room-facts').exists()).toBe(true)
+      expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
     })
 
     it('should display room size', () => {
@@ -639,7 +639,7 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.room-facts').exists()).toBe(true)
+      expect(wrapper.find('.header-metadata').exists()).toBe(true)
       expect(wrapper.find('.room-management').text()).toContain('Management')
       expect(wrapper.text()).not.toContain('Staffing')
     })

@@ -84,7 +84,7 @@ class DwellerRecyclingService:
             raise ResourceNotFoundException(Vault, identifier=target_vault_id)
 
         # Use SELECT ... FOR UPDATE to prevent race conditions
-        dweller = await crud.dweller.get_for_update(db_session, dweller_id)
+        dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
 
         if not dweller:
             raise ResourceNotFoundException(Dweller, identifier=dweller_id)

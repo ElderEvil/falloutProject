@@ -10,7 +10,11 @@ from app.models.dweller import Dweller
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
 from app.services.radiation_service import radiation_removal_amount
-from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
+from app.utils.exceptions import (
+    ContentNoChangeException,
+    ResourceConflictException,
+    ResourceNotFoundException,
+)
 
 
 async def get_available_medical_supplies(
@@ -54,7 +58,9 @@ async def get_dweller_medical_status(
 
 async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     """Spend one carried stimpack and heal the dweller up to the radiation-reduced ceiling."""
-    dweller_obj = await dweller_crud.get(db_session, dweller_id)
+    dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
+    if dweller_obj is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
     if dweller_obj.stimpack <= 0:
         raise ResourceConflictException(detail="No stimpacks available to use.")
@@ -72,7 +78,9 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
 
 async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     """Spend one carried RadAway and remove a configured share of the dweller's radiation."""
-    dweller_obj = await dweller_crud.get(db_session, dweller_id)
+    dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
+    if dweller_obj is None:
+        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
 
     if dweller_obj.radaway <= 0:
         raise ResourceConflictException(detail="No radaways available to use.")

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.103.0 (2026-09-15)
+
+### Features
+
+* **dwellers:** expose effective_max_health on dweller responses caeb7d4
+
 ## 2.102.0 (2026-09-15)
 
 ### Features

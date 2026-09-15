@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.105.0 (2026-09-15)
+
+### Features
+
+* **cli:** recompute stale room image URLs from live size and tier de69efb
+* **rooms:** assign dwellers from scene slots a376bdd
+* **rooms:** compact room detail console be94b4c
+* **rooms:** expose crew controls 180ca86
+* **rooms:** make room scenes primary c9e25cc
+* **rooms:** make scene dwellers interactive 44c6c98
+* **rooms:** mirror page header hierarchy 3de6c83
+* **rooms:** prioritize room information 7c7aee8
+* **rooms:** restore compact management section cc96130
+* **rooms:** scale detail views by footprint f785bd3
+* **rooms:** unit-aware scene, training section, and header facts f9d8aa8
+
+### Bug Fixes
+
+* **assignment:** preserve production apprentice slots 902670e
+* **review:** arena slot gating, training reload, card click area, parts tests 1e0c49a
+* **review:** training-status eligibility and unassign target size f2837ef
+* **rooms:** align room header facts 817b4ae
+* **rooms:** anchor room facts by close control 8c58d35
+* **rooms:** restore classic detail sizing 2bfed9a
+* **rooms:** restore worker slot hover feedback 6c79d57
+* **rooms:** unify room header metadata 47656bf
+* **tests:** align radaway expectation with max-health removal a32bbd3
+
+### Documentation
+
+* define WCAG 2.2 accessibility policy a2b12bd
+
+### Code Refactoring
+
+* **rooms:** move room facts into header 4895931
+* **rooms:** restore classic detail layout 9dd6261
+* **rooms:** unify room header metadata 67e40a1
+
 ## 2.104.0 (2026-09-15)
 
 ### Features

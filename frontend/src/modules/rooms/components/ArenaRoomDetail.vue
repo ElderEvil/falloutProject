@@ -42,6 +42,7 @@ const emit = defineEmits<{
       :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
+      :assign-enabled="false"
     />
     <ArenaModal
       :vault-id="vaultId"

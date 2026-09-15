@@ -4,7 +4,7 @@ Thin wrappers over the service layer or external APIs per AGENTS.md.
 
 Usage (from backend/):
     uv run fo-cli fix-dweller-image-urls
-    uv run fo-cli fix-room-image-urls
+    uv run fo-cli ops fix-room-image-urls
     uv run fo-cli set-rustfs-policies
     uv run fo-cli check-ai [--api-url URL] [--skip-chat] [--expect TEXT] [--expect-environment ENV]
 """

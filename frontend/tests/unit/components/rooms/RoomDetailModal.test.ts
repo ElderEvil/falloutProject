@@ -358,6 +358,28 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('John Doe')
     })
 
+    it('reloads training records when switching training rooms', async () => {
+      useAuthStore().token = 'test-token'
+      const fetchSpy = vi
+        .spyOn(useTrainingStore(), 'fetchRoomTrainings')
+        .mockResolvedValue([] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, id: 'room-1', name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+
+      await wrapper.setProps({
+        room: { ...mockRoom, id: 'room-2', name: 'Athletics room', category: 'training' },
+      })
+      await flushPromises()
+      expect(fetchSpy).toHaveBeenCalledWith('room-2', 'test-token')
+    })
+
     it('should display room position', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
@@ -54,11 +54,13 @@ const dwellerName = (dwellerId: string): string => {
 const refresh = async () => {
   const token = roomToken.value
   if (!token) return
+  const requestRoomId = props.room.id
   isLoading.value = true
   try {
-    trainings.value = await trainingStore.fetchRoomTrainings(props.room.id, token)
+    const records = await trainingStore.fetchRoomTrainings(requestRoomId, token)
+    if (requestRoomId === props.room.id) trainings.value = records
   } finally {
-    isLoading.value = false
+    if (requestRoomId === props.room.id) isLoading.value = false
   }
 }
 
@@ -88,9 +90,13 @@ const handleComplete = async (trainingId: string) => {
   await refresh()
 }
 
-onMounted(() => {
-  void refresh()
-})
+watch(
+  () => props.room.id,
+  () => {
+    void refresh()
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

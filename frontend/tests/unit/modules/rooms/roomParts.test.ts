@@ -3,8 +3,10 @@ import {
   craftingItemType,
   getRoomDetailParts,
   isCraftingRoom,
+  isElevator,
   isOverseersOffice,
   isRadioRoom,
+  isTrainingRoom,
   isVaultDoor,
   producesResources,
   type RoomPart,
@@ -44,7 +46,7 @@ describe('getRoomDetailParts', () => {
 
   it('omits production stats for non-production rooms', () => {
     const parts = getRoomDetailParts(room({ category: 'training', name: 'Strength Room' }))
-    expect(names(parts)).toBe('preview,info,dwellerList,actions')
+    expect(names(parts)).toBe('preview,info,training,dwellerList,actions')
   })
 
   it('renders radio stats and controls for radio rooms', () => {
@@ -97,6 +99,19 @@ describe('special room predicates', () => {
     expect(producesResources(room({ ability: null }))).toBe(false)
     expect(producesResources(room({ category: 'training' }))).toBe(false)
     expect(producesResources(null)).toBe(false)
+  })
+
+  it('detects training rooms', () => {
+    expect(isTrainingRoom(room({ category: 'training' }))).toBe(true)
+    expect(isTrainingRoom(room({ category: 'TRAINING' }))).toBe(true)
+    expect(isTrainingRoom(room())).toBe(false)
+    expect(isTrainingRoom(null)).toBe(false)
+  })
+
+  it('matches elevators exactly', () => {
+    expect(isElevator(room({ name: 'Elevator' }))).toBe(true)
+    expect(isElevator(room({ name: 'Elevators' }))).toBe(false)
+    expect(isElevator(null)).toBe(false)
   })
 })
 

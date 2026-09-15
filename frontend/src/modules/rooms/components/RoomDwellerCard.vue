@@ -51,7 +51,6 @@ const statValue = (ability: string) => {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.6rem 0.75rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
@@ -63,6 +62,7 @@ const statValue = (ability: string) => {
   gap: 0.75rem;
   min-width: 0;
   flex: 1;
+  padding: 0.6rem 0.75rem;
   border: 0;
   background: transparent;
   color: inherit;

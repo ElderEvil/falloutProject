@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.103.1 (2026-09-15)
+
+### Bug Fixes
+
+* **map:** home marker wins over bio-registered place rows 0815388
+
+### Code Refactoring
+
+* **map:** route home-marker recovery through the promotion helper cf1ad3b
+
 ## 2.103.0 (2026-09-15)
 
 ### Features

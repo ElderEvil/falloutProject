@@ -35,7 +35,7 @@ and cutting-edge JavaScript tooling.
 - **100+ Design Tokens** - Colors, typography, spacing, shadows
 - **Terminal Green/Amber/Tile Themes** - Fallout-inspired monochrome aesthetic
 - **CRT Effects** - Scanlines, flicker, phosphor glow
-- **Accessibility** - WCAG 2.1 AA compliant
+- **Accessibility** - WCAG 2.2 AA engineering target; see [`ACCESSIBILITY.md`](./ACCESSIBILITY.md)
 
 ## 📋 Prerequisites
 
@@ -240,7 +240,8 @@ Our design system is built with TailwindCSS v4's `@theme` feature. All design to
 - **Spacing System** - 4px base unit (consistent spacing)
 - **Special Effects** - Scanlines, flicker, terminal glow, CRT screen
 
-See [`STYLEGUIDE.md`](./STYLEGUIDE.md) for the complete design system documentation.
+See [`STYLEGUIDE.md`](./STYLEGUIDE.md) for the complete design system documentation and
+[`ACCESSIBILITY.md`](./ACCESSIBILITY.md) for the accessibility policy and verification requirements.
 
 ## 📁 Project Structure
 
@@ -418,6 +419,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 ## 📚 Documentation
 
 - **[STYLEGUIDE.md](./STYLEGUIDE.md)** - Complete design system guide
+- **[ACCESSIBILITY.md](./ACCESSIBILITY.md)** - WCAG target, implementation policy, and verification plan
 - **[src/core/components/ui/README.md](./src/core/components/ui/README.md)** - UI component API
 - **[HTTP_CLIENT_MIGRATION.md](./HTTP_CLIENT_MIGRATION.md)** - Axios deprecation and migration plan
 

@@ -65,7 +65,6 @@ const { resourceIcon, roomImageUrl, productionInfo } = useRoomProduction(
 const {
   isUpgrading,
   isDestroying,
-  justUpgraded,
   upgradeInfo,
   isVaultDoor,
   handleUpgrade,
@@ -113,7 +112,6 @@ watch(
         v-if="room"
         :room="room"
         :resource-icon="resourceIcon"
-        :just-upgraded="justUpgraded"
       />
     </template>
 

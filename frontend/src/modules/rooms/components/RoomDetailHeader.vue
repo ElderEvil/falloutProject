@@ -6,7 +6,6 @@ import type { Room } from '../models/room'
 interface Props {
   room: Room
   resourceIcon: string
-  justUpgraded: boolean
 }
 
 const props = defineProps<Props>()
@@ -16,14 +15,14 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 <template>
   <div class="modal-header">
     <div class="header-content">
-      <h2 class="room-title">
+      <h2 class="room-title terminal-glow">
         <Icon :icon="resourceIcon" class="room-icon" />
         {{ room.name }}
       </h2>
       <div class="header-metadata" aria-label="Room information">
         <span class="metadata-item">{{ room.category }} Room</span>
         <span class="metadata-divider">&middot;</span>
-        <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ room.tier }}</span>
+        <span class="metadata-item">Tier {{ room.tier }}</span>
         <span v-if="room.ability" class="metadata-divider">&middot;</span>
         <span v-if="room.ability" class="metadata-item">Requires: {{ room.ability.charAt(0) }}</span>
         <span class="metadata-divider">&middot;</span>
@@ -46,7 +45,7 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 .header-content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.4rem;
 }
 
 .room-title {
@@ -56,13 +55,15 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   gap: 0.5rem;
   margin: 0;
   color: var(--color-theme-primary);
-  font-size: 1.125rem;
+  font-size: 1.5rem;
   font-weight: bold;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
 }
 
 .room-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
   color: var(--color-terminal-green);
 }
 
@@ -70,7 +71,7 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--color-gray-300);
+  color: color-mix(in srgb, var(--color-theme-primary) 60%, transparent);
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -78,25 +79,11 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 }
 
 .metadata-item {
-  color: var(--color-gray-300);
+  color: inherit;
 }
 
 .metadata-divider {
-  color: var(--color-gray-600);
-}
-
-.tier-upgraded {
-  animation: tier-upgrade-pulse 1s ease-out;
-  color: var(--color-terminal-green) !important;
-  font-weight: bold;
-}
-
-@keyframes tier-upgrade-pulse {
-  0% { transform: scale(1); filter: drop-shadow(0 0 0 var(--color-theme-glow)); }
-  25% { transform: scale(1.2); filter: drop-shadow(0 0 8px var(--color-theme-glow)); }
-  50% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--color-theme-glow)); }
-  75% { transform: scale(1.15); filter: drop-shadow(0 0 8px var(--color-theme-glow)); }
-  100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--color-theme-glow)); }
+  color: color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
 }
 
 @media (max-width: 720px) {

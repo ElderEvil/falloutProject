@@ -219,6 +219,8 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Power Generator')
       expect(wrapper.text()).toContain('Tier 1')
+      expect(wrapper.find('.room-title').classes()).toContain('terminal-glow')
+      expect(wrapper.find('.header-metadata').classes()).not.toContain('terminal-glow')
     })
 
     it('should display room category', () => {

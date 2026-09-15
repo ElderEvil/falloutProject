@@ -56,6 +56,29 @@ describe('UTooltip', () => {
     expect(html).not.toContain('#00ff00')
   })
 
+  it('measures the root element when the trigger is a component', async () => {
+    vi.useFakeTimers()
+    const TriggerStub = {
+      name: 'TriggerStub',
+      template: '<button class="inner">Go</button>',
+    }
+    const wrapper = mount(UTooltip, {
+      attachTo: document.body,
+      props: { text: 'Component trigger' },
+      slots: { default: () => h(TriggerStub) },
+    })
+
+    await wrapper.get('button').trigger('focusin')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
+    expect(tooltip).not.toBeNull()
+    expect(tooltip?.textContent).toContain('Component trigger')
+
+    wrapper.unmount()
+  })
+
   it('shows for keyboard focus and links the focused control to its description', async () => {
     vi.useFakeTimers()
     const wrapper = mount(UTooltip, {

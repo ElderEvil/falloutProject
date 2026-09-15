@@ -24,8 +24,18 @@ const slots = useSlots()
 const attrs = useAttrs()
 const tooltipId = useId()
 const isVisible = ref(false)
-const triggerEl = ref<HTMLElement | null>(null)
+const triggerEl = ref<Element | null>(null)
 let timeoutId: number | null = null
+
+/**
+ * The cloned slot vnode may be a component (`UButton`, Iconify `Icon`, …), in which
+ * case Vue hands the ref a component instance instead of an element — measuring that
+ * directly throws and the tooltip never opens. Resolve to the rendered root element.
+ */
+const setTriggerEl = (value: unknown) => {
+  const candidate = value instanceof Element ? value : (value as { $el?: unknown } | null)?.$el
+  triggerEl.value = candidate instanceof Element ? candidate : null
+}
 
 const show = () => {
   if (!text) return
@@ -54,7 +64,7 @@ const triggerVNode = computed(() => {
     mergeProps(
       attrs,
       {
-        ref: triggerEl,
+        ref: setTriggerEl,
         onMouseenter: show,
         onMouseleave: hide,
         onFocusin: show,

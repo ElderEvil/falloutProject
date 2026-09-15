@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.109.0 (2026-09-15)
+
+### Features
+
+* **incidents:** hold loot a full vault cannot take 7676f1e
+* **incidents:** let the aftermath take or sell held loot b98d65c
+
+### Bug Fixes
+
+* **loot:** price held junk per unit and lock storage while claiming 870ba14
+
+### Code Refactoring
+
+* **loot:** share the overflow policy across owners 2bc1144
+
 ## 2.108.0 (2026-09-15)
 
 ### Features

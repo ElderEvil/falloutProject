@@ -145,11 +145,6 @@ const canUseRadaway = computed(
 
       <div class="stats-container">
         <div class="stat-row">
-          <span class="stat-label">Level</span>
-          <span class="stat-value">{{ dweller.level }}</span>
-        </div>
-
-        <div class="stat-row">
           <span class="stat-label">Health</span>
           <span class="stat-value">{{
             getHealthDisplay(dweller.health, dweller.max_health, dweller.radiation)

@@ -305,7 +305,10 @@ function entryHtml(text: string): string {
   flex-wrap: wrap;
 }
 
+/* The inset box hugs the 70ch reading column instead of stretching the panel:
+   text stays at comfortable line length, and the dead space simply disappears. */
 .bio-content {
+  max-width: 75ch;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
   border-left: 3px solid var(--color-theme-primary);

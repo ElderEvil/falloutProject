@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.107.1 (2026-09-15)
+
+### Bug Fixes
+
+* **rooms:** keep vault totals current when merges come from stored rooms c1fc4a9
+* **rooms:** replace a room's capacity contribution instead of adding it 09cd5b3
+
 ## 2.107.0 (2026-09-15)
 
 ### Features

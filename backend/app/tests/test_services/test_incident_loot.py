@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.junk import Junk
@@ -14,6 +15,7 @@ from app.models.storage import Storage
 from app.models.weapon import Weapon
 from app.services.combat import incident_math, incident_round
 from app.services.combat.incident_service import incident_service
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 from app.utils.static_data import game_data_store
 
 VICTORY_TYPES = (
@@ -159,6 +161,123 @@ async def test_full_storage_does_not_block_an_incident_victory(
     await async_session.refresh(incident)
     assert incident.status == IncidentStatus.RESOLVED, "the victory must commit even when nothing fits"
     assert incident.loot["items"] == [], "an item that could not be stored is not reported as recovered"
+    assert incident.unclaimed_loot, "the item waits for a take/sell decision instead of being lost"
 
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
-    assert any("left behind" in event.message for event in events), "the player is told the item was lost"
+    assert any("held for your decision" in event.message for event in events), "the player is told the item is waiting"
+
+
+async def _resolve_victory_into_a_full_vault(async_session: AsyncSession, room, vault):
+    """Resolve a raider victory with no free slot, returning the incident and its storage."""
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=0)
+        async_session.add(storage)
+    else:
+        storage.max_space = 0
+    await async_session.commit()
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=1,
+        duration=60,
+    )
+    await incident_service.process_incident(async_session, incident, 60)
+    await async_session.refresh(incident)
+    return incident, storage
+
+
+@pytest.mark.asyncio
+async def test_held_incident_overflow_reaches_storage_once_space_frees_up(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """Taking a held item stores it under its catalog name and empties the held list."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    incident, storage = await _resolve_victory_into_a_full_vault(async_session, room, vault)
+    held_name = incident.unclaimed_loot[0]["name"]
+
+    storage.max_space = 1
+    async_session.add(storage)
+    await async_session.flush()
+
+    remaining = await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    assert remaining == []
+    stored = (await async_session.exec(select(Weapon).where(Weapon.storage_id == storage.id))).all()
+    assert [weapon.name for weapon in stored] == [held_name]
+
+
+@pytest.mark.asyncio
+async def test_taking_held_incident_overflow_conflicts_while_full(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """Taking with no space raises 409 and keeps the held list intact."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)
+
+    with pytest.raises(ResourceConflictException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    await async_session.refresh(incident)
+    assert len(incident.unclaimed_loot) == 1
+
+    with pytest.raises(ResourceNotFoundException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 5)
+
+
+@pytest.mark.asyncio
+async def test_selling_held_incident_overflow_pays_caps_without_space(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """Selling a held item pays caps from the catalog even when storage is full."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)
+    await async_session.refresh(vault)
+    caps_before = vault.bottle_caps
+
+    caps, remaining = await incident_service.sell_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    assert caps > 0
+    assert remaining == []
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == caps_before + caps
+
+
+@pytest.mark.asyncio
+async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """A stack of N junk rows must not carry N times the unit value each."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=2)
+        async_session.add(storage)
+    else:
+        storage.max_space = 2
+        storage.used_space = 0
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FERAL_GHOUL_ATTACK,
+        difficulty=3,
+        duration=60,
+    )
+    incident.unclaimed_loot = [{"item_type": "junk", "rarity": "common", "name": "Scrap Metal", "quantity": 2}]
+    async_session.add(incident)
+    await async_session.commit()
+
+    await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    stored = (await async_session.exec(select(Junk).where(Junk.storage_id == storage.id))).all()
+    assert len(stored) == 2
+    unit_value = game_config.exploration.junk_value_common
+    assert [junk.value for junk in stored] == [unit_value, unit_value]

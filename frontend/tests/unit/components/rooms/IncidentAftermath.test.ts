@@ -4,9 +4,15 @@ import IncidentAftermath from '@/modules/rooms/components/IncidentAftermath.vue'
 import type { IncidentAftermath as Aftermath } from '@/modules/combat/models/incident'
 
 const clearAftermath = vi.fn()
+const takeOverflow = vi.fn()
+const sellOverflow = vi.fn()
 
 vi.mock('@/modules/combat/stores/incident', () => ({
-  useIncidentStore: () => ({ clearAftermath }),
+  useIncidentStore: () => ({ clearAftermath, takeOverflow, sellOverflow }),
+}))
+
+vi.mock('@/modules/auth/stores/auth', () => ({
+  useAuthStore: () => ({ token: 'test-token' }),
 }))
 
 const aftermath = (overrides: Partial<Aftermath> = {}): Aftermath =>
@@ -18,6 +24,7 @@ const aftermath = (overrides: Partial<Aftermath> = {}): Aftermath =>
     outcome: 'victory',
     capsEarned: 50,
     loot: null,
+    unclaimed: [],
     enemiesDefeated: 3,
     damageDealt: 40,
     rounds: 6,
@@ -26,12 +33,12 @@ const aftermath = (overrides: Partial<Aftermath> = {}): Aftermath =>
 
 const mountAftermath = (props: Record<string, unknown> = {}) =>
   mount(IncidentAftermath, {
-    props: { aftermath: aftermath(), ...props },
+    props: { aftermath: aftermath(), vaultId: 'vault-1', ...props },
     global: {
       stubs: {
         UButton: {
-          props: ['variant', 'size', 'block'],
-          template: '<button @click="$emit(\'click\')"><slot /></button>',
+          props: ['variant', 'size', 'block', 'disabled', 'loading'],
+          template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
       },
     },
@@ -40,6 +47,8 @@ const mountAftermath = (props: Record<string, unknown> = {}) =>
 describe('IncidentAftermath', () => {
   beforeEach(() => {
     clearAftermath.mockReset()
+    takeOverflow.mockReset()
+    sellOverflow.mockReset()
   })
 
   it('summarises a victory with its haul', () => {
@@ -86,6 +95,28 @@ describe('IncidentAftermath', () => {
 
   it('omits the recovered section when nothing was recovered', () => {
     expect(mountAftermath().text()).not.toContain('RECOVERED')
+  })
+
+  it('offers take and sell for loot the vault could not hold', async () => {
+    const wrapper = mountAftermath({
+      aftermath: aftermath({
+        unclaimed: [{ item_type: 'weapon', name: 'Raider Pistol', quantity: 1 }],
+      }),
+    })
+
+    expect(wrapper.text()).toContain('HELD — STORAGE FULL')
+    expect(wrapper.text()).toContain('Raider Pistol')
+
+    const [take, sell] = wrapper.findAll('button')
+    await take.trigger('click')
+    expect(takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'test-token')
+
+    await sell.trigger('click')
+    expect(sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'test-token')
+  })
+
+  it('omits the held section when everything fit', () => {
+    expect(mountAftermath().text()).not.toContain('HELD')
   })
 
   it('dismisses its own room summary', async () => {

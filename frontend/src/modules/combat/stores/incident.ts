@@ -5,6 +5,7 @@ import type {
   Incident,
   IncidentAftermath,
   IncidentListResponse,
+  IncidentLootItem,
   IncidentOutcome,
 } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -58,10 +59,73 @@ export const useIncidentStore = defineStore('incident', () => {
       outcome,
       capsEarned,
       loot: incident.loot,
+      unclaimed: incident.unclaimed_loot ?? [],
       enemiesDefeated: incident.enemies_defeated,
       damageDealt: incident.damage_dealt,
       rounds: incident.events.length,
     })
+  }
+
+  const findAftermath = (incidentId: string): IncidentAftermath | undefined =>
+    [...aftermaths.value.values()].find((entry) => entry.incidentId === incidentId)
+
+  const applyOverflow = (incidentId: string, unclaimed: IncidentLootItem[]): void => {
+    const entry = findAftermath(incidentId)
+    if (entry) entry.unclaimed = unclaimed
+  }
+
+  // The resolution frame carries no held loot, and the cached incident predates the
+  // grant, so the aftermath reloads the resolved incident to learn what was held.
+  const refreshAftermathOverflow = async (
+    vaultId: string,
+    incidentId: string,
+    token: string
+  ): Promise<void> => {
+    const entry = findAftermath(incidentId)
+    if (!entry) return
+    try {
+      const incident = await incidentApi.getIncident(vaultId, incidentId, token)
+      entry.unclaimed = incident.unclaimed_loot ?? []
+      entry.loot = incident.loot
+      entry.enemiesDefeated = incident.enemies_defeated
+      entry.damageDealt = incident.damage_dealt
+      entry.rounds = incident.events.length
+    } catch (error) {
+      handleStoreError(error, 'Failed to load held incident loot')
+    }
+  }
+
+  async function takeOverflow(
+    vaultId: string,
+    incidentId: string,
+    index: number,
+    token: string
+  ): Promise<void> {
+    try {
+      const response = await incidentApi.takeOverflow(vaultId, incidentId, index, token)
+      applyOverflow(incidentId, response.unclaimed_loot)
+      showSuccess('Held loot stored.')
+    } catch (error) {
+      handleStoreError(error, 'Failed to store held incident loot')
+      const status = (error as { response?: { status?: number } } | null)?.response?.status
+      showError(status === 409 ? 'Storage is full — sell the item or free a slot.' : 'Could not store the held item.')
+    }
+  }
+
+  async function sellOverflow(
+    vaultId: string,
+    incidentId: string,
+    index: number,
+    token: string
+  ): Promise<void> {
+    try {
+      const response = await incidentApi.sellOverflow(vaultId, incidentId, index, token)
+      applyOverflow(incidentId, response.unclaimed_loot)
+      showSuccess(`Sold for ${response.caps_granted} caps.`)
+    } catch (error) {
+      handleStoreError(error, 'Failed to sell held incident loot')
+      showError('Could not sell the held item.')
+    }
   }
 
   // Actions
@@ -86,7 +150,10 @@ export const useIncidentStore = defineStore('incident', () => {
         .filter((id) => !newIds.includes(id))
         .forEach((id) => {
           const vanished = incidents.value.get(id)
-          if (vanished) recordAftermath(vanished, 'unknown', 0)
+          if (vanished) {
+            recordAftermath(vanished, 'unknown', 0)
+            void refreshAftermathOverflow(vaultId, id, token)
+          }
         })
 
       // Check for new incidents (spawn notifications)
@@ -185,12 +252,13 @@ export const useIncidentStore = defineStore('incident', () => {
               incidents.value.delete(resolvedId)
             }
             if (!isFirstNotice) break
-            if (resolved) {
+            if (resolved && resolvedId) {
               recordAftermath(
                 resolved,
                 data.success === true ? 'victory' : 'defeat',
                 typeof data.caps_earned === 'number' ? data.caps_earned : 0
               )
+              void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
               const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
@@ -329,6 +397,8 @@ export const useIncidentStore = defineStore('incident', () => {
     getIncidentById,
     aftermathForRoom,
     clearAftermath,
+    takeOverflow,
+    sellOverflow,
     spawnDebugIncident,
   }
 })

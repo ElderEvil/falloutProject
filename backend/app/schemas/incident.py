@@ -46,6 +46,7 @@ class IncidentRead(BaseModel):
     rooms_affected: list[str]
     spread_count: int
     loot: dict | None
+    unclaimed_loot: list[dict]
     family: IncidentFamily
     objective: IncidentObjective
     progress: IncidentProgress
@@ -75,6 +76,15 @@ class IncidentListResponse(BaseModel):
     vault_id: str
     incident_count: int
     incidents: list[IncidentListItem]
+
+
+class PendingIncidentOverflowRead(BaseModel):
+    """Resolved incident still holding loot for a take or sell decision."""
+
+    incident_id: UUID4
+    room_id: UUID4
+    type: IncidentType
+    unclaimed_loot: list[dict]
 
 
 class PauseResumeResponse(BaseModel):

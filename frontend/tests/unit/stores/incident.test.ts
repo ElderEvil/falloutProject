@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { nextTick, ref } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { incidentApi } from '@/modules/combat/api/incident'
@@ -58,6 +59,7 @@ describe('Incident Store', () => {
     rooms_affected: ['room-1'],
     last_spread_time: null,
     loot: null,
+    unclaimed_loot: [],
     resolved_at: null,
     duration: 60,
     elapsed_time: 30,
@@ -491,21 +493,23 @@ describe('Incident Store', () => {
     })
   })
 
+  const resolveViaSse = async (data: Record<string, unknown>) => {
+    const store = useIncidentStore()
+    store.incidents.set('incident-1', mockIncident)
+    store.activeIncidentIds = ['incident-1']
+    vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+    vi.mocked(incidentApi.getIncident)
+      .mockResolvedValueOnce(mockIncident)
+      .mockResolvedValue(mockIncident)
+    store.startPolling('vault-1', 'token', 10_000)
+    await Promise.resolve()
+
+    sseMock.instance.event.value = { event: 'incident', data }
+    await nextTick()
+    return store
+  }
+
   describe('Aftermath', () => {
-    const resolveViaSse = async (data: Record<string, unknown>) => {
-      const store = useIncidentStore()
-      store.incidents.set('incident-1', mockIncident)
-      store.activeIncidentIds = ['incident-1']
-      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
-      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
-      store.startPolling('vault-1', 'token', 10_000)
-      await Promise.resolve()
-
-      sseMock.instance.event.value = { event: 'incident', data }
-      await nextTick()
-      return store
-    }
-
     it('summarises a victory with the caps it recovered', async () => {
       const store = await resolveViaSse({
         type: 'incident_resolved',
@@ -748,6 +752,87 @@ describe('Incident Store', () => {
       await nextTick()
 
       expect(sseMock.toast.success).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
+  })
+
+  describe('Overflow claims', () => {
+    const heldLoot = [{ item_type: 'weapon', rarity: 'common', name: 'Raider Pistol' }]
+
+    it('reloads held loot once the incident is resolved', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident)
+        .mockResolvedValueOnce(mockIncident)
+        .mockResolvedValueOnce({ ...mockIncident, unclaimed_loot: heldLoot })
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true },
+      }
+      await nextTick()
+      await flushPromises()
+
+      expect(store.aftermathForRoom('room-1')?.unclaimed).toEqual(heldLoot)
+      store.stopPolling()
+    })
+
+    it('stores a held item and updates the aftermath', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+      vi.mocked(incidentApi.takeOverflow).mockResolvedValueOnce({
+        caps_granted: 0,
+        unclaimed_loot: [],
+      })
+
+      await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+
+      expect(incidentApi.takeOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'token')
+      expect(store.aftermathForRoom('room-1')?.unclaimed).toEqual([])
+      store.stopPolling()
+    })
+
+    it('sells a held item for its caps', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+      vi.mocked(incidentApi.sellOverflow).mockResolvedValueOnce({
+        caps_granted: 12,
+        unclaimed_loot: [],
+      })
+
+      await store.sellOverflow('vault-1', 'incident-1', 0, 'token')
+
+      expect(incidentApi.sellOverflow).toHaveBeenCalledWith('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.success).toHaveBeenCalledWith('Sold for 12 caps.')
+      store.stopPolling()
+    })
+
+    it('only blames storage when the take fails with 409', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 409 } })
+      await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
+
+      sseMock.toast.error.mockClear()
+      vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 500 } })
+      await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Could not store the held item.')
+      expect(sseMock.toast.error).not.toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
       store.stopPolling()
     })
   })

@@ -15,10 +15,9 @@ from app.schemas.exploration import (
     ExplorationRead,
     ExplorationReadShort,
     ExplorationSendRequest,
-    OverflowActionRequest,
-    OverflowActionResponse,
     PendingOverflowRead,
 )
+from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.utils.exceptions import ValidationException

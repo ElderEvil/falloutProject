@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.crud.storage import storage as storage_crud
 from app.models.incident import IncidentType
+from app.models.storage import Storage
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultNumber
 from app.services.vault_service import vault_service
 from app.tests.factory.rooms import create_fake_room
+from app.utils.static_data import game_data_store
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -342,3 +345,63 @@ async def test_assign_incident_responders(
     assert data["assigned_dweller_ids"] == [str(dweller.id)]
     await async_session.refresh(dweller)
     assert dweller.room_id == room.id
+
+
+@pytest.mark.asyncio
+async def test_incident_overflow_is_discoverable_sellable_and_takeable(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+):
+    """Held incident loot surfaces as pending, sells without space, and takes when there is space."""
+    user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    vault = await vault_service.initiate_vault(
+        db_session=async_session, obj_in=VaultNumber(number=987), user_id=user.id
+    )
+    room = await crud.room.create(async_session, obj_in=RoomCreate(**create_fake_room(), vault_id=vault.id))
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=3,
+    )
+
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=0)
+        async_session.add(storage)
+    else:
+        storage.max_space = 0
+    incident.unclaimed_loot = [{"item_type": "weapon", "rarity": "common", "name": game_data_store.weapons[0].name}]
+    incident.resolve(success=True)
+    async_session.add(incident)
+    await async_session.commit()
+
+    pending = await async_client.get(
+        f"/game/vaults/{vault.id}/incidents/pending-overflow", headers=normal_user_token_headers
+    )
+    assert pending.status_code == 200
+    assert [entry["incident_id"] for entry in pending.json()] == [str(incident.id)]
+
+    detail = await async_client.get(
+        f"/game/vaults/{vault.id}/incidents/{incident.id}", headers=normal_user_token_headers
+    )
+    assert detail.status_code == 200
+    assert detail.json()["unclaimed_loot"] == incident.unclaimed_loot
+
+    full = await async_client.post(
+        f"/game/vaults/{vault.id}/incidents/{incident.id}/overflow/take",
+        headers=normal_user_token_headers,
+        json={"index": 0},
+    )
+    assert full.status_code == 409
+
+    sold = await async_client.post(
+        f"/game/vaults/{vault.id}/incidents/{incident.id}/overflow/sell",
+        headers=normal_user_token_headers,
+        json={"index": 0},
+    )
+    assert sold.status_code == 200
+    assert sold.json()["caps_granted"] > 0
+    assert sold.json()["unclaimed_loot"] == []

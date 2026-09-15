@@ -1,5 +1,5 @@
 import axios from '@/core/plugins/axios'
-import type { Incident, IncidentListResponse } from '../models/incident'
+import type { Incident, IncidentListResponse, IncidentOverflowResponse } from '../models/incident'
 
 export const incidentApi = {
   /**
@@ -32,6 +32,40 @@ export const incidentApi = {
       { dweller_ids: dwellerIds },
       { headers: { Authorization: `Bearer ${token}` } }
     )
+  },
+
+  /**
+   * Store one held incident item; 409 while storage is still full
+   */
+  async takeOverflow(
+    vaultId: string,
+    incidentId: string,
+    index: number,
+    token: string
+  ): Promise<IncidentOverflowResponse> {
+    const response = await axios.post(
+      `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/overflow/take`,
+      { index },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    return response.data
+  },
+
+  /**
+   * Sell one held incident item for caps; needs no storage space
+   */
+  async sellOverflow(
+    vaultId: string,
+    incidentId: string,
+    index: number,
+    token: string
+  ): Promise<IncidentOverflowResponse> {
+    const response = await axios.post(
+      `/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/overflow/sell`,
+      { index },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    return response.data
   },
 
   /**

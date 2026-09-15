@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -23,7 +23,9 @@ from app.schemas.incident import (
     IncidentRespondersResponse,
     IncidentSpawnResponse,
     PauseResumeResponse,
+    PendingIncidentOverflowRead,
 )
+from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.schemas.system import GameBalanceResponse
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop import game_loop_service
@@ -155,7 +157,7 @@ async def list_incidents(
     incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
 
     room_ids = [incident.room_id for incident in incidents]
-    rooms_result = await db_session.execute(select(Room).where(Room.id.in_(room_ids))) if room_ids else None
+    rooms_result = await db_session.execute(select(Room).where(col(Room.id).in_(room_ids))) if room_ids else None
     room_names = {room.id: room.name for room in rooms_result.scalars().all()} if rooms_result else {}
 
     return IncidentListResponse(
@@ -177,6 +179,20 @@ async def list_incidents(
             for incident in incidents
         ],
     )
+
+
+@router.get(
+    "/vaults/{vault_id}/incidents/pending-overflow",
+    response_model=list[PendingIncidentOverflowRead],
+    status_code=200,
+)
+async def list_pending_incident_overflow(
+    *,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[PendingIncidentOverflowRead]:
+    """List resolved incidents still holding loot for a take or sell decision."""
+    return await incident_service.get_pending_overflow(db_session, vault.id)
 
 
 @router.get("/vaults/{vault_id}/incidents/{incident_id}", response_model=IncidentRead, status_code=200)
@@ -244,6 +260,32 @@ async def assign_incident_responders(
         )
     except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+
+
+@router.post("/vaults/{vault_id}/incidents/{incident_id}/overflow/take", response_model=OverflowActionResponse)
+async def take_incident_overflow_item(
+    *,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    incident_id: UUID4,
+    request: OverflowActionRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> OverflowActionResponse:
+    """Store one held incident item. 409 when storage is still full."""
+    remaining = await incident_service.take_unclaimed_item(db_session, incident_id, vault.id, request.index)
+    return OverflowActionResponse(unclaimed_loot=remaining)
+
+
+@router.post("/vaults/{vault_id}/incidents/{incident_id}/overflow/sell", response_model=OverflowActionResponse)
+async def sell_incident_overflow_item(
+    *,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    incident_id: UUID4,
+    request: OverflowActionRequest,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> OverflowActionResponse:
+    """Sell one held incident item for caps. Needs no storage space."""
+    caps, remaining = await incident_service.sell_unclaimed_item(db_session, incident_id, vault.id, request.index)
+    return OverflowActionResponse(caps_granted=caps, unclaimed_loot=remaining)
 
 
 @router.post("/vaults/{vault_id}/incidents/spawn", response_model=IncidentSpawnResponse, status_code=201)

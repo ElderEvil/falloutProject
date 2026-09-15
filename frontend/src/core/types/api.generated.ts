@@ -1539,6 +1539,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/game/vaults/{vault_id}/incidents/pending-overflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pending Incident Overflow
+         * @description List resolved incidents still holding loot for a take or sell decision.
+         */
+        get: operations["list_pending_incident_overflow_api_v1_game_vaults__vault_id__incidents_pending_overflow_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}": {
         parameters: {
             query?: never;
@@ -1617,6 +1637,46 @@ export interface paths {
          * @description Assign healthy adult dwellers to defend an active incident room.
          */
         post: operations["assign_incident_responders_api_v1_game_vaults__vault_id__incidents__incident_id__responders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/overflow/take": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take Incident Overflow Item
+         * @description Store one held incident item. 409 when storage is still full.
+         */
+        post: operations["take_incident_overflow_item_api_v1_game_vaults__vault_id__incidents__incident_id__overflow_take_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/overflow/sell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sell Incident Overflow Item
+         * @description Sell one held incident item for caps. Needs no storage space.
+         */
+        post: operations["sell_incident_overflow_item_api_v1_game_vaults__vault_id__incidents__incident_id__overflow_sell_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6784,6 +6844,10 @@ export interface components {
             loot: {
                 [key: string]: unknown;
             } | null;
+            /** Unclaimed Loot */
+            unclaimed_loot: {
+                [key: string]: unknown;
+            }[];
             family: components["schemas"]["IncidentFamily"];
             objective: components["schemas"]["IncidentObjective"];
             progress: components["schemas"]["IncidentProgress"];
@@ -7466,18 +7530,18 @@ export interface components {
         };
         /**
          * OverflowActionRequest
-         * @description Schema for resolving one unclaimed overflow item by list index.
+         * @description Resolve one held item by its index in the owner's unclaimed loot list.
          */
         OverflowActionRequest: {
             /**
              * Index
-             * @description Position in the exploration's unclaimed loot list
+             * @description Position in the unclaimed loot list
              */
             index: number;
         };
         /**
          * OverflowActionResponse
-         * @description Schema for overflow resolution responses.
+         * @description Remaining held loot after a take or sell.
          */
         OverflowActionResponse: {
             /**
@@ -7509,6 +7573,27 @@ export interface components {
             paused_at?: string | null;
             /** Resumed At */
             resumed_at?: string | null;
+        };
+        /**
+         * PendingIncidentOverflowRead
+         * @description Resolved incident still holding loot for a take or sell decision.
+         */
+        PendingIncidentOverflowRead: {
+            /**
+             * Incident Id
+             * Format: uuid4
+             */
+            incident_id: string;
+            /**
+             * Room Id
+             * Format: uuid4
+             */
+            room_id: string;
+            type: components["schemas"]["IncidentType"];
+            /** Unclaimed Loot */
+            unclaimed_loot: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * PendingOverflowRead
@@ -11670,6 +11755,37 @@ export interface operations {
             };
         };
     };
+    list_pending_incident_overflow_api_v1_game_vaults__vault_id__incidents_pending_overflow_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingIncidentOverflowRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_incident_api_v1_game_vaults__vault_id__incidents__incident_id__get: {
         parameters: {
             query?: never;
@@ -11790,6 +11906,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentRespondersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    take_incident_overflow_item_api_v1_game_vaults__vault_id__incidents__incident_id__overflow_take_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverflowActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverflowActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sell_incident_overflow_item_api_v1_game_vaults__vault_id__incidents__incident_id__overflow_sell_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverflowActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverflowActionResponse"];
                 };
             };
             /** @description Validation Error */

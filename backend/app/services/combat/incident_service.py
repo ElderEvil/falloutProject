@@ -5,12 +5,15 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, JunkTypeEnum
+from app.crud import storage as crud_storage
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.models.junk import Junk
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentProgress,
@@ -18,11 +21,42 @@ from app.schemas.incident import (
     IncidentResponse,
     IncidentRisk,
     IncidentRoundResult,
+    PendingIncidentOverflowRead,
 )
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
+from app.services.loot_overflow_service import loot_overflow_service
+from app.services.vault_service import vault_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
+
+
+def _build_held_item(loot_item: dict, storage_id):
+    """Rebuild one held incident item for storage, priced the same as its sale."""
+    name = loot_overflow_service.item_name(loot_item)
+    rarity = str(loot_item.get("rarity", "common"))
+    match loot_item.get("item_type", "junk"):
+        case "weapon":
+            data = next((weapon for weapon in game_data_store.weapons if weapon.name == name), None)
+            if data is None:
+                raise ValidationException(f"Unknown weapon loot: {name}")
+            return build_weapon(data.model_dump(), rarity, storage_id)
+        case "outfit":
+            data = next((outfit for outfit in game_data_store.outfits if outfit.name == name), None)
+            if data is None:
+                raise ValidationException(f"Unknown outfit loot: {name}")
+            return build_outfit(data.model_dump(), rarity, storage_id)
+        case _:
+            return Junk(
+                name=name,
+                rarity=rarity,
+                junk_type=JunkTypeEnum.VALUABLES,
+                value=loot_overflow_service.unit_value_of(loot_item),
+                description="Recovered from an incident",
+                storage_id=storage_id,
+            )
 
 
 class IncidentService:
@@ -74,6 +108,7 @@ class IncidentService:
             rooms_affected=incident.rooms_affected,
             spread_count=incident.spread_count,
             loot=incident.loot,
+            unclaimed_loot=incident.unclaimed_loot or [],
             family=definition.family,
             objective=definition.objective,
             progress=progress,
@@ -128,13 +163,69 @@ class IncidentService:
         """Advisory-locked fan-out across vaults — see incident_tick."""
         return await incident_tick.process_all_vaults_incidents(self, db_session, seconds_passed)
 
-    async def get_incident_for_vault(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Incident:
-        incident = await incident_crud.get(db_session, incident_id)
+    async def get_incident_for_vault(
+        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, *, for_update: bool = False
+    ) -> Incident:
+        incident = (
+            await incident_crud.get_for_update(db_session, incident_id)
+            if for_update
+            else await incident_crud.get(db_session, incident_id)
+        )
         if not incident:
             raise ResourceNotFoundException(Incident, incident_id)
         if incident.vault_id != vault_id:
             raise AccessDeniedException("Incident does not belong to this vault")
         return incident
+
+    async def get_pending_overflow(
+        self, db_session: AsyncSession, vault_id: UUID4
+    ) -> list[PendingIncidentOverflowRead]:
+        """Resolved incidents still holding loot for a take or sell decision."""
+        incidents = await incident_crud.get_resolved_by_vault(db_session, vault_id)
+        return [
+            PendingIncidentOverflowRead(
+                incident_id=incident.id,
+                room_id=incident.room_id,
+                type=incident.type,
+                unclaimed_loot=incident.unclaimed_loot,
+            )
+            for incident in incidents
+            if incident.unclaimed_loot
+        ]
+
+    async def take_unclaimed_item(
+        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, index: int
+    ) -> list[dict]:
+        """Store one held incident item. 409 when storage is still full."""
+        incident = await self.get_incident_for_vault(db_session, incident_id, vault_id, for_update=True)
+        unclaimed = list(incident.unclaimed_loot or [])
+        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Incident, owner_id=incident.id)
+        loot_overflow_service.reject_medical(loot_item)
+        quantity = loot_overflow_service.quantity_of(loot_item)
+        storage = await loot_overflow_service.require_space(db_session, incident.vault_id, quantity)
+        db_session.add_all([_build_held_item(loot_item, storage.id) for _ in range(quantity)])
+        incident.unclaimed_loot = unclaimed
+        db_session.add(incident)
+        await db_session.flush()
+        await crud_storage.update_used_space(db_session, storage.id)
+        await db_session.commit()
+        return unclaimed
+
+    async def sell_unclaimed_item(
+        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, index: int
+    ) -> tuple[int, list[dict]]:
+        """Sell one held incident item for caps. Needs no storage space."""
+        incident = await self.get_incident_for_vault(db_session, incident_id, vault_id, for_update=True)
+        unclaimed = list(incident.unclaimed_loot or [])
+        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Incident, owner_id=incident.id)
+        loot_overflow_service.reject_medical(loot_item)
+        value = loot_overflow_service.value_of(loot_item)
+        vault = await vault_crud.get(db_session, incident.vault_id)
+        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        incident.unclaimed_loot = unclaimed
+        db_session.add(incident)
+        await db_session.commit()
+        return value, unclaimed
 
     async def assign_responders(
         self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID4]

@@ -326,7 +326,7 @@ describe('RoomDetailModal', () => {
 
     it('shows training progress with cancel and start actions for training rooms', async () => {
       const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, status: 'training' }))
       useAuthStore().token = 'test-token'
       const fetchSpy = vi
         .spyOn(useTrainingStore(), 'fetchRoomTrainings')
@@ -356,6 +356,25 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Training STRENGTH')
       expect(wrapper.text()).toContain('Jane Smith')
       expect(wrapper.text()).toContain('John Doe')
+    })
+
+    it('keeps training-status dwellers without an active record startable', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, status: 'training' }))
+      useAuthStore().token = 'test-token'
+      vi.spyOn(useTrainingStore(), 'fetchRoomTrainings').mockResolvedValue([] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('John Doe')
+      expect(wrapper.text()).toContain('Jane Smith')
+      expect(wrapper.text()).toContain('No dwellers training right now')
     })
 
     it('reloads training records when switching training rooms', async () => {

@@ -42,7 +42,8 @@ const eligibleDwellers = computed(() =>
     (dweller) =>
       !activeDwellerIds.value.has(dweller.id) &&
       statValue(dweller) < 10 &&
-      ['idle', 'working', 'resting'].includes(dweller.status)
+      // Mirrors training_service.can_start_training: IDLE or TRAINING with no active record.
+      ['idle', 'training'].includes(dweller.status)
   )
 )
 

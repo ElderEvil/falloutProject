@@ -320,8 +320,8 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.5rem;
+  height: 1.5rem;
   padding: 0;
   border: 1px solid var(--color-danger);
   border-radius: 999px;

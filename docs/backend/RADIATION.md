@@ -74,9 +74,11 @@ Radiation helpers are intentionally session-free so raw SQLAlchemy task sessions
 services. CRUD used by Dramatiq actors must continue to use `execute(...).scalars()` unless the session factory is
 explicitly SQLModel-aware.
 
-Medical consumption is currently a read/validate/update sequence. The planned row-locking change must make it one
-transactional operation with `SELECT ... FOR UPDATE` on PostgreSQL, preserving the existing exception contract and
-adding a real concurrent-consumer regression test. SQLite's serialized test fixture cannot prove that guarantee.
+Medical consumption is one transactional operation: `use_stimpack`/`use_radaway` read the dweller with
+`SELECT ... FOR UPDATE` (`dweller_crud.get_for_update`, mirroring the recycling race protection), so concurrent
+requests serialize on the row instead of spending the same supply twice or overwriting a newer health/radiation
+value. The existing exception contract is unchanged. `test_medical_concurrency.py` proves the guarantee against live
+PostgreSQL (`@pytest.mark.integration`; SQLite serializes every write and cannot prove locking).
 
 ## Regression contract
 

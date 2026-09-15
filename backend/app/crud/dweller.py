@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy import exists, func
 from sqlalchemy.orm import selectinload
-from sqlmodel import and_, or_, select
+from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum
@@ -710,9 +710,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             query = query.where(self.model.rarity == rarity)
         return (await db_session.execute(query)).scalars().all()
 
-    async def get_for_update(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller | None:
+    async def get_for_update(
+        self, db_session: AsyncSession, dweller_id: UUID4, include_deleted: bool = False
+    ) -> Dweller | None:
         """One dweller locked FOR UPDATE (recycling race protection)."""
-        result = await db_session.execute(select(self.model).where(self.model.id == dweller_id).with_for_update())
+        query = select(self.model).where(self.model.id == dweller_id)
+        if not include_deleted:
+            query = query.where(~col(self.model.is_deleted))
+        result = await db_session.execute(query.with_for_update())
         return result.scalars().one_or_none()
 
     async def get_soft_deleted_before(

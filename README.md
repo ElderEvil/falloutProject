@@ -156,7 +156,8 @@ pnpm run lint                   # Lint
 pnpm run build                  # Build for production
 ```
 
-See [`docs/frontend/README.md`](./docs/frontend/README.md) and [`docs/frontend/STYLEGUIDE.md`](./docs/frontend/STYLEGUIDE.md) for details.
+See [`docs/frontend/README.md`](./docs/frontend/README.md), [`docs/frontend/STYLEGUIDE.md`](./docs/frontend/STYLEGUIDE.md),
+and [`docs/frontend/ACCESSIBILITY.md`](./docs/frontend/ACCESSIBILITY.md) for details.
 
 ## 🐳 Deployment
 
@@ -331,6 +332,7 @@ docker compose ps fastapi  # Should show 0.0.0.0:8000->8000/tcp
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) - Deployment guide
 - [docs/frontend/README.md](./docs/frontend/README.md) - Frontend architecture
 - [docs/frontend/STYLEGUIDE.md](./docs/frontend/STYLEGUIDE.md) - Design system
+- [docs/frontend/ACCESSIBILITY.md](./docs/frontend/ACCESSIBILITY.md) - Accessibility policy and verification plan
 
 ## 📄 License
 

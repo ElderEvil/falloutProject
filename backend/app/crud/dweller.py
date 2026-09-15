@@ -266,9 +266,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
         return list(result.scalars().all())
 
-    async def count_in_room(self, db_session: AsyncSession, room_id: UUID4) -> int:
-        """Count all dwellers currently occupying a room (no status filters)."""
-        result = await db_session.execute(select(func.count(self.model.id)).where(self.model.room_id == room_id))
+    async def count_in_room(self, db_session: AsyncSession, room_id: UUID4, *, include_apprentices: bool = True) -> int:
+        """Count room occupants, optionally excluding the dedicated apprentice slot."""
+        conditions = [self.model.room_id == room_id]
+        if not include_apprentices:
+            conditions.append(self.model.apprentice_started_at.is_(None))
+        result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
         return int(result.scalar_one())
 
     async def get_unassigned_adults(

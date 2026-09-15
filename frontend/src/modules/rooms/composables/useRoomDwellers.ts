@@ -1,7 +1,6 @@
 import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
-import { getAbilityConfig } from '@/modules/dwellers/models/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { getTrainingRoomCapacity } from '../utils/room'
@@ -26,17 +25,6 @@ export function useRoomDwellers(
     if (!room.value) return 0
     return getTrainingRoomCapacity(room.value)
   })
-
-  const getAbilityLabel = (ability: string) => {
-    const cfg = getAbilityConfig(ability)
-    return cfg ? `${cfg.letter} - ${cfg.label}` : ability
-  }
-
-  const getDwellerStatValue = (dweller: DwellerShort, ability: string) => {
-    const key = ability.toLowerCase() as SpecialKey
-    const value = dweller[key]
-    return typeof value === 'number' ? value : 0
-  }
 
   const roomToken = (): string | null => (typeof authStore.token === 'string' ? authStore.token : null)
 
@@ -74,6 +62,23 @@ export function useRoomDwellers(
     }
   }
 
+  const handleUnassignDweller = async (dwellerId: string): Promise<void> => {
+    const token = roomToken()
+    if (!token) {
+      actionError.value = 'No auth token available'
+      return
+    }
+
+    actionError.value = null
+    try {
+      await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, token)
+    } catch (error) {
+      actionError.value = error instanceof Error ? error.message : 'Failed to unassign dweller'
+    } finally {
+      emitRoomUpdated()
+    }
+  }
+
   const openDwellerDetails = (dwellerId: string) => {
     const vaultId = route.params.id as string
     if (vaultId) {
@@ -105,9 +110,8 @@ export function useRoomDwellers(
   return {
     assignedDwellers,
     dwellerCapacity,
-    getAbilityLabel,
-    getDwellerStatValue,
     handleUnassignAll,
+    handleUnassignDweller,
     handleAssignDweller,
     openDwellerDetails,
   }

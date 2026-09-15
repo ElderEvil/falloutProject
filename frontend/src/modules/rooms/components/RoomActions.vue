@@ -16,9 +16,7 @@ interface Props {
   upgradeInfo: UpgradeInfo | null
   isUpgrading: boolean
   isDestroying: boolean
-  isRushing: boolean
   isVaultDoor: boolean
-  hasProductionInfo: boolean
   assignedDwellerCount: number
 }
 
@@ -27,19 +25,17 @@ defineProps<Props>()
 const emit = defineEmits<{
   upgrade: []
   destroy: []
-  rushProduction: []
   unassignAll: []
 }>()
 </script>
 
 <template>
-  <div class="section">
+  <div class="section room-management">
     <h3 class="section-title">
       <Icon icon="mdi:cog" class="h-5 w-5" />
       Management
     </h3>
     <div class="actions-grid">
-      <!-- Upgrade Button -->
       <UButton
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
@@ -63,21 +59,6 @@ const emit = defineEmits<{
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
       </UButton>
 
-      <!-- Rush Production Button -->
-      <UButton
-        v-if="hasProductionInfo"
-        @click="emit('rushProduction')"
-        :disabled="isRushing || assignedDwellerCount === 0"
-        variant="secondary"
-        size="sm"
-        class="action-btn"
-      >
-        <Icon icon="mdi:lightning-bolt" class="h-4 w-4" />
-        <span>Rush Production</span>
-        <span class="feature-badge">Coming Soon</span>
-      </UButton>
-
-      <!-- Unassign All Button -->
       <UButton
         @click="emit('unassignAll')"
         :disabled="assignedDwellerCount === 0"
@@ -86,14 +67,13 @@ const emit = defineEmits<{
         class="action-btn action-btn--half"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
-        <span>Unassign All Dwellers</span>
+        Unassign All Dwellers
       </UButton>
 
-      <!-- Destroy Button -->
       <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
         <UButton disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn">
           <Icon icon="mdi:delete" class="h-4 w-4" />
-          <span>Destroy Room</span>
+          Destroy Room
         </UButton>
       </UTooltip>
       <UButton
@@ -105,7 +85,7 @@ const emit = defineEmits<{
         class="action-btn action-btn--half destroy-btn"
       >
         <Icon icon="mdi:delete" class="h-4 w-4" />
-        <span>Destroy Room</span>
+        Destroy Room
       </UButton>
     </div>
   </div>
@@ -121,12 +101,12 @@ const emit = defineEmits<{
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.75rem;
+  color: var(--color-theme-primary);
   font-size: 0.875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
+  text-transform: uppercase;
   margin: 0;
 }
 
@@ -166,22 +146,9 @@ const emit = defineEmits<{
   padding: 0.125rem 0.5rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-warning);
+  color: var(--color-warning);
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: bold;
-  color: var(--color-warning);
 }
-
-.feature-badge {
-  margin-left: auto;
-  padding: 0.125rem 0.5rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-info);
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: bold;
-  color: var(--color-info);
-  font-style: italic;
-}
-
 </style>

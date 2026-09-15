@@ -141,30 +141,30 @@ defineProps<Props>()
 
 .stat-card {
   padding: 0.5rem 0.6rem;
-  background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
+  background: var(--color-surface-sunken);
   text-align: center;
 }
 
 .stat-label {
-  font-size: 0.6875rem;
   color: var(--color-gray-400);
-  text-transform: uppercase;
+  font-size: 0.6875rem;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .stat-value {
+  margin-top: 0.2rem;
+  color: var(--color-theme-primary);
   font-size: 1.125rem;
   font-weight: bold;
-  color: var(--color-theme-primary);
-  margin-top: 0.2rem;
 }
 
 .stat-subvalue {
-  font-size: 0.6875rem;
-  color: var(--color-gray-500);
   margin-top: 0.15rem;
+  color: var(--color-gray-500);
+  font-size: 0.6875rem;
 }
 
 .text-success {

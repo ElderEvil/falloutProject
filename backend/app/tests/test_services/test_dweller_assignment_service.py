@@ -282,6 +282,37 @@ class TestAutoAssignProductionRooms:
     """Tests for auto_assign_production_rooms."""
 
     @pytest.mark.asyncio
+    async def test_apprentice_does_not_consume_production_worker_capacity(self, svc, mock_db):
+        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
+        dweller = _make_dweller(_id=_D1, strength=5)
+
+        def count_room_occupants(_db, _room_id, *, include_apprentices=True):
+            return 2 if include_apprentices else 1  # one worker and one apprentice
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[dweller],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                side_effect=count_room_occupants,
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
+            result = await svc.auto_assign_production_rooms(mock_db, "v1")
+
+        assert result["assigned_count"] == 1
+        mock_update.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_full_rooms_skipped(self, svc, mock_db):
         r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # cap 2
         d1 = _make_dweller(_id=_D1, strength=5)

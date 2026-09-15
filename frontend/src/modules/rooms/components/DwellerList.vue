@@ -1,180 +1,64 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { Icon } from '@iconify/vue'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { computed } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import RoomDwellerCard from './RoomDwellerCard.vue'
 
 interface Props {
-  assignedDwellers: DwellerShort[]
-  dwellerCapacity: number
   ability: string | null
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  dwellerClick: [dwellerId: string]
   assignDweller: [dwellerId: string]
 }>()
 
 const { filter: dwellerStore } = useDwellerStore()
-const isPicking = ref(false)
+type AssignmentMode = 'worker' | 'apprentice'
 
-const hasFreeCapacity = computed(() => props.assignedDwellers.length < props.dwellerCapacity)
+const assignmentMode = defineModel<AssignmentMode | null>('assignmentMode', { default: null })
 
 const availableDwellers = computed(() =>
   dwellerStore.dwellers
-    .filter((dweller) => !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status))
+    .filter(
+      (dweller) =>
+        !dweller.room_id &&
+        !['dead', 'questing', 'exploring'].includes(dweller.status) &&
+        (assignmentMode.value === 'apprentice' ? dweller.age_group !== 'adult' : dweller.age_group === 'adult')
+    )
     .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
 )
 
 const pickDweller = (dwellerId: string) => {
-  isPicking.value = false
+  assignmentMode.value = null
   emit('assignDweller', dwellerId)
 }
 
-const staffingSummary = computed(() => {
-  const apprenticeCount = props.assignedDwellers.filter((dweller) => dweller.apprentice_stat).length
-  const staffedCount = props.assignedDwellers.length - apprenticeCount
-  return `${staffedCount} / ${props.dwellerCapacity} staffed${apprenticeCount ? ` · ${apprenticeCount} apprentice` : ''}`
-})
+const pickerTitle = computed(() => (assignmentMode.value === 'apprentice' ? 'Select Apprentice' : 'Select Worker'))
 </script>
 
 <template>
-  <div class="section dweller-section">
-    <div class="staffing-header">
-      <h3 class="section-title dweller-section-title">
-        <Icon icon="mdi:account-group" class="h-5 w-5" />
-        Staffing
-      </h3>
-      <span class="staffing-summary">{{ staffingSummary }}</span>
+  <div v-if="assignmentMode" class="dweller-picker">
+    <div class="picker-header">
+      <span class="picker-title">{{ pickerTitle }}</span>
+      <button type="button" class="picker-close" aria-label="Close picker" @click="assignmentMode = null">×</button>
     </div>
-    <div class="dwellers-list">
-      <RoomDwellerCard
-        v-for="dweller in assignedDwellers"
-        :key="dweller.id"
-        :dweller="dweller"
-        :ability="ability"
-        show-apprentice
-        @activate="emit('dwellerClick', $event)"
-      />
-
-      <button
-        v-if="hasFreeCapacity && !isPicking"
-        type="button"
-        class="assign-slot"
-        @click="isPicking = true"
-      >
-        <Icon icon="mdi:plus" class="h-5 w-5" />
-        <span>Assign dweller</span>
-      </button>
-
-      <div v-if="isPicking" class="dweller-picker">
-        <div class="picker-header">
-          <span class="picker-title">Select Dweller</span>
-          <button type="button" class="picker-close" aria-label="Close picker" @click="isPicking = false">
-            <Icon icon="mdi:close" class="h-4 w-4" />
-          </button>
-        </div>
-        <RoomDwellerCard
-          v-for="dweller in availableDwellers"
-          :key="dweller.id"
-          :dweller="dweller"
-          :ability="ability"
-          @activate="pickDweller($event)"
-        />
-        <p v-if="!availableDwellers.length" class="picker-empty">No available dwellers</p>
-      </div>
-    </div>
+    <RoomDwellerCard
+      v-for="dweller in availableDwellers"
+      :key="dweller.id"
+      :dweller="dweller"
+      :ability="ability"
+      @activate="pickDweller($event)"
+    />
+    <p v-if="!availableDwellers.length" class="picker-empty">No available dwellers</p>
   </div>
 </template>
 
 <style scoped>
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.section-title :deep(svg) {
-  width: 1rem;
-  height: 1rem;
-}
-
-.dweller-section {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-theme-glow);
-}
-
-.staffing-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.dweller-section-title {
-  font-weight: 700;
-}
-
-.staffing-summary {
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.dwellers-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.5rem;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.assign-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 64px;
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  background: transparent;
-  border: 1px dashed var(--color-theme-glow);
-  color: var(--color-theme-primary);
-  font: inherit;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.assign-slot:hover,
-.assign-slot:focus-visible {
-  border-color: var(--color-theme-primary);
-  background: var(--color-surface-hover);
-  outline: none;
-}
-
 .dweller-picker {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  grid-column: 1 / -1;
   padding: 0.5rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);

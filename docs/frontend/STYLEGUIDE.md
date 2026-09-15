@@ -551,7 +551,8 @@ string — see [Tooltips & Popovers](#tooltips--popovers).
 ### Keyboard Navigation
 
 - All interactive elements must be keyboard accessible
-- Use `tabindex="0"` for custom interactive elements
+- Prefer native `<button>`, `<a>`, and form controls; do not recreate them with `tabindex="0"`, roles, and key
+  handlers unless no semantic element can represent the interaction
 - Respect focus order (logical tab sequence)
 
 ### Color Contrast
@@ -561,7 +562,9 @@ All text must meet WCAG AA standards:
 - **Normal text:** 4.5:1 contrast ratio
 - **Large text (18px+):** 3:1 contrast ratio
 
-Our terminal green (`#00ff00`) on black (`#000000`) provides **excellent** contrast (21:1 ratio).
+Our terminal green (`#00ff00`) on black (`#000000`) provides **excellent** contrast (about 15.3:1). Verify muted
+opacity variants and every dynamic theme/surface combination using their computed colors; do not assume that a base
+token's contrast carries through compositing.
 
 ### Screen Readers
 
@@ -572,6 +575,12 @@ Our terminal green (`#00ff00`) on black (`#000000`) provides **excellent** contr
 <!-- Provide descriptive text -->
 <img src="vault.png" alt="Vault 111 overview showing 42 dwellers" />
 ```
+
+### Policy and Verification
+
+The application targets WCAG 2.2 AA. Required linting, browser testing, manual checks, implementation rules, and
+the phased rollout are documented in [ACCESSIBILITY.md](./ACCESSIBILITY.md). It is an engineering target, not a
+conformance claim until the supported UI has been fully assessed.
 
 ---
 

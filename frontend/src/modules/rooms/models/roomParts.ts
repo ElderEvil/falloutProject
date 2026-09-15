@@ -16,6 +16,7 @@ export type RoomPart =
   | 'overseerBriefing'
   | 'actions'
   | 'radioControls'
+  | 'training'
 
 // Special rooms are identified by their seed-data-stable names; the string
 // matching lives here and nowhere else.
@@ -25,6 +26,10 @@ export function isRadioRoom(room: Room | null): boolean {
 
 export function isVaultDoor(room: Room | null): boolean {
   return room?.name.toLowerCase() === 'vault door'
+}
+
+export function isElevator(room: Room | null): boolean {
+  return room?.name.toLowerCase() === 'elevator'
 }
 
 export function isOverseersOffice(room: Room | null): boolean {
@@ -38,6 +43,10 @@ export function producesResources(room: Room | null): boolean {
 
 export function isCraftingRoom(room: Room | null): boolean {
   return room?.category.toLowerCase() === 'crafting'
+}
+
+export function isTrainingRoom(room: Room | null): boolean {
+  return room?.category.toLowerCase() === 'training'
 }
 
 /** Catalog a workshop crafts; workshop name-matching lives only here. */
@@ -61,6 +70,7 @@ export function getRoomDetailParts(room: Room | null): RoomPart[] {
   if (isRadioRoom(room)) parts.push('radioStats')
   else if (producesResources(room)) parts.push('productionStats')
   if (craftingItemType(room)) parts.push('crafting')
+  if (isTrainingRoom(room)) parts.push('training')
   parts.push('dwellerList', 'actions')
   if (isRadioRoom(room)) parts.push('radioControls')
   return parts

@@ -21,7 +21,6 @@ interface Props {
   upgradeInfo: UpgradeInfo | null
   isUpgrading: boolean
   isDestroying: boolean
-  isRushing: boolean
   isVaultDoor: boolean
 }
 
@@ -30,7 +29,6 @@ defineProps<Props>()
 const emit = defineEmits<{
   upgrade: []
   destroy: []
-  rushProduction: []
   unassignAll: []
 }>()
 </script>
@@ -41,8 +39,10 @@ const emit = defineEmits<{
       :room-name="room.name"
       :image-url="room.image_url ?? null"
       :room-image-url="roomImageUrl"
+      :room-units="room.size ?? room.size_min ?? 3"
       :dweller-capacity="dwellerCapacity"
       :assigned-dwellers="assignedDwellers"
+      :assign-enabled="false"
     />
     <ArenaModal
       :vault-id="vaultId"
@@ -53,13 +53,10 @@ const emit = defineEmits<{
       :upgrade-info="upgradeInfo"
       :is-upgrading="isUpgrading"
       :is-destroying="isDestroying"
-      :is-rushing="isRushing"
       :is-vault-door="isVaultDoor"
-      :has-production-info="false"
       :assigned-dweller-count="assignedDwellers.length"
       @upgrade="emit('upgrade')"
       @destroy="emit('destroy')"
-      @rush-production="emit('rushProduction')"
       @unassign-all="emit('unassignAll')"
     />
   </div>

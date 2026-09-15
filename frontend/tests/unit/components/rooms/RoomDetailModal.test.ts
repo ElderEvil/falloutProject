@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useTrainingStore } from '@/modules/progression/stores/training'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -219,6 +220,8 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Power Generator')
       expect(wrapper.text()).toContain('Tier 1')
+      expect(wrapper.find('.room-title').classes()).toContain('terminal-glow')
+      expect(wrapper.find('.header-metadata').classes()).not.toContain('terminal-glow')
     })
 
     it('should display room category', () => {
@@ -234,7 +237,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Room Information', () => {
-    it('summarizes staffing capacity above the assigned dwellers', () => {
+    it('keeps staffing in the room scene instead of repeating it in a roster', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -245,7 +248,43 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.staffing-summary').text()).toContain('1 / 2 staffed · 1 apprentice')
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.find('.room-preview-section > .section-title').text()).toContain('Room Preview')
+      expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
+      expect(wrapper.find('.staffing-summary').exists()).toBe(false)
+      expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 4')
+    })
+
+    it('scales the room scene for 1u and 6u+ footprints', () => {
+      const compact = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 1, size_min: 1 },
+          modelValue: true,
+        },
+      })
+      const wide = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 9, size_min: 3 },
+          modelValue: true,
+        },
+      })
+
+      expect(compact.find('.room-scene').classes()).toContain('room-scene--compact')
+      expect(wide.find('.room-scene').classes()).toContain('room-scene--wide')
+    })
+
+    it('renders one static slot with no assign action for elevators', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Elevator', size: 1, size_min: 1 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.room-scene').classes()).toContain('room-scene--compact')
+      expect(wrapper.findAll('.dweller-sprite-slot')).toHaveLength(1)
+      expect(wrapper.find('.scene-empty-worker').exists()).toBe(false)
+      expect(wrapper.find('.scene-unassign').exists()).toBe(false)
     })
 
     it('should display room size', () => {
@@ -256,8 +295,108 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Room Size')
-      expect(wrapper.text()).toContain('1x merged')
+      expect(wrapper.text()).toContain('Size')
+      expect(wrapper.text()).toContain('1×')
+      expect(wrapper.text()).not.toContain('merged')
+    })
+
+    it('should mark truly merged rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, size: 6, size_min: 3 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.text()).toContain('2× merged')
+    })
+
+    it('labels training rooms with Trains instead of Requires', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training', capacity: 0 },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.header-metadata').text()).toContain('Trains: S')
+      expect(wrapper.find('.header-metadata').text()).not.toContain('Requires')
+      expect(wrapper.find('.header-metadata').text()).toContain('Capacity: 2')
+    })
+
+    it('shows training progress with cancel and start actions for training rooms', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, status: 'training' }))
+      useAuthStore().token = 'test-token'
+      const fetchSpy = vi
+        .spyOn(useTrainingStore(), 'fetchRoomTrainings')
+        .mockResolvedValue([
+          {
+            id: 'training-1',
+            dweller_id: 'dweller-2',
+            stat_being_trained: 'strength',
+            status: 'active',
+            progress: 0.5,
+            started_at: new Date(Date.now() - 60000).toISOString(),
+            estimated_completion_at: new Date(Date.now() + 60000).toISOString(),
+            current_stat_value: 9,
+            target_stat_value: 10,
+          },
+        ] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+
+      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+      expect(wrapper.text()).toContain('Training STRENGTH')
+      expect(wrapper.text()).toContain('Jane Smith')
+      expect(wrapper.text()).toContain('John Doe')
+    })
+
+    it('keeps training-status dwellers without an active record startable', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers.map((dweller) => ({ ...dweller, status: 'training' }))
+      useAuthStore().token = 'test-token'
+      vi.spyOn(useTrainingStore(), 'fetchRoomTrainings').mockResolvedValue([] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('John Doe')
+      expect(wrapper.text()).toContain('Jane Smith')
+      expect(wrapper.text()).toContain('No dwellers training right now')
+    })
+
+    it('reloads training records when switching training rooms', async () => {
+      useAuthStore().token = 'test-token'
+      const fetchSpy = vi
+        .spyOn(useTrainingStore(), 'fetchRoomTrainings')
+        .mockResolvedValue([] as never)
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, id: 'room-1', name: 'Weight room', category: 'training' },
+          modelValue: true,
+        },
+      })
+      await flushPromises()
+      expect(fetchSpy).toHaveBeenCalledWith('room-1', 'test-token')
+
+      await wrapper.setProps({
+        room: { ...mockRoom, id: 'room-2', name: 'Athletics room', category: 'training' },
+      })
+      await flushPromises()
+      expect(fetchSpy).toHaveBeenCalledWith('room-2', 'test-token')
     })
 
     it('should display room position', () => {
@@ -272,7 +411,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('(0, 0)')
     })
 
-    it('should display required stat', () => {
+    it('should display the required room stat', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
@@ -280,8 +419,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Required Stat')
-      expect(wrapper.text()).toContain('S - Strength')
+      expect(wrapper.text()).toContain('Requires: S')
     })
   })
 
@@ -406,7 +544,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Assigned Dwellers', () => {
-    it('should display assigned dwellers', () => {
+    it('renders assigned dwellers in their scene slots', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -417,19 +555,14 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('John Doe')
-      expect(wrapper.text()).toContain('Jane Smith')
-      expect(wrapper.text()).toContain('Level 5')
-      expect(wrapper.text()).toContain('Level 7')
-      expect(wrapper.findAll('[aria-label="Child"]')).toHaveLength(1)
-      expect(wrapper.findAll('[aria-label="Teen"]')).toHaveLength(1)
-      expect(wrapper.find('[aria-label="Apprentice · strength training"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Open John Doe"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Open Jane Smith"]').exists()).toBe(true)
       expect(wrapper.find('[aria-label="Apprentice training strength"]').exists()).toBe(true)
       expect(wrapper.find('.apprentice-slot.slot-filled').exists()).toBe(true)
       expect(wrapper.findAll('.dweller-sprite-slot:not(.apprentice-slot)')).toHaveLength(2)
     })
 
-    it('should identify the section as staffing', () => {
+    it('does not render a persistent staffing roster', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -440,7 +573,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Staffing')
+      expect(wrapper.text()).not.toContain('Staffing')
+      expect(wrapper.find('.dweller-card').exists()).toBe(false)
     })
 
     it('should show empty state when no dwellers assigned', () => {
@@ -454,8 +588,36 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('0 / 2 staffed')
-      expect(wrapper.text()).toContain('Assign dweller')
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.findAll('.scene-empty-worker')).toHaveLength(2)
+      expect(wrapper.findAll('[aria-label="Assign worker"]')).toHaveLength(2)
+      expect(wrapper.find('.scene-empty-apprentice').exists()).toBe(true)
+    })
+
+    it('keeps empty worker slots able to show their hover feedback', () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.get('.scene-empty-worker').classes()).toContain('scene-empty-slot')
+    })
+
+    it('keeps apprentice assignment exclusive to production rooms', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, category: 'SPECIAL', ability: 'CHARISMA', name: 'Radio Studio' },
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.scene-empty-worker').exists()).toBe(true)
+      expect(wrapper.find('.scene-empty-apprentice').exists()).toBe(false)
     })
 
     it('assigns a dweller picked from the inline picker', async () => {
@@ -466,7 +628,7 @@ describe('RoomDetailModal', () => {
         .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
         .mockResolvedValue({} as never)
       dwellerStore.dwellers = [
-        { ...mockDwellers[0], room_id: null, status: 'idle' },
+        { ...mockDwellers[0], age_group: 'adult', apprentice_stat: null, room_id: null, status: 'idle' },
       ] as never
 
       const wrapper = mount(RoomDetailModal, {
@@ -476,18 +638,45 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper.get('.assign-slot').trigger('click')
+      await wrapper.get('.scene-empty-worker').trigger('click')
 
       const pickerCard = wrapper
         .findAll('.dweller-picker .dweller-card')
         .find((card) => card.text().includes('John'))
       expect(pickerCard).toBeTruthy()
-      await pickerCard!.trigger('click')
+      await pickerCard!.get('.dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
-    it('should display relevant SPECIAL stat for each dweller', () => {
+    it('assigns a youth through the dedicated apprentice action', async () => {
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const assignSpy = vi
+        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .mockResolvedValue({} as never)
+      dwellerStore.dwellers = [
+        { ...mockDwellers[0], room_id: null, status: 'idle' },
+        { ...mockDwellers[1], age_group: 'adult', room_id: null, status: 'idle' },
+      ] as never
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      await wrapper.get('.scene-empty-apprentice').trigger('click')
+      expect(wrapper.find('.picker-title').text()).toBe('Select Apprentice')
+      expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
+      await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
+
+      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+    })
+
+    it('keeps individual SPECIAL values out of the scene', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -498,9 +687,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      // Room requires STRENGTH, so should show strength values (8 and 9)
-      expect(wrapper.text()).toContain('8')
-      expect(wrapper.text()).toContain('9')
+      expect(wrapper.text()).not.toContain('Level 5')
+      expect(wrapper.text()).not.toContain('Level 7')
     })
   })
 
@@ -517,7 +705,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('500 caps')
     })
 
-    it('should show a disabled standard button when room is at max tier', () => {
+    it('should show a quiet max-tier status instead of a disabled action', () => {
       const maxTierRoom = {
         ...mockRoom,
         tier: 3,
@@ -532,8 +720,7 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Max tier reached')
       expect(wrapper.text()).toContain('(3/3)')
-      const maxTierButton = wrapper.findAll('.mock-button').find((button) => button.text().includes('Max tier reached'))
-      expect(maxTierButton?.attributes('disabled')).toBeDefined()
+      expect(wrapper.findAll('.mock-button').some((button) => button.text().includes('Upgrade to Tier'))).toBe(false)
     })
 
     it('should omit upgrade controls for rooms without an upgrade path', () => {
@@ -577,6 +764,54 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Unassign All Dwellers')
+    })
+
+    it('groups room-wide controls under Management without restoring Staffing', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.find('.header-metadata').exists()).toBe(true)
+      expect(wrapper.find('.room-management').text()).toContain('Management')
+      expect(wrapper.text()).not.toContain('Staffing')
+    })
+
+    it('should expose an unassign control for every assigned dweller', () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.findAll('.scene-unassign')).toHaveLength(mockDwellers.length)
+      expect(wrapper.find('[aria-label="Unassign John Doe"]').exists()).toBe(true)
+    })
+
+    it('unassigns the selected dweller', async () => {
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const unassignSpy = vi.spyOn(dwellerManagementStore, 'unassignDwellerFromRoom').mockResolvedValue({} as never)
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      await wrapper.get('[aria-label="Unassign John Doe"]').trigger('click')
+
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-1', 'test-token')
     })
 
     it('should show destroy room button', () => {
@@ -714,7 +949,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Radio Studio')
       expect(wrapper.text()).toContain('Broadcast Controls')
       expect(wrapper.find('.radio-controls').exists()).toBe(true)
-      expect(wrapper.find('.actions-grid').find('.radio-controls').exists()).toBe(false)
+      expect(wrapper.find('.modal-content > .radio-controls').exists()).toBe(true)
     })
 
     it('should not show radio controls for non-radio rooms', () => {
@@ -839,7 +1074,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Dweller Click Navigation', () => {
-    it('should call router.push when dweller card is clicked', async () => {
+    it('should open dweller details from an occupied scene slot', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -847,27 +1082,7 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card')
-      expect(dwellerCards.length).toBe(2)
-
-      await dwellerCards[0].trigger('click')
-
-      expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-1' },
-      })
-    })
-
-    it('should navigate to correct dweller when second dweller is clicked', async () => {
-      const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
-
-      const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
-      })
-
-      const dwellerCards = wrapper.findAll('.dweller-card')
-      await dwellerCards[1].trigger('click')
+      await wrapper.get('.scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
         name: 'dwellerDetail',
@@ -875,7 +1090,23 @@ describe('RoomDetailModal', () => {
       })
     })
 
-    it('should have clickable class on dweller cards', () => {
+    it('opens the matching assignment picker from an empty scene slot', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      await wrapper.get('.scene-empty-worker').trigger('click')
+      expect(wrapper.get('.picker-title').text()).toBe('Select Worker')
+
+      await wrapper.get('.picker-close').trigger('click')
+      await wrapper.get('.scene-empty-apprentice').trigger('click')
+      expect(wrapper.get('.picker-title').text()).toBe('Select Apprentice')
+    })
+
+    it('opens apprentice details from the apprentice scene slot', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -883,9 +1114,11 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card')
-      dwellerCards.forEach((card) => {
-        expect(card.classes()).toContain('clickable')
+      await wrapper.get('.apprentice-slot .scene-dweller').trigger('click')
+
+      expect(mockRouterPush).toHaveBeenCalledWith({
+        name: 'dwellerDetail',
+        params: { id: 'vault-123', dwellerId: 'dweller-1' },
       })
     })
   })

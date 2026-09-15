@@ -4,6 +4,7 @@ Thin wrappers over the service layer or external APIs per AGENTS.md.
 
 Usage (from backend/):
     uv run fo-cli fix-dweller-image-urls
+    uv run fo-cli ops fix-room-image-urls
     uv run fo-cli set-rustfs-policies
     uv run fo-cli check-ai [--api-url URL] [--skip-chat] [--expect TEXT] [--expect-environment ENV]
 """
@@ -23,6 +24,8 @@ from sqlmodel import select
 from app.core.config import settings
 from app.db.session import async_session_maker
 from app.models.dweller import Dweller
+from app.models.room import Room
+from app.utils.room_assets import get_room_image_url
 
 app = typer.Typer(
     name="ops",
@@ -99,6 +102,39 @@ def fix_dweller_image_urls() -> None:
         raise typer.Exit(code=1) from None
 
     typer.echo(f"Updated {updated_url_count} URL(s) across {updated_dweller_count} dwellers")
+
+
+@app.command(name="fix-room-image-urls")
+def fix_room_image_urls() -> None:
+    """Recompute room image URLs from each room's live name, tier, and size."""
+
+    async def _run() -> tuple[int, int]:
+        async with async_session_maker() as session:
+            result = await session.execute(select(Room))
+            rooms = result.scalars().all()
+
+            updated_url_count = 0
+            updated_room_count = 0
+            for room in rooms:
+                expected = get_room_image_url(
+                    room.name, tier=room.tier, size=room.size if room.size is not None else room.size_min
+                )
+                if expected != room.image_url:
+                    room.image_url = expected
+                    updated_url_count += 1
+                    updated_room_count += 1
+
+            await session.commit()
+            return updated_url_count, updated_room_count
+
+    try:
+        updated_url_count, updated_room_count = asyncio.run(_run())
+    except Exception:
+        logger.exception("fix-room-image-urls failed")
+        typer.echo("Error: fix-room-image-urls failed — see logs for details.", err=True)
+        raise typer.Exit(code=1) from None
+
+    typer.echo(f"Updated {updated_url_count} URL(s) across {updated_room_count} rooms")
 
 
 @app.command(name="set-rustfs-policies")

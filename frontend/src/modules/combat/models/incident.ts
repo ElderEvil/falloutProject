@@ -99,3 +99,18 @@ export const INCIDENT_ICON_MAP: Record<IncidentType, string> = {
 export function getIncidentIcon(type: IncidentType): string {
   return INCIDENT_ICON_MAP[type] ?? 'mdi:alert-octagon'
 }
+
+export type IncidentOutcome = 'victory' | 'defeat' | 'unknown'
+
+export interface IncidentAftermath {
+  incidentId: string
+  roomId: string
+  type: IncidentType
+  roomName: string | null
+  outcome: IncidentOutcome
+  capsEarned: number
+  loot: Incident['loot']
+  enemiesDefeated: number
+  damageDealt: number
+  rounds: number
+}

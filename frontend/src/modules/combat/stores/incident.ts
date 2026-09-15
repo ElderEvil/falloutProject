@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { incidentApi } from '../api/incident'
-import type { Incident, IncidentListResponse } from '../models/incident'
+import type {
+  Incident,
+  IncidentAftermath,
+  IncidentListResponse,
+  IncidentOutcome,
+} from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useSse } from '@/core/composables/useEventStream'
@@ -10,6 +15,7 @@ import { usePolling } from '@/core/composables/usePolling'
 export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
   const activeIncidentIds = ref<string[]>([])
+  const aftermaths = ref<Map<string, IncidentAftermath>>(new Map())
   const isPolling = ref(false)
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
@@ -36,6 +42,27 @@ export const useIncidentStore = defineStore('incident', () => {
     return counts
   })
 
+  const aftermathForRoom = (roomId: string): IncidentAftermath | undefined => aftermaths.value.get(roomId)
+
+  const clearAftermath = (roomId: string): void => {
+    aftermaths.value.delete(roomId)
+  }
+
+  const recordAftermath = (incident: Incident, outcome: IncidentOutcome, capsEarned: number): void => {
+    aftermaths.value.set(incident.room_id, {
+      incidentId: incident.id,
+      roomId: incident.room_id,
+      type: incident.type,
+      roomName: incident.room_name,
+      outcome,
+      capsEarned,
+      loot: incident.loot,
+      enemiesDefeated: incident.enemies_defeated,
+      damageDealt: incident.damage_dealt,
+      rounds: incident.events.length,
+    })
+  }
+
   // Actions
   async function fetchIncidents(vaultId: string, token: string): Promise<void> {
     try {
@@ -50,6 +77,16 @@ export const useIncidentStore = defineStore('incident', () => {
       // Update active incidents list
       const newIds = response.incidents.map((inc) => inc.id)
       const previousIds = [...activeIncidentIds.value]
+
+      // A resolution the SSE stream never delivered: the incident is simply gone
+      // from the list. The list payload carries no outcome, so record what happened
+      // without claiming a result we cannot know.
+      previousIds
+        .filter((id) => !newIds.includes(id))
+        .forEach((id) => {
+          const vanished = incidents.value.get(id)
+          if (vanished) recordAftermath(vanished, 'unknown', 0)
+        })
 
       // Check for new incidents (spawn notifications)
       const spawned = newIds.filter((id) => !previousIds.includes(id))
@@ -139,6 +176,13 @@ export const useIncidentStore = defineStore('incident', () => {
               incidents.value.delete(resolvedId)
             }
             if (!isFirstNotice) break
+            if (resolved) {
+              recordAftermath(
+                resolved,
+                data.success === true ? 'victory' : 'defeat',
+                typeof data.caps_earned === 'number' ? data.caps_earned : 0
+              )
+            }
             if (data.success === true) {
               const capsEarned = data.caps_earned
               showSuccess(
@@ -233,6 +277,7 @@ export const useIncidentStore = defineStore('incident', () => {
   function clearIncidents(): void {
     incidents.value.clear()
     activeIncidentIds.value = []
+    aftermaths.value.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {
@@ -272,6 +317,7 @@ export const useIncidentStore = defineStore('incident', () => {
     // State
     incidents,
     activeIncidentIds,
+    aftermaths,
     isPolling,
 
     // Computed
@@ -286,6 +332,8 @@ export const useIncidentStore = defineStore('incident', () => {
     stopPolling,
     clearIncidents,
     getIncidentById,
+    aftermathForRoom,
+    clearAftermath,
     spawnDebugIncident,
   }
 })

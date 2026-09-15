@@ -17,6 +17,7 @@ import RoomActions from './RoomActions.vue'
 import RoomTrainingSection from './RoomTrainingSection.vue'
 import ArenaRoomDetail from './ArenaRoomDetail.vue'
 import RoomIncidentDetail from './RoomIncidentDetail.vue'
+import IncidentAftermath from './IncidentAftermath.vue'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
@@ -49,9 +50,14 @@ const incidentStore = useIncidentStore()
 const liveIncident = computed(
   () => incidentStore.activeIncidents.find((inc) => inc.room_id === props.room?.id) ?? null
 )
+const liveAftermath = computed(() =>
+  props.room ? (incidentStore.aftermathForRoom(props.room.id) ?? null) : null
+)
 
 // Which sections this room renders — decided by the part registry, nowhere else.
-const parts = computed<RoomPart[]>(() => getRoomDetailParts(props.room, liveIncident.value))
+const parts = computed<RoomPart[]>(() =>
+  getRoomDetailParts(props.room, liveIncident.value, liveAftermath.value)
+)
 const has = (part: RoomPart) => hasPart(parts.value, part)
 const craftingType = computed(() => craftingItemType(props.room))
 const roomUnits = computed(() => props.room?.size ?? props.room?.size_min ?? 3)
@@ -134,7 +140,7 @@ watch(
 
     <div v-if="room" class="modal-content">
       <!-- Error display -->
-      <div v-if="actionError && !has('arena') && !has('incident')" class="error-banner">
+      <div v-if="actionError && !has('arena') && !has('incident') && !has('aftermath')" class="error-banner">
         <Icon icon="mdi:alert-circle" class="h-5 w-5" />
         {{ actionError }}
       </div>
@@ -145,6 +151,11 @@ watch(
         :vault-id="props.vaultId"
         :dwellers="vaultDwellers"
         :room-image-url="roomImageUrl ?? null"
+      />
+
+      <IncidentAftermath
+        v-else-if="has('aftermath') && liveAftermath"
+        :aftermath="liveAftermath"
       />
 
       <ArenaRoomDetail

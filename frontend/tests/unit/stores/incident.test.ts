@@ -55,6 +55,16 @@ describe('Incident Store', () => {
     loot: null,
     resolved_at: null,
     duration: 60,
+    elapsed_time: 30,
+    end_time: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    family: 'intrusion',
+    objective: 'defeat',
+    progress: { current: 30, target: 100, label: 'Threat' },
+    risk: { kind: 'casualties', rooms_affected: 1 },
+    response: { label: 'Send' },
+    events: [],
   }
 
   const mockIncidentList: IncidentListResponse = {
@@ -420,6 +430,136 @@ describe('Incident Store', () => {
       expect(store.activeIncidentIds).toHaveLength(1)
       expect(store.activeIncidentIds).toContain('incident-1')
       expect(store.activeIncidentIds).not.toContain('incident-2')
+    })
+  })
+
+  describe('Aftermath', () => {
+    const resolveViaSse = async (data: Record<string, unknown>) => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = { event: 'incident', data }
+      await nextTick()
+      return store
+    }
+
+    it('summarises a victory with the caps it recovered', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 50,
+      })
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        incidentId: 'incident-1',
+        roomId: 'room-1',
+        roomName: 'Power Generator',
+        outcome: 'victory',
+        capsEarned: 50,
+        damageDealt: 10,
+        enemiesDefeated: 2,
+        rounds: 0,
+      })
+      store.stopPolling()
+    })
+
+    it('summarises a defeat so the room shows what was lost', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: false,
+      })
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        outcome: 'defeat',
+        capsEarned: 0,
+      })
+      store.stopPolling()
+    })
+
+    it('keeps the summary when the resolution frame is re-delivered', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+        caps_earned: 50,
+      })
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: {
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+          caps_earned: 50,
+        },
+      }
+      await nextTick()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'victory', capsEarned: 50 })
+      store.stopPolling()
+    })
+
+    it('records an unknown outcome when only the poll sees the incident end', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        incidentId: 'incident-1',
+        outcome: 'unknown',
+        capsEarned: 0,
+        roomName: 'Power Generator',
+      })
+    })
+
+    it('invents no aftermath when an incident is merely first seen', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+    })
+
+    it('drops a summary only when it is dismissed', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      store.clearAftermath('room-1')
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+      store.stopPolling()
+    })
+
+    it('clears summaries alongside the incidents', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      store.clearIncidents()
+
+      expect(store.aftermathForRoom('room-1')).toBeUndefined()
+      store.stopPolling()
     })
   })
 

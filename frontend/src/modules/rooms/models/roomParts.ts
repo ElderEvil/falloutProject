@@ -1,5 +1,5 @@
 import type { Room } from './room'
-import type { Incident } from '@/modules/combat/models/incident'
+import type { Incident, IncidentAftermath } from '@/modules/combat/models/incident'
 
 /**
  * Ordered sections the room detail modal renders, decided in one place.
@@ -19,6 +19,7 @@ export type RoomPart =
   | 'radioControls'
   | 'training'
   | 'incident'
+  | 'aftermath'
 
 // Special rooms are identified by their seed-data-stable names; the string
 // matching lives here and nowhere else.
@@ -60,7 +61,11 @@ export function craftingItemType(room: Room | null): 'weapon' | 'outfit' | null 
   return null
 }
 
-export function getRoomDetailParts(room: Room | null, incident?: Incident | null): RoomPart[] {
+export function getRoomDetailParts(
+  room: Room | null,
+  incident?: Incident | null,
+  aftermath?: IncidentAftermath | null
+): RoomPart[] {
   if (!room) return []
 
   // The arena detail renders its own preview + fight state instead of the
@@ -70,6 +75,9 @@ export function getRoomDetailParts(room: Room | null, incident?: Incident | null
   // A live incident is room *state*, not room type: it replaces every generic
   // section with the combat overlay (scene + log + responder action).
   if (incident) return ['incident']
+
+  // An unresolved aftermath stays until dismissed; a live incident outranks it.
+  if (aftermath) return ['aftermath']
 
   const parts: RoomPart[] = ['preview', 'info']
   if (isOverseersOffice(room)) parts.push('overseerBriefing')

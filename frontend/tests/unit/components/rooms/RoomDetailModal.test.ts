@@ -1316,5 +1316,53 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).not.toContain('RAIDER ATTACK')
       expect(wrapper.text()).toContain('Arena')
     })
+
+    it('replaces the generic sections with the aftermath once the incident is over', () => {
+      const incidentStore = useIncidentStore()
+      incidentStore.aftermaths.set('room-1', {
+        incidentId: 'incident-1',
+        roomId: 'room-1',
+        type: 'raider_attack',
+        roomName: 'Power Generator',
+        outcome: 'defeat',
+        capsEarned: 0,
+        loot: null,
+        enemiesDefeated: 2,
+        damageDealt: 10,
+        rounds: 4,
+      })
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
+      })
+
+      expect(wrapper.text()).toContain('INCIDENT LOST')
+      expect(wrapper.text()).not.toContain('Unassign All Dwellers')
+      expect(wrapper.text()).not.toContain('Destroy Room')
+    })
+
+    it('prefers a live incident over a lingering aftermath', () => {
+      seedIncident()
+      const incidentStore = useIncidentStore()
+      incidentStore.aftermaths.set('room-1', {
+        incidentId: 'incident-0',
+        roomId: 'room-1',
+        type: 'fire',
+        roomName: 'Power Generator',
+        outcome: 'unknown',
+        capsEarned: 0,
+        loot: null,
+        enemiesDefeated: 0,
+        damageDealt: 0,
+        rounds: 0,
+      })
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
+      })
+
+      expect(wrapper.text()).toContain('RAIDER ATTACK')
+      expect(wrapper.text()).not.toContain('INCIDENT ENDED')
+    })
   })
 })

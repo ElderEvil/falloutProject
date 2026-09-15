@@ -72,6 +72,15 @@ class RoomService:
         size_max = candidate.size_max
         capacity_formula = getattr(candidate, "capacity_formula", None)
         output_formula = getattr(candidate, "output_formula", None)
+
+        # A Room row carries no formulas, so a merge driven from stored rooms — the
+        # seed and the backfill command — must look them up, or the survivor is left
+        # with no capacity at all and the vault's totals cannot follow.
+        if not capacity_formula or not output_formula:
+            template = game_data_store.get_room(name)
+            if template:
+                capacity_formula = capacity_formula or template.capacity_formula
+                output_formula = output_formula or template.output_formula
         candidate_id = getattr(candidate, "id", None)
 
         if coordinate_x is None or coordinate_y is None:
@@ -122,6 +131,10 @@ class RoomService:
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
         counted_capacity = sum((room.capacity or 0) for room in group)
+        if candidate_id is not None:
+            # A stored candidate is already counted in the vault and survives the
+            # merge, so its own capacity belongs in what the survivor replaces.
+            counted_capacity += getattr(candidate, "capacity", None) or 0
 
         if total_size > size_max:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
@@ -263,6 +276,7 @@ class RoomService:
         adjacent identical neighbours until no more merges fit within ``size_max``.
         """
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
+        vault = await crud.vault.get(db_session, id=vault_id)
         absorbed_ids: set[UUID4] = set()
         merged_count = 0
 
@@ -285,6 +299,17 @@ class RoomService:
                 current = result.room
                 absorbed_ids.update(result.absorbed_ids)
                 merged_count += len(result.absorbed_ids)
+
+                # A merge swaps the absorbed rooms' contribution for the survivor's,
+                # so vault totals must follow even though no build action occurred.
+                if not dry_run and vault and crud.room.requires_recalculation(current):
+                    await vault_service.recalculate_vault_attributes(
+                        db_session=db_session,
+                        vault_obj=vault,
+                        room_obj=current,
+                        action=RoomActionEnum.BUILD,
+                        previous_capacity=result.previous_capacity,
+                    )
 
         return {"merged": merged_count}
 

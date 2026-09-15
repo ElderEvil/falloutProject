@@ -295,3 +295,58 @@ async def test_merging_storage_segments_counts_the_merged_room_once(async_sessio
 
     storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
     assert storage.max_space == 60, "one merged room of size 6 provides 5*S*(L+1) = 60, not 30 + 60"
+
+
+@pytest.mark.asyncio
+async def test_backfilling_merged_capacity_rooms_keeps_vault_totals_current(async_session: AsyncSession) -> None:
+    """The seed and the merge-rooms command fuse stored rooms, so totals must follow."""
+    from sqlmodel import select
+
+    from app.models.room import Room
+    from app.models.vault import Vault
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    # Two adjacent tier 1 living rooms, summed the way the vault seed sums them:
+    # each contributes 2*S/3*(L+4)-2 = 8, so the vault starts from 16.
+    for x in (1, 4):
+        await crud.room.create(
+            async_session,
+            RoomCreate(
+                vault_id=vault.id,
+                name="Living room",
+                category=RoomTypeEnum.CAPACITY,
+                tier=1,
+                size=3,
+                ability=SPECIALEnum.CHARISMA,
+                capacity=8,
+                population_required=None,
+                base_cost=300,
+                incremental_cost=75,
+                t2_upgrade_cost=500,
+                t3_upgrade_cost=1500,
+                size_min=3,
+                size_max=9,
+                coordinate_x=x,
+                coordinate_y=1,
+            ),
+        )
+    vault.population_max = 16
+    async_session.add(vault)
+    await async_session.commit()
+
+    merged = await RoomService().backfill_merge_rooms_for_vault(async_session, vault.id, dry_run=False)
+    assert merged["merged"] == 1
+
+    survivor = (
+        (await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Living room")))
+        .scalars()
+        .first()
+    )
+    await async_session.refresh(survivor)
+    refreshed_vault = await async_session.get(Vault, vault.id)
+
+    assert survivor.size == 6, "the two rooms fused"
+    assert survivor.capacity == 18, "the survivor follows 2*S/3*(L+4)-2 at S=6, not blank"
+    assert refreshed_vault.population_max == 18, "the vault replaces the fused rooms' 16 with the survivor's 18"

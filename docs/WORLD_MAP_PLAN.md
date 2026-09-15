@@ -18,6 +18,34 @@ instead of staying locked (previously only bio-linked places could unlock, via c
 (`uv run fo-cli backfill backfill-unlock-discoveries`) repairs pre-fix rows. Deploy the v2.46.1 worker image to activate the
 runtime fix.
 
+## Online capability baseline and product direction
+
+The map is a **shared-world foundation**, not a multiplayer game mode yet. `WorldLocation` supplies one
+canonical geography for every vault, while `VaultLocationState` keeps fog of war, discoveries, and unlock state
+private to each vault. The Wasteland Journal, exploration routes, bio places, place groups, and fixed NPC vault
+signals are live; no player can currently raid, visit, trade with, rank against, or otherwise affect another
+player's vault through the map.
+
+The application already has WebSocket and SSE infrastructure for chat, notifications, and vault tick updates,
+but the map has no cross-vault protocol or shared simulation. That is intentional: the tick-based game loop is
+not compatible with live shared-world combat authority.
+
+When product direction calls for online play, sequence the work by risk and player value:
+
+1. Enrich shared-world content first: map presentation/fog UX, player-choice exploration events, and
+   group-specific encounters and loot. These improve the map without introducing privacy, moderation, or economy
+   risk.
+2. Add opt-in, low-stakes social presence next: public vault beacons or privacy-safe aggregate discovery signals.
+   Do not expose a vault's layout, dwellers, or exploration history.
+3. Add asynchronous raids only after that. Resolve them from versioned, minimal defender snapshots with an
+   idempotent state machine and durable results for both parties; never query or fight a live vault.
+4. Leave vault visits, direct trading, and leaderboards until explicit consent, privacy controls, rate limits,
+   abuse handling, and a stable economy have product-level designs.
+
+The current plan therefore remains single-vault exploration in a shared-looking wasteland. The deferred phases
+below are technical contracts to reuse when this product direction is deliberately adopted, not a commitment to
+ship multiplayer state.
+
 ## Phase A delivery checklist
 
 - [x] Persist discovery `location_id` and unscaled map coordinates on JSON event records; no migration.

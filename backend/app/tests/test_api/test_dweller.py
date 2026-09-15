@@ -265,3 +265,60 @@ async def test_add_bio_addendum_rejects_short_text(
     )
 
     assert response.status_code == 422
+
+
+async def _set_radiated_state(async_session: AsyncSession, dweller: Dweller) -> None:
+    dweller.max_health = 100
+    dweller.health = 30
+    dweller.radiation = 40
+    dweller.stimpack = 1
+    async_session.add(dweller)
+    await async_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_exposes_effective_max_health(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """DwellerReadFull must carry the radiation-reduced health ceiling."""
+    await _set_radiated_state(async_session, dweller)
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    assert response.json()["effective_max_health"] == 60
+
+
+@pytest.mark.asyncio
+async def test_read_dweller_list_exposes_effective_max_health(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """DwellerReadLess (compact list shape) must carry the same ceiling."""
+    await _set_radiated_state(async_session, dweller)
+    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
+    assert response.status_code == 200
+    by_id = {d["id"]: d for d in response.json()}
+    assert by_id[str(dweller.id)]["effective_max_health"] == 60
+
+
+@pytest.mark.asyncio
+async def test_use_stimpack_clamps_healing_at_effective_max_health(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """Stimpack healing must stop at the radiation-reduced ceiling, not max_health."""
+    from app.core.game_config import game_config
+
+    await _set_radiated_state(async_session, dweller)
+    response = await async_client.post(f"/dwellers/{dweller.id}/use_stimpack", headers=superuser_token_headers)
+    assert response.status_code == 200
+    heal_amount = max(1, int(100 * game_config.health.stimpack_heal_percent))
+    body = response.json()
+    assert body["health"] == min(30 + heal_amount, 60)
+    assert body["effective_max_health"] == 60

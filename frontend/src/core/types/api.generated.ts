@@ -5660,6 +5660,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Effective Max Health
+             * @description Maximum health available after radiation damage.
+             */
+            readonly effective_max_health: number;
         };
         /** DwellerReadFull */
         DwellerReadFull: {
@@ -5813,6 +5818,11 @@ export interface components {
             room: components["schemas"]["RoomRead"] | null;
             weapon: components["schemas"]["WeaponRead"] | null;
             outfit: components["schemas"]["OutfitRead"] | null;
+            /**
+             * Effective Max Health
+             * @description Maximum health available after radiation damage.
+             */
+            readonly effective_max_health: number;
         };
         /** DwellerReadLess */
         DwellerReadLess: {
@@ -5874,6 +5884,11 @@ export interface components {
             parent_1_id?: string | null;
             /** Parent 2 Id */
             parent_2_id?: string | null;
+            /**
+             * Effective Max Health
+             * @description Maximum health available after radiation damage.
+             */
+            readonly effective_max_health: number;
         };
         /** DwellerReadWithRoomID */
         DwellerReadWithRoomID: {
@@ -6023,6 +6038,11 @@ export interface components {
              * Format: uuid4
              */
             room_id: string;
+            /**
+             * Effective Max Health
+             * @description Maximum health available after radiation damage.
+             */
+            readonly effective_max_health: number;
         };
         /**
          * DwellerRef

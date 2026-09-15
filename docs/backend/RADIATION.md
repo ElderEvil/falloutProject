@@ -53,6 +53,14 @@ ownership through the shared dependency and delegates to the service.
 Exploration carries its own medical counters. Its auto-treatment path uses the same configured Stimpack healing and
 RadAway removal rules, then records the actual result in the exploration event stream.
 
+## API contract
+
+`effective_max_health` is part of the wire shape, not just a server-side helper: `DwellerRead` (and everything built
+on it — full, with-room, with-vault responses) and the compact `DwellerReadLess` list shape all serialize the
+computed `max(1, max_health - radiation)` value. Clients render health as `health / effective_max_health (max_health)`
+and must never compute the ceiling locally — the server's radiation state is authoritative, and `GET /dwellers/...`
+responses stay exact after every heal, RadAway, and radiation-gain mutation.
+
 ## Game-loop ordering
 
 For each vault tick, resource processing happens before dweller processing. When water is empty, dehydration

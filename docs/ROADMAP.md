@@ -142,9 +142,8 @@ audit; objectives need deliberate in-game validation rather than relying only on
   notifications, and frontend presentation so caps, items, XP, and objective progress agree exactly.
 - [ ] **Objective balance review** — enumerate active objective templates and their targets/rewards; identify dead,
   trivial, or excessively grindy objectives and tune from observed normal-vault progression rather than assumptions.
-- [ ] **Manual progression playtest** — run a documented fresh-vault and established-vault pass covering objective
-  rerolls/completions, quest start/complete/claim, reward storage limits, reconnect/SSE delivery, and notification
-  navigation. Convert each finding into a tracked issue and regression test where practical.
+- [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,
+  notifications, and frontend presentation so caps, items, XP, and objective progress agree exactly.
 - [ ] **Notification click-through investigation** — collect cases where a notification opens an unexpected screen,
   tab, entity, or state; trace route construction and query-prop handling from notification metadata through the
   destination view. Add targeted regression coverage before changing navigation behavior.
@@ -195,6 +194,11 @@ land as one compatibility pass with migration notes, updated CI/container toolin
 - [ ] **3.0 upgrade rehearsal** — update `uv.lock`, `pnpm-lock.yaml`, CI, development tasks, container images, and
   documentation; run the full backend/frontend suites plus migration and rollback checks before declaring the
   boundary complete.
+- [ ] **Tauri desktop app** — package the existing Vue UI for Linux and Windows, connecting to the hosted FastAPI
+  backend over HTTPS with secure real-time connections; backend services and data stay on the server, and the app
+  requires an internet connection. Configure desktop origins/CORS, login persistence, reconnect behavior, and
+  external links; validate installable builds against the hosted backend. Evaluate macOS, native notifications,
+  and automatic updates as follow-ups.
 
 Python 3.14 is the first version with standard-library UUIDv7 support, making it the natural point to evaluate the
 identifier change rather than adding another compatibility dependency now.

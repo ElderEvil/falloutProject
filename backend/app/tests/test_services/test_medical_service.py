@@ -58,6 +58,16 @@ class TestUseStimpack:
             await medical_service.use_stimpack(async_session, dweller.id)
 
     @pytest.mark.asyncio
+    async def test_healing_clamps_at_radiation_ceiling(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        await _set_dweller_state(async_session, dweller, max_health=100, health=30, radiation=40, stimpack=1)
+        result = await medical_service.use_stimpack(async_session, dweller.id)
+        heal_amount = max(1, int(100 * game_config.health.stimpack_heal_percent))
+        assert result.health == min(30 + heal_amount, 60)
+        assert result.stimpack == 0
+
+    @pytest.mark.asyncio
     async def test_at_full_health_is_no_change(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, max_health=100, health=100, radiation=0, stimpack=1)
         with pytest.raises(ContentNoChangeException):

@@ -2,6 +2,7 @@
 import { inject, ref } from 'vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import DwellerDetailContainer from '../components/DwellerDetailContainer.vue'
 
 const scanlinesEnabled = inject('scanlines', ref(true))
@@ -16,9 +17,9 @@ const { isCollapsed } = useSidePanel()
       <SidePanel />
 
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8">
+        <PageContentRail>
           <DwellerDetailContainer />
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>

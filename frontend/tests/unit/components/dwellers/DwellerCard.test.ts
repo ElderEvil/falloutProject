@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 
@@ -172,7 +173,7 @@ describe('DwellerCard', () => {
       expect(progressBar.props('modelValue')).toBe(80)
     })
 
-    it('describes the maximum level instead of a negative XP remainder', () => {
+    it('describes the maximum level instead of a negative XP remainder', async () => {
       const maxedDweller = { ...mockDweller, level: 50, experience: 50000 }
       const wrapper = mount(DwellerCard, {
         props: {
@@ -183,8 +184,22 @@ describe('DwellerCard', () => {
 
       const value = wrapper.find('.xp-bar-container .stat-value')
       expect(value.classes()).toContain('max-level')
-      expect(value.attributes('title')).not.toMatch(/-\d/)
-      expect(value.attributes('title')).toContain('Maximum level')
+      expect(value.text()).not.toMatch(/-\d/)
+      vi.useFakeTimers()
+      await wrapper.find('.xp-bar-container .relative > div').trigger('mouseenter')
+      vi.advanceTimersByTime(250)
+      await nextTick()
+      expect(document.body.textContent).toContain('Maximum level')
+      vi.useRealTimers()
+    })
+  })
+
+  describe('App HUD', () => {
+    it('reads progress as one level-first block, not a level row plus an XP row', () => {
+      const wrapper = mount(DwellerCard, { props: { dweller: mockDweller, imageUrl: null } })
+
+      expect(wrapper.text()).toContain('Level 5')
+      expect(wrapper.find('.xp-bar-container .stat-value').text()).toBe('1019 XP to L6')
     })
   })
 
@@ -205,6 +220,7 @@ describe('DwellerCard', () => {
 
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Recall')
+      expect(wrapper.find('.actions-container').element.children).toHaveLength(2)
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
@@ -220,6 +236,7 @@ describe('DwellerCard', () => {
 
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Chat')
+      expect(wrapper.find('.actions-container').element.children).toHaveLength(1)
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')

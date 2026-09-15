@@ -11,6 +11,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
+import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { UButton, UCard } from '@/core/components/ui'
@@ -54,7 +55,7 @@ const viewDwellerDetails = (dwellerId: string) => {
 
       <!-- Main Content Area -->
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
-        <div class="container mx-auto px-4 py-8 lg:px-8">
+        <PageContentRail>
           <PageHeader
             title="Graveyard"
             icon="mdi:grave-stone"
@@ -109,7 +110,7 @@ const viewDwellerDetails = (dwellerId: string) => {
               laid to rest
             </p>
           </div>
-        </div>
+        </PageContentRail>
       </div>
     </div>
   </div>

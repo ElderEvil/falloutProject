@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import {
   happinessService,
@@ -37,20 +38,21 @@ const loadHappinessModifiers = async () => {
 
 <template>
   <div>
-    <UButton
-      variant="ghost"
-      size="sm"
-      @click="loadHappinessModifiers"
-      :disabled="loadingModifiers"
-      :aria-label="'View happiness modifiers'"
-      :title="'View happiness modifiers'"
-    >
-      <Icon
-        :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"
-        :class="{ 'animate-spin': loadingModifiers }"
-        class="h-4 w-4"
-      />
-    </UButton>
+    <UTooltip text="View happiness modifiers">
+      <UButton
+        variant="ghost"
+        size="sm"
+        @click="loadHappinessModifiers"
+        :disabled="loadingModifiers"
+        aria-label="View happiness modifiers"
+      >
+        <Icon
+          :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"
+          :class="{ 'animate-spin': loadingModifiers }"
+          class="h-4 w-4"
+        />
+      </UButton>
+    </UTooltip>
 
     <div v-if="showModifiers && happinessModifiers" class="happiness-modifiers">
       <div class="modifiers-header">

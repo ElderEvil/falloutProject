@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import UTooltip from '@/core/components/ui/UTooltip.vue'
 
 interface Props {
   level: number
@@ -21,30 +22,26 @@ const requiredXP = computed(() => {
   return calculateXPRequired(level + 1)
 })
 
-const previousLevelXP = computed(() => {
-  return calculateXPRequired(level)
-})
+const previousLevelXP = computed(() => calculateXPRequired(level))
 
-const xpInCurrentLevel = computed(() => {
-  return currentXP - previousLevelXP.value
-})
+const xpInCurrentLevel = computed(() => currentXP - previousLevelXP.value)
 
-const xpNeededForNextLevel = computed(() => {
-  return requiredXP.value - previousLevelXP.value
-})
+const xpNeededForNextLevel = computed(() => requiredXP.value - previousLevelXP.value || 1)
+
+const xpToNextLevel = computed(() =>
+  level >= maxLevel ? 0 : Math.max(0, requiredXP.value - currentXP)
+)
 
 const progressPercentage = computed(() => {
   if (level >= maxLevel) return 100
-  if (xpNeededForNextLevel.value === 0) return 100
   return Math.min(100, (xpInCurrentLevel.value / xpNeededForNextLevel.value) * 100)
 })
 
-const isNearLevelUp = computed(() => progressPercentage.value >= 90)
 const isMaxLevel = computed(() => level >= maxLevel)
 
 const barAnimation = computed(() => {
   if (isMaxLevel.value) return 'shimmer' as const
-  if (isNearLevelUp.value) return 'pulse' as const
+  if (progressPercentage.value >= 90) return 'pulse' as const
   return 'none' as const
 })
 </script>
@@ -52,21 +49,19 @@ const barAnimation = computed(() => {
 <template>
   <div class="xp-bar-container">
     <div class="stat-row">
-      <span class="stat-label">Experience</span>
-      <span
-        class="stat-value"
-        :class="{ 'max-level': isMaxLevel }"
-        :title="
+      <span class="stat-label">Level {{ level }}</span>
+      <UTooltip
+        :text="
           isMaxLevel
             ? 'Maximum level reached'
-            : `${xpInCurrentLevel} of ${xpNeededForNextLevel} XP this level`
+            : `${xpToNextLevel} XP to level ${level + 1}`
         "
       >
-        <template v-if="!isMaxLevel">
-          {{ xpInCurrentLevel }}/{{ xpNeededForNextLevel }}
-        </template>
-        <template v-else>MAX</template>
-      </span>
+        <span class="stat-value" :class="{ 'max-level': isMaxLevel }">
+          <template v-if="!isMaxLevel">{{ xpToNextLevel }} XP to L{{ level + 1 }}</template>
+          <template v-else>MAX</template>
+        </span>
+      </UTooltip>
     </div>
     <UProgressBar :model-value="progressPercentage" :height="10" :animation="barAnimation" />
   </div>

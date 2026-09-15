@@ -443,5 +443,88 @@ describe('Incident Store', () => {
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
       store.stopPolling()
     })
+
+    it('announces a lost incident so a failure is never silent', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: false },
+      }
+      await nextTick()
+
+      expect(store.activeIncidentIds).toEqual([])
+      expect(sseMock.toast.error).toHaveBeenCalledWith(
+        `Incident lost — ${mockIncident.type.replace(/_/g, ' ')} overran ${mockIncident.room_name}.`
+      )
+      store.stopPolling()
+    })
+
+    it('announces a lost incident even when its details were already dropped', async () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-9']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-9', success: false },
+      }
+      await nextTick()
+
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Incident lost — the threat was not contained.')
+      store.stopPolling()
+    })
+    it('announces a lost incident only once when the event is re-delivered', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      const resolvedEvent = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: false },
+      }
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+
+      expect(sseMock.toast.error).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
+
+    it('announces a victory only once when the event is re-delivered', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      const resolvedEvent = {
+        event: 'incident',
+        data: { type: 'incident_resolved', incident_id: 'incident-1', success: true, caps_earned: 50 },
+      }
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+      sseMock.instance.event.value = { ...resolvedEvent }
+      await nextTick()
+
+      expect(sseMock.toast.success).toHaveBeenCalledTimes(1)
+      store.stopPolling()
+    })
   })
 })

@@ -15,6 +15,7 @@ export const useIncidentStore = defineStore('incident', () => {
   let sseInstance: ReturnType<typeof useSse> | null = null
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null
   let incidentPolling: ReturnType<typeof usePolling> | null = null
+  const announcedResolutions = new Set<string>()
 
   const { success: showSuccess, error: showError } = useToast()
 
@@ -130,10 +131,14 @@ export const useIncidentStore = defineStore('incident', () => {
 
           case 'incident_resolved': {
             const resolvedId = data.incident_id as string | undefined
+            const resolved = resolvedId ? incidents.value.get(resolvedId) : undefined
+            const isFirstNotice = resolvedId === undefined || !announcedResolutions.has(resolvedId)
             if (resolvedId) {
+              announcedResolutions.add(resolvedId)
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
             }
+            if (!isFirstNotice) break
             if (data.success === true) {
               const capsEarned = data.caps_earned
               showSuccess(
@@ -141,6 +146,12 @@ export const useIncidentStore = defineStore('incident', () => {
                   ? `Incident victory — recovered ${capsEarned} caps.`
                   : 'Incident contained — vault secure.'
               )
+            } else if (resolved) {
+              showError(
+                `Incident lost — ${resolved.type.replace(/_/g, ' ')} overran ${resolved.room_name ?? 'the vault'}.`
+              )
+            } else {
+              showError('Incident lost — the threat was not contained.')
             }
             break
           }

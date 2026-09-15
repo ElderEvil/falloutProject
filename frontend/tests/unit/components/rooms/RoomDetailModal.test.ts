@@ -630,6 +630,18 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Unassign All Dwellers')
     })
 
+    it('groups room-wide controls under Management without restoring Staffing', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.find('.room-management').text()).toContain('Management')
+      expect(wrapper.text()).not.toContain('Staffing')
+    })
+
     it('should expose an unassign control for every assigned dweller', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers

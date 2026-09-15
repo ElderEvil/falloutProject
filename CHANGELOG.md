@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.102.0 (2026-09-15)
+
+### Features
+
+* **dwellers:** fact next to its action on the dweller card edc8241
+
+### Reverts
+
+* **dwellers:** park the supply-zone redesign, keep the HUD rework 1b6551f
+
+### Code Refactoring
+
+* **dwellers:** drop the card radiation banner f232af7
+
 ## 2.101.0 (2026-09-14)
 
 ### Features

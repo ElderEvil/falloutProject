@@ -16,102 +16,83 @@ const roomSizeText = computed(
 </script>
 
 <template>
-  <section class="room-summary" aria-label="Room summary">
-    <details class="system-details">
-      <summary>
-        <span class="details-title">
-          <Icon icon="mdi:information-outline" />
-          System details
-        </span>
-        <span class="details-toggle">
-          Inspect
-          <Icon icon="mdi:chevron-down" />
-        </span>
-      </summary>
-      <div class="details-readout">
-        <span>Room Size: {{ roomSizeText }}</span>
-        <span>Position: ({{ room.coordinate_x }}, {{ room.coordinate_y }})</span>
-        <span v-if="room.ability">Focus: {{ abilityLabel }}</span>
+  <div class="section">
+    <h3 class="section-title">
+      <Icon icon="mdi:information" class="h-5 w-5" />
+      Room Information
+    </h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">Resource Capacity:</span>
+        <span class="info-value">{{ room.capacity || 0 }}</span>
       </div>
-    </details>
-  </section>
+      <div class="info-item">
+        <span class="info-label">Room Size:</span>
+        <span class="info-value">{{ roomSizeText }}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Position:</span>
+        <span class="info-value">({{ room.coordinate_x }}, {{ room.coordinate_y }})</span>
+      </div>
+      <div v-if="room.ability" class="info-item">
+        <span class="info-label">Required Stat:</span>
+        <span class="info-value">{{ abilityLabel }}</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.room-summary {
-  background: var(--color-surface-sunken);
-  border-block: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.system-details summary,
-.details-readout {
-  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
-  font-size: 0.625rem;
-  letter-spacing: 0.09em;
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--color-theme-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.system-details {
-  display: block;
+.section-title :deep(svg) {
+  width: 1rem;
+  height: 1rem;
 }
 
-.system-details summary {
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.info-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  cursor: pointer;
-  list-style: none;
-  padding: 0.45rem 0.75rem;
-  background: color-mix(in srgb, var(--color-theme-primary) 6%, transparent);
-  border-block: 1px solid color-mix(in srgb, var(--color-theme-primary) 18%, transparent);
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
 }
 
-.system-details summary::-webkit-details-marker {
-  display: none;
+.info-label {
+  color: var(--color-gray-400);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.details-title,
-.details-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.details-toggle {
+.info-value {
   color: var(--color-theme-primary);
-  font-weight: 700;
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
-
-.system-details summary :deep(svg) {
-  height: 0.75rem;
-  width: 0.75rem;
-}
-
-.details-toggle :deep(svg) {
-  transition: transform 150ms ease;
-}
-
-.system-details[open] .details-toggle :deep(svg) {
-  transform: rotate(180deg);
-}
-
-.system-details summary:hover,
-.system-details summary:focus-visible {
-  background: color-mix(in srgb, var(--color-theme-primary) 12%, transparent);
-  color: var(--color-theme-primary);
-}
-
-.system-details summary:focus-visible {
-  outline: 1px solid var(--color-theme-primary);
-  outline-offset: -1px;
-}
-
-.details-readout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0 0.75rem 0.55rem;
-}
-
 </style>

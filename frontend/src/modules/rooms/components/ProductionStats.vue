@@ -113,14 +113,14 @@ defineProps<Props>()
 .section {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.5rem;
 }
 
 .section-title {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.6875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -135,35 +135,36 @@ defineProps<Props>()
 
 .production-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  background: var(--color-surface-sunken);
-  border-block: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
 }
 
 .stat-card {
-  min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border-right: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+  text-align: center;
 }
 
 .stat-label {
-  font-size: 0.625rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
-  text-transform: uppercase;
+  color: var(--color-gray-400);
+  font-size: 0.6875rem;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .stat-value {
-  font-size: 1rem;
-  font-weight: bold;
+  margin-top: 0.2rem;
   color: var(--color-theme-primary);
-  margin-top: 0.1rem;
+  font-size: 1.125rem;
+  font-weight: bold;
 }
 
 .stat-subvalue {
-  font-size: 0.625rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
-  margin-top: 0.1rem;
+  margin-top: 0.15rem;
+  color: var(--color-gray-500);
+  font-size: 0.6875rem;
 }
 
 .text-success {

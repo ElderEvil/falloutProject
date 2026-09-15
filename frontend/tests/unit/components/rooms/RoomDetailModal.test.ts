@@ -234,7 +234,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Room Information', () => {
-    it('keeps staffing capacity on the room scene instead of repeating it in the roster', () => {
+    it('keeps staffing in the room scene instead of repeating it in a roster', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -245,7 +245,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.room-scene').text()).toContain('1/2 workers')
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.findAll('.slot-filled')).toHaveLength(2)
       expect(wrapper.find('.staffing-summary').exists()).toBe(false)
     })
 
@@ -273,7 +274,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('(0, 0)')
     })
 
-    it('should display room focus in system details', () => {
+    it('should display the required room stat', () => {
       const wrapper = mount(RoomDetailModal, {
         props: {
           room: mockRoom,
@@ -281,7 +282,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Focus:')
+      expect(wrapper.text()).toContain('Required Stat:')
       expect(wrapper.text()).toContain('S - Strength')
     })
   })
@@ -451,7 +452,6 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('0/2 workers')
       expect(wrapper.find('.room-scene').exists()).toBe(true)
       expect(wrapper.findAll('.scene-empty-worker')).toHaveLength(2)
       expect(wrapper.findAll('[aria-label="Assign worker"]')).toHaveLength(2)
@@ -469,7 +469,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.get('.scene-empty-worker').classes()).not.toContain('empty')
+      expect(wrapper.get('.scene-empty-worker').classes()).toContain('scene-empty-slot')
     })
 
     it('keeps apprentice assignment exclusive to production rooms', () => {
@@ -638,6 +638,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
+      expect(wrapper.find('.room-scene').exists()).toBe(true)
+      expect(wrapper.find('.info-grid').exists()).toBe(true)
       expect(wrapper.find('.room-management').text()).toContain('Management')
       expect(wrapper.text()).not.toContain('Staffing')
     })
@@ -811,7 +813,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Radio Studio')
       expect(wrapper.text()).toContain('Broadcast Controls')
       expect(wrapper.find('.radio-controls').exists()).toBe(true)
-      expect(wrapper.find('.room-operation-deck').find('.radio-controls').exists()).toBe(true)
+      expect(wrapper.find('.modal-content > .radio-controls').exists()).toBe(true)
     })
 
     it('should not show radio controls for non-radio rooms', () => {

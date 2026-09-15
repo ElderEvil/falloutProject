@@ -16,17 +16,16 @@ defineProps<Props>()
 <template>
   <div class="modal-header">
     <div class="header-content">
-      <div class="title-row">
-        <h2 class="room-title">
-          <Icon :icon="resourceIcon" class="room-icon" />
-          {{ roomName }}
-        </h2>
-        <span class="tier-readout" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ tier }}</span>
-      </div>
+      <h2 class="room-title">
+        <Icon :icon="resourceIcon" class="room-icon" />
+        {{ roomName }}
+      </h2>
       <div class="header-metadata">
-        <span class="metadata-item">{{ category }} system</span>
+        <span class="metadata-item">{{ category }} Room</span>
+        <span class="metadata-divider">&middot;</span>
+        <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ tier }}</span>
         <span v-if="ability" class="metadata-divider">&middot;</span>
-        <span v-if="ability" class="metadata-item">{{ ability.charAt(0) }}-linked</span>
+        <span v-if="ability" class="metadata-item">Requires: {{ ability.charAt(0) }}</span>
       </div>
     </div>
   </div>
@@ -34,64 +33,48 @@ defineProps<Props>()
 
 <style scoped>
 .modal-header {
-  padding-bottom: 0.1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-theme-glow);
 }
 
 .header-content {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
 .room-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-width: 0;
-  font-size: 1rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
   margin: 0;
+  color: var(--color-theme-primary);
+  font-size: 1.125rem;
+  font-weight: bold;
 }
 
 .room-icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--color-terminal-green);
-}
-
-.tier-readout {
-  margin-left: auto;
-  padding: 0.15rem 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
-  color: var(--color-warning);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 
 .header-metadata {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.6rem;
-  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
-  text-transform: uppercase;
+  gap: 0.5rem;
+  color: var(--color-gray-500);
+  font-size: 0.65rem;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .metadata-item {
-  color: inherit;
+  color: var(--color-gray-500);
 }
 
 .metadata-divider {
-  color: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
+  color: var(--color-gray-600);
 }
 
 .tier-upgraded {
@@ -101,25 +84,10 @@ defineProps<Props>()
 }
 
 @keyframes tier-upgrade-pulse {
-  0% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 0px var(--color-theme-glow));
-  }
-  25% {
-    transform: scale(1.2);
-    filter: drop-shadow(0 0 8px var(--color-theme-glow));
-  }
-  50% {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 12px var(--color-theme-glow));
-  }
-  75% {
-    transform: scale(1.15);
-    filter: drop-shadow(0 0 8px var(--color-theme-glow));
-  }
-  100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 4px var(--color-theme-glow));
-  }
+  0% { transform: scale(1); filter: drop-shadow(0 0 0 var(--color-theme-glow)); }
+  25% { transform: scale(1.2); filter: drop-shadow(0 0 8px var(--color-theme-glow)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--color-theme-glow)); }
+  75% { transform: scale(1.15); filter: drop-shadow(0 0 8px var(--color-theme-glow)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--color-theme-glow)); }
 }
 </style>

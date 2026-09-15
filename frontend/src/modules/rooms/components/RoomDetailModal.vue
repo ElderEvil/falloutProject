@@ -108,7 +108,7 @@ watch(
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     @close="emit('close')"
-    size="xl"
+    size="lg"
   >
     <template #header>
       <RoomDetailHeader
@@ -166,43 +166,41 @@ watch(
           @assign-dweller="handleAssignDweller"
         />
 
-        <section class="room-operation-deck">
-            <RoomInfoGrid
-              :room="room"
-              :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
-            />
+        <RoomInfoGrid
+          :room="room"
+          :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+        />
 
-            <OverseerBriefing
-              v-if="has('overseerBriefing') && overseerBriefing"
-              v-bind="overseerBriefing"
-              @review-incidents="emit('reviewIncidents')"
-            />
+        <OverseerBriefing
+          v-if="has('overseerBriefing') && overseerBriefing"
+          v-bind="overseerBriefing"
+          @review-incidents="emit('reviewIncidents')"
+        />
 
-            <ProductionStats
-              v-if="has('radioStats') && radioStats"
-              :radio-stats="radioStats"
-              :radio-mode="localRadioMode"
-            />
+        <ProductionStats
+          v-if="has('radioStats') && radioStats"
+          :radio-stats="radioStats"
+          :radio-mode="localRadioMode"
+        />
 
-            <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
+        <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
 
-            <CraftingPanel
-              v-if="has('crafting') && craftingType"
-              :vault-id="vaultId"
-              :item-type="craftingType"
-              @crafted="emit('roomUpdated')"
-            />
+        <CraftingPanel
+          v-if="has('crafting') && craftingType"
+          :vault-id="vaultId"
+          :item-type="craftingType"
+          @crafted="emit('roomUpdated')"
+        />
 
-            <RadioControls
-              v-if="has('radioControls')"
-              :local-radio-mode="localRadioMode"
-              :is-recruiting="isRecruiting"
-              :manual-recruit-cost="manualRecruitCost"
-              :assigned-dwellers="assignedDwellers"
-              @switch-mode="handleSwitchRadioMode"
-              @recruit="handleRecruitDweller"
-            />
-        </section>
+        <RadioControls
+          v-if="has('radioControls')"
+          :local-radio-mode="localRadioMode"
+          :is-recruiting="isRecruiting"
+          :manual-recruit-cost="manualRecruitCost"
+          :assigned-dwellers="assignedDwellers"
+          @switch-mode="handleSwitchRadioMode"
+          @recruit="handleRecruitDweller"
+        />
 
         <RoomActions
           v-if="has('actions')"
@@ -227,13 +225,6 @@ watch(
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.25rem 0;
-}
-
-.room-operation-deck {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
 }
 
 .error-banner {

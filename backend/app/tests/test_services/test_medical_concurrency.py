@@ -132,3 +132,27 @@ async def test_concurrent_use_stimpack_spends_once(
     heal_amount = max(1, int(100 * game_config.health.stimpack_heal_percent))
     assert successes[0].health == min(10 + heal_amount, ceiling)
     assert successes[0].stimpack == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_use_radaway_spends_once(
+    live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID4, int]
+) -> None:
+    """Two simultaneous uses with one RadAway: exactly one treats, the other is rejected."""
+    from app.core.game_config import game_config
+
+    dweller_id: UUID4 = radiated_dweller[0]
+    maker = _sessions(live_pg_engine)
+    async with maker() as first, maker() as second:
+        results = await asyncio.gather(
+            medical_service.use_radaway(first, dweller_id),
+            medical_service.use_radaway(second, dweller_id),
+            return_exceptions=True,
+        )
+    successes = [r for r in results if isinstance(r, Dweller)]
+    failures = [r for r in results if isinstance(r, (ContentNoChangeException, ResourceConflictException))]
+    assert len(successes) == 1, f"expected exactly one treatment, got {results!r}"
+    assert len(failures) == 1
+    removal = min(30, max(1, int(30 * game_config.health.radaway_removal_percent)))
+    assert successes[0].radiation == 30 - removal
+    assert successes[0].radaway == 0

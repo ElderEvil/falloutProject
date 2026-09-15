@@ -247,9 +247,7 @@ missing-argument = "ignore"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 pythonpath = ["."]
-addopts = [
-    "-p", "no:cacheprovider",
-]
+addopts = ["-p", "no:cacheprovider", "-n", "2"]
 markers = [
     "smoke: curated critical-path subset for quick dev loops (pytest -m smoke)",
     "unit: fast pure or mocked unit tests",

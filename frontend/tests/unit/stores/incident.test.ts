@@ -10,6 +10,7 @@ vi.mock('@/modules/combat/api/incident')
 const sseMock = vi.hoisted(() => ({
   instance: null as any,
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  playSound: vi.fn(),
 }))
 
 vi.mock('@/core/composables/useEventStream', () => ({
@@ -18,6 +19,10 @@ vi.mock('@/core/composables/useEventStream', () => ({
 
 vi.mock('@/core/composables/useToast', () => ({
   useToast: () => sseMock.toast,
+}))
+
+vi.mock('@/core/composables/useSound', () => ({
+  useSound: () => ({ playSound: sseMock.playSound, playMusic: vi.fn(), stopMusic: vi.fn() }),
 }))
 
 describe('Incident Store', () => {
@@ -560,6 +565,18 @@ describe('Incident Store', () => {
 
       expect(store.aftermathForRoom('room-1')).toBeUndefined()
       store.stopPolling()
+    })
+  })
+
+  describe('Spawn alert', () => {
+    it('sounds an alert when an incident spawns', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(sseMock.playSound).toHaveBeenCalledWith('notification')
     })
   })
 

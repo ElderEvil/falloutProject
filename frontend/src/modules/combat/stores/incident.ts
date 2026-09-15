@@ -9,6 +9,7 @@ import type {
 } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
+import { useSound } from '@/core/composables/useSound'
 import { useSse } from '@/core/composables/useEventStream'
 import { usePolling } from '@/core/composables/usePolling'
 
@@ -24,6 +25,7 @@ export const useIncidentStore = defineStore('incident', () => {
   const announcedResolutions = new Set<string>()
 
   const { success: showSuccess, error: showError } = useToast()
+  const { playSound } = useSound()
 
   // Computed
   const activeIncidents = computed(() => {
@@ -91,6 +93,7 @@ export const useIncidentStore = defineStore('incident', () => {
       // Check for new incidents (spawn notifications)
       const spawned = newIds.filter((id) => !previousIds.includes(id))
       if (spawned.length > 0) {
+        playSound('notification')
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {

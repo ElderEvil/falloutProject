@@ -154,3 +154,144 @@ async def test_create_rejects_seeded_vault_number(async_session: AsyncSession) -
         async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
     )
     assert allowed.number not in get_seeded_vault_numbers()
+
+
+@pytest.mark.asyncio
+async def test_upgrading_storage_room_grows_storage_capacity(async_session: AsyncSession) -> None:
+    """Upgrading a storage room must grow what the vault can hold."""
+    from sqlmodel import select
+
+    from app.models.room import Room
+    from app.models.storage import Storage
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    room_data = RoomCreate(
+        vault_id=vault.id,
+        name="Storage room",
+        category=RoomTypeEnum.CAPACITY,
+        tier=1,
+        size=3,
+        ability=SPECIALEnum.ENDURANCE,
+        capacity_formula="5*S*(L+1)",
+        population_required=None,
+        base_cost=300,
+        incremental_cost=75,
+        t2_upgrade_cost=750,
+        t3_upgrade_cost=1500,
+        size_min=3,
+        size_max=9,
+        coordinate_x=1,
+        coordinate_y=1,
+    )
+
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
+    await RoomService()._build(db_session=async_session, obj_in=room_data)
+
+    storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
+    assert storage.max_space == 30, "a tier 1 storage room provides the formula's 30 space"
+
+    room = (
+        (await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Storage room")))
+        .scalars()
+        .first()
+    )
+
+    await RoomService().upgrade_room(async_session, room.id)
+
+    await async_session.refresh(room)
+    await async_session.refresh(storage)
+
+    assert storage.max_space == 45, "the vault must hold what its storage room provides"
+    assert room.capacity == 45, "tier 2 follows the room's own formula: 5*S*(L+1) at L=2 is 45"
+
+
+@pytest.mark.asyncio
+async def test_upgrading_living_room_grows_population_capacity(async_session: AsyncSession) -> None:
+    """A capacity upgrade replaces the room's contribution for population too."""
+    from sqlmodel import select
+
+    from app.models.room import Room
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    initial_population_max = vault.population_max or 0
+
+    room_data = RoomCreate(
+        vault_id=vault.id,
+        name="Living room",
+        category=RoomTypeEnum.CAPACITY,
+        tier=1,
+        size=3,
+        ability=SPECIALEnum.CHARISMA,
+        capacity_formula="2*S/3*(L+4)-2",
+        population_required=None,
+        base_cost=300,
+        incremental_cost=75,
+        t2_upgrade_cost=500,
+        t3_upgrade_cost=1500,
+        size_min=3,
+        size_max=9,
+        coordinate_x=1,
+        coordinate_y=1,
+    )
+
+    await _add_elevator_on_level(async_session, vault.id, room_data.coordinate_y)
+    await RoomService()._build(db_session=async_session, obj_in=room_data)
+
+    await async_session.refresh(vault)
+    assert vault.population_max == initial_population_max + 8, "a tier 1 living room houses 8"
+
+    room = (
+        (await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Living room")))
+        .scalars()
+        .first()
+    )
+
+    await RoomService().upgrade_room(async_session, room.id)
+
+    await async_session.refresh(room)
+    await async_session.refresh(vault)
+    assert room.capacity == 10, "tier 2 follows 2*S/3*(L+4)-2 at L=2"
+    assert vault.population_max == initial_population_max + 10, "the room replaces its old 8, not adds to it"
+
+
+def _storage_room(vault_id, x: int = 1, y: int = 1) -> RoomCreate:
+    """A storage room wired like its catalog entry, planted at (x, y)."""
+    return RoomCreate(
+        vault_id=vault_id,
+        name="Storage room",
+        category=RoomTypeEnum.CAPACITY,
+        tier=1,
+        size=3,
+        ability=SPECIALEnum.ENDURANCE,
+        capacity_formula="5*S*(L+1)",
+        population_required=None,
+        base_cost=300,
+        incremental_cost=75,
+        t2_upgrade_cost=750,
+        t3_upgrade_cost=1500,
+        size_min=3,
+        size_max=9,
+        coordinate_x=x,
+        coordinate_y=y,
+    )
+
+
+@pytest.mark.asyncio
+async def test_merging_storage_segments_counts_the_merged_room_once(async_session: AsyncSession) -> None:
+    """A merge absorbs a room that is already counted, so the vault must not add it twice."""
+    from sqlmodel import select
+
+    from app.models.storage import Storage
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    await _add_elevator_on_level(async_session, vault.id, 1)
+
+    await RoomService()._build(db_session=async_session, obj_in=_storage_room(vault.id, x=1, y=1))
+    await RoomService()._build(db_session=async_session, obj_in=_storage_room(vault.id, x=4, y=1))
+
+    storage = (await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))).scalars().first()
+    assert storage.max_space == 60, "one merged room of size 6 provides 5*S*(L+1) = 60, not 30 + 60"

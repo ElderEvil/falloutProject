@@ -38,6 +38,9 @@ class MergeResult:
     absorbed_ids: list[UUID4]
     merged: bool
     created: bool = False
+    # Capacity the vault already counts for the rooms this merge absorbs, so the
+    # survivor's total replaces it instead of being added on top.
+    previous_capacity: int = 0
 
 
 class RoomService:
@@ -118,6 +121,7 @@ class RoomService:
 
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
+        counted_capacity = sum((room.capacity or 0) for room in group)
 
         if total_size > size_max:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
@@ -159,6 +163,7 @@ class RoomService:
                 absorbed_ids=absorbed_ids,
                 merged=True,
                 created=survivor_is_candidate and candidate_id is None,
+                previous_capacity=counted_capacity,
             )
 
         created = False
@@ -237,7 +242,13 @@ class RoomService:
             for room in absorbed:
                 await crud.room.delete(db_session=db_session, id=room.id, soft=False)
 
-        return MergeResult(room=survivor_room, absorbed_ids=absorbed_ids, merged=True, created=created)
+        return MergeResult(
+            room=survivor_room,
+            absorbed_ids=absorbed_ids,
+            merged=True,
+            created=created,
+            previous_capacity=counted_capacity,
+        )
 
     async def backfill_merge_rooms_for_vault(
         self,
@@ -398,7 +409,11 @@ class RoomService:
 
             if crud.room.requires_recalculation(survivor):
                 await vault_service.recalculate_vault_attributes(
-                    db_session=db_session, vault_obj=vault, room_obj=survivor, action=RoomActionEnum.BUILD
+                    db_session=db_session,
+                    vault_obj=vault,
+                    room_obj=survivor,
+                    action=RoomActionEnum.BUILD,
+                    previous_capacity=merge_result.previous_capacity,
                 )
 
             await event_bus.emit(
@@ -536,20 +551,28 @@ class RoomService:
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost)
 
         old_tier = room.tier
+        old_capacity = room.capacity
         room.tier += 1
+
+        room_size = room.size if room.size is not None else room.size_min
+        template = game_data_store.get_room(room.name)
 
         new_capacity = None
         new_output = None
 
-        if room.capacity is not None:
-            tier_ratio = (room.tier + 4) / (old_tier + 4)
-            new_capacity = int(room.capacity * tier_ratio)
+        # Re-evaluate the template's own formula. The (tier + 4) ratio below only
+        # matches rooms whose capacity happens to be proportional to it — storage
+        # scales with (tier + 1), so the ratio silently understates it.
+        if template and template.capacity_formula:
+            new_capacity = crud.room.evaluate_capacity_formula(template.capacity_formula, room.tier, room_size)
+        elif room.capacity is not None:
+            new_capacity = int(room.capacity * (room.tier + 4) / (old_tier + 4))
 
-        if room.output is not None:
-            tier_ratio = (room.tier + 4) / (old_tier + 4)
-            new_output = int(room.output * tier_ratio)
+        if template and template.output_formula:
+            new_output = crud.room.evaluate_output_formula(template.output_formula, room.tier, room_size)
+        elif room.output is not None:
+            new_output = int(room.output * (room.tier + 4) / (old_tier + 4))
 
-        room_size = room.size if room.size is not None else room.size_min
         new_image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
 
         await crud.room.update(
@@ -563,7 +586,11 @@ class RoomService:
 
         if crud.room.requires_recalculation(room):
             await vault_service.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault, room_obj=room, action=RoomActionEnum.UPGRADE
+                db_session=db_session,
+                vault_obj=vault,
+                room_obj=room,
+                action=RoomActionEnum.UPGRADE,
+                previous_capacity=old_capacity,
             )
 
         await event_bus.emit(

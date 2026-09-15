@@ -110,6 +110,27 @@ class CRUDWorldLocation:
             await db_session.refresh(obj)
             return obj
 
+    async def _promote_to_home_marker(
+        self, db_session: AsyncSession, existing: WorldLocation, vault: Vault, *, commit: bool = True
+    ) -> WorldLocation:
+        """Upgrade a name-colliding row to the pinned VAULT marker; no-op when already shaped."""
+        if (
+            existing.kind != PlaceKindEnum.VAULT
+            or existing.vault_number != vault.number
+            or (existing.coord_x, existing.coord_y) != (50.0, 50.0)
+        ):
+            existing.kind = PlaceKindEnum.VAULT
+            existing.vault_number = vault.number
+            existing.coord_x = 50.0
+            existing.coord_y = 50.0
+            db_session.add(existing)
+            if commit:
+                await db_session.commit()
+                await db_session.refresh(existing)
+            else:
+                await db_session.flush()
+        return existing
+
     async def get_or_create_home_marker(
         self, db_session: AsyncSession, vault: Vault, *, commit: bool = True
     ) -> WorldLocation:
@@ -125,22 +146,7 @@ class CRUDWorldLocation:
         # marker instead of returning the misplaced row.
         existing = await self.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
-            if (
-                existing.kind != PlaceKindEnum.VAULT
-                or existing.vault_number != vault.number
-                or (existing.coord_x, existing.coord_y) != (50.0, 50.0)
-            ):
-                existing.kind = PlaceKindEnum.VAULT
-                existing.vault_number = vault.number
-                existing.coord_x = 50.0
-                existing.coord_y = 50.0
-                db_session.add(existing)
-                if commit:
-                    await db_session.commit()
-                    await db_session.refresh(existing)
-                else:
-                    await db_session.flush()
-            return existing
+            return await self._promote_to_home_marker(db_session, existing, vault, commit=commit)
 
         obj = WorldLocation(
             name=vault_name,
@@ -158,7 +164,7 @@ class CRUDWorldLocation:
             except IntegrityError:
                 existing = await self.get_registry_by_normalized(db_session, normalized)
                 if existing is not None:
-                    return existing
+                    return await self._promote_to_home_marker(db_session, existing, vault, commit=False)
                 raise
             return obj
 
@@ -169,7 +175,7 @@ class CRUDWorldLocation:
             await db_session.rollback()
             existing = await self.get_registry_by_normalized(db_session, normalized)
             if existing is not None:
-                return existing
+                return await self._promote_to_home_marker(db_session, existing, vault, commit=True)
             raise
         else:
             await db_session.refresh(obj)

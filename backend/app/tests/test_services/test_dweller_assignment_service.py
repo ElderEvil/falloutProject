@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.dweller import Dweller
 from app.models.room import Room
-from app.schemas.common import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.schemas.common import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.services.dweller_assignment_service import (
     ABILITY_TO_STAT_MAP,
     MEDSCI_ABILITIES,
@@ -432,6 +432,67 @@ class TestAutoAssignProductionRooms:
 
         assert result["assigned_count"] == 0
         mock_update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_adult_age_group_filter_assigns_no_apprentices(self, svc, mock_db):
+        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth") as mock_youth,
+            patch("app.services.dweller_assignment_service.crud.dweller.count_in_room", new_callable=AsyncMock),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
+            result = await svc.auto_assign_production_rooms(mock_db, "v1", age_group=AgeGroupEnum.ADULT)
+
+        assert result["assigned_count"] == 0
+        mock_youth.assert_not_awaited()
+        mock_update.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_teen_age_group_filter_only_fills_teen_apprentices(self, svc, mock_db):
+        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
+        teen = _make_dweller(_id=_D1, strength=4)
+        teen.is_adult = False
+        teen.is_mature = False
+        teen.age_group = AgeGroupEnum.TEEN
+
+        with (
+            patch(
+                "app.services.dweller_assignment_service.crud.room.get_by_category",
+                new_callable=AsyncMock,
+                return_value=[room],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
+                new_callable=AsyncMock,
+                return_value=[teen],
+            ),
+            patch(
+                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+        ):
+            result = await svc.auto_assign_production_rooms(mock_db, "v1", age_group=AgeGroupEnum.TEEN)
+
+        assert result["assigned_count"] == 1
+        mock_update.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_full_rooms_skipped(self, svc, mock_db):

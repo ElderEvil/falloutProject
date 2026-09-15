@@ -189,17 +189,22 @@ class DwellerAssignmentService:
         rooms: list[Room],
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
+        age_group: AgeGroupEnum | None = None,
     ) -> None:
         """Fill one vacant apprentice slot per production room from unassigned youth.
 
         Apprentices sit outside worker capacity (see _get_available_slots), so this
         never places a 3rd dweller into a 2-slot room: at most one youth per room,
-        only where no apprentice already trains.
+        only where no apprentice already trains. Honours the caller's age-group
+        filter: an adult-only run assigns no apprentices.
         """
+        if age_group == AgeGroupEnum.ADULT:
+            return
+
         candidates = [
             d
             for d in await crud.dweller.get_unassigned_youth(db_session, vault_id)
-            if d.id not in assigned_dweller_ids and not d.is_mature
+            if d.id not in assigned_dweller_ids and not d.is_mature and (age_group is None or d.age_group == age_group)
         ]
         if not candidates:
             return
@@ -325,7 +330,7 @@ class DwellerAssignmentService:
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 
         await self._assign_room_apprentices(
-            db_session, vault_id, all_production_rooms, assignments, assigned_dweller_ids
+            db_session, vault_id, all_production_rooms, assignments, assigned_dweller_ids, age_group
         )
         return {"assigned_count": len(assignments), "assignments": assignments}
 
@@ -392,7 +397,9 @@ class DwellerAssignmentService:
                 prefer_lowest_stat,
             )
 
-        await self._assign_room_apprentices(db_session, vault_id, production_rooms, assignments, assigned_dweller_ids)
+        await self._assign_room_apprentices(
+            db_session, vault_id, production_rooms, assignments, assigned_dweller_ids, age_group
+        )
         return {"assigned_count": len(assignments), "assignments": assignments}
 
 

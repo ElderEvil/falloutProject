@@ -120,9 +120,26 @@ class CRUDWorldLocation:
         vault_name = f"Vault {vault.number:03}"
         normalized = normalize_place_name(vault_name)
 
-        # Fast path — already exists
+        # Fast path — already exists. A bio mention may have registered the same
+        # name earlier as a schematic PLACE row; upgrade it to the pinned VAULT
+        # marker instead of returning the misplaced row.
         existing = await self.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
+            if (
+                existing.kind != PlaceKindEnum.VAULT
+                or existing.vault_number != vault.number
+                or (existing.coord_x, existing.coord_y) != (50.0, 50.0)
+            ):
+                existing.kind = PlaceKindEnum.VAULT
+                existing.vault_number = vault.number
+                existing.coord_x = 50.0
+                existing.coord_y = 50.0
+                db_session.add(existing)
+                if commit:
+                    await db_session.commit()
+                    await db_session.refresh(existing)
+                else:
+                    await db_session.flush()
             return existing
 
         obj = WorldLocation(
@@ -276,6 +293,29 @@ class CRUDWorldLocation:
         else:
             await db_session.refresh(obj)
             return obj
+
+    async def ensure_home_state(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        location_id: UUID4,
+        description: str | None = None,
+    ) -> VaultLocationState:
+        """Get or create the vault's HOME_VAULT fog entry, promoting any other type.
+
+        ``get_or_create_state`` is first-write-wins, so a bio registration may
+        already hold an ORIGIN entry on the home pair. The owning vault's home
+        state must read HOME_VAULT, hence the promotion.
+        """
+        state = await self.get_or_create_state(
+            db_session, vault_id, location_id, LocationTypeEnum.HOME_VAULT, description=description
+        )
+        if state.type != LocationTypeEnum.HOME_VAULT:
+            state.type = LocationTypeEnum.HOME_VAULT
+            db_session.add(state)
+            await db_session.commit()
+            await db_session.refresh(state)
+        return state
 
     # -- DwellerLocation helpers ---------------------------------------------------
 

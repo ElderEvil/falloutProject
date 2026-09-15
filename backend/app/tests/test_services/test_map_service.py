@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import LocationTypeEnum
+from app.core.enums import LocationTypeEnum, PlaceKindEnum
 from app.models.dweller import Dweller
 from app.models.notification import Notification
 from app.models.vault import Vault
@@ -130,6 +130,34 @@ async def test_register_discovery_forced_db_error_logged_not_raised(
 # ---------------------------------------------------------------------------
 # ensure_home_marker  /  link_home_origin
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ensure_home_marker_upgrades_bio_registered_place_row(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A bio mention of 'Vault NNN' must not strand the home marker off-grid."""
+    from app.crud.world_location import world_location as wl_crud
+
+    await map_service.register_bio_places(
+        async_session, dweller, origin_place=f"Vault {vault.number:03}", visited_places=[]
+    )
+    placed = await wl_crud.get_registry_by_normalized(async_session, normalize_place_name(f"Vault {vault.number:03}"))
+    assert placed is not None
+    assert placed.kind != PlaceKindEnum.VAULT
+
+    home = await map_service.ensure_home_marker(async_session, vault)
+
+    assert home.id == placed.id
+    assert home.kind == PlaceKindEnum.VAULT
+    assert home.vault_number == vault.number
+    assert (home.coord_x, home.coord_y) == (50.0, 50.0)
+    states = (
+        (await async_session.execute(select(VaultLocationState).where(VaultLocationState.vault_id == vault.id)))
+        .scalars()
+        .all()
+    )
+    assert any(s.type == LocationTypeEnum.HOME_VAULT and s.location_id == home.id for s in states)
 
 
 # ---------------------------------------------------------------------------

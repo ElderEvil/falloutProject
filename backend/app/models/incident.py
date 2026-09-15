@@ -108,6 +108,11 @@ class IncidentBase(SQLModel):
 
     # Loot/rewards
     loot: dict | None = Field(default=None, sa_column=sa.Column(JSONB), description="Rewards from incident")
+    # Overflow loot awaiting a per-item take/sell decision in the aftermath.
+    unclaimed_loot: list[dict] = Field(
+        default_factory=list,
+        sa_column=sa.Column(JSONB, nullable=False),
+    )
 
     # Spread tracking
     rooms_affected: list[str] = Field(default_factory=list, sa_column=sa.Column(JSONB))

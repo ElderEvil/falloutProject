@@ -45,10 +45,28 @@ class CRUDIncident:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_for_update(db_session: AsyncSession, incident_id: UUID4) -> Incident | None:
+        """One incident locked FOR UPDATE (overflow claiming serialization)."""
+        result = await db_session.execute(select(Incident).where(Incident.id == incident_id).with_for_update())
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_active_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
         """Get all active incidents for a vault."""
         query = select(Incident).where(
             (Incident.vault_id == vault_id) & (Incident.status.in_([IncidentStatus.ACTIVE, IncidentStatus.SPREADING]))
+        )
+        result = await db_session.execute(query)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_resolved_by_vault(db_session: AsyncSession, vault_id: UUID4) -> list[Incident]:
+        """Resolved incidents for a vault, most recent first."""
+        query = (
+            select(Incident)
+            .where(Incident.vault_id == vault_id)
+            .where(Incident.status == IncidentStatus.RESOLVED)
+            .order_by(col(Incident.end_time).desc())
         )
         result = await db_session.execute(query)
         return list(result.scalars().all())

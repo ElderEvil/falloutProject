@@ -38,6 +38,9 @@ class MergeResult:
     absorbed_ids: list[UUID4]
     merged: bool
     created: bool = False
+    # Capacity the vault already counts for the rooms this merge absorbs, so the
+    # survivor's total replaces it instead of being added on top.
+    previous_capacity: int = 0
 
 
 class RoomService:
@@ -69,6 +72,15 @@ class RoomService:
         size_max = candidate.size_max
         capacity_formula = getattr(candidate, "capacity_formula", None)
         output_formula = getattr(candidate, "output_formula", None)
+
+        # A Room row carries no formulas, so a merge driven from stored rooms — the
+        # seed and the backfill command — must look them up, or the survivor is left
+        # with no capacity at all and the vault's totals cannot follow.
+        if not capacity_formula or not output_formula:
+            template = game_data_store.get_room(name)
+            if template:
+                capacity_formula = capacity_formula or template.capacity_formula
+                output_formula = output_formula or template.output_formula
         candidate_id = getattr(candidate, "id", None)
 
         if coordinate_x is None or coordinate_y is None:
@@ -118,6 +130,11 @@ class RoomService:
 
         absorbed_ids = [room.id for room in absorbed]
         total_size = size + sum((room.size if room.size is not None else room.size_min) for room in group)
+        counted_capacity = sum((room.capacity or 0) for room in group)
+        if candidate_id is not None:
+            # A stored candidate is already counted in the vault and survives the
+            # merge, so its own capacity belongs in what the survivor replaces.
+            counted_capacity += getattr(candidate, "capacity", None) or 0
 
         if total_size > size_max:
             return MergeResult(room=None, absorbed_ids=[], merged=False)
@@ -159,6 +176,7 @@ class RoomService:
                 absorbed_ids=absorbed_ids,
                 merged=True,
                 created=survivor_is_candidate and candidate_id is None,
+                previous_capacity=counted_capacity,
             )
 
         created = False
@@ -237,7 +255,13 @@ class RoomService:
             for room in absorbed:
                 await crud.room.delete(db_session=db_session, id=room.id, soft=False)
 
-        return MergeResult(room=survivor_room, absorbed_ids=absorbed_ids, merged=True, created=created)
+        return MergeResult(
+            room=survivor_room,
+            absorbed_ids=absorbed_ids,
+            merged=True,
+            created=created,
+            previous_capacity=counted_capacity,
+        )
 
     async def backfill_merge_rooms_for_vault(
         self,
@@ -252,6 +276,7 @@ class RoomService:
         adjacent identical neighbours until no more merges fit within ``size_max``.
         """
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
+        vault = await crud.vault.get(db_session, id=vault_id)
         absorbed_ids: set[UUID4] = set()
         merged_count = 0
 
@@ -274,6 +299,17 @@ class RoomService:
                 current = result.room
                 absorbed_ids.update(result.absorbed_ids)
                 merged_count += len(result.absorbed_ids)
+
+                # A merge swaps the absorbed rooms' contribution for the survivor's,
+                # so vault totals must follow even though no build action occurred.
+                if not dry_run and vault and crud.room.requires_recalculation(current):
+                    await vault_service.recalculate_vault_attributes(
+                        db_session=db_session,
+                        vault_obj=vault,
+                        room_obj=current,
+                        action=RoomActionEnum.BUILD,
+                        previous_capacity=result.previous_capacity,
+                    )
 
         return {"merged": merged_count}
 
@@ -398,7 +434,11 @@ class RoomService:
 
             if crud.room.requires_recalculation(survivor):
                 await vault_service.recalculate_vault_attributes(
-                    db_session=db_session, vault_obj=vault, room_obj=survivor, action=RoomActionEnum.BUILD
+                    db_session=db_session,
+                    vault_obj=vault,
+                    room_obj=survivor,
+                    action=RoomActionEnum.BUILD,
+                    previous_capacity=merge_result.previous_capacity,
                 )
 
             await event_bus.emit(
@@ -536,20 +576,28 @@ class RoomService:
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=upgrade_cost)
 
         old_tier = room.tier
+        old_capacity = room.capacity
         room.tier += 1
+
+        room_size = room.size if room.size is not None else room.size_min
+        template = game_data_store.get_room(room.name)
 
         new_capacity = None
         new_output = None
 
-        if room.capacity is not None:
-            tier_ratio = (room.tier + 4) / (old_tier + 4)
-            new_capacity = int(room.capacity * tier_ratio)
+        # Re-evaluate the template's own formula. The (tier + 4) ratio below only
+        # matches rooms whose capacity happens to be proportional to it — storage
+        # scales with (tier + 1), so the ratio silently understates it.
+        if template and template.capacity_formula:
+            new_capacity = crud.room.evaluate_capacity_formula(template.capacity_formula, room.tier, room_size)
+        elif room.capacity is not None:
+            new_capacity = int(room.capacity * (room.tier + 4) / (old_tier + 4))
 
-        if room.output is not None:
-            tier_ratio = (room.tier + 4) / (old_tier + 4)
-            new_output = int(room.output * tier_ratio)
+        if template and template.output_formula:
+            new_output = crud.room.evaluate_output_formula(template.output_formula, room.tier, room_size)
+        elif room.output is not None:
+            new_output = int(room.output * (room.tier + 4) / (old_tier + 4))
 
-        room_size = room.size if room.size is not None else room.size_min
         new_image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
 
         await crud.room.update(
@@ -563,7 +611,11 @@ class RoomService:
 
         if crud.room.requires_recalculation(room):
             await vault_service.recalculate_vault_attributes(
-                db_session=db_session, vault_obj=vault, room_obj=room, action=RoomActionEnum.UPGRADE
+                db_session=db_session,
+                vault_obj=vault,
+                room_obj=room,
+                action=RoomActionEnum.UPGRADE,
+                previous_capacity=old_capacity,
             )
 
         await event_bus.emit(

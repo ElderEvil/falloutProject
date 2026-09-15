@@ -20,18 +20,14 @@ async def _set_dweller_state(async_session: AsyncSession, dweller: Dweller, **st
 
 class TestUseRadaway:
     @pytest.mark.asyncio
-    async def test_removes_share_of_max_health(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
-    ):
+    async def test_removes_share_of_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, max_health=100, radiation=80, radaway=2)
         result = await medical_service.use_radaway(async_session, dweller.id)
         assert result.radiation == 80 - int(100 * game_config.health.radaway_removal_percent)
         assert result.radaway == 1
 
     @pytest.mark.asyncio
-    async def test_clears_remainder_below_half_bar(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
-    ):
+    async def test_clears_remainder_below_half_bar(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, max_health=100, radiation=10, radaway=2)
         result = await medical_service.use_radaway(async_session, dweller.id)
         assert result.radiation == 0

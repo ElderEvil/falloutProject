@@ -288,7 +288,10 @@ class HealthConfig(BaseSettings):
         default=1, description="RAD per 60s tick for in-vault dwellers while vault water is empty", ge=0
     )
     radaway_removal_percent: float = Field(
-        default=0.5, description="Share of max health worth of RAD removed per RadAway (always at least 1)", gt=0.0, le=1.0
+        default=0.5,
+        description="Share of max health worth of RAD removed per RadAway (always at least 1)",
+        gt=0.0,
+        le=1.0,
     )
     radaway_auto_use_threshold: int = Field(
         default=30, description="RAD level that triggers auto RadAway use in the wasteland", ge=1

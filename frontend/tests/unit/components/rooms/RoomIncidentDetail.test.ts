@@ -23,7 +23,7 @@ const incident = (overrides: Partial<Incident> = {}): Incident =>
     difficulty: 4,
     progress: { current: 30, target: 100, label: 'Threat' },
     risk: { kind: 'casualties', rooms_affected: 1 },
-    response: { label: 'Send' },
+    response: { label: 'Send defenders' },
     events: [],
     ...overrides,
   }) as Incident
@@ -90,7 +90,7 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    expect(wrapper.text()).toContain('SEND: 3 BEST')
+    expect(wrapper.text()).toContain('Send best 3')
     await wrapper.find('button').trigger('click')
 
     expect(assignResponders).toHaveBeenCalledWith(
@@ -110,8 +110,9 @@ describe('RoomIncidentDetail', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('RESPONDERS')
-    expect(text).toContain('SEND: 1 BEST Bob')
+    expect(text).toContain('Send defenders')
+    expect(text).toContain('Send best 1')
+    expect(text).toContain('Bob')
   })
 
   it('excludes dead, away and child dwellers from the send list', () => {

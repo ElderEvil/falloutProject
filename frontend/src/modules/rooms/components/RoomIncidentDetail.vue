@@ -6,6 +6,7 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { getIncidentIcon, type Incident } from '@/modules/combat/models/incident'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
+import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import IncidentScene from './IncidentScene.vue'
 import IncidentBattleLog from './IncidentBattleLog.vue'
@@ -93,39 +94,53 @@ const assignResponder = async (dwellerId: string) => {
     <IncidentBattleLog :events="incident.events" />
 
     <div>
-      <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
+      <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
+        <Icon icon="mdi:account-group" class="h-4 w-4" />
+        {{ incident.response.label }}
+      </h4>
+
+      <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
         <UButton variant="primary" size="sm" :loading="isSendingBest" @click="sendBestDefenders">
-          {{ incident.response.label.toUpperCase() }}: {{ bestResponders.length }} BEST
+          Send best {{ bestResponders.length }}
         </UButton>
         <span class="text-xs text-terminal-green-dim">
           {{ bestResponders.map((d) => d.first_name).join(', ') }}
         </span>
       </div>
 
-      <ul v-if="availableResponders.length" class="mt-2 flex flex-col gap-1">
-        <li
+      <ul v-if="availableResponders.length" class="flex flex-col gap-2">
+        <DwellerListRow
           v-for="dweller in availableResponders"
           :key="dweller.id"
-          class="flex items-center justify-between gap-2 text-xs text-terminal-green"
+          :dweller="dweller"
+          :clickable="false"
         >
-          <span>
-            {{ dweller.first_name }}
-            <span class="text-terminal-green-dim">
-              Lv. {{ dweller.level }} · {{ dweller.health }}/{{ dweller.max_health }} HP · POW
-              {{ getCombatPower(dweller) }}
-            </span>
-          </span>
-          <UButton
-            variant="secondary"
-            size="sm"
-            :disabled="assigningDwellerId === dweller.id"
-            @click="assignResponder(dweller.id)"
-          >
-            SEND
-          </UButton>
-        </li>
+          <template #middle>
+            <div class="flex items-center gap-3 text-xs text-terminal-green-dim">
+              <span class="flex items-center gap-1">
+                <Icon icon="mdi:heart" class="h-3.5 w-3.5 text-danger" />
+                {{ dweller.health }}/{{ dweller.max_health }}
+              </span>
+              <span class="flex items-center gap-1">
+                <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
+                POW {{ getCombatPower(dweller) }}
+              </span>
+            </div>
+          </template>
+          <template #actions>
+            <UButton
+              variant="secondary"
+              size="sm"
+              :disabled="assigningDwellerId !== null"
+              :loading="assigningDwellerId === dweller.id"
+              @click="assignResponder(dweller.id)"
+            >
+              Send
+            </UButton>
+          </template>
+        </DwellerListRow>
       </ul>
-      <p v-else class="mt-2 text-xs text-terminal-green-dim">
+      <p v-else class="text-xs text-terminal-green-dim">
         All available adults are already defending or away.
       </p>
     </div>

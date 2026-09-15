@@ -1,9 +1,24 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import StorageItemCard from '@/modules/storage/components/StorageItemCard.vue'
 
+const tooltipText = async (button: { trigger: (event: string) => Promise<void> }) => {
+  vi.useFakeTimers()
+  await button.trigger('focusin')
+  vi.advanceTimersByTime(250)
+  await nextTick()
+  const text = document.querySelector('[role="tooltip"]')?.textContent?.trim()
+  vi.useRealTimers()
+  return text
+}
+
 describe('StorageItemCard', () => {
-  it('presents the item description and clearly labelled inventory actions', () => {
+  afterEach(() => {
+    document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+  })
+
+  it('presents the item description and clearly labelled inventory actions', async () => {
     const wrapper = mount(StorageItemCard, {
       props: {
         item: {
@@ -15,24 +30,33 @@ describe('StorageItemCard', () => {
         },
         itemType: 'weapon',
       },
+      attachTo: document.body,
       global: { stubs: { Icon: true } },
     })
 
     expect(wrapper.text()).toContain('Built for close-range combat.')
-    expect(wrapper.get('button[title="Scrap"]').text()).toContain('Scrap')
-    expect(wrapper.get('button[title="Sell"]').text()).toContain('Sell')
 
-    const actions = wrapper.findAll('button').map((button) => button.text())
+    const buttons = wrapper.findAll('button')
+    const scrap = buttons.find((button) => button.text().includes('Scrap'))!
+    const sell = buttons.find((button) => button.text().trim() === 'Sell')!
+
+    expect(await tooltipText(scrap)).toBe('Scrap')
+    expect(await tooltipText(sell)).toBe('Sell')
+
+    const actions = buttons.map((button) => button.text())
     expect(actions.indexOf('Sell')).toBeLessThan(actions.indexOf('Scrap'))
   })
 
-  it('includes the junk quantity in the sell-all title', () => {
+  it('includes the junk quantity in the sell-all title', async () => {
     const wrapper = mount(StorageItemCard, {
       props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
+      attachTo: document.body,
       global: { stubs: { Icon: true } },
     })
 
-    expect(wrapper.find('button[title="Sell all (3)"]').exists()).toBe(true)
+    const sellAll = wrapper.findAll('button').find((button) => button.text().includes('Sell all'))!
+
+    expect(await tooltipText(sellAll)).toBe('Sell all (3)')
   })
 
   it('renders the unified weapon stats including accuracy', () => {

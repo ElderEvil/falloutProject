@@ -2,10 +2,12 @@
 /**
  * UTooltip - Terminal-themed tooltip component
  *
- * The default slot receives `tooltipId` so the control can set
- * `aria-describedby` and expose the relationship to assistive technology.
+ * The default slot's element is cloned and receives the trigger listeners, so no
+ * wrapper box is introduced and the wrapped control keeps its own root element
+ * (its layout classes and root-level listeners keep working). The default slot
+ * also receives `tooltipId` for controls that set their own `aria-describedby`.
  */
-import { computed, ref, useId } from 'vue'
+import { cloneVNode, computed, mergeProps, ref, useAttrs, useId, useSlots } from 'vue'
 
 interface Props {
   text?: string
@@ -15,9 +17,14 @@ interface Props {
 
 const { position = 'top', delay = 200, text } = defineProps<Props>()
 
-const isVisible = ref(false)
-const triggerRef = ref<HTMLElement | null>(null)
+// Attrs are merged onto the cloned trigger, never auto-applied to the fragment root.
+defineOptions({ inheritAttrs: false })
+
+const slots = useSlots()
+const attrs = useAttrs()
 const tooltipId = useId()
+const isVisible = ref(false)
+const triggerEl = ref<HTMLElement | null>(null)
 let timeoutId: number | null = null
 
 const show = () => {
@@ -37,8 +44,29 @@ const hide = () => {
   isVisible.value = false
 }
 
+// Trigger handlers live on the consumer's own element (no wrapper box), so the
+// wrapped control stays the root: its classes and root-level listeners keep working.
+const triggerVNode = computed(() => {
+  const node = slots.default?.({ tooltipId })?.[0]
+  if (!node) return null
+  return cloneVNode(
+    node,
+    mergeProps(
+      attrs,
+      {
+        ref: triggerEl,
+        onMouseenter: show,
+        onMouseleave: hide,
+        onFocusin: show,
+        onFocusout: hide,
+      },
+      text ? { 'aria-describedby': tooltipId } : {}
+    )
+  )
+})
+
 const tooltipPositionStyle = computed(() => {
-  const triggerElement = triggerRef.value?.firstElementChild as HTMLElement | null
+  const triggerElement = triggerEl.value
   if (!triggerElement) return { top: '0px', left: '0px', zIndex: 'var(--z-index-tooltip)' }
 
   const rect = triggerElement.getBoundingClientRect()
@@ -84,16 +112,7 @@ const arrowStyle = computed(() => ({
 </script>
 
 <template>
-  <span
-    ref="triggerRef"
-    class="contents"
-    @mouseenter="show"
-    @mouseleave="hide"
-    @focusin="show"
-    @focusout="hide"
-  >
-    <slot :tooltip-id="tooltipId"></slot>
-  </span>
+  <component :is="triggerVNode" v-if="triggerVNode" />
 
   <Teleport to="body">
     <Transition name="tooltip">

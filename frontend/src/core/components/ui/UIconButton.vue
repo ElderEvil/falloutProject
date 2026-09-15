@@ -11,6 +11,9 @@ interface Props {
 
 const { variant = 'default', disabled = false } = defineProps<Props>()
 
+// Consumer classes/attrs belong on the real <button>, not the tooltip trigger.
+defineOptions({ inheritAttrs: false })
+
 const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
@@ -20,18 +23,16 @@ const variantClass = variant === 'danger' ? 'text-danger hover:border-danger hov
 
 <template>
   <UTooltip :text="label">
-    <template #default="{ tooltipId }">
-      <button
-        type="button"
-        :aria-describedby="tooltipId"
-        :aria-label="label"
-        :disabled="disabled"
-        class="inline-flex size-7 items-center justify-center border border-transparent bg-transparent transition-[border-color,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary disabled:cursor-not-allowed disabled:opacity-50"
-        :class="variantClass"
-        @click="emit('click', $event)"
-      >
-        <Icon :icon="icon" class="size-4" :ariaHidden="true" />
-      </button>
-    </template>
+    <button
+      v-bind="$attrs"
+      type="button"
+      :aria-label="label"
+      :disabled="disabled"
+      class="inline-flex size-7 items-center justify-center border border-transparent bg-transparent transition-[border-color,color] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-primary disabled:cursor-not-allowed disabled:opacity-50"
+      :class="variantClass"
+      @click="emit('click', $event)"
+    >
+      <Icon :icon="icon" class="size-4" :ariaHidden="true" />
+    </button>
   </UTooltip>
 </template>

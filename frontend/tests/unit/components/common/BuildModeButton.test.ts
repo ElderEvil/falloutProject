@@ -38,7 +38,7 @@ describe('BuildModeButton', () => {
       props: { buildModeActive: false },
     })
 
-    await wrapper.trigger('click')
+    await wrapper.find('button').trigger('click')
 
     expect(wrapper.emitted('toggleBuildMode')).toBeTruthy()
   })

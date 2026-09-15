@@ -65,13 +65,11 @@ const { resourceIcon, roomImageUrl, productionInfo } = useRoomProduction(
 const {
   isUpgrading,
   isDestroying,
-  isRushing,
   justUpgraded,
   upgradeInfo,
   isVaultDoor,
   handleUpgrade,
   handleDestroy,
-  handleRushProduction,
 } = useRoomUpgrade(
   roomRef,
   actionError,
@@ -107,7 +105,7 @@ watch(
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     @close="emit('close')"
-    size="lg"
+    size="xl"
   >
     <template #header>
       <RoomDetailHeader
@@ -138,65 +136,74 @@ watch(
         :upgrade-info="upgradeInfo"
         :is-upgrading="isUpgrading"
         :is-destroying="isDestroying"
-        :is-rushing="isRushing"
         :is-vault-door="isVaultDoor"
         @upgrade="handleUpgrade"
         @destroy="handleDestroy"
-        @rush-production="handleRushProduction"
         @unassign-all="handleUnassignAll"
       />
 
       <template v-else>
-        <RoomPreviewSection
-          :room-name="room.name"
-          :image-url="room.image_url ?? null"
-          :room-image-url="roomImageUrl ?? null"
-          :dweller-capacity="dwellerCapacity"
-          :assigned-dwellers="assignedDwellers"
-          :show-apprentice-slot="producesResources(room)"
-        />
+        <div class="room-console">
+          <aside class="room-console__crew">
+            <RoomPreviewSection
+              :room-name="room.name"
+              :image-url="room.image_url ?? null"
+              :room-image-url="roomImageUrl ?? null"
+              :dweller-capacity="dwellerCapacity"
+              :assigned-dwellers="assignedDwellers"
+              :show-apprentice-slot="producesResources(room)"
+            />
 
-        <RoomInfoGrid :room="room" :ability-label="room.ability ? getAbilityLabel(room.ability) : null" />
+            <DwellerList
+              v-if="has('dwellerList')"
+              :assigned-dwellers="assignedDwellers"
+              :dweller-capacity="dwellerCapacity"
+              :ability="room.ability"
+              @dweller-click="openDwellerDetails"
+              @assign-dweller="handleAssignDweller"
+            />
+          </aside>
 
-        <OverseerBriefing
-          v-if="has('overseerBriefing') && overseerBriefing"
-          v-bind="overseerBriefing"
-          @review-incidents="emit('reviewIncidents')"
-        />
+          <section class="room-console__workspace">
+            <RoomInfoGrid
+              :room="room"
+              :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
+              :assigned-dweller-count="assignedDwellers.length"
+              :dweller-capacity="dwellerCapacity"
+            />
 
-        <ProductionStats
-          v-if="has('radioStats') && radioStats"
-          :radio-stats="radioStats"
-          :radio-mode="localRadioMode"
-        />
+            <OverseerBriefing
+              v-if="has('overseerBriefing') && overseerBriefing"
+              v-bind="overseerBriefing"
+              @review-incidents="emit('reviewIncidents')"
+            />
 
-        <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
+            <ProductionStats
+              v-if="has('radioStats') && radioStats"
+              :radio-stats="radioStats"
+              :radio-mode="localRadioMode"
+            />
 
-        <CraftingPanel
-          v-if="has('crafting') && craftingType"
-          :vault-id="vaultId"
-          :item-type="craftingType"
-          @crafted="emit('roomUpdated')"
-        />
+            <ProductionStats v-else-if="has('productionStats') && productionInfo" :production-info="productionInfo" />
 
-        <DwellerList
-          v-if="has('dwellerList')"
-          :assigned-dwellers="assignedDwellers"
-          :dweller-capacity="dwellerCapacity"
-          :ability="room.ability"
-          @dweller-click="openDwellerDetails"
-          @assign-dweller="handleAssignDweller"
-        />
+            <CraftingPanel
+              v-if="has('crafting') && craftingType"
+              :vault-id="vaultId"
+              :item-type="craftingType"
+              @crafted="emit('roomUpdated')"
+            />
 
-        <RadioControls
-          v-if="has('radioControls')"
-          :local-radio-mode="localRadioMode"
-          :is-recruiting="isRecruiting"
-          :manual-recruit-cost="manualRecruitCost"
-          :assigned-dwellers="assignedDwellers"
-          @switch-mode="handleSwitchRadioMode"
-          @recruit="handleRecruitDweller"
-        />
+            <RadioControls
+              v-if="has('radioControls')"
+              :local-radio-mode="localRadioMode"
+              :is-recruiting="isRecruiting"
+              :manual-recruit-cost="manualRecruitCost"
+              :assigned-dwellers="assignedDwellers"
+              @switch-mode="handleSwitchRadioMode"
+              @recruit="handleRecruitDweller"
+            />
+          </section>
+        </div>
 
         <RoomActions
           v-if="has('actions')"
@@ -204,13 +211,10 @@ watch(
           :upgrade-info="upgradeInfo"
           :is-upgrading="isUpgrading"
           :is-destroying="isDestroying"
-          :is-rushing="isRushing"
           :is-vault-door="isVaultDoor"
-          :has-production-info="!!productionInfo"
           :assigned-dweller-count="assignedDwellers.length"
           @upgrade="handleUpgrade"
           @destroy="handleDestroy"
-          @rush-production="handleRushProduction"
           @unassign-all="handleUnassignAll"
         />
       </template>
@@ -224,6 +228,36 @@ watch(
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.25rem 0;
+}
+
+.room-console {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.7fr) minmax(0, 1.3fr);
+  gap: 1rem;
+}
+
+.room-console__crew,
+.room-console__workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.room-console__workspace {
+  padding-left: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+}
+
+@media (max-width: 720px) {
+  .room-console {
+    grid-template-columns: 1fr;
+  }
+
+  .room-console__workspace {
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 
 .error-banner {

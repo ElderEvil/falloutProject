@@ -16,18 +16,17 @@ defineProps<Props>()
 <template>
   <div class="modal-header">
     <div class="header-content">
-      <h2 class="room-title">
-        <Icon :icon="resourceIcon" class="room-icon" />
-        {{ roomName }}
-      </h2>
+      <div class="title-row">
+        <h2 class="room-title">
+          <Icon :icon="resourceIcon" class="room-icon" />
+          {{ roomName }}
+        </h2>
+        <span class="tier-readout" :class="{ 'tier-upgraded': justUpgraded }">Tier {{ tier }}</span>
+      </div>
       <div class="header-metadata">
-        <span class="metadata-item">{{ category }} Room</span>
-        <span class="metadata-divider">&middot;</span>
-        <span class="metadata-item" :class="{ 'tier-upgraded': justUpgraded }"
-          >Tier {{ tier }}</span
-        >
+        <span class="metadata-item">{{ category }} system</span>
         <span v-if="ability" class="metadata-divider">&middot;</span>
-        <span v-if="ability" class="metadata-item">Requires: {{ ability.charAt(0) }}</span>
+        <span v-if="ability" class="metadata-item">{{ ability.charAt(0) }}-linked</span>
       </div>
     </div>
   </div>
@@ -35,48 +34,64 @@ defineProps<Props>()
 
 <style scoped>
 .modal-header {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-theme-glow);
+  padding-bottom: 0.1rem;
 }
 
 .header-content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .room-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.125rem;
+  min-width: 0;
+  font-size: 1rem;
   font-weight: bold;
   color: var(--color-theme-primary);
   margin: 0;
 }
 
 .room-icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.1rem;
+  height: 1.1rem;
   color: var(--color-terminal-green);
+}
+
+.tier-readout {
+  margin-left: auto;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
+  color: var(--color-warning);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .header-metadata {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.65rem;
-  color: var(--color-gray-500);
+  gap: 0.35rem;
+  font-size: 0.6rem;
+  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .metadata-item {
-  color: var(--color-gray-500);
+  color: inherit;
 }
 
 .metadata-divider {
-  color: var(--color-gray-600);
+  color: color-mix(in srgb, var(--color-theme-primary) 30%, transparent);
 }
 
 .tier-upgraded {

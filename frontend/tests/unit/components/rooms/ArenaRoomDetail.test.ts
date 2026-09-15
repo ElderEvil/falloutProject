@@ -22,7 +22,6 @@ describe('ArenaRoomDetail', () => {
         upgradeInfo: { canUpgrade: true, upgradeCost: 500, nextTier: 2, maxTier: 3 },
         isUpgrading: false,
         isDestroying: false,
-        isRushing: false,
         isVaultDoor: false,
       },
       global: {

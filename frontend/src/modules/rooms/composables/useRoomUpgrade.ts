@@ -22,7 +22,6 @@ export function useRoomUpgrade(
   const { isDestroying, destroyRoom } = useRoomDestroy()
 
   const isUpgrading = ref(false)
-  const isRushing = ref(false)
   const justUpgraded = ref(false)
 
   const upgradeInfo = computed(() => {
@@ -113,26 +112,13 @@ export function useRoomUpgrade(
     })
   }
 
-  const handleRushProduction = async () => {
-    if (!room.value) return
-
-    isRushing.value = true
-    actionError.value = 'Rush Production feature coming soon!'
-    setTimeout(() => {
-      actionError.value = null
-      isRushing.value = false
-    }, 3000)
-  }
-
   return {
     isUpgrading,
     isDestroying,
-    isRushing,
     justUpgraded,
     upgradeInfo,
     isVaultDoor: isVaultDoorRoom,
     handleUpgrade,
     handleDestroy,
-    handleRushProduction,
   }
 }

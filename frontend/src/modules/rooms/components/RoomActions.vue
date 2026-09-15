@@ -16,9 +16,7 @@ interface Props {
   upgradeInfo: UpgradeInfo | null
   isUpgrading: boolean
   isDestroying: boolean
-  isRushing: boolean
   isVaultDoor: boolean
-  hasProductionInfo: boolean
   assignedDwellerCount: number
 }
 
@@ -27,161 +25,123 @@ defineProps<Props>()
 const emit = defineEmits<{
   upgrade: []
   destroy: []
-  rushProduction: []
   unassignAll: []
 }>()
 </script>
 
 <template>
-  <div class="section">
-    <h3 class="section-title">
-      <Icon icon="mdi:cog" class="h-5 w-5" />
-      Management
-    </h3>
-    <div class="actions-grid">
-      <!-- Upgrade Button -->
-      <UButton
-        v-if="upgradeInfo?.canUpgrade"
-        @click="emit('upgrade')"
-        :disabled="isUpgrading"
-        variant="secondary"
-        size="sm"
-        class="action-btn action-btn--upgrade"
-      >
-        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
-        <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
-        <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
-      </UButton>
-      <UButton
-        v-else-if="upgradeInfo && upgradeInfo.maxTier > 1"
-        disabled
-        variant="secondary"
-        size="sm"
-        class="action-btn action-btn--upgrade"
-      >
-        <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
-        <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
-      </UButton>
+  <div class="room-command-bar">
+    <p v-if="upgradeInfo && !upgradeInfo.canUpgrade && upgradeInfo.maxTier > 1" class="command-status">
+      Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})
+    </p>
 
-      <!-- Rush Production Button -->
-      <UButton
-        v-if="hasProductionInfo"
-        @click="emit('rushProduction')"
-        :disabled="isRushing || assignedDwellerCount === 0"
-        variant="secondary"
-        size="sm"
-        class="action-btn"
-      >
-        <Icon icon="mdi:lightning-bolt" class="h-4 w-4" />
-        <span>Rush Production</span>
-        <span class="feature-badge">Coming Soon</span>
-      </UButton>
+    <UButton
+      v-if="upgradeInfo?.canUpgrade"
+      @click="emit('upgrade')"
+      :disabled="isUpgrading"
+      variant="primary"
+      size="sm"
+    >
+      <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
+      Upgrade to Tier {{ upgradeInfo.nextTier }}
+      <span class="cost-readout">{{ upgradeInfo.upgradeCost }} caps</span>
+    </UButton>
 
-      <!-- Unassign All Button -->
-      <UButton
-        @click="emit('unassignAll')"
-        :disabled="assignedDwellerCount === 0"
-        variant="secondary"
-        size="sm"
-        class="action-btn action-btn--half"
-      >
-        <Icon icon="mdi:account-remove" class="h-4 w-4" />
-        <span>Unassign All Dwellers</span>
-      </UButton>
-
-      <!-- Destroy Button -->
-      <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
-        <UButton disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn">
-          <Icon icon="mdi:delete" class="h-4 w-4" />
-          <span>Destroy Room</span>
+    <details class="manage-menu">
+      <summary>
+        <Icon icon="mdi:dots-horizontal" class="h-4 w-4" />
+        Management
+      </summary>
+      <div class="manage-actions">
+        <UButton
+          @click="emit('unassignAll')"
+          :disabled="assignedDwellerCount === 0"
+          variant="ghost"
+          size="sm"
+        >
+          <Icon icon="mdi:account-remove" class="h-4 w-4" />
+          Unassign All Dwellers
         </UButton>
-      </UTooltip>
-      <UButton
-        v-else
-        @click="emit('destroy')"
-        :disabled="isDestroying"
-        variant="secondary"
-        size="sm"
-        class="action-btn action-btn--half destroy-btn"
-      >
-        <Icon icon="mdi:delete" class="h-4 w-4" />
-        <span>Destroy Room</span>
-      </UButton>
-    </div>
+        <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
+          <UButton disabled variant="danger" size="sm">
+            <Icon icon="mdi:delete" class="h-4 w-4" />
+            Destroy Room
+          </UButton>
+        </UTooltip>
+        <UButton v-else @click="emit('destroy')" :disabled="isDestroying" variant="danger" size="sm">
+          <Icon icon="mdi:delete" class="h-4 w-4" />
+          Destroy Room
+        </UButton>
+      </div>
+    </details>
   </div>
 </template>
 
 <style scoped>
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-title {
+.room-command-bar {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.section-title :deep(svg) {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-.actions-grid {
-  display: flex;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
-  padding: 0.25rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
+  padding-top: 0.75rem;
 }
 
-.action-btn {
-  flex: 1 1 200px;
-  min-width: 200px;
-}
-
-.action-btn :deep(button) {
-  justify-content: flex-start;
-}
-
-.action-btn.destroy-btn {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.action-btn.destroy-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-  box-shadow: none;
-}
-
-.cost-badge {
+.cost-readout {
   margin-left: auto;
-  padding: 0.125rem 0.5rem;
+  padding-left: 0.5rem;
   background: var(--color-surface-sunken);
-  border: 1px solid var(--color-warning);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: bold;
   color: var(--color-warning);
-}
-
-.feature-badge {
-  margin-left: auto;
-  padding: 0.125rem 0.5rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-info);
-  border-radius: 4px;
-  font-size: 0.65rem;
+  font-size: 0.6875rem;
   font-weight: bold;
-  color: var(--color-info);
-  font-style: italic;
 }
 
+.command-status {
+  margin: 0 auto 0 0;
+  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.manage-menu {
+  position: relative;
+}
+
+.manage-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
+  color: var(--color-theme-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.manage-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.manage-actions {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.35rem);
+  z-index: 1;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 11rem;
+  padding: 0.35rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-theme-primary);
+}
+
+@media (max-width: 480px) {
+  .room-command-bar {
+    justify-content: space-between;
+  }
+}
 </style>

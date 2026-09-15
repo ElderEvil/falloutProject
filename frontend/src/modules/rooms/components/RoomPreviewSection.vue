@@ -20,11 +20,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 </script>
 
 <template>
-  <div class="section room-preview-section">
-    <h3 class="section-title">
-      <Icon icon="mdi:image-outline" class="h-5 w-5" />
-      Room Preview
-    </h3>
+  <div class="room-preview-section">
     <div class="preview-container">
       <div class="room-image-container">
         <img v-if="roomImageUrl" :src="roomImageUrl" :alt="roomName || 'Room'" class="room-image" />
@@ -79,34 +75,10 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 </template>
 
 <style scoped>
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  margin: 0;
-}
-
-.section-title :deep(svg) {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
 .room-preview-section {
   background: var(--color-surface);
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-theme-glow);
+  padding: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
 }
 
 .preview-container {
@@ -117,10 +89,10 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 
 .room-image-container {
   position: relative;
-  min-height: 180px;
-  border-radius: 8px;
+  min-height: 132px;
+  border-radius: 3px;
   overflow: hidden;
-  border: 2px solid var(--color-theme-glow);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 35%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,7 +102,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 .room-image {
   width: 100%;
   height: auto;
-  max-height: 260px;
+  max-height: 190px;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.8);
   display: block;
@@ -147,7 +119,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   align-items: center;
   justify-content: center;
   background: var(--color-surface-sunken);
-  padding: 1.25rem;
+  padding: 0.75rem;
 }
 
 .room-image-placeholder.has-image {
@@ -156,8 +128,8 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 }
 
 .placeholder-text {
-  margin: 1rem 0 0.25rem;
-  font-size: 1.125rem;
+  margin: 0.5rem 0 0.15rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-theme-primary);
   text-transform: uppercase;
@@ -165,16 +137,16 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 }
 
 .placeholder-subtext {
-  font-size: 0.875rem;
+  font-size: 0.6875rem;
   color: var(--color-gray-500);
   font-style: italic;
 }
 
 .dweller-sprites-overlay {
   position: absolute;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  right: 0.5rem;
+  bottom: 0.35rem;
+  left: 0.35rem;
+  right: 0.35rem;
   display: flex;
   justify-content: space-evenly;
   z-index: 10;
@@ -189,15 +161,14 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 
 .placeholder-dweller {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--color-surface-sunken);
-  border: 2px dashed var(--color-theme-glow);
-  border-radius: 8px;
-  transition: all 0.3s;
+  border: 1px dashed var(--color-theme-glow);
+  border-radius: 3px;
 }
 
 .placeholder-dweller.empty {
@@ -207,8 +178,7 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
 
 .slot-filled .placeholder-dweller {
   background: var(--color-surface-raised);
-  border: 2px solid var(--color-theme-primary);
-  animation: glow-pulse 2s ease-in-out infinite;
+  border: 1px solid var(--color-theme-primary);
 }
 
 .apprentice-slot .placeholder-dweller {
@@ -230,7 +200,6 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   color: var(--color-warning);
   font-size: 0.625rem;
   font-weight: 700;
-  box-shadow: 0 0 8px var(--color-warning);
 }
 
 .apprentice-marker :deep(svg) {
@@ -239,20 +208,10 @@ const apprentice = computed(() => props.assignedDwellers.find((dweller) => dwell
   filter: drop-shadow(0 0 3px var(--color-warning));
 }
 
-@keyframes glow-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 8px var(--color-theme-glow);
-  }
-  50% {
-    box-shadow: 0 0 16px var(--color-theme-primary);
-  }
-}
-
 .dweller-initial {
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: bold;
   color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
+  text-shadow: 0 0 4px var(--color-theme-glow);
 }
 </style>

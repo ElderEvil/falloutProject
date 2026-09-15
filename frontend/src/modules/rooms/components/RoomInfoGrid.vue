@@ -6,6 +6,8 @@ import type { Room } from '../models/room'
 interface Props {
   room: Room
   abilityLabel: string | null
+  assignedDwellerCount: number
+  dwellerCapacity: number
 }
 
 const props = defineProps<Props>()
@@ -16,84 +18,105 @@ const roomSizeText = computed(
 </script>
 
 <template>
-  <div class="section">
-    <h3 class="section-title">
-      <Icon icon="mdi:information" class="h-5 w-5" />
-      Room Information
-    </h3>
-    <div class="info-grid">
-
-      <div class="info-item">
-        <span class="info-label">Resource Capacity:</span>
-        <span class="info-value">{{ room.capacity || 0 }}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Room Size:</span>
-        <span class="info-value">{{ roomSizeText }}</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Position:</span>
-        <span class="info-value">({{ room.coordinate_x }}, {{ room.coordinate_y }})</span>
-      </div>
-      <div v-if="room.ability" class="info-item">
-        <span class="info-label">Required Stat:</span>
-        <span class="info-value">{{ abilityLabel }}</span>
-      </div>
+  <section class="room-summary" aria-label="Room summary">
+    <div class="summary-cell">
+      <span class="summary-label">Crew</span>
+      <strong class="summary-value">{{ assignedDwellerCount }}/{{ dwellerCapacity }}</strong>
     </div>
-  </div>
+    <div v-if="room.ability" class="summary-cell">
+      <span class="summary-label">Focus</span>
+      <strong class="summary-value">{{ abilityLabel }}</strong>
+    </div>
+    <div class="summary-cell">
+      <span class="summary-label">Capacity</span>
+      <strong class="summary-value">{{ room.capacity || 0 }}</strong>
+    </div>
+    <details class="system-details">
+      <summary>
+        <Icon icon="mdi:information-outline" />
+        System details
+      </summary>
+      <div class="details-readout">
+        <span>Room Size: {{ roomSizeText }}</span>
+        <span>Position: ({{ room.coordinate_x }}, {{ room.coordinate_y }})</span>
+        <span v-if="room.ability">Required Stat: {{ abilityLabel }}</span>
+      </div>
+    </details>
+  </section>
 </template>
 
 <style scoped>
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.room-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--color-surface-sunken);
+  border-block: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
 }
 
-.section-title {
+.summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  border-right: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+}
+
+.summary-label,
+.system-details summary,
+.details-readout {
+  color: color-mix(in srgb, var(--color-theme-primary) 58%, transparent);
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.summary-value {
+  overflow: hidden;
+  color: var(--color-theme-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-details {
+  grid-column: 1 / -1;
+  border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
+}
+
+.system-details summary {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-theme-primary);
-  margin: 0;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.45rem 0.75rem;
 }
 
-.section-title :deep(svg) {
-  width: 1rem;
-  height: 1rem;
+.system-details summary::-webkit-details-marker {
+  display: none;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+.system-details summary :deep(svg) {
+  height: 0.75rem;
+  width: 0.75rem;
 }
 
-.info-item {
+.details-readout {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.15rem;
-  padding: 0.5rem 0.6rem;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0 0.75rem 0.55rem;
 }
 
-.info-label {
-  color: var(--color-gray-400);
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
+@media (max-width: 480px) {
+  .room-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-.info-value {
-  color: var(--color-theme-primary);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  .summary-cell:nth-child(2) {
+    border-right: 0;
+  }
 }
 </style>

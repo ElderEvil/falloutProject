@@ -22,8 +22,8 @@ health down to the new effective ceiling. Radiation death remains a separate gam
 
 - `apply_radiation_gain(dweller, amount)` mutates the dweller in place: applies the configured cap, pulls health
   down to the effective-health ceiling, and returns whether anything changed.
-- `radiation_removal_amount(radiation)` is a pure calculation returning one RadAway's removal as the configured
-  share of current radiation — at least one point, never more than the dweller currently has.
+- `radiation_removal_amount(radiation, max_health)` is a pure calculation returning one RadAway's removal as the
+  configured share of max health — at least one point, never more than the dweller currently has.
 
 The helpers own no session and never commit. Callers persist the mutated dweller themselves. Exploration events,
 Radscorpion incidents, dehydration, and medical treatment must use these helpers rather than duplicate caps or

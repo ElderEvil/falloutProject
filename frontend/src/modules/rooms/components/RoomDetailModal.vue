@@ -156,6 +156,7 @@ watch(
       <IncidentAftermath
         v-else-if="has('aftermath') && liveAftermath"
         :aftermath="liveAftermath"
+        :vault-id="vaultId"
       />
 
       <ArenaRoomDetail

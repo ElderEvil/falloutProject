@@ -24,6 +24,13 @@ export interface IncidentProgress {
   label: string
 }
 
+export interface IncidentLootItem {
+  item_type: string
+  rarity?: string
+  name: string
+  quantity?: number
+}
+
 export interface Incident {
   id: string
   vault_id: string
@@ -40,13 +47,9 @@ export interface Incident {
   enemies_defeated: number
   loot: {
     caps?: number
-    items?: Array<{
-      item_type: string
-      rarity?: string
-      name: string
-      quantity?: number
-    }>
+    items?: IncidentLootItem[]
   } | null
+  unclaimed_loot: IncidentLootItem[]
   rooms_affected: string[]
   spread_count: number
   created_at: string
@@ -110,7 +113,13 @@ export interface IncidentAftermath {
   outcome: IncidentOutcome
   capsEarned: number
   loot: Incident['loot']
+  unclaimed: IncidentLootItem[]
   enemiesDefeated: number
   damageDealt: number
   rounds: number
+}
+
+export interface IncidentOverflowResponse {
+  caps_granted: number
+  unclaimed_loot: IncidentLootItem[]
 }

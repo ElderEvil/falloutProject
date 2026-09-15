@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { getIncidentIcon, type IncidentAftermath } from '@/modules/combat/models/incident'
 import UButton from '@/core/components/ui/UButton.vue'
 
-const props = defineProps<{ aftermath: IncidentAftermath }>()
+const props = defineProps<{ aftermath: IncidentAftermath; vaultId: string }>()
 
+const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const acting = ref<{ index: number; action: 'take' | 'sell' } | null>(null)
+const isActing = computed(() => acting.value !== null)
 
 const threatName = computed(() => props.aftermath.type.replace(/_/g, ' ').toUpperCase())
 const icon = computed(() => getIncidentIcon(props.aftermath.type))
@@ -25,6 +29,22 @@ const outcomeClass = computed(() => {
 })
 
 const lootItems = computed(() => props.aftermath.loot?.items ?? [])
+const heldItems = computed(() => props.aftermath.unclaimed ?? [])
+
+const act = async (index: number, action: 'take' | 'sell') => {
+  if (!authStore.token || acting.value) return
+  acting.value = { index, action }
+  try {
+    const { vaultId, aftermath } = props
+    if (action === 'take') {
+      await incidentStore.takeOverflow(vaultId, aftermath.incidentId, index, authStore.token)
+    } else {
+      await incidentStore.sellOverflow(vaultId, aftermath.incidentId, index, authStore.token)
+    }
+  } finally {
+    acting.value = null
+  }
+}
 
 const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
 </script>
@@ -65,6 +85,41 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
       <ul class="mt-1 flex flex-col gap-0.5">
         <li v-for="(item, index) in lootItems" :key="index" class="text-xs text-terminal-green">
           {{ item.quantity && item.quantity > 1 ? `${item.quantity}× ` : '' }}{{ item.name }}
+        </li>
+      </ul>
+    </div>
+
+    <div v-if="heldItems.length">
+      <p class="text-xs text-warning">HELD — STORAGE FULL</p>
+      <ul class="mt-1 flex flex-col gap-1">
+        <li
+          v-for="(item, index) in heldItems"
+          :key="index"
+          class="flex items-center justify-between gap-2 text-xs text-terminal-green"
+        >
+          <span>
+            {{ item.quantity && item.quantity > 1 ? `${item.quantity}× ` : '' }}{{ item.name }}
+          </span>
+          <span class="flex shrink-0 gap-1">
+            <UButton
+              variant="secondary"
+              size="sm"
+              :disabled="isActing"
+              :loading="acting?.index === index && acting?.action === 'take'"
+              @click="act(index, 'take')"
+            >
+              TAKE
+            </UButton>
+            <UButton
+              variant="secondary"
+              size="sm"
+              :disabled="isActing"
+              :loading="acting?.index === index && acting?.action === 'sell'"
+              @click="act(index, 'sell')"
+            >
+              SELL
+            </UButton>
+          </span>
         </li>
       </ul>
     </div>

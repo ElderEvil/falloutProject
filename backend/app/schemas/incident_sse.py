@@ -23,3 +23,4 @@ class IncidentSseEvent(BaseModel):
     difficulty: int
     success: bool | None = None
     caps_earned: int | None = None
+    experience_earned: int | None = None

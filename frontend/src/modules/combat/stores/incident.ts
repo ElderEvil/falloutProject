@@ -51,7 +51,12 @@ export const useIncidentStore = defineStore('incident', () => {
     aftermaths.value.delete(roomId)
   }
 
-  const recordAftermath = (incident: Incident, outcome: IncidentOutcome, capsEarned: number): void => {
+  const recordAftermath = (
+    incident: Incident,
+    outcome: IncidentOutcome,
+    capsEarned: number,
+    experienceEarned: number
+  ): void => {
     aftermaths.value.set(incident.room_id, {
       incidentId: incident.id,
       roomId: incident.room_id,
@@ -59,6 +64,7 @@ export const useIncidentStore = defineStore('incident', () => {
       roomName: incident.room_name,
       outcome,
       capsEarned,
+      experienceEarned,
       loot: incident.loot,
       unclaimed: incident.unclaimed_loot ?? [],
       enemiesDefeated: incident.enemies_defeated,
@@ -97,6 +103,7 @@ export const useIncidentStore = defineStore('incident', () => {
       entry.enemiesDefeated = incident.enemies_defeated
       entry.damageDealt = incident.damage_dealt
       entry.rounds = incident.events.length
+      entry.experienceEarned = incident.loot?.experience ?? entry.experienceEarned
       // A resolution frame that never arrived leaves the outcome unknown, but the record still knows it.
       const settled = outcomeForStatus(incident.status)
       if (entry.outcome === 'unknown' && settled) {
@@ -164,7 +171,7 @@ export const useIncidentStore = defineStore('incident', () => {
         .forEach((id) => {
           const vanished = incidents.value.get(id)
           if (vanished) {
-            recordAftermath(vanished, 'unknown', 0)
+            recordAftermath(vanished, 'unknown', 0, 0)
             void refreshAftermathOverflow(vaultId, id, token)
           }
         })
@@ -265,20 +272,25 @@ export const useIncidentStore = defineStore('incident', () => {
               incidents.value.delete(resolvedId)
             }
             if (!isFirstNotice) break
+            const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
+            const experienceEarned =
+              typeof data.experience_earned === 'number' ? data.experience_earned : 0
             if (resolved && resolvedId) {
               recordAftermath(
                 resolved,
                 data.success === true ? 'victory' : 'defeat',
-                typeof data.caps_earned === 'number' ? data.caps_earned : 0
+                capsEarned,
+                experienceEarned
               )
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
-                  : 'Incident resolved — responders earned experience.'
+                  : experienceEarned > 0
+                    ? `Incident victory — responders earned ${experienceEarned} XP.`
+                    : 'Incident resolved — responders earned experience.'
               )
             } else if (resolved) {
               showError(

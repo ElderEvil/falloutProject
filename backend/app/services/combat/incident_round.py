@@ -117,7 +117,8 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
             f"Storage full — {len(held)} item(s) held for your decision.",
         )
 
-    await award_combat_xp(db_session, incident, dwellers)
+    experience_earned = await award_combat_xp(db_session, incident, dwellers)
+    incident.loot = {**incident.loot, "experience": experience_earned}
 
     logger.info(f"Incident {incident.id} resolved successfully! Loot: {incident.loot}")
     incident_publishing.record_event(
@@ -201,8 +202,13 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     await notification_service.deliver_deferred_notifications(db_session)
 
     if resolved:
-        await incident_publishing.notify_resolution(db_session, incident, success=True, caps_earned=caps_earned)
-        await incident_publishing.publish_sse(incident, "incident_resolved", success=True, caps_earned=caps_earned)
+        experience_earned = incident.loot.get("experience", 0)
+        await incident_publishing.notify_resolution(
+            db_session, incident, success=True, caps_earned=caps_earned, experience_earned=experience_earned
+        )
+        await incident_publishing.publish_sse(
+            incident, "incident_resolved", success=True, caps_earned=caps_earned, experience_earned=experience_earned
+        )
 
     return IncidentRoundResult(
         damage_to_dwellers=damage_to_dwellers,
@@ -214,17 +220,20 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     )
 
 
-async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> None:
+async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
     """Award experience to dwellers who participated in combat.
 
     Args:
         db_session: Database session
         incident: Resolved incident
         dwellers: List of dwellers who fought
+
+    Returns:
+        Total experience granted across responders.
     """
 
     if not dwellers:
-        return
+        return 0
 
     from app.services.leveling_service import leveling_service
 
@@ -246,3 +255,5 @@ async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers
 
         # Check for level-up
         await leveling_service.check_level_up(db_session, dweller)
+
+    return xp_per_dweller * len(dwellers)

@@ -278,7 +278,7 @@ class DwellerService:
         # Find room with available capacity (based on room size): 2 dwellers per 3 size units
         best_room = None
         for room in matching_rooms:
-            dweller_count = await crud.dweller.count_in_room(db_session, room.id)
+            dweller_count = await crud.dweller.count_in_room(db_session, room.id, include_apprentices=False)
             if dweller_count < calculate_room_capacity(room.size):
                 best_room = room
                 break

@@ -1,5 +1,7 @@
 """Service for intelligent dweller assignment to rooms."""
 
+from collections.abc import Sequence
+
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,7 +34,9 @@ class DwellerAssignmentService:
 
     async def _get_available_slots(self, room: Room, db_session: AsyncSession) -> int:
         """Get available slots in a room."""
-        current_dwellers = await crud.dweller.count_in_room(db_session, room.id)
+        current_dwellers = await crud.dweller.count_in_room(
+            db_session, room.id, include_apprentices=room.category != RoomTypeEnum.PRODUCTION
+        )
         max_capacity = self._calculate_room_capacity(room)
         return max(0, max_capacity - current_dwellers)
 
@@ -90,7 +94,7 @@ class DwellerAssignmentService:
         ability: SPECIALEnum,
         ability_rooms: list[Room],
         db_session: AsyncSession,
-        unassigned_dwellers: list[Dweller],
+        unassigned_dwellers: Sequence[Dweller],
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
         dwellers_for_tier: int,
@@ -99,12 +103,12 @@ class DwellerAssignmentService:
         """Assign dwellers for a specific ability. Returns updated unassigned dwellers list."""
         ability_specific_rooms = [r for r in ability_rooms if r.ability == ability]
         if not ability_specific_rooms:
-            return unassigned_dwellers
+            return list(unassigned_dwellers)
 
         ability_slots, ability_total = await self._calculate_total_slots(ability_specific_rooms, db_session)
 
         if ability_total == 0:
-            return unassigned_dwellers
+            return list(unassigned_dwellers)
 
         stat_name = ABILITY_TO_STAT_MAP[ability]
         eligible_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
@@ -141,22 +145,22 @@ class DwellerAssignmentService:
         rooms: list[Room],
         abilities: list[SPECIALEnum],
         db_session: AsyncSession,
-        unassigned_dwellers: list[Dweller],
+        unassigned_dwellers: Sequence[Dweller],
         assignments: list[dict[str, str]],
         assigned_dweller_ids: set,
         prefer_lowest_stat: bool = False,
     ) -> list[Dweller]:
         """Assign dwellers to rooms with proportional fill within the tier."""
         if not unassigned_dwellers or not rooms:
-            return unassigned_dwellers
+            return list(unassigned_dwellers)
 
         ability_rooms = self._filter_rooms_by_abilities(rooms, abilities)
         if not ability_rooms:
-            return unassigned_dwellers
+            return list(unassigned_dwellers)
 
         _room_slots, total_slots = await self._calculate_total_slots(ability_rooms, db_session)
         if total_slots == 0:
-            return unassigned_dwellers
+            return list(unassigned_dwellers)
 
         dwellers_for_tier = min(len(unassigned_dwellers), total_slots)
 
@@ -175,7 +179,7 @@ class DwellerAssignmentService:
                 prefer_lowest_stat,
             )
 
-        return unassigned_dwellers
+        return list(unassigned_dwellers)
 
     async def unassign_all_dwellers(
         self,
@@ -237,9 +241,7 @@ class DwellerAssignmentService:
                 if not unassigned_dwellers:
                     break
 
-                current_dwellers_in_room = await crud.dweller.count_in_room(db_session, room.id)
-
-                available_slots = self._calculate_room_capacity(room) - current_dwellers_in_room
+                available_slots = await self._get_available_slots(room, db_session)
                 if available_slots <= 0:
                     continue
 

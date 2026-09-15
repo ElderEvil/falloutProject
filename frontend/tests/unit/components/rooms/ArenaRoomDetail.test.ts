@@ -33,7 +33,7 @@ describe('ArenaRoomDetail', () => {
     })
 
     expect(wrapper.text()).toContain('Battle UI')
-    expect(wrapper.text()).toContain('Management')
+    expect(wrapper.text()).not.toContain('Management')
     expect(wrapper.text()).toContain('Upgrade to Tier 2')
     expect(wrapper.text()).toContain('Unassign All Dwellers')
     expect(wrapper.text()).toContain('Destroy Room')

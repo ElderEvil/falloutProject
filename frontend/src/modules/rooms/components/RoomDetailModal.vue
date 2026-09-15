@@ -52,6 +52,7 @@ const {
   dwellerCapacity,
   getAbilityLabel,
   handleUnassignAll,
+  handleUnassignDweller,
   handleAssignDweller,
   openDwellerDetails,
 } = useRoomDwellers(roomRef, actionError, () => emit('roomUpdated'))
@@ -161,6 +162,7 @@ watch(
               :ability="room.ability"
               @dweller-click="openDwellerDetails"
               @assign-dweller="handleAssignDweller"
+              @unassign-dweller="handleUnassignDweller"
             />
           </aside>
 

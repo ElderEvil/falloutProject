@@ -16,6 +16,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   dwellerClick: [dwellerId: string]
   assignDweller: [dwellerId: string]
+  unassignDweller: [dwellerId: string]
 }>()
 
 const { filter: dwellerStore } = useDwellerStore()
@@ -57,7 +58,9 @@ const staffingSummary = computed(() => {
         :dweller="dweller"
         :ability="ability"
         show-apprentice
+        show-unassign
         @activate="emit('dwellerClick', $event)"
+        @unassign="emit('unassignDweller', $event)"
       />
 
       <button

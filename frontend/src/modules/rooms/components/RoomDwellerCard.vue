@@ -9,12 +9,14 @@ interface Props {
   dweller: DwellerShort
   ability: string | null
   showApprentice?: boolean
+  showUnassign?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { showApprentice: false })
+const props = withDefaults(defineProps<Props>(), { showApprentice: false, showUnassign: false })
 
 const emit = defineEmits<{
   activate: [dwellerId: string]
+  unassign: [dwellerId: string]
 }>()
 
 const statValue = (ability: string) => {
@@ -24,63 +26,83 @@ const statValue = (ability: string) => {
 </script>
 
 <template>
-  <button type="button" class="dweller-card clickable" @click="emit('activate', dweller.id)">
-    <DwellerPortrait
-      :thumbnail-url="dweller.thumbnail_url"
-      :alt="`${dweller.first_name} ${dweller.last_name ?? ''}`"
-      image-class="dweller-portrait"
-      fallback-class="h-10 w-10 icon-primary"
-    />
-    <div class="dweller-info">
-      <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
-      <div class="dweller-badges">
-        <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
-        <DwellerBadge
-          v-if="showApprentice && dweller.apprentice_stat"
-          icon="mdi:school-outline"
-          color="var(--color-warning)"
-          :label="`Apprentice · ${dweller.apprentice_stat.toLowerCase()} training`"
-          :show-label="false"
-          size="sm"
-        />
+  <article class="dweller-card">
+    <button type="button" class="dweller-card__details" @click="emit('activate', dweller.id)">
+      <DwellerPortrait
+        :thumbnail-url="dweller.thumbnail_url"
+        :alt="`${dweller.first_name} ${dweller.last_name ?? ''}`"
+        image-class="dweller-portrait"
+        fallback-class="h-10 w-10 icon-primary"
+      />
+      <div class="dweller-info">
+        <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
+        <div class="dweller-badges">
+          <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+          <DwellerBadge
+            v-if="showApprentice && dweller.apprentice_stat"
+            icon="mdi:school-outline"
+            color="var(--color-warning)"
+            :label="`Apprentice · ${dweller.apprentice_stat.toLowerCase()} training`"
+            :show-label="false"
+            size="sm"
+          />
+        </div>
+        <div class="dweller-level">Level {{ dweller.level }}</div>
       </div>
-      <div class="dweller-level">Level {{ dweller.level }}</div>
-    </div>
-    <div v-if="ability" class="dweller-stat">
-      <span class="stat-label">{{ ability.charAt(0) }}</span>
-      <span class="stat-value">{{ statValue(ability) }}</span>
-    </div>
-  </button>
+      <div v-if="ability" class="dweller-stat">
+        <span class="stat-label">{{ ability.charAt(0) }}</span>
+        <span class="stat-value">{{ statValue(ability) }}</span>
+      </div>
+    </button>
+    <button
+      v-if="showUnassign"
+      type="button"
+      class="unassign-dweller"
+      :aria-label="`Unassign ${dweller.first_name} ${dweller.last_name ?? ''}`"
+      title="Unassign from room"
+      @click="emit('unassign', dweller.id)"
+    >
+      <Icon icon="mdi:account-minus-outline" />
+    </button>
+  </article>
 </template>
 
 <style scoped>
 .dweller-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
   padding: 0.6rem 0.75rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+}
+
+.dweller-card__details {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.dweller-card.clickable {
   cursor: pointer;
 }
 
-.dweller-card.clickable:hover,
-.dweller-card.clickable:focus-visible {
+.dweller-card:hover,
+.dweller-card:focus-within {
   background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--color-theme-glow);
+}
+
+.dweller-card__details:focus-visible,
+.unassign-dweller:focus-visible {
   outline: none;
+  box-shadow: 0 0 0 2px var(--color-theme-primary);
 }
 
 .dweller-portrait {
@@ -140,5 +162,29 @@ const statValue = (ability: string) => {
   font-size: 1.125rem;
   font-weight: bold;
   color: var(--color-theme-primary);
+}
+
+.unassign-dweller {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
+  background: transparent;
+  color: var(--color-theme-primary);
+  cursor: pointer;
+}
+
+.unassign-dweller:hover {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+.unassign-dweller :deep(svg) {
+  width: 1rem;
+  height: 1rem;
 }
 </style>

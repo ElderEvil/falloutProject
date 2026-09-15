@@ -482,7 +482,7 @@ describe('RoomDetailModal', () => {
         .findAll('.dweller-picker .dweller-card')
         .find((card) => card.text().includes('John'))
       expect(pickerCard).toBeTruthy()
-      await pickerCard!.trigger('click')
+      await pickerCard!.get('.dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
@@ -576,6 +576,51 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.text()).toContain('Unassign All Dwellers')
+    })
+
+    it('should expose an unassign control for every assigned dweller', () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.findAll('.unassign-dweller')).toHaveLength(mockDwellers.length)
+      expect(wrapper.find('.unassign-dweller').attributes('aria-label')).toBe('Unassign John Doe')
+    })
+
+    it('unassigns the selected dweller', async () => {
+      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      const authStore = useAuthStore()
+      authStore.token = 'test-token'
+      const unassignSpy = vi.spyOn(dwellerManagementStore, 'unassignDwellerFromRoom').mockResolvedValue({} as never)
+      dwellerStore.dwellers = mockDwellers
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      await wrapper.find('.unassign-dweller').trigger('click')
+
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-1', 'test-token')
+    })
+
+    it('clearly marks system details as inspectable', () => {
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+        },
+      })
+
+      expect(wrapper.get('.system-details summary').text()).toContain('Inspect')
     })
 
     it('should show destroy room button', () => {
@@ -846,8 +891,8 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card')
-      expect(dwellerCards.length).toBe(2)
+      const dwellerCards = wrapper.findAll('.dweller-card__details')
+      expect(dwellerCards).toHaveLength(2)
 
       await dwellerCards[0].trigger('click')
 
@@ -865,7 +910,7 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card')
+      const dwellerCards = wrapper.findAll('.dweller-card__details')
       await dwellerCards[1].trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
@@ -874,7 +919,7 @@ describe('RoomDetailModal', () => {
       })
     })
 
-    it('should have clickable class on dweller cards', () => {
+    it('should use buttons for dweller detail navigation', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -882,9 +927,9 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card')
+      const dwellerCards = wrapper.findAll('.dweller-card__details')
       dwellerCards.forEach((card) => {
-        expect(card.classes()).toContain('clickable')
+        expect(card.element.tagName).toBe('BUTTON')
       })
     })
   })

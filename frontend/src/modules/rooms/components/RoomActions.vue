@@ -47,33 +47,26 @@ const emit = defineEmits<{
       <span class="cost-readout">{{ upgradeInfo.upgradeCost }} caps</span>
     </UButton>
 
-    <details class="manage-menu">
-      <summary>
-        <Icon icon="mdi:dots-horizontal" class="h-4 w-4" />
-        Management
-      </summary>
-      <div class="manage-actions">
-        <UButton
-          @click="emit('unassignAll')"
-          :disabled="assignedDwellerCount === 0"
-          variant="ghost"
-          size="sm"
-        >
-          <Icon icon="mdi:account-remove" class="h-4 w-4" />
-          Unassign All Dwellers
-        </UButton>
-        <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
-          <UButton disabled variant="danger" size="sm">
-            <Icon icon="mdi:delete" class="h-4 w-4" />
-            Destroy Room
-          </UButton>
-        </UTooltip>
-        <UButton v-else @click="emit('destroy')" :disabled="isDestroying" variant="danger" size="sm">
-          <Icon icon="mdi:delete" class="h-4 w-4" />
-          Destroy Room
-        </UButton>
-      </div>
-    </details>
+    <UButton
+      @click="emit('unassignAll')"
+      :disabled="assignedDwellerCount === 0"
+      variant="secondary"
+      size="sm"
+    >
+      <Icon icon="mdi:account-remove" class="h-4 w-4" />
+      Unassign All Dwellers
+    </UButton>
+
+    <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
+      <UButton disabled variant="danger" size="sm">
+        <Icon icon="mdi:delete" class="h-4 w-4" />
+        Destroy Room
+      </UButton>
+    </UTooltip>
+    <UButton v-else @click="emit('destroy')" :disabled="isDestroying" variant="danger" size="sm">
+      <Icon icon="mdi:delete" class="h-4 w-4" />
+      Destroy Room
+    </UButton>
   </div>
 </template>
 
@@ -82,6 +75,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
   border-top: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
   padding-top: 0.75rem;
@@ -102,41 +96,6 @@ const emit = defineEmits<{
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.manage-menu {
-  position: relative;
-}
-
-.manage-menu summary {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  list-style: none;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
-  color: var(--color-theme-primary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.manage-menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.manage-actions {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.35rem);
-  z-index: 1;
-  display: grid;
-  gap: 0.35rem;
-  min-width: 11rem;
-  padding: 0.35rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-primary);
 }
 
 @media (max-width: 480px) {

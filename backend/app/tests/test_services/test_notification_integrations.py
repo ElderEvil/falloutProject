@@ -136,7 +136,7 @@ class TestIncidentNotifications:
 
         message = mock_notify.call_args.kwargs["message"]
         assert "caps" not in message
-        assert "experience" in message
+        assert "XP" in message
 
     @pytest.mark.asyncio
     async def test_incident_defeat_sends_notification(

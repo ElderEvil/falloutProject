@@ -13,7 +13,7 @@ withDefaults(
     icon: string
     label: string
     value: string
-    variant?: 'experience' | 'caps' | 'distance' | 'enemies' | 'events'
+    variant?: 'experience' | 'caps' | 'distance' | 'enemies' | 'events' | 'damage'
     span?: boolean
   }>(),
   { variant: undefined, span: false }
@@ -91,6 +91,11 @@ withDefaults(
   border-color: var(--color-warning);
 }
 
+.reward-icon-container.damage {
+  background: rgba(255, 170, 0, 0.15);
+  border-color: var(--color-warning);
+}
+
 .reward-icon {
   width: 1.9rem;
   height: 1.9rem;
@@ -115,6 +120,10 @@ withDefaults(
 }
 
 .reward-icon-container.events .reward-icon {
+  color: var(--color-warning);
+}
+
+.reward-icon-container.damage .reward-icon {
   color: var(--color-warning);
 }
 

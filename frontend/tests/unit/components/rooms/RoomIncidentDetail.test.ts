@@ -23,7 +23,7 @@ const incident = (overrides: Partial<Incident> = {}): Incident =>
     difficulty: 4,
     progress: { current: 30, target: 100, label: 'Threat' },
     risk: { kind: 'casualties', rooms_affected: 1 },
-    response: { label: 'Send' },
+    response: { label: 'Send defenders' },
     events: [],
     ...overrides,
   }) as Incident
@@ -90,7 +90,7 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    expect(wrapper.text()).toContain('SEND: 3 BEST')
+    expect(wrapper.text()).toContain('Send best 3')
     await wrapper.find('button').trigger('click')
 
     expect(assignResponders).toHaveBeenCalledWith(
@@ -110,8 +110,9 @@ describe('RoomIncidentDetail', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('RESPONDERS')
-    expect(text).toContain('SEND: 1 BEST Bob')
+    expect(text).toContain('Send defenders')
+    expect(text).toContain('Send best 1')
+    expect(text).toContain('Bob')
   })
 
   it('excludes dead, away and child dwellers from the send list', () => {
@@ -138,5 +139,35 @@ describe('RoomIncidentDetail', () => {
 
   it('states that room management is locked while the incident is live', () => {
     expect(mountDetail().text()).toContain('Room management is locked')
+  })
+
+  it('blocks a second assignment while one is in flight', async () => {
+    let release: (() => void) | undefined
+    assignResponders.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve
+        })
+    )
+
+    const wrapper = mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', combat_power: 90 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 50 }),
+      ],
+    })
+
+    const buttons = wrapper.findAll('button')
+    await buttons[0].trigger('click')
+    await wrapper.vm.$nextTick()
+
+    // Both controls must be inert until the first request settles.
+    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(
+      true
+    )
+    expect(assignResponders).toHaveBeenCalledTimes(1)
+
+    release?.()
+    await wrapper.vm.$nextTick()
   })
 })

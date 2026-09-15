@@ -591,14 +591,82 @@ describe('Incident Store', () => {
         incident_count: 0,
         incidents: [],
       })
+      vi.mocked(incidentApi.getIncident).mockRejectedValueOnce(new Error('Incident not found'))
 
       await store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
 
       expect(store.aftermathForRoom('room-1')).toMatchObject({
         incidentId: 'incident-1',
         outcome: 'unknown',
         capsEarned: 0,
         roomName: 'Power Generator',
+      })
+    })
+
+    it('reconciles a missed resolution from the incident record', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        status: IncidentStatus.RESOLVED,
+        loot: { caps: 35, items: [] },
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'victory', capsEarned: 35 })
+    })
+
+    it('reconciles a missed failure from the incident record', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        status: IncidentStatus.FAILED,
+        loot: null,
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({ outcome: 'defeat', capsEarned: 0 })
+    })
+
+    it('reports the experience a resolved incident paid', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({
+        vault_id: 'vault-1',
+        incident_count: 0,
+        incidents: [],
+      })
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce({
+        ...mockIncident,
+        status: IncidentStatus.RESOLVED,
+        loot: { caps: 0, experience: 45, items: [] },
+      })
+
+      await store.fetchIncidents('vault-1', 'token')
+      await flushPromises()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({
+        outcome: 'victory',
+        experienceEarned: 45,
       })
     })
 
@@ -669,6 +737,32 @@ describe('Incident Store', () => {
 
       expect(store.activeIncidentIds).toEqual([])
       expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — recovered 50 caps.')
+      store.stopPolling()
+    })
+
+    it('announces the experience a zero-caps victory paid', async () => {
+      const store = useIncidentStore()
+      store.incidents.set('incident-1', mockIncident)
+      store.activeIncidentIds = ['incident-1']
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      store.startPolling('vault-1', 'token', 10_000)
+      await Promise.resolve()
+
+      sseMock.instance.event.value = {
+        event: 'incident',
+        data: {
+          type: 'incident_resolved',
+          incident_id: 'incident-1',
+          success: true,
+          caps_earned: 0,
+          experience_earned: 45,
+        },
+      }
+      await nextTick()
+
+      expect(store.aftermathForRoom('room-1')).toMatchObject({ experienceEarned: 45 })
+      expect(sseMock.toast.success).toHaveBeenCalledWith('Incident victory — responders earned 45 XP.')
       store.stopPolling()
     })
 

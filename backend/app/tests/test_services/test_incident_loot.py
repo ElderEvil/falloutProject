@@ -134,6 +134,36 @@ async def test_victory_hands_its_loot_to_the_vault(
 
 
 @pytest.mark.asyncio
+async def test_victory_records_the_experience_its_responders_gained(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """The XP the panel reports must equal what the responders actually received."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    dwellers = room_with_dwellers["dwellers"]
+    if await storage_crud.get_by_vault(async_session, vault.id) is None:
+        async_session.add(Storage(vault_id=vault.id, max_space=100))
+        await async_session.commit()
+
+    before = {dweller.id: dweller.experience for dweller in dwellers}
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=4,
+        duration=60,
+    )
+
+    await incident_round.resolve_victory(async_session, incident, dwellers)
+    await async_session.commit()
+
+    gained = sum(dweller.experience - before[dweller.id] for dweller in dwellers)
+    assert gained > 0
+    assert incident.loot["experience"] == gained
+
+
+@pytest.mark.asyncio
 async def test_full_storage_does_not_block_an_incident_victory(
     async_session: AsyncSession, room_with_dwellers: dict
 ) -> None:

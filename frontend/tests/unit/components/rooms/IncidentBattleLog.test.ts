@@ -60,6 +60,15 @@ describe('IncidentBattleLog', () => {
     expect(wrapper.text()).toContain('+25% contained')
   })
 
+  it('rounds fractional damage so the log reads cleanly', () => {
+    const wrapper = mountLog([
+      event({ id: 'e1', message: 'Trade fire.', data: { damage_to_threat: 4.5200000000000005 } }),
+    ])
+
+    expect(wrapper.text()).toContain('-4 threat')
+    expect(wrapper.text()).not.toContain('4.5200000000000005')
+  })
+
   it('does not move focus when new rounds arrive', async () => {
     const wrapper = mountLog([event({ id: 'e1' })])
     const log = wrapper.find('[aria-label="Battle log"]').element

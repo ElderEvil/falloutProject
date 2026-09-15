@@ -37,6 +37,7 @@ async def publish_sse(
     *,
     success: bool | None = None,
     caps_earned: int | None = None,
+    experience_earned: int | None = None,
     room_name: str | None = None,
 ) -> None:
     """Publish a non-critical incident event."""
@@ -56,6 +57,7 @@ async def publish_sse(
                 difficulty=incident.difficulty,
                 success=success,
                 caps_earned=caps_earned,
+                experience_earned=experience_earned,
             ).model_dump(),
         )
     except Exception:
@@ -93,7 +95,7 @@ async def notify_spawn(db_session, incident: Incident, room_name: str, incident_
 
 
 async def notify_resolution(
-    db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0
+    db_session: AsyncSession, incident: Incident, *, success: bool, caps_earned: int = 0, experience_earned: int = 0
 ) -> None:
     """Best-effort: notify the owner that an incident was resolved."""
     incident_name = INCIDENT_NAMES.get(incident.type, str(incident.type))
@@ -106,7 +108,12 @@ async def notify_resolution(
             title = f"Victory: {incident_name}"
             outcome = "Your dwellers defeated the attackers"
         # Hazards pay in experience, so claiming recovered caps would be a lie.
-        reward = f" and recovered {caps_earned} caps!" if caps_earned > 0 else ". Responders earned experience."
+        if caps_earned > 0:
+            reward = f", recovered {caps_earned} caps, and earned {experience_earned} XP!"
+        elif experience_earned > 0:
+            reward = f" — responders earned {experience_earned} XP."
+        else:
+            reward = ". Responders earned experience."
         message = f"{outcome}{reward}"
         notification_type = NotificationType.COMBAT_VICTORY
     else:
@@ -131,6 +138,7 @@ async def notify_resolution(
                 "incident_type": incident.type.value,
                 "loot": incident.loot,
                 "caps_earned": caps_earned,
+                "experience_earned": experience_earned,
             },
         ),
     )

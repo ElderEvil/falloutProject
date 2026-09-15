@@ -10,8 +10,10 @@ const hasNewEntries = ref(false)
 
 const entries = computed(() =>
   props.events.map((event) => {
-    const damageToThreat = Number(event.data?.damage_to_threat ?? 0)
-    const damageToDwellers = Number(event.data?.damage_to_dwellers ?? 0)
+    // Truncated to match the round summary the backend writes, so a line never
+    // reads "dealt 4 damage" next to a fractional threat delta.
+    const damageToThreat = Math.trunc(Number(event.data?.damage_to_threat ?? 0))
+    const damageToDwellers = Math.trunc(Number(event.data?.damage_to_dwellers ?? 0))
     const containment = Number(event.data?.amount ?? 0)
     const delta =
       damageToThreat > 0

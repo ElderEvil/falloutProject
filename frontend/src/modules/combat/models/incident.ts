@@ -47,6 +47,7 @@ export interface Incident {
   enemies_defeated: number
   loot: {
     caps?: number
+    experience?: number
     items?: IncidentLootItem[]
   } | null
   unclaimed_loot: IncidentLootItem[]
@@ -112,6 +113,7 @@ export interface IncidentAftermath {
   roomName: string | null
   outcome: IncidentOutcome
   capsEarned: number
+  experienceEarned: number
   loot: Incident['loot']
   unclaimed: IncidentLootItem[]
   enemiesDefeated: number

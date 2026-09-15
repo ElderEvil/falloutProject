@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.107.0 (2026-09-15)
+
+### Features
+
+* **assignment:** auto-assign youth to vacant production apprentice slots ([#641](https://github.com/ElderEvil/falloutProject/issues/641)) 8817b3c
+* unify terminal tooltips ([#640](https://github.com/ElderEvil/falloutProject/issues/640)) 6bfa01f
+
+### Documentation
+
+* **roadmap:** note per-tick notification batching idea and constraints ([#642](https://github.com/ElderEvil/falloutProject/issues/642)) 57e0386
+
 ## 2.106.0 (2026-09-15)
 
 ### Features

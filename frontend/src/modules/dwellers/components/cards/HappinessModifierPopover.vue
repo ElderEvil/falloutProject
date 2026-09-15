@@ -44,7 +44,7 @@ const loadHappinessModifiers = async () => {
         size="sm"
         @click="loadHappinessModifiers"
         :disabled="loadingModifiers"
-        :aria-label="'View happiness modifiers'"
+        aria-label="View happiness modifiers"
       >
         <Icon
           :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"

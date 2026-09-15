@@ -201,33 +201,6 @@ describe('DwellerCard', () => {
       expect(wrapper.text()).toContain('Level 5')
       expect(wrapper.find('.xp-bar-container .stat-value').text()).toBe('1019 XP to L6')
     })
-
-    it('issues from the vault: plus first with the vault stock on the button', () => {
-      const wrapper = mount(DwellerCard, {
-        props: { dweller: mockDweller, imageUrl: null, availableStimpaks: 3 },
-      })
-
-      const row = wrapper.find('.supply-stimpack')
-      expect(row).toBeTruthy()
-      // Order: issue (+ with vault stock) leads, use trails
-      const labels = row.findAll('button').map((b) => b.attributes('aria-label'))
-      expect(labels[0]).toBe('Issue Stimpack from vault')
-      expect(labels[1]).toBe('Use Stimpack')
-      expect(row.text()).toContain('Get \u00d73')
-      expect(row.text()).toContain('Use')
-    })
-
-    it('carries a native hint on the issue action', () => {
-      const wrapper = mount(DwellerCard, {
-        props: { dweller: mockDweller, imageUrl: null, availableStimpaks: 1 },
-      })
-
-      expect(
-        wrapper
-          .find('[aria-label="Issue Stimpack from vault"]')
-          .attributes('title')
-      ).toContain('1 in vault')
-    })
   })
 
   describe('Away and dead dwellers', () => {
@@ -247,6 +220,7 @@ describe('DwellerCard', () => {
 
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Recall')
+      expect(wrapper.find('.actions-container').element.children).toHaveLength(2)
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
@@ -262,6 +236,7 @@ describe('DwellerCard', () => {
 
       const labels = actionLabels(wrapper)
       expect(labels).toContain('Chat')
+      expect(wrapper.find('.actions-container').element.children).toHaveLength(1)
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')

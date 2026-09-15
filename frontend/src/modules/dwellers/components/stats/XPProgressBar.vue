@@ -22,30 +22,26 @@ const requiredXP = computed(() => {
   return calculateXPRequired(level + 1)
 })
 
-const previousLevelXP = computed(() => {
-  return calculateXPRequired(level)
-})
+const previousLevelXP = computed(() => calculateXPRequired(level))
 
 const xpInCurrentLevel = computed(() => currentXP - previousLevelXP.value)
 
 const xpNeededForNextLevel = computed(() => requiredXP.value - previousLevelXP.value || 1)
 
 const xpToNextLevel = computed(() =>
-  level >= maxLevel ? 0 : Math.max(0, xpNeededForNextLevel.value - xpInCurrentLevel.value)
+  level >= maxLevel ? 0 : Math.max(0, requiredXP.value - currentXP)
 )
 
 const progressPercentage = computed(() => {
   if (level >= maxLevel) return 100
-  if (xpNeededForNextLevel.value === 0) return 100
   return Math.min(100, (xpInCurrentLevel.value / xpNeededForNextLevel.value) * 100)
 })
 
-const isNearLevelUp = computed(() => progressPercentage.value >= 90)
 const isMaxLevel = computed(() => level >= maxLevel)
 
 const barAnimation = computed(() => {
   if (isMaxLevel.value) return 'shimmer' as const
-  if (isNearLevelUp.value) return 'pulse' as const
+  if (progressPercentage.value >= 90) return 'pulse' as const
   return 'none' as const
 })
 </script>

@@ -27,9 +27,7 @@ const emit = defineEmits<{
 
 const trainingStore = useTrainingStore()
 
-const isTraining = computed(() => {
-  return trainingStore.isDwellerTraining(props.dweller.id)
-})
+const isTraining = computed(() => trainingStore.isDwellerTraining(props.dweller.id))
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
@@ -53,10 +51,10 @@ const exploreTooltip = computed(() =>
     </UButton>
 
     <UTooltip
+      v-if="dweller.room === null && !isGone"
       :text="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
     >
       <UButton
-        v-if="dweller.room === null && !isGone"
         variant="secondary"
         size="md"
         block
@@ -71,9 +69,8 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UTooltip text="Unassign from the current room">
+    <UTooltip v-else-if="!isGone" text="Unassign from the current room">
       <UButton
-        v-if="dweller.room !== null && !isGone"
         variant="secondary"
         size="md"
         block
@@ -85,9 +82,8 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UTooltip :text="exploreTooltip">
+    <UTooltip v-if="!isGone" :text="exploreTooltip">
       <UButton
-        v-if="!isGone"
         variant="secondary"
         size="md"
         block
@@ -99,9 +95,8 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UTooltip text="Recall from the wasteland">
+    <UTooltip v-if="isExploring" text="Recall from the wasteland">
       <UButton
-        v-if="isExploring"
         variant="secondary"
         size="md"
         block
@@ -113,9 +108,8 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UTooltip text="Train SPECIAL stats to improve dweller abilities">
+    <UTooltip v-if="!isGone" text="Train SPECIAL stats to improve dweller abilities">
       <UButton
-        v-if="!isGone"
         variant="secondary"
         size="md"
         block

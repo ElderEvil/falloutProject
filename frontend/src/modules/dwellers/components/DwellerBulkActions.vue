@@ -138,9 +138,8 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
 
     <UTooltip text="Remove every dweller from their current room assignments">
       <UButton
-        variant="secondary"
+        variant="danger"
         size="sm"
-        class="unassign-btn"
         @click="showConfirmDialog = true"
         :loading="unassigningAll"
       >
@@ -199,17 +198,6 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
 .on-secondary {
   background: var(--color-theme-glow);
   color: var(--color-theme-primary);
-}
-
-/* Muted danger, same treatment as the Destroy Room button */
-.unassign-btn {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.unassign-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-  box-shadow: none;
 }
 
 .confirmation-overlay {

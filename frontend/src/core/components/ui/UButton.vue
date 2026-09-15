@@ -135,13 +135,14 @@ const handleClick = (event: MouseEvent) => {
 }
 
 .btn-danger {
-  background-color: var(--color-danger);
-  color: var(--color-gray-100);
+  background-color: transparent;
+  color: var(--color-danger);
   border: 2px solid var(--color-danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-  opacity: 0.8;
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  box-shadow: none;
 }
 
 .btn-ghost {

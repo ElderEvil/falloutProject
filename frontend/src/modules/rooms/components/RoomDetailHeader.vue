@@ -41,6 +41,8 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
 
 <style scoped>
 .modal-header {
+  flex: 1;
+  min-width: 0;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--color-theme-glow);
 }
@@ -96,6 +98,7 @@ const roomSizeText = computed(() => `${Math.ceil((props.room.size ?? props.room.
   align-self: flex-end;
   gap: 0;
   flex-shrink: 0;
+  margin-left: auto;
   text-align: right;
   white-space: nowrap;
 }

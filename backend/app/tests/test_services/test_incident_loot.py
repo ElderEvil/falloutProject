@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.junk import Junk
@@ -246,3 +247,37 @@ async def test_selling_held_incident_overflow_pays_caps_without_space(
     assert remaining == []
     await async_session.refresh(vault)
     assert vault.bottle_caps == caps_before + caps
+
+
+@pytest.mark.asyncio
+async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """A stack of N junk rows must not carry N times the unit value each."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    storage = await storage_crud.get_by_vault(async_session, vault.id)
+    if storage is None:
+        storage = Storage(vault_id=vault.id, max_space=2)
+        async_session.add(storage)
+    else:
+        storage.max_space = 2
+        storage.used_space = 0
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.FERAL_GHOUL_ATTACK,
+        difficulty=3,
+        duration=60,
+    )
+    incident.unclaimed_loot = [{"item_type": "junk", "rarity": "common", "name": "Scrap Metal", "quantity": 2}]
+    async_session.add(incident)
+    await async_session.commit()
+
+    await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+
+    stored = (await async_session.exec(select(Junk).where(Junk.storage_id == storage.id))).all()
+    assert len(stored) == 2
+    unit_value = game_config.exploration.junk_value_common
+    assert [junk.value for junk in stored] == [unit_value, unit_value]

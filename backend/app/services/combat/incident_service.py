@@ -53,7 +53,7 @@ def _build_held_item(loot_item: dict, storage_id):
                 name=name,
                 rarity=rarity,
                 junk_type=JunkTypeEnum.VALUABLES,
-                value=loot_overflow_service.value_of(loot_item),
+                value=loot_overflow_service.unit_value_of(loot_item),
                 description="Recovered from an incident",
                 storage_id=storage_id,
             )

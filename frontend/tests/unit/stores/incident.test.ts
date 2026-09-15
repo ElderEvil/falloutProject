@@ -816,5 +816,24 @@ describe('Incident Store', () => {
       expect(sseMock.toast.success).toHaveBeenCalledWith('Sold for 12 caps.')
       store.stopPolling()
     })
+
+    it('only blames storage when the take fails with 409', async () => {
+      const store = await resolveViaSse({
+        type: 'incident_resolved',
+        incident_id: 'incident-1',
+        success: true,
+      })
+
+      vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 409 } })
+      await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
+
+      sseMock.toast.error.mockClear()
+      vi.mocked(incidentApi.takeOverflow).mockRejectedValueOnce({ response: { status: 500 } })
+      await store.takeOverflow('vault-1', 'incident-1', 0, 'token')
+      expect(sseMock.toast.error).toHaveBeenCalledWith('Could not store the held item.')
+      expect(sseMock.toast.error).not.toHaveBeenCalledWith('Storage is full — sell the item or free a slot.')
+      store.stopPolling()
+    })
   })
 })

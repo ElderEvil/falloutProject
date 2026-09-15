@@ -107,7 +107,8 @@ export const useIncidentStore = defineStore('incident', () => {
       showSuccess('Held loot stored.')
     } catch (error) {
       handleStoreError(error, 'Failed to store held incident loot')
-      showError('Storage is full — sell the item or free a slot.')
+      const status = (error as { response?: { status?: number } } | null)?.response?.status
+      showError(status === 409 ? 'Storage is full — sell the item or free a slot.' : 'Could not store the held item.')
     }
   }
 

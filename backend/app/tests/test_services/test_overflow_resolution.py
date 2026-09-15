@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
+from app.crud import storage as crud_storage
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -18,6 +19,7 @@ from app.models.vault import Vault
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
+from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 
@@ -194,3 +196,28 @@ async def test_unclaimed_rejects_bad_index_and_active_exploration(
     active = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     with pytest.raises(ValidationException):
         await rewards_service.sell_unclaimed_item(async_session, active.id, 0)
+
+
+@pytest.mark.asyncio
+async def test_require_space_locks_the_shared_storage_row(
+    async_session: AsyncSession,
+    vault: Vault,
+    make_vault_storage,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Two claims must not both read the same free slot, so the check takes a row lock."""
+    await make_vault_storage(5)
+
+    locked_vaults: list = []
+    original = crud_storage.get_storage_by_vault_for_update
+
+    async def spy(db_session, vault_id):
+        locked_vaults.append(vault_id)
+        return await original(db_session, vault_id)
+
+    monkeypatch.setattr(crud_storage, "get_storage_by_vault_for_update", spy)
+
+    storage = await loot_overflow_service.require_space(async_session, vault.id, 1)
+
+    assert storage is not None
+    assert locked_vaults == [vault.id]

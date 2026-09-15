@@ -66,6 +66,11 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
         return result.scalar_one_or_none()
 
+    async def get_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID4) -> Storage | None:
+        """Get a vault's storage row locked FOR UPDATE (overflow claiming serialization)."""
+        result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id).with_for_update())
+        return result.scalar_one_or_none()
+
     @staticmethod
     async def create_for_vault(*, db_session: AsyncSession, vault_id: UUID4) -> Storage:
         """Create the storage row for a vault."""
@@ -228,6 +233,7 @@ storage = CRUDStorage(Storage)
 count_storage_items = storage.count_items
 get_storage = storage.get
 get_storage_by_vault = storage.get_by_vault
+get_storage_by_vault_for_update = storage.get_by_vault_for_update
 get_available_space = storage.get_available_space
 update_used_space = storage.update_used_space
 get_storage_info = storage.get_info

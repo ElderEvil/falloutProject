@@ -8,11 +8,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.crud.storage import storage as storage_crud
-from app.models.incident import IncidentType
+from app.models.incident import IncidentStatus, IncidentType
 from app.models.junk import Junk
 from app.models.storage import Storage
 from app.models.weapon import Weapon
 from app.services.combat import incident_math, incident_round
+from app.services.combat.incident_service import incident_service
 from app.utils.static_data import game_data_store
 
 VICTORY_TYPES = (
@@ -128,3 +129,36 @@ async def test_victory_hands_its_loot_to_the_vault(
 
     assert stored, f"{expected} was promised to the player but never reached storage"
     assert caps == incident.loot["caps"]
+
+
+@pytest.mark.asyncio
+async def test_full_storage_does_not_block_an_incident_victory(
+    async_session: AsyncSession, room_with_dwellers: dict
+) -> None:
+    """A full vault must not leave a won incident stuck retrying forever."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+
+    async_session.add(Storage(vault_id=vault.id, max_space=0))
+    await async_session.commit()
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=vault.id,
+        room_id=room.id,
+        incident_type=IncidentType.RAIDER_ATTACK,
+        difficulty=1,
+        duration=60,
+    )
+    async_session.add(incident)
+    await async_session.commit()
+    await async_session.refresh(incident)
+
+    await incident_service.process_incident(async_session, incident, 60)
+
+    await async_session.refresh(incident)
+    assert incident.status == IncidentStatus.RESOLVED, "the victory must commit even when nothing fits"
+    assert incident.loot["items"] == [], "an item that could not be stored is not reported as recovered"
+
+    events = await crud.incident_crud.get_recent_events(async_session, incident.id)
+    assert any("left behind" in event.message for event in events), "the player is told the item was lost"

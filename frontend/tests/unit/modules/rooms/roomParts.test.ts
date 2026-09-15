@@ -12,6 +12,7 @@ import {
   type RoomPart,
 } from '@/modules/rooms/models/roomParts'
 import type { Room } from '@/modules/rooms/models/room'
+import type { Incident } from '@/modules/combat/models/incident'
 
 const room = (overrides: Partial<Room> = {}): Room =>
   ({
@@ -22,6 +23,16 @@ const room = (overrides: Partial<Room> = {}): Room =>
     tier: 1,
     ...overrides,
   }) as Room
+
+const incident = (overrides: Partial<Incident> = {}): Incident =>
+  ({
+    id: 'incident-1',
+    room_id: 'room-1',
+    type: 'raider_attack',
+    family: 'intrusion',
+    objective: 'defeat',
+    ...overrides,
+  }) as Incident
 
 const names = (parts: RoomPart[]) => parts.join(',')
 
@@ -72,6 +83,18 @@ describe('getRoomDetailParts', () => {
   it('omits crafting for crafting rooms that are not workshops', () => {
     const parts = getRoomDetailParts(room({ name: 'Mystery bench', category: 'crafting', ability: null }))
     expect(parts).not.toContain('crafting')
+  })
+
+  it('replaces every generic section with the overlay while an incident is live', () => {
+    expect(getRoomDetailParts(room(), incident())).toEqual(['incident'])
+  })
+
+  it('keeps arena precedence over a live incident', () => {
+    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), incident())).toEqual(['arena'])
+  })
+
+  it('renders the generic sections when no incident is live', () => {
+    expect(names(getRoomDetailParts(room(), null))).toBe('preview,info,productionStats,dwellerList,actions')
   })
 })
 

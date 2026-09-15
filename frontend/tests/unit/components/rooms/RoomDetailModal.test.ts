@@ -6,6 +6,7 @@ import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -1239,6 +1240,81 @@ describe('RoomDetailModal', () => {
       })
 
       expect(wrapper.find('.modal-content').exists()).toBe(false)
+    })
+  })
+
+  describe('Live incident overlay', () => {
+    const room = {
+      id: 'room-1',
+      name: 'Power Generator',
+      category: 'PRODUCTION',
+      ability: 'STRENGTH',
+      tier: 1,
+      capacity: 4,
+      size: 3,
+      size_min: 3,
+      size_max: 9,
+    }
+
+    const liveIncident = {
+      id: 'incident-1',
+      vault_id: 'vault-1',
+      room_id: 'room-1',
+      room_name: 'Power Generator',
+      type: 'raider_attack',
+      status: 'active',
+      difficulty: 4,
+      progress: { current: 30, target: 100, label: 'Threat' },
+      family: 'intrusion',
+      objective: 'defeat',
+      events: [],
+    }
+
+    const seedIncident = () => {
+      const incidentStore = useIncidentStore()
+      incidentStore.incidents.set('incident-1', liveIncident as never)
+      incidentStore.activeIncidentIds = ['incident-1']
+    }
+
+    it('replaces the generic sections with the incident overlay', () => {
+      seedIncident()
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: room as never, modelValue: true, vaultId: 'vault-1' },
+      })
+
+      expect(wrapper.text()).toContain('RAIDER ATTACK')
+      expect(wrapper.text()).not.toContain('Unassign All Dwellers')
+      expect(wrapper.text()).not.toContain('Destroy Room')
+    })
+
+    it('renders the generic sections when the incident is for another room', () => {
+      seedIncident()
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...room, id: 'room-2' } as never,
+          modelValue: true,
+          vaultId: 'vault-1',
+        },
+      })
+
+      expect(wrapper.text()).not.toContain('RAIDER ATTACK')
+    })
+
+    it('keeps arena precedence when an arena room has a live incident', () => {
+      seedIncident()
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...room, name: 'Arena', category: 'ARENA' } as never,
+          modelValue: true,
+          vaultId: 'vault-1',
+        },
+      })
+
+      expect(wrapper.text()).not.toContain('RAIDER ATTACK')
+      expect(wrapper.text()).toContain('Arena')
     })
   })
 })

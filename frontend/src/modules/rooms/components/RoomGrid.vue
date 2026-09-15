@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
@@ -30,14 +30,16 @@ const RoomDetailModal = defineAsyncComponent({
 interface Props {
   incidents?: Incident[]
   highlightedRoomId?: string | null
+  openRoomId?: string | null
   overseerBriefing?: OverseerBriefingData
   overseerAttentionCount?: number
 }
 
-const { incidents, highlightedRoomId, overseerBriefing, overseerAttentionCount } = defineProps<Props>()
+const { incidents, highlightedRoomId, openRoomId, overseerBriefing, overseerAttentionCount } =
+  defineProps<Props>()
 
 const emit = defineEmits<{
-  incidentClicked: [incidentId: string]
+  roomOpened: []
   reviewIncidents: []
 }>()
 
@@ -231,14 +233,31 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
   }
 }
 
-// Incident helper
 const getRoomIncident = (roomId: string) => {
   return (incidents ?? []).find((incident) => incident.room_id === roomId)
 }
 
-const handleIncidentClick = (incidentId: string) => {
-  emit('incidentClicked', incidentId)
+const openRoomOverlay = (roomId: string) => {
+  const room = rooms.value.find((r) => r.id === roomId)
+  if (!room) return false
+  selectedRoomForDetail.value = room
+  showDetailModal.value = true
+  return true
 }
+
+// An incident badge opens the affected room's overlay rather than a separate modal.
+const handleIncidentClick = (incidentId: string) => {
+  const incident = (incidents ?? []).find((inc) => inc.id === incidentId)
+  if (incident) openRoomOverlay(incident.room_id)
+}
+
+// Lets a parent (alert banner, notification click-through) open a room's overlay.
+watch(
+  () => openRoomId,
+  (roomId) => {
+    if (roomId && openRoomOverlay(roomId)) emit('roomOpened')
+  }
+)
 
 // Upgrade room handler
 const handleUpgradeRoom = async (roomId: string, event: MouseEvent) => {

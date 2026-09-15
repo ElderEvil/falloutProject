@@ -181,8 +181,10 @@ const getNotificationRoute = (notification: Notification): string | null => {
       return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
     case 'combat_started':
     case 'combat_victory':
-    case 'combat_defeat':
-      return vaultPath
+    case 'combat_defeat': {
+      const roomId = notification.meta_data?.room_id as string | undefined
+      return roomId ? `${vaultPath}?roomId=${roomId}` : vaultPath
+    }
     case 'dweller_died':
     case 'dweller_injured':
     case 'baby_born':

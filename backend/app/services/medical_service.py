@@ -80,7 +80,7 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     if dweller_obj.radiation <= 0:
         raise ContentNoChangeException(detail="Dweller has no radiation to remove.")
 
-    new_radiation = dweller_obj.radiation - radiation_removal_amount(dweller_obj.radiation)
+    new_radiation = dweller_obj.radiation - radiation_removal_amount(dweller_obj.radiation, dweller_obj.max_health)
 
     return await dweller_crud.update(
         db_session, dweller_id, DwellerUpdate(radiation=new_radiation, radaway=dweller_obj.radaway - 1)

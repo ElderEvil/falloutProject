@@ -250,7 +250,7 @@ class EventService:
 
         radaway_threshold = game_config.health.radaway_auto_use_threshold
         if exploration.radaways > 0 and dweller_obj.radiation > radaway_threshold:
-            reduction = radiation_removal_amount(dweller_obj.radiation)
+            reduction = radiation_removal_amount(dweller_obj.radiation, dweller_obj.max_health)
             dweller_obj.radiation -= reduction
             exploration.radaways -= 1
             records.append(

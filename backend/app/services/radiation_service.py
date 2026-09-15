@@ -9,9 +9,13 @@ from app.models.dweller import Dweller
 from app.options.races import RaceOption, race_of
 
 
-def radiation_removal_amount(radiation: int) -> int:
-    """RAD removed by one RadAway: a share of current radiation, always at least 1."""
-    removal = int(radiation * game_config.health.radaway_removal_percent)
+def radiation_removal_amount(radiation: int, max_health: int) -> int:
+    """RAD removed by one RadAway: a share of max health, always at least 1.
+
+    Mirrors the original game: one dose clears half the health bar of red,
+    so it scales with the dweller's max health rather than current RAD.
+    """
+    removal = int(max_health * game_config.health.radaway_removal_percent)
     return min(radiation, max(1, removal))
 
 

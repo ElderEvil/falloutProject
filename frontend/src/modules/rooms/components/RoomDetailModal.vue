@@ -37,6 +37,7 @@ const emit = defineEmits<{
 }>()
 
 const actionError = ref<string | null>(null)
+const assignmentMode = ref<'worker' | 'apprentice' | null>(null)
 
 const roomRef = toRef(props, 'room')
 const modelValueRef = toRef(props, 'modelValue')
@@ -95,6 +96,7 @@ watch(
   (newValue, oldValue) => {
     if (!newValue) {
       actionError.value = null
+      assignmentMode.value = null
     }
     if (newValue && newValue !== oldValue) playSound('modalOpen')
   }
@@ -152,23 +154,19 @@ watch(
           :assigned-dwellers="assignedDwellers"
           :show-apprentice-slot="producesResources(room)"
           @activate="openDwellerDetails"
+          @unassign="handleUnassignDweller"
+          @assign-worker="assignmentMode = 'worker'"
+          @assign-apprentice="assignmentMode = 'apprentice'"
         />
 
-        <div class="room-console">
-          <aside class="room-console__crew">
-            <DwellerList
-              v-if="has('dwellerList')"
-              :assigned-dwellers="assignedDwellers"
-              :dweller-capacity="dwellerCapacity"
-              :ability="room.ability"
-              :allow-apprentice="producesResources(room)"
-              @dweller-click="openDwellerDetails"
-              @assign-dweller="handleAssignDweller"
-              @unassign-dweller="handleUnassignDweller"
-            />
-          </aside>
+        <DwellerList
+          v-if="has('dwellerList')"
+          v-model:assignment-mode="assignmentMode"
+          :ability="room.ability"
+          @assign-dweller="handleAssignDweller"
+        />
 
-          <section class="room-console__workspace">
+        <section class="room-operation-deck">
             <RoomInfoGrid
               :room="room"
               :ability-label="room.ability ? getAbilityLabel(room.ability) : null"
@@ -204,8 +202,7 @@ watch(
               @switch-mode="handleSwitchRadioMode"
               @recruit="handleRecruitDweller"
             />
-          </section>
-        </div>
+        </section>
 
         <RoomActions
           v-if="has('actions')"
@@ -232,34 +229,11 @@ watch(
   padding: 0.25rem 0;
 }
 
-.room-console {
-  display: grid;
-  grid-template-columns: minmax(16rem, 0.9fr) minmax(0, 1.1fr);
-  gap: 1rem;
-}
-
-.room-console__crew,
-.room-console__workspace {
+.room-operation-deck {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   min-width: 0;
-}
-
-.room-console__workspace {
-  padding-left: 1rem;
-  border-left: 1px solid color-mix(in srgb, var(--color-theme-primary) 25%, transparent);
-}
-
-@media (max-width: 720px) {
-  .room-console {
-    grid-template-columns: 1fr;
-  }
-
-  .room-console__workspace {
-    padding-left: 0;
-    border-left: 0;
-  }
 }
 
 .error-banner {

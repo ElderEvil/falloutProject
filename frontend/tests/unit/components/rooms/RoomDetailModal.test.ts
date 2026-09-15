@@ -407,7 +407,7 @@ describe('RoomDetailModal', () => {
   })
 
   describe('Assigned Dwellers', () => {
-    it('should display assigned dwellers', () => {
+    it('renders assigned dwellers in their scene slots', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -418,19 +418,14 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('John Doe')
-      expect(wrapper.text()).toContain('Jane Smith')
-      expect(wrapper.text()).toContain('Level 5')
-      expect(wrapper.text()).toContain('Level 7')
-      expect(wrapper.findAll('[aria-label="Child"]')).toHaveLength(1)
-      expect(wrapper.findAll('[aria-label="Teen"]')).toHaveLength(1)
-      expect(wrapper.find('[aria-label="Apprentice · strength training"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Open John Doe"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Open Jane Smith"]').exists()).toBe(true)
       expect(wrapper.find('[aria-label="Apprentice training strength"]').exists()).toBe(true)
       expect(wrapper.find('.apprentice-slot.slot-filled').exists()).toBe(true)
       expect(wrapper.findAll('.dweller-sprite-slot:not(.apprentice-slot)')).toHaveLength(2)
     })
 
-    it('should identify the section as staffing', () => {
+    it('does not render a persistent staffing roster', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -441,7 +436,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.text()).toContain('Staffing')
+      expect(wrapper.text()).not.toContain('Staffing')
+      expect(wrapper.find('.dweller-card').exists()).toBe(false)
     })
 
     it('should show empty state when no dwellers assigned', () => {
@@ -457,8 +453,9 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('0/2 workers')
       expect(wrapper.find('.room-scene').exists()).toBe(true)
-      expect(wrapper.find('.assign-worker').text()).toContain('Assign Worker')
-      expect(wrapper.find('.assign-apprentice').text()).toContain('Assign Apprentice')
+      expect(wrapper.findAll('.scene-empty-worker')).toHaveLength(2)
+      expect(wrapper.findAll('[aria-label="Assign worker"]')).toHaveLength(2)
+      expect(wrapper.find('.scene-empty-apprentice').exists()).toBe(true)
     })
 
     it('keeps apprentice assignment exclusive to production rooms', () => {
@@ -469,8 +466,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.find('.assign-worker').exists()).toBe(true)
-      expect(wrapper.find('.assign-apprentice').exists()).toBe(false)
+      expect(wrapper.find('.scene-empty-worker').exists()).toBe(true)
+      expect(wrapper.find('.scene-empty-apprentice').exists()).toBe(false)
     })
 
     it('assigns a dweller picked from the inline picker', async () => {
@@ -491,7 +488,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper.get('.assign-worker').trigger('click')
+      await wrapper.get('.scene-empty-worker').trigger('click')
 
       const pickerCard = wrapper
         .findAll('.dweller-picker .dweller-card')
@@ -511,6 +508,7 @@ describe('RoomDetailModal', () => {
         .mockResolvedValue({} as never)
       dwellerStore.dwellers = [
         { ...mockDwellers[0], room_id: null, status: 'idle' },
+        { ...mockDwellers[1], age_group: 'adult', room_id: null, status: 'idle' },
       ] as never
 
       const wrapper = mount(RoomDetailModal, {
@@ -520,14 +518,15 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper.get('.assign-apprentice').trigger('click')
+      await wrapper.get('.scene-empty-apprentice').trigger('click')
       expect(wrapper.find('.picker-title').text()).toBe('Select Apprentice')
+      expect(wrapper.findAll('.dweller-picker .dweller-card')).toHaveLength(1)
       await wrapper.get('.dweller-picker .dweller-card__details').trigger('click')
 
       expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
     })
 
-    it('should display relevant SPECIAL stat for each dweller', () => {
+    it('keeps individual SPECIAL values out of the scene', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -538,9 +537,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      // Room requires STRENGTH, so should show strength values (8 and 9)
-      expect(wrapper.text()).toContain('8')
-      expect(wrapper.text()).toContain('9')
+      expect(wrapper.text()).not.toContain('Level 5')
+      expect(wrapper.text()).not.toContain('Level 7')
     })
   })
 
@@ -629,8 +627,8 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      expect(wrapper.findAll('.unassign-dweller')).toHaveLength(mockDwellers.length)
-      expect(wrapper.find('.unassign-dweller').attributes('aria-label')).toBe('Unassign John Doe')
+      expect(wrapper.findAll('.scene-unassign')).toHaveLength(mockDwellers.length)
+      expect(wrapper.find('[aria-label="Unassign John Doe"]').exists()).toBe(true)
     })
 
     it('unassigns the selected dweller', async () => {
@@ -647,7 +645,7 @@ describe('RoomDetailModal', () => {
         },
       })
 
-      await wrapper.find('.unassign-dweller').trigger('click')
+      await wrapper.get('[aria-label="Unassign John Doe"]').trigger('click')
 
       expect(unassignSpy).toHaveBeenCalledWith('dweller-1', 'test-token')
     })
@@ -798,7 +796,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.text()).toContain('Radio Studio')
       expect(wrapper.text()).toContain('Broadcast Controls')
       expect(wrapper.find('.radio-controls').exists()).toBe(true)
-      expect(wrapper.find('.room-console__workspace').find('.radio-controls').exists()).toBe(true)
+      expect(wrapper.find('.room-operation-deck').find('.radio-controls').exists()).toBe(true)
     })
 
     it('should not show radio controls for non-radio rooms', () => {
@@ -939,7 +937,23 @@ describe('RoomDetailModal', () => {
       })
     })
 
-    it('should call router.push when dweller card is clicked', async () => {
+    it('opens the matching assignment picker from an empty scene slot', async () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = []
+
+      const wrapper = mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      await wrapper.get('.scene-empty-worker').trigger('click')
+      expect(wrapper.get('.picker-title').text()).toBe('Select Worker')
+
+      await wrapper.get('.picker-close').trigger('click')
+      await wrapper.get('.scene-empty-apprentice').trigger('click')
+      expect(wrapper.get('.picker-title').text()).toBe('Select Apprentice')
+    })
+
+    it('opens apprentice details from the apprentice scene slot', async () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = mockDwellers
 
@@ -947,45 +961,11 @@ describe('RoomDetailModal', () => {
         props: { room: mockRoom, modelValue: true },
       })
 
-      const dwellerCards = wrapper.findAll('.dweller-card__details')
-      expect(dwellerCards).toHaveLength(2)
-
-      await dwellerCards[0].trigger('click')
+      await wrapper.get('.apprentice-slot .scene-dweller').trigger('click')
 
       expect(mockRouterPush).toHaveBeenCalledWith({
         name: 'dwellerDetail',
         params: { id: 'vault-123', dwellerId: 'dweller-1' },
-      })
-    })
-
-    it('should navigate to correct dweller when second dweller is clicked', async () => {
-      const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
-
-      const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
-      })
-
-      const dwellerCards = wrapper.findAll('.dweller-card__details')
-      await dwellerCards[1].trigger('click')
-
-      expect(mockRouterPush).toHaveBeenCalledWith({
-        name: 'dwellerDetail',
-        params: { id: 'vault-123', dwellerId: 'dweller-2' },
-      })
-    })
-
-    it('should use buttons for dweller detail navigation', () => {
-      const dwellerStore = useDwellerStore().filter
-      dwellerStore.dwellers = mockDwellers
-
-      const wrapper = mount(RoomDetailModal, {
-        props: { room: mockRoom, modelValue: true },
-      })
-
-      const dwellerCards = wrapper.findAll('.dweller-card__details')
-      dwellerCards.forEach((card) => {
-        expect(card.element.tagName).toBe('BUTTON')
       })
     })
   })

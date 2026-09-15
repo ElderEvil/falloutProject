@@ -2,26 +2,17 @@
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
-import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 
 interface Props {
   dweller: DwellerShort
   ability: string | null
-  showApprentice?: boolean
-  showAssignmentRole?: boolean
-  showUnassign?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showApprentice: false,
-  showAssignmentRole: false,
-  showUnassign: false,
-})
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   activate: [dwellerId: string]
-  unassign: [dwellerId: string]
 }>()
 
 const statValue = (ability: string) => {
@@ -43,22 +34,6 @@ const statValue = (ability: string) => {
         <div class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</div>
         <div class="dweller-badges">
           <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
-          <DwellerBadge
-            v-if="showAssignmentRole && !dweller.apprentice_stat"
-            icon="mdi:account-hard-hat-outline"
-            color="var(--color-theme-primary)"
-            label="Worker"
-            :show-label="false"
-            size="sm"
-          />
-          <DwellerBadge
-            v-if="showApprentice && dweller.apprentice_stat"
-            icon="mdi:school-outline"
-            color="var(--color-warning)"
-            :label="`Apprentice · ${dweller.apprentice_stat.toLowerCase()} training`"
-            :show-label="false"
-            size="sm"
-          />
         </div>
         <div class="dweller-level">Level {{ dweller.level }}</div>
       </div>
@@ -66,16 +41,6 @@ const statValue = (ability: string) => {
         <span class="stat-label">{{ ability.charAt(0) }}</span>
         <span class="stat-value">{{ statValue(ability) }}</span>
       </div>
-    </button>
-    <button
-      v-if="showUnassign"
-      type="button"
-      class="unassign-dweller"
-      :aria-label="`Unassign ${dweller.first_name} ${dweller.last_name ?? ''}`"
-      title="Unassign from room"
-      @click="emit('unassign', dweller.id)"
-    >
-      <Icon icon="mdi:account-minus-outline" />
     </button>
   </article>
 </template>
@@ -112,8 +77,7 @@ const statValue = (ability: string) => {
   border-color: var(--color-theme-primary);
 }
 
-.dweller-card__details:focus-visible,
-.unassign-dweller:focus-visible {
+.dweller-card__details:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-theme-primary);
 }
@@ -177,27 +141,4 @@ const statValue = (ability: string) => {
   color: var(--color-theme-primary);
 }
 
-.unassign-dweller {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 40%, transparent);
-  background: transparent;
-  color: var(--color-theme-primary);
-  cursor: pointer;
-}
-
-.unassign-dweller:hover {
-  border-color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-  color: var(--color-danger);
-}
-
-.unassign-dweller :deep(svg) {
-  width: 1rem;
-  height: 1rem;
-}
 </style>

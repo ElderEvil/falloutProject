@@ -207,14 +207,18 @@ Terminal-themed tooltip.
 **Usage:**
 
 ```vue
-<UTooltip text="Build a new room" v-slot="{ tooltipId }">
-  <UButton :aria-describedby="tooltipId">Build</UButton>
+<UTooltip text="Build a new room">
+  <UButton>Build</UButton>
 </UTooltip>
 ```
 
-`UIconButton` applies this pattern automatically: its required `label` is both the accessible name and the
-terminal-styled tooltip text. Use the scoped `tooltipId` for other controls so assistive technology can associate
-the focused control with its tooltip.
+The wrapped control keeps its own root element — `UTooltip` clones the slot element and merges the pointer/focus
+listeners (plus `aria-describedby` when `text` is set) onto it, so no wrapper box is introduced and layout classes
+on the control keep working. `UIconButton` applies this pattern automatically: its required `label` is both the
+accessible name and the terminal-styled tooltip text.
+
+> `UButton` and `UIconButton` keep their `<button>` as the root when there is nothing to show (`UButton` without
+> `title`), so root-level listeners and event triggering on those components behave exactly as before.
 
 ## Importing Components
 

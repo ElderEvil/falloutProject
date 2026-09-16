@@ -5,13 +5,12 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, JunkTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
-from app.models.junk import Junk
 from app.schemas.incident import (
     IncidentEventRead,
     IncidentProgress,
@@ -24,7 +23,7 @@ from app.schemas.incident import (
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
-from app.utils.item_factory import build_outfit, build_weapon
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -46,13 +45,12 @@ def _build_held_item(loot_item: dict, storage_id):
                 raise ValidationException(f"Unknown outfit loot: {name}")
             return build_outfit(data.model_dump(), rarity, storage_id)
         case _:
-            return Junk(
-                name=name,
-                rarity=rarity,
-                junk_type=JunkTypeEnum.VALUABLES,
+            return build_junk(
+                name,
+                rarity,
+                storage_id,
                 value=loot_overflow_service.unit_value_of(loot_item),
                 description="Recovered from an incident",
-                storage_id=storage_id,
             )
 
 

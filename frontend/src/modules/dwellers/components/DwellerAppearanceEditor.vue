@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -7,6 +7,9 @@ import UInput from '@/core/components/ui/UInput.vue'
 import USelect from '@/core/components/ui/USelect.vue'
 import USlider from '@/core/components/ui/USlider.vue'
 import type { Dweller, VisualAttributes } from '../models/dweller'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { handleStoreError } from '@/core/utils/errorHandler'
+import { getIdentityOptions } from '../services/dwellerService'
 
 interface Props {
   dweller: Dweller
@@ -19,34 +22,27 @@ const emit = defineEmits<{
   saved: [attributes: VisualAttributes]
 }>()
 
-// --- Options data (mirrors backend app/options/) ---
-const RACE_OPTIONS = ['human', 'ghoul', 'super_mutant', 'synth'] as const
+// --- Identity options: one source, the backend catalogue (no mirror to drift) ---
+const authStore = useAuthStore()
+const raceOptions = ref<string[]>([])
+const factionsByRace = ref<Record<string, string[]>>({})
+const statesByRace = ref<Record<string, string[]>>({})
 
-const STATE_OF_BEING_OPTIONS: Record<string, string[]> = {
-  ghoul: ['sane', 'wild', 'feral'],
-  super_mutant: ['mild', 'average', 'behemoth'],
-  synth: ['gen_3', 'gen_2', 'gen_1'],
-}
+onMounted(async () => {
+  if (!authStore.token) return
 
-const FACTION_OPTIONS: Record<string, string[]> = {
-  human: [
-    'vault_dweller',
-    'brotherhood_of_steel',
-    'enclave',
-    'minutemen',
-    'raiders',
-    'super_mutant_tribe',
-    'children_of_atom',
-    'the_institute',
-    'railroad',
-    'ncr',
-    'caesars_legion',
-    'none',
-  ],
-  ghoul: ['vault_dweller', 'raiders', 'children_of_atom', 'none'],
-  super_mutant: ['super_mutant_tribe', 'raiders', 'none'],
-  synth: ['the_institute', 'railroad', 'none'],
-}
+  try {
+    const options = await getIdentityOptions(authStore.token)
+    raceOptions.value = options.races ?? []
+    factionsByRace.value = options.factions_by_race ?? {}
+    statesByRace.value = options.states_by_race ?? {}
+  } catch (error) {
+    handleStoreError(error, 'Failed to load identity options', false)
+  }
+})
+
+/** Faction choices for a race, falling back to the human list the catalogue guarantees. */
+const factionsFor = (race: string): string[] => factionsByRace.value[race] ?? factionsByRace.value.human ?? []
 
 // Race-filtered appearance options (mirrors app/options/appearance.py)
 const SKIN_TONE_OPTIONS: Record<string, string[]> = {
@@ -289,13 +285,9 @@ watch(
 
 const raceKey = computed(() => form.race || 'human')
 
-const availableFactions = computed(() => {
-  return FACTION_OPTIONS[raceKey.value] || FACTION_OPTIONS.human
-})
+const availableFactions = computed(() => factionsFor(raceKey.value))
 
-const availableStates = computed(() => {
-  return STATE_OF_BEING_OPTIONS[raceKey.value] || null
-})
+const availableStates = computed(() => statesByRace.value[raceKey.value] ?? null)
 
 const showStateOfBeing = computed(() => form.race && form.race !== 'human')
 
@@ -326,15 +318,15 @@ function pickRandom<T>(arr: readonly T[] | T[]): T {
 }
 
 function randomize() {
-  const randomRace = pickRandom(RACE_OPTIONS)
+  const randomRace = pickRandom(raceOptions.value)
   form.race = randomRace
 
   // Set faction based on race
-  const factions = FACTION_OPTIONS[randomRace] || FACTION_OPTIONS.human
+  const factions = factionsFor(randomRace)
   form.faction = pickRandom(factions)
 
   // State of being for non-humans
-  const states = STATE_OF_BEING_OPTIONS[randomRace]
+  const states = statesByRace.value[randomRace]
   if (states) {
     form.state_of_being = pickRandom(states)
   } else {
@@ -420,7 +412,7 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <USelect v-model="form.race" :options="selectOptions(RACE_OPTIONS)" label="Race" label-icon="mdi:account" />
+            <USelect v-model="form.race" :options="selectOptions(raceOptions)" label="Race" label-icon="mdi:account" />
           </div>
           <div class="form-field">
             <USelect v-model="form.faction" :options="selectOptions(availableFactions)" label="Faction" label-icon="mdi:shield-account" />

@@ -1,7 +1,33 @@
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import DwellerAppearanceEditor from '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
+
+// The editor reads the backend identity catalogue instead of mirroring it.
+vi.mock('@/modules/auth/stores/auth', () => ({
+  useAuthStore: () => ({ token: 'test-token' }),
+}))
+
+vi.mock('@/core/utils/errorHandler', () => ({
+  handleStoreError: vi.fn(),
+}))
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getIdentityOptions: vi.fn().mockResolvedValue({
+    races: ['human', 'ghoul', 'super_mutant', 'synth'],
+    factions_by_race: {
+      human: ['vault_dweller', 'brotherhood_of_steel', 'enclave'],
+      ghoul: ['vault_dweller', 'raiders', 'children_of_atom', 'none'],
+      super_mutant: ['super_mutant_tribe', 'raiders', 'none'],
+      synth: ['the_institute', 'railroad', 'none'],
+    },
+    states_by_race: {
+      ghoul: ['sane', 'wild', 'feral'],
+      super_mutant: ['mild', 'average', 'behemoth'],
+      synth: ['gen_3', 'gen_2', 'gen_1'],
+    },
+  }),
+}))
 
 const baseDweller = {
   id: 'test-123',
@@ -29,7 +55,7 @@ const baseDweller = {
 } as unknown as Dweller
 
 async function createWrapper(dweller: Dweller, modelValue = true) {
-  return mount(DwellerAppearanceEditor, {
+  const wrapper = mount(DwellerAppearanceEditor, {
     props: {
       dweller,
       modelValue,
@@ -54,6 +80,8 @@ async function createWrapper(dweller: Dweller, modelValue = true) {
       },
     },
   })
+  await flushPromises()
+  return wrapper
 }
 
 describe('DwellerAppearanceEditor', () => {

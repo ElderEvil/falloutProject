@@ -16,8 +16,9 @@
     "format": "vp fmt src",
     "format:check": "vp fmt src --check",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
-    "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e": "playwright install chromium && playwright test",
+    "e2e:ui": "playwright install chromium && playwright test --ui",
+    "e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@iconify/vue": "5.0.1",

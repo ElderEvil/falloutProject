@@ -122,6 +122,7 @@ lint.select = [
     "TC",
     "S",
     "D",
+    "T10",
 ]
 
 lint.preview = true

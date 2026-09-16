@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.111.2 (2026-09-16)
+
+### Bug Fixes
+
+* authenticate the weapon, junk, outfit, objective and quest routers 4f2af68
+* scope item lists to an owned vault and lock quest writes to admins c282329
+
 ## 2.111.1 (2026-09-16)
 
 ### Bug Fixes

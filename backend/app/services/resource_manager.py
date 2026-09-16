@@ -11,6 +11,7 @@ from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.resource import resource as resource_crud
 from app.models import Dweller, Room, Vault
+from app.options.identity_modifiers import effective_stat, identity_modifiers_for
 from app.schemas.vault import (
     PrimaryResourceAmounts,
     ResourceProduction,
@@ -164,13 +165,22 @@ class ResourceManager:
         if ability is None:
             return 0.0
 
+        output = room.output
+        if output is None:
+            return 0.0
+
         workers = [dweller for dweller in dwellers if dweller.apprentice_stat is None]
-        ability_sum = sum(getattr(dweller, ability.lower(), 0) for dweller in workers)
+        # Each worker contributes their own stats scaled by their own faction perk: a
+        # production bonus is personal, so it must not inflate neutral coworkers.
+        ability_sum = sum(
+            effective_stat(dweller, ability.lower()) * (1 + identity_modifiers_for(dweller).production_pct)
+            for dweller in workers
+        )
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
         rate = game_config.resource.base_production_rate
         if MEDICAL_ROOM_PRODUCTION.get(room.name.lower()):
             rate = game_config.resource.medical_production_rate
-        production = room.output * ability_sum * rate * tier_mult * seconds_passed
+        production = output * ability_sum * rate * tier_mult * seconds_passed
 
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "

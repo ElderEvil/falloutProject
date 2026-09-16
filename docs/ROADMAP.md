@@ -632,19 +632,25 @@ must reject any identifier that does not match the authenticated user.
 AI appearance/backstory prompts + identity badges). The Combat Power Overhaul's per-type weight table is the hook:
 racial modifiers and faction perks slot into the same stat-weighting shape instead of ad-hoc special cases.
 
-- ⬜ **Racial stat modifiers** — small SPECIAL adjustments applied at the stat level (ghoul +Endurance with
-  radiation immunity, super mutant +Strength/+Endurance with a Perception penalty, synth stable stats), so every
-  consumer (combat, training, production) sees them without per-system branching.
-- ⬜ **Racial perks** — a few explicit, testable perks (ghoul radiation healing, synth resistances) wired into
-  incident/exploration resolution via the service layer.
-- ⬜ **Faction perks** — light bonuses aligned with lore (Brotherhood +energy weapons, Legion +melee, Minutemen
-  +incident response), reusing the weapon-type weight lookup rather than new formulas.
-- ⬜ **Identity plumbing** — build on the Dweller Identity & Atmosphere metadata so perks/modifiers are declared
-  next to the race/faction option definitions in `backend/app/options/`, validated on save, and surfaced in the UI
-  dossier ("why is my Ghoul tanky").
+- 🔄 **Racial stat modifiers** — shipped: one options-backed table (`RACE_MODIFIERS` in `options/races.py`) read
+  through `options/identity_modifiers.py`, so combat, production and radiation all see the same rule with no
+  per-system branching. Ghoul +2 END and radiation immunity, super mutant +3 STR/+2 END/−2 PER, synth +1 PER/+1 INT
+  and 50% radiation resistance, humans the neutral baseline. Deltas are derived on read and never persisted.
+- 🔄 **Faction perks** — shipped: `FACTION_PERKS` in `options/factions.py`, applied at the same choke points —
+  Brotherhood +15% energy-weapon damage (Legion, Raiders and the Super Mutant Tribe get melee equivalents),
+  Minutemen 15% less incident damage taken, Children of Atom +50% radiation resistance, Vault Dweller +5% and
+  Institute +10% production. NCR and Railroad stay neutral until they have an honest mechanic.
+  - **Remaining:** ghoul radiation healing over time; a perk for NCR/Railroad once an economy or stealth system
+    exists.
+- ⬜ **Dossier surfacing** — the player cannot yet see *why* a dweller is effective. Expose the computed modifiers
+  on the dweller read shape and render them in the dossier (identity badges already exist); this is the next slice.
+- ⬜ **Balance pass** — the deltas above are a first cut; revisit after play-testing normal, boosted and
+  non-human-heavy vaults.
 
 **Guardrails:** modifiers live in one options-backed source of truth; no new DB columns unless a modifier must
-persist per dweller; balance pass after play-testing; net-LOC rule applies.
+persist per dweller; balance pass after play-testing; net-LOC rule applies. The whole subsystem sits behind
+`FEATURE_RACE_FACTION_MECHANICS` (`game_config.features`), which reads neutral when off — ghoul radiation immunity
+predates the flag and is kept either way.
 
 **Success criteria:** race/faction choices change outcomes (combat, incidents, exploration) in legible ways, are
 visible in the dweller dossier, and are covered by per-race/per-faction unit tests.

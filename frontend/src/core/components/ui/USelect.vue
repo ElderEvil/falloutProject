@@ -18,6 +18,7 @@ interface Props {
   disabled?: boolean
   size?: 'sm' | 'md' | 'lg'
   labelIcon?: string
+  ariaLabel?: string
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   error,
   helpText,
   label,
+  ariaLabel,
   labelIcon,
   modelValue,
   options,
@@ -84,6 +86,7 @@ function handleFocusout(event: FocusEvent) {
       type="button"
       role="combobox"
       aria-haspopup="listbox"
+      :aria-label="ariaLabel"
       :aria-labelledby="label ? labelId : undefined"
       :aria-expanded="isOpen"
       :aria-controls="`${selectId}-options`"
@@ -127,8 +130,8 @@ function handleFocusout(event: FocusEvent) {
 .select-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 1px solid color-mix(in srgb, var(--color-theme-primary) 30%, transparent); border-radius: var(--border-radius-base); background: var(--color-surface-raised); color: var(--color-theme-primary); font-family: var(--font-family-mono); text-align: left; transition: border-color var(--transition-base), box-shadow var(--transition-base); }
 .select-trigger:focus-visible { border-color: var(--color-theme-primary); outline: none; box-shadow: 0 0 8px var(--color-theme-glow); }
 .select-trigger-error { border-color: var(--color-danger); }
-.select-menu { position: absolute; z-index: 10; top: 100%; right: 0; left: 0; max-height: 15rem; overflow-y: auto; margin-top: 0.25rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent); border-radius: var(--border-radius-base); background: var(--color-surface-raised); box-shadow: 0 8px 20px var(--color-theme-glow); }
-.select-option { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem; border: 0; border-radius: var(--border-radius-sm); background: transparent; color: var(--color-theme-primary); font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
+.select-menu { position: absolute; z-index: 10; top: 100%; right: auto; left: 0; min-width: 100%; width: max-content; max-width: 22rem; max-height: 15rem; overflow-y: auto; margin-top: 0.25rem; padding: 0.25rem; border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent); border-radius: var(--border-radius-base); background: var(--color-surface-raised); box-shadow: 0 8px 20px var(--color-theme-glow); }
+.select-option { display: flex; align-items: center; gap: 0.5rem; width: 100%; white-space: nowrap; padding: 0.5rem; border: 0; border-radius: var(--border-radius-sm); background: transparent; color: var(--color-theme-primary); font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
 .select-option:hover, .select-option:focus-visible, .select-option[aria-selected='true'] { background: color-mix(in srgb, var(--color-theme-primary) 12%, transparent); outline: none; }
 .select-helptext, .select-error { font-size: 0.7rem; }
 .select-helptext { color: var(--color-theme-primary); opacity: 0.5; }

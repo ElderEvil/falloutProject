@@ -26,6 +26,14 @@ describe('DwellersView', () => {
     return mount(DwellersView, { global: { plugins: [router, pinia] } })
   }
 
+  it('hides the identity filters while the dead-dweller panel is shown', async () => {
+    useDwellerStore().filter.setFilterStatus('dead')
+    const wrapper = await mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.identity-controls').exists()).toBe(false)
+  })
+
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
@@ -185,11 +193,18 @@ describe('DwellersView', () => {
         },
       ]
 
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
+      // URL-aware mock: the view's request order is an implementation detail, so
+      // answer by endpoint instead of by call sequence.
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/dwellers/identity-options')) {
+          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+        }
+        if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: mockDwellers })
+        if (url.includes('/incidents')) {
+          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+        }
+        return Promise.resolve({ data: [] })
+      })
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -245,12 +260,32 @@ describe('DwellersView', () => {
       )
     })
 
+    it('refetches with identity filters when they change', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      const fetchSpy = vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
+
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterRace('ghoul')
+      await flushPromises()
+
+      const options = fetchSpy.mock.calls.at(-1)?.[2] as Record<string, unknown> | undefined
+      expect(options?.race).toBe('ghoul')
+      wrapper.unmount()
+    })
+
     it('should render filter panel', async () => {
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/dwellers/identity-options')) {
+          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+        }
+        if (url.includes('/incidents')) {
+          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+        }
+        return Promise.resolve({ data: [] })
+      })
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

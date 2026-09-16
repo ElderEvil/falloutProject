@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, RaceEnum
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
@@ -181,6 +181,8 @@ async def read_dwellers_by_vault(
     status: DwellerStatusEnum | None = None,
     age_group: AgeGroupEnum | None = None,
     search: str | None = None,
+    race: RaceEnum | None = None,
+    faction: FactionEnum | None = None,
     sort_by: str = "created_at",
     order: str = "desc",
 ) -> Sequence[Dweller]:
@@ -190,7 +192,7 @@ async def read_dwellers_by_vault(
         list[DwellerReadLess]: Filtered list of dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_multi_by_vault(
+    return await dweller_service.list_vault_dwellers(
         db_session=db_session,
         vault_id=vault_id,
         skip=skip,
@@ -198,6 +200,8 @@ async def read_dwellers_by_vault(
         status=status,
         age_group=age_group,
         search=search,
+        race=race,
+        faction=faction,
         sort_by=sort_by,
         order=order,
     )

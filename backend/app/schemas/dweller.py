@@ -20,6 +20,7 @@ from app.core.enums import (
 )
 from app.models.dweller import DwellerBase
 from app.options.factions import FactionOption, faction_restrictions
+from app.options.identity_modifiers import IdentityModifiers, identity_modifiers_for
 from app.options.races import RaceOption
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
@@ -291,6 +292,12 @@ class DwellerRead(DwellerBase):
     def effective_max_health(self) -> int:
         """Maximum health available after radiation damage."""
         return max(1, self.max_health - max(0, self.radiation))
+
+    @computed_field
+    @property
+    def identity_modifiers(self) -> IdentityModifiers:
+        """Race and faction effects on this dweller, so clients can explain its effectiveness."""
+        return identity_modifiers_for(self)
 
 
 class DwellerReadWithVaultID(DwellerRead):

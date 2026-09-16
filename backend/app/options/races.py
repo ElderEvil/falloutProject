@@ -1,5 +1,6 @@
 """Race and state-of-being enums with lore descriptions."""
 
+from dataclasses import dataclass
 from enum import StrEnum
 
 
@@ -63,6 +64,40 @@ BREEDING_ELIGIBLE: dict[RaceOption, bool] = {
     RaceOption.SUPER_MUTANT: False,
     RaceOption.SYNTH: False,
 }
+
+
+@dataclass(frozen=True)
+class RaceModifiers:
+    """Racial stat deltas and passive perks, declared beside the race options.
+
+    Deltas are applied at the stat level (see ``options/identity_modifiers.py``), so
+    combat, production and radiation all read one rule instead of branching per system.
+    Values are deliberately small; a balance pass follows play-testing.
+    """
+
+    strength: int = 0
+    perception: int = 0
+    endurance: int = 0
+    charisma: int = 0
+    intelligence: int = 0
+    agility: int = 0
+    luck: int = 0
+    radiation_immune: bool = False
+    radiation_resist_pct: float = 0.0
+
+
+#: Racial modifiers keyed by race; humans are the baseline every other race trades against.
+RACE_MODIFIERS: dict[RaceOption, RaceModifiers] = {
+    RaceOption.HUMAN: RaceModifiers(),
+    RaceOption.GHOUL: RaceModifiers(endurance=2, radiation_immune=True),
+    RaceOption.SUPER_MUTANT: RaceModifiers(strength=3, endurance=2, perception=-2),
+    RaceOption.SYNTH: RaceModifiers(perception=1, intelligence=1, radiation_resist_pct=0.5),
+}
+
+
+def modifiers_for_race(entity: object) -> RaceModifiers:
+    """Racial modifiers for an entity; unknown or missing races take the human baseline."""
+    return RACE_MODIFIERS.get(race_of(entity) or RaceOption.HUMAN, RACE_MODIFIERS[RaceOption.HUMAN])
 
 
 def race_of(entity: object) -> RaceOption | None:

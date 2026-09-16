@@ -8,6 +8,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.options.identity_modifiers import identity_modifiers_for
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
@@ -45,17 +46,27 @@ async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> I
 
 async def apply_damage(
     db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
-) -> tuple[int, int]:
-    """Distribute incoming damage across responders; deaths stay pending for the round commit."""
+) -> tuple[int, int, int]:
+    """Distribute incoming damage across responders; deaths stay pending for the round commit.
+
+    Returns (damaged_count, deaths_count, damage_taken): the third value is what the
+    responders actually took after their response perk, so callers report the same
+    number the health bars moved by — and a fully mitigated round reads as zero.
+    """
     from app.core.enums import DeathCauseEnum
     from app.services.family.death_service import death_service
 
     damaged_count = 0
     deaths_count = 0
-    total_damage = max(0, int(damage_to_dwellers))
-    damage_per_dweller, remainder = divmod(total_damage, len(dwellers))
+    damage_taken = 0
+    incoming_damage = max(0, int(damage_to_dwellers))
+    damage_per_dweller, remainder = divmod(incoming_damage, len(dwellers))
     for index, dweller in enumerate(dwellers):
         dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
+        response_pct = identity_modifiers_for(dweller).incident_response_pct
+        if response_pct:
+            dweller_damage = int(dweller_damage * (1.0 - response_pct))
+        damage_taken += dweller_damage
         new_health = max(0, dweller.health - dweller_damage)
 
         if (
@@ -79,7 +90,7 @@ async def apply_damage(
                 deaths_count += 1
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died during incident")
 
-    return damaged_count, deaths_count
+    return damaged_count, deaths_count, damage_taken
 
 
 async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
@@ -150,8 +161,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
         response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
         damage_to_raiders = response_progress * threat_power
 
-    damaged_count, deaths_count = await apply_damage(db_session, incident, dwellers, damage_to_dwellers)
-    total_damage = max(0, int(damage_to_dwellers))
+    damaged_count, deaths_count, total_damage = await apply_damage(db_session, incident, dwellers, damage_to_dwellers)
 
     # Track total damage dealt by raiders
     incident.damage_dealt += total_damage

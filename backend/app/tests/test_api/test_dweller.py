@@ -505,3 +505,24 @@ async def test_unknown_race_filter_is_rejected(
     response = await async_client.get(f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers)
 
     assert response.status_code == 422
+
+
+async def test_dweller_detail_exposes_identity_modifiers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """The dossier can explain why a dweller is effective without recomputing rules client-side."""
+    dweller.visual_attributes = {"race": "super_mutant", "faction": "super_mutant_tribe"}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    modifiers = response.json()["identity_modifiers"]
+    assert modifiers["strength"] == 3
+    assert modifiers["perception"] == -2
+    assert modifiers["radiation_immune"] is False
+    assert modifiers["melee_damage_pct"] == 0.15

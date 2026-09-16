@@ -9,7 +9,6 @@ from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.vault import Vault
 
@@ -25,7 +24,7 @@ DWELLER = UUID("33333333-3333-4333-8333-333333333333")
 
 def _previously_open_routes() -> list[tuple[str, str]]:
     return [
-        ("GET", "/weapons/"),
+        ("GET", f"/weapons/?vault_id={VAULT}"),
         ("GET", f"/weapons/{ITEM}"),
         ("POST", "/weapons/"),
         ("PUT", f"/weapons/{ITEM}"),
@@ -34,13 +33,13 @@ def _previously_open_routes() -> list[tuple[str, str]]:
         ("POST", f"/weapons/{ITEM}/unequip/"),
         ("POST", f"/weapons/{ITEM}/scrap/"),
         ("POST", f"/weapons/{ITEM}/sell/"),
-        ("GET", "/junk/"),
+        ("GET", f"/junk/?vault_id={VAULT}"),
         ("GET", f"/junk/{ITEM}"),
         ("POST", "/junk/"),
         ("PUT", f"/junk/{ITEM}"),
         ("DELETE", f"/junk/{ITEM}"),
         ("POST", f"/junk/{ITEM}/sell/"),
-        ("GET", "/outfits/"),
+        ("GET", f"/outfits/?vault_id={VAULT}"),
         ("GET", f"/outfits/{ITEM}"),
         ("POST", "/outfits/"),
         ("PUT", f"/outfits/{ITEM}"),
@@ -80,6 +79,7 @@ async def test_item_routes_reject_a_foreign_vault(
     for url in (
         f"/weapons/?vault_id={foreign_vault_id}",
         f"/outfits/?vault_id={foreign_vault_id}",
+        f"/junk/?vault_id={foreign_vault_id}",
         f"/objectives/{foreign_vault_id}/",
     ):
         response = await async_client.get(url, headers=normal_user_token_headers)
@@ -99,9 +99,9 @@ async def test_catalog_writes_require_superuser(
 async def test_authenticated_reads_still_work(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
+    vault: Vault,
 ) -> None:
     """Hardening must not break the happy path the frontend uses."""
-    response = await async_client.get("/weapons/", headers=superuser_token_headers)
+    response = await async_client.get(f"/weapons/?vault_id={vault.id}", headers=superuser_token_headers)
 
     assert response.status_code == 200

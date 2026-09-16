@@ -79,7 +79,7 @@ async def test_delete_vault(
         headers=superuser_token_headers,
     )
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/junk/{created_vault.id}", headers=superuser_token_headers)
+    read_response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 

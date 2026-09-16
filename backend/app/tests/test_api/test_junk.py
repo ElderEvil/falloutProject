@@ -33,8 +33,13 @@ async def test_create_junk_invalid(async_client: AsyncClient, superuser_token_he
 
 @pytest.mark.asyncio
 async def test_read_junk_list(
-    async_client: AsyncClient, async_session: AsyncSession, junk_data: dict, superuser_token_headers: dict[str, str]
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    junk_data: dict,
+    superuser_token_headers: dict[str, str],
+    vault,
 ):
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     junk_data_2 = {
         "name": "Test Junk 2",
         "rarity": "Common",
@@ -44,9 +49,9 @@ async def test_read_junk_list(
     }
     junk_obj_1 = JunkCreate(**junk_data)
     junk_obj_2 = JunkCreate(**junk_data_2)
-    await crud.junk.create(async_session, junk_obj_1)
-    await crud.junk.create(async_session, junk_obj_2)
-    response = await async_client.get("/junk/", headers=superuser_token_headers)
+    await crud.junk.create(async_session, {**junk_data, "storage_id": storage.id})
+    await crud.junk.create(async_session, {**junk_data_2, "storage_id": storage.id})
+    response = await async_client.get(f"/junk/?vault_id={vault.id}", headers=superuser_token_headers)
     all_junk = response.json()
     assert response.status_code == 200
     assert len(all_junk) == 2

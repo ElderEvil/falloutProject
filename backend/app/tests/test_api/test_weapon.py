@@ -34,14 +34,19 @@ async def test_create_weapon_invalid(async_client: AsyncClient, superuser_token_
 
 @pytest.mark.asyncio
 async def test_read_weapon_list(
-    async_client: AsyncClient, async_session: AsyncSession, weapon_data: dict, superuser_token_headers: dict[str, str]
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    weapon_data: dict,
+    superuser_token_headers: dict[str, str],
+    vault,
 ):
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     weapon_2_data = create_fake_weapon()
     weapon_1 = WeaponCreate(**weapon_data)
     weapon_2 = WeaponCreate(**weapon_2_data)
-    await crud.weapon.create(async_session, weapon_1)
-    await crud.weapon.create(async_session, weapon_2)
-    response = await async_client.get("/weapons/", headers=superuser_token_headers)
+    await crud.weapon.create(async_session, {**weapon_data, "storage_id": storage.id})
+    await crud.weapon.create(async_session, {**weapon_2_data, "storage_id": storage.id})
+    response = await async_client.get(f"/weapons/?vault_id={vault.id}", headers=superuser_token_headers)
     all_weapons = response.json()
     assert response.status_code == 200
     assert len(all_weapons) == 2

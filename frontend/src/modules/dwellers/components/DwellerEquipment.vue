@@ -27,14 +27,10 @@ const availableWeapons = computed(() => equipmentStore.getAvailableWeapons())
 const availableOutfits = computed(() => equipmentStore.getAvailableOutfits())
 
 onMounted(async () => {
+  // Item lists are vault-scoped server-side, so a missing vault id means "nothing to fetch".
   if (authStore.token && vaultId.value) {
     await equipmentStore.fetchWeapons(authStore.token, vaultId.value)
     await equipmentStore.fetchOutfits(authStore.token, vaultId.value)
-  } else {
-    if (authStore.token) {
-      await equipmentStore.fetchWeapons(authStore.token)
-      await equipmentStore.fetchOutfits(authStore.token)
-    }
   }
 })
 

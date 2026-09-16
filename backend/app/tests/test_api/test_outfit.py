@@ -15,14 +15,19 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 @pytest.mark.asyncio
 async def test_read_outfit_list(
-    async_client: AsyncClient, async_session: AsyncSession, outfit_data: dict, superuser_token_headers: dict[str, str]
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    outfit_data: dict,
+    superuser_token_headers: dict[str, str],
+    vault,
 ):
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     outfit_2_data = create_fake_outfit()
     outfit_1 = OutfitCreate(**outfit_data)
     outfit_2 = OutfitCreate(**outfit_2_data)
-    await crud.outfit.create(async_session, outfit_1)
-    await crud.outfit.create(async_session, outfit_2)
-    response = await async_client.get("/outfits/", headers=superuser_token_headers)
+    await crud.outfit.create(async_session, {**outfit_data, "storage_id": storage.id})
+    await crud.outfit.create(async_session, {**outfit_2_data, "storage_id": storage.id})
+    response = await async_client.get(f"/outfits/?vault_id={vault.id}", headers=superuser_token_headers)
     all_outfits = response.json()
     assert response.status_code == 200
     assert len(all_outfits) == 2

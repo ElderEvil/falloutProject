@@ -119,31 +119,32 @@ async def read_quest(
 async def update_quest(
     quest_id: UUID4,
     quest_data: QuestUpdate,
-    vault_id: UUID4,
+    _vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: CurrentSuperuser,
 ) -> Quest:
-    """Update a quest.
+    """Update a quest definition (administrators only).
+
+    Quests are global templates shared by every vault, so vault ownership cannot
+    authorize this write — editing one here would change it for all players.
 
     Returns:
         The updated quest.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
     """
-    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.quest_crud.update(db_session, quest_id, quest_data)
 
 
 @router.delete("/{vault_id}/{quest_id}", status_code=204)
 async def delete_quest(
     quest_id: UUID4,
-    vault_id: UUID4,
+    _vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: CurrentSuperuser,
 ) -> None:
-    """Delete a quest."""
-    await get_user_vault_or_403(vault_id, user, db_session)
+    """Delete a quest definition (administrators only).
+
+    Like update, this removes a global template shared by every vault.
+    """
     await crud.quest_crud.delete(db_session, quest_id)
 
 

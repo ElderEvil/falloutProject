@@ -2,8 +2,8 @@ import axios from '@/core/plugins/axios'
 import type { Weapon, Outfit } from '../models/equipment'
 
 // Weapon API calls
-export async function fetchWeapons(token: string, vaultId?: string): Promise<Weapon[]> {
-  const params = vaultId ? { vault_id: vaultId } : {}
+export async function fetchWeapons(token: string, vaultId: string): Promise<Weapon[]> {
+  const params = { vault_id: vaultId }
   const response = await axios.get('/api/v1/weapons/', {
     params,
     headers: { Authorization: `Bearer ${token}` },
@@ -41,8 +41,8 @@ export async function unequipWeapon(
 }
 
 // Outfit API calls
-export async function fetchOutfits(token: string, vaultId?: string): Promise<Outfit[]> {
-  const params = vaultId ? { vault_id: vaultId } : {}
+export async function fetchOutfits(token: string, vaultId: string): Promise<Outfit[]> {
+  const params = { vault_id: vaultId }
   const response = await axios.get('/api/v1/outfits/', {
     params,
     headers: { Authorization: `Bearer ${token}` },

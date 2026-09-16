@@ -17,7 +17,7 @@ from app.api.deps import (
     verify_item_access,
 )
 from app.core.game_data import get_static_game_data
-from app.crud.item_base import get_items_list
+from app.crud.item_base import get_items_by_vault
 from app.db.session import get_async_session
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
@@ -44,23 +44,26 @@ async def create_outfit(
 
 @router.get("/", response_model=list[OutfitRead])
 async def read_outfit_list(
+    vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-    vault_id: UUID4 | None = None,
 ) -> Sequence[Outfit]:
-    """Retrieve a paginated list of outfits, optionally filtered by vault.
+    """Retrieve a paginated list of a vault's outfits.
+
+    Every item lives in a vault's storage or on one of its dwellers, so the vault
+    is required rather than optional: an unscoped list would enumerate other
+    players' gear.
 
     Returns:
         List of outfits.
 
     Raises:
-        AccessDeniedException: If a vault filter is given and the user doesn't own it.
+        AccessDeniedException: If the user doesn't own the vault.
     """
-    if vault_id is not None:
-        await get_user_vault_or_403(vault_id, user, db_session)
-    return await get_items_list(crud.outfit, db_session, Outfit, vault_id, skip, limit)
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await get_items_by_vault(db_session, Outfit, vault_id, skip, limit)
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)

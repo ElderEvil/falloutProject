@@ -1721,10 +1721,17 @@ export interface paths {
         };
         /**
          * Read Junk List
-         * @description Retrieve a paginated list of junk items.
+         * @description Retrieve a paginated list of a vault's junk inventory.
+         *
+         *     Junk is vault inventory held in storage, not catalog data, so the vault is
+         *     required rather than optional: an unscoped list would enumerate other
+         *     players' materials.
          *
          *     Returns:
          *         List of junk items.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_junk_list_api_v1_junk__get"];
         put?: never;
@@ -2137,13 +2144,17 @@ export interface paths {
         };
         /**
          * Read Outfit List
-         * @description Retrieve a paginated list of outfits, optionally filtered by vault.
+         * @description Retrieve a paginated list of a vault's outfits.
+         *
+         *     Every item lives in a vault's storage or on one of its dwellers, so the vault
+         *     is required rather than optional: an unscoped list would enumerate other
+         *     players' gear.
          *
          *     Returns:
          *         List of outfits.
          *
          *     Raises:
-         *         AccessDeniedException: If a vault filter is given and the user doesn't own it.
+         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_outfit_list_api_v1_outfits__get"];
         put?: never;
@@ -2545,19 +2556,21 @@ export interface paths {
         get: operations["read_quest_api_v1_quests__vault_id___quest_id__get"];
         /**
          * Update Quest
-         * @description Update a quest.
+         * @description Update a quest definition (administrators only).
+         *
+         *     Quests are global templates shared by every vault, so vault ownership cannot
+         *     authorize this write — editing one here would change it for all players.
          *
          *     Returns:
          *         The updated quest.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         put: operations["update_quest_api_v1_quests__vault_id___quest_id__put"];
         post?: never;
         /**
          * Delete Quest
-         * @description Delete a quest.
+         * @description Delete a quest definition (administrators only).
+         *
+         *     Like update, this removes a global template shared by every vault.
          */
         delete: operations["delete_quest_api_v1_quests__vault_id___quest_id__delete"];
         options?: never;
@@ -4212,13 +4225,17 @@ export interface paths {
         };
         /**
          * Read Weapon List
-         * @description Retrieve a paginated list of weapons, optionally filtered by vault.
+         * @description Retrieve a paginated list of a vault's weapons.
+         *
+         *     Every item lives in a vault's storage or on one of its dwellers, so the vault
+         *     is required rather than optional: an unscoped list would enumerate other
+         *     players' gear.
          *
          *     Returns:
          *         List of weapons.
          *
          *     Raises:
-         *         AccessDeniedException: If a vault filter is given and the user doesn't own it.
+         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_weapon_list_api_v1_weapons__get"];
         put?: never;
@@ -12119,7 +12136,8 @@ export interface operations {
     };
     read_junk_list_api_v1_junk__get: {
         parameters: {
-            query?: {
+            query: {
+                vault_id: string;
                 skip?: number;
                 limit?: number;
             };
@@ -12762,10 +12780,10 @@ export interface operations {
     };
     read_outfit_list_api_v1_outfits__get: {
         parameters: {
-            query?: {
+            query: {
+                vault_id: string;
                 skip?: number;
                 limit?: number;
-                vault_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -13389,11 +13407,12 @@ export interface operations {
     };
     update_quest_api_v1_quests__vault_id___quest_id__put: {
         parameters: {
-            query?: never;
+            query: {
+                _vault_id: string;
+            };
             header?: never;
             path: {
                 quest_id: string;
-                vault_id: string;
             };
             cookie?: never;
         };
@@ -13425,11 +13444,12 @@ export interface operations {
     };
     delete_quest_api_v1_quests__vault_id___quest_id__delete: {
         parameters: {
-            query?: never;
+            query: {
+                _vault_id: string;
+            };
             header?: never;
             path: {
                 quest_id: string;
-                vault_id: string;
             };
             cookie?: never;
         };
@@ -15718,10 +15738,10 @@ export interface operations {
     };
     read_weapon_list_api_v1_weapons__get: {
         parameters: {
-            query?: {
+            query: {
+                vault_id: string;
                 skip?: number;
                 limit?: number;
-                vault_id?: string | null;
             };
             header?: never;
             path?: never;

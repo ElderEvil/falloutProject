@@ -12,18 +12,19 @@ guard would pass vacuously.
 
 from main import app
 
-#: Paths that are intentionally reachable without a bearer token.
-PUBLIC_ROUTES: dict[str, str] = {
-    "/healthcheck": "infrastructure probe",
-    "/api/v1/auth/login": "unauthenticated login",
-    "/api/v1/auth/refresh": "refresh token exchange",
-    "/api/v1/auth/forgot-password": "password reset request",
-    "/api/v1/auth/reset-password": "password reset",
-    "/api/v1/auth/verify-email": "email verification link",
-    "/api/v1/users/open": "registration",
-    "/api/v1/system/info": "public build info",
-    "/api/v1/system/changelog": "public changelog",
-    "/api/v1/system/changelog/latest": "public changelog",
+#: Operations intentionally reachable without a bearer token, keyed by "METHOD path" so
+#: a new unsecured method on an already-exempt path still fails the guard.
+PUBLIC_OPERATIONS: dict[str, str] = {
+    "GET /healthcheck": "infrastructure probe",
+    "POST /api/v1/auth/login": "unauthenticated login",
+    "POST /api/v1/auth/refresh": "refresh token exchange",
+    "POST /api/v1/auth/forgot-password": "password reset request",
+    "POST /api/v1/auth/reset-password": "password reset",
+    "POST /api/v1/auth/verify-email": "email verification link",
+    "POST /api/v1/users/open": "registration",
+    "GET /api/v1/system/info": "public build info",
+    "GET /api/v1/system/changelog": "public changelog",
+    "GET /api/v1/system/changelog/latest": "public changelog",
 }
 
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")
@@ -41,11 +42,11 @@ def _unsecured_operations() -> list[str]:
 
 
 def test_every_route_requires_authentication() -> None:
-    unsecured = [operation for operation in _unsecured_operations() if operation.split(" ", 1)[1] not in PUBLIC_ROUTES]
+    unsecured = [operation for operation in _unsecured_operations() if operation not in PUBLIC_OPERATIONS]
 
     assert not unsecured, (
-        "Routes reachable without authentication. Add an auth dependency, or add the path to "
-        "PUBLIC_ROUTES with a reason if it is intentionally public:\n  " + "\n  ".join(unsecured)
+        "Operations reachable without authentication. Add an auth dependency, or add the operation "
+        "to PUBLIC_OPERATIONS with a reason if it is intentionally public:\n  " + "\n  ".join(unsecured)
     )
 
 
@@ -56,8 +57,8 @@ def test_guard_actually_sees_the_api() -> None:
 
 
 def test_public_route_allowlist_has_no_dead_entries() -> None:
-    """A stale allowlist entry would silently exempt a route that no longer exists."""
-    documented = set(app.openapi()["paths"])
-    dead = sorted(path for path in PUBLIC_ROUTES if path not in documented)
+    """A stale entry would silently exempt an operation that no longer exists."""
+    documented = _unsecured_operations()
+    dead = sorted(operation for operation in PUBLIC_OPERATIONS if operation not in documented)
 
-    assert not dead, f"PUBLIC_ROUTES lists paths that are not documented routes: {dead}"
+    assert not dead, f"PUBLIC_OPERATIONS lists operations that are no longer unsecured: {dead}"

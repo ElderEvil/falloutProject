@@ -8,7 +8,13 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_current_active_user, verify_item_access
+from app.api.deps import (
+    CurrentActiveUser,
+    CurrentSuperuser,
+    get_current_active_user,
+    get_user_vault_or_403,
+    verify_item_access,
+)
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.junk import Junk
@@ -35,16 +41,26 @@ async def create_junk(
 
 @router.get("/", response_model=list[JunkRead])
 async def read_junk_list(
+    vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
 ) -> Sequence[Junk]:
-    """Retrieve a paginated list of junk items.
+    """Retrieve a paginated list of a vault's junk inventory.
+
+    Junk is vault inventory held in storage, not catalog data, so the vault is
+    required rather than optional: an unscoped list would enumerate other
+    players' materials.
 
     Returns:
         List of junk items.
+
+    Raises:
+        AccessDeniedException: If the user doesn't own the vault.
     """
-    return await crud.junk.get_multi(db_session, skip=skip, limit=limit)
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
 
 
 @router.get("/{junk_id}", response_model=JunkRead)

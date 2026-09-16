@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.110.1 (2026-09-16)
+
+### Bug Fixes
+
+* cancel active training on exploration departure a44fef0
+
+### Documentation
+
+* record ranked duplication backlog in roadmap 387072e
+* refresh exploration-departure backlog entry after training-orphan fix 406cbe4
+
+### Code Refactoring
+
+* dedupe assignment recording and ability sorting f84cca1
+* route marriage notification through notify_owner b446898
+* share living-dweller guard and narrow event types in appliers f4c23cc
+
 ## 2.110.0 (2026-09-15)
 
 ### Features

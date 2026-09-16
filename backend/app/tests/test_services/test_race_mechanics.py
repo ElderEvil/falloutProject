@@ -30,6 +30,15 @@ from app.utils.combat import combat_power
 from app.utils.dwellers import roll_child_identity
 
 
+@pytest.fixture(autouse=True)
+def _race_mechanics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The subsystem ships dark, so behaviour tests state the flag as a precondition.
+
+    TestFeatureFlag covers the off path explicitly by setting it False itself.
+    """
+    monkeypatch.setattr(game_config.features, "race_faction_mechanics", True)
+
+
 def _dweller(race: str | None, faction: str | None = None) -> SimpleNamespace:
     attrs: dict[str, str] = {}
     if race is not None:

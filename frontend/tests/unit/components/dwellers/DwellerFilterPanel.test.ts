@@ -26,11 +26,11 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   }),
 }))
 
-/** The collapse toggle is the only toolbar button whose label mentions active filters. */
+/** The collapse toggle is the only toolbar button carrying this class. */
 async function expandFilters(wrapper: ReturnType<typeof mount>) {
-  const toggle = wrapper.findAll('.view-toggle-btn').find((b) => b.text().includes('active'))
-  expect(toggle).toBeDefined()
-  await toggle!.trigger('click')
+  const toggle = wrapper.find('.filters-toggle')
+  expect(toggle.exists()).toBe(true)
+  await toggle.trigger('click')
   await flushPromises()
 }
 
@@ -217,10 +217,12 @@ describe('DwellerFilterPanel', () => {
       await flushPromises()
 
       expect(wrapper.text()).not.toContain('Filter by Status')
-      expect(wrapper.text()).toContain('None active')
+      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('false')
+      expect(wrapper.find('.filters-count').exists()).toBe(false)
 
       await expandFilters(wrapper)
 
+      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('true')
       expect(wrapper.text()).toContain('Filter by Status')
     })
 
@@ -239,7 +241,7 @@ describe('DwellerFilterPanel', () => {
 
       expect(store.filterRace).toBe('ghoul')
       expect(store.filterFaction).toBe('children_of_atom')
-      expect(wrapper.text()).toContain('2 active')
+      expect(wrapper.find('.filters-count').text()).toBe('2')
     })
 
     it('clears a faction the newly selected race cannot hold', async () => {

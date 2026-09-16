@@ -219,22 +219,19 @@ const toggleSortDirection = () => {
 
       <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
 
-      <div v-if="collapsible" class="filter-section">
-        <div class="section-header">
-          <Icon icon="mdi:filter-variant" />
-          <span>Filters</span>
-        </div>
-        <button
-          type="button"
-          class="view-toggle-btn"
-          :class="{ active: activeFilterCount > 0 }"
-          :aria-expanded="!collapsed"
-          @click="collapsed = !collapsed"
-        >
-          <Icon :icon="collapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" width="18" height="18" />
-          <span>{{ activeFilterCount > 0 ? `${activeFilterCount} active` : 'None active' }}</span>
-        </button>
-      </div>
+      <button
+        v-if="collapsible"
+        type="button"
+        class="view-toggle-btn filters-toggle"
+        :class="{ active: activeFilterCount > 0 }"
+        :aria-expanded="!collapsed"
+        @click="collapsed = !collapsed"
+      >
+        <Icon icon="mdi:filter-variant" width="18" height="18" />
+        <span>Filters</span>
+        <span v-if="activeFilterCount > 0" class="filters-count">{{ activeFilterCount }}</span>
+        <Icon :icon="collapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" width="16" height="16" />
+      </button>
 
       <div class="filter-section">
         <div class="section-header">
@@ -424,11 +421,45 @@ const toggleSortDirection = () => {
 .identity-controls {
   display: flex;
   gap: 0.5rem;
-  min-width: 16rem;
+  min-width: 18rem;
 }
 
 .identity-controls > * {
   flex: 1;
+}
+
+/* Match the status/age chips so the whole toolbar reads as one control set. */
+.identity-controls :deep(.select-trigger) {
+  padding: 0.5rem 0.75rem;
+  border-color: var(--color-theme-glow);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  opacity: 0.85;
+}
+
+.identity-controls :deep(.select-trigger:hover) {
+  opacity: 1;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+/* Sits in the row beside labelled sections, so align it with their controls. */
+.filters-toggle {
+  align-self: flex-end;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.filters-count {
+  min-width: 1.25rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--color-theme-primary);
+  color: var(--color-terminal-background);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .view-toggle-controls {

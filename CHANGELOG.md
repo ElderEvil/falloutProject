@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.112.0 (2026-09-16)
+
+### Features
+
+* collapse the roster filters and cascade identity selects 710e8a5
+* gate race/faction mechanics behind a feature flag fe158f6
+* make race and faction mechanically meaningful 167edcf
+* read the identity catalogue in the appearance editor 437039f
+* surface identity modifiers and filter the roster by race/faction b7ca1d6
+
+### Bug Fixes
+
+* address review on identity filters and the appearance editor a2c5cd4
+* address review on race/faction mechanics 9e0d80d
+* apply production perks per worker, not room-wide ac314c3
+* keep the filters toggle at the head of the filter block fb073b6
+* render Sort By with the shared dropdown 71a35a5
+* tidy the roster filter toolbar 6fc8752
+* type the sort dropdown adapter 6cb4341
+
+### Documentation
+
+* plan race-driven conversational persona 4d18117
+* prune shipped work from the roadmap and merge the radiation docs 7233df4
+
+### Code Refactoring
+
+* keep this branch to the identity-modifier surfacing 7a8fdbe
+
 ## 2.111.3 (2026-09-16)
 
 ### Bug Fixes

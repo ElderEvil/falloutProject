@@ -218,6 +218,20 @@ class TestCombatAndProductionApplication:
         assert mutant_output > human_output
         assert human_output == pytest.approx(10 * 5 * 0.1 * 1.0 * 1.05 * 60)
 
+    def test_production_perk_is_per_worker_not_per_room(self) -> None:
+        """A single faction bonus must not inflate neutral coworkers in the same room."""
+        room = SimpleNamespace(name="Power Generator", ability=SPECIALEnum.STRENGTH, output=10, tier=1)
+        manager = ResourceManager()
+
+        vault_dweller = self._fighter("human", faction="vault_dweller")
+        neutral = self._fighter("human", faction="none")
+
+        mixed = manager._calculate_room_production(room, [vault_dweller, neutral], 60)
+
+        # 5 stats x 1.05 for the Vault Dweller plus 5 stats x 1.0 for the neutral worker.
+        assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * 0.1 * 1.0 * 60)
+        assert mixed < 10 * (5 + 5) * 0.1 * 1.0 * 1.05 * 60
+
     def test_radiation_resist_scales_the_dose(self) -> None:
         synth = _dweller("synth")
         synth.is_dead = False

@@ -170,13 +170,17 @@ class ResourceManager:
             return 0.0
 
         workers = [dweller for dweller in dwellers if dweller.apprentice_stat is None]
-        ability_sum = sum(effective_stat(dweller, ability.lower()) for dweller in workers)
+        # Each worker contributes their own stats scaled by their own faction perk: a
+        # production bonus is personal, so it must not inflate neutral coworkers.
+        ability_sum = sum(
+            effective_stat(dweller, ability.lower()) * (1 + identity_modifiers_for(dweller).production_pct)
+            for dweller in workers
+        )
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
         rate = game_config.resource.base_production_rate
         if MEDICAL_ROOM_PRODUCTION.get(room.name.lower()):
             rate = game_config.resource.medical_production_rate
-        faction_bonus = 1 + max((identity_modifiers_for(d).production_pct for d in workers), default=0.0)
-        production = output * ability_sum * rate * tier_mult * faction_bonus * seconds_passed
+        production = output * ability_sum * rate * tier_mult * seconds_passed
 
         self.logger.info(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "

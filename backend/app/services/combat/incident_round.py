@@ -8,6 +8,7 @@ from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.options.identity_modifiers import identity_modifiers_for
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
@@ -56,6 +57,9 @@ async def apply_damage(
     damage_per_dweller, remainder = divmod(total_damage, len(dwellers))
     for index, dweller in enumerate(dwellers):
         dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
+        response_pct = identity_modifiers_for(dweller).incident_response_pct
+        if response_pct:
+            dweller_damage = int(dweller_damage * (1.0 - response_pct))
         new_health = max(0, dweller.health - dweller_damage)
 
         if (

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from app.core.enums import OutfitTypeEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.options.races import RaceOption, race_of
+from app.options.identity_modifiers import identity_modifiers_for
 
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
@@ -73,8 +73,16 @@ def apply_radiation_gain(dweller: Dweller, amount: int, *, resisted_by_outfit: b
     Radiation drunk as irradiated water enters through ingestion, so that caller
     passes ``resisted_by_outfit=False`` and armor cannot block it.
     """
-    if amount <= 0 or dweller.is_dead or race_of(dweller) == RaceOption.GHOUL:
+    if amount <= 0 or dweller.is_dead:
         return False
+
+    modifiers = identity_modifiers_for(dweller)
+    if modifiers.radiation_immune:
+        return False
+    if modifiers.radiation_resist_pct:
+        amount = int(amount * (1.0 - modifiers.radiation_resist_pct))
+        if amount <= 0:
+            return False
 
     if resisted_by_outfit:
         # __dict__ access mirrors Dweller.weapon_type: no lazy IO, a missing

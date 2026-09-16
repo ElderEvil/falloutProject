@@ -185,11 +185,18 @@ describe('DwellersView', () => {
         },
       ]
 
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: mockDwellers }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
+      // URL-aware mock: the view's request order is an implementation detail, so
+      // answer by endpoint instead of by call sequence.
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/dwellers/identity-options')) {
+          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+        }
+        if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: mockDwellers })
+        if (url.includes('/incidents')) {
+          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+        }
+        return Promise.resolve({ data: [] })
+      })
 
       await router.isReady()
       const wrapper = mount(DwellersView, {
@@ -246,11 +253,15 @@ describe('DwellersView', () => {
     })
 
     it('should render filter panel', async () => {
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: [] }) // fetchDwellersByVault
-        .mockResolvedValueOnce({ data: [] }) // fetchAllDwellers
-        .mockResolvedValueOnce({ data: [] }) // fetchRooms
-        .mockResolvedValueOnce({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } }) // fetchIncidents
+      vi.mocked(axios.get).mockImplementation((url: string) => {
+        if (url.includes('/dwellers/identity-options')) {
+          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+        }
+        if (url.includes('/incidents')) {
+          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+        }
+        return Promise.resolve({ data: [] })
+      })
 
       await router.isReady()
       const wrapper = mount(DwellersView, {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   useDwellerStore,
@@ -7,12 +7,16 @@ import {
   type DwellerSortBy,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { handleStoreError } from '@/core/utils/errorHandler'
+import { getIdentityOptions } from '../services/dwellerService'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
 
 interface Props {
   showStatusFilter?: boolean
   showAgeFilter?: boolean
+  showIdentityFilters?: boolean
   showViewToggle?: boolean
   showBulkActions?: boolean
   vaultId?: string
@@ -21,6 +25,7 @@ interface Props {
 const {
   showStatusFilter = true,
   showAgeFilter = false,
+  showIdentityFilters = false,
   showViewToggle = false,
   showBulkActions = false,
   vaultId = '',
@@ -32,6 +37,42 @@ defineEmits<{
 }>()
 
 const { filter: dwellerStore } = useDwellerStore()
+const authStore = useAuthStore()
+
+const ALL_IDENTITIES = { value: 'all', label: 'All', icon: 'mdi:account-multiple' }
+
+/** Race/faction choices come from the backend options, so the panel cannot drift from them. */
+const raceOptions = ref([{ ...ALL_IDENTITIES, label: 'All Races' }])
+const factionOptions = ref([{ ...ALL_IDENTITIES, label: 'All Factions' }])
+
+function identityLabel(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+onMounted(async () => {
+  if (!showIdentityFilters || !authStore.token) return
+
+  try {
+    const options = await getIdentityOptions(authStore.token)
+    const races = options.races ?? []
+    const factions = [...new Set(Object.values(options.factions_by_race ?? {}).flat())].sort()
+
+    raceOptions.value = [
+      { ...ALL_IDENTITIES, label: 'All Races' },
+      ...races.map((race) => ({ value: race, label: identityLabel(race), icon: 'mdi:account' })),
+    ]
+    factionOptions.value = [
+      { ...ALL_IDENTITIES, label: 'All Factions' },
+      ...factions.map((faction) => ({ value: faction, label: identityLabel(faction), icon: 'mdi:flag' })),
+    ]
+  } catch (error) {
+    // Filters degrade to "all" rather than breaking the roster view.
+    handleStoreError(error, 'Failed to load identity filter options', false)
+  }
+})
 
 const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
@@ -75,6 +116,16 @@ const currentFilterAgeGroup = computed({
   set: (value: DwellerAgeGroup) => dwellerStore.setFilterAgeGroup(value),
 })
 
+const currentFilterRace = computed({
+  get: () => dwellerStore.filterRace,
+  set: (value: string) => dwellerStore.setFilterRace(value),
+})
+
+const currentFilterFaction = computed({
+  get: () => dwellerStore.filterFaction,
+  set: (value: string) => dwellerStore.setFilterFaction(value),
+})
+
 const currentSortBy = computed({
   get: () => dwellerStore.sortBy,
   set: (value: DwellerSortBy) => dwellerStore.setSortBy(value),
@@ -109,6 +160,24 @@ const toggleSortDirection = () => {
         :options="ageGroupOptions"
         :model-value="currentFilterAgeGroup"
         @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
+      />
+
+      <DwellerFilterGroup
+        v-if="showIdentityFilters"
+        label="Filter by Race"
+        icon="mdi:account-star"
+        :options="raceOptions"
+        :model-value="currentFilterRace"
+        @update:model-value="currentFilterRace = $event as string"
+      />
+
+      <DwellerFilterGroup
+        v-if="showIdentityFilters"
+        label="Filter by Faction"
+        icon="mdi:flag"
+        :options="factionOptions"
+        :model-value="currentFilterFaction"
+        @update:model-value="currentFilterFaction = $event as string"
       />
 
       <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>

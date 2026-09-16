@@ -1,5 +1,8 @@
 import axios from '@/core/plugins/axios'
+import type { components } from '@/core/types/api.generated'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
+
+export type IdentityOptions = components['schemas']['DwellerIdentityOptions']
 
 export interface DwellerQueryParams {
   status?: string
@@ -40,5 +43,12 @@ export async function appendBioAddendum(dwellerId: string, text: string, token: 
     { text },
     { headers: { Authorization: `Bearer ${token}` } }
   )
+  return response.data
+}
+
+export async function getIdentityOptions(token: string): Promise<IdentityOptions> {
+  const response = await axios.get<IdentityOptions>('/api/v1/dwellers/identity-options', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   return response.data
 }

@@ -23,8 +23,8 @@ const emit = defineEmits<{
 const RACE_OPTIONS = ['human', 'ghoul', 'super_mutant', 'synth'] as const
 
 const STATE_OF_BEING_OPTIONS: Record<string, string[]> = {
-  ghoul: ['sane', 'partially_feral', 'fully_feral'],
-  super_mutant: ['mild_mutation', 'severe_mutation', 'behemoth'],
+  ghoul: ['sane', 'wild', 'feral'],
+  super_mutant: ['mild', 'average', 'behemoth'],
   synth: ['gen_3', 'gen_2', 'gen_1'],
 }
 

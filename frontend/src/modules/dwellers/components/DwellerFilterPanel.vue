@@ -170,6 +170,12 @@ const currentSortDirection = computed({
   set: (value: 'asc' | 'desc') => dwellerStore.setSortDirection(value),
 })
 
+/** The dropdown speaks plain strings; the store keeps the narrower sort union. */
+const currentSortByValue = computed({
+  get: () => dwellerStore.sortBy as string,
+  set: (value: string) => dwellerStore.setSortBy(value as DwellerSortBy),
+})
+
 const toggleSortDirection = () => {
   currentSortDirection.value = currentSortDirection.value === 'asc' ? 'desc' : 'asc'
 }
@@ -242,10 +248,10 @@ const toggleSortDirection = () => {
         </div>
         <div class="sort-controls">
           <USelect
-            v-model="currentSortBy"
+            v-model="currentSortByValue"
             :options="sortOptions"
             size="sm"
-            aria-label="Sort dwellers"
+            ariaLabel="Sort dwellers"
           />
           <button
             @click="toggleSortDirection"

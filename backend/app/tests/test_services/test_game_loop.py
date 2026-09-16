@@ -209,10 +209,17 @@ class TestAwardWorkXp:
         import app.services.leveling_service as ls_mod
         from app.core.event_bus import event_bus
         from app.schemas.common import RoomTypeEnum, SPECIALEnum
+        from app.services.notification_service import NotificationService
 
         mock_db = MagicMock()
         mock_db.add = MagicMock()
+        mock_db.info = {}
         vault_id = uuid4()
+        mock_vault = MagicMock()
+        mock_vault.user_id = uuid4()
+        mock_response = MagicMock()
+        mock_response.scalar_one_or_none.return_value = mock_vault
+        mock_db.execute = AsyncMock(return_value=mock_response)
         mock_dweller = MagicMock()
         mock_dweller.experience = 500
         mock_dweller.strength = 5
@@ -229,12 +236,14 @@ class TestAwardWorkXp:
         ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(True, 1))
         event_bus.emit = mock_emit
         try:
-            stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
+            with patch.object(NotificationService, "notify_level_up", new_callable=AsyncMock) as mock_notify:
+                stats = await game_loop_service._award_work_xp(mock_db, mock_dweller, mock_room)
         finally:
             ls_mod.leveling_service.check_level_up = saved_ls
             event_bus.emit = saved_eb
         assert stats["leveled_up"] == 1
         mock_emit.assert_called_once()
+        mock_notify.assert_awaited_once()
 
 
 # ═════════════════════════════════════════════════════════════════════

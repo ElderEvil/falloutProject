@@ -202,6 +202,7 @@ class NotificationService:
         dweller_name: str,
         new_level: int,
         meta_data: dict[str, Any] | None = None,
+        commit: bool = True,
     ):
         """Notify user that a dweller leveled up."""
         return await NotificationService.create_and_send(
@@ -214,6 +215,7 @@ class NotificationService:
             title=f"{dweller_name} Leveled Up!",
             message=f"{dweller_name} reached level {new_level}!",
             meta_data=meta_data,
+            commit=commit,
         )
 
     @staticmethod

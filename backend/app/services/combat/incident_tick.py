@@ -87,6 +87,9 @@ async def process_vault_incidents(
 
             except (SQLAlchemyError, ValueError, RuntimeError) as e:
                 notification_service.discard_deferred_notifications(db_session)
+                from app.services.leveling_service import leveling_service
+
+                leveling_service.discard_deferred_level_ups(db_session)
                 logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
 
         if total_caps_earned > 0:

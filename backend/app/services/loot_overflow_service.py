@@ -7,6 +7,7 @@ in caps, and how one entry leaves a held list when the player takes or sells it.
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import UUID4
@@ -15,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud import storage as crud_storage
+from app.crud import vault as crud_vault
 from app.models.storage import Storage
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.static_data import game_data_store
@@ -125,6 +127,58 @@ class LootOverflowService:
         if not storage or await crud_storage.get_available_space(db_session, storage.id) < quantity:
             raise ResourceConflictException("Storage is full")
         return storage
+
+    async def settle_take_decision(
+        self,
+        db_session: AsyncSession,
+        unclaimed: list[dict],
+        index: int,
+        *,
+        owner: type[SQLModel],
+        owner_id: Any,
+        vault_id: UUID4,
+        build_row: Callable[[dict, UUID4], Any],
+    ) -> list[dict]:
+        """Shared take flow: pop, reject medical, require space, build rows, stage.
+
+        The owner loads and persists its own row; only the row factory differs
+        per owner until the item builders are unified. Returns the remaining list.
+        """
+        loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
+        self.reject_medical(loot_item)
+        quantity = self.quantity_of(loot_item)
+        storage = await self.require_space(db_session, vault_id, quantity)
+        rows = [build_row(loot_item, storage.id) for _ in range(quantity)]
+        if any(row is None for row in rows):
+            raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
+        db_session.add_all(rows)
+        await db_session.flush()
+        await crud_storage.update_used_space(db_session, storage.id)
+        return unclaimed
+
+    async def settle_sell_decision(
+        self,
+        db_session: AsyncSession,
+        unclaimed: list[dict],
+        index: int,
+        *,
+        owner: type[SQLModel],
+        owner_id: Any,
+        vault_id: UUID4,
+    ) -> tuple[int, list[dict]]:
+        """Shared sell flow: pop, reject medical, credit caps without committing.
+
+        The caller persists its owner row and commits, so a later failure rolls
+        the credit back with everything else. Returns the caps value and remainder.
+        """
+        from app.services.vault_service import vault_service
+
+        loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
+        self.reject_medical(loot_item)
+        value = self.value_of(loot_item)
+        vault = await crud_vault.get(db_session, vault_id)
+        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        return value, unclaimed
 
 
 loot_overflow_service = LootOverflowService()

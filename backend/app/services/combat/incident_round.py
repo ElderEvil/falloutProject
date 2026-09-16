@@ -200,9 +200,13 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # Death notifications parked by mark_as_dead(commit=False) deliver only
     # once the round actually persisted.
     await notification_service.deliver_deferred_notifications(db_session)
+    # Incident level-ups parked the same way: emit and notify post-commit.
+    from app.services.leveling_service import leveling_service
+
+    await leveling_service.deliver_deferred_level_ups(db_session)
 
     if resolved:
-        experience_earned = incident.loot.get("experience", 0)
+        experience_earned = (incident.loot or {}).get("experience", 0)
         await incident_publishing.notify_resolution(
             db_session, incident, success=True, caps_earned=caps_earned, experience_earned=experience_earned
         )
@@ -253,7 +257,16 @@ async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers
         dweller.experience = max(0, dweller.experience + xp_per_dweller)
         db_session.add(dweller)
 
-        # Check for level-up
-        await leveling_service.check_level_up(db_session, dweller)
+        # Check for level-up; the notification parks until the round commits
+        # and drains deferred deliveries (see process_incident).
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
+        if leveled_up:
+            await leveling_service.settle_level_up(
+                db_session,
+                dweller,
+                old_level=dweller.level - levels_gained,
+                levels_gained=levels_gained,
+                commit=False,
+            )
 
     return xp_per_dweller * len(dwellers)

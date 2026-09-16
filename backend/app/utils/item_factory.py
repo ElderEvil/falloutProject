@@ -1,15 +1,18 @@
-"""Shared constructors for catalog-backed weapons and outfits.
+"""Shared constructors for catalog-backed weapons, outfits, and junk.
 
 Both reward settlement and crafting build items from the same JSON catalogs
 (`items/weapons.json`, `items/outfits/*.json`), so the mapping from catalog
-shape to ORM model lives here exactly once.
+shape to ORM model lives here exactly once. Junk rows carry no catalog row:
+pricing and prose stay caller-owned because incidents and exploration value
+and describe held junk differently.
 """
 
 from typing import Any
 
 from pydantic import UUID4
 
-from app.core.enums import GenderEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
 from app.utils.outfit_assets import get_outfit_image_url
@@ -44,5 +47,24 @@ def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
         gender=GenderEnum(str(gender).lower()) if gender else None,
         value=data.get("value"),
         image_url=get_outfit_image_url(name),
+        storage_id=storage_id,
+    )
+
+
+def build_junk(
+    name: str,
+    rarity: RarityEnum | str,
+    storage_id: UUID4 | None = None,
+    *,
+    value: int,
+    description: str,
+) -> Junk:
+    """Build a Junk row; value and description stay caller-owned."""
+    return Junk(
+        name=name,
+        junk_type=JunkTypeEnum.VALUABLES,
+        rarity=rarity,
+        value=value,
+        description=description,
         storage_id=storage_id,
     )

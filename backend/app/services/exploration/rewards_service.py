@@ -2,12 +2,12 @@
 
 import asyncio
 import logging
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import GenderEnum, JunkTypeEnum, OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import RarityEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
@@ -31,8 +31,7 @@ from app.services.notification_service import notification_service
 from app.services.resource_manager import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
-from app.utils.outfit_assets import get_outfit_image_url
-from app.utils.weapon_assets import get_weapon_image_url
+from app.utils.item_factory import build_junk, build_outfit, build_weapon
 
 logger = logging.getLogger(__name__)
 
@@ -50,18 +49,6 @@ class RewardsService:
     """Applies exploration rewards to vault and dweller."""
 
     @staticmethod
-    def _normalize_outfit_type(outfit_type_str: str) -> str:
-        """Normalize outfit_type string to match OutfitTypeEnum values.
-
-        Maps data values like 'tiered_outfit' to enum values like 'TIERED'.
-        """
-        normalized = outfit_type_str.upper().replace(" ", "_")
-        # Remove '_OUTFIT' suffix if present (except for POWER_ARMOR)
-        if normalized.endswith("_OUTFIT") and normalized != "POWER_ARMOR":
-            normalized = normalized.replace("_OUTFIT", "")
-        return normalized
-
-    @staticmethod
     def _parse_rarity_to_enum(rarity_str: str) -> RarityEnum:
         """Convert rarity string to RarityEnum with fallback to COMMON.
 
@@ -73,92 +60,6 @@ class RewardsService:
         except (KeyError, AttributeError):
             return RarityEnum.COMMON
 
-    def _create_weapon_from_loot(
-        self, weapon_data: dict | None, rarity: RarityEnum, storage_id: UUID4
-    ) -> Weapon | None:
-        """Create a Weapon model from loot data.
-
-        :param weapon_data: Weapon data dict from data_loader
-        :param rarity: RarityEnum value
-        :param storage_id: Storage ID to assign weapon to
-        :returns: Weapon instance or None if data is invalid
-        """
-        if not weapon_data:
-            return None
-        try:
-            return Weapon(
-                name=weapon_data["name"],
-                rarity=rarity,
-                value=weapon_data.get("value"),
-                weapon_type=WeaponTypeEnum[weapon_data["weapon_type"].upper()],
-                weapon_subtype=WeaponSubtypeEnum[weapon_data["weapon_subtype"].upper()],
-                stat=weapon_data["stat"],
-                damage_min=weapon_data["damage_min"],
-                damage_max=weapon_data["damage_max"],
-                image_url=get_weapon_image_url(weapon_data["name"]),
-                storage_id=storage_id,
-            )
-        except (KeyError, ValueError):
-            logger.exception(
-                "Failed to create weapon from loot data",
-                extra={
-                    "weapon_data": weapon_data,
-                    "rarity": rarity.value if rarity else None,
-                    "storage_id": str(storage_id),
-                },
-            )
-            return None
-
-    def _create_outfit_from_loot(
-        self, outfit_data: dict | None, rarity: RarityEnum, storage_id: UUID4
-    ) -> Outfit | None:
-        """Create an Outfit model from loot data.
-
-        :param outfit_data: Outfit data dict from data_loader
-        :param rarity: RarityEnum value
-        :param storage_id: Storage ID to assign outfit to
-        :returns: Outfit instance or None if data is invalid
-        """
-        if not outfit_data:
-            return None
-        try:
-            return Outfit(
-                name=outfit_data["name"],
-                rarity=rarity,
-                value=outfit_data.get("value"),
-                outfit_type=OutfitTypeEnum[self._normalize_outfit_type(outfit_data["outfit_type"])],
-                gender=GenderEnum[outfit_data["gender"].upper()] if outfit_data.get("gender") else None,
-                image_url=get_outfit_image_url(outfit_data["name"]),
-                storage_id=storage_id,
-            )
-        except (KeyError, ValueError):
-            logger.exception(
-                "Failed to create outfit from loot data",
-                extra={
-                    "outfit_data": outfit_data,
-                    "rarity": rarity.value if rarity else None,
-                    "storage_id": str(storage_id),
-                },
-            )
-            return None
-
-    def _create_junk_from_loot(self, item_name: str, rarity: RarityEnum, storage_id: UUID4) -> Junk:
-        """Create a Junk model from loot data.
-
-        :param item_name: Name of the junk item
-        :param rarity: RarityEnum value
-        :param storage_id: Storage ID to assign junk to
-        :returns: Junk instance
-        """
-        return Junk(
-            name=item_name,
-            junk_type=JunkTypeEnum.VALUABLES,
-            rarity=rarity,
-            value=game_config.exploration.get_junk_value(rarity.value),
-            description="Found during wasteland exploration",
-            storage_id=storage_id,
-        )
-
     def _build_item_from_loot(
         self,
         loot_item: dict,
@@ -169,15 +70,36 @@ class RewardsService:
     ) -> Weapon | Outfit | Junk | None:
         """Build a storage item from a loot dict. Shared by transfer and overflow-take."""
         item_name = loot_item.get("item_name", "Unknown Item")
-        match loot_item.get("item_type", "junk"):
-            case "weapon":
-                weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
-                return self._create_weapon_from_loot(weapon_data, rarity, storage_id)
-            case "outfit":
-                outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
-                return self._create_outfit_from_loot(outfit_data, rarity, storage_id)
-            case _:
-                return self._create_junk_from_loot(item_name, rarity, storage_id)
+        try:
+            match loot_item.get("item_type", "junk"):
+                case "weapon":
+                    weapon_data = next((w for w in weapons_data if w["name"] == item_name), None)
+                    if weapon_data is None:
+                        return None
+                    return build_weapon(weapon_data, rarity, storage_id)
+                case "outfit":
+                    outfit_data = next((o for o in outfits_data if o["name"] == item_name), None)
+                    if outfit_data is None:
+                        return None
+                    return build_outfit(outfit_data, rarity, storage_id)
+                case _:
+                    return build_junk(
+                        item_name,
+                        rarity,
+                        storage_id,
+                        value=game_config.exploration.get_junk_value(rarity.value),
+                        description="Found during wasteland exploration",
+                    )
+        except (KeyError, ValueError):
+            logger.exception(
+                "Failed to build item from loot",
+                extra={
+                    "loot_item": loot_item,
+                    "rarity": rarity.value if rarity else None,
+                    "storage_id": str(storage_id),
+                },
+            )
+            return None
 
     async def _transfer_loot_to_storage(self, db_session: AsyncSession, exploration: Exploration) -> TransferResult:
         """Transfer loot items from exploration to vault storage with space validation.
@@ -323,24 +245,24 @@ class RewardsService:
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
-        loot_overflow_service.reject_medical(loot_item)
-        quantity = loot_overflow_service.quantity_of(loot_item)
-        storage = await loot_overflow_service.require_space(db_session, exploration.vault_id, quantity)
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
-        rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-        items = [
-            self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data)
-            for _ in range(quantity)
-        ]
-        if any(item is None for item in items):
-            raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
-        db_session.add_all(items)
+
+        def build_row(loot_item: dict, storage_id: UUID4) -> Any:
+            rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
+            return self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
+
+        unclaimed = await loot_overflow_service.settle_take_decision(
+            db_session,
+            unclaimed,
+            index,
+            owner=Exploration,
+            owner_id=exploration.id,
+            vault_id=exploration.vault_id,
+            build_row=build_row,
+        )
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
-        await db_session.flush()
-        await crud_storage.update_used_space(db_session, storage.id)
         await db_session.commit()
         return unclaimed
 
@@ -349,11 +271,14 @@ class RewardsService:
     ) -> tuple[int, list[dict]]:
         """Sell one overflow item for caps. Needs no storage space."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
-        loot_overflow_service.reject_medical(loot_item)
-        value = loot_overflow_service.value_of(loot_item)
-        vault = await crud_vault.get(db_session, exploration.vault_id)
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        value, unclaimed = await loot_overflow_service.settle_sell_decision(
+            db_session,
+            unclaimed,
+            index,
+            owner=Exploration,
+            owner_id=exploration.id,
+            vault_id=exploration.vault_id,
+        )
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()
@@ -382,7 +307,14 @@ class RewardsService:
         db_session.add(dweller_obj)
 
         # Check for level-up
-        await leveling_service.check_level_up(db_session, dweller_obj)
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj)
+        if leveled_up:
+            await leveling_service.settle_level_up(
+                db_session,
+                dweller_obj,
+                old_level=dweller_obj.level - levels_gained,
+                levels_gained=levels_gained,
+            )
 
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)

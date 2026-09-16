@@ -209,6 +209,17 @@ describe('DwellerFilterPanel', () => {
 })
 
   describe('Identity filters', () => {
+    it('drops a persisted race the loaded options no longer offer', async () => {
+      const store = useDwellerStore().filter
+      store.setFilterRace('reptilian')
+
+      const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
+      await flushPromises()
+
+      expect(store.filterRace).toBe('all')
+      wrapper.unmount()
+    })
+
     it('clears a faction the newly selected race cannot hold', async () => {
       const store = useDwellerStore().filter
       const wrapper = mount(DwellerFilterPanel, {

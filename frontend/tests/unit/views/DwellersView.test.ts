@@ -26,6 +26,14 @@ describe('DwellersView', () => {
     return mount(DwellersView, { global: { plugins: [router, pinia] } })
   }
 
+  it('hides the identity filters while the dead-dweller panel is shown', async () => {
+    useDwellerStore().filter.setFilterStatus('dead')
+    const wrapper = await mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.identity-controls').exists()).toBe(false)
+  })
+
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)

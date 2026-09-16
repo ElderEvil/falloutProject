@@ -403,7 +403,7 @@ const handleTreatIrradiated = async () => {
           <div class="w-full mb-4">
             <DwellerFilterPanel
               :show-age-filter="true"
-              :show-identity-filters="true"
+              :show-identity-filters="!isDeadFilter"
               :show-view-toggle="true"
               :show-bulk-actions="false"
               :vault-id="vaultId"

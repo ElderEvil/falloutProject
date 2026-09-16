@@ -58,6 +58,13 @@ onMounted(async () => {
     const options = await getIdentityOptions(authStore.token)
     races.value = options.races ?? []
     factionsByRace.value = options.factions_by_race ?? {}
+
+    // A persisted selection can outlive the options it came from, and the watcher below
+    // only reacts to a race *change* — so validate what was restored here.
+    if (dwellerStore.filterRace !== 'all' && !races.value.includes(dwellerStore.filterRace)) {
+      dwellerStore.setFilterRace('all')
+    }
+    dropStrandedFaction()
   } catch (error) {
     // Filters degrade to "all" rather than breaking the roster view.
     handleStoreError(error, 'Failed to load identity filter options', false)
@@ -83,15 +90,15 @@ const factionSelectOptions = computed(() => {
   ]
 })
 
+/** A faction only makes sense while the chosen race can hold it. */
+function dropStrandedFaction() {
+  if (dwellerStore.filterFaction === 'all') return
+  const allowed = factionSelectOptions.value.map((option) => option.value)
+  if (!allowed.includes(dwellerStore.filterFaction)) dwellerStore.setFilterFaction('all')
+}
+
 // Switching race can strand a faction the new race cannot hold.
-watch(
-  () => dwellerStore.filterRace,
-  () => {
-    if (dwellerStore.filterFaction === 'all') return
-    const allowed = factionSelectOptions.value.map((option) => option.value)
-    if (!allowed.includes(dwellerStore.filterFaction)) dwellerStore.setFilterFaction('all')
-  }
-)
+watch(() => dwellerStore.filterRace, dropStrandedFaction)
 
 const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },

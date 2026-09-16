@@ -8,6 +8,7 @@ import type { components } from '@/core/types/api.generated'
 
 type MedicalSupply = 'stimpack' | 'radaway'
 type MedicalTransferResponse = components['schemas']['MedicalTransferResponse']
+type MedicalDistributionResponse = components['schemas']['MedicalDistributionResponse']
 
 export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
   const toast = useToast()
@@ -89,9 +90,38 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
     }
   }
 
+  async function distributeRecoverySupplies(
+    vaultId: string,
+    token: string
+  ): Promise<MedicalDistributionResponse | null> {
+    try {
+      const response = await axios.post<MedicalDistributionResponse>(
+        `/api/v1/storage/vault/${vaultId}/medical/distribute-recovery-supplies`,
+        null,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+
+      await filterStore.fetchDwellersByVault(vaultId, token)
+
+      const { dwellers_treated: treated, radaways_used: radaways, stimpaks_used: stimpaks } =
+        response.data
+      if (treated > 0) {
+        toast.success(`Treated ${treated} dwellers with ${radaways} RadAway and ${stimpaks} Stimpack`)
+      } else {
+        toast.info('No irradiated dwellers needed treatment')
+      }
+
+      return response.data
+    } catch (error: unknown) {
+      handleStoreError(error, `Failed to treat irradiated dwellers in vault ${vaultId}`)
+      return null
+    }
+  }
+
   return {
     useStimpack,
     useRadaway,
     issueMedicalSupply,
+    distributeRecoverySupplies,
   }
 })

@@ -21,7 +21,7 @@ interface Props {
   lowResourceCount?: number
   radioHappinessMode?: boolean
   irradiatedDwellerCount?: number
-  distributingRadaway?: boolean
+  treatingDwellers?: boolean
   loading?: boolean
 }
 
@@ -31,7 +31,7 @@ const {
   lowResourceCount = 0,
   radioHappinessMode = false,
   irradiatedDwellerCount = 0,
-  distributingRadaway = false,
+  treatingDwellers = false,
   loading = false,
   distribution,
   dwellerCount,
@@ -42,7 +42,7 @@ const emit = defineEmits<{
   (e: 'assign-idle'): void
   (e: 'activate-radio'): void
   (e: 'view-low-happiness'): void
-  (e: 'distribute-radaway'): void
+  (e: 'treat-irradiated'): void
 }>()
 
 const dwellerDistribution = computed<DwellerDistribution>(() => distribution)
@@ -340,12 +340,12 @@ const distributionPercentage = (count: number) => {
             v-if="irradiatedDwellerCount > 0"
             variant="secondary"
             size="sm"
-            :loading="distributingRadaway"
-            @click="emit('distribute-radaway')"
+            :loading="treatingDwellers"
+            @click="emit('treat-irradiated')"
             class="action-button"
           >
             <Icon icon="mdi:radiation" class="action-icon" />
-            Distribute RadAway
+            Treat Irradiated Dwellers
           </UButton>
 
           <UButton

@@ -81,6 +81,6 @@ def apply_radiation_gain(dweller: Dweller, amount: int) -> bool:
 
     old_radiation = dweller.radiation
     old_health = dweller.health
-    dweller.radiation = min(game_config.health.max_radiation, old_radiation + amount)
+    dweller.radiation = min(dweller.max_health, old_radiation + amount)
     dweller.health = min(old_health, dweller.effective_max_health)
     return dweller.radiation != old_radiation or dweller.health != old_health

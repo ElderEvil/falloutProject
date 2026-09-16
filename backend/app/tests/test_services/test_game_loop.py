@@ -364,16 +364,17 @@ class TestDehydrationRadiation:
         assert dweller.radiation == 0
 
     @pytest.mark.asyncio
-    async def test_caps_at_max_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+    async def test_radiation_saturates_at_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await self._prepare(async_session, vault, dweller, water=0)
-        dweller.radiation = game_config.health.max_radiation - 1
+        dweller.radiation = 99
         async_session.add(dweller)
         async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
         await async_session.commit()
 
         await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
         await async_session.refresh(dweller)
-        assert dweller.radiation == game_config.health.max_radiation
+        assert dweller.radiation == dweller.max_health
+        assert dweller.effective_max_health == 1
 
     @pytest.mark.asyncio
     async def test_rate_is_one_percent_per_tick(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):

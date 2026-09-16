@@ -231,13 +231,12 @@ async def test_storage_space_reports_over_capacity_instead_of_500(
 
 
 @pytest.mark.asyncio
-async def test_distribute_recovery_radaways_endpoint(
+async def test_distribute_recovery_supplies_endpoint(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """The one-shot action deals RadAway to irradiated dwellers and reports the debit."""
-    from app.core.game_config import game_config
+    """The one-shot action treats irradiated dwellers and reports the supplies used."""
     from app.schemas.dweller import DwellerCreate
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -248,24 +247,29 @@ async def test_distribute_recovery_radaways_endpoint(
 
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     storage.radaway = 10
+    storage.stimpack = 10
     async_session.add(storage)
 
     dweller_data = create_fake_dweller()
     dweller_data["vault_id"] = vault.id
     dweller_data["radiation"] = 40
-    dweller_data["radaway"] = 0
+    dweller_data["max_health"] = 100
+    dweller_data["health"] = 1
     dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
     await async_session.flush()
 
     response = await async_client.post(
-        f"/storage/vault/{vault.id}/medical/distribute-radaways",
+        f"/storage/vault/{vault.id}/medical/distribute-recovery-supplies",
         headers=superuser_token_headers,
     )
 
     assert response.status_code == 200
     data = response.json()
-    assert data["dwellers_served"] == 1
-    assert data["radaways_dealt"] == game_config.health.recovery_radaways_per_dweller
-    assert data["vault_radaways"] == 10 - data["radaways_dealt"]
+    assert data["dwellers_treated"] == 1
+    assert data["radaways_used"] == 1
+    assert data["stimpaks_used"] == 1
+    assert data["vault_radaways"] == 9
+    assert data["vault_stimpacks"] == 9
     await async_session.refresh(dweller)
-    assert dweller.radaway == game_config.health.recovery_radaways_per_dweller
+    assert dweller.radiation == 0
+    assert dweller.health >= 40

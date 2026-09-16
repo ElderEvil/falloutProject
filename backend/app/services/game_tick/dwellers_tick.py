@@ -151,7 +151,7 @@ async def process_dwellers(
     - Irradiate in-vault dwellers with 1% RAD per tick once the grace period at zero water expires
     - Award work XP to dwellers in production rooms
     - Check for level-ups
-    - Check for deaths (health <= 0 or radiation threshold)
+    - Check for deaths (health <= 0)
     """
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.family.death_service import death_service
@@ -204,12 +204,6 @@ async def process_dwellers(
                 await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
                 stats["deaths"] += 1
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
-                continue
-
-            if dweller.radiation >= game_config.death.radiation_death_threshold:
-                await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
-                stats["deaths"] += 1
-                logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
                 continue
 
             if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:

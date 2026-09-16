@@ -7,7 +7,6 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
-import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
@@ -18,10 +17,9 @@ const { isCollapsed } = useSidePanel()
 const route = useRoute()
 const router = useRouter()
 const vaultStore = useVaultStore()
-const { filter: dwellerStore } = useDwellerStore()
+const { filter: dwellerStore, medical: medicalStore } = useDwellerStore()
 const incidentStore = useIncidentStore()
 const authStore = useAuthStore()
-const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -94,21 +92,15 @@ const handleViewLowHappiness = () => {
 }
 
 const irradiatedDwellerCount = computed(() => dwellerStore.dwellers.filter((d) => d.radiation > 0).length)
-const isDistributingRadaway = ref(false)
+const isTreatingDwellers = ref(false)
 
-const handleDistributeRadaway = async () => {
-  if (!vaultId.value || !authStore.token || isDistributingRadaway.value) return
-  isDistributingRadaway.value = true
+const handleTreatIrradiated = async () => {
+  if (!vaultId.value || !authStore.token || isTreatingDwellers.value) return
+  isTreatingDwellers.value = true
   try {
-    const result = await vaultStore.distributeRecoveryRadaways(vaultId.value, authStore.token)
-    if (result.dwellers_served > 0) {
-      toast.success(`Dealt ${result.radaways_dealt} RadAway to ${result.dwellers_served} dwellers`)
-    } else {
-      toast.info('No RadAway was needed')
-    }
-    await loadData()
+    await medicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
   } finally {
-    isDistributingRadaway.value = false
+    isTreatingDwellers.value = false
   }
 }
 
@@ -155,11 +147,11 @@ onMounted(() => {
             :lowResourceCount="happinessDashboardData.lowResourceCount"
             :radioHappinessMode="happinessDashboardData.radioHappinessMode"
             :irradiatedDwellerCount="irradiatedDwellerCount"
-            :distributingRadaway="isDistributingRadaway"
+            :treatingDwellers="isTreatingDwellers"
             @assign-idle="handleAssignIdle"
             @activate-radio="handleActivateRadio"
             @view-low-happiness="handleViewLowHappiness"
-            @distribute-radaway="handleDistributeRadaway"
+            @treat-irradiated="handleTreatIrradiated"
           />
         </div>
       </div>

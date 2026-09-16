@@ -142,22 +142,22 @@ async def transfer_medical_supplies(
     )
 
 
-@router.post("/vault/{vault_id}/medical/distribute-radaways", response_model=MedicalDistributionResponse)
-async def distribute_recovery_radaways(
+@router.post("/vault/{vault_id}/medical/distribute-recovery-supplies", response_model=MedicalDistributionResponse)
+async def distribute_recovery_supplies(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     current_user: CurrentActiveUser,
 ) -> MedicalDistributionResponse:
-    """Deal recovery RadAway from vault storage to every irradiated in-vault dweller.
+    """Treat every irradiated in-vault dweller with RadAway then a Stimpack from vault storage.
 
-    One-shot player action: tops affected dwellers while stock lasts. Explorers
-    and questers are excluded. Requires vault ownership or superuser privileges.
+    One-shot player action. Explorers and questers are excluded. Requires vault
+    ownership or superuser privileges.
     """
     from app.services import medical_service
 
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
 
-    return await medical_service.distribute_recovery_radaways(db_session, vault.id)
+    return await medical_service.distribute_recovery_supplies(db_session, vault.id)
 
 
 @router.post("/vault/{vault_id}/lunchbox/open", response_model=LunchboxOpened)

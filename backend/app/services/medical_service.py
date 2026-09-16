@@ -99,42 +99,57 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     )
 
 
-async def distribute_recovery_radaways(db_session: AsyncSession, vault_id: UUID4) -> MedicalDistributionResponse:
-    """Deal recovery RadAway from vault storage to every irradiated in-vault dweller.
+async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4) -> MedicalDistributionResponse:
+    """Treat every irradiated in-vault dweller with RadAway then a Stimpack from vault storage.
 
-    One-shot player action (no automatic trigger): tops each affected dweller to
-    ``recovery_radaways_per_dweller`` while stock lasts. Explorers and questers
-    are excluded — they carry their own supplies and settle on return.
+    One-shot player action (no automatic trigger). Order matters: RadAway raises the
+    radiation-reduced health ceiling before the Stimpack heals into it, so a Stimpack
+    is never wasted on a saturated dweller. Explorers and questers are excluded —
+    they carry their own supplies and settle on return.
     """
-    target = min(game_config.health.recovery_radaways_per_dweller, MAX_CARRY)
+    radaway_doses = min(game_config.health.recovery_radaways_per_dweller, MAX_CARRY)
+    stimpak_doses = min(game_config.health.recovery_stimpaks_per_dweller, MAX_CARRY)
     storage = await storage_crud.get_by_vault(db_session, vault_id)
-    stock = (storage.radaway or 0) if storage else 0
-    dealt = 0
-    served = 0
+    radaway_stock = (storage.radaway or 0) if storage else 0
+    stimpak_stock = (storage.stimpack or 0) if storage else 0
+    radaways_used = 0
+    stimpaks_used = 0
+    treated = 0
 
-    if target > 0 and stock > 0:
+    if radaway_doses > 0 and stimpak_doses > 0 and radaway_stock > 0 and stimpak_stock > 0:
         dwellers = await dweller_crud.get_all_in_vault(db_session, vault_id)
         for dweller in dwellers:
             if dweller.is_dead or dweller.radiation <= 0:
                 continue
             if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
                 continue
-            need = target - (dweller.radaway or 0)
-            if need <= 0:
-                continue
-            give = min(need, stock)
-            dweller.radaway = (dweller.radaway or 0) + give
-            stock -= give
-            dealt += give
-            served += 1
-            db_session.add(dweller)
-            if stock <= 0:
+            if radaway_stock < radaway_doses or stimpak_stock < stimpak_doses:
                 break
 
-    if dealt:
+            distance = radiation_removal_amount(dweller.radiation, dweller.max_health) * radaway_doses
+            dweller.radiation = max(0, dweller.radiation - distance)
+            radaway_stock -= radaway_doses
+            radaways_used += radaway_doses
+
+            heal = max(1, int(dweller.max_health * game_config.health.stimpack_heal_percent)) * stimpak_doses
+            dweller.health = min(dweller.health + heal, dweller.effective_max_health)
+            stimpak_stock -= stimpak_doses
+            stimpaks_used += stimpak_doses
+
+            treated += 1
+            db_session.add(dweller)
+
+    if treated:
         if storage is not None:
-            storage.radaway = stock
+            storage.radaway = radaway_stock
+            storage.stimpack = stimpak_stock
             db_session.add(storage)
         await db_session.commit()
 
-    return MedicalDistributionResponse(dwellers_served=served, radaways_dealt=dealt, vault_radaways=stock)
+    return MedicalDistributionResponse(
+        dwellers_treated=treated,
+        radaways_used=radaways_used,
+        stimpaks_used=stimpaks_used,
+        vault_radaways=radaway_stock,
+        vault_stimpacks=stimpak_stock,
+    )

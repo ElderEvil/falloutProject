@@ -311,24 +311,6 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  async function distributeRecoveryRadaways(vaultId: string, token: string) {
-    try {
-      const response = await axios.post(
-        `/api/v1/storage/vault/${vaultId}/medical/distribute-radaways`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      return response.data as {
-        dwellers_served: number
-        radaways_dealt: number
-        vault_radaways: number
-      }
-    } catch (error) {
-      handleStoreError(error, 'Failed to distribute RadAway')
-      throw error
-    }
-  }
-
   function startResourcePolling(vaultId?: string, token?: string) {    if (!isPollingActive.value) {
       resumePolling()
     }
@@ -368,7 +350,6 @@ export const useVaultStore = defineStore('vault', () => {
     fetchGameState,
     pauseVault,
     resumeVault,
-    distributeRecoveryRadaways,
     startResourcePolling,
     stopResourcePolling,
     startGameTickSse,

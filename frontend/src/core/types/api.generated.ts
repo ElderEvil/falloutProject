@@ -3335,6 +3335,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/storage/vault/{vault_id}/medical/distribute-recovery-supplies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Distribute Recovery Supplies
+         * @description Treat every irradiated in-vault dweller with RadAway then a Stimpack from vault storage.
+         *
+         *     One-shot player action. Explorers and questers are excluded. Requires vault
+         *     ownership or superuser privileges.
+         */
+        post: operations["distribute_recovery_supplies_api_v1_storage_vault__vault_id__medical_distribute_recovery_supplies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storage/vault/{vault_id}/lunchbox/open": {
         parameters: {
             query?: never;
@@ -7162,6 +7185,22 @@ export interface components {
         MarkReadResponse: {
             /** Marked Read */
             marked_read: number;
+        };
+        /**
+         * MedicalDistributionResponse
+         * @description Response schema for the one-shot recovery treatment of irradiated dwellers.
+         */
+        MedicalDistributionResponse: {
+            /** Dwellers Treated */
+            dwellers_treated: number;
+            /** Radaways Used */
+            radaways_used: number;
+            /** Stimpaks Used */
+            stimpaks_used: number;
+            /** Vault Radaways */
+            vault_radaways: number;
+            /** Vault Stimpacks */
+            vault_stimpacks: number;
         };
         /**
          * MedicalTransferRequest
@@ -14428,6 +14467,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MedicalTransferResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    distribute_recovery_supplies_api_v1_storage_vault__vault_id__medical_distribute_recovery_supplies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicalDistributionResponse"];
                 };
             };
             /** @description Validation Error */

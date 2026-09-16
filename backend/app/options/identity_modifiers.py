@@ -7,6 +7,7 @@ Pure and session-free, so game-loop actors and API paths share the same rules.
 
 from dataclasses import dataclass
 
+from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.races import RaceModifiers, modifiers_for_race
 
@@ -65,8 +66,17 @@ def _combine(race: RaceModifiers, faction: FactionPerks) -> IdentityModifiers:
 
 
 def identity_modifiers_for(entity: object) -> IdentityModifiers:
-    """Combined race and faction modifiers for an entity, defaulting to a neutral identity."""
-    return _combine(modifiers_for_race(entity), perks_for_faction(entity))
+    """Combined race and faction modifiers for an entity, defaulting to a neutral identity.
+
+    With ``features.race_faction_mechanics`` off the subsystem ships dark: stat deltas,
+    racial resistances and faction perks all read as neutral. Ghoul radiation immunity
+    is kept even then, because it predates the flag and is documented behaviour.
+    """
+    race = modifiers_for_race(entity)
+    if not game_config.features.race_faction_mechanics:
+        return IdentityModifiers(radiation_immune=race.radiation_immune)
+
+    return _combine(race, perks_for_faction(entity))
 
 
 def effective_stat(entity: object, stat: str) -> int:

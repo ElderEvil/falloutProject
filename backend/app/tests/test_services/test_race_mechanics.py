@@ -7,8 +7,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.core.enums import SPECIALEnum
+from app.core.game_config import game_config
 from app.options.factions import FACTION_PERKS, FactionOption, FactionPerks, faction_restrictions, perks_for_faction
-from app.options.identity_modifiers import SPECIAL_STATS, effective_stat, weapon_damage_pct
+from app.options.identity_modifiers import (
+    SPECIAL_STATS,
+    effective_stat,
+    identity_modifiers_for,
+    weapon_damage_pct,
+)
 from app.options.races import (
     BREEDING_ELIGIBLE,
     RACE_MODIFIERS,
@@ -284,3 +290,50 @@ class TestIncidentResponsePerk:
         _, _, damage_taken = await apply_damage(MagicMock(), incident, [minuteman], damage_to_dwellers=20)
 
         assert damage_taken == 17  # 20 less the 15% response perk
+
+
+class TestFeatureFlag:
+    """`features.race_faction_mechanics = False` ships the subsystem dark."""
+
+    def test_flag_off_neutralises_deltas_perks_and_resistances(self, monkeypatch) -> None:
+        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+
+        mutant = _dweller("super_mutant")
+        mutant.strength = 5
+        assert effective_stat(mutant, "strength") == 5
+
+        assert identity_modifiers_for(_dweller("synth")).radiation_resist_pct == 0.0
+        assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == 0.0
+        assert identity_modifiers_for(_dweller("human", faction="vault_dweller")).production_pct == 0.0
+
+    def test_flag_off_keeps_ghoul_immunity(self, monkeypatch) -> None:
+        """Ghoul immunity predates the flag and must survive it."""
+        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+
+        ghoul = _dweller("ghoul")
+        ghoul.is_dead = False
+        ghoul.radiation, ghoul.max_health, ghoul.health = 10, 120, 100
+        ghoul.effective_max_health = 100
+
+        assert identity_modifiers_for(ghoul).radiation_immune is True
+        assert apply_radiation_gain(ghoul, 10) is False
+        assert ghoul.radiation == 10
+
+    def test_flag_off_reverts_combat_and_production_to_raw_stats(self, monkeypatch) -> None:
+        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+
+        room = SimpleNamespace(name="Power Generator", ability=SPECIALEnum.STRENGTH, output=10, tier=1)
+        manager = ResourceManager()
+
+        def fighter(race: str, faction: str | None = None):
+            dweller = _dweller(race, faction=faction)
+            dweller.level = 1
+            dweller.weapon = None
+            dweller.apprentice_stat = None
+            for stat in SPECIAL_STATS:
+                setattr(dweller, stat, 5)
+            return dweller
+
+        mutant = fighter("super_mutant", "super_mutant_tribe")
+        assert manager._calculate_room_production(room, [mutant], 60) == pytest.approx(10 * 5 * 0.1 * 1.0 * 60)
+        assert combat_power(mutant) == combat_power(fighter("human"))

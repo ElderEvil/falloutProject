@@ -994,6 +994,20 @@ class CraftingConfig(BaseSettings):
         return self.order_seconds_by_rarity.get(rarity.lower(), self.order_seconds_by_rarity["common"])
 
 
+class FeatureConfig(BaseSettings):
+    """Feature flags for mechanics that ship dark until they are play-tested."""
+
+    model_config = SettingsConfigDict(env_prefix="FEATURE_")
+
+    race_faction_mechanics: bool = Field(
+        default=True,
+        description=(
+            "Racial stat modifiers, racial radiation resistance and faction perks. Off restores the "
+            "pre-flag behaviour; ghoul radiation immunity predates the flag and survives it."
+        ),
+    )
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1018,6 +1032,7 @@ class GameConfig(BaseSettings):
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
     crafting: CraftingConfig = Field(default_factory=CraftingConfig)
+    features: FeatureConfig = Field(default_factory=FeatureConfig)
 
 
 # Singleton instance

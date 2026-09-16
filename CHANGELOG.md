@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.111.1 (2026-09-16)
+
+### Bug Fixes
+
+* make vault ownership checks single-source and revive flow one path df90d00
+
 ## 2.111.0 (2026-09-16)
 
 ### Features

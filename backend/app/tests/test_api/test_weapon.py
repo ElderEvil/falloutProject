@@ -19,7 +19,7 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest.mark.asyncio
-async def test_create_weapon_invalid(async_client: AsyncClient):
+async def test_create_weapon_invalid(async_client: AsyncClient, superuser_token_headers: dict[str, str]):
     response = await async_client.post(
         "/weapons/",
         json={
@@ -27,18 +27,26 @@ async def test_create_weapon_invalid(async_client: AsyncClient):
             "rarity": "Unique",
             "weapon_type": ["Melee"],
         },
+        headers=superuser_token_headers,
     )
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncSession, weapon_data: dict):
+async def test_read_weapon_list(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    weapon_data: dict,
+    superuser_token_headers: dict[str, str],
+    vault,
+):
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     weapon_2_data = create_fake_weapon()
     weapon_1 = WeaponCreate(**weapon_data)
     weapon_2 = WeaponCreate(**weapon_2_data)
-    await crud.weapon.create(async_session, weapon_1)
-    await crud.weapon.create(async_session, weapon_2)
-    response = await async_client.get("/weapons/")
+    await crud.weapon.create(async_session, {**weapon_data, "storage_id": storage.id})
+    await crud.weapon.create(async_session, {**weapon_2_data, "storage_id": storage.id})
+    response = await async_client.get(f"/weapons/?vault_id={vault.id}", headers=superuser_token_headers)
     all_weapons = response.json()
     assert response.status_code == 200
     assert len(all_weapons) == 2
@@ -65,12 +73,14 @@ async def test_read_weapon_list(async_client: AsyncClient, async_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_update_weapon(async_client: AsyncClient, weapon_data: dict):
-    response = await async_client.post("/weapons/", json=weapon_data)
+async def test_update_weapon(async_client: AsyncClient, weapon_data: dict, superuser_token_headers: dict[str, str]):
+    response = await async_client.post("/weapons/", json=weapon_data, headers=superuser_token_headers)
     weapon_response = response.json()
     weapon_id = weapon_response["id"]
     weapon_new_data = create_fake_weapon()
-    update_response = await async_client.put(f"/weapons/{weapon_id}", json=weapon_new_data)
+    update_response = await async_client.put(
+        f"/weapons/{weapon_id}", json=weapon_new_data, headers=superuser_token_headers
+    )
     updated_weapon = update_response.json()
     assert update_response.status_code == 200
     assert updated_weapon["id"] == weapon_id
@@ -84,12 +94,12 @@ async def test_update_weapon(async_client: AsyncClient, weapon_data: dict):
 
 
 @pytest.mark.asyncio
-async def test_delete_weapon(async_client: AsyncClient, weapon_data: dict):
-    create_response = await async_client.post("/weapons/", json=weapon_data)
+async def test_delete_weapon(async_client: AsyncClient, weapon_data: dict, superuser_token_headers: dict[str, str]):
+    create_response = await async_client.post("/weapons/", json=weapon_data, headers=superuser_token_headers)
     weapon_1 = create_response.json()
-    delete_response = await async_client.delete(f"/weapons/{weapon_1['id']}")
+    delete_response = await async_client.delete(f"/weapons/{weapon_1['id']}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/weapons/{weapon_1['id']}")
+    read_response = await async_client.get(f"/weapons/{weapon_1['id']}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 

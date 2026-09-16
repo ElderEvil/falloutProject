@@ -1,6 +1,6 @@
 import random
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import UUID4
 from sqlalchemy import update
@@ -21,14 +21,16 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
 )
 
+ItemT = TypeVar("ItemT", Weapon, Outfit)
+
 
 async def get_items_by_vault(
     db_session: AsyncSession,
-    model: type[Weapon] | type[Outfit],
+    model: type[ItemT],
     vault_id: UUID4,
     skip: int = 0,
     limit: int = 100,
-) -> list[Weapon | Outfit]:
+) -> Sequence[ItemT]:
     """
     Get items filtered by vault - items in vault's storage OR equipped by vault's dwellers.
 
@@ -60,33 +62,6 @@ async def get_items_by_vault(
     )
     result = await db_session.execute(query)
     return list(result.scalars().all())
-
-
-async def get_items_list(
-    crud_instance: "CRUDItem",
-    db_session: AsyncSession,
-    model: type[Weapon] | type[Outfit],
-    vault_id: UUID4 | None = None,
-    skip: int = 0,
-    limit: int = 100,
-) -> list[Weapon | Outfit]:
-    """
-    Get items with optional vault filtering.
-
-    If vault_id is provided, returns items in vault's storage or equipped by vault's dwellers.
-    Otherwise, returns all items with pagination.
-
-    :param crud_instance: CRUD instance for the item type
-    :param db_session: Database session
-    :param model: Item model class (Weapon or Outfit)
-    :param vault_id: Optional vault ID to filter by
-    :param skip: Number of items to skip
-    :param limit: Maximum items to return
-    :returns: List of items
-    """
-    if vault_id:
-        return await get_items_by_vault(db_session, model, vault_id, skip, limit)
-    return await crud_instance.get_multi(db_session, skip=skip, limit=limit)
 
 
 async def get_item_vault_id(db_session: AsyncSession, item: Weapon | Outfit | Junk) -> UUID4 | None:

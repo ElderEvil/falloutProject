@@ -13,10 +13,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.db.session import get_async_session
+from app.models.junk import Junk
+from app.models.outfit import Outfit
 from app.models.user import User
 from app.models.vault import Vault
+from app.models.weapon import Weapon
 from app.schemas.token import TokenPayload
 from app.services import access_service
+from app.utils.exceptions import ResourceNotFoundException
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
@@ -142,6 +146,34 @@ async def verify_room_access(
         raise HTTPException(status_code=404, detail="Room not found")
 
     await get_user_vault_or_403(room.vault_id, user, db_session)
+
+
+async def verify_item_access(
+    item_id: UUID4,
+    model: type[Weapon] | type[Outfit] | type[Junk],
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> None:
+    """Verify user has access to the vault owning an item.
+
+    The owning vault is resolved through the item's storage or the dweller
+    equipping it, mirroring the sell/scrap flow that moves caps between them.
+
+    Raises:
+        ResourceNotFoundException: If the item has no resolvable owning vault.
+        AccessDeniedException: If the user doesn't own that vault.
+    """
+    from app.crud.item_base import get_item_vault_id
+
+    item = await db_session.get(model, item_id)
+    if not item:
+        raise ResourceNotFoundException(model, identifier=item_id)
+
+    vault_id = await get_item_vault_id(db_session, item)
+    if not vault_id:
+        raise ResourceNotFoundException(model, identifier=item_id)
+
+    await get_user_vault_or_403(vault_id, user, db_session)
 
 
 async def verify_exploration_access(

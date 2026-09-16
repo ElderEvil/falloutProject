@@ -1,5 +1,6 @@
 """Objective endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,7 +8,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentSuperuser
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_current_active_user, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.objective import Objective
 from app.models.vault import Vault
@@ -16,14 +17,17 @@ from app.schemas.responses import AssignedResponse
 from app.services.objective_assignment_service import ObjectiveAssignmentService
 from app.services.reward_service import reward_service
 
-router = APIRouter(prefix="/objectives", tags=["Objective"])
+router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depends(get_current_active_user)])
 
 
 @router.post("/{vault_id}/", response_model=Objective)
 async def create_objective(
-    objective_data: ObjectiveCreate, vault_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
+    objective_data: ObjectiveCreate,
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
 ) -> Objective:
-    """Create an objective for a vault.
+    """Create an objective for a vault (administrators only).
 
     Returns:
         The created objective.
@@ -35,22 +39,32 @@ async def create_objective(
 async def read_objective_list(
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     vault_id: UUID4,
+    user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[ObjectiveRead]:
+) -> Sequence[ObjectiveRead]:
     """Retrieve objectives for a vault.
 
     Returns:
         List of objectives for the vault.
+
+    Raises:
+        AccessDeniedException: If the user doesn't own the vault.
     """
+    await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
 
 
 @router.get("/{objective_id}", response_model=ObjectiveRead)
 async def read_objective(
-    objective_id: UUID4, db_session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> ObjectiveRead:
-    """Retrieve an objective by ID.
+    objective_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _user: CurrentActiveUser,
+) -> Objective:
+    """Retrieve an objective template by ID.
+
+    Objectives are global templates; a vault links to them with its own progress,
+    so any authenticated caller may read one (vault-scoped lists stay owner-only).
 
     Returns:
         The requested objective.
@@ -79,8 +93,9 @@ async def update_objective_progress(
     objective_id: UUID4,
     progress: int,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
 ):
-    """Update the progress of an objective for a vault.
+    """Update the progress of an objective for a vault (administrators only).
 
     Returns:
         The updated objective.
@@ -92,9 +107,10 @@ async def update_objective_progress(
 async def assign_random_objectives(
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    _: CurrentSuperuser,
     count: int = 5,
 ):
-    """Assign random available objectives to a vault (for testing/debugging).
+    """Assign random available objectives to a vault (administrators only).
 
     Returns:
         Response with count of assigned objectives.

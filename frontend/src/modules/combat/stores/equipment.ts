@@ -14,17 +14,17 @@ export const useEquipmentStore = defineStore('equipment', () => {
   const outfits = ref<Outfit[]>([])
   const error = ref<string | null>(null)
   const { run: runFetchWeapons, isLoading: isWeaponsLoading } = useAsyncAction(
-    (token: string, vaultId?: string) => equipmentService.fetchWeapons(token, vaultId),
+    (token: string, vaultId: string) => equipmentService.fetchWeapons(token, vaultId),
     { context: 'Failed to fetch weapons', showToast: false }
   )
   const { run: runFetchOutfits, isLoading: isOutfitsLoading } = useAsyncAction(
-    (token: string, vaultId?: string) => equipmentService.fetchOutfits(token, vaultId),
+    (token: string, vaultId: string) => equipmentService.fetchOutfits(token, vaultId),
     { context: 'Failed to fetch outfits', showToast: false }
   )
   const isLoading = computed(() => isWeaponsLoading.value || isOutfitsLoading.value)
 
   // Actions
-  async function fetchWeapons(token: string, vaultId?: string): Promise<void> {
+  async function fetchWeapons(token: string, vaultId: string): Promise<void> {
     error.value = null
     const result = await runFetchWeapons(token, vaultId)
     if (result) {
@@ -35,7 +35,7 @@ export const useEquipmentStore = defineStore('equipment', () => {
     }
   }
 
-  async function fetchOutfits(token: string, vaultId?: string): Promise<void> {
+  async function fetchOutfits(token: string, vaultId: string): Promise<void> {
     error.value = null
     const result = await runFetchOutfits(token, vaultId)
     if (result) {

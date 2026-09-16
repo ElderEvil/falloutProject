@@ -1,5 +1,6 @@
 """Quest endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -21,6 +22,7 @@ from app.schemas.quest import (
 )
 from app.schemas.rewards import granted_reward_adapter
 from app.services.quest_service import quest_service
+from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
 
@@ -31,7 +33,7 @@ async def read_all_quests(
     _user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[QuestRead]:
+) -> Sequence[QuestRead]:
     """Get all available quests (not vault-specific).
 
     Returns:
@@ -45,7 +47,7 @@ async def create_quest(
     quest_data: QuestCreate,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     _: CurrentSuperuser,
-) -> QuestRead:
+) -> Quest:
     """Create a new quest.
 
     Returns:
@@ -61,7 +63,7 @@ async def read_vault_quests(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[QuestRead]:
+) -> Sequence[QuestRead]:
     """Get all quests assigned to a specific vault.
 
     Returns:
@@ -79,7 +81,7 @@ async def get_available_quests(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[QuestRead]:
+) -> list[Quest]:
     """Get available quests for a vault (respects quest chain unlocks).
 
     Returns:
@@ -95,22 +97,36 @@ async def read_quest(
     user: CurrentActiveUser,
     vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> QuestRead:
+) -> Quest:
     """Retrieve a quest by ID within a vault.
 
     Returns:
         The requested quest.
+
+    Raises:
+        ResourceNotFoundException: If the quest is not linked to the vault.
     """
-    return await crud.quest_crud.get_for_vault(db_session=db_session, quest_id=quest_id, vault_id=vault_id, user=user)
+    await get_user_vault_or_403(vault_id, user, db_session)
+
+    link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+    if link is None:
+        raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+    return await crud.quest_crud.get(db_session, quest_id)
 
 
 @router.put("/{vault_id}/{quest_id}", response_model=QuestRead)
 async def update_quest(
     quest_id: UUID4,
     quest_data: QuestUpdate,
+    _vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> QuestRead:
-    """Update a quest.
+    _: CurrentSuperuser,
+) -> Quest:
+    """Update a quest definition (administrators only).
+
+    Quests are global templates shared by every vault, so vault ownership cannot
+    authorize this write — editing one here would change it for all players.
 
     Returns:
         The updated quest.
@@ -121,13 +137,15 @@ async def update_quest(
 @router.delete("/{vault_id}/{quest_id}", status_code=204)
 async def delete_quest(
     quest_id: UUID4,
-    vault_id: UUID4,
+    _vault_id: UUID4,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    user: CurrentActiveUser,
+    _: CurrentSuperuser,
 ) -> None:
-    """Delete a quest."""
-    await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.quest_crud.delete(db_session, quest_id)
+    """Delete a quest definition (administrators only).
+
+    Like update, this removes a global template shared by every vault.
+    """
+    await crud.quest_crud.delete(db_session, quest_id)
 
 
 @router.post("/{vault_id}/{quest_id}/assign", status_code=201)
@@ -241,7 +259,7 @@ async def start_quest(
     quest_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> QuestRead:
+) -> Quest:
     """Start a quest (starts the timer).
 
     Returns:

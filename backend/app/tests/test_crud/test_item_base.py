@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault, get_items_list
+from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
@@ -109,22 +109,6 @@ async def test_get_items_by_vault_returns_items() -> None:
     result = await get_items_by_vault(session, Weapon, "00000000-0000-0000-0000-000000000099", skip=0, limit=10)
     assert result == [mock_item]
     session.execute.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# get_items_list
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_items_list_with_vault_id_delegates() -> None:
-    session = _new_session()
-    crud_instance = MagicMock(spec=CRUDItem)
-
-    with patch("app.crud.item_base.get_items_by_vault", new=AsyncMock(return_value=["item1", "item2"])) as mock_fn:
-        result = await get_items_list(crud_instance, session, Weapon, vault_id="v1", skip=0, limit=5)
-        mock_fn.assert_called_once_with(session, Weapon, "v1", 0, 5)
-        assert result == ["item1", "item2"]
 
 
 # ---------------------------------------------------------------------------

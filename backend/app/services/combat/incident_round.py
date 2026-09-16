@@ -200,6 +200,10 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # Death notifications parked by mark_as_dead(commit=False) deliver only
     # once the round actually persisted.
     await notification_service.deliver_deferred_notifications(db_session)
+    # Incident level-ups parked the same way: emit and notify post-commit.
+    from app.services.leveling_service import leveling_service
+
+    await leveling_service.deliver_deferred_level_ups(db_session)
 
     if resolved:
         experience_earned = (incident.loot or {}).get("experience", 0)

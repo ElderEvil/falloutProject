@@ -1,10 +1,9 @@
 """Uniform level-up surfacing spec across all XP paths (P0 backlog item 1).
 
 Every path that levels a dweller must emit DWELLER_LEVEL_UP and send the
-level-up notification (progression-visibility red line). The canonical path
-(DwellerService.add_experience) does both; the four direct
-leveling_service.check_level_up call sites currently diverge. These tests pin
-the target contract: passing tests guard it, failing ones prove the breach.
+level-up notification (progression-visibility red line). Paths that settle
+inside a larger transaction (``commit=False``) queue the surfacing instead:
+it dispatches on drain after a successful commit and is discarded on rollback.
 """
 
 from unittest.mock import AsyncMock, patch
@@ -28,7 +27,7 @@ from app.services.dweller_service import dweller_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.game_tick.dwellers_tick import award_work_xp
-from app.services.leveling_service import LevelingService
+from app.services.leveling_service import LevelingService, leveling_service
 
 
 async def _pin_level_one(async_session: AsyncSession, dweller: Dweller) -> int:
@@ -140,7 +139,7 @@ async def test_work_tick_surfaces_level_up(async_session: AsyncSession, vault: V
 
 @pytest.mark.asyncio
 async def test_incident_path_surfaces_level_up(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """Incident level-ups must surface exactly like the canonical path."""
+    """Incident level-ups park until the round commits, then surface like canonical."""
     room = await _make_production_room(async_session, vault)
     await _pin_level_one(async_session, dweller)
     incident = Incident(vault_id=vault.id, room_id=room.id, type=IncidentType.RAIDER_ATTACK, difficulty=1)
@@ -155,6 +154,10 @@ async def test_incident_path_surfaces_level_up(async_session: AsyncSession, vaul
         ) as notify,
     ):
         await award_combat_xp(async_session, incident, [dweller])
+        assert _level_up_events(emit, vault.id) == []
+        notify.assert_not_awaited()
+
+        await leveling_service.deliver_deferred_level_ups(async_session)
 
     await async_session.refresh(dweller)
     assert dweller.level == 2
@@ -204,3 +207,48 @@ async def test_exploration_path_surfaces_level_up(async_session: AsyncSession, v
     assert len(_level_up_events(emit, vault.id)) == 1
     notify.assert_awaited_once()
     assert notify.call_args.kwargs["new_level"] == 2
+
+
+@pytest.mark.asyncio
+async def test_deferred_level_up_queues_until_drained(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """commit=False parks the event and notification; the drain dispatches both."""
+    with (
+        patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+        patch(
+            "app.services.notification_service.NotificationService.notify_level_up",
+            new_callable=AsyncMock,
+        ) as notify,
+    ):
+        await leveling_service.settle_level_up(
+            async_session, dweller, old_level=dweller.level, levels_gained=1, commit=False
+        )
+        assert _level_up_events(emit, vault.id) == []
+        notify.assert_not_awaited()
+
+        await leveling_service.deliver_deferred_level_ups(async_session)
+
+    assert len(_level_up_events(emit, vault.id)) == 1
+    notify.assert_awaited_once()
+    assert notify.call_args.kwargs["new_level"] == dweller.level
+
+
+@pytest.mark.asyncio
+async def test_discarded_level_up_never_dispatches(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A rolled-back transaction drops queued level-up surfacing entirely."""
+    with (
+        patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+        patch(
+            "app.services.notification_service.NotificationService.notify_level_up",
+            new_callable=AsyncMock,
+        ) as notify,
+    ):
+        await leveling_service.settle_level_up(
+            async_session, dweller, old_level=dweller.level, levels_gained=1, commit=False
+        )
+        leveling_service.discard_deferred_level_ups(async_session)
+        await leveling_service.deliver_deferred_level_ups(async_session)
+
+    assert _level_up_events(emit, vault.id) == []
+    notify.assert_not_awaited()

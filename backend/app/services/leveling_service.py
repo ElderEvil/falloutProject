@@ -1,6 +1,7 @@
 """Leveling service for handling dweller experience and level-ups."""
 
 import logging
+from typing import Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,6 +12,8 @@ from app.schemas.dweller import DwellerUpdate
 from app.utils.reward_delivery import reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
+
+_DEFERRED_LEVEL_UP_DELIVERIES = "deferred_level_up_deliveries"
 
 
 class LevelingService:
@@ -154,7 +157,8 @@ class LevelingService:
 
         The single surfacing entry point for every XP path (quest rewards, work
         ticks, incidents, arena, exploration). Pass commit=False where the caller
-        drains deferred deliveries after its own commit (incident rounds).
+        drains deferred deliveries after its own commit (incident rounds): the
+        event and notification park until then instead of leaking pre-commit.
         """
         from app.crud import vault as crud_vault
         from app.services.notification_service import notification_service
@@ -163,28 +167,46 @@ class LevelingService:
             return
         if not dweller.vault_id:
             return
-        await event_bus.emit(
-            GameEvent.DWELLER_LEVEL_UP,
-            dweller.vault_id,
-            {
-                "dweller_id": str(dweller.id),
-                "level": dweller.level,
-                "old_level": old_level,
-                "amount": levels_gained,
-            },
-        )
+        payload = {
+            "dweller_id": str(dweller.id),
+            "level": dweller.level,
+            "old_level": old_level,
+            "amount": levels_gained,
+        }
         vault = await crud_vault.get(db_session, dweller.vault_id)
+        notify_kwargs: dict[str, Any] | None = None
         if vault and vault.user_id:
-            await notification_service.notify_level_up(
-                db_session,
-                user_id=vault.user_id,
-                vault_id=dweller.vault_id,
-                dweller_id=dweller.id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-                new_level=dweller.level,
-                meta_data={"old_level": old_level, "new_level": dweller.level},
-                commit=commit,
-            )
+            notify_kwargs = {
+                "user_id": vault.user_id,
+                "vault_id": dweller.vault_id,
+                "dweller_id": dweller.id,
+                "dweller_name": f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                "new_level": dweller.level,
+                "meta_data": {"old_level": old_level, "new_level": dweller.level},
+            }
+        if not commit:
+            parked = db_session.info.setdefault(_DEFERRED_LEVEL_UP_DELIVERIES, [])
+            parked.append({"vault_id": dweller.vault_id, "payload": payload, "notify": notify_kwargs})
+            return
+        await event_bus.emit(GameEvent.DWELLER_LEVEL_UP, dweller.vault_id, payload)
+        if notify_kwargs is not None:
+            await notification_service.notify_level_up(db_session, **notify_kwargs, commit=True)
+
+    @staticmethod
+    async def deliver_deferred_level_ups(db_session: AsyncSession) -> None:
+        """Emit queued level-up events and send their notifications (post-commit)."""
+        from app.services.notification_service import notification_service
+
+        parked = db_session.info.pop(_DEFERRED_LEVEL_UP_DELIVERIES, [])
+        for record in parked:
+            await event_bus.emit(GameEvent.DWELLER_LEVEL_UP, record["vault_id"], record["payload"])
+            if record["notify"] is not None:
+                await notification_service.notify_level_up(db_session, **record["notify"], commit=True)
+
+    @staticmethod
+    def discard_deferred_level_ups(db_session: AsyncSession) -> None:
+        """Drop queued level-up surfacing for a transaction that rolled back."""
+        db_session.info.pop(_DEFERRED_LEVEL_UP_DELIVERIES, None)
 
 
 # Singleton instance

@@ -23,6 +23,7 @@ from app.schemas.dweller import (
     DwellerIdentityOptions,
     DwellerReadWithRoomID,
     DwellerUpdate,
+    DwellerUpdateRequest,
 )
 from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
@@ -135,7 +136,7 @@ class DwellerService:
         self,
         db_session: AsyncSession,
         dweller_id: UUID4,
-        dweller_data: DwellerUpdate | dict[str, Any],
+        dweller_data: DwellerUpdate | DwellerUpdateRequest | dict[str, Any],
     ) -> Any:
         """Update a dweller, computing room-based status automatically.
 

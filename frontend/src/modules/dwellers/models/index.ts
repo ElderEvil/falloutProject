@@ -3,7 +3,6 @@ export type {
   DwellerFull,
   DwellerShort,
   DwellerCreate,
-  DwellerUpdate,
   Special,
   VisualAttributes,
   // Death system types

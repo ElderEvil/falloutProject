@@ -585,7 +585,10 @@ export interface paths {
         get: operations["read_dweller_api_v1_dwellers__dweller_id__get"];
         /**
          * Update Dweller
-         * @description Update a dweller's data.
+         * @description Update a dweller's player-editable fields.
+         *
+         *     Game state (health, radiation, level, experience, supplies, status, death) is
+         *     not accepted here — see `DwellerUpdateRequest`.
          *
          *     Returns:
          *         DwellerRead: The updated dweller.
@@ -6245,33 +6248,12 @@ export interface components {
          * @enum {string}
          */
         DwellerStatusEnum: "idle" | "working" | "exploring" | "questing" | "training" | "resting" | "fighting" | "dead";
-        /** DwellerUpdate */
-        DwellerUpdate: {
-            /** S */
-            S?: number | null;
-            /** P */
-            P?: number | null;
-            /** E */
-            E?: number | null;
-            /** C */
-            C?: number | null;
-            /** I */
-            I?: number | null;
-            /** A */
-            A?: number | null;
-            /** L */
-            L?: number | null;
+        /** DwellerUpdateRequest */
+        DwellerUpdateRequest: {
             /** First Name */
             first_name?: string | null;
             /** Last Name */
             last_name?: string | null;
-            /** Is Adult */
-            is_adult?: boolean | null;
-            age_group?: components["schemas"]["AgeGroupEnum"] | null;
-            /** Birth Date */
-            birth_date?: string | null;
-            gender?: components["schemas"]["GenderEnum"] | null;
-            rarity?: components["schemas"]["RarityEnum"] | null;
             /** Bio */
             bio?: string | null;
             /** Bio Entries */
@@ -6283,34 +6265,6 @@ export interface components {
             image_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
-            /** Is Traded */
-            is_traded?: boolean | null;
-            /** Level */
-            level?: number | null;
-            /** Experience */
-            experience?: number | null;
-            /** Max Health */
-            max_health?: number | null;
-            /** Health */
-            health?: number | null;
-            /** Radiation */
-            radiation?: number | null;
-            /** Happiness */
-            happiness?: number | null;
-            /** Stimpack */
-            stimpack?: number | null;
-            /** Radaway */
-            radaway?: number | null;
-            status?: components["schemas"]["DwellerStatusEnum"] | null;
-            /** Is Dead */
-            is_dead?: boolean | null;
-            /** Death Timestamp */
-            death_timestamp?: string | null;
-            death_cause?: components["schemas"]["DeathCauseEnum"] | null;
-            /** Is Permanently Dead */
-            is_permanently_dead?: boolean | null;
-            /** Epitaph */
-            epitaph?: string | null;
             /** Room Id */
             room_id?: string | null;
         };
@@ -10500,7 +10454,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DwellerUpdate"];
+                "application/json": components["schemas"]["DwellerUpdateRequest"];
             };
         };
         responses: {

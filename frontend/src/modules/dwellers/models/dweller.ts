@@ -8,7 +8,6 @@ export type DwellerFull = components['schemas']['DwellerReadFull']
 export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
-export type DwellerUpdate = components['schemas']['DwellerUpdate']
 
 // Single source of truth shared by DwellerBio and the detail container (relocated from a component export).
 export interface MapPlaceLink {

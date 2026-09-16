@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.111.3 (2026-09-16)
+
+### Bug Fixes
+
+* stop clients writing dweller game state through the update endpoint b8b016a
+
 ## 2.111.2 (2026-09-16)
 
 ### Bug Fixes

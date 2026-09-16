@@ -643,10 +643,10 @@ racial modifiers and faction perks slot into the same stat-weighting shape inste
   - **Remaining:** ghoul radiation healing over time; a perk for NCR/Railroad once an economy or stealth system
     exists.
 - 🔄 **Dossier surfacing & filtering** — shipped: the computed modifiers ride on the dweller read shape and the
-  dossier renders them under Identity Bonuses; the roster filters by race and faction (server-side against the
-  `visual_attributes` JSONB, verified on both SQLite and PostgreSQL); and the filter panel *and* the appearance
-  editor both read `GET /dwellers/identity-options` instead of mirrored lists — the editor's mirror had already
-  drifted (it offered `partially_feral`/`fully_feral`, which the backend never had).
+  dossier renders them under Identity Bonuses; and the appearance editor reads `GET /dwellers/identity-options`
+  instead of keeping its own mirrored list — that mirror had already drifted (it offered
+  `partially_feral`/`fully_feral`, which the backend never had). Filtering the roster by race and faction is
+  tracked separately.
 - ⬜ **Balance pass** — the deltas above are a first cut; revisit after play-testing normal, boosted and
   non-human-heavy vaults.
 

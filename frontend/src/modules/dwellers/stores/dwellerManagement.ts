@@ -334,8 +334,6 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       await filterStore.fetchDwellersByVault(vaultId, token, {
         status: filterStore.filterStatus,
         ageGroup: filterStore.filterAgeGroup,
-        race: filterStore.filterRace,
-        faction: filterStore.filterFaction,
         sortBy: filterStore.sortBy,
         order: filterStore.sortDirection,
       })

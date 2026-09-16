@@ -52,8 +52,6 @@ export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
   ageGroup?: DwellerAgeGroup
-  race?: string
-  faction?: string
   search?: string
   sortBy?: string
   order?: 'asc' | 'desc'
@@ -76,8 +74,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       if (options?.status && options.status !== 'all') params.append('status', options.status)
       if (options?.ageGroup && options.ageGroup !== 'all')
         params.append('age_group', options.ageGroup)
-      if (options?.race && options.race !== 'all') params.append('race', options.race)
-      if (options?.faction && options.faction !== 'all') params.append('faction', options.faction)
       if (options?.search) params.append('search', options.search)
       if (options?.sortBy) params.append('sort_by', options.sortBy)
       if (options?.order) params.append('order', options.order)
@@ -104,9 +100,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   // Filter and sort state (persisted in localStorage)
   const filterStatus = useLocalStorage<DwellerStatus | 'all'>('dwellerFilterStatus', 'all')
   const filterAgeGroup = useLocalStorage<DwellerAgeGroup>('dwellerFilterAgeGroup', 'all')
-  // Identity lives in visual_attributes; 'all' means unfiltered.
-  const filterRace = useLocalStorage<string>('dwellerFilterRace', 'all')
-  const filterFaction = useLocalStorage<string>('dwellerFilterFaction', 'all')
   const sortBy = useLocalStorage<DwellerSortBy>('dwellerSortBy', 'name')
   const sortDirection = useLocalStorage<SortDirection>('dwellerSortDirection', 'asc')
   const viewMode = useLocalStorage<DwellerViewMode>('dwellerViewMode', 'list')
@@ -163,14 +156,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     // Apply status filter
     if (filterStatus.value !== 'all') {
       result = result.filter((dweller) => dweller.status === filterStatus.value)
-    }
-
-    // Apply identity filters
-    if (filterRace.value !== 'all') {
-      result = result.filter((dweller) => dweller.visual_attributes?.race === filterRace.value)
-    }
-    if (filterFaction.value !== 'all') {
-      result = result.filter((dweller) => dweller.visual_attributes?.faction === filterFaction.value)
     }
 
     // Apply sorting
@@ -256,14 +241,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     filterAgeGroup.value = ageGroup
   }
 
-  function setFilterRace(race: string): void {
-    filterRace.value = race
-  }
-
-  function setFilterFaction(faction: string): void {
-    filterFaction.value = faction
-  }
-
   function setSortBy(sort: DwellerSortBy): void {
     sortBy.value = sort
   }
@@ -297,8 +274,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     isLoading,
     filterStatus,
     filterAgeGroup,
-    filterRace,
-    filterFaction,
     sortBy,
     sortDirection,
     viewMode,
@@ -311,8 +286,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     fetchDwellerDetails,
     setFilterStatus,
     setFilterAgeGroup,
-    setFilterRace,
-    setFilterFaction,
     setSortBy,
     setSortDirection,
     setViewMode,

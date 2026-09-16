@@ -1,38 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-
-vi.mock('@/modules/auth/stores/auth', () => ({
-  useAuthStore: () => ({ token: 'test-token' }),
-}))
-
-vi.mock('@/core/utils/errorHandler', () => ({
-  handleStoreError: vi.fn(),
-}))
-
-vi.mock('@/modules/dwellers/services/dwellerService', () => ({
-  getIdentityOptions: vi.fn().mockResolvedValue({
-    races: ['human', 'ghoul', 'super_mutant', 'synth'],
-    factions_by_race: {
-      human: ['vault_dweller', 'brotherhood_of_steel'],
-      ghoul: ['vault_dweller', 'children_of_atom', 'none'],
-      super_mutant: ['super_mutant_tribe', 'none'],
-      synth: ['the_institute', 'railroad', 'none'],
-    },
-    states_by_race: {},
-  }),
-}))
-
-/** The collapse toggle is the only toolbar button carrying this class. */
-async function expandFilters(wrapper: ReturnType<typeof mount>) {
-  const toggle = wrapper.find('.filters-toggle')
-  expect(toggle.exists()).toBe(true)
-  await toggle.trigger('click')
-  await flushPromises()
-}
 
 describe('DwellerFilterPanel', () => {
   beforeEach(() => {
@@ -90,9 +61,8 @@ describe('DwellerFilterPanel', () => {
       const wrapper = mount(DwellerFilterPanel)
 
       expect(wrapper.text()).toContain('Sort By')
-      // Both toolbar dropdowns share one trigger rule, so their lists cannot drift apart.
       expect(filterPanelSource).toMatch(
-        /\.identity-controls :deep\(\.select-trigger\),\s*\.sort-controls :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
+        /\.sort-select \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
       )
       expect(filterPanelSource).toMatch(
         /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
@@ -106,13 +76,9 @@ describe('DwellerFilterPanel', () => {
       const wrapper = mount(DwellerFilterPanel)
       const store = useDwellerStore().filter
 
-      const sortTrigger = wrapper.find('.sort-controls .select-trigger')
-      expect(sortTrigger.attributes('aria-label')).toBe('Sort dwellers')
-
-      await sortTrigger.trigger('click')
-      const levelOption = wrapper.findAll('.sort-controls .select-option').find((o) => o.text().includes('Level'))
-      expect(levelOption).toBeDefined()
-      await levelOption!.trigger('click')
+      const sortSelect = wrapper.find('.sort-select')
+      expect(sortSelect.attributes('aria-label')).toBe('Sort dwellers')
+      await sortSelect.setValue('level')
 
       expect(store.sortBy).toBe('level')
     })
@@ -213,58 +179,3 @@ describe('DwellerFilterPanel', () => {
     })
   })
 })
-
-  describe('Identity filters', () => {
-    it('collapses the filter controls until the toggle is used', async () => {
-      const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Filter by Status')
-      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('false')
-      expect(wrapper.find('.filters-count').exists()).toBe(false)
-
-      await expandFilters(wrapper)
-
-      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('true')
-      expect(wrapper.text()).toContain('Filter by Status')
-    })
-
-    it('counts the active filters it hides', async () => {
-      const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
-      })
-      await flushPromises()
-
-      const store = useDwellerStore().filter
-      // One change per tick, the way a user clicks the two selects.
-      store.setFilterRace('ghoul')
-      await flushPromises()
-      store.setFilterFaction('children_of_atom')
-      await flushPromises()
-
-      expect(store.filterRace).toBe('ghoul')
-      expect(store.filterFaction).toBe('children_of_atom')
-      expect(wrapper.find('.filters-count').text()).toBe('2')
-    })
-
-    it('clears a faction the newly selected race cannot hold', async () => {
-      const store = useDwellerStore().filter
-      const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
-      })
-      await flushPromises()
-
-      store.setFilterRace('ghoul')
-      store.setFilterFaction('children_of_atom')
-      await flushPromises()
-      expect(store.filterFaction).toBe('children_of_atom')
-
-      store.setFilterRace('super_mutant')
-      await flushPromises()
-
-      expect(store.filterFaction).toBe('all')
-      wrapper.unmount()
-    })
-  })

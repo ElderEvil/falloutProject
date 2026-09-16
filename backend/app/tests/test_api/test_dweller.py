@@ -502,9 +502,7 @@ async def test_unknown_race_filter_is_rejected(
     vault: Vault,
 ) -> None:
     """An invalid race is a 422, not a silent empty roster."""
-    response = await async_client.get(
-        f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers
-    )
+    response = await async_client.get(f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers)
 
     assert response.status_code == 422
 

@@ -41,6 +41,36 @@ class DwellerAssignmentService:
         max_capacity = self._calculate_room_capacity(room)
         return max(0, max_capacity - current_dwellers)
 
+    @staticmethod
+    def _record_assignment(
+        assignments: list[dict[str, str]],
+        assigned_dweller_ids: set,
+        dweller_id: UUID4,
+        room: Room,
+    ) -> None:
+        """Append one assignment row and mark the dweller as placed."""
+        assignments.append({"dweller_id": str(dweller_id), "room_id": str(room.id), "room_name": room.name})
+        assigned_dweller_ids.add(dweller_id)
+
+    async def _persist_room_assignment(self, db_session: AsyncSession, dweller_id: UUID4, room: Room) -> None:
+        """Persist a standard worker placement (room + derived status)."""
+        await crud.dweller.update(
+            db_session,
+            dweller_id,
+            DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
+        )
+
+    @staticmethod
+    def _sort_by_ability(
+        dwellers: Sequence[Dweller],
+        ability: SPECIALEnum,
+        *,
+        reverse: bool = True,
+    ) -> list[Dweller]:
+        """Order dwellers by the SPECIAL stat backing an ability."""
+        stat_name = ABILITY_TO_STAT_MAP[ability]
+        return sorted(dwellers, key=lambda d: getattr(d, stat_name), reverse=reverse)
+
     async def _assign_dweller_to_room(
         self,
         dweller: Dweller,
@@ -53,20 +83,9 @@ class DwellerAssignmentService:
         if room.category == RoomTypeEnum.TRAINING:
             await training_service.start_training(db_session, dweller.id, room.id)
         else:
-            await crud.dweller.update(
-                db_session,
-                dweller.id,
-                DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
-            )
+            await self._persist_room_assignment(db_session, dweller.id, room)
 
-        assignments.append(
-            {
-                "dweller_id": str(dweller.id),
-                "room_id": str(room.id),
-                "room_name": room.name,
-            }
-        )
-        assigned_dweller_ids.add(dweller.id)
+        self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
 
     def _filter_rooms_by_abilities(self, rooms: list[Room], abilities: list[SPECIALEnum]) -> list[Room]:
         """Filter rooms by a list of abilities."""
@@ -111,19 +130,15 @@ class DwellerAssignmentService:
         if ability_total == 0:
             return list(unassigned_dwellers)
 
-        stat_name = ABILITY_TO_STAT_MAP[ability]
         eligible_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
         if all(room.category == RoomTypeEnum.TRAINING for room in ability_specific_rooms):
+            stat_name = ABILITY_TO_STAT_MAP[ability]
             eligible_dwellers = [
                 dweller
                 for dweller in eligible_dwellers
                 if getattr(dweller, stat_name) < game_config.training.special_stat_max
             ]
-        sorted_dwellers = sorted(
-            eligible_dwellers,
-            key=lambda d: getattr(d, stat_name),
-            reverse=not prefer_lowest_stat,
-        )
+        sorted_dwellers = self._sort_by_ability(eligible_dwellers, ability, reverse=not prefer_lowest_stat)
 
         for room, slots in ability_slots:
             if not sorted_dwellers:
@@ -241,14 +256,7 @@ class DwellerAssignmentService:
                 },
                 commit=False,
             )
-            assignments.append(
-                {
-                    "dweller_id": str(youth.id),
-                    "room_id": str(room.id),
-                    "room_name": room.name,
-                }
-            )
-            assigned_dweller_ids.add(youth.id)
+            self._record_assignment(assignments, assigned_dweller_ids, youth.id, room)
             candidates.remove(youth)
 
         await db_session.commit()
@@ -317,27 +325,13 @@ class DwellerAssignmentService:
                 if available_slots <= 0:
                     continue
 
-                stat_name = ABILITY_TO_STAT_MAP[ability]
-                sorted_dwellers = sorted(
-                    [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids],
-                    key=lambda d: getattr(d, stat_name),
-                    reverse=True,
+                sorted_dwellers = self._sort_by_ability(
+                    [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids], ability
                 )
 
                 for dweller in sorted_dwellers[:available_slots]:
-                    await crud.dweller.update(
-                        db_session,
-                        dweller.id,
-                        DwellerUpdate(room_id=room.id, status=determine_status_for_room(room.category, room.name)),
-                    )
-                    assignments.append(
-                        {
-                            "dweller_id": str(dweller.id),
-                            "room_id": str(room.id),
-                            "room_name": room.name,
-                        }
-                    )
-                    assigned_dweller_ids.add(dweller.id)
+                    await self._persist_room_assignment(db_session, dweller.id, room)
+                    self._record_assignment(assignments, assigned_dweller_ids, dweller.id, room)
 
             unassigned_dwellers = [d for d in unassigned_dwellers if d.id not in assigned_dweller_ids]
 

@@ -112,6 +112,29 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   vault seeding), health/radiation appliers (`event_service` trio vs `radiation_service` vs `incident_round`),
   `notify_owner` + `create_and_send` repetition, `LETTER_TO_STAT` vs `ABILITY_TO_STAT_MAP`, prod helpers duplicated
   into test utils/factories, CRUD "get dwellers by vault" variants.
+  - **Ranked extraction backlog** (highest payoff first; one focused commit per cluster):
+    1. **XP/level-up settlement** — canonical path is `DwellerService.add_experience` (objective events + level-up
+       notification); direct `leveling_service.check_level_up` copies in `exploration/rewards_service`,
+       `combat/incident_round` (`award_combat_xp`), `combat/arena_service`, and `game_tick/dwellers_tick` bypass
+       the notification/event path in whole or part — a progression-visibility violation, not just DRY. Unify
+       behind one settlement entry point.
+    2. **Exploration departure** — `exploration_service` validates, clears `room_id`, deducts supplies, and sets
+       `EXPLORING` inline while `dweller_service` owns room/status transitions (incl. training cancellation); a
+       dweller can currently depart while training, orphaning the training row. Extract a transaction-friendly
+       "begin exploration"/availability policy instead of calling the commit-owning update service directly.
+    3. **Overflow take/sell settlement** — `combat/incident_service` and `exploration/rewards_service` run parallel
+       lock-owner → pop-item → reject-medical → capacity/caps → persist → commit flows; `loot_overflow_service`
+       already holds shared primitives and is the natural home for an owner-agnostic settlement helper/protocol.
+    4. **Item construction** — `utils/item_factory.py` (`build_weapon`/`build_outfit`) serves rewards, crafting,
+       incidents, and seeds, but exploration builds weapons/outfits/junk inline in `exploration/rewards_service`
+       (catalog-field/asset-URL drift risk). Normalize exploration loot into catalog-shaped data, then use the
+       shared factory; add a shared junk builder if useful.
+  - **Secondary:** composable no-commit medical-stock operation (`vault_service` vs `exploration_service`
+    transfer/deduction); expedition availability policy (`is_available_for_expedition` /
+    `is_in_vault_and_active` — responder, explorer, and dehydration eligibility share TODOs pointing at it);
+    pure credit calculation for deferred reward caps (`reward_service` vs `vault_service`). Not duplication:
+    `exploration_service` → modular exploration package and `incident_service` → `incident_tick` delegation are
+    compatibility/orchestration facades.
 
 **Rewrite rules:** keep each batch below 100 files; preserve public service singleton names during migration; add
 characterization/regression tests before changing behavior; move reusable queries into existing CRUD modules instead

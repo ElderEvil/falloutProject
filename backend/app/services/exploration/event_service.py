@@ -11,10 +11,19 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import RarityEnum
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
+from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.outfit import Outfit
 from app.models.weapon import Weapon
-from app.schemas.exploration_event import ExplorationEventType, OutfitSchema, WeaponSchema
+from app.schemas.exploration_event import (
+    CombatEventSchema,
+    DangerEventSchema,
+    ExplorationEventType,
+    LootEventSchema,
+    OutfitSchema,
+    RestEventSchema,
+    WeaponSchema,
+)
 from app.services.exploration.event_generator import event_generator
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
@@ -68,8 +77,9 @@ class EventService:
 
         # Convert loot schema to dict for JSON storage
         loot_dict = None
-        if hasattr(event, "loot") and event.loot:
-            loot_dict = event.loot.model_dump()
+        loot_event = event if isinstance(event, LootEventSchema) else None
+        if loot_event is not None and loot_event.loot:
+            loot_dict = loot_event.loot.model_dump()
 
         event_record = exploration.add_event(
             event_type=event.type,
@@ -87,16 +97,16 @@ class EventService:
         event_records = [event_record]
 
         # Handle event-specific logic
-        if hasattr(event, "loot") and event.loot:
+        if loot_event is not None and loot_event.loot:
             event_records.extend(await self._handle_loot_event(db_session, exploration, event))
 
-        if hasattr(event, "health_loss") and event.health_loss:
+        if isinstance(event, (CombatEventSchema, DangerEventSchema)) and event.health_loss:
             await self._apply_health_loss(db_session, exploration, event.health_loss)
 
-        if getattr(event, "radiation_gain", 0):
-            await self._apply_radiation_gain(db_session, exploration, getattr(event, "radiation_gain", 0))
+        if isinstance(event, DangerEventSchema) and event.radiation_gain:
+            await self._apply_radiation_gain(db_session, exploration, event.radiation_gain)
 
-        if hasattr(event, "health_restored") and event.health_restored:
+        if isinstance(event, RestEventSchema) and event.health_restored:
             actual_healing = await self._apply_health_restoration(db_session, exploration, event.health_restored)
             if actual_healing != event.health_restored:
                 # Radiation reduced the heal: the journey log must record what the
@@ -193,15 +203,17 @@ class EventService:
                 followups.append(record)
         return followups
 
+    async def _get_living_dweller(self, db_session: AsyncSession, exploration: Exploration) -> Dweller | None:
+        """Fetch the explorer, or None when already dead (damage/healing are no-ops)."""
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        return None if dweller_obj.is_dead else dweller_obj
+
     async def _apply_health_loss(self, db_session: AsyncSession, exploration: Exploration, damage: int) -> None:
         """Apply health loss to dweller.
 
         If damage would be fatal (health <= 0), the dweller dies from exploration.
         """
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-
-        # Short-circuit if dweller is already dead - don't apply damage to dead dwellers
-        if dweller_obj.is_dead:
+        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
             return
 
         new_health = dweller_obj.health - damage
@@ -221,9 +233,7 @@ class EventService:
 
     async def _apply_radiation_gain(self, db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
         """Apply radiation gain to dweller."""
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-
-        if dweller_obj.is_dead:
+        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
             return
 
         apply_radiation_gain(dweller_obj, rads)
@@ -240,10 +250,7 @@ class EventService:
 
     async def _handle_auto_heal(self, db_session: AsyncSession, exploration: Exploration) -> list[dict]:
         """Automatically use stimpaks/radaways if needed; returns the item_use event records."""
-        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
-
-        # Early return if dweller is already dead
-        if dweller_obj.is_dead:
+        if (dweller_obj := await self._get_living_dweller(db_session, exploration)) is None:
             return []
 
         records: list[dict] = []
@@ -299,7 +306,7 @@ class EventService:
         )
 
         match item_type:
-            case "weapon":
+            case "weapon" if isinstance(item_schema, WeaponSchema):
                 new_score = ((item_schema.damage_min + item_schema.damage_max) / 2,)
                 score_fields = ("auto_equip_avg_damage",)
                 model = Weapon

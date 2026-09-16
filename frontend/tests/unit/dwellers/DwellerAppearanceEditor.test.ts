@@ -1,7 +1,33 @@
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import DwellerAppearanceEditor from '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
+
+// The editor reads the backend identity catalogue instead of mirroring it.
+vi.mock('@/modules/auth/stores/auth', () => ({
+  useAuthStore: () => ({ token: 'test-token' }),
+}))
+
+vi.mock('@/core/utils/errorHandler', () => ({
+  handleStoreError: vi.fn(),
+}))
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getIdentityOptions: vi.fn().mockResolvedValue({
+    races: ['human', 'ghoul', 'super_mutant', 'synth'],
+    factions_by_race: {
+      human: ['vault_dweller', 'brotherhood_of_steel', 'enclave'],
+      ghoul: ['vault_dweller', 'raiders', 'children_of_atom', 'none'],
+      super_mutant: ['super_mutant_tribe', 'raiders', 'none'],
+      synth: ['the_institute', 'railroad', 'none'],
+    },
+    states_by_race: {
+      ghoul: ['sane', 'wild', 'feral'],
+      super_mutant: ['mild', 'average', 'behemoth'],
+      synth: ['gen_3', 'gen_2', 'gen_1'],
+    },
+  }),
+}))
 
 const baseDweller = {
   id: 'test-123',
@@ -29,7 +55,7 @@ const baseDweller = {
 } as unknown as Dweller
 
 async function createWrapper(dweller: Dweller, modelValue = true) {
-  return mount(DwellerAppearanceEditor, {
+  const wrapper = mount(DwellerAppearanceEditor, {
     props: {
       dweller,
       modelValue,
@@ -54,6 +80,8 @@ async function createWrapper(dweller: Dweller, modelValue = true) {
       },
     },
   })
+  await flushPromises()
+  return wrapper
 }
 
 describe('DwellerAppearanceEditor', () => {
@@ -84,6 +112,33 @@ describe('DwellerAppearanceEditor', () => {
   it('sets defaults when dweller has no visual_attributes', async () => {
     const wrapper = await createWrapper(baseDweller)
     expect(wrapper.findAll('[role="combobox"]')[0].text()).toContain('Human')
+  })
+
+  it('does not randomise before the identity catalogue loads', async () => {
+    const { getIdentityOptions } = await import('@/modules/dwellers/services/dwellerService')
+    vi.mocked(getIdentityOptions).mockResolvedValueOnce({
+      races: [],
+      factions_by_race: {},
+      states_by_race: {},
+    } as never)
+
+    const dwellerWithAttrs = {
+      ...baseDweller,
+      visual_attributes: { race: 'ghoul', faction: 'raiders' },
+    } as unknown as Dweller
+
+    const wrapper = await createWrapper(dwellerWithAttrs)
+
+    const randomizeBtn = wrapper.findAll('button').filter((b) => b.text().includes('Randomize'))[0]
+    expect(randomizeBtn).toBeDefined()
+    await randomizeBtn!.trigger('click')
+
+    const saveBtn = wrapper.findAll('button').filter((b) => b.text().includes('Save Changes'))[0]
+    await saveBtn!.trigger('click')
+
+    const saved = wrapper.emitted('saved')![0][0] as Record<string, unknown>
+    expect(saved.race).toBe('ghoul')
+    expect(saved.faction).toBe('raiders')
   })
 
   it('emits saved with cleaned attributes on save', async () => {

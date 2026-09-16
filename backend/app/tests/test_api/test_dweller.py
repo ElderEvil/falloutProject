@@ -9,6 +9,7 @@ from app import crud
 from app.api.v1.endpoints.dweller import extend_bio
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, GenderEnum, RarityEnum
 from app.schemas.dweller import DwellerCreate
 from app.tests.factory.dwellers import create_fake_dweller
@@ -457,3 +458,25 @@ async def test_update_dweller_can_unassign_a_room(
     assert response.status_code == 200
     await async_session.refresh(dweller)
     assert dweller.room_id is None
+
+
+@pytest.mark.asyncio
+async def test_dweller_detail_exposes_identity_modifiers(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """The dossier can explain why a dweller is effective without recomputing rules client-side."""
+    dweller.visual_attributes = {"race": "super_mutant", "faction": "super_mutant_tribe"}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    modifiers = response.json()["identity_modifiers"]
+    assert modifiers["strength"] == 3
+    assert modifiers["perception"] == -2
+    assert modifiers["radiation_immune"] is False
+    assert modifiers["melee_damage_pct"] == 0.15

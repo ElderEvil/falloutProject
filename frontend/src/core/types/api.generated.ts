@@ -5822,6 +5822,8 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
+            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
         };
         /** DwellerReadFull */
         DwellerReadFull: {
@@ -5980,6 +5982,8 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
+            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
         };
         /** DwellerReadLess */
         DwellerReadLess: {
@@ -6200,6 +6204,8 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
+            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
         };
         /**
          * DwellerRef
@@ -6776,6 +6782,77 @@ export interface components {
          * @enum {string}
          */
         HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
+        /**
+         * IdentityModifiers
+         * @description Combined racial and faction effects for one dweller.
+         */
+        IdentityModifiers: {
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
+            /**
+             * Radiation Immune
+             * @default false
+             */
+            radiation_immune: boolean;
+            /**
+             * Radiation Resist Pct
+             * @default 0
+             */
+            radiation_resist_pct: number;
+            /**
+             * Energy Weapon Damage Pct
+             * @default 0
+             */
+            energy_weapon_damage_pct: number;
+            /**
+             * Melee Damage Pct
+             * @default 0
+             */
+            melee_damage_pct: number;
+            /**
+             * Incident Response Pct
+             * @default 0
+             */
+            incident_response_pct: number;
+            /**
+             * Production Pct
+             * @default 0
+             */
+            production_pct: number;
+        };
         /** IncidentEventRead */
         IncidentEventRead: {
             /** Id */

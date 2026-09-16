@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Icon } from '@iconify/vue'
 import type { Dweller } from '../../models/dweller'
 import { useDwellerDetailContext } from '../DwellerDetailContext'
 
@@ -58,6 +59,57 @@ watch(
 onBeforeUnmount(() => clearTimeout(badgeTimer))
 
 const isHighlighted = (key: StatKey) => highlightedKey.value === key
+
+const STAT_MODIFIER_FIELDS: Array<{ field: string; label: string }> = [
+  { field: 'strength', label: 'Strength' },
+  { field: 'perception', label: 'Perception' },
+  { field: 'endurance', label: 'Endurance' },
+  { field: 'charisma', label: 'Charisma' },
+  { field: 'intelligence', label: 'Intelligence' },
+  { field: 'agility', label: 'Agility' },
+  { field: 'luck', label: 'Luck' },
+]
+
+/**
+ * Race/faction effects, computed server-side. Rendering them here answers
+ * "why is this dweller effective" without the client re-deriving the rules.
+ */
+const modifierRows = computed<Array<{ label: string; value: string; icon: string }>>(() => {
+  const modifiers = ctx.dweller.value?.identity_modifiers
+  if (!modifiers) return []
+
+  const rows = STAT_MODIFIER_FIELDS.flatMap(({ field, label }) => {
+    const delta = modifiers[field as keyof typeof modifiers]
+    if (typeof delta !== 'number' || delta === 0) return []
+    return [
+      {
+        label,
+        value: `${delta > 0 ? '+' : ''}${delta}`,
+        icon: delta > 0 ? 'mdi:chevron-up' : 'mdi:chevron-down',
+      },
+    ]
+  })
+
+  const percent = (share: number) => `${Math.round(share * 100)}%`
+  if (modifiers.radiation_immune) {
+    rows.push({ label: 'Radiation', value: 'Immune', icon: 'mdi:radiation' })
+  } else if (modifiers.radiation_resist_pct > 0) {
+    rows.push({ label: 'Radiation Resist', value: percent(modifiers.radiation_resist_pct), icon: 'mdi:radiation' })
+  }
+  if (modifiers.energy_weapon_damage_pct > 0) {
+    rows.push({ label: 'Energy Weapons', value: percent(modifiers.energy_weapon_damage_pct), icon: 'mdi:lightning-bolt' })
+  }
+  if (modifiers.melee_damage_pct > 0) {
+    rows.push({ label: 'Melee', value: percent(modifiers.melee_damage_pct), icon: 'mdi:sword' })
+  }
+  if (modifiers.incident_response_pct > 0) {
+    rows.push({ label: 'Incident Response', value: `-${percent(modifiers.incident_response_pct)} damage`, icon: 'mdi:shield-half-full' })
+  }
+  if (modifiers.production_pct > 0) {
+    rows.push({ label: 'Production', value: percent(modifiers.production_pct), icon: 'mdi:factory' })
+  }
+  return rows
+})
 </script>
 
 <template>
@@ -87,10 +139,65 @@ const isHighlighted = (key: StatKey) => highlightedKey.value === key
         <p class="stat-description">{{ stat.description }}</p>
       </div>
     </div>
+
+    <div v-if="modifierRows.length > 0" class="identity-modifiers">
+      <h4 class="modifiers-title">Identity Bonuses</h4>
+      <div class="modifiers-grid">
+        <div v-for="row in modifierRows" :key="row.label" class="modifier-row">
+          <Icon :icon="row.icon" class="modifier-icon" />
+          <span class="modifier-label">{{ row.label }}</span>
+          <span class="modifier-value">{{ row.value }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.identity-modifiers {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-theme-glow);
+}
+
+.modifiers-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-theme-primary);
+  opacity: 0.7;
+  margin-bottom: 0.5rem;
+}
+
+.modifiers-grid {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.modifier-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-theme-primary);
+}
+
+.modifier-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.modifier-label {
+  opacity: 0.75;
+}
+
+.modifier-value {
+  margin-left: auto;
+  font-weight: 700;
+}
+
 .dweller-stats {
   display: flex;
   flex-direction: column;

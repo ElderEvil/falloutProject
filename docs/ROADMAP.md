@@ -647,6 +647,15 @@ racial modifiers and faction perks slot into the same stat-weighting shape inste
   instead of keeping its own mirrored list — that mirror had already drifted (it offered
   `partially_feral`/`fully_feral`, which the backend never had). Filtering the roster by race and faction is
   tracked separately.
+- ⬜ **Race in conversation (persona)** — how a dweller *writes and behaves*, not accent flavour: race sets a
+  structured persona (register and sentence shape, lexical concreteness, emotional baseline, stance toward the
+  player, topics volunteered versus dodged) appended at call time to the `chat`, `backstory` and `extend_bio`
+  instructions, plus an action bias so the assignment or exploration a dweller reaches for fits its race
+  (super mutants toward training and fighting, ghouls toward irradiated ground, synths toward technical rooms).
+  Fallout 1/2's INT-gated dialogue is the model: SPECIAL should modulate the same persona dimensions later
+  (INT → register and sentence shape, PER → observation, CHA → warmth, LCK → risk talk, STR/END → physicality,
+  AGI → pace). Registry rows stay at v1 — templates reject placeholders, so the persona is composed outside the
+  registry and no `version-prompt` is needed.
 - ⬜ **Balance pass** — the deltas above are a first cut; revisit after play-testing normal, boosted and
   non-human-heavy vaults.
 

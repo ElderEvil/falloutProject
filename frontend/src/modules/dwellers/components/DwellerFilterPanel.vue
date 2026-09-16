@@ -177,14 +177,16 @@ const toggleSortDirection = () => {
 
 <template>
   <div class="filter-panel">
-    <DwellerFilterGroup
-      v-if="showStatusFilter && showFilterControls"
-      label="Filter by Status"
-      icon="mdi:filter"
-      :options="statusOptions"
-      :model-value="currentFilterStatus"
-      @update:model-value="currentFilterStatus = $event as DwellerStatus | 'all'"
-    />
+    <div v-if="collapsible || (showStatusFilter && showFilterControls)" class="filters-header">
+      <DwellerFilterGroup
+        v-if="showStatusFilter && showFilterControls"
+        label="Filter by Status"
+        icon="mdi:filter"
+        :options="statusOptions"
+        :model-value="currentFilterStatus"
+        @update:model-value="currentFilterStatus = $event as DwellerStatus | 'all'"
+      />
+    </div>
 
     <div class="filter-section-row">
       <DwellerFilterGroup
@@ -442,7 +444,15 @@ const toggleSortDirection = () => {
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
-/* Sits in the row beside labelled sections, so align it with their controls. */
+/* Leads the filter block, so the toggle keeps its place whether chips show or not. */
+.filters-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+
 .filters-toggle {
   align-self: flex-end;
   gap: 0.375rem;

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.111.0 (2026-09-16)
+
+### Features
+
+* cap radiation at dweller health and treat irradiated dwellers 87c35e4
+* irradiated-water radiation with outfit RAD resist 04d1288
+
+### Bug Fixes
+
+* address review findings on irradiated-water radiation 07f1edc
+
 ## 2.110.2 (2026-09-16)
 
 ### Code Refactoring

@@ -38,6 +38,49 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('identity filters', () => {
+    it('passes race and faction to the backend and omits them when set to all', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] } as never)
+      const store = useDwellerFilterStore()
+
+      store.setFilterRace('ghoul')
+      store.setFilterFaction('children_of_atom')
+      await store.fetchDwellersByVault('vault-1', 'test-token', {
+        race: store.filterRace,
+        faction: store.filterFaction,
+      })
+
+      expect(vi.mocked(axios.get).mock.calls[0][0]).toBe(
+        '/api/v1/dwellers/vault/vault-1/?race=ghoul&faction=children_of_atom'
+      )
+
+      store.setFilterRace('all')
+      store.setFilterFaction('all')
+      await store.fetchDwellersByVault('vault-1', 'test-token', {
+        race: store.filterRace,
+        faction: store.filterFaction,
+      })
+
+      expect(vi.mocked(axios.get).mock.calls[1][0]).toBe('/api/v1/dwellers/vault/vault-1/')
+    })
+
+    it('narrows the rendered roster by race and faction from visual_attributes', async () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        { id: 'g', status: 'idle', visual_attributes: { race: 'ghoul', faction: 'children_of_atom' } },
+        { id: 'm', status: 'idle', visual_attributes: { race: 'super_mutant', faction: 'raiders' } },
+        { id: 'n', status: 'idle', visual_attributes: null },
+      ] as never
+
+      store.setFilterRace('ghoul')
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['g'])
+
+      store.setFilterRace('all')
+      store.setFilterFaction('raiders')
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['m'])
+    })
+  })
+
   describe('fetchDwellersByVault', () => {
     it('should fetch dwellers and update state', async () => {
       const mockDwellers = [

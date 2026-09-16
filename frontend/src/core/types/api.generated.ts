@@ -5822,6 +5822,7 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
         };
         /** DwellerReadFull */
         DwellerReadFull: {
@@ -5980,6 +5981,7 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
         };
         /** DwellerReadLess */
         DwellerReadLess: {
@@ -6200,6 +6202,7 @@ export interface components {
              * @description Maximum health available after radiation damage.
              */
             readonly effective_max_health: number;
+            /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
         };
         /**
          * DwellerRef
@@ -6776,6 +6779,9 @@ export interface components {
          * @enum {string}
          */
         HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
+        /**
+         * @description Combined racial and faction effects for one dweller.
+         */
         /** IncidentEventRead */
         IncidentEventRead: {
             /** Id */
@@ -10584,6 +10590,8 @@ export interface operations {
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
                 search?: string | null;
+                race?: components["schemas"]["RaceEnum"] | null;
+                faction?: components["schemas"]["FactionEnum"] | null;
                 sort_by?: string;
                 order?: string;
             };

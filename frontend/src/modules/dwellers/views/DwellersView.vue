@@ -129,6 +129,8 @@ const fetchDwellers = async (signal?: AbortSignal) => {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
       status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
       ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
+      race: dwellerStore.filterRace !== 'all' ? dwellerStore.filterRace : undefined,
+      faction: dwellerStore.filterFaction !== 'all' ? dwellerStore.filterFaction : undefined,
       sortBy: dwellerStore.sortBy,
       order: dwellerStore.sortDirection,
       signal,
@@ -210,6 +212,8 @@ watch(
   () => [
     dwellerStore.filterStatus,
     dwellerStore.filterAgeGroup,
+    dwellerStore.filterRace,
+    dwellerStore.filterFaction,
     dwellerStore.sortBy,
     dwellerStore.sortDirection,
   ],
@@ -399,6 +403,7 @@ const handleTreatIrradiated = async () => {
           <div class="w-full mb-4">
             <DwellerFilterPanel
               :show-age-filter="true"
+              :show-identity-filters="true"
               :show-view-toggle="true"
               :show-bulk-actions="false"
               :vault-id="vaultId"

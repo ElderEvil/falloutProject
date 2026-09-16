@@ -114,6 +114,33 @@ describe('DwellerAppearanceEditor', () => {
     expect(wrapper.findAll('[role="combobox"]')[0].text()).toContain('Human')
   })
 
+  it('does not randomise before the identity catalogue loads', async () => {
+    const { getIdentityOptions } = await import('@/modules/dwellers/services/dwellerService')
+    vi.mocked(getIdentityOptions).mockResolvedValueOnce({
+      races: [],
+      factions_by_race: {},
+      states_by_race: {},
+    } as never)
+
+    const dwellerWithAttrs = {
+      ...baseDweller,
+      visual_attributes: { race: 'ghoul', faction: 'raiders' },
+    } as unknown as Dweller
+
+    const wrapper = await createWrapper(dwellerWithAttrs)
+
+    const randomizeBtn = wrapper.findAll('button').filter((b) => b.text().includes('Randomize'))[0]
+    expect(randomizeBtn).toBeDefined()
+    await randomizeBtn!.trigger('click')
+
+    const saveBtn = wrapper.findAll('button').filter((b) => b.text().includes('Save Changes'))[0]
+    await saveBtn!.trigger('click')
+
+    const saved = wrapper.emitted('saved')![0][0] as Record<string, unknown>
+    expect(saved.race).toBe('ghoul')
+    expect(saved.faction).toBe('raiders')
+  })
+
   it('emits saved with cleaned attributes on save', async () => {
     const dwellerWithAttrs = {
       ...baseDweller,

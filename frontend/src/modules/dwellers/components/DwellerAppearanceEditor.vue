@@ -318,6 +318,10 @@ function pickRandom<T>(arr: readonly T[] | T[]): T {
 }
 
 function randomize() {
+  // The catalogue is fetched on mount; randomising before it lands would write
+  // undefined into race/faction and then clear them on save.
+  if (raceOptions.value.length === 0) return
+
   const randomRace = pickRandom(raceOptions.value)
   form.race = randomRace
 
@@ -544,7 +548,12 @@ function handleCancel() {
 
     <template #footer>
       <div class="editor-footer">
-        <UButton variant="ghost" class="utility-button" @click="randomize">
+        <UButton
+          variant="ghost"
+          class="utility-button"
+          :disabled="raceOptions.length === 0"
+          @click="randomize"
+        >
           <Icon icon="mdi:dice-5" class="h-4 w-4" />
           Randomize
         </UButton>

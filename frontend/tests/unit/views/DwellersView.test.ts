@@ -252,6 +252,22 @@ describe('DwellersView', () => {
       )
     })
 
+    it('refetches with identity filters when they change', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      const fetchSpy = vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
+
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterRace('ghoul')
+      await flushPromises()
+
+      const options = fetchSpy.mock.calls.at(-1)?.[2] as Record<string, unknown> | undefined
+      expect(options?.race).toBe('ghoul')
+      wrapper.unmount()
+    })
+
     it('should render filter panel', async () => {
       vi.mocked(axios.get).mockImplementation((url: string) => {
         if (url.includes('/dwellers/identity-options')) {

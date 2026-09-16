@@ -119,8 +119,8 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
        the notification/event path in whole or part — a progression-visibility violation, not just DRY. Unify
        behind one settlement entry point.
     2. **Exploration departure** — `exploration_service` validates, clears `room_id`, deducts supplies, and sets
-       `EXPLORING` inline while `dweller_service` owns room/status transitions (incl. training cancellation); a
-       dweller can currently depart while training, orphaning the training row. Extract a transaction-friendly
+       `EXPLORING` inline while `dweller_service` owns room/status transitions; departure already cancels active
+       training inline (staged, no commit, so dispatch stays atomic). Remaining: extract a transaction-friendly
        "begin exploration"/availability policy instead of calling the commit-owning update service directly.
     3. **Overflow take/sell settlement** — `combat/incident_service` and `exploration/rewards_service` run parallel
        lock-owner → pop-item → reject-medical → capacity/caps → persist → commit flows; `loot_overflow_service`

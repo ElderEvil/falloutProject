@@ -1730,7 +1730,7 @@ export interface paths {
         put?: never;
         /**
          * Create Junk
-         * @description Create a new junk item.
+         * @description Create a new junk item (administrators only).
          *
          *     Returns:
          *         The created junk item.
@@ -1755,11 +1755,14 @@ export interface paths {
          *
          *     Returns:
          *         The requested junk item.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the junk item's vault.
          */
         get: operations["read_junk_api_v1_junk__junk_id__get"];
         /**
          * Update Junk
-         * @description Update a junk item.
+         * @description Update a junk item (administrators only).
          *
          *     Returns:
          *         The updated junk item.
@@ -1768,7 +1771,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Junk
-         * @description Delete a junk item.
+         * @description Delete a junk item (administrators only).
          */
         delete: operations["delete_junk_api_v1_junk__junk_id__delete"];
         options?: never;
@@ -1811,6 +1814,9 @@ export interface paths {
         /**
          * Sell Junk
          * @description Sell a junk item for caps.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the junk item's vault.
          */
         post: operations["sell_junk_api_v1_junk__junk_id__sell__post"];
         delete?: never;
@@ -2004,12 +2010,15 @@ export interface paths {
          *
          *     Returns:
          *         List of objectives for the vault.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_objective_list_api_v1_objectives__vault_id___get"];
         put?: never;
         /**
          * Create Objective
-         * @description Create an objective for a vault.
+         * @description Create an objective for a vault (administrators only).
          *
          *     Returns:
          *         The created objective.
@@ -2030,7 +2039,10 @@ export interface paths {
         };
         /**
          * Read Objective
-         * @description Retrieve an objective by ID.
+         * @description Retrieve an objective template by ID.
+         *
+         *     Objectives are global templates; a vault links to them with its own progress,
+         *     so any authenticated caller may read one (vault-scoped lists stay owner-only).
          *
          *     Returns:
          *         The requested objective.
@@ -2078,7 +2090,7 @@ export interface paths {
         put?: never;
         /**
          * Update Objective Progress
-         * @description Update the progress of an objective for a vault.
+         * @description Update the progress of an objective for a vault (administrators only).
          *
          *     Returns:
          *         The updated objective.
@@ -2101,7 +2113,7 @@ export interface paths {
         put?: never;
         /**
          * Assign Random Objectives
-         * @description Assign random available objectives to a vault (for testing/debugging).
+         * @description Assign random available objectives to a vault (administrators only).
          *
          *     Returns:
          *         Response with count of assigned objectives.
@@ -2129,12 +2141,15 @@ export interface paths {
          *
          *     Returns:
          *         List of outfits.
+         *
+         *     Raises:
+         *         AccessDeniedException: If a vault filter is given and the user doesn't own it.
          */
         get: operations["read_outfit_list_api_v1_outfits__get"];
         put?: never;
         /**
          * Create Outfit
-         * @description Create a new outfit.
+         * @description Create a new outfit (administrators only).
          *
          *     Returns:
          *         The created outfit.
@@ -2159,11 +2174,14 @@ export interface paths {
          *
          *     Returns:
          *         The requested outfit.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         get: operations["read_outfit_api_v1_outfits__outfit_id__get"];
         /**
          * Update Outfit
-         * @description Update an outfit.
+         * @description Update an outfit (administrators only).
          *
          *     Returns:
          *         The updated outfit.
@@ -2172,7 +2190,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Outfit
-         * @description Delete an outfit.
+         * @description Delete an outfit (administrators only).
          */
         delete: operations["delete_outfit_api_v1_outfits__outfit_id__delete"];
         options?: never;
@@ -2195,6 +2213,9 @@ export interface paths {
          *
          *     Returns:
          *         The equipped outfit.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user owns neither the dweller nor the outfit.
          */
         post: operations["equip_outfit_api_v1_outfits__dweller_id__equip__outfit_id__post"];
         delete?: never;
@@ -2215,6 +2236,9 @@ export interface paths {
         /**
          * Unequip Outfit
          * @description Unequip an outfit from a dweller.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["unequip_outfit_api_v1_outfits__outfit_id__unequip__post"];
         delete?: never;
@@ -2238,6 +2262,9 @@ export interface paths {
          *
          *     Returns:
          *         List of junk items produced from scrapping.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["scrap_outfit_api_v1_outfits__outfit_id__scrap__post"];
         delete?: never;
@@ -2258,6 +2285,9 @@ export interface paths {
         /**
          * Sell Outfit
          * @description Sell an outfit for caps.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["sell_outfit_api_v1_outfits__outfit_id__sell__post"];
         delete?: never;
@@ -2508,6 +2538,9 @@ export interface paths {
          *
          *     Returns:
          *         The requested quest.
+         *
+         *     Raises:
+         *         ResourceNotFoundException: If the quest is not linked to the vault.
          */
         get: operations["read_quest_api_v1_quests__vault_id___quest_id__get"];
         /**
@@ -2516,6 +2549,9 @@ export interface paths {
          *
          *     Returns:
          *         The updated quest.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the vault.
          */
         put: operations["update_quest_api_v1_quests__vault_id___quest_id__put"];
         post?: never;
@@ -4180,12 +4216,15 @@ export interface paths {
          *
          *     Returns:
          *         List of weapons.
+         *
+         *     Raises:
+         *         AccessDeniedException: If a vault filter is given and the user doesn't own it.
          */
         get: operations["read_weapon_list_api_v1_weapons__get"];
         put?: never;
         /**
          * Create Weapon
-         * @description Create a new weapon.
+         * @description Create a new weapon (administrators only).
          *
          *     Returns:
          *         The created weapon.
@@ -4210,11 +4249,14 @@ export interface paths {
          *
          *     Returns:
          *         The requested weapon.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         get: operations["read_weapon_api_v1_weapons__weapon_id__get"];
         /**
          * Update Weapon
-         * @description Update a weapon.
+         * @description Update a weapon (administrators only).
          *
          *     Returns:
          *         The updated weapon.
@@ -4223,7 +4265,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Weapon
-         * @description Delete a weapon.
+         * @description Delete a weapon (administrators only).
          */
         delete: operations["delete_weapon_api_v1_weapons__weapon_id__delete"];
         options?: never;
@@ -4246,6 +4288,9 @@ export interface paths {
          *
          *     Returns:
          *         The equipped weapon.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user owns neither the dweller nor the weapon.
          */
         post: operations["equip_weapon_api_v1_weapons__dweller_id__equip__weapon_id__post"];
         delete?: never;
@@ -4266,6 +4311,9 @@ export interface paths {
         /**
          * Unequip Weapon
          * @description Unequip a weapon from a dweller.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["unequip_weapon_api_v1_weapons__weapon_id__unequip__post"];
         delete?: never;
@@ -4289,6 +4337,9 @@ export interface paths {
          *
          *     Returns:
          *         List of junk items produced from scrapping.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["scrap_weapon_api_v1_weapons__weapon_id__scrap__post"];
         delete?: never;
@@ -4309,6 +4360,9 @@ export interface paths {
         /**
          * Sell Weapon
          * @description Sell a weapon for caps.
+         *
+         *     Raises:
+         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["sell_weapon_api_v1_weapons__weapon_id__sell__post"];
         delete?: never;
@@ -13339,6 +13393,7 @@ export interface operations {
             header?: never;
             path: {
                 quest_id: string;
+                vault_id: string;
             };
             cookie?: never;
         };

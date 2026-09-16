@@ -56,7 +56,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
     async def get_by_ids(
         self, list_ids: list[UUID4 | str], db_session: AsyncSession, include_deleted: bool = False
-    ) -> Sequence[Row[Any] | RowMapping | Any]:
+    ) -> Sequence[ModelType]:
         """
         Gets a list of items of the specified model type by a list of IDs.
 
@@ -93,7 +93,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
-    ) -> Sequence[Row[Any] | RowMapping | Any]:
+    ) -> Sequence[ModelType]:
         """
         Gets a list of items of the specified model type, optionally skipping the first `skip` items and limiting the
         result to `limit` items.

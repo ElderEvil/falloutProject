@@ -14,13 +14,15 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest.mark.asyncio
-async def test_read_outfit_list(async_client: AsyncClient, async_session: AsyncSession, outfit_data: dict):
+async def test_read_outfit_list(
+    async_client: AsyncClient, async_session: AsyncSession, outfit_data: dict, superuser_token_headers: dict[str, str]
+):
     outfit_2_data = create_fake_outfit()
     outfit_1 = OutfitCreate(**outfit_data)
     outfit_2 = OutfitCreate(**outfit_2_data)
     await crud.outfit.create(async_session, outfit_1)
     await crud.outfit.create(async_session, outfit_2)
-    response = await async_client.get("/outfits/")
+    response = await async_client.get("/outfits/", headers=superuser_token_headers)
     all_outfits = response.json()
     assert response.status_code == 200
     assert len(all_outfits) == 2
@@ -41,12 +43,14 @@ async def test_read_outfit_list(async_client: AsyncClient, async_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_update_outfit(async_client: AsyncClient, outfit_data: dict):
-    response = await async_client.post("/outfits/", json=outfit_data)
+async def test_update_outfit(async_client: AsyncClient, outfit_data: dict, superuser_token_headers: dict[str, str]):
+    response = await async_client.post("/outfits/", json=outfit_data, headers=superuser_token_headers)
     outfit_response = response.json()
     outfit_id = outfit_response["id"]
     outfit_new_data = create_fake_outfit()
-    update_response = await async_client.put(f"/outfits/{outfit_id}", json=outfit_new_data)
+    update_response = await async_client.put(
+        f"/outfits/{outfit_id}", json=outfit_new_data, headers=superuser_token_headers
+    )
     updated_outfit = update_response.json()
     assert update_response.status_code == 200
     assert updated_outfit["id"] == outfit_id
@@ -58,12 +62,12 @@ async def test_update_outfit(async_client: AsyncClient, outfit_data: dict):
 
 
 @pytest.mark.asyncio
-async def test_delete_outfit(async_client: AsyncClient, outfit_data: dict):
-    create_response = await async_client.post("/outfits/", json=outfit_data)
+async def test_delete_outfit(async_client: AsyncClient, outfit_data: dict, superuser_token_headers: dict[str, str]):
+    create_response = await async_client.post("/outfits/", json=outfit_data, headers=superuser_token_headers)
     created_outfit = create_response.json()
-    delete_response = await async_client.delete(f"/outfits/{created_outfit['id']}")
+    delete_response = await async_client.delete(f"/outfits/{created_outfit['id']}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/outfits/{created_outfit['id']}")
+    read_response = await async_client.get(f"/outfits/{created_outfit['id']}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 

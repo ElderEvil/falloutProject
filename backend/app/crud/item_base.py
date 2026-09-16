@@ -1,6 +1,6 @@
 import random
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import UUID4
 from sqlalchemy import update
@@ -21,14 +21,16 @@ from app.utils.exceptions import (
     ResourceNotFoundException,
 )
 
+ItemT = TypeVar("ItemT", Weapon, Outfit)
+
 
 async def get_items_by_vault(
     db_session: AsyncSession,
-    model: type[Weapon] | type[Outfit],
+    model: type[ItemT],
     vault_id: UUID4,
     skip: int = 0,
     limit: int = 100,
-) -> list[Weapon | Outfit]:
+) -> Sequence[ItemT]:
     """
     Get items filtered by vault - items in vault's storage OR equipped by vault's dwellers.
 
@@ -65,11 +67,11 @@ async def get_items_by_vault(
 async def get_items_list(
     crud_instance: "CRUDItem",
     db_session: AsyncSession,
-    model: type[Weapon] | type[Outfit],
+    model: type[ItemT],
     vault_id: UUID4 | None = None,
     skip: int = 0,
     limit: int = 100,
-) -> list[Weapon | Outfit]:
+) -> Sequence[ItemT]:
     """
     Get items with optional vault filtering.
 

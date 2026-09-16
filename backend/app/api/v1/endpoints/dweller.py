@@ -359,6 +359,7 @@ async def generate_dweller_avatar(
 @router.get("/read_data/", response_model=list[DwellerCreateWithoutVaultID])
 async def read_dwellers_data(
     data_store: Annotated[StaticGameData, Depends(get_static_game_data)],
+    _: CurrentActiveUser,
 ) -> Sequence[DwellerCreateWithoutVaultID]:
     """Get static dweller creation data.
 

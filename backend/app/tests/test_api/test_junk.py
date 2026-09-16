@@ -19,19 +19,22 @@ pytestmark = pytest.mark.asyncio(scope="module")
 
 
 @pytest.mark.asyncio
-async def test_create_junk_invalid(async_client: AsyncClient):
+async def test_create_junk_invalid(async_client: AsyncClient, superuser_token_headers: dict[str, str]):
     response = await async_client.post(
         "/junk/",
         json={
             "name": "Test Junk",
             "rarity": "Unique",
         },
+        headers=superuser_token_headers,
     )
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSession, junk_data: dict):
+async def test_read_junk_list(
+    async_client: AsyncClient, async_session: AsyncSession, junk_data: dict, superuser_token_headers: dict[str, str]
+):
     junk_data_2 = {
         "name": "Test Junk 2",
         "rarity": "Common",
@@ -43,7 +46,7 @@ async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSes
     junk_obj_2 = JunkCreate(**junk_data_2)
     await crud.junk.create(async_session, junk_obj_1)
     await crud.junk.create(async_session, junk_obj_2)
-    response = await async_client.get("/junk/")
+    response = await async_client.get("/junk/", headers=superuser_token_headers)
     all_junk = response.json()
     assert response.status_code == 200
     assert len(all_junk) == 2
@@ -66,8 +69,8 @@ async def test_read_junk_list(async_client: AsyncClient, async_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_update_junk(async_client: AsyncClient, junk_data: dict):
-    response = await async_client.post("/junk/", json=junk_data)
+async def test_update_junk(async_client: AsyncClient, junk_data: dict, superuser_token_headers: dict[str, str]):
+    response = await async_client.post("/junk/", json=junk_data, headers=superuser_token_headers)
     junk_item = response.json()
     junk_new_data = {
         "name": random_lower_string(16).capitalize(),
@@ -76,7 +79,9 @@ async def test_update_junk(async_client: AsyncClient, junk_data: dict):
         "junk_type": random.choice(list(JunkTypeEnum)),
         "description": random_lower_string(16),
     }
-    update_response = await async_client.put(f"/junk/{junk_item['id']}", json=junk_new_data)
+    update_response = await async_client.put(
+        f"/junk/{junk_item['id']}", json=junk_new_data, headers=superuser_token_headers
+    )
     updated_junk = update_response.json()
     assert update_response.status_code == 200
     assert updated_junk["name"] == junk_new_data["name"]
@@ -87,12 +92,12 @@ async def test_update_junk(async_client: AsyncClient, junk_data: dict):
 
 
 @pytest.mark.asyncio
-async def test_delete_junk(async_client: AsyncClient, junk_data: dict):
-    create_response = await async_client.post("/junk/", json=junk_data)
+async def test_delete_junk(async_client: AsyncClient, junk_data: dict, superuser_token_headers: dict[str, str]):
+    create_response = await async_client.post("/junk/", json=junk_data, headers=superuser_token_headers)
     created_junk = create_response.json()
-    delete_response = await async_client.delete(f"/junk/{created_junk['id']}")
+    delete_response = await async_client.delete(f"/junk/{created_junk['id']}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/junk/{created_junk['id']}")
+    read_response = await async_client.get(f"/junk/{created_junk['id']}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 

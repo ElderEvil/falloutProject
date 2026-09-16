@@ -8,7 +8,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.deps import CurrentSuperuser, get_user_vault_or_403
+from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.core.game_config import game_config
 from app.db.session import get_async_session
 from app.models.incident import IncidentType
@@ -41,7 +41,7 @@ router = APIRouter(prefix="/game", tags=["Game"])
 
 
 @router.get("/balance", response_model=GameBalanceResponse)
-async def get_game_balance_settings() -> GameBalanceResponse:
+async def get_game_balance_settings(_: CurrentActiveUser) -> GameBalanceResponse:
     """Get current game balance configuration (read-only).
 
     This endpoint exposes all game balance constants that can be tuned via

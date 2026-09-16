@@ -39,7 +39,7 @@ from app.services.dweller_service import dweller_service
 from app.services.family.death_service import death_service
 from app.services.family.lineage_service import lineage_service
 from app.services.happiness_service import happiness_service
-from app.utils.exceptions import ContentNoChangeException, ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/dwellers", tags=["Dweller"])
@@ -303,9 +303,9 @@ async def generate_photo(
 @router.post("/{dweller_id}/generate_audio/", response_model=DwellerReadFull)
 async def generate_audio(
     dweller_id: UUID4,
+    text: str,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-    text: str | None = None,
 ) -> DwellerReadFull:
     """Generate audio for a dweller using AI.
 
@@ -498,23 +498,7 @@ async def get_revival_cost(
         ContentNoChangeException: If the dweller is not dead.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    dweller = await crud.dweller.get(db_session, dweller_id)
-
-    if not dweller.is_dead:
-        raise ContentNoChangeException(detail="Dweller is not dead")
-
-    vault = await crud.vault.get(db_session, dweller.vault_id)
-    revival_cost = death_service.get_revival_cost(dweller.level)
-
-    return RevivalCostResponse(
-        dweller_id=dweller.id,
-        dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
-        level=dweller.level,
-        revival_cost=revival_cost,
-        days_until_permanent=death_service.get_days_until_permanent(dweller),
-        can_afford=vault.bottle_caps >= revival_cost,
-        vault_caps=vault.bottle_caps,
-    )
+    return await death_service.build_revival_quote(db_session, dweller_id, user)
 
 
 @router.post("/{dweller_id}/revive", response_model=DwellerReviveResponse)
@@ -529,22 +513,7 @@ async def revive_dweller(
         DwellerReviveResponse: Revived dweller, caps spent, and remaining caps.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-
-    # Get dweller to calculate cost before revival
-    dweller = await crud.dweller.get(db_session, dweller_id)
-    revival_cost = death_service.get_revival_cost(dweller.level)
-
-    # Perform revival
-    revived_dweller = await death_service.revive_dweller(db_session, dweller_id, user.id)
-
-    # Get updated vault caps
-    vault = await crud.vault.get(db_session, revived_dweller.vault_id)
-
-    return DwellerReviveResponse(
-        dweller=DwellerRead.model_validate(revived_dweller),
-        caps_spent=revival_cost,
-        remaining_caps=vault.bottle_caps,
-    )
+    return await death_service.revive_dweller(db_session, dweller_id, user)
 
 
 # ============================================================================

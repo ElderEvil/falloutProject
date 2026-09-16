@@ -10821,8 +10821,8 @@ export interface operations {
     };
     generate_audio_api_v1_dwellers__dweller_id__generate_audio__post: {
         parameters: {
-            query?: {
-                text?: string | null;
+            query: {
+                text: string;
             };
             header?: never;
             path: {

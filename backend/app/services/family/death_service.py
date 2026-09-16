@@ -12,7 +12,9 @@ from app.crud.dweller import dweller as dweller_crud
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerUpdate
+from app.models.user import User
+from app.schemas.dweller import DwellerRead, DwellerReviveResponse, DwellerUpdate, RevivalCostResponse
+from app.services.access_service import assert_vault_owner
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ContentNoChangeException, InsufficientResourcesException, ResourceNotFoundException
 
@@ -105,19 +107,19 @@ class DeathService:
         self,
         db_session: AsyncSession,
         dweller_id: UUID4,
-        user_id: UUID4,
-    ) -> Dweller:
+        user: User,
+    ) -> DwellerReviveResponse:
         """Revive a dead dweller by paying the revival cost.
 
+        Ownership is enforced through the shared vault policy, so the API layer and
+        this service cannot drift apart on who may revive.
+
         :param db_session: Database session
-        :type db_session: AsyncSession
         :param dweller_id: ID of the dweller to revive
-        :type dweller_id: UUID4
-        :param user_id: ID of the user attempting revival
-        :type user_id: UUID4
-        :returns: Revived dweller
-        :rtype: Dweller
+        :param user: User attempting the revival
+        :returns: The revived dweller alongside the caps spent and left
         :raises ResourceNotFoundException: If dweller not found
+        :raises AccessDeniedException: If the user does not own the vault
         :raises ContentNoChangeException: If dweller is not dead or permanently dead
         :raises InsufficientResourcesException: If not enough caps
         """
@@ -132,10 +134,8 @@ class DeathService:
         if dweller.is_permanently_dead:
             raise ContentNoChangeException(detail="Dweller is permanently dead and cannot be revived")
 
-        # Get vault and check caps
         vault = await vault_crud.get(db_session, dweller.vault_id)
-        if vault.user_id != user_id:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        assert_vault_owner(vault, user)
 
         revival_cost = self.get_revival_cost(dweller.level)
         if vault.bottle_caps < revival_cost:
@@ -144,13 +144,15 @@ class DeathService:
                 resource_amount=revival_cost - vault.bottle_caps,
             )
 
+        remaining_caps = vault.bottle_caps - revival_cost
+
         # Deduct caps
         from app.crud.vault import vault as vault_crud_instance
 
         await vault_crud_instance.update(
             db_session,
             vault.id,
-            {"bottle_caps": vault.bottle_caps - revival_cost},
+            {"bottle_caps": remaining_caps},
         )
 
         # Calculate health after revival
@@ -180,7 +182,48 @@ class DeathService:
             revival_cost,
         )
 
-        return revived_dweller
+        return DwellerReviveResponse(
+            dweller=DwellerRead.model_validate(revived_dweller),
+            caps_spent=revival_cost,
+            remaining_caps=remaining_caps,
+        )
+
+    async def build_revival_quote(
+        self,
+        db_session: AsyncSession,
+        dweller_id: UUID4,
+        user: User,
+    ) -> RevivalCostResponse:
+        """Quote the revival cost for a dead dweller, reusing the single cost path.
+
+        :param db_session: Database session
+        :param dweller_id: ID of the dead dweller
+        :param user: User requesting the quote
+        :raises ResourceNotFoundException: If dweller not found
+        :raises AccessDeniedException: If the user does not own the vault
+        :raises ContentNoChangeException: If the dweller is not dead
+        """
+        dweller = await dweller_crud.get(db_session, dweller_id)
+        if dweller is None:
+            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+
+        if not dweller.is_dead:
+            raise ContentNoChangeException(detail="Dweller is not dead")
+
+        vault = await vault_crud.get(db_session, dweller.vault_id)
+        assert_vault_owner(vault, user)
+
+        revival_cost = self.get_revival_cost(dweller.level)
+
+        return RevivalCostResponse(
+            dweller_id=dweller.id,
+            dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+            level=dweller.level,
+            revival_cost=revival_cost,
+            days_until_permanent=self.get_days_until_permanent(dweller),
+            can_afford=vault.bottle_caps >= revival_cost,
+            vault_caps=vault.bottle_caps,
+        )
 
     def get_revival_cost(self, level: int) -> int:
         """Calculate the revival cost for a dweller based on their level.

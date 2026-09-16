@@ -322,3 +322,77 @@ async def test_use_stimpack_clamps_healing_at_effective_max_health(
     body = response.json()
     assert body["health"] == min(30 + heal_amount, 60)
     assert body["effective_max_health"] == 60
+
+
+@pytest.mark.asyncio
+async def test_revival_cost_endpoint_delegates_to_death_service() -> None:
+    """The quote endpoint must reuse the service cost path, not recompute it inline."""
+    from app.api.v1.endpoints.dweller import get_revival_cost as get_revival_cost_endpoint
+    from app.schemas.dweller import RevivalCostResponse
+
+    user = MagicMock()
+    session = MagicMock()
+    dweller_id = uuid4()
+    expected = RevivalCostResponse(
+        dweller_id=dweller_id,
+        dweller_name="Casey Jones",
+        level=7,
+        revival_cost=525,
+        days_until_permanent=5,
+        can_afford=True,
+        vault_caps=1000,
+    )
+
+    with (
+        patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()),
+        patch(
+            "app.api.v1.endpoints.dweller.death_service.build_revival_quote",
+            new=AsyncMock(return_value=expected),
+        ) as build_quote,
+    ):
+        result = await get_revival_cost_endpoint(dweller_id=dweller_id, user=user, db_session=session)
+
+    assert result is expected
+    build_quote.assert_awaited_once_with(session, dweller_id, user)
+
+
+@pytest.mark.asyncio
+async def test_revive_endpoint_delegates_to_death_service() -> None:
+    """The revive endpoint must not re-derive the cost; the service owns it."""
+    from app.api.v1.endpoints.dweller import revive_dweller as revive_dweller_endpoint
+
+    user = MagicMock()
+    session = MagicMock()
+    dweller_id = uuid4()
+    expected = MagicMock()
+
+    with (
+        patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()),
+        patch(
+            "app.api.v1.endpoints.dweller.death_service.revive_dweller",
+            new=AsyncMock(return_value=expected),
+        ) as revive,
+    ):
+        result = await revive_dweller_endpoint(dweller_id=dweller_id, user=user, db_session=session)
+
+    assert result is expected
+    revive.assert_awaited_once_with(session, dweller_id, user)
+
+
+@pytest.mark.asyncio
+async def test_revival_endpoints_reject_users_without_vault_access(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Both revival endpoints map a failed ownership check to 403."""
+    from app.utils.exceptions import AccessDeniedException
+
+    dweller_id = uuid4()
+    denial = AccessDeniedException("The user doesn't have enough privileges")
+
+    with patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock(side_effect=denial)):
+        cost_response = await async_client.get(f"/dwellers/{dweller_id}/revival_cost", headers=superuser_token_headers)
+        revive_response = await async_client.post(f"/dwellers/{dweller_id}/revive", headers=superuser_token_headers)
+
+    assert cost_response.status_code == 403
+    assert revive_response.status_code == 403

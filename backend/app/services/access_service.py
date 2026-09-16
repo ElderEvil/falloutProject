@@ -9,10 +9,19 @@ from app.schemas.dweller import DwellerReadFull
 from app.utils.exceptions import AccessDeniedException
 
 
-async def get_accessible_vault(vault_id: UUID4, user: User, db_session: AsyncSession) -> Vault:
-    vault = await crud.vault.get(db_session, vault_id)
+def assert_vault_owner(vault: Vault, user: User) -> None:
+    """Raise AccessDeniedException unless the user owns the vault (superusers pass).
+
+    The single ownership rule: both the API dependency layer and domain services
+    call this instead of hand-rolling their own comparison.
+    """
     if vault.user_id != user.id and not user.is_superuser:
         raise AccessDeniedException("The user doesn't have enough privileges")
+
+
+async def get_accessible_vault(vault_id: UUID4, user: User, db_session: AsyncSession) -> Vault:
+    vault = await crud.vault.get(db_session, vault_id)
+    assert_vault_owner(vault, user)
     return vault
 
 

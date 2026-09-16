@@ -121,18 +121,97 @@ class TestDeathService:
         vault.bottle_caps = 10000
         async_session.add(vault)
         await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
 
         result = await death_service.revive_dweller(
             async_session,
             dead_dweller.id,
-            vault.user_id,
+            owner,
         )
 
-        assert result.is_dead is False
-        assert result.status == DwellerStatusEnum.IDLE
-        assert result.death_timestamp is None
-        assert result.death_cause is None
-        assert result.health > 0
+        assert result.dweller.is_dead is False
+        assert result.dweller.status == DwellerStatusEnum.IDLE
+        assert result.dweller.death_timestamp is None
+        assert result.dweller.death_cause is None
+        assert result.dweller.health > 0
+        assert result.caps_spent == death_service.get_revival_cost(dead_dweller.level)
+        assert result.remaining_caps == 10000 - result.caps_spent
+
+    async def test_revive_rejects_foreign_vault_owner(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """A user who does not own the vault cannot revive, and nothing changes."""
+        from app.schemas.user import UserCreate
+        from app.utils.exceptions import AccessDeniedException
+
+        vault.bottle_caps = 10000
+        async_session.add(vault)
+        await async_session.commit()
+        intruder = await crud.user.create(
+            db_session=async_session,
+            obj_in=UserCreate(username="intruder", email="intruder@example.com", password="testpass123"),
+        )
+
+        with pytest.raises(AccessDeniedException):
+            await death_service.revive_dweller(async_session, dead_dweller.id, intruder)
+
+        await async_session.refresh(dead_dweller)
+        await async_session.refresh(vault)
+        assert dead_dweller.is_dead is True
+        assert vault.bottle_caps == 10000
+
+    async def test_build_revival_quote_matches_cost_and_affordability(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """The quote reuses the single cost path and reports affordability."""
+        vault.bottle_caps = dead_dweller.level * 10
+        async_session.add(vault)
+        await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
+
+        quote = await death_service.build_revival_quote(async_session, dead_dweller.id, owner)
+
+        assert quote.revival_cost == death_service.get_revival_cost(dead_dweller.level)
+        assert quote.vault_caps == vault.bottle_caps
+        assert quote.can_afford == (vault.bottle_caps >= quote.revival_cost)
+
+    async def test_build_revival_quote_rejects_living_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        alive_dweller: Dweller,
+    ):
+        """A living dweller has no revival quote."""
+        from app.utils.exceptions import ContentNoChangeException
+
+        owner = await crud.user.get(async_session, vault.user_id)
+
+        with pytest.raises(ContentNoChangeException):
+            await death_service.build_revival_quote(async_session, alive_dweller.id, owner)
+
+    async def test_build_revival_quote_rejects_foreign_vault_owner(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """The quote is not readable by a user who does not own the vault."""
+        from app.schemas.user import UserCreate
+        from app.utils.exceptions import AccessDeniedException
+
+        intruder = await crud.user.create(
+            db_session=async_session,
+            obj_in=UserCreate(username="intruder2", email="intruder2@example.com", password="testpass123"),
+        )
+
+        with pytest.raises(AccessDeniedException):
+            await death_service.build_revival_quote(async_session, dead_dweller.id, intruder)
 
     async def test_revive_dweller_insufficient_caps(
         self,
@@ -147,12 +226,13 @@ class TestDeathService:
         vault.bottle_caps = 10
         async_session.add(vault)
         await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
 
         with pytest.raises(InsufficientResourcesException):
             await death_service.revive_dweller(
                 async_session,
                 dead_dweller.id,
-                vault.user_id,
+                owner,
             )
 
     async def test_revive_permanently_dead_raises(
@@ -167,12 +247,13 @@ class TestDeathService:
         vault.bottle_caps = 10000
         async_session.add(vault)
         await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
 
         with pytest.raises(ContentNoChangeException) as exc_info:
             await death_service.revive_dweller(
                 async_session,
                 permanently_dead_dweller.id,
-                vault.user_id,
+                owner,
             )
 
         assert "permanently dead" in str(exc_info.value.detail).lower()
@@ -189,12 +270,13 @@ class TestDeathService:
         vault.bottle_caps = 10000
         async_session.add(vault)
         await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
 
         with pytest.raises(ContentNoChangeException) as exc_info:
             await death_service.revive_dweller(
                 async_session,
                 alive_dweller.id,
-                vault.user_id,
+                owner,
             )
 
         assert "not dead" in str(exc_info.value.detail).lower()

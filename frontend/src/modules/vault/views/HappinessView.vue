@@ -7,6 +7,7 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { useToast } from '@/core/composables/useToast'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
@@ -20,6 +21,7 @@ const vaultStore = useVaultStore()
 const { filter: dwellerStore } = useDwellerStore()
 const incidentStore = useIncidentStore()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -91,6 +93,25 @@ const handleViewLowHappiness = () => {
   router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`)
 }
 
+const irradiatedDwellerCount = computed(() => dwellerStore.dwellers.filter((d) => d.radiation > 0).length)
+const isDistributingRadaway = ref(false)
+
+const handleDistributeRadaway = async () => {
+  if (!vaultId.value || !authStore.token || isDistributingRadaway.value) return
+  isDistributingRadaway.value = true
+  try {
+    const result = await vaultStore.distributeRecoveryRadaways(vaultId.value, authStore.token)
+    if (result.dwellers_served > 0) {
+      toast.success(`Dealt ${result.radaways_dealt} RadAway to ${result.dwellers_served} dwellers`)
+    } else {
+      toast.info('No RadAway was needed')
+    }
+    await loadData()
+  } finally {
+    isDistributingRadaway.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -133,9 +154,12 @@ onMounted(() => {
             :activeIncidentCount="happinessDashboardData.activeIncidentCount"
             :lowResourceCount="happinessDashboardData.lowResourceCount"
             :radioHappinessMode="happinessDashboardData.radioHappinessMode"
+            :irradiatedDwellerCount="irradiatedDwellerCount"
+            :distributingRadaway="isDistributingRadaway"
             @assign-idle="handleAssignIdle"
             @activate-radio="handleActivateRadio"
             @view-low-happiness="handleViewLowHappiness"
+            @distribute-radaway="handleDistributeRadaway"
           />
         </div>
       </div>

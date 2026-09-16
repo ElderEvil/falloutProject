@@ -352,4 +352,31 @@ describe('Vault Store', () => {
       expect(store.activeVaultId).toBe('vault-1')
     })
   })
+
+  describe('distributeRecoveryRadaways Action', () => {
+    it('should post the one-shot distribution and return the result', async () => {
+      const store = useVaultStore()
+      const payload = { dwellers_served: 3, radaways_dealt: 6, vault_radaways: 4 }
+      vi.mocked(axios.post).mockResolvedValue({ data: payload } as never)
+
+      const result = await store.distributeRecoveryRadaways('vault-1', 'test-token')
+
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/v1/storage/vault/vault-1/medical/distribute-radaways',
+        {},
+        { headers: { Authorization: 'Bearer test-token' } }
+      )
+      expect(result).toEqual(payload)
+    })
+
+    it('should surface the error and rethrow when the request fails', async () => {
+      const store = useVaultStore()
+      const { toasts } = useToast()
+      toasts.value = []
+      vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
+
+      await expect(store.distributeRecoveryRadaways('vault-1', 'test-token')).rejects.toThrow('boom')
+      expect(toasts.value.length).toBeGreaterThan(0)
+    })
+  })
 })

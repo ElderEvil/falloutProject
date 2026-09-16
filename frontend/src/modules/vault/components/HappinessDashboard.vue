@@ -20,6 +20,8 @@ interface Props {
   activeIncidentCount?: number
   lowResourceCount?: number
   radioHappinessMode?: boolean
+  irradiatedDwellerCount?: number
+  distributingRadaway?: boolean
   loading?: boolean
 }
 
@@ -28,6 +30,8 @@ const {
   activeIncidentCount = 0,
   lowResourceCount = 0,
   radioHappinessMode = false,
+  irradiatedDwellerCount = 0,
+  distributingRadaway = false,
   loading = false,
   distribution,
   dwellerCount,
@@ -38,6 +42,7 @@ const emit = defineEmits<{
   (e: 'assign-idle'): void
   (e: 'activate-radio'): void
   (e: 'view-low-happiness'): void
+  (e: 'distribute-radaway'): void
 }>()
 
 const dwellerDistribution = computed<DwellerDistribution>(() => distribution)
@@ -328,9 +333,21 @@ const distributionPercentage = (count: number) => {
 
     <!-- Quick Actions Footer -->
     <template #footer>
-      <div v-if="hasNegativeModifiers" class="actions-footer">
+      <div v-if="hasNegativeModifiers || irradiatedDwellerCount > 0" class="actions-footer">
         <h4 class="footer-title">QUICK ACTIONS</h4>
         <div class="actions-grid">
+          <UButton
+            v-if="irradiatedDwellerCount > 0"
+            variant="secondary"
+            size="sm"
+            :loading="distributingRadaway"
+            @click="emit('distribute-radaway')"
+            class="action-button"
+          >
+            <Icon icon="mdi:radiation" class="action-icon" />
+            Distribute RadAway
+          </UButton>
+
           <UButton
             v-if="idleDwellerCount > 0"
             variant="secondary"

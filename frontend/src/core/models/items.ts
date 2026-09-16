@@ -100,6 +100,32 @@ export function getDamageRange(weapon: DamageSource): string {
   return `${weapon.damage_min}-${weapon.damage_max}`
 }
 
+// Outfit radiation resist, mirroring the backend mechanics map
+// (backend/app/services/radiation_service.py): type base, specific names override.
+const OUTFIT_RADIATION_RESIST_BY_TYPE: Record<string, number> = {
+  power_armor: 0.75,
+  rare_outfit: 0.25,
+  legendary_outfit: 0.25,
+  tiered_outfit: 0.1,
+  common_outfit: 0,
+}
+
+const OUTFIT_RADIATION_RESIST_BY_NAME: Record<string, number> = {
+  'hazmat suit': 1,
+  'advanced hazmat suit': 1,
+}
+
+interface ResistSource {
+  outfit_type?: string
+  name?: string
+}
+
+export function getOutfitRadiationResist(outfit: ResistSource): number {
+  const byName = OUTFIT_RADIATION_RESIST_BY_NAME[outfit.name?.trim().toLowerCase() ?? '']
+  if (byName !== undefined) return byName
+  return OUTFIT_RADIATION_RESIST_BY_TYPE[outfit.outfit_type?.trim().toLowerCase() ?? ''] ?? 0
+}
+
 interface BonusSource {
   strength_bonus?: number
   perception_bonus?: number
@@ -143,7 +169,7 @@ export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
   return stats
 }
 
-interface OutfitStatsSource extends BonusSource, CommonItemStats {
+interface OutfitStatsSource extends BonusSource, CommonItemStats, ResistSource {
   gender?: string | null
 }
 
@@ -153,6 +179,8 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
     value: `+${bonus.bonus}`,
     icon: 'mdi:chevron-up',
   }))
+  const resist = getOutfitRadiationResist(outfit)
+  if (resist > 0) stats.push({ label: 'RAD resist', value: `${Math.round(resist * 100)}%`, icon: 'mdi:radiation' })
   if (outfit.gender) stats.push({ label: 'Gender', value: outfit.gender, icon: 'mdi:human-male-female' })
   if (outfit.weight !== undefined) stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
   if (outfit.durability !== undefined) stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })

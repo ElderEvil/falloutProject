@@ -182,6 +182,33 @@ describe('HappinessDashboard', () => {
     }
   })
 
+  it('should emit distribute-radaway when irradiated dwellers exist', async () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: {
+        ...defaultProps,
+        idleDwellerCount: 1,
+        irradiatedDwellerCount: 4,
+      },
+    })
+
+    const button = wrapper.findAll('button').find((b) => b.text().includes('Distribute RadAway'))
+    expect(button).toBeTruthy()
+    await button!.trigger('click')
+    expect(wrapper.emitted('distribute-radaway')).toBeTruthy()
+  })
+
+  it('should hide the RadAway button when nobody is irradiated', () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: {
+        ...defaultProps,
+        idleDwellerCount: 1,
+        irradiatedDwellerCount: 0,
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('Distribute RadAway')
+  })
+
   it('should not show "Activate Radio Mode" button when already active', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {

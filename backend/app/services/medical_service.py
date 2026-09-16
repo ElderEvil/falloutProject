@@ -3,18 +3,22 @@
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import DwellerStatusEnum
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.schemas.chat import MedicalAidStatus, MedicalRecommendation
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate
+from app.schemas.vault import MedicalDistributionResponse
 from app.services.radiation_service import radiation_removal_amount
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
     ResourceNotFoundException,
 )
+
+MAX_CARRY = 15
 
 
 async def get_available_medical_supplies(
@@ -93,3 +97,44 @@ async def use_radaway(db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
     return await dweller_crud.update(
         db_session, dweller_id, DwellerUpdate(radiation=new_radiation, radaway=dweller_obj.radaway - 1)
     )
+
+
+async def distribute_recovery_radaways(db_session: AsyncSession, vault_id: UUID4) -> MedicalDistributionResponse:
+    """Deal recovery RadAway from vault storage to every irradiated in-vault dweller.
+
+    One-shot player action (no automatic trigger): tops each affected dweller to
+    ``recovery_radaways_per_dweller`` while stock lasts. Explorers and questers
+    are excluded — they carry their own supplies and settle on return.
+    """
+    target = min(game_config.health.recovery_radaways_per_dweller, MAX_CARRY)
+    storage = await storage_crud.get_by_vault(db_session, vault_id)
+    stock = (storage.radaway or 0) if storage else 0
+    dealt = 0
+    served = 0
+
+    if target > 0 and stock > 0:
+        dwellers = await dweller_crud.get_all_in_vault(db_session, vault_id)
+        for dweller in dwellers:
+            if dweller.is_dead or dweller.radiation <= 0:
+                continue
+            if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
+                continue
+            need = target - (dweller.radaway or 0)
+            if need <= 0:
+                continue
+            give = min(need, stock)
+            dweller.radaway = (dweller.radaway or 0) + give
+            stock -= give
+            dealt += give
+            served += 1
+            db_session.add(dweller)
+            if stock <= 0:
+                break
+
+    if dealt:
+        if storage is not None:
+            storage.radaway = stock
+            db_session.add(storage)
+        await db_session.commit()
+
+    return MedicalDistributionResponse(dwellers_served=served, radaways_dealt=dealt, vault_radaways=stock)

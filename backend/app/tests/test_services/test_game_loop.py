@@ -368,11 +368,82 @@ class TestDehydrationRadiation:
         await self._prepare(async_session, vault, dweller, water=0)
         dweller.radiation = game_config.health.max_radiation - 1
         async_session.add(dweller)
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
         await async_session.commit()
 
         await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
         await async_session.refresh(dweller)
         assert dweller.radiation == game_config.health.max_radiation
+
+    @pytest.mark.asyncio
+    async def test_rate_is_one_percent_per_tick(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await self._prepare(async_session, vault, dweller, water=0)
+        dweller.max_health = 200
+        async_session.add(dweller)
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        await async_session.commit()
+
+        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
+        assert result["irradiated"] == 1
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 4  # 1% of 200 per tick x 2 ticks
+
+    @pytest.mark.asyncio
+    async def test_grace_period_applies_no_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        await self._prepare(async_session, vault, dweller, water=0)
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow()))
+        await async_session.commit()
+
+        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
+        assert result["irradiated"] == 0
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 0
+
+    @pytest.mark.asyncio
+    async def test_power_armor_reduces_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        from app.core.enums import OutfitTypeEnum, RarityEnum
+        from app.models.outfit import Outfit
+
+        await self._prepare(async_session, vault, dweller, water=0)
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(
+            Outfit(
+                name="T-51d power armor",
+                rarity=RarityEnum.LEGENDARY,
+                outfit_type=OutfitTypeEnum.POWER_ARMOR,
+                dweller_id=dweller.id,
+            )
+        )
+        await async_session.commit()
+
+        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
+        assert result["irradiated"] == 1
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 2  # raw 10 x (1 - 0.75) resist
+
+    @pytest.mark.asyncio
+    async def test_hazmat_suit_blocks_radiation_fully(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        from app.core.enums import OutfitTypeEnum, RarityEnum
+        from app.models.outfit import Outfit
+
+        await self._prepare(async_session, vault, dweller, water=0)
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=datetime.utcnow() - timedelta(minutes=10)))
+        async_session.add(
+            Outfit(
+                name="Hazmat suit",
+                rarity=RarityEnum.RARE,
+                outfit_type=OutfitTypeEnum.RARE,
+                dweller_id=dweller.id,
+            )
+        )
+        await async_session.commit()
+
+        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
+        assert result["irradiated"] == 0
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 0
 
 
 # ═════════════════════════════════════════════════════════════════════

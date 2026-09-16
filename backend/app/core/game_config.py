@@ -285,7 +285,16 @@ class HealthConfig(BaseSettings):
     # Radiation rules (single source of truth; mirrored by Dweller.radiation field constraint)
     max_radiation: int = Field(default=1000, description="Hard RAD cap per dweller", ge=1)
     dehydration_radiation_per_tick: int = Field(
-        default=1, description="RAD per 60s tick for in-vault dwellers while vault water is empty", ge=0
+        default=1,
+        description="Master switch for dehydration radiation; rate now comes from flat/percent per window",
+        ge=0,
+    )
+    dehydration_percent_per_tick: float = Field(
+        default=0.01, description="Share of max HP as RAD per irradiated-water tick", ge=0.0, le=1.0
+    )
+    dehydration_grace_ticks: int = Field(default=5, description="Ticks at zero water before radiation starts", ge=0)
+    recovery_radaways_per_dweller: int = Field(
+        default=2, description="Radaway dealt to each affected dweller when a drought ends", ge=0
     )
     radaway_removal_percent: float = Field(
         default=0.5,

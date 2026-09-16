@@ -15,7 +15,7 @@ from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.rewards import LunchboxOpened, LunchboxOpenRequest
 from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
-from app.schemas.vault import MedicalTransferRequest, MedicalTransferResponse
+from app.schemas.vault import MedicalDistributionResponse, MedicalTransferRequest, MedicalTransferResponse
 from app.schemas.weapon import WeaponRead
 
 router = APIRouter(prefix="/storage", tags=["Storage"])
@@ -140,6 +140,24 @@ async def transfer_medical_supplies(
         stimpaks=request.stimpaks,
         radaways=request.radaways,
     )
+
+
+@router.post("/vault/{vault_id}/medical/distribute-radaways", response_model=MedicalDistributionResponse)
+async def distribute_recovery_radaways(
+    vault_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+    current_user: CurrentActiveUser,
+) -> MedicalDistributionResponse:
+    """Deal recovery RadAway from vault storage to every irradiated in-vault dweller.
+
+    One-shot player action: tops affected dwellers while stock lasts. Explorers
+    and questers are excluded. Requires vault ownership or superuser privileges.
+    """
+    from app.services import medical_service
+
+    vault = await get_user_vault_or_403(vault_id, current_user, db_session)
+
+    return await medical_service.distribute_recovery_radaways(db_session, vault.id)
 
 
 @router.post("/vault/{vault_id}/lunchbox/open", response_model=LunchboxOpened)

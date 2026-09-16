@@ -131,6 +131,11 @@ class GameLoopService:
             # tick recomputes seconds_passed from this boundary instead of
             # reapplying the same production window and duplicating events.
             game_state.update_tick(seconds_passed)
+            if resource_update.water is not None:
+                if resource_update.water <= 0 and game_state.water_empty_since is None:
+                    game_state.water_empty_since = datetime.utcnow()
+                elif resource_update.water > 0:
+                    game_state.water_empty_since = None
             db_session.add(game_state)
             await db_session.commit()
 

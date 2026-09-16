@@ -42,6 +42,15 @@ class TestResourceManager:
         assert "critical_power" in types
         assert "low_food" in types
 
+    def test_zero_water_emits_dehydration_instead_of_critical_water(self):
+        vault = Vault(power_max=100, food_max=100, water_max=100)
+
+        resources = {"power": 50.0, "food": 50.0, "water": 0.0}
+        warnings = get_resource_warnings(vault, resources)
+        types = [warning.type for warning in warnings]
+        assert "critical_water" not in types
+        assert "critical_dehydration" in types
+
     @pytest.mark.asyncio
     async def test_power_outage_production(self):
         manager = ResourceManager()

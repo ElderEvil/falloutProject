@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from app.options.races import RaceOption
+from app.options.races import RaceOption, race_of
 
 
 class FactionOption(StrEnum):
@@ -105,5 +105,18 @@ def faction_of(entity: object) -> FactionOption | None:
 
 
 def perks_for_faction(entity: object) -> FactionPerks:
-    """Faction perks for an entity; unknown or missing factions are neutral."""
-    return FACTION_PERKS.get(faction_of(entity), FACTION_PERKS[FactionOption.NONE])
+    """Faction perks for an entity; neutral when missing, unknown, or invalid for the race.
+
+    ``visual_attributes`` is untyped JSONB, so a seeded, legacy, or directly written
+    row can hold a combination the create/update validator would have rejected.
+    Re-checking here means an impossible pair earns no perk instead of a free one.
+    """
+    faction = faction_of(entity)
+    if faction is None:
+        return FACTION_PERKS[FactionOption.NONE]
+
+    race = race_of(entity) or RaceOption.HUMAN
+    if faction not in faction_restrictions.get(race, []):
+        return FACTION_PERKS[FactionOption.NONE]
+
+    return FACTION_PERKS[faction]

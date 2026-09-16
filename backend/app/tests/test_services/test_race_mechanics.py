@@ -149,6 +149,12 @@ class TestFactionPerks:
         assert perks_for_faction(_dweller("human")) == FactionPerks()
         assert perks_for_faction(_dweller("human", faction="bogus")) == FactionPerks()
 
+    def test_impossible_race_faction_pair_earns_no_perk(self) -> None:
+        """Stored JSONB can bypass the write-time validator, so the pair is re-checked on read."""
+        assert perks_for_faction(_dweller("synth", faction="brotherhood_of_steel")) == FactionPerks()
+        assert perks_for_faction(_dweller("ghoul", faction="caesars_legion")) == FactionPerks()
+        assert perks_for_faction(_dweller("human", faction="brotherhood_of_steel")) != FactionPerks()
+
 
 class TestEffectiveStats:
     def test_modifiers_apply_on_read_without_persisting(self) -> None:
@@ -249,3 +255,18 @@ class TestIncidentResponsePerk:
         await apply_damage(MagicMock(), incident, [minuteman, plain], damage_to_dwellers=40)
 
         assert minuteman.health > plain.health
+
+    async def test_reported_damage_reflects_the_response_perk(self) -> None:
+        """Callers report what responders took, so a mitigated round cannot read as raw damage."""
+        from app.models.incident import IncidentType
+        from app.services.combat.incident_round import apply_damage
+
+        minuteman = _dweller("human", faction="minutemen")
+        minuteman.health = 100
+        minuteman.is_dead = False
+        minuteman.effective_max_health = 100
+        incident = SimpleNamespace(type=IncidentType.RAIDER_ATTACK)
+
+        _, _, damage_taken = await apply_damage(MagicMock(), incident, [minuteman], damage_to_dwellers=20)
+
+        assert damage_taken == 17  # 20 less the 15% response perk

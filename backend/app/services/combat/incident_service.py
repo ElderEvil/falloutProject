@@ -130,7 +130,7 @@ class IncidentService:
 
     async def _apply_damage(
         self, db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         """Round engine — see incident_round."""
         return await incident_round.apply_damage(db_session, incident, dwellers, damage_to_dwellers)
 

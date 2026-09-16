@@ -7,7 +7,9 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
+from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
 from app.models.exploration import ExplorationStatus
 from app.models.storage import Storage
@@ -20,8 +22,10 @@ from app.schemas.exploration_event import (
     LootSchema,
     RestEventSchema,
 )
+from app.schemas.room import RoomCreate
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration_service import exploration_service
+from app.services.training_service import training_service
 
 # Note: Detailed SPECIAL stat calculation tests removed for simplicity
 # These are tested implicitly through integration tests
@@ -408,3 +412,40 @@ async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
     item_use = next(e for e in result.events if e["type"] == "item_use")
     assert item_use["health_restored"] == expected_healing
     assert f"Healed {expected_healing} HP" in item_use["description"]
+
+
+@pytest.mark.asyncio
+async def test_send_dweller_cancels_active_training(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """Departing while training must cancel the session instead of orphaning it."""
+    room = await room_crud.create(
+        async_session,
+        RoomCreate(
+            name="Weight Room",
+            category=RoomTypeEnum.TRAINING,
+            tier=1,
+            size=2,
+            capacity=6,
+            ability=SPECIALEnum.STRENGTH,
+            base_cost=1000,
+            t2_upgrade_cost=2500,
+            t3_upgrade_cost=5000,
+            size_min=1,
+            size_max=3,
+            vault_id=vault.id,
+        ),
+    )
+    dweller.status = DwellerStatusEnum.IDLE
+    async_session.add(dweller)
+    await async_session.commit()
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+
+    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+
+    await async_session.refresh(training)
+    await async_session.refresh(dweller)
+    assert training.is_cancelled()
+    assert dweller.status == DwellerStatusEnum.EXPLORING

@@ -12,7 +12,6 @@ from app.core.enums import (
 )
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
-from app.crud import vault as vault_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.notification import NotificationType
@@ -328,24 +327,29 @@ class RelationshipService:
         """Best-effort notification for the vault owner when two dwellers marry."""
         try:
             dweller_1 = await dweller_crud.get(db_session, relationship.dweller_1_id)
-            vault = await vault_crud.get(db_session, dweller_1.vault_id)
-            if not vault:
-                return
-            name_1 = f"{dweller_1.first_name} {dweller_1.last_name or ''}".strip()
             dweller_2 = await dweller_crud.get(db_session, relationship.dweller_2_id)
+            name_1 = f"{dweller_1.first_name} {dweller_1.last_name or ''}".strip()
             name_2 = f"{dweller_2.first_name} {dweller_2.last_name or ''}".strip()
-            await NotificationService.create_and_send(
-                db_session,
-                user_id=vault.user_id,
-                notification_type=NotificationType.RELATIONSHIP_FORMED,
-                title="Marriage!",
-                message=f"{name_1} and {name_2} are now married.",
-                vault_id=vault.id,
-                from_dweller_id=relationship.dweller_1_id,
-                meta_data={"relationship_id": str(relationship.id)},
-            )
+            message = f"{name_1} and {name_2} are now married."
+            vault_id = dweller_1.vault_id
         except Exception:
             logger.exception("Failed to send marriage notification for relationship %s", relationship.id)
+            return
+        await NotificationService.notify_owner(
+            db_session,
+            vault_id,
+            context=f"marriage relationship={relationship.id} vault={vault_id}",
+            sender=lambda user_id: NotificationService.create_and_send(
+                db_session,
+                user_id=user_id,
+                notification_type=NotificationType.RELATIONSHIP_FORMED,
+                title="Marriage!",
+                message=message,
+                vault_id=vault_id,
+                from_dweller_id=relationship.dweller_1_id,
+                meta_data={"relationship_id": str(relationship.id)},
+            ),
+        )
 
     @staticmethod
     async def break_up(

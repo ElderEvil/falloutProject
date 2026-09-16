@@ -11,12 +11,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
 from app.crud import exploration as crud_exploration
+from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
 from app.models.exploration import Exploration, ExplorationStatus
+from app.models.training import TrainingStatus
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
-from app.schemas.exploration_event import RewardsSchema
+from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
@@ -30,13 +32,13 @@ class ExplorationService:
     to the modular exploration system in services/exploration/.
     """
 
-    def generate_event(self, exploration: Exploration) -> dict | None:
+    def generate_event(self, exploration: Exploration) -> ExplorationEvent | None:
         """Generate a random wasteland event.
 
         :param exploration: Active exploration
         :type exploration: Exploration
-        :return: Event dict or None if no event should be generated
-        :rtype: dict | None
+        :return: Generated event schema, or None when no event fires
+        :rtype: ExplorationEvent | None
         """
         return event_generator.generate_event(exploration)
 
@@ -52,27 +54,27 @@ class ExplorationService:
         """
         return await event_service.process_event(db_session, exploration)
 
-    async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> dict:
+    async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """Complete an exploration and return rewards summary.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
         :type exploration_id: UUID4
-        :return: Rewards summary dict
-        :rtype: dict
+        :return: Rewards summary
+        :rtype: RewardsSchema
         """
         return await exploration_coordinator.complete_exploration(db_session, exploration_id)
 
-    async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> dict:
+    async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """Recall a dweller early from exploration.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
         :type exploration_id: UUID4
-        :return: Rewards summary dict with reduced rewards
-        :rtype: dict
+        :return: Rewards summary with reduced rewards
+        :rtype: RewardsSchema
         """
         return await exploration_coordinator.recall_exploration(db_session, exploration_id)
 
@@ -142,8 +144,16 @@ class ExplorationService:
 
         # Departure and room removal must be committed together so a failed
         # dispatch never leaves the dweller unexpectedly unassigned.
-        dweller.room_id = None
-        db_session.add(dweller)
+        # Leaving the vault also ends any active training session (mirrors the
+        # room-change cancellation in DwellerService.update_dweller, but staged
+        # here without committing so dispatch stays atomic).
+        active_training = await training_crud.training.get_active_by_dweller(db_session, dweller_id)
+        if active_training is not None:
+            active_training.status = TrainingStatus.CANCELLED
+            active_training.completed_at = datetime.utcnow()
+            db_session.add(active_training)
+        # Room clearing goes through CRUD: direct assignment trips the ORM type contract.
+        await dweller_crud.update(db_session, dweller_id, {"room_id": None}, commit=False)
 
         # Calculate how much to take from vault vs dweller
         stimpaks_from_vault = min(stimpaks, vault_stimpaks)

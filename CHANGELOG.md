@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.110.2 (2026-09-16)
+
+### Code Refactoring
+
+* build exploration loot through the shared item factory b3896d1
+* defer level-up surfacing until after commit aaee358
+* settle overflow take/sell through loot_overflow_service 9bf36ae
+* unify level-up surfacing behind settle_level_up efddbaa
+
 ## 2.110.1 (2026-09-16)
 
 ### Bug Fixes

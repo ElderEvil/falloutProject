@@ -14,7 +14,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import RoomTypeEnum
-from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import exploration as crud_exploration
@@ -126,18 +125,9 @@ async def award_work_xp(db_session: AsyncSession, dweller, room) -> WorkXpStats:
     if leveled_up:
         stats["leveled_up"] = levels_gained
         logger.info(f"Dweller {dweller} gained {levels_gained} level(s)! Now level {dweller.level}")
-        # Emit DWELLER_LEVEL_UP event for objective tracking
-        if dweller.vault_id:
-            await event_bus.emit(
-                GameEvent.DWELLER_LEVEL_UP,
-                dweller.vault_id,
-                {
-                    "dweller_id": str(dweller.id),
-                    "level": dweller.level,
-                    "old_level": dweller.level - levels_gained,
-                    "amount": levels_gained,
-                },
-            )
+        await leveling_service.settle_level_up(
+            db_session, dweller, old_level=dweller.level - levels_gained, levels_gained=levels_gained
+        )
 
     return stats
 
@@ -250,6 +240,8 @@ async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> 
             or room.category != RoomTypeEnum.PRODUCTION
             or room.ability != apprentice.apprentice_stat
         ):
+            continue
+        if apprentice.apprentice_stat is None or apprentice.apprentice_started_at is None:
             continue
 
         current_stat = SPECIALModel.get_stat(apprentice, apprentice.apprentice_stat)

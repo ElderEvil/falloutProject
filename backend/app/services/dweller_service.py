@@ -24,8 +24,8 @@ from app.schemas.dweller import (
     DwellerReadWithRoomID,
     DwellerUpdate,
 )
+from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
-from app.services.notification_service import notification_service
 from app.services.room_assignment_policy import (
     calculate_room_capacity,
     get_highest_special,
@@ -41,7 +41,6 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
-from app.utils.reward_delivery import reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
 
@@ -118,34 +117,17 @@ class DwellerService:
         return dweller
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
-        """Add experience via CRUD, then emit the level-up event and notify the vault owner."""
+        """Add experience via CRUD, then surface any level-up through the shared settlement."""
         old_level = dweller_obj.level
         updated_dweller = await crud.dweller.add_experience(db_session, dweller_obj, amount)
-        leveled_up = updated_dweller.level > old_level and not reward_delivery_is_deferred(db_session)
 
-        if leveled_up and updated_dweller.vault_id:
-            await event_bus.emit(
-                GameEvent.DWELLER_LEVEL_UP,
-                updated_dweller.vault_id,
-                {
-                    "dweller_id": str(updated_dweller.id),
-                    "level": updated_dweller.level,
-                    "old_level": old_level,
-                    "amount": 1,
-                },
+        if updated_dweller.level > old_level:
+            await leveling_service.settle_level_up(
+                db_session,
+                updated_dweller,
+                old_level=old_level,
+                levels_gained=updated_dweller.level - old_level,
             )
-
-            vault = await crud.vault.get(db_session, updated_dweller.vault_id)
-            if vault and vault.user_id:
-                await notification_service.notify_level_up(
-                    db_session,
-                    user_id=vault.user_id,
-                    vault_id=updated_dweller.vault_id,
-                    dweller_id=updated_dweller.id,
-                    dweller_name=f"{updated_dweller.first_name} {updated_dweller.last_name or ''}".strip(),
-                    new_level=updated_dweller.level,
-                    meta_data={"old_level": old_level, "new_level": updated_dweller.level},
-                )
 
         return updated_dweller
 

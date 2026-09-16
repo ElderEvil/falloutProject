@@ -382,7 +382,14 @@ class RewardsService:
         db_session.add(dweller_obj)
 
         # Check for level-up
-        await leveling_service.check_level_up(db_session, dweller_obj)
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller_obj)
+        if leveled_up:
+            await leveling_service.settle_level_up(
+                db_session,
+                dweller_obj,
+                old_level=dweller_obj.level - levels_gained,
+                levels_gained=levels_gained,
+            )
 
         # Transfer loot items to vault storage (with space validation)
         transfer_result = await self._transfer_loot_to_storage(db_session, exploration)

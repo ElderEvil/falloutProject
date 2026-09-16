@@ -113,7 +113,7 @@ class ArenaService:
         ordered = [by_id.get(str(room.arena_fighter_a_id)), by_id.get(str(room.arena_fighter_b_id))]
         if None in ordered:
             return []
-        return ordered  # type: ignore[return-value]
+        return [fighter for fighter in ordered if fighter is not None]
 
     async def get_roster(self, db_session: AsyncSession, room: Room) -> list[Dweller]:
         """Return the adult dwellers assigned to the room, oldest first."""
@@ -448,7 +448,11 @@ class ArenaService:
         xp = game_config.combat.xp_per_difficulty * 2
         dweller.experience = max(0, dweller.experience + xp)
         db_session.add(dweller)
-        await leveling_service.check_level_up(db_session, dweller)
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
+        if leveled_up:
+            await leveling_service.settle_level_up(
+                db_session, dweller, old_level=dweller.level - levels_gained, levels_gained=levels_gained
+            )
 
 
 arena_service = ArenaService()

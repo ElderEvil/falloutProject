@@ -4,9 +4,11 @@ import logging
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.schemas.dweller import DwellerUpdate
+from app.utils.reward_delivery import reward_delivery_is_deferred
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +141,50 @@ class LevelingService:
         await db_session.refresh(dweller)
 
         return dweller
+
+    async def settle_level_up(
+        self,
+        db_session: AsyncSession,
+        dweller: Dweller,
+        old_level: int,
+        levels_gained: int,
+        commit: bool = True,
+    ) -> None:
+        """Emit DWELLER_LEVEL_UP and notify the owner; no-op when deferred or vaultless.
+
+        The single surfacing entry point for every XP path (quest rewards, work
+        ticks, incidents, arena, exploration). Pass commit=False where the caller
+        drains deferred deliveries after its own commit (incident rounds).
+        """
+        from app.crud import vault as crud_vault
+        from app.services.notification_service import notification_service
+
+        if levels_gained <= 0 or reward_delivery_is_deferred(db_session):
+            return
+        if not dweller.vault_id:
+            return
+        await event_bus.emit(
+            GameEvent.DWELLER_LEVEL_UP,
+            dweller.vault_id,
+            {
+                "dweller_id": str(dweller.id),
+                "level": dweller.level,
+                "old_level": old_level,
+                "amount": levels_gained,
+            },
+        )
+        vault = await crud_vault.get(db_session, dweller.vault_id)
+        if vault and vault.user_id:
+            await notification_service.notify_level_up(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=dweller.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                new_level=dweller.level,
+                meta_data={"old_level": old_level, "new_level": dweller.level},
+                commit=commit,
+            )
 
 
 # Singleton instance

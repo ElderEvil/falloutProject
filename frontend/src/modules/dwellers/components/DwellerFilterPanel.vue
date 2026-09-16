@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   useDwellerStore,
@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getIdentityOptions } from '../services/dwellerService'
+import USelect from '@/core/components/ui/USelect.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
 
@@ -17,6 +18,7 @@ interface Props {
   showStatusFilter?: boolean
   showAgeFilter?: boolean
   showIdentityFilters?: boolean
+  collapsible?: boolean
   showViewToggle?: boolean
   showBulkActions?: boolean
   vaultId?: string
@@ -26,6 +28,7 @@ const {
   showStatusFilter = true,
   showAgeFilter = false,
   showIdentityFilters = false,
+  collapsible = false,
   showViewToggle = false,
   showBulkActions = false,
   vaultId = '',
@@ -39,11 +42,9 @@ defineEmits<{
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
-const ALL_IDENTITIES = { value: 'all', label: 'All', icon: 'mdi:account-multiple' }
-
 /** Race/faction choices come from the backend options, so the panel cannot drift from them. */
-const raceOptions = ref([{ ...ALL_IDENTITIES, label: 'All Races' }])
-const factionOptions = ref([{ ...ALL_IDENTITIES, label: 'All Factions' }])
+const races = ref<string[]>([])
+const factionsByRace = ref<Record<string, string[]>>({})
 
 function identityLabel(value: string): string {
   return value
@@ -57,22 +58,55 @@ onMounted(async () => {
 
   try {
     const options = await getIdentityOptions(authStore.token)
-    const races = options.races ?? []
-    const factions = [...new Set(Object.values(options.factions_by_race ?? {}).flat())].sort()
-
-    raceOptions.value = [
-      { ...ALL_IDENTITIES, label: 'All Races' },
-      ...races.map((race) => ({ value: race, label: identityLabel(race), icon: 'mdi:account' })),
-    ]
-    factionOptions.value = [
-      { ...ALL_IDENTITIES, label: 'All Factions' },
-      ...factions.map((faction) => ({ value: faction, label: identityLabel(faction), icon: 'mdi:flag' })),
-    ]
+    races.value = options.races ?? []
+    factionsByRace.value = options.factions_by_race ?? {}
   } catch (error) {
     // Filters degrade to "all" rather than breaking the roster view.
     handleStoreError(error, 'Failed to load identity filter options', false)
   }
 })
+
+const raceSelectOptions = computed(() => [
+  { value: 'all', label: 'All Races' },
+  ...races.value.map((race) => ({ value: race, label: identityLabel(race) })),
+])
+
+/** Faction choices follow the chosen race, so only combinations the game allows are offered. */
+const factionSelectOptions = computed(() => {
+  const selectedRace = dwellerStore.filterRace
+  const allowed =
+    selectedRace === 'all'
+      ? [...new Set(Object.values(factionsByRace.value).flat())].sort()
+      : (factionsByRace.value[selectedRace] ?? [])
+
+  return [
+    { value: 'all', label: 'All Factions' },
+    ...allowed.map((faction) => ({ value: faction, label: identityLabel(faction) })),
+  ]
+})
+
+// Switching race can strand a faction the new race cannot hold.
+watch(
+  () => dwellerStore.filterRace,
+  () => {
+    if (dwellerStore.filterFaction === 'all') return
+    const allowed = factionSelectOptions.value.map((option) => option.value)
+    if (!allowed.includes(dwellerStore.filterFaction)) dwellerStore.setFilterFaction('all')
+  }
+)
+
+/** Collapsible filter area: the toolbar stays short until filters are wanted. */
+const collapsed = ref(true)
+const showFilterControls = computed(() => !collapsible || !collapsed.value)
+const activeFilterCount = computed(
+  () =>
+    [
+      showStatusFilter && dwellerStore.filterStatus !== 'all',
+      showAgeFilter && dwellerStore.filterAgeGroup !== 'all',
+      showIdentityFilters && dwellerStore.filterRace !== 'all',
+      showIdentityFilters && dwellerStore.filterFaction !== 'all',
+    ].filter(Boolean).length
+)
 
 const statusOptions = [
   { value: 'all', label: 'All', icon: 'mdi:account-multiple' },
@@ -144,7 +178,7 @@ const toggleSortDirection = () => {
 <template>
   <div class="filter-panel">
     <DwellerFilterGroup
-      v-if="showStatusFilter"
+      v-if="showStatusFilter && showFilterControls"
       label="Filter by Status"
       icon="mdi:filter"
       :options="statusOptions"
@@ -154,7 +188,7 @@ const toggleSortDirection = () => {
 
     <div class="filter-section-row">
       <DwellerFilterGroup
-        v-if="showAgeFilter"
+        v-if="showAgeFilter && showFilterControls"
         label="Filter by Age"
         icon="mdi:account-group"
         :options="ageGroupOptions"
@@ -162,25 +196,45 @@ const toggleSortDirection = () => {
         @update:model-value="currentFilterAgeGroup = $event as DwellerAgeGroup"
       />
 
-      <DwellerFilterGroup
-        v-if="showIdentityFilters"
-        label="Filter by Race"
-        icon="mdi:account-star"
-        :options="raceOptions"
-        :model-value="currentFilterRace"
-        @update:model-value="currentFilterRace = $event as string"
-      />
-
-      <DwellerFilterGroup
-        v-if="showIdentityFilters"
-        label="Filter by Faction"
-        icon="mdi:flag"
-        :options="factionOptions"
-        :model-value="currentFilterFaction"
-        @update:model-value="currentFilterFaction = $event as string"
-      />
+      <div v-if="showIdentityFilters && showFilterControls" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:account-star" />
+          <span>Identity</span>
+        </div>
+        <div class="identity-controls">
+          <USelect
+            v-model="currentFilterRace"
+            :options="raceSelectOptions"
+            size="sm"
+            placeholder="All Races"
+          />
+          <USelect
+            v-model="currentFilterFaction"
+            :options="factionSelectOptions"
+            size="sm"
+            placeholder="All Factions"
+          />
+        </div>
+      </div>
 
       <slot v-if="$slots['additional-filters']" name="additional-filters"></slot>
+
+      <div v-if="collapsible" class="filter-section">
+        <div class="section-header">
+          <Icon icon="mdi:filter-variant" />
+          <span>Filters</span>
+        </div>
+        <button
+          type="button"
+          class="view-toggle-btn"
+          :class="{ active: activeFilterCount > 0 }"
+          :aria-expanded="!collapsed"
+          @click="collapsed = !collapsed"
+        >
+          <Icon :icon="collapsed ? 'mdi:chevron-down' : 'mdi:chevron-up'" width="18" height="18" />
+          <span>{{ activeFilterCount > 0 ? `${activeFilterCount} active` : 'None active' }}</span>
+        </button>
+      </div>
 
       <div class="filter-section">
         <div class="section-header">
@@ -365,6 +419,16 @@ const toggleSortDirection = () => {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.identity-controls {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 16rem;
+}
+
+.identity-controls > * {
+  flex: 1;
 }
 
 .view-toggle-controls {

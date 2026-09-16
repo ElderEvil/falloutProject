@@ -1,9 +1,38 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+
+vi.mock('@/modules/auth/stores/auth', () => ({
+  useAuthStore: () => ({ token: 'test-token' }),
+}))
+
+vi.mock('@/core/utils/errorHandler', () => ({
+  handleStoreError: vi.fn(),
+}))
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getIdentityOptions: vi.fn().mockResolvedValue({
+    races: ['human', 'ghoul', 'super_mutant', 'synth'],
+    factions_by_race: {
+      human: ['vault_dweller', 'brotherhood_of_steel'],
+      ghoul: ['vault_dweller', 'children_of_atom', 'none'],
+      super_mutant: ['super_mutant_tribe', 'none'],
+      synth: ['the_institute', 'railroad', 'none'],
+    },
+    states_by_race: {},
+  }),
+}))
+
+/** The collapse toggle is the only toolbar button whose label mentions active filters. */
+async function expandFilters(wrapper: ReturnType<typeof mount>) {
+  const toggle = wrapper.findAll('.view-toggle-btn').find((b) => b.text().includes('active'))
+  expect(toggle).toBeDefined()
+  await toggle!.trigger('click')
+  await flushPromises()
+}
 
 describe('DwellerFilterPanel', () => {
   beforeEach(() => {
@@ -179,3 +208,56 @@ describe('DwellerFilterPanel', () => {
     })
   })
 })
+
+  describe('Identity filters', () => {
+    it('collapses the filter controls until the toggle is used', async () => {
+      const wrapper = mount(DwellerFilterPanel, {
+        props: { collapsible: true, showIdentityFilters: true },
+      })
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Filter by Status')
+      expect(wrapper.text()).toContain('None active')
+
+      await expandFilters(wrapper)
+
+      expect(wrapper.text()).toContain('Filter by Status')
+    })
+
+    it('counts the active filters it hides', async () => {
+      const wrapper = mount(DwellerFilterPanel, {
+        props: { collapsible: true, showIdentityFilters: true },
+      })
+      await flushPromises()
+
+      const store = useDwellerStore().filter
+      // One change per tick, the way a user clicks the two selects.
+      store.setFilterRace('ghoul')
+      await flushPromises()
+      store.setFilterFaction('children_of_atom')
+      await flushPromises()
+
+      expect(store.filterRace).toBe('ghoul')
+      expect(store.filterFaction).toBe('children_of_atom')
+      expect(wrapper.text()).toContain('2 active')
+    })
+
+    it('clears a faction the newly selected race cannot hold', async () => {
+      const store = useDwellerStore().filter
+      const wrapper = mount(DwellerFilterPanel, {
+        props: { collapsible: true, showIdentityFilters: true },
+      })
+      await flushPromises()
+
+      store.setFilterRace('ghoul')
+      store.setFilterFaction('children_of_atom')
+      await flushPromises()
+      expect(store.filterFaction).toBe('children_of_atom')
+
+      store.setFilterRace('super_mutant')
+      await flushPromises()
+
+      expect(store.filterFaction).toBe('all')
+      wrapper.unmount()
+    })
+  })

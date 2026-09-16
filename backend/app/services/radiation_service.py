@@ -62,22 +62,26 @@ def radiation_removal_amount(radiation: int, max_health: int) -> int:
     return min(radiation, max(1, removal))
 
 
-def apply_radiation_gain(dweller: Dweller, amount: int) -> bool:
-    """Add radiation to a dweller, capped at the configured maximum.
+def apply_radiation_gain(dweller: Dweller, amount: int, *, resisted_by_outfit: bool = True) -> bool:
+    """Add radiation to a dweller, capped at max health.
 
     Also pulls current health down to the radiation-reduced ceiling, so callers
     only need to persist the dweller afterwards. Returns True if radiation changed.
     Ghouls are immune and never gain radiation.
+
+    Outfits only resist **external** radiation (incidents, wasteland events).
+    Radiation drunk as irradiated water enters through ingestion, so that caller
+    passes ``resisted_by_outfit=False`` and armor cannot block it.
     """
     if amount <= 0 or dweller.is_dead or race_of(dweller) == RaceOption.GHOUL:
         return False
 
-    # Outfit resist applies to every source (dehydration, incidents,
-    # exploration). __dict__ access mirrors Dweller.weapon_type: no lazy IO,
-    # missing relationship simply means no resist.
-    amount = int(amount * (1.0 - outfit_radiation_resist(dweller.__dict__.get("outfit"))))
-    if amount <= 0:
-        return False
+    if resisted_by_outfit:
+        # __dict__ access mirrors Dweller.weapon_type: no lazy IO, a missing
+        # relationship simply means no resist.
+        amount = int(amount * (1.0 - outfit_radiation_resist(dweller.__dict__.get("outfit"))))
+        if amount <= 0:
+            return False
 
     old_radiation = dweller.radiation
     old_health = dweller.health

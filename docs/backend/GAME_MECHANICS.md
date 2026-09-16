@@ -28,3 +28,21 @@ accessor by statement shape: `.all()` for multi-column queries,
 `scalar_one_or_none()` for aggregates, `.scalars()` only for single-column
 entity results. Any session-factory or CRUD refactor in this path requires a
 regression test using the raw SQLAlchemy session type.
+
+## Radiation sources and outfit resistance
+
+Radiation is either **ingested** or **external**, and outfits only resist the external kind.
+
+- **Ingested** — irradiated water drunk while the vault has no water. It bypasses outfit
+  resistance (`apply_radiation_gain(..., resisted_by_outfit=False)`): a hazmat suit or power
+  armor does not help, because the radiation enters through drinking. Ghouls stay immune and
+  RadAway is the only cure.
+- **External** — radscorpion incidents and wasteland danger events. Outfit resistance applies
+  (see `OUTFIT_RADIATION_RESIST_BY_TYPE` / `OUTFIT_RADIATION_RESIST_BY_NAME` in
+  `services/radiation_service.py`): hazmat suits block it fully, power armor blocks most.
+
+Drought radiation accrues at 1% of max health per tick after `dehydration_grace_ticks` of zero
+water, counting only the ticks past the grace boundary. Radiation saturates at the dweller's own
+`max_health` — never a flat cap — so the health ceiling bottoms out at 1 HP and radiation alone
+never kills. Recovery is the one-shot **Treat Irradiated Dwellers** action: RadAway first (raises
+the ceiling), then a Stimpack heals into it.

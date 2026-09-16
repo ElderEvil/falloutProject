@@ -109,7 +109,7 @@ async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4
     """
     radaway_doses = min(game_config.health.recovery_radaways_per_dweller, MAX_CARRY)
     stimpak_doses = min(game_config.health.recovery_stimpaks_per_dweller, MAX_CARRY)
-    storage = await storage_crud.get_by_vault(db_session, vault_id)
+    storage = await storage_crud.get_by_vault_for_update(db_session, vault_id)
     radaway_stock = (storage.radaway or 0) if storage else 0
     stimpak_stock = (storage.stimpack or 0) if storage else 0
     radaways_used = 0
@@ -119,7 +119,7 @@ async def distribute_recovery_supplies(db_session: AsyncSession, vault_id: UUID4
     if radaway_doses > 0 and stimpak_doses > 0 and radaway_stock > 0 and stimpak_stock > 0:
         dwellers = await dweller_crud.get_all_in_vault(db_session, vault_id)
         for dweller in dwellers:
-            if dweller.is_dead or dweller.radiation <= 0:
+            if dweller.is_dead or dweller.is_deleted or dweller.radiation <= 0:
                 continue
             if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
                 continue

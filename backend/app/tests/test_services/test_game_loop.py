@@ -401,7 +401,9 @@ class TestDehydrationRadiation:
         assert dweller.radiation == 0
 
     @pytest.mark.asyncio
-    async def test_power_armor_reduces_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+    async def test_armor_does_not_block_ingested_water_radiation(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
         from app.core.enums import OutfitTypeEnum, RarityEnum
         from app.models.outfit import Outfit
 
@@ -420,10 +422,10 @@ class TestDehydrationRadiation:
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
         assert result["irradiated"] == 1
         await async_session.refresh(dweller)
-        assert dweller.radiation == 2  # raw 10 x (1 - 0.75) resist
+        assert dweller.radiation == 5  # 5 post-grace ticks x 1% of 100, armor ignored
 
     @pytest.mark.asyncio
-    async def test_hazmat_suit_blocks_radiation_fully(
+    async def test_hazmat_suit_does_not_block_ingested_water_radiation(
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ):
         from app.core.enums import OutfitTypeEnum, RarityEnum
@@ -442,9 +444,9 @@ class TestDehydrationRadiation:
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        assert result["irradiated"] == 0
+        assert result["irradiated"] == 1
         await async_session.refresh(dweller)
-        assert dweller.radiation == 0
+        assert dweller.radiation == 5
 
 
 # ═════════════════════════════════════════════════════════════════════

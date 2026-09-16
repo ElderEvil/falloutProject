@@ -102,6 +102,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
       )
 
       await filterStore.fetchDwellersByVault(vaultId, token)
+      await filterStore.fetchAllDwellers(vaultId, token)
 
       const { dwellers_treated: treated, radaways_used: radaways, stimpaks_used: stimpaks } =
         response.data

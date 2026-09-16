@@ -95,12 +95,12 @@ def test_stateless_agents_use_instructions_not_system_prompts() -> None:
 
 
 def test_instructions_name_irradiated_water_as_radiation_cause() -> None:
-    """Dwellers attribute drought sickness to drinking irradiated water instead of inventing a cause."""
+    """Dwellers attribute drought sickness to drinking irradiated water, which no armor blocks."""
     from app.agents.chat_prompts import build_chat_instructions
 
     instructions = build_chat_instructions(_make_dweller())
     assert "irradiated water" in instructions
-    assert "power armor" in instructions
+    assert "no armor stops that" in instructions
 
 
 def test_assignment_requires_complete_room_data() -> None:

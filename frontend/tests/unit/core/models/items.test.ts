@@ -103,6 +103,8 @@ describe('stat rows', () => {
     expect(getOutfitRadiationResist({ outfit_type: 'POWER_ARMOR' })).toBe(0.75)
     expect(getOutfitRadiationResist({ outfit_type: 'rare_outfit' })).toBe(0.25)
     expect(getOutfitRadiationResist({ name: 'Hazmat suit', outfit_type: 'rare_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ name: '  Hazmat suit  ', outfit_type: 'rare_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ name: 'ADVANCED HAZMAT SUIT', outfit_type: 'legendary_outfit' })).toBe(1)
     expect(getOutfitRadiationResist({ outfit_type: 'common_outfit' })).toBe(0)
     expect(getOutfitRadiationResist({})).toBe(0)
   })

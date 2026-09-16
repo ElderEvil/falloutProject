@@ -171,13 +171,18 @@ async def process_dwellers(
         vault = await vault_crud.get(db_session, vault_id)
         if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
             drought_ticks = await _drought_ticks(db_session, vault_id)
-            if drought_ticks >= game_config.health.dehydration_grace_ticks:
-                ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
+            elapsed_ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
+            grace_ticks = game_config.health.dehydration_grace_ticks
+            interval_start_ticks = max(0, drought_ticks - elapsed_ticks)
+            radiation_ticks = max(0, drought_ticks - grace_ticks) - max(0, interval_start_ticks - grace_ticks)
+            if radiation_ticks > 0:
                 for dweller in dwellers:
                     # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
                     if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
                         continue
-                    if apply_radiation_gain(dweller, dehydration_rads(dweller.max_health, ticks)):
+                    if apply_radiation_gain(
+                        dweller, dehydration_rads(dweller.max_health, radiation_ticks), resisted_by_outfit=False
+                    ):
                         db_session.add(dweller)
                         stats["irradiated"] += 1
             if stats["irradiated"]:

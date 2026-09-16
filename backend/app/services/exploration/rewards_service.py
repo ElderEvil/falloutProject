@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -323,24 +323,24 @@ class RewardsService:
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:
         """Store one overflow item. 409 when storage is still full."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
-        loot_overflow_service.reject_medical(loot_item)
-        quantity = loot_overflow_service.quantity_of(loot_item)
-        storage = await loot_overflow_service.require_space(db_session, exploration.vault_id, quantity)
         weapons_data = await asyncio.to_thread(data_loader.load_weapons)
         outfits_data = await asyncio.to_thread(data_loader.load_outfits)
-        rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
-        items = [
-            self._build_item_from_loot(loot_item, rarity, storage.id, weapons_data, outfits_data)
-            for _ in range(quantity)
-        ]
-        if any(item is None for item in items):
-            raise ValidationException(f"Unknown loot item: {loot_item.get('item_name')}")
-        db_session.add_all(items)
+
+        def build_row(loot_item: dict, storage_id: UUID4) -> Any:
+            rarity = self._parse_rarity_to_enum(loot_item.get("rarity", "common"))
+            return self._build_item_from_loot(loot_item, rarity, storage_id, weapons_data, outfits_data)
+
+        unclaimed = await loot_overflow_service.settle_take_decision(
+            db_session,
+            unclaimed,
+            index,
+            owner=Exploration,
+            owner_id=exploration.id,
+            vault_id=exploration.vault_id,
+            build_row=build_row,
+        )
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
-        await db_session.flush()
-        await crud_storage.update_used_space(db_session, storage.id)
         await db_session.commit()
         return unclaimed
 
@@ -349,11 +349,14 @@ class RewardsService:
     ) -> tuple[int, list[dict]]:
         """Sell one overflow item for caps. Needs no storage space."""
         exploration, unclaimed = await self._load_unclaimed(db_session, exploration_id)
-        loot_item = loot_overflow_service.pop_decision(unclaimed, index, owner=Exploration, owner_id=exploration.id)
-        loot_overflow_service.reject_medical(loot_item)
-        value = loot_overflow_service.value_of(loot_item)
-        vault = await crud_vault.get(db_session, exploration.vault_id)
-        await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=value, commit=False)
+        value, unclaimed = await loot_overflow_service.settle_sell_decision(
+            db_session,
+            unclaimed,
+            index,
+            owner=Exploration,
+            owner_id=exploration.id,
+            vault_id=exploration.vault_id,
+        )
         exploration.unclaimed_loot = unclaimed
         db_session.add(exploration)
         await db_session.commit()

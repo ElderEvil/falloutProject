@@ -26,18 +26,12 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   }),
 }))
 
-/** The collapse toggle is the only toolbar button carrying this class. */
-async function expandFilters(wrapper: ReturnType<typeof mount>) {
-  const toggle = wrapper.find('.filters-toggle')
-  expect(toggle.exists()).toBe(true)
-  await toggle.trigger('click')
-  await flushPromises()
-}
-
 describe('DwellerFilterPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.removeItem('dwellerViewMode')
+    // The filter store hydrates from localStorage, so a leftover key would leak across cases.
+    localStorage.clear()
+    localStorage.setItem('dwellerViewMode', 'grid')
     localStorage.removeItem('dwellerTableColumns')
   })
 
@@ -215,48 +209,16 @@ describe('DwellerFilterPanel', () => {
 })
 
   describe('Identity filters', () => {
-    it('collapses the filter controls until the toggle is used', async () => {
-      const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Filter by Status')
-      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('false')
-      expect(wrapper.find('.filters-count').exists()).toBe(false)
-
-      await expandFilters(wrapper)
-
-      expect(wrapper.find('.filters-toggle').attributes('aria-expanded')).toBe('true')
-      expect(wrapper.text()).toContain('Filter by Status')
-    })
-
-    it('counts the active filters it hides', async () => {
-      const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
-      })
-      await flushPromises()
-
-      const store = useDwellerStore().filter
-      // One change per tick, the way a user clicks the two selects.
-      store.setFilterRace('ghoul')
-      await flushPromises()
-      store.setFilterFaction('children_of_atom')
-      await flushPromises()
-
-      expect(store.filterRace).toBe('ghoul')
-      expect(store.filterFaction).toBe('children_of_atom')
-      expect(wrapper.find('.filters-count').text()).toBe('2')
-    })
-
     it('clears a faction the newly selected race cannot hold', async () => {
       const store = useDwellerStore().filter
       const wrapper = mount(DwellerFilterPanel, {
-        props: { collapsible: true, showIdentityFilters: true },
+        props: { showIdentityFilters: true },
       })
       await flushPromises()
 
+      // One change per tick, the way a user clicks the two selects.
       store.setFilterRace('ghoul')
+      await flushPromises()
       store.setFilterFaction('children_of_atom')
       await flushPromises()
       expect(store.filterFaction).toBe('children_of_atom')

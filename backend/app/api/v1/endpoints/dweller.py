@@ -27,6 +27,7 @@ from app.schemas.dweller import (
     DwellerRename,
     DwellerReviveResponse,
     DwellerUpdate,
+    DwellerUpdateRequest,
     DwellerVisualAttributes,
     LineageResponse,
     RevivalCostResponse,
@@ -121,11 +122,14 @@ async def get_dweller_lineage(
 @router.put("/{dweller_id}", response_model=DwellerRead)
 async def update_dweller(
     dweller_id: UUID4,
-    dweller_data: DwellerUpdate,
+    dweller_data: DwellerUpdateRequest,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> DwellerRead:
-    """Update a dweller's data.
+) -> Dweller:
+    """Update a dweller's player-editable fields.
+
+    Game state (health, radiation, level, experience, supplies, status, death) is
+    not accepted here — see `DwellerUpdateRequest`.
 
     Returns:
         DwellerRead: The updated dweller.

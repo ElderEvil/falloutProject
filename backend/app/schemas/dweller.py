@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import UUID4, BaseModel, Field, computed_field, model_validator
 from sqlmodel import SQLModel
+from sqlmodel.main import SQLModelConfig
 
 from app.core.enums import (
     STATE_OF_BEING_TYPE,
@@ -51,7 +52,7 @@ class DwellerCreateWithoutVaultID(DwellerBase):
     weapon: str | None = Field(default=None, max_length=32)
     outfit: str | None = Field(default=None, max_length=32)
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class DwellerCreate(DwellerCreateWithoutVaultID):
@@ -137,7 +138,7 @@ class DwellerVisualAttributes(BaseModel):
             raise ValueError(f"Faction '{faction.value}' is not valid for race '{race.value}'")
         return self
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class DwellerTemplate(DwellerCreateWithoutVaultID):
@@ -187,7 +188,7 @@ class DwellerTemplate(DwellerCreateWithoutVaultID):
         payload = DwellerCreateWithoutVaultID.model_validate(data)
         return payload, origin, visited
 
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = SQLModelConfig(use_enum_values=True)
 
 
 class DwellerIdentityOptions(BaseModel):
@@ -269,7 +270,7 @@ class DwellerReadLess(SQLModel):
     parent_1_id: UUID4 | None = None
     parent_2_id: UUID4 | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = SQLModelConfig(from_attributes=True)
 
     @computed_field
     @property
@@ -299,7 +300,7 @@ class DwellerReadWithVaultID(DwellerRead):
 class DwellerReadWithRoomID(DwellerRead):
     room_id: UUID4
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = SQLModelConfig(from_attributes=True)
 
 
 class DwellerReadFull(DwellerRead):
@@ -309,13 +310,38 @@ class DwellerReadFull(DwellerRead):
     weapon: WeaponRead | None
     outfit: OutfitRead | None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = SQLModelConfig(from_attributes=True)
 
 
 @optional()
 class DwellerUpdate(DwellerBase):
     room_id: UUID4 | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
+
+
+@optional()
+class DwellerUpdateRequest(SQLModel):
+    """The only dweller fields a player may write through the API.
+
+    Game state is deliberately absent: health, radiation, level, experience,
+    happiness, supplies, status and the death fields are produced by the game
+    loop, so letting a client set them would bypass every rule that governs them
+    (and `PUT /dwellers/{id}` previously accepted all of them via `DwellerUpdate`).
+    System callers keep using `DwellerUpdate` internally.
+    """
+
+    first_name: str | None = Field(default=None, min_length=2, max_length=32)
+    last_name: str | None = Field(default=None, max_length=32)
+    bio: str | None = Field(default=None, max_length=2048)
+    bio_entries: list[dict] | None = None
+    visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
+    image_url: str | None = Field(default=None, max_length=255)
+    thumbnail_url: str | None = Field(default=None, max_length=255)
+    room_id: UUID4 | None = None
+
+    # Reject game state loudly instead of silently dropping it, so a client that
+    # tries to write health/radiation/level learns why it cannot.
+    model_config = SQLModelConfig(extra="forbid")
 
 
 class DwellerDeadRead(SQLModel):
@@ -332,7 +358,7 @@ class DwellerDeadRead(SQLModel):
     epitaph: str | None
     days_until_permanent: int | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = SQLModelConfig(from_attributes=True)
 
 
 class DwellerReviveResponse(SQLModel):

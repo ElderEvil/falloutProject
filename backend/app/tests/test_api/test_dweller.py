@@ -396,3 +396,64 @@ async def test_revival_endpoints_reject_users_without_vault_access(
 
     assert cost_response.status_code == 403
     assert revive_response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_dweller_rejects_game_state(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """A client must not be able to write game state the simulation owns."""
+    original_level, original_health = dweller.level, dweller.health
+
+    for payload in ({"level": 50}, {"health": 1500}, {"radiation": 0}, {"is_dead": True}, {"status": "working"}):
+        response = await async_client.put(f"/dwellers/{dweller.id}", json=payload, headers=superuser_token_headers)
+        assert response.status_code == 422, f"{payload} was accepted"
+
+    await async_session.refresh(dweller)
+    assert dweller.level == original_level
+    assert dweller.health == original_health
+
+
+@pytest.mark.asyncio
+async def test_update_dweller_accepts_player_editable_fields(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+) -> None:
+    """Renaming and appearance edits still work through the player-facing schema."""
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}",
+        json={"first_name": "Renamed", "visual_attributes": {"race": "human"}},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "Renamed"
+    await async_session.refresh(dweller)
+    assert dweller.first_name == "Renamed"
+
+
+@pytest.mark.asyncio
+async def test_update_dweller_can_unassign_a_room(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+    room: Room,
+) -> None:
+    """The dweller roster unassigns by PUTting room_id: null."""
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}", json={"room_id": None}, headers=superuser_token_headers
+    )
+
+    assert response.status_code == 200
+    await async_session.refresh(dweller)
+    assert dweller.room_id is None

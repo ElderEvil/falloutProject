@@ -241,11 +241,12 @@ const toggleSortDirection = () => {
           <span>Sort By</span>
         </div>
         <div class="sort-controls">
-          <select v-model="currentSortBy" class="sort-select" aria-label="Sort dwellers">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+          <USelect
+            v-model="currentSortBy"
+            :options="sortOptions"
+            size="sm"
+            aria-label="Sort dwellers"
+          />
           <button
             @click="toggleSortDirection"
             class="sort-direction-button"
@@ -377,23 +378,8 @@ const toggleSortDirection = () => {
   gap: 0.375rem;
 }
 
-.sort-select {
+.sort-controls :deep(.select-wrapper) {
   flex: 1;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sort-select:hover,
-.sort-select:focus {
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-  outline: none;
 }
 
 .sort-direction-button {
@@ -431,7 +417,8 @@ const toggleSortDirection = () => {
 }
 
 /* Match the status/age chips so the whole toolbar reads as one control set. */
-.identity-controls :deep(.select-trigger) {
+.identity-controls :deep(.select-trigger),
+.sort-controls :deep(.select-trigger) {
   padding: 0.5rem 0.75rem;
   border-color: var(--color-theme-glow);
   border-radius: 6px;
@@ -439,7 +426,8 @@ const toggleSortDirection = () => {
   opacity: 0.85;
 }
 
-.identity-controls :deep(.select-trigger:hover) {
+.identity-controls :deep(.select-trigger:hover),
+.sort-controls :deep(.select-trigger:hover) {
   opacity: 1;
   box-shadow: 0 0 8px var(--color-theme-glow);
 }

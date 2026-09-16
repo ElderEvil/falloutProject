@@ -90,8 +90,9 @@ describe('DwellerFilterPanel', () => {
       const wrapper = mount(DwellerFilterPanel)
 
       expect(wrapper.text()).toContain('Sort By')
+      // Both toolbar dropdowns share one trigger rule, so their lists cannot drift apart.
       expect(filterPanelSource).toMatch(
-        /\.sort-select \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
+        /\.identity-controls :deep\(\.select-trigger\),\s*\.sort-controls :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
       )
       expect(filterPanelSource).toMatch(
         /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
@@ -105,9 +106,13 @@ describe('DwellerFilterPanel', () => {
       const wrapper = mount(DwellerFilterPanel)
       const store = useDwellerStore().filter
 
-      const sortSelect = wrapper.find('.sort-select')
-      expect(sortSelect.attributes('aria-label')).toBe('Sort dwellers')
-      await sortSelect.setValue('level')
+      const sortTrigger = wrapper.find('.sort-controls .select-trigger')
+      expect(sortTrigger.attributes('aria-label')).toBe('Sort dwellers')
+
+      await sortTrigger.trigger('click')
+      const levelOption = wrapper.findAll('.sort-controls .select-option').find((o) => o.text().includes('Level'))
+      expect(levelOption).toBeDefined()
+      await levelOption!.trigger('click')
 
       expect(store.sortBy).toBe('level')
     })

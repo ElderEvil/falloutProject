@@ -18,6 +18,7 @@ interface Props {
   disabled?: boolean
   size?: 'sm' | 'md' | 'lg'
   labelIcon?: string
+  ariaLabel?: string
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   error,
   helpText,
   label,
+  ariaLabel,
   labelIcon,
   modelValue,
   options,
@@ -84,6 +86,7 @@ function handleFocusout(event: FocusEvent) {
       type="button"
       role="combobox"
       aria-haspopup="listbox"
+      :aria-label="ariaLabel"
       :aria-labelledby="label ? labelId : undefined"
       :aria-expanded="isOpen"
       :aria-controls="`${selectId}-options`"

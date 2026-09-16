@@ -17,7 +17,7 @@ const { isCollapsed } = useSidePanel()
 const route = useRoute()
 const router = useRouter()
 const vaultStore = useVaultStore()
-const { filter: dwellerStore } = useDwellerStore()
+const { filter: dwellerStore, medical: medicalStore } = useDwellerStore()
 const incidentStore = useIncidentStore()
 const authStore = useAuthStore()
 
@@ -91,6 +91,19 @@ const handleViewLowHappiness = () => {
   router.push(`/vault/${vaultId.value}/dwellers?sortBy=happiness&order=asc`)
 }
 
+const irradiatedDwellerCount = computed(() => dwellerStore.dwellers.filter((d) => d.radiation > 0).length)
+const isTreatingDwellers = ref(false)
+
+const handleTreatIrradiated = async () => {
+  if (!vaultId.value || !authStore.token || isTreatingDwellers.value) return
+  isTreatingDwellers.value = true
+  try {
+    await medicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
+  } finally {
+    isTreatingDwellers.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -133,9 +146,12 @@ onMounted(() => {
             :activeIncidentCount="happinessDashboardData.activeIncidentCount"
             :lowResourceCount="happinessDashboardData.lowResourceCount"
             :radioHappinessMode="happinessDashboardData.radioHappinessMode"
+            :irradiatedDwellerCount="irradiatedDwellerCount"
+            :treatingDwellers="isTreatingDwellers"
             @assign-idle="handleAssignIdle"
             @activate-radio="handleActivateRadio"
             @view-low-happiness="handleViewLowHappiness"
+            @treat-irradiated="handleTreatIrradiated"
           />
         </div>
       </div>

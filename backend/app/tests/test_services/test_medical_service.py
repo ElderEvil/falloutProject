@@ -77,3 +77,61 @@ class TestUseStimpack:
         await _set_dweller_state(async_session, dweller, max_health=100, health=100, radiation=0, stimpack=1)
         with pytest.raises(ContentNoChangeException):
             await medical_service.use_stimpack(async_session, dweller.id)
+
+
+class TestDistributeRecoverySupplies:
+    @pytest.mark.asyncio
+    async def test_treats_dweller_with_radaway_then_stimpack(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        from app.models.storage import Storage
+
+        await _set_dweller_state(async_session, dweller, max_health=100, radiation=100, health=1)
+        async_session.add(Storage(vault_id=vault.id, radaway=10, stimpack=10))
+        await async_session.commit()
+
+        result = await medical_service.distribute_recovery_supplies(async_session, vault.id)
+
+        assert result.dwellers_treated == 1
+        assert result.radaways_used == 1
+        assert result.stimpaks_used == 1
+        assert result.vault_radaways == 9
+        assert result.vault_stimpacks == 9
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 50
+        heal = max(1, int(100 * game_config.health.stimpack_heal_percent))
+        assert dweller.health == min(1 + heal, dweller.effective_max_health)
+        assert dweller.health >= 40
+
+    @pytest.mark.asyncio
+    async def test_skips_clean_dead_and_away_dwellers(
+        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    ):
+        from app.models.storage import Storage
+        from app.schemas.common import DwellerStatusEnum
+
+        await _set_dweller_state(async_session, dweller, radiation=40, status=DwellerStatusEnum.EXPLORING)
+        async_session.add(Storage(vault_id=vault.id, radaway=10, stimpack=10))
+        await async_session.commit()
+
+        result = await medical_service.distribute_recovery_supplies(async_session, vault.id)
+
+        assert result.dwellers_treated == 0
+        assert result.vault_radaways == 10
+        assert result.vault_stimpacks == 10
+
+    @pytest.mark.asyncio
+    async def test_empty_stock_is_noop(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
+        from app.models.storage import Storage
+
+        await _set_dweller_state(async_session, dweller, radiation=50)
+        async_session.add(Storage(vault_id=vault.id, radaway=0, stimpack=0))
+        await async_session.commit()
+
+        result = await medical_service.distribute_recovery_supplies(async_session, vault.id)
+
+        assert result.dwellers_treated == 0
+        assert result.radaways_used == 0
+        assert result.stimpaks_used == 0
+        await async_session.refresh(dweller)
+        assert dweller.radiation == 50

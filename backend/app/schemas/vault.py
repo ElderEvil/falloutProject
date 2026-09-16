@@ -102,6 +102,16 @@ class MedicalTransferResponse(BaseModel):
     dweller_radaways: int
 
 
+class MedicalDistributionResponse(BaseModel):
+    """Response schema for the one-shot recovery treatment of irradiated dwellers."""
+
+    dwellers_treated: int
+    radaways_used: int
+    stimpaks_used: int
+    vault_radaways: int
+    vault_stimpacks: int
+
+
 class VaultReadWithUser(VaultRead):
     user_id: UUID4
 

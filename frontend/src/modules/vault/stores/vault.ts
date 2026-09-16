@@ -311,8 +311,7 @@ export const useVaultStore = defineStore('vault', () => {
     }
   }
 
-  function startResourcePolling(vaultId?: string, token?: string) {
-    if (!isPollingActive.value) {
+  function startResourcePolling(vaultId?: string, token?: string) {    if (!isPollingActive.value) {
       resumePolling()
     }
     if (vaultId && token) {

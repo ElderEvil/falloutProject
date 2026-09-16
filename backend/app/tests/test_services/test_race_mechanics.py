@@ -69,6 +69,7 @@ class TestGhoulRadiationImmunity:
         obj = MagicMock()
         obj.is_dead = False
         obj.radiation = radiation
+        obj.max_health = 120
         obj.health = 80
         obj.effective_max_health = 100
         obj.visual_attributes = {"race": race}

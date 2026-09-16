@@ -182,6 +182,33 @@ describe('HappinessDashboard', () => {
     }
   })
 
+  it('should emit treat-irradiated when irradiated dwellers exist', async () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: {
+        ...defaultProps,
+        idleDwellerCount: 1,
+        irradiatedDwellerCount: 4,
+      },
+    })
+
+    const button = wrapper.findAll('button').find((b) => b.text().includes('Treat Irradiated'))
+    expect(button).toBeTruthy()
+    await button!.trigger('click')
+    expect(wrapper.emitted('treat-irradiated')).toBeTruthy()
+  })
+
+  it('should hide the treatment button when nobody is irradiated', () => {
+    const wrapper = mount(HappinessDashboard, {
+      props: {
+        ...defaultProps,
+        idleDwellerCount: 1,
+        irradiatedDwellerCount: 0,
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('Treat Irradiated')
+  })
+
   it('should not show "Activate Radio Mode" button when already active', () => {
     const wrapper = mount(HappinessDashboard, {
       props: {

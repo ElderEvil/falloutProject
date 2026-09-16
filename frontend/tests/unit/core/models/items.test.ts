@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getItemIcon,
   getOutfitBonuses,
+  getOutfitRadiationResist,
   getOutfitStats,
   getRarityBorderClass,
   getRarityColor,
@@ -95,5 +96,24 @@ describe('stat rows', () => {
 
   it('collects only non-zero outfit bonuses', () => {
     expect(getOutfitBonuses({ strength_bonus: 0, luck_bonus: 3 })).toEqual([{ stat: 'L', bonus: 3 }])
+  })
+
+  it('resolves outfit radiation resist by type, with name overrides winning', () => {
+    expect(getOutfitRadiationResist({ outfit_type: 'power_armor' })).toBe(0.75)
+    expect(getOutfitRadiationResist({ outfit_type: 'POWER_ARMOR' })).toBe(0.75)
+    expect(getOutfitRadiationResist({ outfit_type: 'rare_outfit' })).toBe(0.25)
+    expect(getOutfitRadiationResist({ name: 'Hazmat suit', outfit_type: 'rare_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ name: '  Hazmat suit  ', outfit_type: 'rare_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ name: 'ADVANCED HAZMAT SUIT', outfit_type: 'legendary_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ outfit_type: 'common_outfit' })).toBe(0)
+    expect(getOutfitRadiationResist({})).toBe(0)
+  })
+
+  it('shows a RAD resist row only when the outfit protects', () => {
+    const armored = getOutfitStats({ outfit_type: 'power_armor', name: 'T-51d power armor' })
+    expect(armored).toContainEqual({ label: 'RAD resist', value: '75%', icon: 'mdi:radiation' })
+
+    const plain = getOutfitStats({ strength_bonus: 1 }).map((s) => s.label)
+    expect(plain).not.toContain('RAD resist')
   })
 })

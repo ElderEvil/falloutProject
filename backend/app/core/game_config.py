@@ -282,10 +282,22 @@ class HealthConfig(BaseSettings):
     starvation_threshold: float = Field(default=0.0, description="Food % below which no regen", ge=0.0, le=1.0)
     dehydration_threshold: float = Field(default=0.0, description="Water % below which no regen", ge=0.0, le=1.0)
 
-    # Radiation rules (single source of truth; mirrored by Dweller.radiation field constraint)
-    max_radiation: int = Field(default=1000, description="Hard RAD cap per dweller", ge=1)
+    # Radiation saturates at the dweller's own max health, so the health ceiling
+    # bottoms out at 1 HP instead of the bar overflowing past the health pool.
     dehydration_radiation_per_tick: int = Field(
-        default=1, description="RAD per 60s tick for in-vault dwellers while vault water is empty", ge=0
+        default=1,
+        description="Master switch for dehydration radiation; rate now comes from flat/percent per window",
+        ge=0,
+    )
+    dehydration_percent_per_tick: float = Field(
+        default=0.01, description="Share of max HP as RAD per irradiated-water tick", ge=0.0, le=1.0
+    )
+    dehydration_grace_ticks: int = Field(default=5, description="Ticks at zero water before radiation starts", ge=0)
+    recovery_radaways_per_dweller: int = Field(
+        default=1, description="RadAway used on each irradiated dweller by the recovery action", ge=0
+    )
+    recovery_stimpaks_per_dweller: int = Field(
+        default=1, description="Stimpack used on each irradiated dweller by the recovery action", ge=0
     )
     radaway_removal_percent: float = Field(
         default=0.5,
@@ -667,13 +679,6 @@ class DeathConfig(BaseSettings):
     )
 
     # Radiation threshold for death
-    radiation_death_threshold: int = Field(
-        default=1000,
-        description="Radiation level that causes death",
-        ge=100,
-        le=1000,
-    )
-
     def calculate_revival_cost(self, level: int) -> int:
         """
         Calculate revival cost based on dweller level (tiered).

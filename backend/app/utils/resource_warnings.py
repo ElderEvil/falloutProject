@@ -19,4 +19,11 @@ def get_resource_warnings(vault: Vault, resources: Mapping[str, float]) -> list[
             warnings.append(ResourceLevelWarning(type=f"critical_{resource}", message=f"{label} critically low!"))
         elif resources[resource] < maximum * game_config.resource.low_threshold:
             warnings.append(ResourceLevelWarning(type=f"low_{resource}", message=f"{label} running low"))
+    if resources["water"] <= 0:
+        warnings = [w for w in warnings if w.type != "critical_water"]
+        warnings.append(
+            ResourceLevelWarning(
+                type="critical_dehydration", message="Water depleted! Dwellers are drinking irradiated water"
+            )
+        )
     return warnings

@@ -29,10 +29,21 @@ from app.services.game_tick.tick_results import (
     WorkXpStats,
 )
 from app.services.happiness_service import happiness_service
-from app.services.radiation_service import apply_radiation_gain
+from app.services.radiation_service import apply_radiation_gain, dehydration_rads
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
+
+
+async def _drought_ticks(db_session: AsyncSession, vault_id: UUID4) -> int:
+    """Whole ticks since vault water hit zero; 0 when the clock is missing (fresh drought)."""
+    from app.crud.game_state import game_state_crud
+
+    state = await game_state_crud.get_by_vault_id(db_session, vault_id)
+    if state is None or state.water_empty_since is None:
+        return 0
+    elapsed = (datetime.utcnow() - state.water_empty_since).total_seconds()
+    return max(0, int(elapsed) // game_config.game_loop.tick_interval)
 
 
 async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> ExplorationStats:
@@ -137,10 +148,10 @@ async def process_dwellers(
 ) -> DwellersStats:
     """Process dweller updates for a vault.
 
-    - Irradiate in-vault dwellers while the vault has no water
+    - Irradiate in-vault dwellers with 1% RAD per tick once the grace period at zero water expires
     - Award work XP to dwellers in production rooms
     - Check for level-ups
-    - Check for deaths (health <= 0 or radiation threshold)
+    - Check for deaths (health <= 0)
     """
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.family.death_service import death_service
@@ -159,19 +170,25 @@ async def process_dwellers(
 
         vault = await vault_crud.get(db_session, vault_id)
         if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
-            ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
-            rads = game_config.health.dehydration_radiation_per_tick * ticks
-            for dweller in dwellers:
-                # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
-                if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
-                    continue
-                if apply_radiation_gain(dweller, rads):
-                    db_session.add(dweller)
-                    stats["irradiated"] += 1
+            drought_ticks = await _drought_ticks(db_session, vault_id)
+            elapsed_ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
+            grace_ticks = game_config.health.dehydration_grace_ticks
+            interval_start_ticks = max(0, drought_ticks - elapsed_ticks)
+            radiation_ticks = max(0, drought_ticks - grace_ticks) - max(0, interval_start_ticks - grace_ticks)
+            if radiation_ticks > 0:
+                for dweller in dwellers:
+                    # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
+                    if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
+                        continue
+                    if apply_radiation_gain(
+                        dweller, dehydration_rads(dweller.max_health, radiation_ticks), resisted_by_outfit=False
+                    ):
+                        db_session.add(dweller)
+                        stats["irradiated"] += 1
             if stats["irradiated"]:
                 await db_session.commit()
                 logger.warning(
-                    f"Vault {vault_id} has no water: applied {rads} radiation to {stats['irradiated']} dwellers"
+                    f"Vault {vault_id} has no water: applied irradiated-water radiation to {stats['irradiated']} dwellers"
                 )
 
         # Get all unique room IDs from working dwellers
@@ -192,12 +209,6 @@ async def process_dwellers(
                 await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
                 stats["deaths"] += 1
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
-                continue
-
-            if dweller.radiation >= game_config.death.radiation_death_threshold:
-                await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.RADIATION)
-                stats["deaths"] += 1
-                logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from radiation")
                 continue
 
             if dweller.status == DwellerStatusEnum.WORKING and dweller.room_id:

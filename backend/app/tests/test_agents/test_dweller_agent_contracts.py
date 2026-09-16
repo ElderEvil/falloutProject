@@ -94,6 +94,15 @@ def test_stateless_agents_use_instructions_not_system_prompts() -> None:
         assert agent._system_prompt_functions == []
 
 
+def test_instructions_name_irradiated_water_as_radiation_cause() -> None:
+    """Dwellers attribute drought sickness to drinking irradiated water, which no armor blocks."""
+    from app.agents.chat_prompts import build_chat_instructions
+
+    instructions = build_chat_instructions(_make_dweller())
+    assert "irradiated water" in instructions
+    assert "no armor stops that" in instructions
+
+
 def test_assignment_requires_complete_room_data() -> None:
     """An assignment cannot reach gameplay handling without an ID and display name."""
     output = _output(action_type="assign_to_room", action_room_id=uuid4())

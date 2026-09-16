@@ -228,3 +228,48 @@ async def test_storage_space_reports_over_capacity_instead_of_500(
     assert data["max_space"] == 2
     assert data["available_space"] == 0
     assert data["utilization_pct"] > 100
+
+
+@pytest.mark.asyncio
+async def test_distribute_recovery_supplies_endpoint(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """The one-shot action treats irradiated dwellers and reports the supplies used."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    storage.radaway = 10
+    storage.stimpack = 10
+    async_session.add(storage)
+
+    dweller_data = create_fake_dweller()
+    dweller_data["vault_id"] = vault.id
+    dweller_data["radiation"] = 40
+    dweller_data["max_health"] = 100
+    dweller_data["health"] = 1
+    dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+    await async_session.flush()
+
+    response = await async_client.post(
+        f"/storage/vault/{vault.id}/medical/distribute-recovery-supplies",
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dwellers_treated"] == 1
+    assert data["radaways_used"] == 1
+    assert data["stimpaks_used"] == 1
+    assert data["vault_radaways"] == 9
+    assert data["vault_stimpacks"] == 9
+    await async_session.refresh(dweller)
+    assert dweller.radiation == 0
+    assert dweller.health >= 40

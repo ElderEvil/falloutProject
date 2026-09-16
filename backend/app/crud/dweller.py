@@ -307,7 +307,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
     async def get_all_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
         """Every dweller row of a vault, no status/deleted filters (tick processing)."""
-        result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
+        query = select(self.model).options(selectinload(self.model.outfit)).where(self.model.vault_id == vault_id)
+        result = await db_session.execute(query)
         return result.scalars().all()
 
     async def count_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:

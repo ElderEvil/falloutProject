@@ -40,6 +40,7 @@ const {
   filter: dwellerStore,
   generation: dwellerGenerationStore,
   management: dwellerManagementStore,
+  medical: dwellerMedicalStore,
   death: dwellerDeathStore,
 } = useDwellerStore()
 const vaultStore = useVaultStore()
@@ -119,6 +120,7 @@ const happinessDashboardData = computed(() => {
     activeIncidentCount: activeIncidents.length,
     lowResourceCount,
     radioHappinessMode: currentVault.value.radio_mode === 'happiness',
+    irradiatedDwellerCount: population.filter((d) => d.radiation > 0).length,
   }
 })
 
@@ -306,6 +308,19 @@ const handleViewLowHappiness = () => {
   dwellerStore.setSortBy('happiness')
   dwellerStore.setSortDirection('asc')
 }
+
+const treatingDwellers = ref(false)
+
+const handleTreatIrradiated = async () => {
+  if (!vaultId.value || !authStore.token || treatingDwellers.value) return
+
+  treatingDwellers.value = true
+  try {
+    await dwellerMedicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
+  } finally {
+    treatingDwellers.value = false
+  }
+}
 </script>
 
 <template>
@@ -350,6 +365,7 @@ const handleViewLowHappiness = () => {
                     v-if="
                       happinessDashboardData.lowResourceCount ||
                       happinessDashboardData.activeIncidentCount ||
+                      happinessDashboardData.irradiatedDwellerCount ||
                       happinessDashboardData.idleDwellerCount >= 3 ||
                       happinessDashboardData.vaultHappiness < 50
                     "
@@ -369,9 +385,12 @@ const handleViewLowHappiness = () => {
                 :activeIncidentCount="happinessDashboardData.activeIncidentCount"
                 :lowResourceCount="happinessDashboardData.lowResourceCount"
                 :radioHappinessMode="happinessDashboardData.radioHappinessMode"
+                :irradiatedDwellerCount="happinessDashboardData.irradiatedDwellerCount"
+                :treatingDwellers="treatingDwellers"
                 @assign-idle="handleAssignIdle"
                 @activate-radio="handleActivateRadio"
                 @view-low-happiness="handleViewLowHappiness"
+                @treat-irradiated="handleTreatIrradiated"
               />
             </details>
           </div>

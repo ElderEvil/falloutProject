@@ -421,7 +421,7 @@ async def test_generate_avatar_updates_and_generates_photo(
     mock_dweller = _make_dweller_mock()
     # Return a fresh mock after update (simulating the cascading update)
     mock_crud.update = AsyncMock(return_value=mock_dweller)
-    mock_crud.get_full_info = AsyncMock()
+    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
     fake_image_bytes = b"\x89PNG\r\n\x1a\n"
 

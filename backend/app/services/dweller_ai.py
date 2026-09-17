@@ -29,11 +29,33 @@ from app.utils.exceptions import (
     AIStorageException,
     ContentNoChangeException,
     QuotaExceededException,
+    ValidationException,
 )
 
 logger = logging.getLogger(__name__)
 
 BIO_MAX_LENGTH = 900
+
+
+def _require_image_bytes(data: bytes | str) -> bytes:
+    """Narrow generated image data: only bytes are uploadable, a URL is not."""
+    if not isinstance(data, bytes):
+        raise AIProviderException(detail="Image generation did not return image data")
+    return data
+
+
+async def _resolve_dweller(
+    db_session: AsyncSession,
+    dweller_info: DwellerReadFull | None,
+    dweller_id: UUID4 | None,
+) -> DwellerReadFull:
+    """Return the supplied dweller, or load the full read model by id."""
+    if dweller_info is not None:
+        return dweller_info
+    if dweller_id is None:
+        raise ValidationException(detail="Either a dweller id or an existing dweller is required")
+    return await dweller_crud.get_full_info(db_session, dweller_id)
+
 
 # Visual-attribute fields that may only reflect items the dweller owns/equips.
 EQUIPMENT_RESTRICTED_FIELDS = ("accessory", "object_held")
@@ -114,7 +136,7 @@ class DwellerAIService:
                 detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
             )
 
-        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = await _resolve_dweller(db_session, dweller_info, dweller_id)
 
         location = origin or "Wasteland"
         special_stats = SPECIALModel.format_special_stats(dweller_obj)
@@ -275,7 +297,7 @@ class DwellerAIService:
                 detail=f"Monthly token quota exceeded. Used: {quota_result.used}/{quota_result.limit} tokens."
             )
 
-        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = await _resolve_dweller(db_session, dweller_info, dweller_id)
 
         existing_attrs = dweller_obj.visual_attributes or {}
 
@@ -357,7 +379,7 @@ class DwellerAIService:
         force: bool = False,
     ) -> DwellerReadFull:
         """Generate a photo for a dweller."""
-        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = await _resolve_dweller(db_session, dweller_info, dweller_id)
         if dweller_obj.image_url and not force:
             raise ContentNoChangeException(detail="Dweller already has a photo")
 
@@ -373,7 +395,7 @@ class DwellerAIService:
             f"Dweller visual attributes: {dweller_obj.visual_attributes}"
         )
         try:
-            image_bytes = await self.ai_service.generate_image(prompt=prompt, return_bytes=True)
+            image_bytes = _require_image_bytes(await self.ai_service.generate_image(prompt=prompt, return_bytes=True))
             image_url = await asyncio.to_thread(
                 self.storage_service.upload_file,
                 file_data=image_bytes,
@@ -425,11 +447,11 @@ class DwellerAIService:
         # TTS doesn't return token counts from API, so we estimate based on input text
         estimated_tokens = ceil(len(text) / 4)
 
-        dweller_obj = dweller_info or await dweller_crud.get_full_info(db_session, dweller_id)
+        dweller_obj = await _resolve_dweller(db_session, dweller_info, dweller_id)
         if dweller_obj.visual_attributes and dweller_obj.visual_attributes.get("voice_line_url"):
             raise ContentNoChangeException(detail="Dweller already has an audio line. Overwrite not implemented yet.")
 
-        if not self.storage_service.enabled:
+        if self.storage_service is None or not self.storage_service.enabled:
             logger.warning("Storage service is disabled, cannot generate audio for dweller %s", dweller_obj.id)
             raise AIStorageException(detail="Audio upload service is not available. Cannot generate audio.")
 
@@ -502,7 +524,7 @@ class DwellerAIService:
         )
         updated_dweller = await dweller_crud.update(db_session, dweller_id, update_data)
 
-        dweller_obj = await self.generate_photo(db_session=db_session, dweller_info=updated_dweller, user=user)
+        dweller_obj = await self.generate_photo(db_session=db_session, dweller_id=updated_dweller.id, user=user)
         if visual_attributes_input.voice_line_text:
             return await self.generate_audio(
                 db_session=db_session,

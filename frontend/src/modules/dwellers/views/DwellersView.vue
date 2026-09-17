@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import {
+  useRouter,
+  useRoute,
+  type LocationQuery,
+  type LocationQueryRaw,
+  type LocationQueryValueRaw,
+} from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -64,6 +70,94 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
+
+// Applied here rather than on mount so the filter panel can validate a deep-linked race
+// on its own. On first load an absent key keeps the persisted value, so localStorage
+// still fills the gaps a bare link leaves; after that the URL is authoritative and an
+// absent key means the default again.
+function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): void {
+  const { filter, ageGroup, race, faction, sortBy, order } = query
+
+  if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
+  else if (resetMissing) dwellerStore.setFilterStatus('all')
+
+  if (isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
+  else if (resetMissing) dwellerStore.setFilterAgeGroup('all')
+
+  if (typeof race === 'string' && race) dwellerStore.setFilterRace(race)
+  else if (resetMissing) dwellerStore.setFilterRace('all')
+
+  if (typeof faction === 'string' && faction) dwellerStore.setFilterFaction(faction)
+  else if (resetMissing) dwellerStore.setFilterFaction('all')
+
+  if (isDwellerSortBy(sortBy)) dwellerStore.setSortBy(sortBy)
+  else if (resetMissing) dwellerStore.setSortBy('name')
+
+  if (isSortDirection(order)) dwellerStore.setSortDirection(order)
+  else if (resetMissing) dwellerStore.setSortDirection('asc')
+}
+
+applyFiltersFromQuery(route.query, false)
+
+// A query-only navigation reuses this component, so setup never runs again: follow the URL.
+watch(
+  () => route.query,
+  (query) => applyFiltersFromQuery(query, true)
+)
+
+const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'race', 'faction', 'sortBy', 'order'] as const
+
+function queryValue(value: LocationQueryValueRaw | LocationQueryValueRaw[] | undefined): string {
+  if (Array.isArray(value))
+    return value[0] === null || value[0] === undefined ? '' : String(value[0])
+  return value === null || value === undefined ? '' : String(value)
+}
+
+/** Serialize the filter/sort state, dropping defaults so a bare view keeps a clean URL. */
+function filtersToQuery(): LocationQueryRaw {
+  const query: LocationQueryRaw = { ...route.query }
+  const set = (key: string, value: string | undefined) => {
+    if (value === undefined) delete query[key]
+    else query[key] = value
+  }
+
+  set('filter', dwellerStore.filterStatus === 'all' ? undefined : dwellerStore.filterStatus)
+  set('ageGroup', dwellerStore.filterAgeGroup === 'all' ? undefined : dwellerStore.filterAgeGroup)
+  set('race', dwellerStore.filterRace === 'all' ? undefined : dwellerStore.filterRace)
+  set(
+    'faction',
+    !featureFlags.factionMechanics || dwellerStore.filterFaction === 'all'
+      ? undefined
+      : dwellerStore.filterFaction
+  )
+  set('sortBy', dwellerStore.sortBy === 'name' ? undefined : dwellerStore.sortBy)
+  set('order', dwellerStore.sortDirection === 'asc' ? undefined : dwellerStore.sortDirection)
+  return query
+}
+
+/** Replace (never push) so the URL tracks state without flooding browser history. */
+function syncFiltersToUrl(): void {
+  const next = filtersToQuery()
+  const unchanged = FILTER_QUERY_KEYS.every(
+    (key) => queryValue(next[key]) === queryValue(route.query[key])
+  )
+  if (unchanged) return
+  void router.replace({ query: next })
+}
+
+watch(
+  () => [
+    dwellerStore.filterStatus,
+    dwellerStore.filterAgeGroup,
+    dwellerStore.filterRace,
+    dwellerStore.filterFaction,
+    dwellerStore.sortBy,
+    dwellerStore.sortDirection,
+    featureFlags.factionMechanics,
+  ],
+  syncFiltersToUrl
+)
+
 const isAllDwellersLoading = ref(false)
 const isIncidentsLoading = ref(false)
 const distributionCache = shallowRef<ReturnType<
@@ -137,27 +231,6 @@ const fetchDwellers = async (signal?: AbortSignal) => {
 }
 
 onMounted(async () => {
-  // Handle query parameters for sorting/filtering
-  const {
-    sortBy: sortByParam,
-    order: orderParam,
-    filter: filterParam,
-    ageGroup: ageGroupParam,
-  } = route.query
-
-  if (isDwellerSortBy(sortByParam)) {
-    dwellerStore.setSortBy(sortByParam)
-  }
-  if (isSortDirection(orderParam)) {
-    dwellerStore.setSortDirection(orderParam)
-  }
-  if (isDwellerStatus(filterParam)) {
-    dwellerStore.setFilterStatus(filterParam)
-  }
-  if (isDwellerAgeGroup(ageGroupParam)) {
-    dwellerStore.setFilterAgeGroup(ageGroupParam)
-  }
-
   // Dashboard aggregates, incidents, and rooms load concurrently: the
   // dashboard's loading flag then flips once instead of flapping
   // skeleton -> content -> skeleton per sequential fetch.
@@ -179,6 +252,9 @@ onMounted(async () => {
       roomStore.fetchRooms(vaultId.value, authStore.token as string),
     ])
   }
+
+  // Reflect the restored state so a copied link reproduces this exact view.
+  syncFiltersToUrl()
 })
 
 // Watch for filter/sort changes and refetch

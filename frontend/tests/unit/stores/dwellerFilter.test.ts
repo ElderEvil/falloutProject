@@ -12,7 +12,10 @@ vi.mock('@vueuse/core', () => ({
   createSharedComposable: <T>(fn: () => T) => fn,
 }))
 
-import { useDwellerFilterStore, ALL_DWELLERS_FETCH_LIMIT } from '@/modules/dwellers/stores/dwellerFilter'
+import {
+  useDwellerFilterStore,
+  ALL_DWELLERS_FETCH_LIMIT,
+} from '@/modules/dwellers/stores/dwellerFilter'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
@@ -72,8 +75,16 @@ describe('DwellerFilter Store', () => {
     it('narrows the rendered roster by race and faction from visual_attributes', async () => {
       const store = useDwellerFilterStore()
       store.dwellers = [
-        { id: 'g', status: 'idle', visual_attributes: { race: 'ghoul', faction: 'children_of_atom' } },
-        { id: 'm', status: 'idle', visual_attributes: { race: 'super_mutant', faction: 'raiders' } },
+        {
+          id: 'g',
+          status: 'idle',
+          visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+        },
+        {
+          id: 'm',
+          status: 'idle',
+          visual_attributes: { race: 'super_mutant', faction: 'raiders' },
+        },
         { id: 'n', status: 'idle', visual_attributes: null },
       ] as never
 
@@ -159,10 +170,24 @@ describe('DwellerFilter Store', () => {
     it('should ignore a stale response after filter inputs change', async () => {
       let resolveFirst!: (value: unknown) => void
       const freshData = [
-        { id: 'working', first_name: 'Fresh', last_name: 'Data', status: 'working', level: 1, happiness: 50 },
+        {
+          id: 'working',
+          first_name: 'Fresh',
+          last_name: 'Data',
+          status: 'working',
+          level: 1,
+          happiness: 50,
+        },
       ]
       const staleData = [
-        { id: 'idle', first_name: 'Stale', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'idle',
+          first_name: 'Stale',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
 
       vi.mocked(axios.get)
@@ -176,7 +201,9 @@ describe('DwellerFilter Store', () => {
 
       const store = useDwellerFilterStore()
       const firstRequest = store.fetchDwellersByVault('vault-1', 'test-token', { status: 'idle' })
-      const secondRequest = store.fetchDwellersByVault('vault-1', 'test-token', { status: 'working' })
+      const secondRequest = store.fetchDwellersByVault('vault-1', 'test-token', {
+        status: 'working',
+      })
 
       await secondRequest
       expect(store.dwellers).toEqual(freshData)
@@ -213,9 +240,10 @@ describe('DwellerFilter Store', () => {
     it('should clear allDwellers before loading', async () => {
       let resolveRequest!: (value: unknown) => void
       vi.mocked(axios.get).mockImplementationOnce(
-        () => new Promise((resolve) => {
-          resolveRequest = resolve
-        })
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
       )
 
       const store = useDwellerFilterStore()
@@ -238,7 +266,14 @@ describe('DwellerFilter Store', () => {
 
       resolveRequest({
         data: [
-          { id: 'new', first_name: 'New', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+          {
+            id: 'new',
+            first_name: 'New',
+            last_name: 'Data',
+            status: 'idle',
+            level: 1,
+            happiness: 50,
+          },
         ],
       })
       await promise
@@ -249,16 +284,33 @@ describe('DwellerFilter Store', () => {
     it('should ignore a stale response from an older request', async () => {
       let resolveFirst!: (value: unknown) => void
       const freshData = [
-        { id: 'fresh', first_name: 'Fresh', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'fresh',
+          first_name: 'Fresh',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
       const staleData = [
-        { id: 'stale', first_name: 'Stale', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'stale',
+          first_name: 'Stale',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
 
       vi.mocked(axios.get)
-        .mockImplementationOnce(() => new Promise((resolve) => {
-          resolveFirst = resolve
-        }))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve
+            })
+        )
         .mockResolvedValueOnce({ data: freshData })
 
       const store = useDwellerFilterStore()
@@ -279,16 +331,33 @@ describe('DwellerFilter Store', () => {
     it('should ignore a response for a different vault than the current one', async () => {
       let resolveVault1!: (value: unknown) => void
       const vault2Data = [
-        { id: 'v2', first_name: 'Vault2', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'v2',
+          first_name: 'Vault2',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
       const vault1Data = [
-        { id: 'v1', first_name: 'Vault1', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'v1',
+          first_name: 'Vault1',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
 
       vi.mocked(axios.get)
-        .mockImplementationOnce(() => new Promise((resolve) => {
-          resolveVault1 = resolve
-        }))
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveVault1 = resolve
+            })
+        )
         .mockResolvedValueOnce({ data: vault2Data })
 
       const store = useDwellerFilterStore()
@@ -310,7 +379,14 @@ describe('DwellerFilter Store', () => {
 
       const store = useDwellerFilterStore()
       store.allDwellers = [
-        { id: 'old', first_name: 'Old', last_name: 'Data', status: 'idle', level: 1, happiness: 50 },
+        {
+          id: 'old',
+          first_name: 'Old',
+          last_name: 'Data',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        },
       ]
 
       await store.fetchAllDwellers('vault-1', 'test-token')
@@ -543,6 +619,33 @@ describe('DwellerFilter Store', () => {
       expect(result[0].id).toBe('d1')
       expect(result[1].id).toBe('d2')
     })
+
+    it('treats a missing stat as zero rather than comparing as NaN', () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        {
+          id: 'has',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+          strength: 5,
+        } as never,
+        {
+          id: 'missing',
+          first_name: 'B',
+          last_name: 'B',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as never,
+      ]
+      store.setSortBy('strength')
+      store.setSortDirection('asc')
+
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['missing', 'has'])
+    })
   })
 
   describe('countByStatus', () => {
@@ -652,6 +755,19 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('Setters', () => {
+    it('drops the facet filters when the status becomes dead', () => {
+      const store = useDwellerFilterStore()
+      store.setFilterAgeGroup('adult')
+      store.setFilterRace('ghoul')
+      store.setFilterFaction('children_of_atom')
+
+      store.setFilterStatus('dead')
+
+      expect(store.filterAgeGroup).toBe('all')
+      expect(store.filterRace).toBe('all')
+      expect(store.filterFaction).toBe('all')
+    })
+
     it('setFilterStatus updates filterStatus', () => {
       const store = useDwellerFilterStore()
       store.setFilterStatus('working')
@@ -721,6 +837,15 @@ describe('DwellerFilter Store', () => {
       store.applyTablePreset('vitals')
 
       expect(store.tableColumns).toEqual(['portrait', 'name', 'status', 'health', 'happiness'])
+    })
+
+    it('resetTableColumns restores the defaults after a preset', () => {
+      const store = useDwellerFilterStore()
+      store.applyTablePreset('vitals')
+
+      store.resetTableColumns()
+
+      expect(store.tableColumns).toEqual(DEFAULT_TABLE_COLUMNS)
     })
 
     it('ignores an unknown preset', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DwellerBadge from './DwellerBadge.vue'
+import { RARITY_CONFIG_MAP } from '../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
 type Rarity = components['schemas']['RarityEnum']
@@ -14,22 +15,12 @@ const props = withDefaults(
   { rarity: null, showLabel: false, size: 'md' }
 )
 
-const RARITY_META: Record<Rarity, { color: string; icon: string; label: string }> = {
-  common: { color: 'var(--badge-rarity-common)', icon: 'mdi:star-outline', label: 'Common' },
-  rare: { color: 'var(--badge-rarity-rare)', icon: 'mdi:star', label: 'Rare' },
-  legendary: {
-    color: 'var(--badge-rarity-legendary)',
-    icon: 'mdi:star-four-points',
-    label: 'Legendary',
-  },
-}
-
 const rarity = computed<Rarity>(() => {
   const r = String(props.rarity ?? '').toLowerCase()
   return r === 'rare' || r === 'legendary' ? r : 'common'
 })
 
-const meta = computed(() => RARITY_META[rarity.value])
+const meta = computed(() => RARITY_CONFIG_MAP[rarity.value])
 </script>
 
 <template>

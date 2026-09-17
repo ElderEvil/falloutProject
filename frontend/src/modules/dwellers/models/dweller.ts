@@ -16,6 +16,52 @@ export function formatIdentityLabel(value: string): string {
     .join(' ')
 }
 
+/** Race → display config — single source of truth for race badges and the identity signal. */
+export const RACE_CONFIG_MAP: Record<string, { icon: string; label: string }> = {
+  human: { icon: 'mdi:account', label: 'Human' },
+  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul' },
+  super_mutant: { icon: 'mdi:arm-flex', label: 'Super Mutant' },
+  synth: { icon: 'mdi:robot-outline', label: 'Synth' },
+}
+
+export function getRaceConfig(race: string | null | undefined): { icon: string; label: string } {
+  const key = String(race ?? '').toLowerCase()
+  return (
+    RACE_CONFIG_MAP[key] ?? {
+      icon: 'mdi:account-question-outline',
+      label: formatIdentityLabel(key),
+    }
+  )
+}
+
+export interface BadgeConfig {
+  color: string
+  icon: string
+  label: string
+}
+
+/** Age, gender and rarity display config — the badge wrappers read these, never their own copy. */
+export const AGE_CONFIG_MAP: Record<components['schemas']['AgeGroupEnum'], BadgeConfig> = {
+  child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child' },
+  teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen' },
+  adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult' },
+}
+
+export const GENDER_CONFIG_MAP: Record<components['schemas']['GenderEnum'], BadgeConfig> = {
+  male: { color: 'var(--badge-gender-male)', icon: 'mdi:gender-male', label: 'Male' },
+  female: { color: 'var(--badge-gender-female)', icon: 'mdi:gender-female', label: 'Female' },
+}
+
+export const RARITY_CONFIG_MAP: Record<components['schemas']['RarityEnum'], BadgeConfig> = {
+  common: { color: 'var(--badge-rarity-common)', icon: 'mdi:star-outline', label: 'Common' },
+  rare: { color: 'var(--badge-rarity-rare)', icon: 'mdi:star', label: 'Rare' },
+  legendary: {
+    color: 'var(--badge-rarity-legendary)',
+    icon: 'mdi:star-four-points',
+    label: 'Legendary',
+  },
+}
+
 // Single source of truth shared by DwellerBio and the detail container (relocated from a component export).
 export interface MapPlaceLink {
   name: string

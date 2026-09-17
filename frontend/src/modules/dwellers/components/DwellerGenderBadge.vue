@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DwellerBadge from './DwellerBadge.vue'
+import { GENDER_CONFIG_MAP } from '../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
 type Gender = components['schemas']['GenderEnum']
@@ -14,14 +15,9 @@ const props = withDefaults(
   { gender: null, showLabel: false, size: 'md' }
 )
 
-const GENDER_META: Record<Gender, { color: string; icon: string; label: string }> = {
-  male: { color: 'var(--badge-gender-male)', icon: 'mdi:gender-male', label: 'Male' },
-  female: { color: 'var(--badge-gender-female)', icon: 'mdi:gender-female', label: 'Female' },
-}
-
 const meta = computed(() => {
   const g = String(props.gender ?? '').toLowerCase()
-  return g === 'male' || g === 'female' ? GENDER_META[g] : null
+  return g === 'male' || g === 'female' ? GENDER_CONFIG_MAP[g] : null
 })
 </script>
 

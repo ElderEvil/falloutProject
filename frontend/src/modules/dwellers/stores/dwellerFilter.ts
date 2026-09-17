@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -79,6 +79,31 @@ export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
 
 export const isSortDirection = (value: unknown): value is SortDirection =>
   typeof value === 'string' && (SORT_DIRECTIONS as readonly string[]).includes(value)
+
+/**
+ * Roster ordering, shared by the store and the unassigned panel. The second copy that
+ * lived in UnassignedDwellers had already drifted on how a missing stat sorts.
+ */
+export function compareDwellers(
+  a: DwellerShort,
+  b: DwellerShort,
+  sortBy: DwellerSortBy,
+  direction: SortDirection
+): number {
+  const comparison =
+    sortBy === 'name'
+      ? `${a.first_name} ${a.last_name}`
+          .toLowerCase()
+          .localeCompare(`${b.first_name} ${b.last_name}`.toLowerCase())
+      : (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
+
+  return direction === 'asc' ? comparison : -comparison
+}
+
+/** `all` means unfiltered, so the roster and the facet counts share one definition. */
+export function matchesAgeGroup(dweller: DwellerShort, ageGroup: DwellerAgeGroup): boolean {
+  return ageGroup === 'all' || dweller.age_group === ageGroup
+}
 export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
@@ -153,6 +178,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   )
 
+  // Dead is served by its own endpoint, whose payload carries no age, race or faction, so
+  // the dead panel cannot apply those facets. They are dropped on entry — and on hydration
+  // — instead of lingering as hidden filters the summary and URL would still claim.
+  watch(
+    filterStatus,
+    (status) => {
+      if (status !== 'dead') return
+      filterAgeGroup.value = 'all'
+      filterRace.value = 'all'
+      filterFaction.value = 'all'
+    },
+    { immediate: true, flush: 'sync' }
+  )
+
   /**
    * Get dweller status - now directly from backend
    */
@@ -208,22 +247,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
 
     // Apply sorting
-    result = [...result].sort((a, b) => {
-      let comparison = 0
-
-      if (sortBy.value === 'name') {
-        const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
-        const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
-        comparison = nameA.localeCompare(nameB)
-      } else if (sortBy.value === 'level' || sortBy.value === 'happiness') {
-        comparison = a[sortBy.value] - b[sortBy.value]
-      } else {
-        // SPECIAL stats sorting
-        comparison = a[sortBy.value] - b[sortBy.value]
-      }
-
-      return sortDirection.value === 'asc' ? comparison : -comparison
-    })
+    result = [...result].sort((a, b) => compareDwellers(a, b, sortBy.value, sortDirection.value))
 
     return result
   })
@@ -246,7 +270,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     let all = 0
 
     for (const dweller of allDwellers.value) {
-      if (filters.ageGroup !== 'all' && dweller.age_group !== filters.ageGroup) continue
+      if (!matchesAgeGroup(dweller, filters.ageGroup)) continue
       if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
       if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
 
@@ -366,6 +390,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (preset) tableColumns.value = canonicalColumnOrder(preset.columns)
   }
 
+  function resetTableColumns(): void {
+    tableColumns.value = [...DEFAULT_TABLE_COLUMNS]
+  }
+
   return {
     dwellers,
     allDwellers,
@@ -397,5 +425,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setViewMode,
     toggleTableColumn,
     applyTablePreset,
+    resetTableColumns,
   }
 })

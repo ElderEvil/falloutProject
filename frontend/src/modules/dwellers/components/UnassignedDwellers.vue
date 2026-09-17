@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useDwellerStore } from '../stores/dweller'
+import { useDwellerStore, compareDwellers, matchesAgeGroup } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
@@ -10,6 +10,7 @@ import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
+import DwellerDisplayControls from './DwellerDisplayControls.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
@@ -53,35 +54,19 @@ const isUnassignable = (dweller: DwellerShort): boolean =>
 
 const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isUnassignable))
 
-// Use unfiltered dwellers from store, but only show unassigned ones
-// We manually apply sorting here to respect the sort preference without being affected by the global status filter
+// Use unfiltered dwellers from store, but only show unassigned ones, ordered by the
+// shared sort preference without being affected by the global status filter.
 const unassignedDwellers = computed(() => {
   const filtered = dwellerStore.dwellersWithStatus.filter(
     (dweller) =>
       isUnassignable(dweller) &&
-      (dwellerStore.filterAgeGroup === 'all' ||
-        dweller.age_group === dwellerStore.filterAgeGroup) &&
+      matchesAgeGroup(dweller, dwellerStore.filterAgeGroup) &&
       (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
   )
 
-  // 2. Sort based on store preferences (shared with filter panel)
-  return filtered.sort((a, b) => {
-    let comparison = 0
-    const sortBy = dwellerStore.sortBy
-
-    if (sortBy === 'name') {
-      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
-      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
-      comparison = nameA.localeCompare(nameB)
-    } else if (sortBy === 'level' || sortBy === 'happiness') {
-      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
-    } else {
-      // SPECIAL stats
-      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
-    }
-
-    return dwellerStore.sortDirection === 'asc' ? comparison : -comparison
-  })
+  return filtered.sort((a, b) =>
+    compareDwellers(a, b, dwellerStore.sortBy, dwellerStore.sortDirection)
+  )
 })
 
 const isDraggingOver = ref(false)
@@ -159,7 +144,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
           <template #additional-filters>
             <DwellerFilterGroup
-              label="Rarity"
+              label="Filter by Rarity"
               icon="mdi:star-four-points"
               :options="RARITY_FILTERS"
               :model-value="filterRarity"
@@ -167,6 +152,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
             />
           </template>
         </DwellerFilterPanel>
+
+        <DwellerDisplayControls />
       </div>
     </div>
 

@@ -11,10 +11,12 @@ export {
   DWELLER_SORT_KEYS,
   DWELLER_STATUSES,
   SORT_DIRECTIONS,
+  compareDwellers,
   isDwellerAgeGroup,
   isDwellerSortBy,
   isDwellerStatus,
   isSortDirection,
+  matchesAgeGroup,
 } from './dwellerFilter'
 
 export { useDwellerFilterStore } from './dwellerFilter'

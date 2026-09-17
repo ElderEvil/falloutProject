@@ -12,6 +12,7 @@ import USkeleton from '@/core/components/ui/USkeleton.vue'
 import DwellerPortrait from '../DwellerPortrait.vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
+import DwellerRaceBadge from '../DwellerRaceBadge.vue'
 import DwellerGenderBadge from '../DwellerGenderBadge.vue'
 import DwellerRarityBadge from '../DwellerRarityBadge.vue'
 import { useRoomLookup } from '../../composables/useRoomLookup'
@@ -94,7 +95,6 @@ function activate(dwellerId: string) {
               v-if="column.id === 'portrait'"
               :thumbnail-url="dweller.thumbnail_url"
               alt=""
-
               fallback-icon="mdi:account-circle"
               image-class="h-9 w-9 rounded object-cover"
               fallback-class="h-9 w-9 text-theme-primary/60"
@@ -116,7 +116,17 @@ function activate(dwellerId: string) {
               :gender="dweller.gender"
               size="sm"
             />
-            <DwellerAgeBadge v-else-if="column.id === 'age'" :age-group="dweller.age_group" size="sm" />
+            <DwellerAgeBadge
+              v-else-if="column.id === 'age'"
+              :age-group="dweller.age_group"
+              size="sm"
+            />
+            <DwellerRaceBadge
+              v-else-if="column.id === 'race'"
+              :race="dweller.visual_attributes?.race"
+              show-label
+              size="sm"
+            />
             <DwellerStatusBadge
               v-else-if="column.id === 'status'"
               :status="dweller.status"

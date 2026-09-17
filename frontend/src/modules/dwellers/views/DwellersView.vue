@@ -31,6 +31,7 @@ import {
 } from '../stores/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
+import DwellerDisplayControls from '../components/DwellerDisplayControls.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
 import DwellersList from '../components/DwellersList.vue'
 import DeadDwellersPanel from '../components/DeadDwellersPanel.vue'
@@ -70,6 +71,11 @@ const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 const revivingDwellers = ref<Record<string, boolean>>({})
 const isDeadFilter = computed(() => dwellerStore.filterStatus === 'dead')
+
+/** The dead panel renders a different list, so the count follows whichever is on screen. */
+const shownCount = computed(() =>
+  isDeadFilter.value ? dwellerDeathStore.deadDwellers.length : dwellerStore.dwellers.length
+)
 
 // Applied here rather than on mount so the filter panel can validate a deep-linked race
 // on its own. On first load an absent key keeps the persisted value, so localStorage
@@ -449,14 +455,18 @@ const handleTreatIrradiated = async () => {
             </details>
           </div>
 
-          <!-- Filter Panel with View Toggle -->
+          <!-- Filters narrow the roster; Sort and View live on the list toolbar below. -->
           <div class="w-full mb-4">
             <DwellerFilterPanel
               :show-age-filter="!isDeadFilter"
               :show-identity-filters="!isDeadFilter"
               :show-active-filter-summary="true"
-              :show-view-toggle="true"
             />
+          </div>
+
+          <div class="list-toolbar">
+            <DwellerDisplayControls :show-view="true" />
+            <span class="list-toolbar-count">{{ shownCount }} shown</span>
           </div>
 
           <!-- Bulk Actions - Separate Section -->
@@ -534,6 +544,22 @@ const handleTreatIrradiated = async () => {
 .happiness-overview > summary:focus-visible {
   outline: 2px solid var(--color-theme-primary);
   outline-offset: 2px;
+}
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.list-toolbar-count {
+  color: var(--color-theme-primary);
+  font-size: 0.8125rem;
+  /* Matches the Happiness overview's muted dweller count so the two bars read as a pair. */
+  opacity: 0.6;
 }
 
 /* Enhanced text styles */

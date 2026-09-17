@@ -33,11 +33,13 @@ function makeDweller(overrides: Partial<DwellerShort> = {}): DwellerShort {
   }
 }
 
-const rooms = [
-  { id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' } as Room,
-]
+const rooms = [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' } as Room]
 
-function mountTable(columns: DwellerTableColumnId[], dwellers = [makeDweller()], isLoading = false) {
+function mountTable(
+  columns: DwellerTableColumnId[],
+  dwellers = [makeDweller()],
+  isLoading = false
+) {
   return mount(DwellersTable, {
     props: { dwellers, rooms, columns, isLoading },
     global: { stubs: { Icon: true } },
@@ -57,18 +59,23 @@ describe('DwellersTable', () => {
       const wrapper = mountTable(['portrait', 'name'])
       expect(wrapper.findAll('tbody td')).toHaveLength(2)
     })
+
+    it('renders the race column as a labelled badge', () => {
+      const wrapper = mountTable(['race'], [makeDweller({ visual_attributes: { race: 'ghoul' } })])
+
+      expect(wrapper.text()).toContain('Ghoul')
+    })
+
+    it('renders a dash for the race column when a dweller has no race', () => {
+      const wrapper = mountTable(['race'], [makeDweller({ visual_attributes: null })])
+
+      expect(wrapper.text()).toContain('—')
+    })
   })
 
   describe('Dweller data', () => {
     it('renders identity, progression, vitals, status and room values', () => {
-      const wrapper = mountTable([
-        'name',
-        'level',
-        'status',
-        'health',
-        'happiness',
-        'room',
-      ])
+      const wrapper = mountTable(['name', 'level', 'status', 'health', 'happiness', 'room'])
 
       const cells = wrapper.findAll('tbody td').map((td) => td.text())
       expect(cells).toEqual(['Sarah Lyons', '5', 'Working', '80 / 100', '75%', 'Arena'])

@@ -29,15 +29,16 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   }),
 }))
 
-describe('DwellerFilterPanel', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    // The filter store hydrates from localStorage, so a leftover key would leak across cases.
-    localStorage.clear()
-    localStorage.setItem('dwellerViewMode', 'grid')
-    localStorage.removeItem('dwellerTableColumns')
-  })
+// Every case gets a fresh store: it hydrates from localStorage, so a leftover
+// key would otherwise leak across tests and describes.
+beforeEach(() => {
+  setActivePinia(createPinia())
+  localStorage.clear()
+  localStorage.setItem('dwellerViewMode', 'grid')
+  localStorage.removeItem('dwellerTableColumns')
+})
 
+describe('DwellerFilterPanel', () => {
   describe('Status Filters', () => {
     it('should render all status filter options', () => {
       const wrapper = mount(DwellerFilterPanel)
@@ -213,7 +214,10 @@ describe('DwellerFilterPanel', () => {
 
   describe('Identity filters', () => {
     it('hides the faction select while the switch is off', async () => {
-      useFeatureFlagsStore().factionMechanics = false
+      const flags = useFeatureFlagsStore()
+      flags.factionMechanics = false
+      // Mark flags loaded so mounting does not refetch and re-enable the switch.
+      flags.loaded = true
       const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
       await flushPromises()
 
@@ -263,6 +267,122 @@ describe('DwellerFilterPanel', () => {
       await flushPromises()
 
       expect(store.filterFaction).toBe('all')
+      wrapper.unmount()
+    })
+  })
+
+  describe('Status counts', () => {
+    const chipByLabel = (wrapper: ReturnType<typeof mount>, label: string) =>
+      wrapper.findAll('.filter-chip').find((chip) => chip.text().includes(label))!
+
+    it('shows a count per status and omits the dead count', async () => {
+      const store = useDwellerStore().filter
+      store.allDwellers = [
+        { id: '1', status: 'idle' },
+        { id: '2', status: 'idle' },
+        { id: '3', status: 'working' },
+        { id: '4', status: 'dead' },
+      ] as never
+
+      const wrapper = mount(DwellerFilterPanel)
+      await wrapper.vm.$nextTick()
+
+      expect(chipByLabel(wrapper, 'Idle').find('.filter-count').text()).toBe('2')
+      expect(chipByLabel(wrapper, 'Working').find('.filter-count').text()).toBe('1')
+      expect(chipByLabel(wrapper, 'All').find('.filter-count').text()).toBe('4')
+      expect(chipByLabel(wrapper, 'Dead').find('.filter-count').exists()).toBe(false)
+
+      wrapper.unmount()
+    })
+
+    it('marks zero-count statuses as empty', async () => {
+      const store = useDwellerStore().filter
+      store.allDwellers = [{ id: '1', status: 'idle' }] as never
+
+      const wrapper = mount(DwellerFilterPanel)
+      await wrapper.vm.$nextTick()
+
+      expect(chipByLabel(wrapper, 'Working').classes()).toContain('empty')
+      expect(chipByLabel(wrapper, 'Idle').classes()).not.toContain('empty')
+      expect(chipByLabel(wrapper, 'Dead').classes()).not.toContain('empty')
+
+      wrapper.unmount()
+    })
+
+    it('contextualizes counts by the age filter only while it is on screen', async () => {
+      const store = useDwellerStore().filter
+      store.allDwellers = [
+        { id: '1', status: 'idle', age_group: 'adult' },
+        { id: '2', status: 'working', age_group: 'child' },
+      ] as never
+      store.setFilterAgeGroup('adult')
+
+      const ageHidden = mount(DwellerFilterPanel)
+      await ageHidden.vm.$nextTick()
+      expect(chipByLabel(ageHidden, 'Working').find('.filter-count').text()).toBe('1')
+
+      const ageShown = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
+      await ageShown.vm.$nextTick()
+      expect(chipByLabel(ageShown, 'Working').find('.filter-count').text()).toBe('0')
+
+      ageHidden.unmount()
+      ageShown.unmount()
+    })
+
+    it('shows no counts until the roster has loaded', async () => {
+      const wrapper = mount(DwellerFilterPanel)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.filter-count').exists()).toBe(false)
+      wrapper.unmount()
+    })
+  })
+
+  describe('Active filter summary', () => {
+    it('stays hidden while no filters are active', () => {
+      const wrapper = mount(DwellerFilterPanel, { props: { showActiveFilterSummary: true } })
+
+      expect(wrapper.find('.filter-summary').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('lists active filters and clears only the filtering state', async () => {
+      const store = useDwellerStore().filter
+      store.setFilterStatus('idle')
+      store.setFilterAgeGroup('adult')
+      store.setSortBy('level')
+      store.setViewMode('grid')
+
+      const wrapper = mount(DwellerFilterPanel, {
+        props: { showActiveFilterSummary: true, showAgeFilter: true },
+      })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.filter-summary').text()).toContain('Idle')
+      expect(wrapper.find('.filter-summary').text()).toContain('Adult')
+
+      await wrapper.find('.filter-clear').trigger('click')
+
+      expect(store.filterStatus).toBe('all')
+      expect(store.filterAgeGroup).toBe('all')
+      expect(store.filterRace).toBe('all')
+      expect(store.filterFaction).toBe('all')
+      expect(store.sortBy).toBe('level')
+      expect(store.viewMode).toBe('grid')
+
+      wrapper.unmount()
+    })
+
+    it('names an active identity filter', async () => {
+      const store = useDwellerStore().filter
+      store.setFilterRace('ghoul')
+
+      const wrapper = mount(DwellerFilterPanel, {
+        props: { showActiveFilterSummary: true, showIdentityFilters: true },
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.filter-summary').text()).toContain('Ghoul')
       wrapper.unmount()
     })
   })

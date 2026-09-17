@@ -545,6 +545,84 @@ describe('DwellerFilter Store', () => {
     })
   })
 
+  describe('countByStatus', () => {
+    const roster = [
+      {
+        id: '1',
+        status: 'idle',
+        age_group: 'adult',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '2',
+        status: 'idle',
+        age_group: 'child',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+      {
+        id: '3',
+        status: 'working',
+        age_group: 'adult',
+        visual_attributes: { race: 'human', faction: 'vault_dweller' },
+      },
+      {
+        id: '4',
+        status: 'dead',
+        age_group: 'adult',
+        visual_attributes: { race: 'ghoul', faction: 'children_of_atom' },
+      },
+    ] as never
+
+    it('counts every status from allDwellers, not the status-narrowed roster', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+      store.dwellers = [{ id: 'only-idle', status: 'idle' }] as never
+      store.filterStatus = 'idle'
+
+      const { all, byStatus } = store.countByStatus({
+        ageGroup: 'all',
+        race: 'all',
+        faction: 'all',
+      })
+
+      expect(all).toBe(4)
+      expect(byStatus.idle).toBe(2)
+      expect(byStatus.working).toBe(1)
+      expect(byStatus.dead).toBe(1)
+      expect(byStatus.questing).toBe(0)
+    })
+
+    it('narrows counts by the non-status filters it is given', () => {
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all, byStatus } = store.countByStatus({
+        ageGroup: 'adult',
+        race: 'ghoul',
+        faction: 'all',
+      })
+
+      expect(all).toBe(2)
+      expect(byStatus.idle).toBe(1)
+      expect(byStatus.dead).toBe(1)
+      expect(byStatus.working).toBe(0)
+    })
+
+    it('ignores a faction filter while the faction switch is off', () => {
+      useFeatureFlagsStore().factionMechanics = false
+      const store = useDwellerFilterStore()
+      store.allDwellers = roster
+
+      const { all } = store.countByStatus({
+        ageGroup: 'all',
+        race: 'all',
+        faction: 'children_of_atom',
+      })
+
+      expect(all).toBe(4)
+    })
+  })
+
   describe('getDwellerStatus', () => {
     it('should return status for existing dweller', () => {
       const store = useDwellerFilterStore()

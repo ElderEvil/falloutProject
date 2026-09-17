@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.115.1 (2026-09-17)
+
+### Bug Fixes
+
+* align roster filter dropdowns with the chip sizing 0d97793
+* keep persisted roster filters when identity options fail to load f629c82
+
+### Documentation
+
+* consolidate the audit trail into docs/AUDIT.md e30f3db
+
+### Code Refactoring
+
+* derive dweller filter options and stat labels from single sources 4647356
+* share identity options and lift appearance catalogue d6aa7cd
+* single-source identity enums and route roster queries through services e3524ae
+
 ## 2.115.0 (2026-09-17)
 
 ### Features

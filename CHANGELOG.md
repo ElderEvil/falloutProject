@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.116.0 (2026-09-17)
+
+### Features
+
+* serve appearance options from the canonical backend catalogue 22620b9
+
+### Code Refactoring
+
+* read the appearance editor catalogue from the API d56ce1f
+
 ## 2.115.1 (2026-09-17)
 
 ### Bug Fixes

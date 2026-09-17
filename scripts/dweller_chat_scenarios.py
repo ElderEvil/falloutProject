@@ -740,6 +740,14 @@ def run_mode(
 # --------------------------------------------------------------------------------------
 
 
+def _average_metric(metrics: list[dict[str, Any]], key: str) -> float:
+    """Mean of one numeric metric across a group, ignoring missing or non-numeric values."""
+    values = [
+        metric[key] for metric in metrics if isinstance(metric.get(key), (int, float))
+    ]
+    return round(statistics.mean(values), 2) if values else 0.0
+
+
 def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for row in results:
@@ -750,24 +758,18 @@ def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         metrics = [row["metrics"] for row in rows]
         latencies = [row["latency_ms"] for row in rows]
 
-        def avg(key: str) -> float:
-            values = [
-                metric[key]
-                for metric in metrics
-                if isinstance(metric.get(key), (int, float))
-            ]
-            return round(statistics.mean(values), 2) if values else 0.0
-
         summary.append(
             {
                 "mode": mode,
                 "persona": persona,
                 "turns": len(rows),
-                "avg_word_count": avg("word_count"),
-                "avg_words_per_sentence": avg("avg_words_per_sentence"),
-                "avg_flesch": avg("flesch_reading_ease"),
-                "unique_word_ratio": avg("unique_word_ratio"),
-                "affect_balance": avg("affect_balance"),
+                "avg_word_count": _average_metric(metrics, "word_count"),
+                "avg_words_per_sentence": _average_metric(
+                    metrics, "avg_words_per_sentence"
+                ),
+                "avg_flesch": _average_metric(metrics, "flesch_reading_ease"),
+                "unique_word_ratio": _average_metric(metrics, "unique_word_ratio"),
+                "affect_balance": _average_metric(metrics, "affect_balance"),
                 "negative_hits": sum(
                     len(metric["negative_hits"]) for metric in metrics
                 ),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   useDwellerStore,
@@ -7,11 +7,9 @@ import {
   type DwellerSortBy,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { handleStoreError } from '@/core/utils/errorHandler'
-import { getIdentityOptions } from '../services/dwellerService'
 import { formatIdentityLabel } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useIdentityOptions } from '../composables/useIdentityOptions'
 import USelect from '@/core/components/ui/USelect.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
@@ -31,32 +29,21 @@ const {
 } = defineProps<Props>()
 
 const { filter: dwellerStore } = useDwellerStore()
-const authStore = useAuthStore()
 const featureFlags = useFeatureFlagsStore()
-
-/** Race/faction choices come from the backend options, so the panel cannot drift from them. */
-const races = ref<string[]>([])
-const factionsByRace = ref<Record<string, string[]>>({})
+const { races, factionsByRace, load: loadIdentityOptions } = useIdentityOptions()
 
 onMounted(async () => {
   await featureFlags.fetchFlags()
-  if (!showIdentityFilters || !authStore.token) return
+  if (!showIdentityFilters) return
 
-  try {
-    const options = await getIdentityOptions(authStore.token)
-    races.value = options.races ?? []
-    factionsByRace.value = options.factions_by_race ?? {}
+  await loadIdentityOptions()
 
-    // A persisted selection can outlive the options it came from, and the watcher below
-    // only reacts to a race *change* — so validate what was restored here.
-    if (dwellerStore.filterRace !== 'all' && !races.value.includes(dwellerStore.filterRace)) {
-      dwellerStore.setFilterRace('all')
-    }
-    dropStrandedFaction()
-  } catch (error) {
-    // Filters degrade to "all" rather than breaking the roster view.
-    handleStoreError(error, 'Failed to load identity filter options', false)
+  // A persisted selection can outlive the options it came from, and the watcher below
+  // only reacts to a race *change* — so validate what was restored here.
+  if (dwellerStore.filterRace !== 'all' && !races.value.includes(dwellerStore.filterRace)) {
+    dwellerStore.setFilterRace('all')
   }
+  dropStrandedFaction()
 })
 
 const raceSelectOptions = computed(() => [

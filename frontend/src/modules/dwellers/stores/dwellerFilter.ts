@@ -366,6 +366,10 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (preset) tableColumns.value = canonicalColumnOrder(preset.columns)
   }
 
+  function resetTableColumns(): void {
+    tableColumns.value = [...DEFAULT_TABLE_COLUMNS]
+  }
+
   return {
     dwellers,
     allDwellers,
@@ -397,5 +401,6 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     setViewMode,
     toggleTableColumn,
     applyTablePreset,
+    resetTableColumns,
   }
 })

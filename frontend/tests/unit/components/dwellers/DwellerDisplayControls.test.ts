@@ -6,6 +6,7 @@ import displayControlsSource from '@/modules/dwellers/components/DwellerDisplayC
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import filterGroupSource from '@/modules/dwellers/components/DwellerFilterGroup.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
 describe('DwellerDisplayControls', () => {
   beforeEach(() => {
@@ -105,6 +106,20 @@ describe('DwellerDisplayControls', () => {
     expect(store.tableColumns).toContain('health')
     expect(store.tableColumns).not.toContain('room')
     expect(wrapper.find('.columns-menu').exists()).toBe(false)
+  })
+
+  it('resets the columns back to the defaults', async () => {
+    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
+    const store = useDwellerStore().filter
+
+    store.setViewMode('table')
+    store.applyTablePreset('vitals')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
+    await wrapper.find('.preset-reset').trigger('click')
+
+    expect(store.tableColumns).toEqual(DEFAULT_TABLE_COLUMNS)
   })
 
   it('styles its controls like the filter panel so the toolbar stays one control set', () => {

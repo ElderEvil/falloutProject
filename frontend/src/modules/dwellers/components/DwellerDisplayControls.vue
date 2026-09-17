@@ -135,7 +135,12 @@ function applyPreset(presetId: string) {
       </button>
 
       <div v-if="columnsMenuOpen" class="columns-menu">
-        <span class="preset-label">Quick presets</span>
+        <div class="columns-head">
+          <span class="preset-label">Quick presets</span>
+          <button type="button" class="preset-reset" @click="dwellerStore.resetTableColumns()">
+            Reset
+          </button>
+        </div>
         <div class="view-toggle-controls">
           <button
             v-for="preset in DWELLER_TABLE_PRESETS"
@@ -251,6 +256,38 @@ function applyPreset(presetId: string) {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   opacity: 0.6;
+}
+
+.columns-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.preset-reset {
+  padding: 0.15rem 0.4rem;
+  background: transparent;
+  border: 1px solid var(--color-theme-glow);
+  border-radius: 4px;
+  color: var(--color-theme-primary);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.preset-reset:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-theme-primary);
+}
+
+.preset-reset:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 
 .view-toggle-btn {

@@ -43,6 +43,14 @@ describe('dwellerTable model', () => {
     expect(canonicalColumnOrder(['room', 'name', 'level'])).toEqual(['name', 'level', 'room'])
   })
 
+  it('offers roster, vitals and demographics presets', () => {
+    expect(DWELLER_TABLE_PRESETS.map((preset) => preset.id)).toEqual([
+      'roster',
+      'vitals',
+      'demographics',
+    ])
+  })
+
   it('offers race as a column and in the demographics preset', () => {
     expect(DWELLER_TABLE_COLUMNS.map((column) => column.id)).toContain('race')
     expect(DWELLER_TABLE_PRESETS.find((preset) => preset.id === 'demographics')?.columns).toContain(

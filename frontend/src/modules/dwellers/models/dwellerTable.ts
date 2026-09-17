@@ -78,12 +78,6 @@ export const DWELLER_TABLE_PRESETS: readonly DwellerTablePreset[] = [
     columns: ['portrait', 'name', 'health', 'happiness', 'status'],
   },
   {
-    id: 'assignments',
-    label: 'Assignments',
-    icon: 'mdi:door-closed',
-    columns: ['portrait', 'name', 'room', 'status'],
-  },
-  {
     id: 'demographics',
     label: 'Demographics',
     icon: 'mdi:account-group',

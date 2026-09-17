@@ -69,6 +69,37 @@ def test_identity_options_match_the_canonical_faction_restrictions() -> None:
     assert options.states_by_race["super_mutant"] == ["mild", "average", "behemoth"]
 
 
+def test_appearance_options_match_the_canonical_module() -> None:
+    """The editor catalogue is served from app/options/appearance.py, not mirrored."""
+    from app.options.appearance import (
+        background_options,
+        body_type_options,
+        expression_options,
+        eye_color_options,
+        hair_color_options,
+        haircuts,
+        headgear_options,
+        height_options,
+        pose_options,
+        skin_tone_options,
+    )
+    from app.options.races import RaceOption
+
+    options = dweller_service.get_appearance_options()
+
+    assert set(options.skin_tones_by_race) == {race.value for race in RaceOption}
+    assert options.skin_tones_by_race["human"] == skin_tone_options[RaceOption.HUMAN]
+    assert options.builds_by_race["ghoul"] == body_type_options[RaceOption.GHOUL]
+    assert options.haircuts_by_race["synth"] == haircuts[RaceOption.SYNTH]
+    assert options.headgear_by_race["super_mutant"] == headgear_options[RaceOption.SUPER_MUTANT]
+    assert options.expressions == list(expression_options)
+    assert options.poses == pose_options
+    assert options.backgrounds == background_options
+    assert options.heights == height_options
+    assert options.eye_colors == eye_color_options
+    assert options.hair_colors == hair_color_options
+
+
 def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
     """Local models sometimes wrap every structured scalar in a one-item list."""
     attributes = DwellerVisualAttributes.model_validate(

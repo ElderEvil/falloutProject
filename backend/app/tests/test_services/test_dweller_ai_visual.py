@@ -162,9 +162,9 @@ def test_presets_exist() -> None:
     assert "Super Mutant Brute" in archetypes
 
 
-def test_scenes_import() -> None:
-    """Scene options should be importable."""
-    from app.options.scenes import background_options, pose_options
+def test_scene_options_are_part_of_the_appearance_catalogue() -> None:
+    """Pose and background options live in the canonical appearance module."""
+    from app.options.appearance import background_options, pose_options
 
     assert len(pose_options) >= 5
     assert len(background_options) >= 5

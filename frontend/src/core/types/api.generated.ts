@@ -588,6 +588,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/appearance-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Appearance Options
+         * @description Return the canonical appearance choices for the appearance editor.
+         */
+        get: operations["read_appearance_options_api_v1_dwellers_appearance_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}": {
         parameters: {
             query?: never;
@@ -5303,6 +5323,40 @@ export interface components {
             exploration_id: string;
             /** Points */
             points: components["schemas"]["DiscoveryRoutePoint"][];
+        };
+        /**
+         * DwellerAppearanceOptions
+         * @description Canonical appearance choices used by the appearance editor.
+         */
+        DwellerAppearanceOptions: {
+            /** Skin Tones By Race */
+            skin_tones_by_race: {
+                [key: string]: string[];
+            };
+            /** Builds By Race */
+            builds_by_race: {
+                [key: string]: string[];
+            };
+            /** Haircuts By Race */
+            haircuts_by_race: {
+                [key: string]: string[];
+            };
+            /** Headgear By Race */
+            headgear_by_race: {
+                [key: string]: string[];
+            };
+            /** Expressions */
+            expressions: string[];
+            /** Poses */
+            poses: string[];
+            /** Backgrounds */
+            backgrounds: string[];
+            /** Heights */
+            heights: string[];
+            /** Eye Colors */
+            eye_colors: string[];
+            /** Hair Colors */
+            hair_colors: string[];
         };
         /**
          * DwellerAssignmentItem
@@ -10535,6 +10589,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DwellerIdentityOptions"];
+                };
+            };
+        };
+    };
+    read_appearance_options_api_v1_dwellers_appearance_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerAppearanceOptions"];
                 };
             };
         };

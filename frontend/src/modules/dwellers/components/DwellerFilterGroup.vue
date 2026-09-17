@@ -13,13 +13,16 @@ interface Props {
   icon: string
   options: readonly DwellerFilterOption[]
   modelValue: string
+  counts?: Record<string, number>
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+const hasCount = (value: string): boolean => props.counts !== undefined && value in props.counts
 </script>
 
 <template>
@@ -34,13 +37,17 @@ const emit = defineEmits<{
         :key="option.value"
         type="button"
         class="filter-chip"
-        :class="{ active: modelValue === option.value }"
+        :class="{
+          active: modelValue === option.value,
+          empty: counts !== undefined && counts[option.value] === 0,
+        }"
         :style="option.accent ? { '--filter-accent': option.accent } : undefined"
         :aria-pressed="modelValue === option.value"
         @click="emit('update:modelValue', option.value)"
       >
         <Icon :icon="option.icon" />
         <span>{{ option.label }}</span>
+        <span v-if="hasCount(option.value)" class="filter-count">{{ counts?.[option.value] }}</span>
       </button>
     </div>
   </div>
@@ -84,22 +91,44 @@ const emit = defineEmits<{
   font-size: 0.8125rem;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.6;
-  transition: all 0.2s;
+  opacity: 0.7;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s;
   white-space: nowrap;
 }
 
 .filter-chip:hover {
-  opacity: 0.8;
+  opacity: 0.9;
   background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
+.filter-chip:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+/* A zero-count chip stays clickable so the filter can be kept, but reads as empty. */
+.filter-chip.empty:not(.active) {
+  opacity: 0.4;
+}
+
+/* Matches .view-toggle-btn.active so the toolbar's selected state reads as one control set. */
 .filter-chip.active {
   opacity: 1;
   background: var(--color-surface-hover);
   border-color: var(--filter-accent, var(--color-theme-primary));
   box-shadow: 0 0 12px var(--filter-accent, var(--color-theme-primary));
   font-weight: 600;
+}
+
+.filter-count {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
 }
 </style>

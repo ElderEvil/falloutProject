@@ -34,6 +34,14 @@ describe('DwellersView', () => {
     expect(wrapper.find('.identity-controls').exists()).toBe(false)
   })
 
+  it('hides the age filter while the dead-dweller panel is shown', async () => {
+    useDwellerStore().filter.setFilterStatus('dead')
+    const wrapper = await mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Filter by Age')
+  })
+
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)

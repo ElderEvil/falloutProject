@@ -211,11 +211,7 @@ const toggleSortDirection = () => {
             class="sort-direction-button"
             aria-label="Toggle sort direction"
           >
-            <Icon
-              :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'"
-              width="20"
-              height="20"
-            />
+            <Icon :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'" />
           </button>
         </div>
       </div>
@@ -368,7 +364,16 @@ const toggleSortDirection = () => {
   border-color: var(--color-theme-glow);
   border-radius: 6px;
   font-size: 0.8125rem;
+  line-height: normal;
   opacity: 0.85;
+}
+
+/* The USelect chevron and the sort arrow default to 16px/20px; the chips use 1em. */
+.identity-controls :deep(.select-trigger svg),
+.sort-controls :deep(.select-trigger svg),
+.sort-direction-button :deep(svg) {
+  width: 1em;
+  height: 1em;
 }
 
 .identity-controls :deep(.select-trigger:hover),

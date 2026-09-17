@@ -302,4 +302,71 @@ describe('DwellersView', () => {
       expect((wrapper.find('.happiness-overview').element as HTMLDetailsElement).open).toBe(false)
     })
   })
+
+  describe('URL sync', () => {
+    it('applies a race query param on load', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?race=ghoul')
+      await router.isReady()
+
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('race=ghoul'),
+        expect.any(Object)
+      )
+      wrapper.unmount()
+    })
+
+    it('writes filter and sort changes back to the query', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterStatus('idle')
+      _dwellerStore.filter.setFilterRace('ghoul')
+      _dwellerStore.filter.setSortBy('level')
+      _dwellerStore.filter.setSortDirection('desc')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query).toMatchObject({
+        filter: 'idle',
+        race: 'ghoul',
+        sortBy: 'level',
+        order: 'desc',
+      })
+      wrapper.unmount()
+    })
+
+    it('drops a default filter back out of the query', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=idle')
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterStatus('all')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query.filter).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('preserves unrelated query params', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?foo=bar')
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterStatus('working')
+      await flushPromises()
+
+      expect(router.currentRoute.value.query.foo).toBe('bar')
+      expect(router.currentRoute.value.query.filter).toBe('working')
+      wrapper.unmount()
+    })
+  })
 })

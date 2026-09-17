@@ -307,7 +307,6 @@ function applyPreset(presetId: string) {
   border-color: var(--color-theme-glow);
   border-radius: 6px;
   font-size: 0.8125rem;
-  line-height: normal;
   opacity: 0.85;
 }
 

@@ -307,20 +307,20 @@ function clearFilters(): void {
 .identity-controls {
   display: flex;
   gap: 0.5rem;
-  min-width: 18rem;
 }
 
-.identity-controls > * {
-  flex: 1;
+/* Hug the widest race label ("Super Mutant") rather than stretching a lone select across the row. */
+.identity-controls :deep(.select-wrapper) {
+  flex: 0 0 auto;
+  min-width: 8.5rem;
 }
 
-/* Match the status/age chips so the whole toolbar reads as one control set. */
+/* Match the status/age chips, keeping the inherited line-height so the heights agree. */
 .identity-controls :deep(.select-trigger) {
   padding: 0.5rem 0.75rem;
   border-color: var(--color-theme-glow);
   border-radius: 6px;
   font-size: 0.8125rem;
-  line-height: normal;
   opacity: 0.85;
 }
 

@@ -4,7 +4,7 @@ from pydantic import UUID4
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.quest import Quest
@@ -52,7 +52,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
             if dweller.vault_id != vault_id:
                 raise ValueError(f"Dweller {dweller_id} does not belong to vault {vault_id}")
             # TODO: unify eligibility with incident responder checks; shared availability policy outside services.
-            if not dweller.is_adult or dweller.age_group != AgeGroupEnum.ADULT:
+            if not dweller.is_adult or dweller.age_group not in ADULT_AGE_GROUPS:
                 raise ValueError(f"Child dweller {dweller_id} cannot join a quest")
             if dweller.status == DwellerStatusEnum.EXPLORING:
                 raise ValueError(f"Dweller {dweller_id} is exploring and cannot join a quest")
@@ -104,7 +104,7 @@ class CRUDQuestParty(CRUDBase[QuestParty, None, None]):
             .where(Dweller.vault_id == vault_id)
             .where(~Dweller.is_deleted)
             .where(Dweller.is_adult)
-            .where(Dweller.age_group == AgeGroupEnum.ADULT)
+            .where(Dweller.age_group.in_(ADULT_AGE_GROUPS))
             .where(Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]))
             .where(
                 Dweller.id.notin_(

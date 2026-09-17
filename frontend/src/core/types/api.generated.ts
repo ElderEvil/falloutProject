@@ -4611,7 +4611,7 @@ export interface components {
          * AgeGroupEnum
          * @enum {string}
          */
-        AgeGroupEnum: "child" | "teen" | "adult";
+        AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
          * ArenaEventsCleared
          * @description Journal clear result.

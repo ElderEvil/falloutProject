@@ -24,6 +24,7 @@ from app.schemas.common import (
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.family.breeding_service import BreedingService
+from app.utils.dwellers import elder_birth_threshold
 from app.utils.exceptions import ResourceNotFoundException
 
 
@@ -775,6 +776,51 @@ async def test_age_children_progress_through_teen_to_adult(
     # Stats are restored only when the teen becomes an adult (3 / 0.5 = 6).
     assert child.strength == 6
     assert child.charisma == 6
+
+
+@pytest.mark.asyncio
+async def test_age_children_promotes_only_old_adults_to_elders(
+    async_session: AsyncSession,
+    vault: Vault,
+):
+    """Adults past the elder threshold become elders; younger adults keep working as adults."""
+    base_stats = dict.fromkeys(SPECIAL_STATS, 3)
+    elder_adult_data = {
+        "first_name": "Old",
+        "last_name": "Timer",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "is_adult": True,
+        "birth_date": elder_birth_threshold(datetime.utcnow()) - timedelta(days=1),
+        "level": 1,
+        "experience": 0,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 50,
+        **base_stats,
+    }
+    young_adult_data = {
+        **elder_adult_data,
+        "first_name": "Young",
+        "birth_date": datetime.utcnow() - timedelta(days=365 * 25),
+    }
+    old_adult = await crud.dweller.create(
+        db_session=async_session, obj_in=DwellerCreate(**elder_adult_data, vault_id=vault.id)
+    )
+    young_adult = await crud.dweller.create(
+        db_session=async_session, obj_in=DwellerCreate(**young_adult_data, vault_id=vault.id)
+    )
+
+    aged = await BreedingService.age_children(async_session, vault.id)
+
+    assert [dweller.id for dweller in aged] == [old_adult.id]
+    await async_session.refresh(old_adult)
+    await async_session.refresh(young_adult)
+    assert old_adult.age_group == AgeGroupEnum.ELDER
+    assert old_adult.is_adult is True
+    assert young_adult.age_group == AgeGroupEnum.ADULT
 
 
 @pytest.mark.asyncio

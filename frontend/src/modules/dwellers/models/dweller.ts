@@ -45,6 +45,7 @@ export const AGE_CONFIG_MAP: Record<components['schemas']['AgeGroupEnum'], Badge
   child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child' },
   teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen' },
   adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult' },
+  elder: { color: 'var(--badge-age-elder)', icon: 'mdi:account-cowboy-hat', label: 'Elder' },
 }
 
 export const GENDER_CONFIG_MAP: Record<components['schemas']['GenderEnum'], BadgeConfig> = {

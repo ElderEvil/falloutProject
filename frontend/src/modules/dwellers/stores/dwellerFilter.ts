@@ -37,7 +37,7 @@ export const DWELLER_STATUSES = [
 ] as const
 export type DwellerStatus = (typeof DWELLER_STATUSES)[number]
 
-export const DWELLER_AGE_GROUPS = ['child', 'teen', 'adult', 'all'] as const
+export const DWELLER_AGE_GROUPS = ['child', 'teen', 'adult', 'elder', 'all'] as const
 export type DwellerAgeGroup = (typeof DWELLER_AGE_GROUPS)[number]
 
 export interface DwellerWithStatus extends DwellerShort {

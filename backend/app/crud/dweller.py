@@ -9,7 +9,14 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import (
+    ADULT_AGE_GROUPS,
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RarityEnum,
+    RoomTypeEnum,
+)
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
@@ -362,7 +369,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 (self.model.room_id == room_id)
                 & (self.model.health > 0)
                 & self.model.is_adult
-                & (self.model.age_group == AgeGroupEnum.ADULT)
+                & self.model.age_group.in_(ADULT_AGE_GROUPS)
             )
         )
         return list((await db_session.execute(query)).scalars().all())
@@ -379,7 +386,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         conditions = [
             Dweller.room_id == room_id,
             Dweller.is_adult,
-            Dweller.age_group == AgeGroupEnum.ADULT,
+            Dweller.age_group.in_(ADULT_AGE_GROUPS),
         ]
         if require_alive:
             conditions.append(Dweller.health > 0)
@@ -459,7 +466,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         vault_id: UUID4,
         room_ids: list[UUID4],
     ) -> Sequence[Dweller]:
-        """Active adults with a partner currently assigned to any of the given rooms."""
+        """Breeding-eligible adults (elders excluded) with a partner in any of the given rooms."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)

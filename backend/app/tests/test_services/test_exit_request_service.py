@@ -148,6 +148,18 @@ async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, v
 
 
 @pytest.mark.asyncio
+async def test_grant_exit_respects_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
+    """A request raised when the vault was full is still held back once the vault is too small."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    for dweller in dwellers[1:]:
+        await crud.dweller.update(async_session, dweller.id, {"is_dead": True, "health": 0})
+
+    with pytest.raises(VaultOperationException, match="minimum population"):
+        await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
+
+
+@pytest.mark.asyncio
 async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)

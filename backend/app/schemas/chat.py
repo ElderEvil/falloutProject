@@ -66,6 +66,13 @@ class RequestRadawayAction(BaseModel):
     reason: str = Field(..., max_length=200, description="Why the dweller needs RadAway")
 
 
+class RequestExitAction(BaseModel):
+    """Suggestion to let the dweller leave the vault. Granting is permanent."""
+
+    action_type: Literal["request_exit"] = "request_exit"
+    reason: str = Field(..., max_length=200, description="Why the dweller wants to leave")
+
+
 MedicalRecommendation = Literal["request_stimpak", "request_radaway", "none"]
 
 
@@ -106,6 +113,7 @@ ActionSuggestion = Annotated[
     | RecallExplorationAction
     | RequestStimpakAction
     | RequestRadawayAction
+    | RequestExitAction
     | BioAddendumAction
     | NoAction,
     Field(discriminator="action_type"),

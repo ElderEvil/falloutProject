@@ -24,16 +24,19 @@ from app.schemas.chat import (
     BioAddendumAction,
     NoAction,
     RecallExplorationAction,
+    RequestExitAction,
     RequestRadawayAction,
     RequestStimpakAction,
     StartExplorationAction,
     StartTrainingAction,
 )
 from app.schemas.dweller import DwellerReadFull
+from app.services.exit_request_service import exit_request_service
 from app.services.medical_service import (
     get_dweller_medical_status as fetch_dweller_medical_status,
 )
 from app.services.room_assignment_policy import get_highest_special
+from app.utils.exceptions import VaultOperationException
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +287,7 @@ async def parse_action_suggestion(
     | RecallExplorationAction
     | RequestStimpakAction
     | RequestRadawayAction
+    | RequestExitAction
     | BioAddendumAction
     | NoAction
 ):
@@ -382,6 +386,12 @@ async def parse_action_suggestion(
         if medical_status.available_radaways <= 0:
             return NoAction(reason="No RadAway is available")
         return RequestRadawayAction(reason=output.action_reason or "Radiation is at least 30%")
+    if output.action_type == "request_exit":
+        try:
+            await exit_request_service.request_exit(db_session, dweller.id, commit=False)
+        except VaultOperationException as error:
+            return NoAction(reason=error.detail)
+        return RequestExitAction(reason=output.action_reason or "They want to go outside")
     if output.action_type == "bio_addendum":
         text = (output.action_bio_text or "").strip()
         if len(text) < 8:

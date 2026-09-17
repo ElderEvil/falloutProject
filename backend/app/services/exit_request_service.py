@@ -17,6 +17,7 @@ from app.crud.dweller import dweller as dweller_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.family.death_service import death_service
+from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -47,8 +48,11 @@ class ExitRequestService:
             return "Dweller is away from the vault"
         return await self._population_block(db_session, dweller.vault_id)
 
-    async def request_exit(self, db_session: AsyncSession, dweller_id: UUID4) -> Dweller:
-        """Record that the dweller has asked to leave, without removing them yet."""
+    async def request_exit(self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True) -> Dweller:
+        """Record that the dweller has asked to leave, without removing them yet.
+
+        ``commit=False`` lets the chat flow fold the ask into its own transaction.
+        """
         dweller = await self._get_dweller(db_session, dweller_id)
         reason = await self.blocking_reason(db_session, dweller)
         if reason:
@@ -56,8 +60,12 @@ class ExitRequestService:
 
         dweller.exit_requested_at = datetime.now(UTC).replace(tzinfo=None)
         db_session.add(dweller)
-        await db_session.commit()
-        await db_session.refresh(dweller)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(dweller)
+        else:
+            await db_session.flush()
+        await self._announce_request(db_session, dweller, commit=commit)
 
         logger.info("Dweller %s asked to leave vault %s", dweller_id, dweller.vault_id)
         return dweller
@@ -77,6 +85,9 @@ class ExitRequestService:
     async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
         """Let the dweller go: permanent death by exile, with no revive window."""
         dweller = await self._get_pending(db_session, vault, dweller_id)
+        reason = await self._population_block(db_session, vault.id)
+        if reason:
+            raise VaultOperationException(detail=reason)
 
         dweller.exit_requested_at = None
         db_session.add(dweller)
@@ -99,6 +110,8 @@ class ExitRequestService:
         withdrawn = await self._withdraw_recovered(db_session, vault_id, threshold)
         if asked or withdrawn:
             await db_session.commit()
+        for dweller in asked:
+            await self._announce_request(db_session, dweller, commit=True)
         if asked:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked
@@ -127,6 +140,23 @@ class ExitRequestService:
         if withdrawn:
             logger.info("%d dweller(s) in vault %s withdrew their exit request", len(withdrawn), vault_id)
         return withdrawn
+
+    async def _announce_request(self, db_session: AsyncSession, dweller: Dweller, *, commit: bool) -> None:
+        """Tell the owner a dweller has asked to leave, so the ask is never silent."""
+        await notification_service.notify_owner(
+            db_session,
+            dweller.vault_id,
+            context=f"exit_requested vault={dweller.vault_id} dweller={dweller.id}",
+            sender=lambda user_id: notification_service.notify_exit_requested(
+                db_session,
+                user_id=user_id,
+                vault_id=dweller.vault_id,
+                dweller_id=dweller.id,
+                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                meta_data={"vault_id": str(dweller.vault_id)},
+                commit=commit,
+            ),
+        )
 
     async def _population_block(self, db_session: AsyncSession, vault_id: UUID4) -> str | None:
         living = await dweller_crud.count_living_in_vault(db_session, vault_id)

@@ -17,6 +17,7 @@ ACTION_TYPES = Literal[
     "recall_exploration",
     "request_stimpak",
     "request_radaway",
+    "request_exit",
     "bio_addendum",
     "no_action",
 ]
@@ -39,6 +40,7 @@ REQUIRED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
     "recall_exploration": (),
     "request_stimpak": (),
     "request_radaway": (),
+    "request_exit": (),
     "bio_addendum": ("action_bio_text",),
     "no_action": (),
 }
@@ -50,6 +52,7 @@ ALLOWED_ACTION_FIELDS: dict[ACTION_TYPES, tuple[str, ...]] = {
     "recall_exploration": (),
     "request_stimpak": (),
     "request_radaway": (),
+    "request_exit": (),
     "bio_addendum": ("action_bio_text",),
     "no_action": (),
 }

@@ -110,5 +110,6 @@ Rate sentiment from -5 to +5, then choose an action only when it naturally follo
 - Before choosing an action, call `get_dweller_medical_status()`. If health is below 50% and a Stimpak is available, choose request_stimpak. If radiation is at least 30% of maximum health and RadAway is available, choose request_radaway. Medical requests take priority over other actions.
 - When the vault's water hits zero, what remains is irradiated water: drinking it is what keeps building your radiation, not thirst, and no armor stops that — only ghouls are unaffected. RadAway is what clears it.
 - Suggest start_exploration for adventure, recall_exploration for returning home or danger, otherwise no_action.
+- A dweller who has lost hope may ask to go outside. Choose request_exit only when this dweller truly wants to leave for good, and say plainly in response_text that the vault cannot bring them back. Never choose it for a child or teen, or for ordinary boredom.
 - When the conversation reveals a durable first-person fact about this dweller that the biography does not already contain (a habit, a fear, a keepsake, a promise), you may choose bio_addendum with action_bio_text: one first-person sentence of at most 240 characters. Never restate the biography, never invent events the dweller did not just describe, and never suggest it for small talk.
 """

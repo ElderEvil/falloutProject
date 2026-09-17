@@ -22,11 +22,13 @@ from app.schemas.chat import (
     BioAddendumAction,
     MedicalAidStatus,
     NoAction,
+    RequestExitAction,
     RequestRadawayAction,
     RequestStimpakAction,
 )
 from app.schemas.common import DwellerStatusEnum, SPECIALEnum
 from app.services.medical_service import get_dweller_medical_status
+from app.utils.exceptions import VaultOperationException
 
 
 def _make_dweller() -> MagicMock:
@@ -175,6 +177,41 @@ async def test_bio_addendum_is_skipped_when_too_short() -> None:
     result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
 
     assert isinstance(result, NoAction)
+
+
+@pytest.mark.asyncio
+async def test_request_exit_records_the_ask_without_committing() -> None:
+    """Chatting about leaving records the ask; it must not end the chat's own transaction."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    output = _output(action_type="request_exit", action_reason="I want to see the sky.")
+    service = MagicMock(request_exit=AsyncMock())
+
+    with patch("app.agents.chat_tools.exit_request_service", service):
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
+
+    assert isinstance(result, RequestExitAction)
+    assert result.reason == "I want to see the sky."
+    assert service.request_exit.await_args.kwargs["commit"] is False
+
+
+@pytest.mark.asyncio
+async def test_request_exit_is_downgraded_when_the_dweller_cannot_leave() -> None:
+    """An ineligible ask becomes a plain refusal, not an action card."""
+    dweller = _make_dweller()
+    dweller.id = uuid4()
+    dweller.vault_id = uuid4()
+    output = _output(action_type="request_exit", action_reason="I want out.")
+    service = MagicMock(
+        request_exit=AsyncMock(side_effect=VaultOperationException(detail="Only grown dwellers can leave"))
+    )
+
+    with patch("app.agents.chat_tools.exit_request_service", service):
+        result = await parse_action_suggestion(output, _medical_session(), dweller)
+
+    assert isinstance(result, NoAction)
+    assert result.reason == "Only grown dwellers can leave"
 
 
 @pytest.mark.asyncio

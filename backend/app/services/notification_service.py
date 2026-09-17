@@ -376,6 +376,30 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_exit_requested(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        dweller_id: UUID,
+        dweller_name: str,
+        meta_data: dict[str, Any] | None = None,
+        commit: bool = True,
+    ):
+        """Notify user that a dweller has asked to leave the vault."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            from_dweller_id=dweller_id,
+            notification_type=NotificationType.DWELLER_EXIT_REQUESTED,
+            priority=NotificationPriority.HIGH,
+            title="Dweller Wants Out",
+            message=f"{dweller_name} has asked to leave the vault.",
+            meta_data=meta_data,
+            commit=commit,
+        )
+
+    @staticmethod
     async def notify_quest_completed(
         db: AsyncSession,
         user_id: UUID,

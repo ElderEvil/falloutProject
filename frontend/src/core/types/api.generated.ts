@@ -10661,6 +10661,8 @@ export interface operations {
                 status?: components["schemas"]["DwellerStatusEnum"] | null;
                 age_group?: components["schemas"]["AgeGroupEnum"] | null;
                 search?: string | null;
+                race?: components["schemas"]["RaceEnum"] | null;
+                faction?: components["schemas"]["FactionEnum"] | null;
                 sort_by?: string;
                 order?: string;
             };

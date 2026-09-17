@@ -106,6 +106,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         status: DwellerStatusEnum | None = None,
         age_group: AgeGroupEnum | None = None,
         search: str | None = None,
+        race: str | None = None,
+        faction: str | None = None,
         sort_by: str = "created_at",
         order: str = "desc",
         include_deleted: bool = False,
@@ -124,6 +126,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         # Filter by age group
         if age_group:
             query = query.where(self.model.age_group == age_group)
+
+        # Race and faction live in the visual_attributes JSONB, so filter through the column.
+        identity_attrs = self.model.__table__.c.visual_attributes
+        if race:
+            query = query.where(identity_attrs["race"].as_string() == race)
+        if faction:
+            query = query.where(identity_attrs["faction"].as_string() == faction)
 
         # Search by name
         if search:

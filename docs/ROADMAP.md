@@ -661,8 +661,9 @@ racial modifiers and faction perks slot into the same stat-weighting shape inste
 
 **Guardrails:** modifiers live in one options-backed source of truth; no new DB columns unless a modifier must
 persist per dweller; balance pass after play-testing; net-LOC rule applies. The whole subsystem sits behind
-`FEATURE_RACE_FACTION_MECHANICS` (`game_config.features`), which reads neutral when off — ghoul radiation immunity
-predates the flag and is kept either way.
+`FEATURE_RACE_MECHANICS` (default on) and `FEATURE_FACTION_MECHANICS` (default off) in
+`game_config.features`; each half reads neutral when off — ghoul radiation immunity predates both flags
+and is kept either way.
 
 **Success criteria:** race/faction choices change outcomes (combat, incidents, exploration) in legible ways, are
 visible in the dweller dossier, and are covered by per-race/per-faction unit tests.

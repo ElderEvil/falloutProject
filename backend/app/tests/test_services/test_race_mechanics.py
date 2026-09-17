@@ -36,7 +36,8 @@ def _race_mechanics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
     TestFeatureFlag covers the off path explicitly by setting it False itself.
     """
-    monkeypatch.setattr(game_config.features, "race_faction_mechanics", True)
+    monkeypatch.setattr(game_config.features, "race_mechanics", True)
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
 
 
 def _dweller(race: str | None, faction: str | None = None) -> SimpleNamespace:
@@ -302,10 +303,11 @@ class TestIncidentResponsePerk:
 
 
 class TestFeatureFlag:
-    """`features.race_faction_mechanics = False` ships the subsystem dark."""
+    """Race and faction ship on separate switches, so either can go dark alone."""
 
     def test_flag_off_neutralises_deltas_perks_and_resistances(self, monkeypatch) -> None:
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+        monkeypatch.setattr(game_config.features, "race_mechanics", False)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
 
         mutant = _dweller("super_mutant")
         mutant.strength = 5
@@ -317,7 +319,8 @@ class TestFeatureFlag:
 
     def test_flag_off_keeps_ghoul_immunity(self, monkeypatch) -> None:
         """Ghoul immunity predates the flag and must survive it."""
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+        monkeypatch.setattr(game_config.features, "race_mechanics", False)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
 
         ghoul = _dweller("ghoul")
         ghoul.is_dead = False
@@ -329,7 +332,8 @@ class TestFeatureFlag:
         assert ghoul.radiation == 10
 
     def test_flag_off_reverts_combat_and_production_to_raw_stats(self, monkeypatch) -> None:
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+        monkeypatch.setattr(game_config.features, "race_mechanics", False)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
 
         room = SimpleNamespace(name="Power Generator", ability=SPECIALEnum.STRENGTH, output=10, tier=1)
         manager = ResourceManager()
@@ -346,3 +350,15 @@ class TestFeatureFlag:
         mutant = fighter("super_mutant", "super_mutant_tribe")
         assert manager._calculate_room_production(room, [mutant], 60) == pytest.approx(10 * 5 * 0.1 * 1.0 * 60)
         assert combat_power(mutant) == combat_power(fighter("human"))
+
+    def test_faction_off_alone_leaves_race_mechanics_working(self, monkeypatch) -> None:
+        """The faction switch must not drag race down with it."""
+        monkeypatch.setattr(game_config.features, "race_mechanics", True)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+
+        mutant = _dweller("super_mutant")
+        mutant.strength = 5
+        assert effective_stat(mutant, "strength") == 8
+
+        assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == 0.0
+        assert identity_modifiers_for(_dweller("human", faction="vault_dweller")).production_pct == 0.0

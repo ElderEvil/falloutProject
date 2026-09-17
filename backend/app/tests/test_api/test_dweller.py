@@ -461,6 +461,52 @@ async def test_update_dweller_can_unassign_a_room(
 
 
 @pytest.mark.asyncio
+async def test_filter_dwellers_by_race_and_faction(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """Roster filters narrow by identity, which lives in the visual_attributes JSONB."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    def identity(race: str, faction: str) -> DwellerCreate:
+        data = create_fake_dweller()
+        data.update({"vault_id": vault.id, "visual_attributes": {"race": race, "faction": faction}})
+        return DwellerCreate(**data)
+
+    ghoul = await crud.dweller.create(async_session, identity("ghoul", "children_of_atom"))
+    human = await crud.dweller.create(async_session, identity("human", "vault_dweller"))
+    await crud.dweller.create(async_session, identity("super_mutant", "super_mutant_tribe"))
+
+    by_race = await async_client.get(f"/dwellers/vault/{vault.id}/?race=ghoul", headers=superuser_token_headers)
+    assert by_race.status_code == 200
+    assert [row["id"] for row in by_race.json()] == [str(ghoul.id)]
+
+    by_faction = await async_client.get(
+        f"/dwellers/vault/{vault.id}/?faction=vault_dweller", headers=superuser_token_headers
+    )
+    assert [row["id"] for row in by_faction.json()] == [str(human.id)]
+
+    combined = await async_client.get(
+        f"/dwellers/vault/{vault.id}/?race=human&faction=vault_dweller", headers=superuser_token_headers
+    )
+    assert [row["id"] for row in combined.json()] == [str(human.id)]
+
+
+@pytest.mark.asyncio
+async def test_unknown_race_filter_is_rejected(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+) -> None:
+    """An invalid race is a 422, not a silent empty roster."""
+    response = await async_client.get(f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers)
+
+    assert response.status_code == 422
+
+
 async def test_dweller_detail_exposes_identity_modifiers(
     async_client: AsyncClient,
     async_session: AsyncSession,
@@ -472,7 +518,8 @@ async def test_dweller_detail_exposes_identity_modifiers(
     from app.core.game_config import game_config
 
     # The subsystem ships dark, so this test states the flag as a precondition.
-    monkeypatch.setattr(game_config.features, "race_faction_mechanics", True)
+    monkeypatch.setattr(game_config.features, "race_mechanics", True)
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
     dweller.visual_attributes = {"race": "super_mutant", "faction": "super_mutant_tribe"}
     async_session.add(dweller)
     await async_session.commit()

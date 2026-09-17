@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.113.0 (2026-09-16)
+
+### Features
+
+* filter the dweller roster by race and faction 3fee73c
+
+### Bug Fixes
+
+* validate restored filters and hide identity filters for the dead roster dfa3a8c
+
 ## 2.112.0 (2026-09-16)
 
 ### Features

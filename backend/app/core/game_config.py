@@ -999,12 +999,19 @@ class FeatureConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="FEATURE_")
 
-    race_faction_mechanics: bool = Field(
+    race_mechanics: bool = Field(
+        default=True,
+        description=(
+            "Racial stat modifiers and racial radiation resistance. Off restores the pre-flag behaviour; "
+            "ghoul radiation immunity predates the flag and survives it."
+        ),
+    )
+    faction_mechanics: bool = Field(
         default=False,
         description=(
-            "Racial stat modifiers, racial radiation resistance and faction perks. Ships dark (off): set FEATURE_RACE_FACTION_MECHANICS=true to enable it "
-            "after the balance pass has been play-tested. Off restores the pre-flag behaviour; ghoul "
-            "radiation immunity predates the flag and survives it."
+            "Faction perks: weapon damage, production, incident response and faction radiation resistance. "
+            "Ships dark until the world is deep enough for factions to mean something; faction identity "
+            "(choice, filters, dossier) is deliberately not gated by it."
         ),
     )
 

@@ -1,7 +1,7 @@
 """General dweller business logic service."""
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -9,7 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, RaceEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
@@ -131,6 +131,40 @@ class DwellerService:
             )
 
         return updated_dweller
+
+    async def list_vault_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        status: DwellerStatusEnum | None = None,
+        age_group: AgeGroupEnum | None = None,
+        search: str | None = None,
+        race: RaceEnum | None = None,
+        faction: FactionEnum | None = None,
+        sort_by: str = "created_at",
+        order: str = "desc",
+    ) -> Sequence[Dweller]:
+        """The vault roster query.
+
+        Identity filters are enum-typed at the boundary and translated to the stored
+        ``visual_attributes`` values here, so the endpoint stays transport-only.
+        """
+        return await crud.dweller.get_multi_by_vault(
+            db_session=db_session,
+            vault_id=vault_id,
+            skip=skip,
+            limit=limit,
+            status=status,
+            age_group=age_group,
+            search=search,
+            race=race.value if race else None,
+            faction=faction.value if faction else None,
+            sort_by=sort_by,
+            order=order,
+        )
 
     async def update_dweller(
         self,

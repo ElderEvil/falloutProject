@@ -512,8 +512,14 @@ async def test_dweller_detail_exposes_identity_modifiers(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The dossier can explain why a dweller is effective without recomputing rules client-side."""
+    from app.core.game_config import game_config
+
+    # The subsystem ships dark, so this test states the flag as a precondition.
+    monkeypatch.setattr(game_config.features, "race_mechanics", True)
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
     dweller.visual_attributes = {"race": "super_mutant", "faction": "super_mutant_tribe"}
     async_session.add(dweller)
     await async_session.commit()

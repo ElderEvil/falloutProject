@@ -30,6 +30,33 @@ from app.utils.combat import combat_power
 from app.utils.dwellers import roll_child_identity
 
 
+@pytest.fixture(autouse=True)
+def _identity_mechanics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The faction half ships dark, so behaviour tests state both switches as a precondition."""
+    monkeypatch.setattr(game_config.features, "race_mechanics", True)
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
+
+
+@pytest.fixture(params=[True, False], ids=["race_on", "race_off"])
+def race_flag(request, monkeypatch: pytest.MonkeyPatch) -> bool:
+    """Parametrized race switch; runs after the autouse fixture, so it wins."""
+    monkeypatch.setattr(game_config.features, "race_mechanics", request.param)
+    return request.param
+
+
+@pytest.fixture(params=[True, False], ids=["faction_on", "faction_off"])
+def faction_flag(request, monkeypatch: pytest.MonkeyPatch) -> bool:
+    """Parametrized faction switch; runs after the autouse fixture, so it wins."""
+    monkeypatch.setattr(game_config.features, "faction_mechanics", request.param)
+    return request.param
+
+
+@pytest.fixture
+def flag_state(race_flag: bool, faction_flag: bool) -> tuple[bool, bool]:
+    """Both switches at once: the cartesian product runs every combination."""
+    return race_flag, faction_flag
+
+
 def _dweller(race: str | None, faction: str | None = None) -> SimpleNamespace:
     attrs: dict[str, str] = {}
     if race is not None:
@@ -293,23 +320,26 @@ class TestIncidentResponsePerk:
 
 
 class TestFeatureFlag:
-    """`features.race_faction_mechanics = False` ships the subsystem dark."""
+    """Race and faction ship on separate switches, so either can go dark alone."""
 
-    def test_flag_off_neutralises_deltas_perks_and_resistances(self, monkeypatch) -> None:
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
-
+    def test_racial_stat_delta_follows_race_switch(self, race_flag: bool) -> None:
         mutant = _dweller("super_mutant")
         mutant.strength = 5
-        assert effective_stat(mutant, "strength") == 5
+        assert effective_stat(mutant, "strength") == (8 if race_flag else 5)
 
-        assert identity_modifiers_for(_dweller("synth")).radiation_resist_pct == 0.0
-        assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == 0.0
-        assert identity_modifiers_for(_dweller("human", faction="vault_dweller")).production_pct == 0.0
+    def test_racial_resistance_follows_race_switch(self, race_flag: bool) -> None:
+        assert identity_modifiers_for(_dweller("synth")).radiation_resist_pct == (0.5 if race_flag else 0.0)
 
-    def test_flag_off_keeps_ghoul_immunity(self, monkeypatch) -> None:
-        """Ghoul immunity predates the flag and must survive it."""
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+    def test_faction_perks_follow_faction_switch(self, faction_flag: bool) -> None:
+        assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == (
+            0.15 if faction_flag else 0.0
+        )
+        assert identity_modifiers_for(_dweller("human", faction="vault_dweller")).production_pct == (
+            0.05 if faction_flag else 0.0
+        )
 
+    def test_ghoul_immunity_survives_either_switch(self, flag_state) -> None:
+        """Ghoul immunity predates both flags and must survive every combination."""
         ghoul = _dweller("ghoul")
         ghoul.is_dead = False
         ghoul.radiation, ghoul.max_health, ghoul.health = 10, 120, 100
@@ -320,7 +350,8 @@ class TestFeatureFlag:
         assert ghoul.radiation == 10
 
     def test_flag_off_reverts_combat_and_production_to_raw_stats(self, monkeypatch) -> None:
-        monkeypatch.setattr(game_config.features, "race_faction_mechanics", False)
+        monkeypatch.setattr(game_config.features, "race_mechanics", False)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
 
         room = SimpleNamespace(name="Power Generator", ability=SPECIALEnum.STRENGTH, output=10, tier=1)
         manager = ResourceManager()
@@ -337,3 +368,15 @@ class TestFeatureFlag:
         mutant = fighter("super_mutant", "super_mutant_tribe")
         assert manager._calculate_room_production(room, [mutant], 60) == pytest.approx(10 * 5 * 0.1 * 1.0 * 60)
         assert combat_power(mutant) == combat_power(fighter("human"))
+
+    def test_faction_off_alone_leaves_race_mechanics_working(self, monkeypatch) -> None:
+        """The faction switch must not drag race down with it."""
+        monkeypatch.setattr(game_config.features, "race_mechanics", True)
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+
+        mutant = _dweller("super_mutant")
+        mutant.strength = 5
+        assert effective_stat(mutant, "strength") == 8
+
+        assert weapon_damage_pct(_dweller("human", faction="brotherhood_of_steel"), "energy") == 0.0
+        assert identity_modifiers_for(_dweller("human", faction="vault_dweller")).production_pct == 0.0

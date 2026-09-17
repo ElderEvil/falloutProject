@@ -68,15 +68,17 @@ def _combine(race: RaceModifiers, faction: FactionPerks) -> IdentityModifiers:
 def identity_modifiers_for(entity: object) -> IdentityModifiers:
     """Combined race and faction modifiers for an entity, defaulting to a neutral identity.
 
-    With ``features.race_faction_mechanics`` off the subsystem ships dark: stat deltas,
-    racial resistances and faction perks all read as neutral. Ghoul radiation immunity
-    is kept even then, because it predates the flag and is documented behaviour.
+    Race and faction are gated separately: ``features.race_mechanics`` covers stat
+    deltas and racial resistances, ``features.faction_mechanics`` covers perks.
+    Ghoul radiation immunity survives either switch, because it predates both and is
+    documented behaviour.
     """
     race = modifiers_for_race(entity)
-    if not game_config.features.race_faction_mechanics:
-        return IdentityModifiers(radiation_immune=race.radiation_immune)
+    if not game_config.features.race_mechanics:
+        race = RaceModifiers(radiation_immune=race.radiation_immune)
 
-    return _combine(race, perks_for_faction(entity))
+    faction = perks_for_faction(entity) if game_config.features.faction_mechanics else FactionPerks()
+    return _combine(race, faction)
 
 
 def effective_stat(entity: object, stat: str) -> int:

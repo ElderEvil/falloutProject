@@ -196,17 +196,36 @@ function applyPreset(presetId: string) {
   min-width: 8rem;
 }
 
-.sort-direction-button {
-  padding: 0.5rem 0.75rem;
+/* Every button in the island shares this terminal control treatment; the rules below are
+   only the deltas. The transition lists exactly what those deltas change — including
+   font-weight, which the active view button steps from 500 to 600. */
+.display-controls button {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
+  font-family: inherit;
   cursor: pointer;
   transition:
     background-color 0.2s,
     border-color 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    opacity 0.2s,
+    font-weight 0.2s;
+}
+
+.display-controls button:hover {
+  background: var(--color-surface-hover);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.display-controls button:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+.sort-direction-button {
+  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,29 +284,16 @@ function applyPreset(presetId: string) {
   gap: 0.5rem;
 }
 
-.preset-reset {
+/* Qualified so it outweighs the shared rule and stays transparent. */
+.display-controls .preset-reset {
   padding: 0.15rem 0.4rem;
   background: transparent;
-  border: 1px solid var(--color-theme-glow);
   border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-family: inherit;
   font-size: 0.6875rem;
-  cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
 }
 
 .preset-reset:hover {
-  background: var(--color-surface-hover);
   border-color: var(--color-theme-primary);
-}
-
-.preset-reset:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
 }
 
 .view-toggle-btn {
@@ -295,31 +301,14 @@ function applyPreset(presetId: string) {
   align-items: center;
   gap: 0.25rem;
   padding: 0.5rem 0.75rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
   font-size: 0.8125rem;
   font-weight: 500;
-  cursor: pointer;
-  transition:
-    opacity 0.2s,
-    background-color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
   white-space: nowrap;
   opacity: 0.7;
 }
 
 .view-toggle-btn:hover {
   opacity: 0.9;
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.view-toggle-btn:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
 }
 
 .view-toggle-btn.active {

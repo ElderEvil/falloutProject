@@ -97,6 +97,14 @@ class TestNewbornIdentity:
             identity = roll_child_identity(_dweller("human"), _dweller("human"))
         assert identity["race"] == RaceOption.HUMAN.value
 
+    def test_newborn_gets_no_faction_while_switch_off(self, monkeypatch) -> None:
+        """System assignment must not create factions the switch hides."""
+        monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+
+        identity = roll_child_identity(_dweller("human"), _dweller("human"))
+
+        assert identity["faction"] == "none"
+
     def test_mutation_never_keeps_a_parent_race(self) -> None:
         with patch("app.utils.dwellers.game_config.breeding.race_mutation_chance", 1.0):
             races = {

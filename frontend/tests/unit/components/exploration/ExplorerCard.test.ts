@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { UProgressBar } from '@/core/components/ui'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
@@ -10,6 +11,11 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'vault-1' } }),
   useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
 vi.mock('@iconify/vue', () => ({
@@ -48,6 +54,10 @@ const dweller = {
   image_url: 'example.com/lucy.png',
   thumbnail_url: 'example.com/lucy-thumb.png',
 } as Dweller
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 describe('ExplorerCard', () => {
   afterEach(() => {

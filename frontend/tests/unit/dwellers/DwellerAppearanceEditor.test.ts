@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import DwellerAppearanceEditor from '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
@@ -13,6 +15,7 @@ vi.mock('@/core/utils/errorHandler', () => ({
 }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
     factions_by_race: {
@@ -54,6 +57,12 @@ const baseDweller = {
   outfit: null,
 } as unknown as Dweller
 
+function enableFactionSwitch(): void {
+  const flags = useFeatureFlagsStore()
+  flags.raceMechanics = true
+  flags.factionMechanics = true
+}
+
 async function createWrapper(dweller: Dweller, modelValue = true) {
   const wrapper = mount(DwellerAppearanceEditor, {
     props: {
@@ -83,6 +92,11 @@ async function createWrapper(dweller: Dweller, modelValue = true) {
   await flushPromises()
   return wrapper
 }
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  enableFactionSwitch()
+})
 
 describe('DwellerAppearanceEditor', () => {
   it('renders modal when modelValue is true', async () => {
@@ -244,3 +258,24 @@ describe('DwellerAppearanceEditor', () => {
   })
 
 })
+
+  it('upgrades the provisional faction default once the switch resolves', async () => {
+    // The immediate watcher runs before the flags land, so a dweller without attributes
+    // starts at the system value; the switch then restores the normal default.
+    const wrapper = await createWrapper(baseDweller as Dweller)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Vault Dweller')
+  })
+
+  it('hides the faction field while the switch is off', async () => {
+    const wrapper = await createWrapper(baseDweller as Dweller)
+    await flushPromises()
+
+    // The catalogue load settles first; the switch then hides the field reactively.
+    useFeatureFlagsStore().factionMechanics = false
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Faction')
+    expect(wrapper.text()).toContain('Race')
+  })

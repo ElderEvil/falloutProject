@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, RaceEnum, RarityEnum, RoomTypeEnum
 from app.core.event_bus import GameEvent, event_bus
+from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
@@ -51,11 +52,16 @@ class DwellerService:
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         """Return identity choices derived directly from the canonical options modules."""
+        factions_by_race = (
+            {}
+            if not game_config.features.faction_mechanics
+            else {
+                race.value: [faction.value for faction in factions] for race, factions in faction_restrictions.items()
+            }
+        )
         return DwellerIdentityOptions(
             races=[race.value for race in RaceOption],
-            factions_by_race={
-                race.value: [faction.value for faction in factions] for race, factions in faction_restrictions.items()
-            },
+            factions_by_race=factions_by_race,
             states_by_race={race.value: states for race, states in STATE_OF_BEING_VALUES.items()},
         )
 

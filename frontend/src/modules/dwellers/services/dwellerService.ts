@@ -52,3 +52,13 @@ export async function getIdentityOptions(token: string): Promise<IdentityOptions
   })
   return response.data
 }
+
+export interface FeatureFlags {
+  race_mechanics: boolean
+  faction_mechanics: boolean
+}
+
+export async function getFeatureFlags(): Promise<FeatureFlags> {
+  const response = await axios.get<FeatureFlags>('/api/v1/system/features')
+  return response.data
+}

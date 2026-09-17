@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import DwellerDetailPane from '@/modules/dwellers/components/DwellerDetailPane.vue'
 import {
   createMockDwellerDetailContext,
@@ -8,8 +9,14 @@ import {
 } from '../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
+let pinia: ReturnType<typeof createPinia>
+
 beforeEach(() => {
-  setActivePinia(createPinia())
+  pinia = createPinia()
+  setActivePinia(pinia)
+  const flags = useFeatureFlagsStore()
+  flags.raceMechanics = true
+  flags.factionMechanics = true
 })
 // The header owns the identity lockup now, so gender/rarity/age and the
 // race/faction/state chips are asserted here rather than on the card.
@@ -40,7 +47,7 @@ function mountPane() {
   const ctx = createMockDwellerDetailContext({ dweller: ref(dweller) as never })
   return mountWithDwellerContext(DwellerDetailPane, {
     context: ctx,
-    global: { plugins: [createPinia()], stubs: { RouterLink: true } },
+    global: { plugins: [pinia], stubs: { RouterLink: true } },
   } as never)
 }
 

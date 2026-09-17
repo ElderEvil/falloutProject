@@ -1,9 +1,18 @@
 """Tests for the unified DwellerVisualAttributes schema."""
 
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.dweller import DwellerVisualAttributes, DwellerVisualAttributesInput
 from app.services.dweller_service import dweller_service
+
+
+@pytest.fixture(autouse=True)
+def _faction_mechanics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These cover the on-state, so the dark-by-default switch is stated."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
 
 
 def test_unified_schema_has_all_fields() -> None:
@@ -95,3 +104,24 @@ def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
 def test_backward_compatibility_alias() -> None:
     """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""
     assert DwellerVisualAttributesInput is DwellerVisualAttributes
+
+
+def test_none_faction_accepted_while_switch_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """System-assigned 'none' still passes while the switch is off."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+    attributes = DwellerVisualAttributes.model_validate({"race": "ghoul", "faction": "none"})
+
+    assert attributes.faction == "none"
+
+
+def test_identity_options_empty_factions_while_switch_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clients are offered no factions while the switch is off — races still are."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+    options = dweller_service.get_identity_options()
+
+    assert options.races == ["human", "ghoul", "super_mutant", "synth"]
+    assert options.factions_by_race == {}

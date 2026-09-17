@@ -25,6 +25,7 @@ PUBLIC_OPERATIONS: dict[str, str] = {
     "GET /api/v1/system/info": "public build info",
     "GET /api/v1/system/changelog": "public changelog",
     "GET /api/v1/system/changelog/latest": "public changelog",
+    "GET /api/v1/system/features": "public feature switches; clients must know them before sign-in paint",
 }
 
 HTTP_METHODS = ("get", "post", "put", "patch", "delete")

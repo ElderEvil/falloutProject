@@ -85,7 +85,9 @@ def _calendar_years_ago(value: datetime, years: int) -> datetime:
 
 def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> dict[str, Any]:
     """Build a validator-passing race/faction/state_of_being identity for a chosen race."""
-    if race == RaceOption.HUMAN:
+    if not game_config.features.faction_mechanics:
+        faction = FactionOption.NONE
+    elif race == RaceOption.HUMAN:
         faction_weights = game_config.dweller.human_faction_weights
         faction = source.choices(list(faction_weights), weights=list(faction_weights.values()))[0]
     else:

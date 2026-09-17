@@ -30,13 +30,19 @@ const {
 
 const { filter: dwellerStore } = useDwellerStore()
 const featureFlags = useFeatureFlagsStore()
-const { races, factionsByRace, load: loadIdentityOptions } = useIdentityOptions()
+const {
+  races,
+  factionsByRace,
+  loaded: identityOptionsLoaded,
+  load: loadIdentityOptions,
+} = useIdentityOptions()
 
 onMounted(async () => {
   await featureFlags.fetchFlags()
   if (!showIdentityFilters) return
 
   await loadIdentityOptions()
+  if (!identityOptionsLoaded.value) return
 
   // A persisted selection can outlive the options it came from, and the watcher below
   // only reacts to a race *change* — so validate what was restored here.
@@ -67,7 +73,7 @@ const factionSelectOptions = computed(() => {
 
 /** A faction only makes sense while the chosen race can hold it. */
 function dropStrandedFaction() {
-  if (dwellerStore.filterFaction === 'all') return
+  if (!identityOptionsLoaded.value || dwellerStore.filterFaction === 'all') return
   const allowed = factionSelectOptions.value.map((option) => option.value)
   if (!allowed.includes(dwellerStore.filterFaction)) dwellerStore.setFilterFaction('all')
 }

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.114.0 (2026-09-17)
+
+### Features
+
+* gate faction mechanics behind their own flag, race stays on 5019852, closes #660
+
 ## 2.113.0 (2026-09-16)
 
 ### Features

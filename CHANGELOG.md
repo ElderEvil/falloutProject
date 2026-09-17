@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.115.0 (2026-09-17)
+
+### Features
+
+* expose feature switches for clients hiding switched-off content f64902e
+* hide faction controls and filters while the switch is off 675db5c
+* reject faction input and hide faction options while the switch is off e633c26
+
+### Bug Fixes
+
+* address review — share the flag fetch, retry failures, stop gating templates 926b7bf
+
+### Documentation
+
+* record the race/faction switch invariants a8c95b9
+
 ## 2.114.0 (2026-09-17)
 
 ### Features

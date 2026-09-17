@@ -86,6 +86,13 @@ def _medical_session(stimpack: int = 0, radaway: int = 0) -> MagicMock:
     return MagicMock(execute=AsyncMock(return_value=storage_result))
 
 
+def _family_free_session() -> MagicMock:
+    """Return an async session mock whose family lookup finds no relatives."""
+    family_result = MagicMock()
+    family_result.scalars.return_value.all.return_value = []
+    return MagicMock(get=AsyncMock(return_value=None), execute=AsyncMock(return_value=family_result))
+
+
 def test_stateless_agents_use_instructions_not_system_prompts() -> None:
     """Instructions avoid retaining obsolete context when no message history is passed."""
     for agent in (dweller_chat_agent, backstory_agent, bio_extension_agent, visual_attributes_agent):
@@ -173,7 +180,7 @@ async def test_bio_addendum_is_skipped_when_too_short() -> None:
 @pytest.mark.asyncio
 async def test_test_model_invokes_selected_room_recommendation_tool() -> None:
     """A deterministic model can exercise the chat agent's registered decision tools."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
+    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     model = TestModel(
         call_tools=["get_best_room_recommendation"],
         custom_output_args={
@@ -194,7 +201,7 @@ async def test_test_model_invokes_selected_room_recommendation_tool() -> None:
 @pytest.mark.asyncio
 async def test_test_model_invokes_activity_briefing_before_activity_suggestion() -> None:
     """The model can query grounded training/exploration state without a provider or database."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
+    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     model = TestModel(
         call_tools=["get_dweller_activity_briefing"],
         custom_output_args={
@@ -236,7 +243,7 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
     dweller.radiation = 35  # effective max becomes 65
     storage_result = MagicMock()
     storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=3, radaway=4)
-    session = MagicMock(execute=AsyncMock(return_value=storage_result))
+    session = MagicMock(get=AsyncMock(return_value=None), execute=AsyncMock(return_value=storage_result))
     deps = DwellerChatDeps(db_session=session, dweller=dweller, vault_id=uuid4())
 
     status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
@@ -283,7 +290,7 @@ async def test_medical_action_requires_live_threshold_and_supply() -> None:
 @pytest.mark.asyncio
 async def test_test_model_invokes_social_context_for_family_questions() -> None:
     """The chat agent can ground status and family answers in current vault data."""
-    deps = DwellerChatDeps(db_session=MagicMock(), dweller=_make_dweller(), vault_id=uuid4())
+    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     context = {
         "status": "Socializing",
         "room_name": "Living Room",

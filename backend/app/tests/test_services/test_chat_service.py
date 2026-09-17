@@ -230,7 +230,7 @@ class TestChatServiceErrorHandling:
             result = await run_chat_agent(db_session=db_session, dweller=chat_dweller, message_text="Hello")
 
         assert [c[0] for c in order.mock_calls] == ["rollback", "fallback"]
-        fallback.assert_awaited_once_with(chat_dweller, "Hello", None, for_audio=False)
+        fallback.assert_awaited_once_with(db_session, chat_dweller, "Hello", None, for_audio=False)
         assert result is fallback.return_value
 
     async def test_run_chat_agent_rolls_back_savepoint_before_fallback_on_unexpected_error(
@@ -254,7 +254,7 @@ class TestChatServiceErrorHandling:
             result = await run_chat_agent(db_session=db_session, dweller=chat_dweller, message_text="Hello")
 
         assert [c[0] for c in order.mock_calls] == ["rollback", "fallback"]
-        fallback.assert_awaited_once_with(chat_dweller, "Hello", None, for_audio=False)
+        fallback.assert_awaited_once_with(db_session, chat_dweller, "Hello", None, for_audio=False)
         assert result is fallback.return_value
 
     @pytest.mark.parametrize("missing", [False, True])

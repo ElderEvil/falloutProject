@@ -6,21 +6,10 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UInput from '@/core/components/ui/UInput.vue'
 import USelect from '@/core/components/ui/USelect.vue'
 import USlider from '@/core/components/ui/USlider.vue'
-import {
-  BACKGROUND_OPTIONS,
-  BUILD_OPTIONS,
-  EXPRESSIONS,
-  EYE_COLOR_OPTIONS,
-  HAIR_COLORS,
-  HAIRCUT_OPTIONS,
-  HEADGEAR_OPTIONS,
-  HEIGHT_OPTIONS,
-  POSE_OPTIONS,
-  SKIN_TONE_OPTIONS,
-} from '../models/appearanceOptions'
 import { formatIdentityLabel, type Dweller, type VisualAttributes } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
+import { useAppearanceOptions } from '../composables/useAppearanceOptions'
 
 interface Props {
   dweller: Dweller
@@ -40,6 +29,20 @@ const {
   load: loadIdentityOptions,
   factionsFor,
 } = useIdentityOptions()
+const {
+  skinTonesByRace,
+  buildsByRace,
+  haircutsByRace,
+  headgearByRace,
+  expressions,
+  poses,
+  backgrounds,
+  heights,
+  eyeColors,
+  hairColors,
+  loaded: appearanceOptionsLoaded,
+  load: loadAppearanceOptions,
+} = useAppearanceOptions()
 /** True while the form holds defaults set before the feature switch resolved. */
 const usedProvisionalDefaults = ref(false)
 
@@ -50,6 +53,7 @@ onMounted(async () => {
     form.faction = 'vault_dweller'
   }
   await loadIdentityOptions()
+  await loadAppearanceOptions()
 })
 
 // --- Form state ---
@@ -138,14 +142,20 @@ const availableStates = computed(() => statesByRace.value[raceKey.value] ?? null
 const showStateOfBeing = computed(() => form.race && form.race !== 'human')
 
 const availableSkinTones = computed(
-  () => SKIN_TONE_OPTIONS[raceKey.value] || SKIN_TONE_OPTIONS.human
+  () => skinTonesByRace.value[raceKey.value] || skinTonesByRace.value.human || []
 )
 
-const availableBuilds = computed(() => BUILD_OPTIONS[raceKey.value] || BUILD_OPTIONS.human)
+const availableBuilds = computed(
+  () => buildsByRace.value[raceKey.value] || buildsByRace.value.human || []
+)
 
-const availableHaircuts = computed(() => HAIRCUT_OPTIONS[raceKey.value] || HAIRCUT_OPTIONS.human)
+const availableHaircuts = computed(
+  () => haircutsByRace.value[raceKey.value] || haircutsByRace.value.human || []
+)
 
-const availableHeadgear = computed(() => HEADGEAR_OPTIONS[raceKey.value] || HEADGEAR_OPTIONS.human)
+const availableHeadgear = computed(
+  () => headgearByRace.value[raceKey.value] || headgearByRace.value.human || []
+)
 
 const selectOptions = (values: readonly string[]) =>
   values.map((value) => ({ value, label: formatIdentityLabel(value) }))
@@ -156,9 +166,9 @@ function pickRandom<T>(arr: readonly T[] | T[]): T {
 }
 
 function randomize() {
-  // The catalogue is fetched on mount; randomising before it lands would write
-  // undefined into race/faction and then clear them on save.
-  if (raceOptions.value.length === 0) return
+  // Both catalogues are fetched on mount; randomising before they land would
+  // write undefined into a field and then clear it on save.
+  if (raceOptions.value.length === 0 || !appearanceOptionsLoaded.value) return
 
   const randomRace = pickRandom(raceOptions.value)
   form.race = randomRace
@@ -175,25 +185,25 @@ function randomize() {
   }
 
   // Physical
-  form.height = pickRandom(HEIGHT_OPTIONS)
-  form.build = pickRandom(BUILD_OPTIONS[randomRace] || BUILD_OPTIONS.human)
-  form.skin_tone = pickRandom(SKIN_TONE_OPTIONS[randomRace] || SKIN_TONE_OPTIONS.human)
-  form.eye_color = pickRandom(EYE_COLOR_OPTIONS)
+  form.height = pickRandom(heights.value)
+  form.build = pickRandom(buildsByRace.value[randomRace] || buildsByRace.value.human || [])
+  form.skin_tone = pickRandom(skinTonesByRace.value[randomRace] || skinTonesByRace.value.human || [])
+  form.eye_color = pickRandom(eyeColors.value)
   form.age = Math.floor(Math.random() * 50) + 20
 
   // Facial
-  form.hair_style = pickRandom(HAIRCUT_OPTIONS[randomRace] || HAIRCUT_OPTIONS.human)
-  form.hair_color = pickRandom(HAIR_COLORS)
+  form.hair_style = pickRandom(haircutsByRace.value[randomRace] || haircutsByRace.value.human || [])
+  form.hair_color = pickRandom(hairColors.value)
   form.facial_hair = pickRandom(['None', 'Light Stubble', 'Goatee', 'Moustache', 'Full Beard'])
   if (form.facial_hair === 'None') form.facial_hair = undefined
   form.makeup = pickRandom(['natural', 'glamorous', 'goth'])
-  form.expression = pickRandom(EXPRESSIONS)
+  form.expression = pickRandom(expressions.value)
   form.appearance = pickRandom(['attractive', 'cute', 'average', 'unattractive'])
-  form.headgear = pickRandom(HEADGEAR_OPTIONS[randomRace] || HEADGEAR_OPTIONS.human)
+  form.headgear = pickRandom(headgearByRace.value[randomRace] || headgearByRace.value.human || [])
 
   // Scene
-  form.pose = pickRandom(POSE_OPTIONS)
-  form.background = pickRandom(BACKGROUND_OPTIONS)
+  form.pose = pickRandom(poses.value)
+  form.background = pickRandom(backgrounds.value)
 }
 
 function handleSave() {
@@ -273,7 +283,7 @@ function handleCancel() {
         </h4>
         <div class="form-grid">
           <div class="form-field">
-            <USelect v-model="form.height" :options="selectOptions(HEIGHT_OPTIONS)" label="Height" label-icon="mdi:human-male-height" />
+            <USelect v-model="form.height" :options="selectOptions(heights)" label="Height" label-icon="mdi:human-male-height" />
           </div>
           <div class="form-field">
             <USelect v-model="form.build" :options="selectOptions(availableBuilds)" label="Build" label-icon="mdi:arm-flex" />
@@ -282,7 +292,7 @@ function handleCancel() {
             <USelect v-model="form.skin_tone" :options="selectOptions(availableSkinTones)" label="Skin Tone" label-icon="mdi:palette-outline" />
           </div>
           <div class="form-field">
-            <USelect v-model="form.eye_color" :options="selectOptions(EYE_COLOR_OPTIONS)" label="Eye Color" label-icon="mdi:eye-outline" />
+            <USelect v-model="form.eye_color" :options="selectOptions(eyeColors)" label="Eye Color" label-icon="mdi:eye-outline" />
           </div>
           <label class="flex flex-col gap-1">
             <span class="flex items-center gap-1 text-sm font-medium text-theme-primary/70">
@@ -311,7 +321,7 @@ function handleCancel() {
             <USelect v-model="form.hair_style" :options="selectOptions(availableHaircuts)" label="Hair Style" label-icon="mdi:content-cut" />
           </div>
           <div class="form-field">
-            <USelect v-model="form.hair_color" :options="selectOptions(HAIR_COLORS)" label="Hair Color" label-icon="mdi:palette" />
+            <USelect v-model="form.hair_color" :options="selectOptions(hairColors)" label="Hair Color" label-icon="mdi:palette" />
           </div>
           <div class="form-field">
             <UInput
@@ -325,7 +335,7 @@ function handleCancel() {
             <UInput v-model="form.makeup" label="Makeup" label-icon="mdi:brush-variant" placeholder="e.g. natural, glamorous" />
           </div>
           <div class="form-field">
-            <USelect v-model="form.expression" :options="selectOptions(EXPRESSIONS)" label="Expression" label-icon="mdi:emoticon-outline" />
+            <USelect v-model="form.expression" :options="selectOptions(expressions)" label="Expression" label-icon="mdi:emoticon-outline" />
           </div>
           <div class="form-field">
             <USelect v-model="form.appearance" :options="selectOptions(['attractive', 'cute', 'average', 'unattractive'])" label="Appearance" label-icon="mdi:account-details-outline" />
@@ -366,10 +376,10 @@ function handleCancel() {
             <UInput v-model="form.object_held" label="Object Held" label-icon="mdi:hand-back-right-outline" placeholder="e.g. Laser Rifle" />
           </div>
           <div class="form-field form-field-full">
-            <USelect v-model="form.pose" :options="selectOptions(POSE_OPTIONS)" label="Pose" label-icon="mdi:human-greeting" />
+            <USelect v-model="form.pose" :options="selectOptions(poses)" label="Pose" label-icon="mdi:human-greeting" />
           </div>
           <div class="form-field form-field-full">
-            <USelect v-model="form.background" :options="selectOptions(BACKGROUND_OPTIONS)" label="Background" label-icon="mdi:panorama-outline" />
+            <USelect v-model="form.background" :options="selectOptions(backgrounds)" label="Background" label-icon="mdi:panorama-outline" />
           </div>
           <div class="form-field form-field-full">
             <UInput

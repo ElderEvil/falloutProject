@@ -3,6 +3,7 @@ import type { components } from '@/core/types/api.generated'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 export type IdentityOptions = components['schemas']['DwellerIdentityOptions']
+export type AppearanceOptions = components['schemas']['DwellerAppearanceOptions']
 export type FeatureFlags = components['schemas']['FeaturesResponse']
 
 export interface DwellerQueryParams {
@@ -62,6 +63,13 @@ export async function appendBioAddendum(dwellerId: string, text: string, token: 
 
 export async function getIdentityOptions(token: string): Promise<IdentityOptions> {
   const response = await axios.get<IdentityOptions>('/api/v1/dwellers/identity-options', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return response.data
+}
+
+export async function getAppearanceOptions(token: string): Promise<AppearanceOptions> {
+  const response = await axios.get<AppearanceOptions>('/api/v1/dwellers/appearance-options', {
     headers: { Authorization: `Bearer ${token}` },
   })
   return response.data

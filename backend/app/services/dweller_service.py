@@ -16,9 +16,22 @@ from app.crud import training as training_crud
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
+from app.options.appearance import (
+    background_options,
+    body_type_options,
+    expression_options,
+    eye_color_options,
+    hair_color_options,
+    haircuts,
+    headgear_options,
+    height_options,
+    pose_options,
+    skin_tone_options,
+)
 from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.schemas.dweller import (
+    DwellerAppearanceOptions,
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerIdentityOptions,
@@ -64,6 +77,21 @@ class DwellerService:
             races=[race.value for race in RaceOption],
             factions_by_race=factions_by_race,
             states_by_race={race.value: states for race, states in STATE_OF_BEING_VALUES.items()},
+        )
+
+    def get_appearance_options(self) -> DwellerAppearanceOptions:
+        """Return the canonical appearance choices derived from the options module."""
+        return DwellerAppearanceOptions(
+            skin_tones_by_race={race.value: tones for race, tones in skin_tone_options.items()},
+            builds_by_race={race.value: builds for race, builds in body_type_options.items()},
+            haircuts_by_race={race.value: cuts for race, cuts in haircuts.items()},
+            headgear_by_race={race.value: gear for race, gear in headgear_options.items()},
+            expressions=list(expression_options),
+            poses=pose_options,
+            backgrounds=background_options,
+            heights=height_options,
+            eye_colors=eye_color_options,
+            hair_colors=hair_color_options,
         )
 
     async def create_dweller(self, db_session: AsyncSession, obj_in: DwellerCreate) -> Dweller:

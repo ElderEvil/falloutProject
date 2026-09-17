@@ -553,3 +553,18 @@ async def test_dweller_detail_exposes_identity_modifiers(
     assert modifiers["perception"] == -2
     assert modifiers["radiation_immune"] is False
     assert modifiers["melee_damage_pct"] == 0.15
+
+
+async def test_appearance_options_endpoint(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """Clients fetch the editor catalogue from the API instead of mirroring it."""
+    response = await async_client.get("/dwellers/appearance-options", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "human" in body["skin_tones_by_race"]
+    assert "None" in body["headgear_by_race"]["human"]
+    assert body["poses"]
+    assert body["backgrounds"]

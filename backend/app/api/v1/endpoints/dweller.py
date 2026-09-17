@@ -15,6 +15,7 @@ from app.db.session import get_async_session
 from app.models.dweller import Dweller
 from app.schemas.dweller import (
     BioAddendumRequest,
+    DwellerAppearanceOptions,
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerCreateWithoutVaultID,
@@ -80,6 +81,12 @@ async def read_dweller_list(
 async def read_identity_options(_: CurrentActiveUser) -> DwellerIdentityOptions:
     """Return the valid race, faction and state-of-being identity combinations."""
     return dweller_service.get_identity_options()
+
+
+@router.get("/appearance-options", response_model=DwellerAppearanceOptions)
+async def read_appearance_options(_: CurrentActiveUser) -> DwellerAppearanceOptions:
+    """Return the canonical appearance choices for the appearance editor."""
+    return dweller_service.get_appearance_options()
 
 
 @router.get("/{dweller_id}", response_model=DwellerReadFull)

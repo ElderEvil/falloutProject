@@ -197,6 +197,21 @@ class DwellerIdentityOptions(BaseModel):
     states_by_race: dict[str, list[str]]
 
 
+class DwellerAppearanceOptions(BaseModel):
+    """Canonical appearance choices used by the appearance editor."""
+
+    skin_tones_by_race: dict[str, list[str]]
+    builds_by_race: dict[str, list[str]]
+    haircuts_by_race: dict[str, list[str]]
+    headgear_by_race: dict[str, list[str]]
+    expressions: list[str]
+    poses: list[str]
+    backgrounds: list[str]
+    heights: list[str]
+    eye_colors: list[str]
+    hair_colors: list[str]
+
+
 # Backward-compatible alias for migration
 DwellerVisualAttributesInput = DwellerVisualAttributes
 

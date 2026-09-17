@@ -30,6 +30,38 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
       synth: ['gen_3', 'gen_2', 'gen_1'],
     },
   }),
+  getAppearanceOptions: vi.fn().mockResolvedValue({
+    skin_tones_by_race: {
+      human: ['Pale', 'Tan'],
+      ghoul: ['Pale Grey', 'Ashen'],
+      super_mutant: ['Light Green', 'Green'],
+      synth: ['Synthetic Fair', 'Metallic Silver'],
+    },
+    builds_by_race: {
+      human: ['Slim', 'Athletic'],
+      ghoul: ['Skeletal'],
+      super_mutant: ['Muscular'],
+      synth: ['Slender'],
+    },
+    haircuts_by_race: {
+      human: ['Short Hair', 'Buzz Cut'],
+      ghoul: ['Patchy Hair'],
+      super_mutant: ['Bald'],
+      synth: ['Clean Cut'],
+    },
+    headgear_by_race: {
+      human: ['None', 'Combat Helmet'],
+      ghoul: ['None', 'Leather Hood'],
+      super_mutant: ['None', 'Metal Helmet'],
+      synth: ['None', 'Institute Hood'],
+    },
+    expressions: ['neutral', 'smiling'],
+    poses: ['Standing confidently', 'Combat ready'],
+    backgrounds: ['Vault Interior', 'Wasteland Ruins'],
+    heights: ['tall', 'average', 'short'],
+    eye_colors: ['blue', 'green'],
+    hair_colors: ['blonde', 'black'],
+  }),
 }))
 
 const baseDweller = {

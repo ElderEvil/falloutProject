@@ -84,6 +84,15 @@ def race_of(entity: object) -> RaceOption | None:
         return None
 
 
+#: Synth models whose artificial nature is visible; the rest pass as human.
+VISIBLE_SYNTH_STATES: frozenset[str] = frozenset({SynthTypeEnum.GEN_1.value, SynthTypeEnum.GEN_2.value})
+
+
+def passes_as_human(race: RaceOption | str | None, state_of_being: str | None) -> bool:
+    """Whether a race must present as human (Gen 3 synths; an unknown model fails the same way)."""
+    return race == RaceOption.SYNTH and state_of_being not in VISIBLE_SYNTH_STATES
+
+
 def can_breed(entity: object) -> bool:
     """Whether an entity's race may conceive; entities without a race default to human."""
     return BREEDING_ELIGIBLE.get(race_of(entity) or RaceOption.HUMAN, False)

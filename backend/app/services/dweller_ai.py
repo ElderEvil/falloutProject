@@ -15,6 +15,7 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.base import SPECIALModel
 from app.models.dweller import BIO_MAX_CHARS
+from app.options.races import RaceOption, passes_as_human
 from app.schemas.dweller import DwellerReadFull, DwellerUpdate, DwellerVisualAttributes
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.ai_service import get_ai_service
@@ -303,6 +304,9 @@ class DwellerAIService:
 
         dweller_race = existing_attrs.get("race") if isinstance(existing_attrs, dict) else None
         dweller_faction = existing_attrs.get("faction") if isinstance(existing_attrs, dict) else None
+        dweller_state = existing_attrs.get("state_of_being") if isinstance(existing_attrs, dict) else None
+        # A passing synth is presented to the agent as human so no synthetic descriptor reaches the portrait.
+        portrait_race = RaceOption.HUMAN if passes_as_human(dweller_race, dweller_state) else dweller_race
 
         equipped_items = [item.name for item in (dweller_obj.weapon, dweller_obj.outfit) if item is not None]
 
@@ -311,7 +315,7 @@ class DwellerAIService:
             last_name=dweller_obj.last_name or "",
             gender=dweller_obj.gender,
             bio=dweller_obj.bio,
-            race=dweller_race,
+            race=portrait_race,
             faction=dweller_faction,
             equipped_items=equipped_items,
         )

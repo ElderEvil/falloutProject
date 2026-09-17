@@ -5,7 +5,7 @@ from typing import Any
 
 from app.core.enums import AgeGroupEnum
 from app.models.base import SPECIALModel
-from app.options.races import RaceOption, race_descriptions, race_of
+from app.options.races import RaceOption, passes_as_human, race_descriptions, race_of
 from app.schemas.dweller import DwellerReadFull
 
 AGE_VOICE_GUIDANCE: dict[AgeGroupEnum, str] = {
@@ -42,12 +42,14 @@ def age_voice_line(age_group: AgeGroupEnum | None) -> str:
 
 
 def identity_line(dweller: object) -> str:
-    """Explicit species and state-of-being for non-humans (empty for humans and unknown)."""
+    """Explicit species for visibly non-human dwellers (empty for humans and passing synths)."""
     race = race_of(dweller)
     if race is None or race is RaceOption.HUMAN:
         return ""
     attrs = getattr(dweller, "visual_attributes", None)
     state = attrs.get("state_of_being") if isinstance(attrs, dict) else None
+    if passes_as_human(race, state):
+        return ""
     suffix = f" ({state})" if isinstance(state, str) and state else ""
     return (
         f"Species: {race.value}{suffix}. {race_descriptions.get(race, '').strip()} "

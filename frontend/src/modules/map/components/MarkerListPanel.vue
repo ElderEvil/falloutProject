@@ -204,7 +204,15 @@ function handleItemClick(item: MarkerGroup['items'][number]) {
   border-radius: 2px;
   color: var(--color-theme-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    opacity var(--transition-fast),
+    transform var(--transition-fast),
+    filter var(--transition-fast),
+    text-shadow var(--transition-fast);
   flex-shrink: 0;
 }
 

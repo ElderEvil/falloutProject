@@ -157,7 +157,16 @@ const emit = defineEmits<{
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s,
+    transform 0.2s,
+    filter 0.2s,
+    text-shadow 0.2s,
+    font-weight 0.2s;
 }
 
 .mode-btn:hover {

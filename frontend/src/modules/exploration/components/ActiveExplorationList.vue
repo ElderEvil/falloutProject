@@ -222,7 +222,15 @@ const riskTitle = (dwellerId: string) => {
   font-size: 0.75rem;
   font-weight: 700;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease,
+    text-shadow 0.2s ease;
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 4px var(--color-theme-glow);
 }
@@ -247,7 +255,15 @@ const riskTitle = (dwellerId: string) => {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease,
+    text-shadow 0.2s ease;
 }
 
 .explorer-card:hover {

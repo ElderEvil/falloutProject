@@ -453,7 +453,12 @@ body {
     background-color: rgba(0, 0, 0, 0.9);
     border-radius: 0.25rem;
     box-shadow: 0 0 10px var(--color-theme-glow);
-    transition: all 200ms;
+    transition:
+        background-color var(--transition-base),
+        border-color var(--transition-base),
+        color var(--transition-base),
+        box-shadow var(--transition-base),
+        opacity var(--transition-base);
 }
 
 .terminal-card:hover {
@@ -467,7 +472,12 @@ body {
     color: var(--color-theme-primary);
     background-color: transparent;
     border-radius: 0.25rem;
-    transition: all 200ms;
+    transition:
+        background-color var(--transition-base),
+        border-color var(--transition-base),
+        color var(--transition-base),
+        box-shadow var(--transition-base),
+        opacity var(--transition-base);
     cursor: pointer;
 }
 
@@ -488,7 +498,11 @@ body {
     background-color: #000000;
     color: var(--color-theme-primary);
     border-radius: 0.25rem;
-    transition: all 200ms;
+    transition:
+        background-color var(--transition-base),
+        border-color var(--transition-base),
+        color var(--transition-base),
+        box-shadow var(--transition-base);
 }
 
 .terminal-input:focus {
@@ -548,7 +562,9 @@ body {
     color: var(--color-theme-primary);
     text-decoration: underline;
     text-underline-offset: 2px;
-    transition: all 200ms;
+    transition:
+        color var(--transition-base),
+        text-shadow var(--transition-base);
 }
 
 .dweller-link:hover {

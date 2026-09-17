@@ -200,7 +200,15 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   background: rgba(0, 0, 0, 0.3);
   border-left: 2px solid var(--color-theme-glow);
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease,
+    text-shadow 0.2s ease;
 }
 
 .stat-item:hover {

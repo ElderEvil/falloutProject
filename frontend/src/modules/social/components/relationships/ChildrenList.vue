@@ -133,7 +133,15 @@ const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group 
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 0 10px var(--color-theme-glow);
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s,
+    transform 0.2s,
+    filter 0.2s,
+    text-shadow 0.2s;
 }
 
 .child-card:hover {

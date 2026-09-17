@@ -257,7 +257,16 @@ onMounted(() => {
   border: 1px solid var(--color-theme-glow);
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease,
+    text-shadow 0.2s ease,
+    padding-top 0.2s ease;
 }
 
 .refresh-button:hover:not(:disabled) {

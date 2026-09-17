@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.118.0 (2026-09-17)
+
+### Features
+
+* sync roster filters and sorting to the URL query 7dabce8
+
+### Bug Fixes
+
+* follow the URL when the query changes while the roster view is mounted c5d4856
+
+## 2.117.0 (2026-09-17)
+
+### Features
+
+* add contextual status counts and a filter summary to the roster filters 19d23be
+
+### Bug Fixes
+
+* match the selected filter chip to the view toggle baffe2b
+* name the identity filter group consistently 4da34fa
+
 ## 2.116.0 (2026-09-17)
 
 ### Features

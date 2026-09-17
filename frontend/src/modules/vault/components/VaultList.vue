@@ -118,9 +118,7 @@ const handleDeleteVault = async (id: string) => {
     color 0.2s,
     box-shadow 0.2s,
     opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    transform 0.2s;
   border: 2px solid;
 }
 

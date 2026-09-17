@@ -270,7 +270,11 @@ onUnmounted(() => {
   border-right: 2px solid var(--color-theme-primary);
   box-shadow: var(--glow-1);
   transition:
-    width 0.3s ease,
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease,
+    opacity 0.3s ease,
     transform 0.3s ease;
   z-index: 40;
   display: flex;
@@ -297,14 +301,10 @@ onUnmounted(() => {
   color: var(--color-theme-primary);
   cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
+    background 0.2s,
     color 0.2s,
     box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    outline 0.2s;
   z-index: 10;
 }
 
@@ -336,14 +336,11 @@ onUnmounted(() => {
   border-left: 3px solid transparent;
   cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
+    background 0.2s,
+    border-left-color 0.2s,
     box-shadow 0.2s,
     opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    outline 0.2s;
   text-align: left;
   gap: 12px;
   position: relative;

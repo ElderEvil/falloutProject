@@ -349,15 +349,8 @@ const cellTitle = computed(() => {
   gap: 4px;
   font-size: 0.75rem;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s,
-    top 0.2s;
+    background 0.2s,
+    box-shadow 0.2s;
 }
 
 .upgrade-button:hover {
@@ -376,15 +369,8 @@ const cellTitle = computed(() => {
   color: var(--color-danger);
   padding: 4px;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
     color 0.2s,
-    box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s,
-    top 0.2s;
+    transform 0.2s;
 }
 
 .destroy-button:hover {

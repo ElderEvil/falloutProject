@@ -80,8 +80,12 @@ function pick(action: 'rename' | 'soft-delete') {
   color: var(--color-theme-primary);
   cursor: pointer;
   transition:
+    background-color 0.2s,
     border-color 0.2s,
-    box-shadow 0.2s;
+    color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s,
+    transform 0.2s;
 }
 
 .menu-trigger:hover,

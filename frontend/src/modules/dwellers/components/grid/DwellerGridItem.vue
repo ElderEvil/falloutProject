@@ -173,14 +173,9 @@ const getStatColorClass = (value: number) => {
   overflow: hidden;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
     border-color 0.2s ease,
-    color 0.2s ease,
     box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease,
-    text-shadow 0.2s ease;
+    transform 0.2s ease;
   box-shadow: var(--glow-2);
 }
 
@@ -236,14 +231,9 @@ const getStatColorClass = (value: number) => {
   padding: 0.5rem;
   cursor: pointer;
   transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
+    background 0.3s ease,
     box-shadow 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    filter 0.3s ease,
-    text-shadow 0.3s ease;
+    opacity 0.3s ease;
 }
 
 .ai-generate-button:hover:not(:disabled) {
@@ -356,14 +346,10 @@ const getStatColorClass = (value: number) => {
   border: 1px solid rgba(107, 114, 128, 0.5);
   color: rgba(209, 213, 219, 0.9);
   transition:
-    background-color 0.2s ease,
+    background 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease,
-    text-shadow 0.2s ease;
+    box-shadow 0.2s ease;
   cursor: pointer;
 }
 

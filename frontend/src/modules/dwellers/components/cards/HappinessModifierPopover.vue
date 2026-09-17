@@ -104,14 +104,9 @@ const loadHappinessModifiers = async () => {
   padding: 0.25rem;
   border-radius: 50%;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s,
+    background 0.2s,
     opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,14 +188,8 @@ const loadHappinessModifiers = async () => {
   padding: 0.25rem;
   border-radius: 50%;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    background 0.2s,
+    transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -246,14 +235,8 @@ const loadHappinessModifiers = async () => {
   border-radius: 4px;
   font-size: 0.8125rem;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    background 0.2s,
+    transform 0.2s;
 }
 
 .modifier-item:hover {

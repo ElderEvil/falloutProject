@@ -93,9 +93,7 @@ const alertClasses = ['rounded-lg border-2 p-4', variantClasses[variant]].join('
     color 0.3s ease,
     box-shadow 0.3s ease,
     opacity 0.3s ease,
-    transform 0.3s ease,
-    filter 0.3s ease,
-    text-shadow 0.3s ease;
+    transform 0.3s ease;
 }
 
 .alert-enter-from {

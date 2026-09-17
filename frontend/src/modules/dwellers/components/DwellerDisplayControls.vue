@@ -206,11 +206,9 @@ function applyPreset(presetId: string) {
   font-family: inherit;
   cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
+    background 0.2s,
     box-shadow 0.2s,
-    opacity 0.2s;
+    outline 0.2s;
 }
 
 .display-controls button:hover {

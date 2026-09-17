@@ -309,14 +309,8 @@ const tryClose = () => emit('close', requiresResolution.value)
   border: 2px solid;
   border-radius: 6px;
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease,
-    text-shadow 0.2s ease;
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .overflow-actions {
@@ -390,14 +384,10 @@ const tryClose = () => emit('close', requiresResolution.value)
   font-weight: 700;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
+    background 0.2s ease,
     color 0.2s ease,
     box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease,
-    text-shadow 0.2s ease;
+    opacity 0.2s ease;
 }
 
 .collect-btn:hover:not(:disabled) {

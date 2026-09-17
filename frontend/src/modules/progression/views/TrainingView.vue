@@ -257,14 +257,8 @@ onMounted(async () => {
   border-radius: 0.5rem;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
     border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease,
-    text-shadow 0.2s ease;
+    box-shadow 0.2s ease;
   color: var(--color-theme-primary);
   font-family: 'Courier New', monospace;
   box-shadow: 0 0 10px var(--color-theme-glow);

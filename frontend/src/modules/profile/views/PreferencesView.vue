@@ -413,14 +413,8 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   border: 2px solid;
   border-radius: 4px;
   transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
-    box-shadow 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    filter 0.3s ease,
-    text-shadow 0.3s ease;
+    background 0.3s ease,
+    border-width 0.3s ease;
   text-align: left;
   cursor: pointer;
 }
@@ -529,14 +523,9 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   border-radius: 4px;
   cursor: pointer;
   transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
+    background 0.3s ease,
     color 0.3s ease,
-    box-shadow 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    filter 0.3s ease,
-    text-shadow 0.3s ease;
+    box-shadow 0.3s ease;
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -587,14 +576,9 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   border-radius: 4px;
   cursor: pointer;
   transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
+    background 0.3s ease,
     box-shadow 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    filter 0.3s ease,
-    text-shadow 0.3s ease;
+    transform 0.3s ease;
   font-weight: 600;
 }
 

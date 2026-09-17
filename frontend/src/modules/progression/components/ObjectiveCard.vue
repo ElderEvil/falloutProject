@@ -120,14 +120,8 @@ const canClaim = computed(() => {
   border-radius: 6px;
   padding: 16px;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
     box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    transform 0.2s;
   position: relative;
   overflow: hidden;
 }
@@ -276,14 +270,9 @@ const canClaim = computed(() => {
   letter-spacing: 0.05em;
   cursor: pointer;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
+    background 0.2s,
     box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s,
-    filter 0.2s,
-    text-shadow 0.2s;
+    transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useDwellerStore } from '../stores/dweller'
+import { useDwellerStore, compareDwellers, matchesAgeGroup } from '../stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { Icon } from '@iconify/vue'
@@ -54,35 +54,19 @@ const isUnassignable = (dweller: DwellerShort): boolean =>
 
 const hasAnyUnassigned = computed(() => dwellerStore.dwellersWithStatus.some(isUnassignable))
 
-// Use unfiltered dwellers from store, but only show unassigned ones
-// We manually apply sorting here to respect the sort preference without being affected by the global status filter
+// Use unfiltered dwellers from store, but only show unassigned ones, ordered by the
+// shared sort preference without being affected by the global status filter.
 const unassignedDwellers = computed(() => {
   const filtered = dwellerStore.dwellersWithStatus.filter(
     (dweller) =>
       isUnassignable(dweller) &&
-      (dwellerStore.filterAgeGroup === 'all' ||
-        dweller.age_group === dwellerStore.filterAgeGroup) &&
+      matchesAgeGroup(dweller, dwellerStore.filterAgeGroup) &&
       (filterRarity.value === 'all' || dweller.rarity === filterRarity.value)
   )
 
-  // 2. Sort based on store preferences (shared with filter panel)
-  return filtered.sort((a, b) => {
-    let comparison = 0
-    const sortBy = dwellerStore.sortBy
-
-    if (sortBy === 'name') {
-      const nameA = `${a.first_name} ${a.last_name}`.toLowerCase()
-      const nameB = `${b.first_name} ${b.last_name}`.toLowerCase()
-      comparison = nameA.localeCompare(nameB)
-    } else if (sortBy === 'level' || sortBy === 'happiness') {
-      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
-    } else {
-      // SPECIAL stats
-      comparison = (a[sortBy] || 0) - (b[sortBy] || 0)
-    }
-
-    return dwellerStore.sortDirection === 'asc' ? comparison : -comparison
-  })
+  return filtered.sort((a, b) =>
+    compareDwellers(a, b, dwellerStore.sortBy, dwellerStore.sortDirection)
+  )
 })
 
 const isDraggingOver = ref(false)

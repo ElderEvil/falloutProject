@@ -619,6 +619,33 @@ describe('DwellerFilter Store', () => {
       expect(result[0].id).toBe('d1')
       expect(result[1].id).toBe('d2')
     })
+
+    it('treats a missing stat as zero rather than comparing as NaN', () => {
+      const store = useDwellerFilterStore()
+      store.dwellers = [
+        {
+          id: 'has',
+          first_name: 'A',
+          last_name: 'A',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+          strength: 5,
+        } as never,
+        {
+          id: 'missing',
+          first_name: 'B',
+          last_name: 'B',
+          status: 'idle',
+          level: 1,
+          happiness: 50,
+        } as never,
+      ]
+      store.setSortBy('strength')
+      store.setSortDirection('asc')
+
+      expect(store.filteredAndSortedDwellers.map((d) => d.id)).toEqual(['missing', 'has'])
+    })
   })
 
   describe('countByStatus', () => {

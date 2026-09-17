@@ -93,12 +93,11 @@ const hasCount = (value: string): boolean => props.counts !== undefined && value
   cursor: pointer;
   opacity: 0.7;
   transition:
-    background 0.2s,
+    opacity 0.2s,
+    background-color 0.2s,
     border-color 0.2s,
     box-shadow 0.2s,
-    opacity 0.2s,
-    font-weight 0.2s,
-    outline 0.2s;
+    color 0.2s;
   white-space: nowrap;
 }
 

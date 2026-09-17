@@ -307,9 +307,7 @@ const handleAssignAndStart = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .party-slot.filled {
@@ -366,8 +364,7 @@ const handleAssignAndStart = () => {
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  transition:
-    background 0.2s;
+  transition: all 0.2s;
 }
 
 .slot-remove:hover {
@@ -398,9 +395,7 @@ const handleAssignAndStart = () => {
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .dweller-item:hover {

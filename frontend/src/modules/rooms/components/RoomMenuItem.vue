@@ -131,12 +131,7 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   border: 2px solid var(--color-surface-hover);
   border-radius: 4px;
   cursor: pointer;
-  transition:
-    background 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    opacity 0.25s ease,
-    transform 0.25s ease;
+  transition: all 0.25s ease;
   font-family: 'Courier New', monospace;
   position: relative;
   overflow: hidden;

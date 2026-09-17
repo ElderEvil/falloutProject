@@ -256,13 +256,7 @@ onMounted(() => {
 .recruit-button {
   background: var(--color-theme-primary);
   border: 2px solid var(--color-theme-primary);
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s,
-    opacity 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
 }
 
 .mode-switch-button:hover:not(:disabled),

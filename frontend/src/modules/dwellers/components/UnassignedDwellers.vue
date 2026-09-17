@@ -333,10 +333,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   padding: 2rem;
   color: var(--color-theme-glow);
   gap: 0.5rem;
-  transition:
-    background 0.3s ease,
-    border-color 0.3s ease,
-    box-shadow 0.3s ease;
+  transition: all 0.3s ease;
   border: 2px dashed transparent;
   border-radius: 8px;
   min-height: 120px;
@@ -413,12 +410,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
   border-radius: 6px;
   padding: 1rem;
   cursor: grab;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease;
+  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

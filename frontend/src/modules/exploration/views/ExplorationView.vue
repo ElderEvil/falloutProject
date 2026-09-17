@@ -569,9 +569,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+  transition: all 0.2s ease;
   font-size: 1.25rem;
 }
 

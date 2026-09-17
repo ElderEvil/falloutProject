@@ -283,9 +283,7 @@ const isDead = (member: LineageMember) => member.is_dead
   padding: 0.4rem 0.75rem;
   color: var(--color-theme-primary);
   cursor: pointer;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.2s;
   font-family: 'Courier New', monospace;
   display: inline-flex;
   align-items: center;

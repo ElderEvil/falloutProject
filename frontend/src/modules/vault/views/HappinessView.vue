@@ -246,9 +246,7 @@ onMounted(() => {
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .retry-button:hover {

@@ -80,12 +80,7 @@ const selectTab = (key: string, disabled?: boolean) => {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-bottom-color 0.2s ease,
-    color 0.2s ease,
-    opacity 0.2s ease,
-    text-shadow 0.2s ease;
+  transition: all 0.2s ease;
   text-shadow: 0 0 3px var(--color-theme-glow);
   position: relative;
   margin-bottom: -2px;

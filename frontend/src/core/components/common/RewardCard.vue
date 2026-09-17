@@ -41,10 +41,7 @@ withDefaults(
   background: color-mix(in srgb, var(--color-theme-primary) 3%, transparent);
   border: 2px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
   border-radius: 6px;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .reward-card:hover {

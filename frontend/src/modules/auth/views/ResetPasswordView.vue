@@ -289,8 +289,7 @@ const handleSubmit = async () => {
   color: var(--color-theme-primary);
   text-decoration: underline;
   cursor: pointer;
-  transition:
-    text-shadow 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .link-text:hover {

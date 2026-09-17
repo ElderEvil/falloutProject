@@ -270,9 +270,9 @@ function clearFilters(): void {
   font-size: 0.75rem;
   cursor: pointer;
   transition:
-    background 0.2s,
+    background-color 0.2s,
     border-color 0.2s,
-    outline 0.2s;
+    color 0.2s;
 }
 
 .filter-clear:hover {

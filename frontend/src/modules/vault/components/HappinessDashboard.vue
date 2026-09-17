@@ -424,12 +424,8 @@ const distributionPercentage = (count: number) => {
 
 .gauge-progress {
   transition:
-    background-color 0.5s ease,
-    border-color 0.5s ease,
-    color 0.5s ease,
-    box-shadow 0.5s ease,
-    opacity 0.5s ease,
-    transform 0.5s ease;
+    stroke-dasharray 0.5s ease,
+    stroke 0.3s ease;
   filter: drop-shadow(0 0 8px currentColor);
 }
 

@@ -222,20 +222,12 @@ onUnmounted(() => {
 .dropdown-enter-active {
   /* Root must outlast the staggered children (last starts at 250ms + 150ms run). */
   transition:
-    background-color 0.4s ease,
-    border-color 0.4s ease,
-    color 0.4s ease,
-    box-shadow 0.4s ease,
     opacity 0.4s ease,
     transform 0.4s ease;
 }
 
 .dropdown-leave-active {
   transition:
-    background-color 0.1s ease,
-    border-color 0.1s ease,
-    color 0.1s ease,
-    box-shadow 0.1s ease,
     opacity 0.1s ease,
     transform 0.1s ease;
 }

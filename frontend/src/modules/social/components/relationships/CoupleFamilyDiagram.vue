@@ -70,9 +70,7 @@ const children = computed(() =>
   font-size: 0.8125rem;
   opacity: 0.9;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .child-node:hover {

@@ -348,9 +348,7 @@ const cellTitle = computed(() => {
   align-items: center;
   gap: 4px;
   font-size: 0.75rem;
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .upgrade-button:hover {
@@ -368,9 +366,7 @@ const cellTitle = computed(() => {
   cursor: pointer;
   color: var(--color-danger);
   padding: 4px;
-  transition:
-    color 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
 }
 
 .destroy-button:hover {

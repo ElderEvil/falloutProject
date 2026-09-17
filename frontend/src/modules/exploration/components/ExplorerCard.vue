@@ -159,10 +159,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 <style scoped>
 .explorer-card {
   cursor: pointer;
-  transition:
-    border-color 0.3s ease,
-    box-shadow 0.3s ease,
-    transform 0.3s ease;
+  transition: all 0.3s ease;
   display: grid;
   gap: 14px;
 }

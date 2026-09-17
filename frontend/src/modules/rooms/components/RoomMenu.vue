@@ -115,9 +115,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    color 0.2s,
-    text-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .close-btn:hover {

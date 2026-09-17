@@ -103,10 +103,7 @@ const loadHappinessModifiers = async () => {
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 50%;
-  transition:
-    background 0.2s,
-    opacity 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,9 +184,7 @@ const loadHappinessModifiers = async () => {
   color: var(--color-theme-primary);
   padding: 0.25rem;
   border-radius: 50%;
-  transition:
-    background 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,9 +229,7 @@ const loadHappinessModifiers = async () => {
   background: var(--color-surface-raised);
   border-radius: 4px;
   font-size: 0.8125rem;
-  transition:
-    background 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
 }
 
 .modifier-item:hover {

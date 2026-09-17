@@ -386,12 +386,7 @@ watch(
   border: 1px solid rgb(34 197 94 / 0.3);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease;
+  transition: all 0.2s ease;
   font-family: 'Courier New', monospace;
 }
 

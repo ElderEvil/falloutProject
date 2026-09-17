@@ -223,11 +223,7 @@ const modalIcon = computed(() =>
   border: 2px dashed var(--color-theme-glow);
   border-radius: 8px;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    opacity 0.2s ease,
-    transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .empty-slot:hover {

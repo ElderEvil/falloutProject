@@ -87,13 +87,7 @@ const alertClasses = ['rounded-lg border-2 p-4', variantClasses[variant]].join('
 <style scoped>
 .alert-enter-active,
 .alert-leave-active {
-  transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease,
-    box-shadow 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .alert-enter-from {

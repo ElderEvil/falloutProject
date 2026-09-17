@@ -532,9 +532,7 @@ const handleAction = () => {
   border: 2px solid var(--color-theme-primary);
   border-radius: 6px;
   padding: 16px;
-  transition:
-    box-shadow 0.2s,
-    transform 0.2s;
+  transition: all 0.2s;
   position: relative;
   overflow: hidden;
 }

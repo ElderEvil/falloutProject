@@ -269,9 +269,7 @@ const handleSubmit = async () => {
   color: var(--color-theme-primary, #00ff00);
   text-decoration: underline;
   font-weight: bold;
-  transition:
-    opacity 0.2s,
-    text-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .link-text:hover {

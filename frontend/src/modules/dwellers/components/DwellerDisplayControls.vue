@@ -108,9 +108,8 @@ function applyPreset(presetId: string) {
     </div>
 
     <!--
-      Visual order is forced ahead of sort/view via `order: -1` so that when this
-      appears the island grows leftward and the controls keep their spread from the
-      right edge instead of jumping.
+      Kept last in the island: the toolbar pins the island's left edge, so a trigger
+      appended here grows it rightward and sort/view never shift when table mode opens.
     -->
     <div
       v-if="showView && dwellerStore.viewMode === 'table'"
@@ -225,7 +224,6 @@ function applyPreset(presetId: string) {
 }
 
 .columns-trigger {
-  order: -1;
   position: relative;
 }
 

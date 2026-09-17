@@ -443,8 +443,8 @@ const handleTreatIrradiated = async () => {
           </div>
 
           <div class="list-toolbar">
-            <span class="list-toolbar-count">{{ shownCount }} shown</span>
             <DwellerDisplayControls :show-view="true" />
+            <span class="list-toolbar-count">{{ shownCount }} shown</span>
           </div>
 
           <!-- Bulk Actions - Separate Section -->
@@ -536,7 +536,8 @@ const handleTreatIrradiated = async () => {
 .list-toolbar-count {
   color: var(--color-theme-primary);
   font-size: 0.8125rem;
-  opacity: 0.75;
+  /* Matches the Happiness overview's muted dweller count so the two bars read as a pair. */
+  opacity: 0.6;
 }
 
 /* Enhanced text styles */

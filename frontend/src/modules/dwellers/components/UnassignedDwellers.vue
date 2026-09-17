@@ -160,7 +160,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
         <DwellerFilterPanel class="w-full" :show-status-filter="false" :show-age-filter="true">
           <template #additional-filters>
             <DwellerFilterGroup
-              label="Rarity"
+              label="Filter by Rarity"
               icon="mdi:star-four-points"
               :options="RARITY_FILTERS"
               :model-value="filterRarity"

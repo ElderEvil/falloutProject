@@ -199,7 +199,7 @@ function clearFilters(): void {
       <div v-if="showIdentityFilters" class="filter-section">
         <div class="section-header">
           <Icon icon="mdi:account-star" />
-          <span>Identity</span>
+          <span>Filter by Identity</span>
         </div>
         <div class="identity-controls">
           <USelect

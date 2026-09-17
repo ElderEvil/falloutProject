@@ -10,6 +10,7 @@ import DwellerAgeBadge from './DwellerAgeBadge.vue'
 import DwellerGenderBadge from './DwellerGenderBadge.vue'
 import DwellerRarityBadge from './DwellerRarityBadge.vue'
 import DwellerFilterPanel from './DwellerFilterPanel.vue'
+import DwellerDisplayControls from './DwellerDisplayControls.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import DwellerPortrait from './DwellerPortrait.vue'
 
@@ -167,6 +168,8 @@ const handleDropZoneDrop = async (event: DragEvent) => {
             />
           </template>
         </DwellerFilterPanel>
+
+        <DwellerDisplayControls />
       </div>
     </div>
 

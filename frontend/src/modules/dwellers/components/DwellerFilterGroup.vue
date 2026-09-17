@@ -39,7 +39,6 @@ const hasCount = (value: string): boolean => props.counts !== undefined && value
         class="filter-chip"
         :class="{
           active: modelValue === option.value,
-          'has-accent': Boolean(option.accent),
           empty: counts !== undefined && counts[option.value] === 0,
         }"
         :style="option.accent ? { '--filter-accent': option.accent } : undefined"
@@ -92,7 +91,7 @@ const hasCount = (value: string): boolean => props.counts !== undefined && value
   font-size: 0.8125rem;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.7;
   transition:
     opacity 0.2s,
     background-color 0.2s,
@@ -103,7 +102,7 @@ const hasCount = (value: string): boolean => props.counts !== undefined && value
 }
 
 .filter-chip:hover {
-  opacity: 0.8;
+  opacity: 0.9;
   background: var(--color-surface-hover);
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
@@ -115,24 +114,16 @@ const hasCount = (value: string): boolean => props.counts !== undefined && value
 
 /* A zero-count chip stays clickable so the filter can be kept, but reads as empty. */
 .filter-chip.empty:not(.active) {
-  opacity: 0.35;
+  opacity: 0.4;
 }
 
+/* Matches .view-toggle-btn.active so the toolbar's selected state reads as one control set. */
 .filter-chip.active {
   opacity: 1;
+  background: var(--color-surface-hover);
   border-color: var(--filter-accent, var(--color-theme-primary));
   box-shadow: 0 0 12px var(--filter-accent, var(--color-theme-primary));
   font-weight: 600;
-}
-
-/* Accent-less chips take the theme fill; accent chips keep their hue as a tint. */
-.filter-chip.active:not(.has-accent) {
-  background: var(--color-theme-primary);
-  color: #000;
-}
-
-.filter-chip.active.has-accent {
-  background: color-mix(in srgb, var(--filter-accent) 22%, var(--color-surface-raised));
 }
 
 .filter-count {

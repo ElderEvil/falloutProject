@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
-import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { getIdentityOptions } from '@/modules/dwellers/services/dwellerService'
@@ -83,100 +82,6 @@ describe('DwellerFilterPanel', () => {
     })
   })
 
-  describe('Sort Options', () => {
-    it('should render sort by section', () => {
-      const wrapper = mount(DwellerFilterPanel)
-
-      expect(wrapper.text()).toContain('Sort By')
-      // Both toolbar dropdowns share one trigger rule, so their lists cannot drift apart.
-      expect(filterPanelSource).toMatch(
-        /\.identity-controls :deep\(\.select-trigger\),\s*\.sort-controls :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
-      )
-      expect(filterPanelSource).toMatch(
-        /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
-      )
-      expect(filterPanelSource).toMatch(
-        /\.view-toggle-btn \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
-      )
-    })
-
-    it('should update store when sort option is changed', async () => {
-      const wrapper = mount(DwellerFilterPanel)
-      const store = useDwellerStore().filter
-
-      const sortTrigger = wrapper.find('.sort-controls .select-trigger')
-      expect(sortTrigger.attributes('aria-label')).toBe('Sort dwellers')
-
-      await sortTrigger.trigger('click')
-      const levelOption = wrapper.findAll('.sort-controls .select-option').find((o) => o.text().includes('Level'))
-      expect(levelOption).toBeDefined()
-      await levelOption!.trigger('click')
-
-      expect(store.sortBy).toBe('level')
-    })
-
-    it('should have sort direction toggle button', () => {
-      const wrapper = mount(DwellerFilterPanel)
-
-      const sortDirectionBtn = wrapper.find('.sort-direction-button')
-      expect(sortDirectionBtn.exists()).toBe(true)
-    })
-  })
-
-  describe('View modes', () => {
-    it('switches to the table view', async () => {
-      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
-      const store = useDwellerStore().filter
-
-      const tableButton = wrapper
-        .findAll('.view-toggle-btn')
-        .find((btn) => btn.text().includes('Table'))
-      expect(tableButton).toBeDefined()
-
-      await tableButton!.trigger('click')
-
-      expect(store.viewMode).toBe('table')
-    })
-
-    it('shows the column picker only in table mode and toggles a column', async () => {
-      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
-      const store = useDwellerStore().filter
-
-      expect(wrapper.text()).not.toContain('Columns')
-
-      store.setViewMode('table')
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('Columns')
-      const rarityButton = wrapper
-        .findAll('.view-toggle-btn')
-        .find((btn) => btn.text().includes('Rarity'))
-      expect(rarityButton).toBeDefined()
-
-      await rarityButton!.trigger('click')
-
-      expect(store.tableColumns).toContain('rarity')
-    })
-
-    it('applies a column preset', async () => {
-      const wrapper = mount(DwellerFilterPanel, { props: { showViewToggle: true } })
-      const store = useDwellerStore().filter
-
-      store.setViewMode('table')
-      await wrapper.vm.$nextTick()
-
-      const vitalsButton = wrapper
-        .findAll('.view-toggle-btn')
-        .find((btn) => btn.text().includes('Vitals'))
-      expect(vitalsButton).toBeDefined()
-
-      await vitalsButton!.trigger('click')
-
-      expect(store.tableColumns).toContain('health')
-      expect(store.tableColumns).not.toContain('room')
-    })
-  })
-
   describe('Component Structure', () => {
     it('should render filter panel container', () => {
       const wrapper = mount(DwellerFilterPanel)
@@ -192,12 +97,13 @@ describe('DwellerFilterPanel', () => {
       expect(buttonGroup.exists()).toBe(true)
     })
 
-    it('should place age filtering and sorting in the same row', () => {
+    it('keeps the age filter in the controls row and leaves display controls out', () => {
       const wrapper = mount(DwellerFilterPanel, { props: { showAgeFilter: true } })
       const controlsRow = wrapper.find('.filter-section-row')
 
       expect(controlsRow.text()).toContain('Filter by Age')
-      expect(controlsRow.text()).toContain('Sort By')
+      expect(wrapper.text()).not.toContain('Sort By')
+      expect(wrapper.find('.view-toggle-btn').exists()).toBe(false)
     })
 
     it('should render additional filters inside the controls panel', () => {

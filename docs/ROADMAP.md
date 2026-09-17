@@ -802,6 +802,51 @@ Loose ideas, none committed:
 
 Keep it optional, non-breaking, and discoverable — easter eggs should reward curiosity, never gate progress.
 
+### Dweller Violence — one dweller moves against another (idea, Target: TBD)
+
+A dweller deciding another dweller should not survive. Not scheduled; recorded now because the
+machinery shipped for exit requests covers most of it and should be reused rather than rebuilt.
+
+Reuse map (all of this already exists — reach for it first):
+
+- **Applying the death**: `death_service.mark_as_dead(...)` in `backend/app/services/family/death_service.py`
+  already takes `cause`, `epitaph` and `permanent`. A murder is the ordinary (revivable) path, so pass
+  `permanent=False`; the killer is not an exile.
+- **New death cause**: add a `DeathCauseEnum` member in `backend/app/core/enums.py`, then a manual
+  `ALTER TYPE deathcauseenum ADD VALUE` migration plus the `PG_ENUM_LABELS_SNAPSHOT` update.
+  `backend/app/alembic/versions/2026_09_17_0002-e7c8d9a0b1f2_*` (EXILE) is the template — autogenerate
+  does not detect enum changes, and an unmigrated member poisons the connection pool.
+- **Intent/pending state**: `dweller.exit_requested_at` is the pattern for "this dweller intends something"
+  — one nullable column, withdrawn when the cause passes, no cooldown column. A grievance/vendetta would
+  mirror it.
+- **Eligibility policy**: `exit_request_service.blocking_reason` (grown dwellers only, not away from the
+  vault, population floor) and `crud.dweller.count_living_in_vault` are directly reusable guards.
+- **Tick phase**: `process_exit_requests` in `backend/app/services/game_tick/dwellers_tick.py` plus the
+  `DwellersStats` counters in `tick_results.py` show how to add a per-tick dweller pass.
+- **Player-facing event**: `NotificationType` + `notification_service.notify_*` + the
+  `notify_owner(sender=...)` fan-out is the delivery pattern. A new type needs its own
+  `ALTER TYPE notificationtype` migration + snapshot. Per the progression red line
+  (AGENTS.md rule 9) this must surface as a modal/toast, never notification-only.
+- **Chat surfacing**: `ACTION_TYPES`, `REQUIRED_ACTION_FIELDS` and `ALLOWED_ACTION_FIELDS` in
+  `backend/app/agents/chat_schemas.py`, the `ActionSuggestion` union in `backend/app/schemas/chat.py`,
+  the policy branch in `agents/chat_tools.parse_action_suggestion`, and the rule in `agents/chat_prompts.py`.
+- **API surface**: `backend/app/api/v1/endpoints/exit_requests.py` is the thin vault-scoped router template.
+  `DomainError` subclasses map to HTTP globally — do not add per-endpoint try/except.
+
+Gaps this feature has that exit requests do not:
+
+- **Motive and target selection.** `Relationship.affinity` (existing) is the natural source: cheap, already
+  maintained, and pair-scoped. Needs a threshold plus a deterministic target policy.
+- **Agency and consequence.** Does the killer get caught? Does the vault react (happiness hit, their own
+  exit request, a status change)? Without this it reads as a random death, not a story.
+- **Family fallout.** Victims with partners, parents or children leave a lineage behind — the family services
+  already model this, so decide whether survivors react.
+- **One-shot semantics.** It must not fire every tick; either a resolved flag or the standing-request
+  withdrawal pattern above.
+- **Architecture constraints that will bite**: queries belong in `crud/` (enforced by
+  `app/tests/test_architecture/test_service_layer_guard.py`), enums are defined once in `app/core/enums.py`,
+  and new service modules are named `*_service.py`.
+
 ### Parked Product Ideas
 
 - Multiplayer/social features (friends, vault visits, leaderboards) are not on the delivery roadmap.

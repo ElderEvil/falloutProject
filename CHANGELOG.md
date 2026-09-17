@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.119.0 (2026-09-17)
+
+### Features
+
+* add a Race column to the dweller table 828ecca
+* move sort and view into a list toolbar and calm the selected filter chip 85577c5
+* trim the table presets and add a column reset 8fcd842
+
+### Bug Fixes
+
+* collapse the column picker so table mode stops moving the toolbar 9d217c9
+* drop the live-only filters when the dead panel takes over b6f038b
+* name the identity and rarity filter groups consistently 62eb7ba
+* size the identity selects to their content and match the chip height 2f8d7a2
+
+### Documentation
+
+* trim the dweller UI notes to their current state bf01683
+
+### Code Refactoring
+
+* keep badge display config in the model acc098d
+* lead the list toolbar with the display controls 735c2fb
+* share the roster ordering and age predicate 133f466
+
 ## 2.118.0 (2026-09-17)
 
 ### Features

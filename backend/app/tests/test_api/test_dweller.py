@@ -466,8 +466,12 @@ async def test_filter_dwellers_by_race_and_faction(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
     vault: Vault,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Roster filters narrow by identity, which lives in the visual_attributes JSONB."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
     from app.schemas.dweller import DwellerCreate
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -503,6 +507,23 @@ async def test_unknown_race_filter_is_rejected(
 ) -> None:
     """An invalid race is a 422, not a silent empty roster."""
     response = await async_client.get(f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers)
+
+    assert response.status_code == 422
+
+
+async def test_faction_filter_rejected_while_switch_off(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    vault: Vault,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A faction filter while the switch is off is a 422, not a silent empty roster."""
+    from app.core.game_config import game_config
+
+    monkeypatch.setattr(game_config.features, "faction_mechanics", False)
+    response = await async_client.get(
+        f"/dwellers/vault/{vault.id}/?faction=vault_dweller", headers=superuser_token_headers
+    )
 
     assert response.status_code == 422
 

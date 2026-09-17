@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403, verify_dweller_access
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, FactionEnum, RaceEnum
+from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
@@ -192,6 +193,8 @@ async def read_dwellers_by_vault(
         list[DwellerReadLess]: Filtered list of dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    if faction is not None and not game_config.features.faction_mechanics:
+        raise HTTPException(status_code=422, detail="Faction filtering is disabled while the faction switch is off.")
     return await dweller_service.list_vault_dwellers(
         db_session=db_session,
         vault_id=vault_id,

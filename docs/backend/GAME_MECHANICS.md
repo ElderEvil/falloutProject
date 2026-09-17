@@ -10,6 +10,22 @@ must surface via modal/pop-up or toast **in addition to** the notification bell 
 notification-only. A new progression flow without visible surfacing is incomplete; keep existing surfacing
 intact when touching these flows.
 
+## Race and faction switches
+
+Race mechanics are **on** (`FEATURE_RACE_MECHANICS`) and faction mechanics are **off**
+(`FEATURE_FACTION_MECHANICS`) until the world is deep enough for factions to mean something. Race stays on and
+evolves gradually.
+
+"Off" means faction is unavailable, not hidden from the data model: stored factions are preserved untouched, so
+flipping the switch back on restores them. While it is off the roster filter rejects `faction` with 422,
+`identity-options` returns no factions (races still offered), and `GET /system/features` tells clients the state
+so nothing rejected is ever offered. Ghoul radiation immunity predates both switches and survives them.
+
+**Do not gate faction on the shared identity schema.** `DwellerVisualAttributes` validates curated
+`DwellerTemplate` seeds, AI generation and partial updates, which legitimately carry a faction; a schema-level
+gate rejects system content and breaks vault initiation, boosted seeding and rewards. Rejection belongs on the
+user-edit path.
+
 ## AI prompt registry
 
 AI instructions are append-only registry entries. Never edit `Prompt` rows directly:

@@ -27,21 +27,15 @@ const stats: Array<{ key: StatKey; label: string; description: string }> = [
   { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
 ]
 
-const statKeyByLowercase: Record<string, StatKey> = {
-  strength: 'S',
-  perception: 'P',
-  endurance: 'E',
-  charisma: 'C',
-  intelligence: 'I',
-  agility: 'A',
-  luck: 'L',
-}
-
-const highlightStat = computed(() => ctx.highlightStat.value)
+const statKeyByLowercase = stats.reduce<Record<string, StatKey>>((acc, stat) => {
+  acc[stat.label.toLowerCase()] = stat.key
+  return acc
+}, {})
 
 const highlightedKey = computed<StatKey | undefined>(() => {
-  if (!highlightStat.value) return undefined
-  return statKeyByLowercase[highlightStat.value.toLowerCase()]
+  const highlighted = ctx.highlightStat.value
+  if (!highlighted) return undefined
+  return statKeyByLowercase[highlighted.toLowerCase()]
 })
 
 const showBadge = ref(!!highlightedKey.value)
@@ -60,15 +54,7 @@ onBeforeUnmount(() => clearTimeout(badgeTimer))
 
 const isHighlighted = (key: StatKey) => highlightedKey.value === key
 
-const STAT_MODIFIER_FIELDS: Array<{ field: string; label: string }> = [
-  { field: 'strength', label: 'Strength' },
-  { field: 'perception', label: 'Perception' },
-  { field: 'endurance', label: 'Endurance' },
-  { field: 'charisma', label: 'Charisma' },
-  { field: 'intelligence', label: 'Intelligence' },
-  { field: 'agility', label: 'Agility' },
-  { field: 'luck', label: 'Luck' },
-]
+const STAT_MODIFIER_FIELDS = stats.map(({ label }) => ({ field: label.toLowerCase(), label }))
 
 /**
  * Race/faction effects, computed server-side. Rendering them here answers

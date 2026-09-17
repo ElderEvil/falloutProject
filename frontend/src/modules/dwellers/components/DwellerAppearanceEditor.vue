@@ -6,11 +6,21 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UInput from '@/core/components/ui/UInput.vue'
 import USelect from '@/core/components/ui/USelect.vue'
 import USlider from '@/core/components/ui/USlider.vue'
-import type { Dweller, VisualAttributes } from '../models/dweller'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { handleStoreError } from '@/core/utils/errorHandler'
-import { getIdentityOptions } from '../services/dwellerService'
+import {
+  BACKGROUND_OPTIONS,
+  BUILD_OPTIONS,
+  EXPRESSIONS,
+  EYE_COLOR_OPTIONS,
+  HAIR_COLORS,
+  HAIRCUT_OPTIONS,
+  HEADGEAR_OPTIONS,
+  HEIGHT_OPTIONS,
+  POSE_OPTIONS,
+  SKIN_TONE_OPTIONS,
+} from '../models/appearanceOptions'
+import { formatIdentityLabel, type Dweller, type VisualAttributes } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useIdentityOptions } from '../composables/useIdentityOptions'
 
 interface Props {
   dweller: Dweller
@@ -23,199 +33,24 @@ const emit = defineEmits<{
   saved: [attributes: VisualAttributes]
 }>()
 
-// --- Identity options: one source, the backend catalogue (no mirror to drift) ---
-const authStore = useAuthStore()
 const featureFlags = useFeatureFlagsStore()
-const raceOptions = ref<string[]>([])
-const factionsByRace = ref<Record<string, string[]>>({})
+const {
+  races: raceOptions,
+  statesByRace,
+  load: loadIdentityOptions,
+  factionsFor,
+} = useIdentityOptions()
 /** True while the form holds defaults set before the feature switch resolved. */
 const usedProvisionalDefaults = ref(false)
-const statesByRace = ref<Record<string, string[]>>({})
 
 onMounted(async () => {
-  if (!authStore.token) return
-
-  try {
-    await featureFlags.fetchFlags()
-    // The immediate watcher above may have run before the switch landed.
-    if (usedProvisionalDefaults.value && featureFlags.factionMechanics && form.faction === 'none') {
-      form.faction = 'vault_dweller'
-    }
-    const options = await getIdentityOptions(authStore.token)
-    raceOptions.value = options.races ?? []
-    factionsByRace.value = options.factions_by_race ?? {}
-    statesByRace.value = options.states_by_race ?? {}
-  } catch (error) {
-    handleStoreError(error, 'Failed to load identity options', false)
+  await featureFlags.fetchFlags()
+  // The immediate watcher above may have run before the switch landed.
+  if (usedProvisionalDefaults.value && featureFlags.factionMechanics && form.faction === 'none') {
+    form.faction = 'vault_dweller'
   }
+  await loadIdentityOptions()
 })
-
-/** Faction choices for a race, falling back to the human list the catalogue guarantees. */
-const factionsFor = (race: string): string[] => factionsByRace.value[race] ?? factionsByRace.value.human ?? []
-
-// Race-filtered appearance options (mirrors app/options/appearance.py)
-const SKIN_TONE_OPTIONS: Record<string, string[]> = {
-  human: ['Pale', 'Light', 'Tan', 'Brown', 'Dark Brown', 'Ebony'],
-  ghoul: ['Pale Grey', 'Ashen', 'Mottled', 'Necrotic', 'Glowing'],
-  super_mutant: ['Light Green', 'Green', 'Dark Green', 'Olive Green'],
-  synth: ['Synthetic Fair', 'Synthetic Dark', 'Metallic Silver', 'Exposed Component'],
-}
-
-const BUILD_OPTIONS: Record<string, string[]> = {
-  human: ['Slim', 'Athletic', 'Muscular', 'Stocky', 'Average', 'Overweight'],
-  ghoul: ['Skeletal', 'Withered', 'Twisted'],
-  super_mutant: ['Muscular', 'Brutish', 'Towering'],
-  synth: ['Slender', 'Muscular', 'Armored'],
-}
-
-const HAIRCUT_OPTIONS: Record<string, string[]> = {
-  human: [
-    'Short Hair',
-    'Long Hair',
-    'Ponytail',
-    'Mohawk',
-    'Buzz Cut',
-    'Curly Hair',
-    'Bun',
-    'Braided Hair',
-    'Wavy Hair',
-    'Dreadlocks',
-  ],
-  ghoul: [
-    'Patchy Hair',
-    'Stringy Hair',
-    'Messy Hair',
-    'Mohawk',
-    'Burned Scalp',
-    'Radiation-Scarred',
-    'Thinning Hair',
-    'Wispy Remains',
-  ],
-  super_mutant: [
-    'Bald',
-    'Scalp Ridges',
-    'Patchy Tufts',
-    'Mohawk',
-    'Thick Stubble',
-    'War Paint Scalp',
-  ],
-  synth: [
-    'Clean Cut',
-    'Slicked Back',
-    'Military Precision Cut',
-    'Exposed Circuits',
-    'Synthetic Fiber Weave',
-    'Metallic Sheen Hair',
-  ],
-}
-
-const HEADGEAR_OPTIONS: Record<string, string[]> = {
-  human: [
-    'Baseball Cap',
-    'Bandana',
-    'Combat Helmet',
-    'Gas Mask',
-    'Cowboy Hat',
-    'Bowler Hat',
-    'Fedora',
-    'Ushanka',
-    'Beanie',
-    'Military Beret',
-    'Newsboy Cap',
-    'Vault-Tec Helmet',
-    'Hooded Coat',
-  ],
-  ghoul: [
-    'Tattered Bandana',
-    'Raider Cage Mask',
-    'Wrapped Head Bandages',
-    'Radiation Suit Hood',
-    'Scrapped Metal Helmet',
-    'Faded Cap',
-    'Glowing One Crown',
-    'Leather Hood',
-  ],
-  super_mutant: [
-    'Metal Helmet',
-    'Spiked Helmet',
-    'Chain Headdress',
-    'Skull Trophy',
-    'Heavy Plate Helmet',
-    'Makeshift Face Guard',
-    'Mutant Battle Helm',
-  ],
-  synth: [
-    'Institute Hood',
-    'Metallic Plating',
-    'Stealth Field Generator',
-    'Neural Interface Helmet',
-    'Courser Hood',
-    'Synth Component Display',
-    'Reinforced Circuitry Cap',
-  ],
-}
-
-// Universal options
-const HEIGHT_OPTIONS = ['tall', 'average', 'short'] as const
-const EYE_COLOR_OPTIONS = ['blue', 'green', 'brown', 'hazel', 'gray'] as const
-const HAIR_COLORS = [
-  'blonde',
-  'brunette',
-  'black',
-  'brown',
-  'red',
-  'gray',
-  'white',
-  'blue',
-  'green',
-  'pink',
-] as const
-const EXPRESSIONS = [
-  'neutral',
-  'smiling',
-  'laughing',
-  'proud',
-  'sad',
-  'angry',
-  'frustrated',
-  'shocked',
-  'terrified',
-  'determined',
-  'heroic',
-  'stoic',
-  'skeptical',
-  'suspicious',
-  'confused',
-  'awkward',
-  'mischievous',
-  'flirty',
-] as const
-const POSE_OPTIONS = [
-  'Standing confidently',
-  'Combat ready',
-  'Checking Pip-Boy',
-  'Faction salute',
-  'Alert and wary',
-  'Action shot',
-  'Stealth crouch',
-  'Power armor stance',
-  'Wounded but resilient',
-  'Weapon drawn',
-  'Scavenging through debris',
-] as const
-const BACKGROUND_OPTIONS = [
-  'Vault Interior',
-  'Wasteland Ruins',
-  'Brotherhood Airship',
-  'Super Mutant Camp',
-  'Nuclear Crater',
-  'Pre-War Suburb',
-  'Red Rocket Station',
-  'Settlement',
-  'Abandoned Factory',
-  'The Institute',
-  'New Vegas Strip',
-] as const
 
 // --- Form state ---
 // Form controls use strings (and a numeric age), while the API model allows
@@ -312,16 +147,8 @@ const availableHaircuts = computed(() => HAIRCUT_OPTIONS[raceKey.value] || HAIRC
 
 const availableHeadgear = computed(() => HEADGEAR_OPTIONS[raceKey.value] || HEADGEAR_OPTIONS.human)
 
-// Format helper for display labels
-const formatLabel = (value: string) => {
-  return value
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 const selectOptions = (values: readonly string[]) =>
-  values.map((value) => ({ value, label: formatLabel(value) }))
+  values.map((value) => ({ value, label: formatIdentityLabel(value) }))
 
 // Pick a random element from an array
 function pickRandom<T>(arr: readonly T[] | T[]): T {

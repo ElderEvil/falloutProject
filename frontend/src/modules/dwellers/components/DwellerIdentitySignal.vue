@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerBadge from './DwellerBadge.vue'
-import type { VisualAttributes } from '../models/dweller'
+import { formatIdentityLabel, type VisualAttributes } from '../models/dweller'
 
 interface Props {
   visualAttributes?: VisualAttributes | null
@@ -56,12 +56,6 @@ const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
   behemoth: { monogram: 'III', label: 'Behemoth' },
 }
 
-const formatLabel = (value: string) =>
-  value
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
 const identitySignals = computed<IdentitySignal[]>(() => {
   const attributes = props.visualAttributes
   if (!attributes) return []
@@ -74,7 +68,11 @@ const identitySignals = computed<IdentitySignal[]>(() => {
     .filter((value): value is NonNullable<typeof value> => value != null)
     .map((value) => {
       const meta = IDENTITY_CONFIG[value]
-      return { icon: meta?.icon, monogram: meta?.monogram, label: meta?.label ?? formatLabel(value) }
+      return {
+        icon: meta?.icon,
+        monogram: meta?.monogram,
+        label: meta?.label ?? formatIdentityLabel(value),
+      }
     })
 })
 </script>

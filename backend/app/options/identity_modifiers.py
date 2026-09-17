@@ -7,19 +7,10 @@ Pure and session-free, so game-loop actors and API paths share the same rules.
 
 from dataclasses import dataclass
 
+from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.races import RaceModifiers, modifiers_for_race
-
-SPECIAL_STATS: tuple[str, ...] = (
-    "strength",
-    "perception",
-    "endurance",
-    "charisma",
-    "intelligence",
-    "agility",
-    "luck",
-)
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
 _WEAPON_PERK_FIELDS: dict[str, str] = {

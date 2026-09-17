@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
   useDwellerStore,
@@ -7,10 +7,9 @@ import {
   type DwellerSortBy,
   type DwellerAgeGroup,
 } from '@/modules/dwellers/stores/dweller'
-import { useAuthStore } from '@/modules/auth/stores/auth'
-import { handleStoreError } from '@/core/utils/errorHandler'
-import { getIdentityOptions } from '../services/dwellerService'
+import { formatIdentityLabel } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
+import { useIdentityOptions } from '../composables/useIdentityOptions'
 import USelect from '@/core/components/ui/USelect.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
@@ -20,8 +19,6 @@ interface Props {
   showAgeFilter?: boolean
   showIdentityFilters?: boolean
   showViewToggle?: boolean
-  showBulkActions?: boolean
-  vaultId?: string
 }
 
 const {
@@ -29,54 +26,35 @@ const {
   showAgeFilter = false,
   showIdentityFilters = false,
   showViewToggle = false,
-  showBulkActions = false,
-  vaultId = '',
 } = defineProps<Props>()
 
-defineEmits<{
-  unassignAll: []
-  autoAssignAll: []
-}>()
-
 const { filter: dwellerStore } = useDwellerStore()
-const authStore = useAuthStore()
 const featureFlags = useFeatureFlagsStore()
-
-/** Race/faction choices come from the backend options, so the panel cannot drift from them. */
-const races = ref<string[]>([])
-const factionsByRace = ref<Record<string, string[]>>({})
-
-function identityLabel(value: string): string {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
+const {
+  races,
+  factionsByRace,
+  loaded: identityOptionsLoaded,
+  load: loadIdentityOptions,
+} = useIdentityOptions()
 
 onMounted(async () => {
   await featureFlags.fetchFlags()
-  if (!showIdentityFilters || !authStore.token) return
+  if (!showIdentityFilters) return
 
-  try {
-    const options = await getIdentityOptions(authStore.token)
-    races.value = options.races ?? []
-    factionsByRace.value = options.factions_by_race ?? {}
+  await loadIdentityOptions()
+  if (!identityOptionsLoaded.value) return
 
-    // A persisted selection can outlive the options it came from, and the watcher below
-    // only reacts to a race *change* — so validate what was restored here.
-    if (dwellerStore.filterRace !== 'all' && !races.value.includes(dwellerStore.filterRace)) {
-      dwellerStore.setFilterRace('all')
-    }
-    dropStrandedFaction()
-  } catch (error) {
-    // Filters degrade to "all" rather than breaking the roster view.
-    handleStoreError(error, 'Failed to load identity filter options', false)
+  // A persisted selection can outlive the options it came from, and the watcher below
+  // only reacts to a race *change* — so validate what was restored here.
+  if (dwellerStore.filterRace !== 'all' && !races.value.includes(dwellerStore.filterRace)) {
+    dwellerStore.setFilterRace('all')
   }
+  dropStrandedFaction()
 })
 
 const raceSelectOptions = computed(() => [
   { value: 'all', label: 'All Races' },
-  ...races.value.map((race) => ({ value: race, label: identityLabel(race) })),
+  ...races.value.map((race) => ({ value: race, label: formatIdentityLabel(race) })),
 ])
 
 /** Faction choices follow the chosen race, so only combinations the game allows are offered. */
@@ -89,13 +67,13 @@ const factionSelectOptions = computed(() => {
 
   return [
     { value: 'all', label: 'All Factions' },
-    ...allowed.map((faction) => ({ value: faction, label: identityLabel(faction) })),
+    ...allowed.map((faction) => ({ value: faction, label: formatIdentityLabel(faction) })),
   ]
 })
 
 /** A faction only makes sense while the chosen race can hold it. */
 function dropStrandedFaction() {
-  if (dwellerStore.filterFaction === 'all') return
+  if (!identityOptionsLoaded.value || dwellerStore.filterFaction === 'all') return
   const allowed = factionSelectOptions.value.map((option) => option.value)
   if (!allowed.includes(dwellerStore.filterFaction)) dwellerStore.setFilterFaction('all')
 }
@@ -153,11 +131,6 @@ const currentFilterRace = computed({
 const currentFilterFaction = computed({
   get: () => dwellerStore.filterFaction,
   set: (value: string) => dwellerStore.setFilterFaction(value),
-})
-
-const currentSortBy = computed({
-  get: () => dwellerStore.sortBy,
-  set: (value: DwellerSortBy) => dwellerStore.setSortBy(value),
 })
 
 const currentSortDirection = computed({
@@ -238,26 +211,8 @@ const toggleSortDirection = () => {
             class="sort-direction-button"
             aria-label="Toggle sort direction"
           >
-            <Icon
-              :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'"
-              width="20"
-              height="20"
-            />
+            <Icon :icon="currentSortDirection === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'" />
           </button>
-        </div>
-      </div>
-
-      <!-- Spacer to push bulk actions and view toggle to the right -->
-      <div v-if="showBulkActions" class="flex-grow"></div>
-
-      <!-- Bulk Actions (inline with sort/view) -->
-      <div v-if="showBulkActions" class="filter-section">
-        <div class="section-header">
-          <Icon icon="mdi:account-multiple-check" />
-          <span>Bulk Actions</span>
-        </div>
-        <div class="bulk-action-controls">
-          <slot name="bulk-actions"></slot>
         </div>
       </div>
 
@@ -409,7 +364,16 @@ const toggleSortDirection = () => {
   border-color: var(--color-theme-glow);
   border-radius: 6px;
   font-size: 0.8125rem;
+  line-height: normal;
   opacity: 0.85;
+}
+
+/* The USelect chevron and the sort arrow default to 16px/20px; the chips use 1em. */
+.identity-controls :deep(.select-trigger svg),
+.sort-controls :deep(.select-trigger svg),
+.sort-direction-button :deep(svg) {
+  width: 1em;
+  height: 1em;
 }
 
 .identity-controls :deep(.select-trigger:hover),

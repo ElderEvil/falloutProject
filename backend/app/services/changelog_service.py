@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.core.config import settings
+from app.schemas.system import ChangelogEntry
 from app.utils.version import parse_changelog, version_tuple
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ class ChangelogService:
         changelog_path: Path = settings.project_root / "CHANGELOG.md"
         return parse_changelog(changelog_path)
 
-    def get_entries(self, limit: int | None = 10, since: str | None = None) -> list[dict]:
+    def get_entries(self, limit: int | None = 10, since: str | None = None) -> list[ChangelogEntry]:
         """Get changelog entries, optionally filtered by version."""
         versions = self._get_versions()
 
@@ -37,9 +38,9 @@ class ChangelogService:
         if limit is not None and limit > 0:
             versions = versions[:limit]
 
-        return versions
+        return [ChangelogEntry.model_validate(entry) for entry in versions]
 
-    def get_latest(self) -> dict:
+    def get_latest(self) -> ChangelogEntry:
         """Get the latest changelog entry."""
         from app.utils.exceptions import NotFoundException
 
@@ -48,7 +49,7 @@ class ChangelogService:
             raise NotFoundException(detail="No changelog entries available")
 
         versions.sort(key=lambda x: version_tuple(x["version"]), reverse=True)
-        return versions[0]
+        return ChangelogEntry.model_validate(versions[0])
 
 
 changelog_service = ChangelogService()

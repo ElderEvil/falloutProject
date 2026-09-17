@@ -9,6 +9,13 @@ export type DetailedDweller = DwellerFull
 export type DwellerShort = components['schemas']['DwellerReadLess']
 export type DwellerCreate = components['schemas']['DwellerCreate']
 
+export function formatIdentityLabel(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
 // Single source of truth shared by DwellerBio and the detail container (relocated from a component export).
 export interface MapPlaceLink {
   name: string

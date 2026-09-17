@@ -24,7 +24,7 @@ describe('useDwellerManagementStore', () => {
   it('assigns only available dwellers to production rooms and refreshes the list', async () => {
     const filterStore = useDwellerFilterStore()
     const managementStore = useDwellerManagementStore()
-    const refreshSpy = vi.spyOn(filterStore, 'fetchDwellersByVault').mockResolvedValue()
+    const refreshSpy = vi.spyOn(filterStore, 'fetchWithCurrentFilters').mockResolvedValue()
     vi.mocked(axios.post).mockResolvedValue({
       data: { assigned_count: 2, assignments: [] },
     })
@@ -36,14 +36,7 @@ describe('useDwellerManagementStore', () => {
       null,
       { headers: { Authorization: 'Bearer token-1' } }
     )
-    expect(refreshSpy).toHaveBeenCalledWith('vault-1', 'token-1', {
-      status: filterStore.filterStatus,
-      ageGroup: filterStore.filterAgeGroup,
-      race: filterStore.filterRace,
-      faction: filterStore.filterFaction,
-      sortBy: filterStore.sortBy,
-      order: filterStore.sortDirection,
-    })
+    expect(refreshSpy).toHaveBeenCalledWith('vault-1', 'token-1')
     expect(result).toEqual({ assigned_count: 2, assignments: [] })
   })
 

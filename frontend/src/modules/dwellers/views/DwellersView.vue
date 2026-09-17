@@ -18,9 +18,10 @@ import USkeleton from '@/core/components/ui/USkeleton.vue'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
-  type DwellerSortBy,
-  type DwellerStatus,
-  type SortDirection,
+  isDwellerAgeGroup,
+  isDwellerSortBy,
+  isDwellerStatus,
+  isSortDirection,
 } from '../stores/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
@@ -129,16 +130,7 @@ const happinessDashboardData = computed(() => {
 const fetchDwellers = async (signal?: AbortSignal) => {
   await featureFlags.fetchFlags()
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
-      status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
-      ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
-      race: dwellerStore.filterRace !== 'all' ? dwellerStore.filterRace : undefined,
-      faction:
-        featureFlags.factionMechanics && dwellerStore.filterFaction !== 'all'
-          ? dwellerStore.filterFaction
-          : undefined,
-      sortBy: dwellerStore.sortBy,
-      order: dwellerStore.sortDirection,
+    await dwellerStore.fetchWithCurrentFilters(vaultId.value, authStore.token as string, {
       signal,
     })
   }
@@ -146,47 +138,23 @@ const fetchDwellers = async (signal?: AbortSignal) => {
 
 onMounted(async () => {
   // Handle query parameters for sorting/filtering
-  const sortByParam = route.query.sortBy as DwellerSortBy | undefined
-  const orderParam = route.query.order as SortDirection | undefined
-  const filterParam = route.query.filter as DwellerStatus | undefined
-  const ageGroupParam = route.query.ageGroup as 'child' | 'teen' | 'adult' | undefined
+  const {
+    sortBy: sortByParam,
+    order: orderParam,
+    filter: filterParam,
+    ageGroup: ageGroupParam,
+  } = route.query
 
-  if (
-    sortByParam &&
-    [
-      'name',
-      'level',
-      'happiness',
-      'strength',
-      'perception',
-      'endurance',
-      'charisma',
-      'intelligence',
-      'agility',
-      'luck',
-    ].includes(sortByParam)
-  ) {
+  if (isDwellerSortBy(sortByParam)) {
     dwellerStore.setSortBy(sortByParam)
   }
-  if (orderParam && ['asc', 'desc'].includes(orderParam)) {
+  if (isSortDirection(orderParam)) {
     dwellerStore.setSortDirection(orderParam)
   }
-  if (
-    filterParam &&
-    [
-      'idle',
-      'working',
-      'exploring',
-      'questing',
-      'training',
-      'resting',
-      'fighting',
-      'dead',
-    ].includes(filterParam)
-  ) {
+  if (isDwellerStatus(filterParam)) {
     dwellerStore.setFilterStatus(filterParam)
   }
-  if (ageGroupParam && ['child', 'teen', 'adult'].includes(ageGroupParam)) {
+  if (isDwellerAgeGroup(ageGroupParam)) {
     dwellerStore.setFilterAgeGroup(ageGroupParam)
   }
 
@@ -411,8 +379,6 @@ const handleTreatIrradiated = async () => {
               :show-age-filter="true"
               :show-identity-filters="!isDeadFilter"
               :show-view-toggle="true"
-              :show-bulk-actions="false"
-              :vault-id="vaultId"
             />
           </div>
 

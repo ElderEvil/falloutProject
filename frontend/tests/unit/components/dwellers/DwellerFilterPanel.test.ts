@@ -5,6 +5,7 @@ import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { getIdentityOptions } from '@/modules/dwellers/services/dwellerService'
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
@@ -229,6 +230,18 @@ describe('DwellerFilterPanel', () => {
       await flushPromises()
 
       expect(store.filterRace).toBe('all')
+      wrapper.unmount()
+    })
+
+    it('keeps a persisted race filter when the identity options fail to load', async () => {
+      vi.mocked(getIdentityOptions).mockRejectedValueOnce(new Error('offline'))
+      const store = useDwellerStore().filter
+      store.setFilterRace('ghoul')
+
+      const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
+      await flushPromises()
+
+      expect(store.filterRace).toBe('ghoul')
       wrapper.unmount()
     })
 

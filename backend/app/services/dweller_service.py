@@ -39,6 +39,7 @@ from app.services.user_service import user_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     ContentNoChangeException,
+    FeatureDisabledException,
     InvalidVaultTransferException,
     ResourceConflictException,
     ResourceNotFoundException,
@@ -158,6 +159,8 @@ class DwellerService:
         Identity filters are enum-typed at the boundary and translated to the stored
         ``visual_attributes`` values here, so the endpoint stays transport-only.
         """
+        if faction is not None and not game_config.features.faction_mechanics:
+            raise FeatureDisabledException("Faction filtering is disabled while the faction switch is off.")
         return await crud.dweller.get_multi_by_vault(
             db_session=db_session,
             vault_id=vault_id,

@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import axios from '@/core/plugins/axios'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 import {
   DEFAULT_TABLE_COLUMNS,
@@ -10,7 +9,11 @@ import {
   normalizeTableColumns,
   type DwellerTableColumnId,
 } from '@/modules/dwellers/models/dwellerTable'
-import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
+import {
+  getDweller,
+  getDwellersByVault,
+  type DwellerQueryParams,
+} from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useFeatureFlagsStore } from './featureFlags'
@@ -22,33 +25,53 @@ import { useFeatureFlagsStore } from './featureFlags'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
-export type DwellerStatus =
-  | 'idle'
-  | 'working'
-  | 'exploring'
-  | 'questing'
-  | 'training'
-  | 'resting'
-  | 'fighting'
-  | 'dead'
-export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
+export const DWELLER_STATUSES = [
+  'idle',
+  'working',
+  'exploring',
+  'questing',
+  'training',
+  'resting',
+  'fighting',
+  'dead',
+] as const
+export type DwellerStatus = (typeof DWELLER_STATUSES)[number]
+
+export const DWELLER_AGE_GROUPS = ['child', 'teen', 'adult', 'all'] as const
+export type DwellerAgeGroup = (typeof DWELLER_AGE_GROUPS)[number]
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
 }
 
-export type DwellerSortBy =
-  | 'name'
-  | 'level'
-  | 'happiness'
-  | 'strength'
-  | 'perception'
-  | 'endurance'
-  | 'charisma'
-  | 'intelligence'
-  | 'agility'
-  | 'luck'
-export type SortDirection = 'asc' | 'desc'
+export const DWELLER_SORT_KEYS = [
+  'name',
+  'level',
+  'happiness',
+  'strength',
+  'perception',
+  'endurance',
+  'charisma',
+  'intelligence',
+  'agility',
+  'luck',
+] as const
+export type DwellerSortBy = (typeof DWELLER_SORT_KEYS)[number]
+
+export const SORT_DIRECTIONS = ['asc', 'desc'] as const
+export type SortDirection = (typeof SORT_DIRECTIONS)[number]
+
+export const isDwellerStatus = (value: unknown): value is DwellerStatus =>
+  typeof value === 'string' && (DWELLER_STATUSES as readonly string[]).includes(value)
+
+export const isDwellerAgeGroup = (value: unknown): value is DwellerAgeGroup =>
+  typeof value === 'string' && (DWELLER_AGE_GROUPS as readonly string[]).includes(value)
+
+export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
+  typeof value === 'string' && (DWELLER_SORT_KEYS as readonly string[]).includes(value)
+
+export const isSortDirection = (value: unknown): value is SortDirection =>
+  typeof value === 'string' && (SORT_DIRECTIONS as readonly string[]).includes(value)
 export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'
@@ -70,32 +93,33 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   const detailedDwellers = ref<Record<string, Dweller | null>>({})
   let dwellersRequestSeq = 0
 
+  function toQueryParams(options: DwellerFetchOptions = {}): DwellerQueryParams {
+    return {
+      status: options.status !== 'all' ? options.status : undefined,
+      ageGroup: options.ageGroup !== 'all' ? options.ageGroup : undefined,
+      race: options.race !== 'all' ? options.race : undefined,
+      faction: options.faction !== 'all' ? options.faction : undefined,
+      search: options.search,
+      sortBy: options.sortBy,
+      order: options.order,
+      skip: options.skip,
+      limit: options.limit,
+      signal: options.signal,
+    }
+  }
+
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, token: string, options?: DwellerFetchOptions) => {
       const requestSeq = ++dwellersRequestSeq
-      const params = new URLSearchParams()
-      if (options?.status && options.status !== 'all') params.append('status', options.status)
-      if (options?.ageGroup && options.ageGroup !== 'all')
-        params.append('age_group', options.ageGroup)
-      if (options?.race && options.race !== 'all') params.append('race', options.race)
-      if (options?.faction && options.faction !== 'all') params.append('faction', options.faction)
-      if (options?.search) params.append('search', options.search)
-      if (options?.sortBy) params.append('sort_by', options.sortBy)
-      if (options?.order) params.append('order', options.order)
-      if (options?.skip !== undefined) params.append('skip', options.skip.toString())
-      if (options?.limit !== undefined) params.append('limit', options.limit.toString())
-
-      const queryString = params.toString()
-      const response = await axios.get(
-        `/api/v1/dwellers/vault/${vaultId}/${queryString ? `?${queryString}` : ''}`,
-        { headers: { Authorization: `Bearer ${token}` }, signal: options?.signal }
-      )
+      const data = await getDwellersByVault(vaultId, token, toQueryParams(options))
       if (requestSeq === dwellersRequestSeq) {
-        dwellers.value = response.data
+        dwellers.value = data
       }
     },
     { context: 'Failed to fetch dwellers', showToast: false }
   )
+
+  const featureFlags = useFeatureFlagsStore()
 
   // Vault-scoped request tracking for fetchAllDwellers: results are applied
   // only when they still match the active vault and the latest request.
@@ -170,8 +194,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (filterRace.value !== 'all') {
       result = result.filter((dweller) => dweller.visual_attributes?.race === filterRace.value)
     }
-    const factionMechanics = useFeatureFlagsStore().factionMechanics
-    if (factionMechanics && filterFaction.value !== 'all') {
+    if (featureFlags.factionMechanics && filterFaction.value !== 'all') {
       result = result.filter((dweller) => dweller.visual_attributes?.faction === filterFaction.value)
     }
 
@@ -202,6 +225,23 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     options?: DwellerFetchOptions
   ): Promise<void> {
     await runFetchDwellers(vaultId, token, options)
+  }
+
+  async function fetchWithCurrentFilters(
+    vaultId: string,
+    token: string,
+    options: DwellerFetchOptions = {}
+  ): Promise<void> {
+    await fetchDwellersByVault(vaultId, token, {
+      ...options,
+      status: filterStatus.value,
+      ageGroup: filterAgeGroup.value,
+      race: filterRace.value,
+      // The API rejects a faction filter while the switch is off, so never send it.
+      faction: featureFlags.factionMechanics ? filterFaction.value : 'all',
+      sortBy: sortBy.value,
+      order: sortDirection.value,
+    })
   }
 
   /**
@@ -237,13 +277,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
     if (detailedDwellers.value[id] && !forceRefresh) return detailedDwellers.value[id] ?? null
     try {
-      const response = await axios.get(`/api/v1/dwellers/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      detailedDwellers.value[id] = response.data
-      return detailedDwellers.value[id] ?? null
+      const dweller = await getDweller(id, token)
+      detailedDwellers.value[id] = dweller
+      return dweller
     } catch (error) {
       handleStoreError(error, `Failed to fetch details for dweller ${id}`)
       return null
@@ -309,6 +345,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellersByStatus,
     filteredAndSortedDwellers,
     fetchDwellersByVault,
+    fetchWithCurrentFilters,
     fetchAllDwellers,
     fetchDwellerDetails,
     setFilterStatus,

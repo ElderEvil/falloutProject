@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.119.1 (2026-09-17)
+
+### Bug Fixes
+
+* list what the display control buttons actually change 84afee9
+
+### Reverts
+
+* drop the transition-all sweep 7a19b5a
+
+### Code Refactoring
+
+* collapse the display control buttons onto one shared rule 3a65463
+* list the transitioned properties instead of using all 1850338
+* trim each transition to what its own rule actually animates 3a42adb
+
 ## 2.119.0 (2026-09-17)
 
 ### Features

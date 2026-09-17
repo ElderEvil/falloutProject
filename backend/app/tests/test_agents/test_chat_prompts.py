@@ -71,6 +71,26 @@ def test_identity_line_ignores_an_unknown_race() -> None:
     assert identity_line(_dweller(visual_attributes={"race": "robot"})) == ""
 
 
+@pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
+def test_identity_line_hides_passing_synths(state: str | None) -> None:
+    """Gen 3 synths pass as human and usually do not know what they are: never reveal it."""
+    attributes: dict[str, str] = {"race": "synth"}
+    if state is not None:
+        attributes["state_of_being"] = state
+    assert identity_line(_dweller(visual_attributes=attributes)) == ""
+
+
+@pytest.mark.parametrize("state", ["gen_1", "gen_2"])
+def test_identity_line_reveals_visibly_artificial_synth_models(state: str) -> None:
+    assert "Species: synth" in identity_line(_dweller(visual_attributes={"race": "synth", "state_of_being": state}))
+
+
+def test_synth_race_alone_does_not_leak_into_chat_instructions() -> None:
+    """A passing synth's prompt reads as an ordinary dweller profile."""
+    instructions = build_chat_instructions(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"}))
+    assert "synth" not in instructions.lower()
+
+
 @pytest.mark.parametrize("age_group", [AgeGroupEnum.CHILD, AgeGroupEnum.TEEN, AgeGroupEnum.ELDER])
 def test_age_voice_line_covers_every_non_adult_group(age_group: AgeGroupEnum) -> None:
     assert age_voice_line(age_group)

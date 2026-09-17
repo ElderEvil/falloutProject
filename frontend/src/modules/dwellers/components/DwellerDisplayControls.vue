@@ -196,30 +196,73 @@ function applyPreset(presetId: string) {
   min-width: 8rem;
 }
 
-.sort-direction-button {
-  padding: 0.5rem 0.75rem;
+/* Every button in the island shares this terminal control treatment; the rules below
+   are only the deltas. */
+.display-controls button {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
   border-radius: 6px;
   color: var(--color-theme-primary);
+  font-family: inherit;
   cursor: pointer;
   transition:
     background-color 0.2s,
     border-color 0.2s,
-    box-shadow 0.2s;
+    color 0.2s,
+    box-shadow 0.2s,
+    opacity 0.2s;
+}
+
+.display-controls button:hover {
+  background: var(--color-surface-hover);
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.display-controls button:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+.sort-direction-button {
+  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.sort-direction-button:hover {
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
+/* Qualified so it outweighs the shared rule and stays transparent. */
+.display-controls .preset-reset {
+  padding: 0.15rem 0.4rem;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.6875rem;
 }
 
-.sort-direction-button:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
+.preset-reset:hover {
+  border-color: var(--color-theme-primary);
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.view-toggle-btn:hover {
+  opacity: 0.9;
+}
+
+.view-toggle-btn.active {
+  opacity: 1;
+  background: var(--color-surface-hover);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 12px var(--color-theme-primary);
+  font-weight: 600;
 }
 
 .view-toggle-controls {
@@ -263,71 +306,6 @@ function applyPreset(presetId: string) {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-}
-
-.preset-reset {
-  padding: 0.15rem 0.4rem;
-  background: transparent;
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 4px;
-  color: var(--color-theme-primary);
-  font-family: inherit;
-  font-size: 0.6875rem;
-  cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
-}
-
-.preset-reset:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-theme-primary);
-}
-
-.preset-reset:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
-}
-
-.view-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-theme-glow);
-  border-radius: 6px;
-  color: var(--color-theme-primary);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    opacity 0.2s,
-    background-color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
-  white-space: nowrap;
-  opacity: 0.7;
-}
-
-.view-toggle-btn:hover {
-  opacity: 0.9;
-  background: var(--color-surface-hover);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.view-toggle-btn:focus-visible {
-  outline: 2px solid var(--color-theme-primary);
-  outline-offset: 2px;
-}
-
-.view-toggle-btn.active {
-  opacity: 1;
-  background: var(--color-surface-hover);
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 12px var(--color-theme-primary);
-  font-weight: 600;
 }
 
 /* The USelect chevron and the sort arrow default to 16px/20px; the chips use 1em. */

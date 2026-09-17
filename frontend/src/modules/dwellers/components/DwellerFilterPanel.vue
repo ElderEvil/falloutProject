@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getIdentityOptions } from '../services/dwellerService'
+import { useFeatureFlagsStore } from '../stores/featureFlags'
 import USelect from '@/core/components/ui/USelect.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
@@ -39,6 +40,7 @@ defineEmits<{
 
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
+const featureFlags = useFeatureFlagsStore()
 
 /** Race/faction choices come from the backend options, so the panel cannot drift from them. */
 const races = ref<string[]>([])
@@ -52,6 +54,7 @@ function identityLabel(value: string): string {
 }
 
 onMounted(async () => {
+  await featureFlags.fetchFlags()
   if (!showIdentityFilters || !authStore.token) return
 
   try {
@@ -207,6 +210,7 @@ const toggleSortDirection = () => {
             placeholder="All Races"
           />
           <USelect
+            v-if="featureFlags.factionMechanics"
             v-model="currentFilterFaction"
             :options="factionSelectOptions"
             size="sm"

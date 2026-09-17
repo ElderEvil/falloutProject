@@ -10,6 +10,7 @@ import type { Dweller, VisualAttributes } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getIdentityOptions } from '../services/dwellerService'
+import { useFeatureFlagsStore } from '../stores/featureFlags'
 
 interface Props {
   dweller: Dweller
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 
 // --- Identity options: one source, the backend catalogue (no mirror to drift) ---
 const authStore = useAuthStore()
+const featureFlags = useFeatureFlagsStore()
 const raceOptions = ref<string[]>([])
 const factionsByRace = ref<Record<string, string[]>>({})
 const statesByRace = ref<Record<string, string[]>>({})
@@ -32,6 +34,7 @@ onMounted(async () => {
   if (!authStore.token) return
 
   try {
+    await featureFlags.fetchFlags()
     const options = await getIdentityOptions(authStore.token)
     raceOptions.value = options.races ?? []
     factionsByRace.value = options.factions_by_race ?? {}
@@ -275,7 +278,7 @@ watch(
     } else {
       // Set defaults
       form.race = 'human'
-      form.faction = 'vault_dweller'
+      form.faction = featureFlags.factionMechanics ? 'vault_dweller' : 'none'
     }
   },
   { immediate: true, deep: true }
@@ -326,8 +329,7 @@ function randomize() {
   form.race = randomRace
 
   // Set faction based on race
-  const factions = factionsFor(randomRace)
-  form.faction = pickRandom(factions)
+  form.faction = featureFlags.factionMechanics ? pickRandom(factionsFor(randomRace)) : 'none'
 
   // State of being for non-humans
   const states = statesByRace.value[randomRace]
@@ -373,6 +375,7 @@ function handleSave() {
           : value
     }
   }
+  if (!featureFlags.factionMechanics) delete (cleaned as Record<string, unknown>).faction
   // Parent closes the modal after successful save (avoids losing context on failure)
   emit('saved', cleaned)
 }
@@ -419,7 +422,7 @@ function handleCancel() {
             <USelect v-model="form.race" :options="selectOptions(raceOptions)" label="Race" label-icon="mdi:account" />
           </div>
           <div class="form-field">
-            <USelect v-model="form.faction" :options="selectOptions(availableFactions)" label="Faction" label-icon="mdi:shield-account" />
+            <USelect v-if="featureFlags.factionMechanics" v-model="form.faction" :options="selectOptions(availableFactions)" label="Faction" label-icon="mdi:shield-account" />
           </div>
           <div v-if="showStateOfBeing" class="form-field">
             <USelect v-model="form.state_of_being" :options="selectOptions(availableStates || [])" label="State of Being" label-icon="mdi:radioactive" />

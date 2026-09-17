@@ -22,6 +22,7 @@ import {
   type DwellerStatus,
   type SortDirection,
 } from '../stores/dweller'
+import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
 import DwellerBulkActions from '../components/DwellerBulkActions.vue'
 import DwellersList from '../components/DwellersList.vue'
@@ -43,6 +44,7 @@ const {
   medical: dwellerMedicalStore,
   death: dwellerDeathStore,
 } = useDwellerStore()
+const featureFlags = useFeatureFlagsStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
@@ -125,12 +127,16 @@ const happinessDashboardData = computed(() => {
 })
 
 const fetchDwellers = async (signal?: AbortSignal) => {
+  await featureFlags.fetchFlags()
   if (authStore.isAuthenticated && vaultId.value) {
     await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
       status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
       ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
       race: dwellerStore.filterRace !== 'all' ? dwellerStore.filterRace : undefined,
-      faction: dwellerStore.filterFaction !== 'all' ? dwellerStore.filterFaction : undefined,
+      faction:
+        featureFlags.factionMechanics && dwellerStore.filterFaction !== 'all'
+          ? dwellerStore.filterFaction
+          : undefined,
       sortBy: dwellerStore.sortBy,
       order: dwellerStore.sortDirection,
       signal,

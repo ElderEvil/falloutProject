@@ -1,11 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { UProgressBar } from '@/core/components/ui'
 import QuestPartyCard from '@/modules/exploration/components/QuestPartyCard.vue'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'vault-1' } }),
+}))
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
 vi.mock('@iconify/vue', () => ({
@@ -18,6 +24,10 @@ const quest = {
   started_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   duration_minutes: 60,
 } as VaultQuest
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 describe('QuestPartyCard', () => {
   afterEach(() => vi.useRealTimers())

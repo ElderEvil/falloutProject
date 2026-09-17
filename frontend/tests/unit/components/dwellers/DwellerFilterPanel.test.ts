@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
 import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
@@ -14,6 +15,7 @@ vi.mock('@/core/utils/errorHandler', () => ({
 }))
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
     factions_by_race: {
@@ -209,6 +211,16 @@ describe('DwellerFilterPanel', () => {
 })
 
   describe('Identity filters', () => {
+    it('hides the faction select while the switch is off', async () => {
+      useFeatureFlagsStore().factionMechanics = false
+      const wrapper = mount(DwellerFilterPanel, { props: { showIdentityFilters: true } })
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('All Factions')
+      expect(wrapper.text()).toContain('All Races')
+      wrapper.unmount()
+    })
+
     it('drops a persisted race the loaded options no longer offer', async () => {
       const store = useDwellerStore().filter
       store.setFilterRace('reptilian')

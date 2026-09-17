@@ -13,6 +13,7 @@ import {
 import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { useFeatureFlagsStore } from './featureFlags'
 
 /**
  * Non-null limit for complete-fetch requests (fetchAllDwellers). The backend
@@ -169,7 +170,8 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     if (filterRace.value !== 'all') {
       result = result.filter((dweller) => dweller.visual_attributes?.race === filterRace.value)
     }
-    if (filterFaction.value !== 'all') {
+    const factionMechanics = useFeatureFlagsStore().factionMechanics
+    if (factionMechanics && filterFaction.value !== 'all') {
       result = result.filter((dweller) => dweller.visual_attributes?.faction === filterFaction.value)
     }
 

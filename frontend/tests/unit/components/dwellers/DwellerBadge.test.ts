@@ -1,7 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+
+vi.mock('@/modules/dwellers/services/dwellerService', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
+  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
+}))
 
 vi.mock('@iconify/vue', () => ({
   Icon: {
@@ -16,6 +23,13 @@ const visualAttributes = {
   faction: 'the_institute',
   state_of_being: 'behemoth',
 } as never
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  const flags = useFeatureFlagsStore()
+  flags.raceMechanics = true
+  flags.factionMechanics = true
+})
 
 describe('DwellerBadge', () => {
   it('renders the icon with a visible label by default', () => {

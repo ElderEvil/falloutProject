@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { Icon } from '@iconify/vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import DwellerCard from './cards/DwellerCard.vue'
@@ -17,6 +18,11 @@ import { getActivitySummary } from '../models/dweller'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
+const featureFlags = useFeatureFlagsStore()
+
+onMounted(() => {
+  void featureFlags.fetchFlags()
+})
 
 const dweller = computed(() => ctx.dweller.value!)
 const isDead = computed(() => dweller.value.is_dead === true)
@@ -24,7 +30,12 @@ const isPermanentlyDead = computed(() => !!dweller.value.is_permanently_dead)
 const activity = computed(() => getActivitySummary(dweller.value))
 const hasIdentity = computed(() => {
   const attributes = dweller.value.visual_attributes
-  return Boolean(attributes && (attributes.race ?? attributes.faction ?? attributes.state_of_being))
+  return Boolean(
+    attributes &&
+      (attributes.race ??
+        (featureFlags.factionMechanics ? attributes.faction : undefined) ??
+        attributes.state_of_being)
+  )
 })
 const breadcrumbs = computed(() => [
   { label: 'Vault', to: `/vault/${ctx.vaultId.value}` },

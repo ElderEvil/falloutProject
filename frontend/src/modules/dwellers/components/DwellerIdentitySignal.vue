@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerBadge from './DwellerBadge.vue'
 import type { VisualAttributes } from '../models/dweller'
 
@@ -15,6 +16,12 @@ interface IdentitySignal {
 }
 
 const props = withDefaults(defineProps<Props>(), { compact: false })
+
+const featureFlags = useFeatureFlagsStore()
+
+onMounted(() => {
+  void featureFlags.fetchFlags()
+})
 
 const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
   human: { icon: 'mdi:account', label: 'Human' },
@@ -59,7 +66,11 @@ const identitySignals = computed<IdentitySignal[]>(() => {
   const attributes = props.visualAttributes
   if (!attributes) return []
 
-  return [attributes.race, attributes.faction, attributes.state_of_being]
+  const values = featureFlags.factionMechanics
+    ? [attributes.race, attributes.faction, attributes.state_of_being]
+    : [attributes.race, attributes.state_of_being]
+
+  return values
     .filter((value): value is NonNullable<typeof value> => value != null)
     .map((value) => {
       const meta = IDENTITY_CONFIG[value]

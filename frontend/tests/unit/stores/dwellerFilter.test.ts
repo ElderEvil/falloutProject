@@ -13,12 +13,17 @@ vi.mock('@vueuse/core', () => ({
 }))
 
 import { useDwellerFilterStore, ALL_DWELLERS_FETCH_LIMIT } from '@/modules/dwellers/stores/dwellerFilter'
+import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
 
 describe('DwellerFilter Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    const flags = useFeatureFlagsStore()
+    flags.raceMechanics = true
+    // Faction narrows the roster only while its switch is on.
+    flags.factionMechanics = true
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })

@@ -277,6 +277,53 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
         return result.scalar_one()
 
+    async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
+        conditions = [
+            self.model.vault_id == vault_id,
+            ~self.model.is_deleted,
+            ~self.model.is_dead,
+        ]
+        result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
+        return result.scalar_one()
+
+    async def get_pending_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Living dwellers who have asked to leave and are still waiting."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.exit_requested_at.is_not(None))
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_despairing_without_exit_request(
+        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
+    ) -> Sequence[Dweller]:
+        """Living dwellers at or below a happiness threshold who have not asked to leave."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+            .where(self.model.exit_requested_at.is_(None))
+            .where(self.model.happiness <= threshold)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_exit_requests_above_happiness(
+        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
+    ) -> Sequence[Dweller]:
+        """Dwellers who asked to leave but are no longer below the despair threshold."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.exit_requested_at.is_not(None))
+            .where(self.model.happiness > threshold)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
     async def count_room_names_by_type(self, db_session: AsyncSession, vault_id: UUID4) -> list[str]:
         """Room names of a vault (for callers that classify them by normalized type)."""
         result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))

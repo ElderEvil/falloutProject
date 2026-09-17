@@ -1023,6 +1023,30 @@ class FeatureConfig(BaseSettings):
     )
 
 
+class ExitConfig(BaseSettings):
+    """Rules for a dweller who asks to leave the vault."""
+
+    model_config = SettingsConfigDict(env_prefix="EXIT_")
+
+    despair_happiness: int = Field(
+        default=15,
+        ge=0,
+        le=100,
+        description="Happiness at or below which a dweller starts asking to leave",
+    )
+    refusal_happiness_penalty: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        description="Happiness the asking dweller loses when the vault refuses",
+    )
+    min_population: int = Field(
+        default=2,
+        ge=1,
+        description="The vault will not grant an exit that drops it below this many dwellers",
+    )
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1047,6 +1071,7 @@ class GameConfig(BaseSettings):
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     vault_start: VaultStartConfig = Field(default_factory=VaultStartConfig)
     crafting: CraftingConfig = Field(default_factory=CraftingConfig)
+    exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
 
 

@@ -43,7 +43,7 @@ from app.core.config import settings
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
     "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
-    "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT"},
+    "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT", "EXILE"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},
     "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},
     "explorationstatus": {"ACTIVE", "COMPLETED", "RECALLED"},

@@ -36,6 +36,7 @@ class DeathCauseEnum(CaseInsensitiveEnum):
     INCIDENT = "incident"
     EXPLORATION = "exploration"
     COMBAT = "combat"
+    EXILE = "exile"
 
 
 class RarityEnum(CaseInsensitiveEnum):

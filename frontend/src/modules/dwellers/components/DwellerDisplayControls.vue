@@ -196,8 +196,9 @@ function applyPreset(presetId: string) {
   min-width: 8rem;
 }
 
-/* Every button in the island shares this terminal control treatment; the rules below
-   are only the deltas. */
+/* Every button in the island shares this terminal control treatment; the rules below are
+   only the deltas. The transition lists exactly what those deltas change — including
+   font-weight, which the active view button steps from 500 to 600. */
 .display-controls button {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-theme-glow);
@@ -206,9 +207,11 @@ function applyPreset(presetId: string) {
   font-family: inherit;
   cursor: pointer;
   transition:
-    background 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
     box-shadow 0.2s,
-    outline 0.2s;
+    opacity 0.2s,
+    font-weight 0.2s;
 }
 
 .display-controls button:hover {
@@ -228,39 +231,14 @@ function applyPreset(presetId: string) {
   justify-content: center;
 }
 
-/* Qualified so it outweighs the shared rule and stays transparent. */
-.display-controls .preset-reset {
-  padding: 0.15rem 0.4rem;
-  background: transparent;
-  border-radius: 4px;
-  font-size: 0.6875rem;
-}
-
-.preset-reset:hover {
-  border-color: var(--color-theme-primary);
-}
-
-.view-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  white-space: nowrap;
-  opacity: 0.7;
-}
-
-.view-toggle-btn:hover {
-  opacity: 0.9;
-}
-
-.view-toggle-btn.active {
-  opacity: 1;
+.sort-direction-button:hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-theme-primary);
-  box-shadow: 0 0 12px var(--color-theme-primary);
-  font-weight: 600;
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.sort-direction-button:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
 }
 
 .view-toggle-controls {
@@ -304,6 +282,41 @@ function applyPreset(presetId: string) {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+/* Qualified so it outweighs the shared rule and stays transparent. */
+.display-controls .preset-reset {
+  padding: 0.15rem 0.4rem;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+}
+
+.preset-reset:hover {
+  border-color: var(--color-theme-primary);
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.view-toggle-btn:hover {
+  opacity: 0.9;
+}
+
+.view-toggle-btn.active {
+  opacity: 1;
+  background: var(--color-surface-hover);
+  border-color: var(--color-theme-primary);
+  box-shadow: 0 0 12px var(--color-theme-primary);
+  font-weight: 600;
 }
 
 /* The USelect chevron and the sort arrow default to 16px/20px; the chips use 1em. */

@@ -32,6 +32,13 @@ class InfoResponse(BaseModel):
     build_date: str
 
 
+class FeaturesResponse(BaseModel):
+    """Feature switches clients use to hide what is switched off."""
+
+    race_mechanics: bool
+    faction_mechanics: bool
+
+
 class ChangeEntry(BaseModel):
     """Individual change entry within a changelog version."""
 

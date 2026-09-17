@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 
 from app.core.config import settings
-from app.schemas.system import ChangelogEntry, InfoResponse
+from app.core.game_config import game_config
+from app.schemas.system import ChangelogEntry, FeaturesResponse, InfoResponse
 from app.services.changelog_service import changelog_service
 from app.utils.version import get_app_version, get_python_version
 
@@ -48,3 +49,12 @@ async def get_latest_changelog() -> ChangelogEntry:
         The latest changelog entry.
     """
     return changelog_service.get_latest()
+
+
+@router.get("/features", response_model=FeaturesResponse)
+async def get_features() -> FeaturesResponse:
+    """Get the feature switches clients use to hide what is switched off."""
+    return FeaturesResponse(
+        race_mechanics=game_config.features.race_mechanics,
+        faction_mechanics=game_config.features.faction_mechanics,
+    )

@@ -51,3 +51,27 @@ class TestChangelogEndpoint:
         assert response.status_code == 404
         data = response.json()
         assert "No changelog entries available" in data["detail"]
+
+
+@pytest.mark.asyncio
+class TestFeaturesEndpoint:
+    """Test the feature-switch endpoint."""
+
+    async def test_get_features_reports_current_switches(self, async_client: AsyncClient) -> None:
+        """Clients learn both switches; faction ships dark by default."""
+        response = await async_client.get("/system/features")
+
+        assert response.status_code == 200
+        assert response.json() == {"race_mechanics": True, "faction_mechanics": False}
+
+    async def test_get_features_follows_switch_changes(
+        self, async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Flipping a switch is visible without a restart."""
+        from app.core.game_config import game_config
+
+        monkeypatch.setattr(game_config.features, "faction_mechanics", True)
+        response = await async_client.get("/system/features")
+
+        assert response.status_code == 200
+        assert response.json()["faction_mechanics"] is True

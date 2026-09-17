@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -176,6 +176,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
         write: (value) => JSON.stringify(value),
       },
     }
+  )
+
+  // Dead is served by its own endpoint, whose payload carries no age, race or faction, so
+  // the dead panel cannot apply those facets. They are dropped on entry — and on hydration
+  // — instead of lingering as hidden filters the summary and URL would still claim.
+  watch(
+    filterStatus,
+    (status) => {
+      if (status !== 'dead') return
+      filterAgeGroup.value = 'all'
+      filterRace.value = 'all'
+      filterFaction.value = 'all'
+    },
+    { immediate: true, flush: 'sync' }
   )
 
   /**

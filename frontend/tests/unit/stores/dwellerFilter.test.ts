@@ -755,6 +755,19 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('Setters', () => {
+    it('drops the facet filters when the status becomes dead', () => {
+      const store = useDwellerFilterStore()
+      store.setFilterAgeGroup('adult')
+      store.setFilterRace('ghoul')
+      store.setFilterFaction('children_of_atom')
+
+      store.setFilterStatus('dead')
+
+      expect(store.filterAgeGroup).toBe('all')
+      expect(store.filterRace).toBe('all')
+      expect(store.filterFaction).toBe('all')
+    })
+
     it('setFilterStatus updates filterStatus', () => {
       const store = useDwellerFilterStore()
       store.setFilterStatus('working')

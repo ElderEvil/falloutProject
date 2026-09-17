@@ -141,7 +141,9 @@ describe('DwellersView', () => {
       vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockImplementation(() =>
         deferredRequest('all dwellers')
       )
-      vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(() => deferredRequest('incidents'))
+      vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(() =>
+        deferredRequest('incidents')
+      )
       vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(() => deferredRequest('rooms'))
 
       await router.isReady()
@@ -154,7 +156,13 @@ describe('DwellersView', () => {
 
       try {
         expect(startedRequests).toEqual(
-          expect.arrayContaining(['vault', 'filtered dwellers', 'all dwellers', 'incidents', 'rooms'])
+          expect.arrayContaining([
+            'vault',
+            'filtered dwellers',
+            'all dwellers',
+            'incidents',
+            'rooms',
+          ])
         )
       } finally {
         while (resolvers.length > 0) {
@@ -209,7 +217,9 @@ describe('DwellersView', () => {
         }
         if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: mockDwellers })
         if (url.includes('/incidents')) {
-          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+          return Promise.resolve({
+            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
+          })
         }
         return Promise.resolve({ data: [] })
       })
@@ -291,7 +301,9 @@ describe('DwellersView', () => {
           return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
         }
         if (url.includes('/incidents')) {
-          return Promise.resolve({ data: { vault_id: 'vault-1', incident_count: 0, incidents: [] } })
+          return Promise.resolve({
+            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
+          })
         }
         return Promise.resolve({ data: [] })
       })
@@ -353,6 +365,28 @@ describe('DwellersView', () => {
       await flushPromises()
 
       expect(_dwellerStore.filter.filterStatus).toBe('all')
+      wrapper.unmount()
+    })
+
+    it('drops the live-only filters and their URL keys when the dead panel takes over', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      _dwellerStore.filter.setFilterRace('ghoul')
+      _dwellerStore.filter.setFilterAgeGroup('adult')
+      await flushPromises()
+      expect(router.currentRoute.value.query.race).toBe('ghoul')
+
+      _dwellerStore.filter.setFilterStatus('dead')
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterRace).toBe('all')
+      expect(_dwellerStore.filter.filterAgeGroup).toBe('all')
+      expect(router.currentRoute.value.query.race).toBeUndefined()
+      expect(router.currentRoute.value.query.ageGroup).toBeUndefined()
+      expect(router.currentRoute.value.query.filter).toBe('dead')
       wrapper.unmount()
     })
 

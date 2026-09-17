@@ -142,18 +142,23 @@ function labelFor(options: readonly { value: string; label: string }[], value: s
   return options.find((option) => option.value === value)?.label ?? value
 }
 
+/** Only facets whose controls are on screen: a hidden control must not be advertised. */
 const activeFilterLabels = computed(() => {
   const labels: string[] = []
-  if (dwellerStore.filterStatus !== 'all') {
+  if (showStatusFilter && dwellerStore.filterStatus !== 'all') {
     labels.push(labelFor(statusOptions, dwellerStore.filterStatus))
   }
-  if (dwellerStore.filterAgeGroup !== 'all') {
+  if (showAgeFilter && dwellerStore.filterAgeGroup !== 'all') {
     labels.push(labelFor(ageGroupOptions, dwellerStore.filterAgeGroup))
   }
-  if (dwellerStore.filterRace !== 'all') {
+  if (showIdentityFilters && dwellerStore.filterRace !== 'all') {
     labels.push(formatIdentityLabel(dwellerStore.filterRace))
   }
-  if (featureFlags.factionMechanics && dwellerStore.filterFaction !== 'all') {
+  if (
+    showIdentityFilters &&
+    featureFlags.factionMechanics &&
+    dwellerStore.filterFaction !== 'all'
+  ) {
     labels.push(formatIdentityLabel(dwellerStore.filterFaction))
   }
   return labels

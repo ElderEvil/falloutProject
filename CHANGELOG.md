@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.117.0 (2026-09-17)
+
+### Features
+
+* add contextual status counts and a filter summary to the roster filters 19d23be
+
+### Bug Fixes
+
+* match the selected filter chip to the view toggle baffe2b
+* name the identity filter group consistently 4da34fa
+
 ## 2.116.0 (2026-09-17)
 
 ### Features

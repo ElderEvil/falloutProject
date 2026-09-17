@@ -376,8 +376,9 @@ const handleTreatIrradiated = async () => {
           <!-- Filter Panel with View Toggle -->
           <div class="w-full mb-4">
             <DwellerFilterPanel
-              :show-age-filter="true"
+              :show-age-filter="!isDeadFilter"
               :show-identity-filters="!isDeadFilter"
+              :show-active-filter-summary="true"
               :show-view-toggle="true"
             />
           </div>

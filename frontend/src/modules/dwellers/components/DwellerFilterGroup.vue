@@ -13,13 +13,16 @@ interface Props {
   icon: string
   options: readonly DwellerFilterOption[]
   modelValue: string
+  counts?: Record<string, number>
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+const hasCount = (value: string): boolean => props.counts !== undefined && value in props.counts
 </script>
 
 <template>
@@ -34,13 +37,18 @@ const emit = defineEmits<{
         :key="option.value"
         type="button"
         class="filter-chip"
-        :class="{ active: modelValue === option.value }"
+        :class="{
+          active: modelValue === option.value,
+          'has-accent': Boolean(option.accent),
+          empty: counts !== undefined && counts[option.value] === 0,
+        }"
         :style="option.accent ? { '--filter-accent': option.accent } : undefined"
         :aria-pressed="modelValue === option.value"
         @click="emit('update:modelValue', option.value)"
       >
         <Icon :icon="option.icon" />
         <span>{{ option.label }}</span>
+        <span v-if="hasCount(option.value)" class="filter-count">{{ counts?.[option.value] }}</span>
       </button>
     </div>
   </div>
@@ -85,7 +93,12 @@ const emit = defineEmits<{
   font-family: inherit;
   cursor: pointer;
   opacity: 0.6;
-  transition: all 0.2s;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    color 0.2s;
   white-space: nowrap;
 }
 
@@ -95,11 +108,36 @@ const emit = defineEmits<{
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
+.filter-chip:focus-visible {
+  outline: 2px solid var(--color-theme-primary);
+  outline-offset: 2px;
+}
+
+/* A zero-count chip stays clickable so the filter can be kept, but reads as empty. */
+.filter-chip.empty:not(.active) {
+  opacity: 0.35;
+}
+
 .filter-chip.active {
   opacity: 1;
-  background: var(--color-surface-hover);
   border-color: var(--filter-accent, var(--color-theme-primary));
   box-shadow: 0 0 12px var(--filter-accent, var(--color-theme-primary));
   font-weight: 600;
+}
+
+/* Accent-less chips take the theme fill; accent chips keep their hue as a tint. */
+.filter-chip.active:not(.has-accent) {
+  background: var(--color-theme-primary);
+  color: #000;
+}
+
+.filter-chip.active.has-accent {
+  background: color-mix(in srgb, var(--filter-accent) 22%, var(--color-surface-raised));
+}
+
+.filter-count {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
 }
 </style>

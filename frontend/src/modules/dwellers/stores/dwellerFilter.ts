@@ -44,6 +44,13 @@ export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
 }
 
+export interface DwellerStatusCounts {
+  /** Matched dwellers across every status, including dead. */
+  all: number
+  /** Matched dwellers per status; every status key is present and zero-initialized. */
+  byStatus: Record<DwellerStatus, number>
+}
+
 export const DWELLER_SORT_KEYS = [
   'name',
   'level',
@@ -195,7 +202,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       result = result.filter((dweller) => dweller.visual_attributes?.race === filterRace.value)
     }
     if (featureFlags.factionMechanics && filterFaction.value !== 'all') {
-      result = result.filter((dweller) => dweller.visual_attributes?.faction === filterFaction.value)
+      result = result.filter(
+        (dweller) => dweller.visual_attributes?.faction === filterFaction.value
+      )
     }
 
     // Apply sorting
@@ -218,6 +227,36 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
     return result
   })
+
+  /**
+   * Count every status under the given non-status filters, from the unfiltered
+   * allDwellers collection. The backend-narrowed `dwellers` list would only ever
+   * report the currently selected status, so a chip could not preview its own result.
+   */
+  function countByStatus(filters: {
+    ageGroup: DwellerAgeGroup
+    race: string
+    faction: string
+  }): DwellerStatusCounts {
+    const byStatus = Object.fromEntries(DWELLER_STATUSES.map((status) => [status, 0])) as Record<
+      DwellerStatus,
+      number
+    >
+    const factionActive = featureFlags.factionMechanics && filters.faction !== 'all'
+    let all = 0
+
+    for (const dweller of allDwellers.value) {
+      if (filters.ageGroup !== 'all' && dweller.age_group !== filters.ageGroup) continue
+      if (filters.race !== 'all' && dweller.visual_attributes?.race !== filters.race) continue
+      if (factionActive && dweller.visual_attributes?.faction !== filters.faction) continue
+
+      const status = isDwellerStatus(dweller.status) ? dweller.status : 'idle'
+      byStatus[status] += 1
+      all += 1
+    }
+
+    return { all, byStatus }
+  }
 
   async function fetchDwellersByVault(
     vaultId: string,
@@ -344,6 +383,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     getDwellerStatus,
     getDwellersByStatus,
     filteredAndSortedDwellers,
+    countByStatus,
     fetchDwellersByVault,
     fetchWithCurrentFilters,
     fetchAllDwellers,

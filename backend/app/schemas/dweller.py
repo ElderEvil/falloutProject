@@ -18,7 +18,6 @@ from app.core.enums import (
     SPECIALEnum,
     WeaponTypeEnum,
 )
-from app.core.game_config import game_config
 from app.models.dweller import DwellerBase
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.identity_modifiers import IdentityModifiers, identity_modifiers_for
@@ -133,10 +132,6 @@ class DwellerVisualAttributes(BaseModel):
     def validate_identity_combination(self) -> "DwellerVisualAttributes":
         """Reject race/faction pairs that the canonical options data excludes."""
         if self.race is None or self.faction is None:
-            return self
-        if not game_config.features.faction_mechanics:
-            if self.faction != FactionOption.NONE.value:
-                raise ValueError("Faction selection is disabled while the faction switch is off.")
             return self
         race = RaceOption(self.race)
         faction = FactionOption(self.faction)

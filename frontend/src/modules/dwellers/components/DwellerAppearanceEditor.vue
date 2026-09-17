@@ -28,6 +28,8 @@ const authStore = useAuthStore()
 const featureFlags = useFeatureFlagsStore()
 const raceOptions = ref<string[]>([])
 const factionsByRace = ref<Record<string, string[]>>({})
+/** True while the form holds defaults set before the feature switch resolved. */
+const usedProvisionalDefaults = ref(false)
 const statesByRace = ref<Record<string, string[]>>({})
 
 onMounted(async () => {
@@ -35,6 +37,10 @@ onMounted(async () => {
 
   try {
     await featureFlags.fetchFlags()
+    // The immediate watcher above may have run before the switch landed.
+    if (usedProvisionalDefaults.value && featureFlags.factionMechanics && form.faction === 'none') {
+      form.faction = 'vault_dweller'
+    }
     const options = await getIdentityOptions(authStore.token)
     raceOptions.value = options.races ?? []
     factionsByRace.value = options.factions_by_race ?? {}
@@ -275,8 +281,10 @@ watch(
           ;(form as Record<string, string | number | undefined>)[key] = value as string | number
         }
       }
+      usedProvisionalDefaults.value = false
     } else {
-      // Set defaults
+      // Set defaults. The switch may not have resolved yet, so this is provisional.
+      usedProvisionalDefaults.value = true
       form.race = 'human'
       form.faction = featureFlags.factionMechanics ? 'vault_dweller' : 'none'
     }

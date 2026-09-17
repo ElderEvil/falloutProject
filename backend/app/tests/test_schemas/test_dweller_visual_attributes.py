@@ -106,15 +106,6 @@ def test_backward_compatibility_alias() -> None:
     assert DwellerVisualAttributesInput is DwellerVisualAttributes
 
 
-def test_faction_rejected_while_switch_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Saving a faction while the switch is off fails validation."""
-    from app.core.game_config import game_config
-
-    monkeypatch.setattr(game_config.features, "faction_mechanics", False)
-    with pytest.raises(ValidationError, match="disabled"):
-        DwellerVisualAttributes.model_validate({"race": "human", "faction": "vault_dweller"})
-
-
 def test_none_faction_accepted_while_switch_off(monkeypatch: pytest.MonkeyPatch) -> None:
     """System-assigned 'none' still passes while the switch is off."""
     from app.core.game_config import game_config

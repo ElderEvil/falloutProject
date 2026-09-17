@@ -259,6 +259,15 @@ describe('DwellerAppearanceEditor', () => {
 
 })
 
+  it('upgrades the provisional faction default once the switch resolves', async () => {
+    // The immediate watcher runs before the flags land, so a dweller without attributes
+    // starts at the system value; the switch then restores the normal default.
+    const wrapper = await createWrapper(baseDweller as Dweller)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Vault Dweller')
+  })
+
   it('hides the faction field while the switch is off', async () => {
     const wrapper = await createWrapper(baseDweller as Dweller)
     await flushPromises()

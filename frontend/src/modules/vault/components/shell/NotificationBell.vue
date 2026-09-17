@@ -187,6 +187,7 @@ const getNotificationRoute = (notification: Notification): string | null => {
     }
     case 'dweller_died':
     case 'dweller_injured':
+    case 'dweller_exit_requested':
     case 'baby_born':
     case 'relationship_formed':
     case 'pregnancy_detected':
@@ -225,6 +226,7 @@ const getNotificationIcon = (type: string): string => {
   const iconMap: Record<string, string> = {
     baby_born: 'mdi:baby-face',
     dweller_died: 'mdi:skull',
+    dweller_exit_requested: 'mdi:exit-run',
     exploration_complete: 'mdi:map-marker-check',
     exploration_update: 'mdi:map-marker',
     level_up: 'mdi:arrow-up-bold',

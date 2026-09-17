@@ -224,6 +224,7 @@ export const DEATH_CAUSE_ICON_MAP: Record<string, string> = {
   incident: 'mdi:fire',
   exploration: 'mdi:compass',
   combat: 'mdi:sword',
+  exile: 'mdi:exit-run',
 }
 
 /** Get the icon for a death cause, defaulting to skull */

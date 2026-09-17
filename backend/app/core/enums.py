@@ -60,6 +60,10 @@ class SPECIALEnum(CaseInsensitiveEnum):
     LUCK = "luck"
 
 
+#: Canonical SPECIAL attribute names in S.P.E.C.I.A.L. order.
+SPECIAL_STATS: tuple[str, ...] = tuple(stat.value for stat in SPECIALEnum)
+
+
 class GenderEnum(CaseInsensitiveEnum):
     MALE = "male"
     FEMALE = "female"
@@ -101,16 +105,16 @@ class RaceEnum(CaseInsensitiveEnum):
 class FactionEnum(CaseInsensitiveEnum):
     NONE = "none"
     VAULT_DWELLER = "vault_dweller"
-    BOS = "brotherhood_of_steel"
+    BROTHERHOOD_OF_STEEL = "brotherhood_of_steel"
     ENCLAVE = "enclave"
     MINUTEMEN = "minutemen"
     RAIDERS = "raiders"
-    SM_TRIBE = "super_mutant_tribe"
-    COA = "children_of_atom"
-    INSTITUTE = "the_institute"
+    SUPER_MUTANT_TRIBE = "super_mutant_tribe"
+    CHILDREN_OF_ATOM = "children_of_atom"
+    THE_INSTITUTE = "the_institute"
     RAILROAD = "railroad"
     NCR = "ncr"
-    LEGION = "caesars_legion"
+    CAESARS_LEGION = "caesars_legion"
 
 
 class SynthTypeEnum(CaseInsensitiveEnum):

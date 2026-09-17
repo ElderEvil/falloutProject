@@ -77,6 +77,13 @@ class ValidationException(DomainError):
     default_detail = "Validation failed."
 
 
+class FeatureDisabledException(DomainError):
+    """Raised when a caller uses a feature whose switch is off."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    default_detail = "This feature is currently disabled."
+
+
 class NotFoundException(DomainError):
     """Raised when a requested resource is not found."""
 

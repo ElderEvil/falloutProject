@@ -331,14 +331,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       )
 
       // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId, token, {
-        status: filterStore.filterStatus,
-        ageGroup: filterStore.filterAgeGroup,
-        race: filterStore.filterRace,
-        faction: filterStore.filterFaction,
-        sortBy: filterStore.sortBy,
-        order: filterStore.sortDirection,
-      })
+      await filterStore.fetchWithCurrentFilters(vaultId, token)
 
       toast.success(`Assigned ${response.data.assigned_count} dwellers ${successSuffix}`)
       return response.data

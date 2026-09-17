@@ -20,7 +20,7 @@ from app.core.enums import (
 )
 from app.models.dweller import DwellerBase
 from app.options.factions import FactionOption, faction_restrictions
-from app.options.identity_modifiers import IdentityModifiers, identity_modifiers_for
+from app.options.identity_modifiers import identity_modifiers_for
 from app.options.races import RaceOption
 from app.schemas.outfit import OutfitRead
 from app.schemas.room import RoomRead
@@ -38,9 +38,6 @@ LETTER_TO_STAT = {
     "I": "intelligence",
     "L": "luck",
 }
-
-#: Canonical SPECIAL attribute names, in S.P.E.C.I.A.L. order.
-SPECIAL_STATS: tuple[str, ...] = tuple(LETTER_TO_STAT.values())
 
 STATS_RANGE_BY_RARITY = {
     RarityEnum.COMMON: (1, 3),
@@ -282,6 +279,24 @@ class DwellerReadLess(SQLModel):
     # TBD
 
 
+class IdentityModifiersRead(BaseModel):
+    """Wire shape for a dweller's combined race and faction effects."""
+
+    strength: int = 0
+    perception: int = 0
+    endurance: int = 0
+    charisma: int = 0
+    intelligence: int = 0
+    agility: int = 0
+    luck: int = 0
+    radiation_immune: bool = False
+    radiation_resist_pct: float = 0.0
+    energy_weapon_damage_pct: float = 0.0
+    melee_damage_pct: float = 0.0
+    incident_response_pct: float = 0.0
+    production_pct: float = 0.0
+
+
 class DwellerRead(DwellerBase):
     id: UUID4
     created_at: datetime
@@ -295,9 +310,9 @@ class DwellerRead(DwellerBase):
 
     @computed_field
     @property
-    def identity_modifiers(self) -> IdentityModifiers:
+    def identity_modifiers(self) -> IdentityModifiersRead:
         """Race and faction effects on this dweller, so clients can explain its effectiveness."""
-        return identity_modifiers_for(self)
+        return IdentityModifiersRead.model_validate(identity_modifiers_for(self), from_attributes=True)
 
 
 class DwellerReadWithVaultID(DwellerRead):

@@ -8,6 +8,7 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -20,7 +21,7 @@ from app.schemas.common import (
     RoomTypeEnum,
     SPECIALEnum,
 )
-from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
+from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.family.breeding_service import BreedingService
 from app.utils.exceptions import ResourceNotFoundException

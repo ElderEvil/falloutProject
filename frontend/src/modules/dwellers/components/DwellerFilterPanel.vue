@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getIdentityOptions } from '../services/dwellerService'
+import { formatIdentityLabel } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import USelect from '@/core/components/ui/USelect.vue'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
@@ -20,8 +21,6 @@ interface Props {
   showAgeFilter?: boolean
   showIdentityFilters?: boolean
   showViewToggle?: boolean
-  showBulkActions?: boolean
-  vaultId?: string
 }
 
 const {
@@ -29,14 +28,7 @@ const {
   showAgeFilter = false,
   showIdentityFilters = false,
   showViewToggle = false,
-  showBulkActions = false,
-  vaultId = '',
 } = defineProps<Props>()
-
-defineEmits<{
-  unassignAll: []
-  autoAssignAll: []
-}>()
 
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
@@ -45,13 +37,6 @@ const featureFlags = useFeatureFlagsStore()
 /** Race/faction choices come from the backend options, so the panel cannot drift from them. */
 const races = ref<string[]>([])
 const factionsByRace = ref<Record<string, string[]>>({})
-
-function identityLabel(value: string): string {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
 
 onMounted(async () => {
   await featureFlags.fetchFlags()
@@ -76,7 +61,7 @@ onMounted(async () => {
 
 const raceSelectOptions = computed(() => [
   { value: 'all', label: 'All Races' },
-  ...races.value.map((race) => ({ value: race, label: identityLabel(race) })),
+  ...races.value.map((race) => ({ value: race, label: formatIdentityLabel(race) })),
 ])
 
 /** Faction choices follow the chosen race, so only combinations the game allows are offered. */
@@ -89,7 +74,7 @@ const factionSelectOptions = computed(() => {
 
   return [
     { value: 'all', label: 'All Factions' },
-    ...allowed.map((faction) => ({ value: faction, label: identityLabel(faction) })),
+    ...allowed.map((faction) => ({ value: faction, label: formatIdentityLabel(faction) })),
   ]
 })
 
@@ -153,11 +138,6 @@ const currentFilterRace = computed({
 const currentFilterFaction = computed({
   get: () => dwellerStore.filterFaction,
   set: (value: string) => dwellerStore.setFilterFaction(value),
-})
-
-const currentSortBy = computed({
-  get: () => dwellerStore.sortBy,
-  set: (value: DwellerSortBy) => dwellerStore.setSortBy(value),
 })
 
 const currentSortDirection = computed({
@@ -244,20 +224,6 @@ const toggleSortDirection = () => {
               height="20"
             />
           </button>
-        </div>
-      </div>
-
-      <!-- Spacer to push bulk actions and view toggle to the right -->
-      <div v-if="showBulkActions" class="flex-grow"></div>
-
-      <!-- Bulk Actions (inline with sort/view) -->
-      <div v-if="showBulkActions" class="filter-section">
-        <div class="section-header">
-          <Icon icon="mdi:account-multiple-check" />
-          <span>Bulk Actions</span>
-        </div>
-        <div class="bulk-action-controls">
-          <slot name="bulk-actions"></slot>
         </div>
       </div>
 

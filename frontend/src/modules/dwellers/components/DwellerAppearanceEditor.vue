@@ -6,7 +6,7 @@ import UButton from '@/core/components/ui/UButton.vue'
 import UInput from '@/core/components/ui/UInput.vue'
 import USelect from '@/core/components/ui/USelect.vue'
 import USlider from '@/core/components/ui/USlider.vue'
-import type { Dweller, VisualAttributes } from '../models/dweller'
+import { formatIdentityLabel, type Dweller, type VisualAttributes } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { getIdentityOptions } from '../services/dwellerService'
@@ -312,16 +312,8 @@ const availableHaircuts = computed(() => HAIRCUT_OPTIONS[raceKey.value] || HAIRC
 
 const availableHeadgear = computed(() => HEADGEAR_OPTIONS[raceKey.value] || HEADGEAR_OPTIONS.human)
 
-// Format helper for display labels
-const formatLabel = (value: string) => {
-  return value
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 const selectOptions = (values: readonly string[]) =>
-  values.map((value) => ({ value, label: formatLabel(value) }))
+  values.map((value) => ({ value, label: formatIdentityLabel(value) }))
 
 // Pick a random element from an array
 function pickRandom<T>(arr: readonly T[] | T[]): T {

@@ -99,6 +99,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Features
+         * @description Get the feature switches clients use to hide what is switched off.
+         */
+        get: operations["get_features_api_v1_system_features_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -5823,7 +5843,7 @@ export interface components {
              */
             readonly effective_max_health: number;
             /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
-            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
+            readonly identity_modifiers: components["schemas"]["IdentityModifiersRead"];
         };
         /** DwellerReadFull */
         DwellerReadFull: {
@@ -5983,7 +6003,7 @@ export interface components {
              */
             readonly effective_max_health: number;
             /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
-            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
+            readonly identity_modifiers: components["schemas"]["IdentityModifiersRead"];
         };
         /** DwellerReadLess */
         DwellerReadLess: {
@@ -6205,7 +6225,7 @@ export interface components {
              */
             readonly effective_max_health: number;
             /** @description Race and faction effects on this dweller, so clients can explain its effectiveness. */
-            readonly identity_modifiers: components["schemas"]["IdentityModifiers"];
+            readonly identity_modifiers: components["schemas"]["IdentityModifiersRead"];
         };
         /**
          * DwellerRef
@@ -6633,6 +6653,16 @@ export interface components {
          */
         FactionEnum: "none" | "vault_dweller" | "brotherhood_of_steel" | "enclave" | "minutemen" | "raiders" | "super_mutant_tribe" | "children_of_atom" | "the_institute" | "railroad" | "ncr" | "caesars_legion";
         /**
+         * FeaturesResponse
+         * @description Feature switches clients use to hide what is switched off.
+         */
+        FeaturesResponse: {
+            /** Race Mechanics */
+            race_mechanics: boolean;
+            /** Faction Mechanics */
+            faction_mechanics: boolean;
+        };
+        /**
          * GameBalanceResponse
          * @description Game balance configuration settings response.
          */
@@ -6783,10 +6813,10 @@ export interface components {
          */
         HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
         /**
-         * IdentityModifiers
-         * @description Combined racial and faction effects for one dweller.
+         * IdentityModifiersRead
+         * @description Wire shape for a dweller's combined race and faction effects.
          */
-        IdentityModifiers: {
+        IdentityModifiersRead: {
             /**
              * Strength
              * @default 0
@@ -9800,6 +9830,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangelogEntry"];
+                };
+            };
+        };
+    };
+    get_features_api_v1_system_features_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeaturesResponse"];
                 };
             };
         };

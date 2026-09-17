@@ -129,16 +129,7 @@ const happinessDashboardData = computed(() => {
 const fetchDwellers = async (signal?: AbortSignal) => {
   await featureFlags.fetchFlags()
   if (authStore.isAuthenticated && vaultId.value) {
-    await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string, {
-      status: dwellerStore.filterStatus !== 'all' ? dwellerStore.filterStatus : undefined,
-      ageGroup: dwellerStore.filterAgeGroup !== 'all' ? dwellerStore.filterAgeGroup : undefined,
-      race: dwellerStore.filterRace !== 'all' ? dwellerStore.filterRace : undefined,
-      faction:
-        featureFlags.factionMechanics && dwellerStore.filterFaction !== 'all'
-          ? dwellerStore.filterFaction
-          : undefined,
-      sortBy: dwellerStore.sortBy,
-      order: dwellerStore.sortDirection,
+    await dwellerStore.fetchWithCurrentFilters(vaultId.value, authStore.token as string, {
       signal,
     })
   }
@@ -411,8 +402,6 @@ const handleTreatIrradiated = async () => {
               :show-age-filter="true"
               :show-identity-filters="!isDeadFilter"
               :show-view-toggle="true"
-              :show-bulk-actions="false"
-              :vault-id="vaultId"
             />
           </div>
 

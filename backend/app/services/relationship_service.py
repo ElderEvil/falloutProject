@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import (
     PARTNER_LINKED_STAGES,
+    SPECIAL_STATS,
     RelationshipTypeEnum,
 )
 from app.core.game_config import game_config
@@ -16,7 +17,6 @@ from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.notification import NotificationType
 from app.models.relationship import Relationship
-from app.schemas.dweller import SPECIAL_STATS
 from app.schemas.relationship import CompatibilityScore
 from app.services.bio_service import bio_service
 from app.services.notification_service import NotificationService

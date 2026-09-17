@@ -11,7 +11,6 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
   const raceMechanics = ref(true)
   const factionMechanics = ref(false)
   const loaded = ref(false)
-  const loading = ref(false)
 
   // Concurrent callers share one request: the panel and the roster mount together, and a
   // caller that returned early would read the pre-fetch defaults. A failed fetch stays
@@ -21,7 +20,6 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
   function fetchFlags(): Promise<void> {
     if (loaded.value) return Promise.resolve()
     inFlight ??= (async () => {
-      loading.value = true
       try {
         const flags = await getFeatureFlags()
         raceMechanics.value = flags.race_mechanics
@@ -30,7 +28,6 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
       } catch (error) {
         handleStoreError(error, 'Failed to load feature flags', false)
       } finally {
-        loading.value = false
         inFlight = null
       }
     })()

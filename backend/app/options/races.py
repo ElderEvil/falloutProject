@@ -1,55 +1,27 @@
-"""Race and state-of-being enums with lore descriptions."""
+"""Race and state-of-being options with lore descriptions.
+
+The enums are defined once in ``app/core/enums.py``; this module re-exports the
+race option under its domain name and owns the race-specific data (descriptions,
+modifiers, breeding eligibility).
+"""
 
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.core.enums import (
+    GhoulFeralnessEnum,
+    RaceEnum,
+    SuperMutantMutationEnum,
+    SynthTypeEnum,
+)
 
-class RaceOption(StrEnum):
-    """Playable/non-playable race options for character appearance."""
-
-    HUMAN = "human"
-    GHOUL = "ghoul"
-    SUPER_MUTANT = "super_mutant"
-    SYNTH = "synth"
-
-
-class GenderOption(StrEnum):
-    """Gender options for character generation."""
-
-    MALE = "male"
-    FEMALE = "female"
-    OTHER = "other"
-
-
-class GhoulFeralness(StrEnum):
-    """State of being for Ghoul characters."""
-
-    SANE = "sane"
-    WILD = "wild"
-    FERAL = "feral"
-
-
-class SuperMutantMutation(StrEnum):
-    """State of being for Super Mutant characters."""
-
-    MILD = "mild"
-    AVERAGE = "average"
-    BEHEMOTH = "behemoth"
-
-
-class SynthType(StrEnum):
-    """State of being for Synth characters."""
-
-    GEN_3 = "gen_3"
-    GEN_2 = "gen_2"
-    GEN_1 = "gen_1"
-
+RaceOption = RaceEnum
 
 # Union type for state_of_being field
 STATE_OF_BEING_OPTIONS: dict[RaceOption, list[StrEnum]] = {
-    RaceOption.GHOUL: list(GhoulFeralness),
-    RaceOption.SUPER_MUTANT: list(SuperMutantMutation),
-    RaceOption.SYNTH: list(SynthType),
+    RaceOption.GHOUL: list(GhoulFeralnessEnum),
+    RaceOption.SUPER_MUTANT: list(SuperMutantMutationEnum),
+    RaceOption.SYNTH: list(SynthTypeEnum),
 }
 
 STATE_OF_BEING_VALUES: dict[RaceOption, list[str]] = {

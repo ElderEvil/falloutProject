@@ -9,6 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import (
+    SPECIAL_STATS,
     AgeGroupEnum,
     GenderEnum,
     PregnancyStatusEnum,
@@ -25,7 +26,7 @@ from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.options.bios import render_newborn_bio
 from app.options.races import can_breed
-from app.schemas.dweller import SPECIAL_STATS, DwellerCreate
+from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
 
@@ -37,7 +38,8 @@ class BreedingService:
 
     @staticmethod
     def _pair_key(dweller: Dweller) -> tuple[str, str]:
-        return tuple(sorted([str(dweller.id), str(dweller.partner_id)]))
+        first, second = sorted([str(dweller.id), str(dweller.partner_id)])
+        return first, second
 
     @staticmethod
     def _is_pair_eligible(
@@ -492,7 +494,7 @@ class BreedingService:
 
         aged_dwellers = []
         for child in children:
-            if child.birth_date <= adult_threshold:
+            if child.birth_date is not None and child.birth_date <= adult_threshold:
                 teens.append(child)
                 continue
             child.age_group = AgeGroupEnum.TEEN

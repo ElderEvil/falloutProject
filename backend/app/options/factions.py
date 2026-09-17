@@ -1,26 +1,15 @@
-"""Faction options with race-based restrictions and lore-aligned perks."""
+"""Faction options with race-based restrictions and lore-aligned perks.
+
+``FactionOption`` is the core ``FactionEnum`` re-exported under its domain name;
+the enum value set is defined once in ``app/core/enums.py``.
+"""
 
 from dataclasses import dataclass
-from enum import StrEnum
 
+from app.core.enums import FactionEnum
 from app.options.races import RaceOption, race_of
 
-
-class FactionOption(StrEnum):
-    """Faction affiliations for character appearance."""
-
-    VAULT_DWELLER = "vault_dweller"
-    BROTHERHOOD_OF_STEEL = "brotherhood_of_steel"
-    ENCLAVE = "enclave"
-    MINUTEMEN = "minutemen"
-    RAIDERS = "raiders"
-    SUPER_MUTANT_TRIBE = "super_mutant_tribe"
-    CHILDREN_OF_ATOM = "children_of_atom"
-    THE_INSTITUTE = "the_institute"
-    RAILROAD = "railroad"
-    NCR = "ncr"
-    CAESARS_LEGION = "caesars_legion"
-    NONE = "none"
+FactionOption = FactionEnum
 
 
 # Which factions are valid for each race

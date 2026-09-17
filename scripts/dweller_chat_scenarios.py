@@ -66,17 +66,17 @@ BACKEND_DIR = REPO_ROOT / "backend"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from app.agents.chat_prompts import build_chat_instructions  # noqa: E402
-from app.core.enums import (  # noqa: E402
+from app.agents.chat_prompts import build_chat_instructions
+from app.core.enums import (
     AgeGroupEnum,
     GenderEnum,
     GhoulFeralnessEnum,
-    RarityEnum,
     RaceEnum,
+    RarityEnum,
     SuperMutantMutationEnum,
 )
-from app.services.chat.agent_runner import build_dweller_prompt  # noqa: E402
-from app.services.prompt_service import DEFAULT_PROMPTS  # noqa: E402
+from app.services.chat.agent_runner import build_dweller_prompt
+from app.services.prompt_service import DEFAULT_PROMPTS
 
 DEFAULT_MODEL = "google/gemma-4-e4b"
 DEFAULT_BASE_URL = "http://localhost:1234/v1"
@@ -172,12 +172,18 @@ class Persona:
             bio=self.bio,
             visual_attributes={
                 "race": self.race.value,
-                **({"state_of_being": self.state_of_being.value} if self.state_of_being else {}),
+                **(
+                    {"state_of_being": self.state_of_being.value}
+                    if self.state_of_being
+                    else {}
+                ),
             },
         )
 
 
-def _special(str_: int, per: int, end: int, cha: int, intel: int, agi: int, luck: int) -> dict[str, int]:
+def _special(
+    str_: int, per: int, end: int, cha: int, intel: int, agi: int, luck: int
+) -> dict[str, int]:
     return {
         "strength": str_,
         "perception": per,
@@ -312,8 +318,13 @@ def build_personas() -> dict[str, Persona]:
             ),
             special=_special(4, 3, 5, 6, 4, 5, 3),
             room_name="Diner",
-            family=[FamilyMember("Ana Reyes", "partner"), FamilyMember("Tomas Reyes", "child")],
-            relationships=[{"name": "Ana Reyes", "relationship_type": "married", "affinity": 92}],
+            family=[
+                FamilyMember("Ana Reyes", "partner"),
+                FamilyMember("Tomas Reyes", "child"),
+            ],
+            relationships=[
+                {"name": "Ana Reyes", "relationship_type": "married", "affinity": 92}
+            ],
         ),
     ]
     return {persona.key: persona for persona in personas}
@@ -326,7 +337,9 @@ def build_personas() -> dict[str, Persona]:
 
 def family_entries(persona: Persona) -> list[dict[str, str]]:
     """The {name, relation} shape ``load_family_members`` hands to the prompt builders."""
-    return [{"name": member.name, "relation": member.relation} for member in persona.family]
+    return [
+        {"name": member.name, "relation": member.relation} for member in persona.family
+    ]
 
 
 def base_instructions(persona: Persona) -> str:
@@ -369,15 +382,35 @@ MODE_SPECS: dict[str, dict[str, Any]] = {
 }
 
 MODE_PERSONAS: dict[str, list[str]] = {
-    "agent": ["adult_baseline", "child", "elder", "ghoul", "super_mutant", "low_happiness", "family"],
-    "fallback": ["adult_baseline", "child", "elder", "ghoul", "super_mutant", "low_happiness", "family"],
+    "agent": [
+        "adult_baseline",
+        "child",
+        "elder",
+        "ghoul",
+        "super_mutant",
+        "low_happiness",
+        "family",
+    ],
+    "fallback": [
+        "adult_baseline",
+        "child",
+        "elder",
+        "ghoul",
+        "super_mutant",
+        "low_happiness",
+        "family",
+    ],
     "history+": ["family"],
 }
 
 
 def system_prompt_for(persona: Persona, mode: str) -> str:
     spec = MODE_SPECS[mode]
-    return fallback_instructions(persona) if spec["base"] == "fallback" else base_instructions(persona)
+    return (
+        fallback_instructions(persona)
+        if spec["base"] == "fallback"
+        else base_instructions(persona)
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -385,25 +418,135 @@ def system_prompt_for(persona: Persona, mode: str) -> str:
 # --------------------------------------------------------------------------------------
 
 POSITIVE_WORDS = {
-    "good", "great", "glad", "happy", "hope", "hopeful", "joy", "love", "loved", "lucky", "nice", "peace",
-    "proud", "safe", "smile", "smiling", "strong", "thankful", "warm", "welcome", "wonderful", "fine",
-    "content", "cheerful", "bright", "better", "best", "enjoy", "fun", "kind", "gentle", "grateful",
+    "good",
+    "great",
+    "glad",
+    "happy",
+    "hope",
+    "hopeful",
+    "joy",
+    "love",
+    "loved",
+    "lucky",
+    "nice",
+    "peace",
+    "proud",
+    "safe",
+    "smile",
+    "smiling",
+    "strong",
+    "thankful",
+    "warm",
+    "welcome",
+    "wonderful",
+    "fine",
+    "content",
+    "cheerful",
+    "bright",
+    "better",
+    "best",
+    "enjoy",
+    "fun",
+    "kind",
+    "gentle",
+    "grateful",
 }
 NEGATIVE_WORDS = {
-    "afraid", "alone", "angry", "anxious", "bad", "bitter", "broken", "cold", "cry", "dark", "dead", "death",
-    "empty", "exhausted", "fear", "grief", "hate", "hurt", "lonely", "lost", "miserable", "miss", "numb",
-    "pain", "regret", "sad", "scared", "sick", "sorrow", "tired", "trouble", "weary", "worse", "worst",
-    "worthless", "wounded", "gloomy", "hopeless", "aching", "heavy", "quiet", "cold",
+    "afraid",
+    "alone",
+    "angry",
+    "anxious",
+    "bad",
+    "bitter",
+    "broken",
+    "cold",
+    "cry",
+    "dark",
+    "dead",
+    "death",
+    "empty",
+    "exhausted",
+    "fear",
+    "grief",
+    "hate",
+    "hurt",
+    "lonely",
+    "lost",
+    "miserable",
+    "miss",
+    "numb",
+    "pain",
+    "regret",
+    "sad",
+    "scared",
+    "sick",
+    "sorrow",
+    "tired",
+    "trouble",
+    "weary",
+    "worse",
+    "worst",
+    "worthless",
+    "wounded",
+    "gloomy",
+    "hopeless",
+    "aching",
+    "heavy",
+    "quiet",
 }
 RACE_TERMS = {
-    "ghoul": ["ghoul", "ghoulish", "smoothskin", "smoothskin", "feral", "radiation", "necrotic"],
-    "super_mutant": ["mutant", "super mutant", "fev", "big", "green", "behemoth", "strong"],
+    "ghoul": [
+        "ghoul",
+        "ghoulish",
+        "smoothskin",
+        "smoothskin",
+        "feral",
+        "radiation",
+        "necrotic",
+    ],
+    "super_mutant": [
+        "mutant",
+        "super mutant",
+        "fev",
+        "big",
+        "green",
+        "behemoth",
+        "strong",
+    ],
 }
-FAMILY_TERMS = ["family", "son", "daughter", "wife", "husband", "partner", "child", "kid", "mother", "father"]
+FAMILY_TERMS = [
+    "family",
+    "son",
+    "daughter",
+    "wife",
+    "husband",
+    "partner",
+    "child",
+    "kid",
+    "mother",
+    "father",
+]
 CHILD_COMPLEX_WORDS = {
-    "radiation", "protocol", "reevaluate", "consequently", "nevertheless", "furthermore", "approximately",
-    "sufficiently", "unfortunately", "responsibility", "assignment", "objective", "strategy", "consequence",
-    "maintenance", "infrastructure", "schedule", "efficiency", "obligation", "circumstances",
+    "radiation",
+    "protocol",
+    "reevaluate",
+    "consequently",
+    "nevertheless",
+    "furthermore",
+    "approximately",
+    "sufficiently",
+    "unfortunately",
+    "responsibility",
+    "assignment",
+    "objective",
+    "strategy",
+    "consequence",
+    "maintenance",
+    "infrastructure",
+    "schedule",
+    "efficiency",
+    "obligation",
+    "circumstances",
 }
 
 _WORD_RE = re.compile(r"[A-Za-z']+")
@@ -422,7 +565,9 @@ def flesch_reading_ease(text: str) -> float:
     if not words:
         return 0.0
     syllables = sum(count_syllables(word) for word in words)
-    return round(206.835 - 1.015 * (len(words) / sentences) - 84.6 * (syllables / len(words)), 1)
+    return round(
+        206.835 - 1.015 * (len(words) / sentences) - 84.6 * (syllables / len(words)), 1
+    )
 
 
 def compute_metrics(text: str, persona: Persona) -> dict[str, Any]:
@@ -439,10 +584,18 @@ def compute_metrics(text: str, persona: Persona) -> dict[str, Any]:
         "negative_hits": sorted({word for word in words if word in NEGATIVE_WORDS}),
         "affect_balance": sum(1 for word in words if word in POSITIVE_WORDS)
         - sum(1 for word in words if word in NEGATIVE_WORDS),
-        "race_hits": sorted({term for term in RACE_TERMS.get(persona.race.value, []) if term in text.lower()}),
+        "race_hits": sorted(
+            {
+                term
+                for term in RACE_TERMS.get(persona.race.value, [])
+                if term in text.lower()
+            }
+        ),
         "family_terms": sorted({term for term in FAMILY_TERMS if term in words}),
         "family_names_used": sorted({name for name in family_names if name in words}),
-        "complex_child_words": sorted({word for word in words if word in CHILD_COMPLEX_WORDS}),
+        "complex_child_words": sorted(
+            {word for word in words if word in CHILD_COMPLEX_WORDS}
+        ),
     }
 
 
@@ -462,7 +615,13 @@ class Completion:
 
 
 def complete(
-    *, base_url: str, model: str, messages: list[dict[str, str]], temperature: float, max_tokens: int, timeout: int
+    *,
+    base_url: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout: int,
 ) -> Completion:
     url = f"{base_url.rstrip('/')}/chat/completions"
     payload = {
@@ -482,7 +641,7 @@ def complete(
     last_error: Exception | None = None
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 body = json.loads(response.read().decode("utf-8"))
             choice = body["choices"][0]
             usage = body.get("usage") or {}
@@ -495,7 +654,12 @@ def complete(
                 finish_reason=choice.get("finish_reason"),
                 latency_ms=int((time.monotonic() - started) * 1000),
             )
-        except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as error:
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            KeyError,
+            json.JSONDecodeError,
+        ) as error:
             last_error = error
             time.sleep(2 * (attempt + 1))
     raise RuntimeError(f"LM Studio request failed after retries: {last_error}")
@@ -587,7 +751,11 @@ def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         latencies = [row["latency_ms"] for row in rows]
 
         def avg(key: str) -> float:
-            values = [metric[key] for metric in metrics if isinstance(metric.get(key), (int, float))]
+            values = [
+                metric[key]
+                for metric in metrics
+                if isinstance(metric.get(key), (int, float))
+            ]
             return round(statistics.mean(values), 2) if values else 0.0
 
         summary.append(
@@ -600,27 +768,46 @@ def aggregate(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "avg_flesch": avg("flesch_reading_ease"),
                 "unique_word_ratio": avg("unique_word_ratio"),
                 "affect_balance": avg("affect_balance"),
-                "negative_hits": sum(len(metric["negative_hits"]) for metric in metrics),
-                "positive_hits": sum(len(metric["positive_hits"]) for metric in metrics),
+                "negative_hits": sum(
+                    len(metric["negative_hits"]) for metric in metrics
+                ),
+                "positive_hits": sum(
+                    len(metric["positive_hits"]) for metric in metrics
+                ),
                 "race_hits": sum(len(metric["race_hits"]) for metric in metrics),
                 "family_terms": sum(len(metric["family_terms"]) for metric in metrics),
-                "family_names_used": sum(len(metric["family_names_used"]) for metric in metrics),
-                "complex_child_words": sum(len(metric["complex_child_words"]) for metric in metrics),
+                "family_names_used": sum(
+                    len(metric["family_names_used"]) for metric in metrics
+                ),
+                "complex_child_words": sum(
+                    len(metric["complex_child_words"]) for metric in metrics
+                ),
                 "avg_latency_ms": int(statistics.mean(latencies)) if latencies else 0,
-                "errors_or_empty": sum(1 for row in rows if not row["assistant"].strip()),
+                "errors_or_empty": sum(
+                    1 for row in rows if not row["assistant"].strip()
+                ),
                 "truncated": sum(1 for row in rows if row.get("truncated")),
-                "avg_reasoning_chars": int(statistics.mean([row["reasoning_chars"] for row in rows])),
+                "avg_reasoning_chars": int(
+                    statistics.mean([row["reasoning_chars"] for row in rows])
+                ),
             }
         )
     return sorted(summary, key=lambda row: (row["mode"], row["persona"]))
 
 
-def write_report(out_dir: Path, results: list[dict[str, Any]], summary: list[dict[str, Any]], meta: dict[str, Any]) -> None:
+def write_report(
+    out_dir: Path,
+    results: list[dict[str, Any]],
+    summary: list[dict[str, Any]],
+    meta: dict[str, Any],
+) -> None:
     lines: list[str] = []
     lines.append("# Dweller chat scenario report")
     lines.append("")
     lines.append(f"- Model: `{meta['model']}` @ `{meta['base_url']}`")
-    lines.append(f"- Temperature: {meta['temperature']}, max_tokens: {meta['max_tokens']}")
+    lines.append(
+        f"- Temperature: {meta['temperature']}, max_tokens: {meta['max_tokens']}"
+    )
     lines.append(f"- Requests: {meta['requests']} (sequential, one at a time)")
     lines.append(f"- Generated: {meta['generated_at']}")
     lines.append("")
@@ -658,18 +845,44 @@ def write_report(out_dir: Path, results: list[dict[str, Any]], summary: list[dic
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--temperature", type=float, default=0.8)
-    parser.add_argument("--max-tokens", type=int, default=1200, help="gemma-4-e4b is a reasoning model: <800 truncates the answer.")
-    parser.add_argument("--timeout", type=int, default=240, help="Seconds; first call may load the model.")
-    parser.add_argument("--turns", type=int, default=len(PROBES), help="Number of probes per persona.")
-    parser.add_argument("--only", nargs="*", default=None, help="Restrict to these persona keys.")
-    parser.add_argument("--modes", nargs="*", default=None, help="Restrict to these modes.")
-    parser.add_argument("--no-ablations", action="store_true", help="Run only agent and fallback (skip the history ablation).")
-    parser.add_argument("--dry-run", action="store_true", help="Print assembled prompts and exit.")
-    parser.add_argument("--out-dir", default=None, help="Override the output directory.")
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=1200,
+        help="gemma-4-e4b is a reasoning model: <800 truncates the answer.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=240,
+        help="Seconds; first call may load the model.",
+    )
+    parser.add_argument(
+        "--turns", type=int, default=len(PROBES), help="Number of probes per persona."
+    )
+    parser.add_argument(
+        "--only", nargs="*", default=None, help="Restrict to these persona keys."
+    )
+    parser.add_argument(
+        "--modes", nargs="*", default=None, help="Restrict to these modes."
+    )
+    parser.add_argument(
+        "--no-ablations",
+        action="store_true",
+        help="Run only agent and fallback (skip the history ablation).",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print assembled prompts and exit."
+    )
+    parser.add_argument(
+        "--out-dir", default=None, help="Override the output directory."
+    )
     args = parser.parse_args()
 
     personas = build_personas()
@@ -713,8 +926,13 @@ def main() -> int:
         requests = len(results)
 
     summary = aggregate(results)
-    out_dir = Path(args.out_dir) if args.out_dir else REPO_ROOT / "scripts" / "scenario_output" / started_at.strftime(
-        "%Y%m%dT%H%M%SZ"
+    out_dir = (
+        Path(args.out_dir)
+        if args.out_dir
+        else REPO_ROOT
+        / "scripts"
+        / "scenario_output"
+        / started_at.strftime("%Y%m%dT%H%M%SZ")
     )
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -729,9 +947,12 @@ def main() -> int:
         "modes": modes,
     }
     (out_dir / "transcript.json").write_text(
-        json.dumps({"meta": meta, "turns": results}, indent=2, ensure_ascii=False), encoding="utf-8"
+        json.dumps({"meta": meta, "turns": results}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
     )
-    (out_dir / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     write_report(out_dir, results, summary, meta)
     print(f"\nWrote {requests} turns to {out_dir}")
     return 0

@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
-import { useRouter, useRoute, type LocationQueryRaw, type LocationQueryValueRaw } from 'vue-router'
+import {
+  useRouter,
+  useRoute,
+  type LocationQuery,
+  type LocationQueryRaw,
+  type LocationQueryValueRaw,
+} from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -71,23 +77,39 @@ const shownCount = computed(() =>
   isDeadFilter.value ? dwellerDeathStore.deadDwellers.length : dwellerStore.dwellers.length
 )
 
-// The URL wins on load; persisted filters only fill the gaps it leaves. Applied here
-// rather than on mount so the filter panel can validate a deep-linked race on its own.
-const {
-  filter: filterParam,
-  ageGroup: ageGroupParam,
-  race: raceParam,
-  faction: factionParam,
-  sortBy: sortByParam,
-  order: orderParam,
-} = route.query
+// Applied here rather than on mount so the filter panel can validate a deep-linked race
+// on its own. On first load an absent key keeps the persisted value, so localStorage
+// still fills the gaps a bare link leaves; after that the URL is authoritative and an
+// absent key means the default again.
+function applyFiltersFromQuery(query: LocationQuery, resetMissing: boolean): void {
+  const { filter, ageGroup, race, faction, sortBy, order } = query
 
-if (isDwellerStatus(filterParam)) dwellerStore.setFilterStatus(filterParam)
-if (isDwellerAgeGroup(ageGroupParam)) dwellerStore.setFilterAgeGroup(ageGroupParam)
-if (typeof raceParam === 'string' && raceParam) dwellerStore.setFilterRace(raceParam)
-if (typeof factionParam === 'string' && factionParam) dwellerStore.setFilterFaction(factionParam)
-if (isDwellerSortBy(sortByParam)) dwellerStore.setSortBy(sortByParam)
-if (isSortDirection(orderParam)) dwellerStore.setSortDirection(orderParam)
+  if (isDwellerStatus(filter)) dwellerStore.setFilterStatus(filter)
+  else if (resetMissing) dwellerStore.setFilterStatus('all')
+
+  if (isDwellerAgeGroup(ageGroup)) dwellerStore.setFilterAgeGroup(ageGroup)
+  else if (resetMissing) dwellerStore.setFilterAgeGroup('all')
+
+  if (typeof race === 'string' && race) dwellerStore.setFilterRace(race)
+  else if (resetMissing) dwellerStore.setFilterRace('all')
+
+  if (typeof faction === 'string' && faction) dwellerStore.setFilterFaction(faction)
+  else if (resetMissing) dwellerStore.setFilterFaction('all')
+
+  if (isDwellerSortBy(sortBy)) dwellerStore.setSortBy(sortBy)
+  else if (resetMissing) dwellerStore.setSortBy('name')
+
+  if (isSortDirection(order)) dwellerStore.setSortDirection(order)
+  else if (resetMissing) dwellerStore.setSortDirection('asc')
+}
+
+applyFiltersFromQuery(route.query, false)
+
+// A query-only navigation reuses this component, so setup never runs again: follow the URL.
+watch(
+  () => route.query,
+  (query) => applyFiltersFromQuery(query, true)
+)
 
 const FILTER_QUERY_KEYS = ['filter', 'ageGroup', 'race', 'faction', 'sortBy', 'order'] as const
 

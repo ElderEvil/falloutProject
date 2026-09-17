@@ -327,6 +327,35 @@ describe('DwellersView', () => {
       wrapper.unmount()
     })
 
+    it('follows a query-only navigation while the view stays mounted', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+
+      await router.push('/vault/vault-1/dwellers?filter=exploring&race=ghoul')
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterStatus).toBe('exploring')
+      expect(_dwellerStore.filter.filterRace).toBe('ghoul')
+      wrapper.unmount()
+    })
+
+    it('resets a filter the query no longer carries', async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      await router.push('/vault/vault-1/dwellers?filter=exploring')
+      await router.isReady()
+      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
+      await flushPromises()
+      expect(_dwellerStore.filter.filterStatus).toBe('exploring')
+
+      await router.push('/vault/vault-1/dwellers')
+      await flushPromises()
+
+      expect(_dwellerStore.filter.filterStatus).toBe('all')
+      wrapper.unmount()
+    })
+
     it('writes filter and sort changes back to the query', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
       await router.isReady()

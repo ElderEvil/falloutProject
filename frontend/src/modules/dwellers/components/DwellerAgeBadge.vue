@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DwellerBadge from './DwellerBadge.vue'
+import { AGE_CONFIG_MAP } from '../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
 type AgeGroup = components['schemas']['AgeGroupEnum']
@@ -14,18 +15,12 @@ const props = withDefaults(
   { ageGroup: null, showLabel: false, size: 'md' }
 )
 
-const AGE_META: Record<AgeGroup, { color: string; icon: string; label: string }> = {
-  child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child' },
-  teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen' },
-  adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult' },
-}
-
 const group = computed<AgeGroup>(() => {
   const g = String(props.ageGroup ?? '').toLowerCase()
   return (g === 'child' || g === 'teen' || g === 'adult' ? g : 'adult') as AgeGroup
 })
 
-const meta = computed(() => AGE_META[group.value])
+const meta = computed(() => AGE_CONFIG_MAP[group.value])
 </script>
 
 <template>

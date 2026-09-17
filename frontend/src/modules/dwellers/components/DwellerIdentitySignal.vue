@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerBadge from './DwellerBadge.vue'
-import { formatIdentityLabel, type VisualAttributes } from '../models/dweller'
+import { formatIdentityLabel, RACE_CONFIG_MAP, type VisualAttributes } from '../models/dweller'
 
 interface Props {
   visualAttributes?: VisualAttributes | null
@@ -24,10 +24,7 @@ onMounted(() => {
 })
 
 const IDENTITY_CONFIG: Record<string, Omit<IdentitySignal, 'value'>> = {
-  human: { icon: 'mdi:account', label: 'Human' },
-  ghoul: { icon: 'mdi:radioactive', label: 'Ghoul' },
-  super_mutant: { icon: 'mdi:arm-flex', label: 'Super Mutant' },
-  synth: { icon: 'mdi:robot-outline', label: 'Synth' },
+  ...RACE_CONFIG_MAP,
   vault_dweller: { icon: 'mdi:shield-home', label: 'Vault Dweller' },
   brotherhood_of_steel: { icon: 'mdi:shield-sword', label: 'Brotherhood of Steel' },
   enclave: { icon: 'mdi:shield-star', label: 'Enclave' },

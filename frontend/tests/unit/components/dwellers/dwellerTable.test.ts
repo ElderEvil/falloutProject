@@ -43,6 +43,13 @@ describe('dwellerTable model', () => {
     expect(canonicalColumnOrder(['room', 'name', 'level'])).toEqual(['name', 'level', 'room'])
   })
 
+  it('offers race as a column and in the demographics preset', () => {
+    expect(DWELLER_TABLE_COLUMNS.map((column) => column.id)).toContain('race')
+    expect(DWELLER_TABLE_PRESETS.find((preset) => preset.id === 'demographics')?.columns).toContain(
+      'race'
+    )
+  })
+
   it('normalizes persisted columns, dropping unknown and duplicate ids', () => {
     expect(normalizeTableColumns(['room', 'room', 'bogus', 'name'])).toEqual(['name', 'room'])
   })

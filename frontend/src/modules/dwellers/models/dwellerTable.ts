@@ -5,6 +5,7 @@ export type DwellerTableColumnId =
   | 'rarity'
   | 'gender'
   | 'age'
+  | 'race'
   | 'status'
   | 'health'
   | 'happiness'
@@ -25,6 +26,7 @@ export const DWELLER_TABLE_COLUMNS: readonly DwellerTableColumn[] = [
   { id: 'rarity', label: 'Rarity', icon: 'mdi:star-four-points', defaultVisible: false },
   { id: 'gender', label: 'Gender', icon: 'mdi:gender-male-female', defaultVisible: false },
   { id: 'age', label: 'Age', icon: 'mdi:account-group', defaultVisible: false },
+  { id: 'race', label: 'Race', icon: 'mdi:dna', defaultVisible: false },
   { id: 'status', label: 'Status', icon: 'mdi:progress-clock', defaultVisible: true },
   { id: 'health', label: 'HP', icon: 'mdi:heart', defaultVisible: true, align: 'right' },
   {
@@ -41,9 +43,7 @@ export const DEFAULT_TABLE_COLUMNS: DwellerTableColumnId[] = DWELLER_TABLE_COLUM
   (column) => column.defaultVisible
 ).map((column) => column.id)
 
-export function canonicalColumnOrder(
-  ids: readonly DwellerTableColumnId[]
-): DwellerTableColumnId[] {
+export function canonicalColumnOrder(ids: readonly DwellerTableColumnId[]): DwellerTableColumnId[] {
   const order = DWELLER_TABLE_COLUMNS.map((column) => column.id)
   return [...ids].sort((a, b) => order.indexOf(a) - order.indexOf(b))
 }
@@ -87,7 +87,7 @@ export const DWELLER_TABLE_PRESETS: readonly DwellerTablePreset[] = [
     id: 'demographics',
     label: 'Demographics',
     icon: 'mdi:account-group',
-    columns: ['portrait', 'name', 'gender', 'age', 'rarity'],
+    columns: ['portrait', 'name', 'gender', 'age', 'race', 'rarity'],
   },
 ]
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { onClickOutside } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { useDwellerStore, type DwellerSortBy } from '@/modules/dwellers/stores/dweller'
 import USelect from '@/core/components/ui/USelect.vue'
@@ -40,6 +41,28 @@ const sortDirection = computed({
 
 const toggleSortDirection = () => {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+}
+
+const columnsMenuOpen = ref(false)
+const columnsTrigger = ref<HTMLElement | null>(null)
+
+onClickOutside(columnsTrigger, () => {
+  columnsMenuOpen.value = false
+})
+
+// The menu belongs to table view, so leaving it must not leave the menu open.
+watch(
+  () => dwellerStore.viewMode,
+  (mode) => {
+    if (mode !== 'table') columnsMenuOpen.value = false
+  }
+)
+
+const visibleColumnCount = computed(() => dwellerStore.tableColumns.length)
+
+function applyPreset(presetId: string) {
+  dwellerStore.applyTablePreset(presetId)
+  columnsMenuOpen.value = false
 }
 </script>
 
@@ -84,35 +107,64 @@ const toggleSortDirection = () => {
       </button>
     </div>
 
-    <div v-if="showView && dwellerStore.viewMode === 'table'" class="column-controls">
-      <span class="preset-label">Quick presets</span>
-      <div class="view-toggle-controls">
-        <button
-          v-for="preset in DWELLER_TABLE_PRESETS"
-          :key="preset.id"
-          type="button"
-          class="view-toggle-btn"
-          @click="dwellerStore.applyTablePreset(preset.id)"
-        >
-          <Icon :icon="preset.icon" width="18" height="18" />
-          <span>{{ preset.label }}</span>
-        </button>
-      </div>
-      <div class="view-toggle-controls">
-        <button
-          v-for="column in DWELLER_TABLE_COLUMNS"
-          :key="column.id"
-          type="button"
-          :class="[
-            'view-toggle-btn',
-            dwellerStore.tableColumns.includes(column.id) ? 'active' : '',
-          ]"
-          :aria-pressed="dwellerStore.tableColumns.includes(column.id)"
-          @click="dwellerStore.toggleTableColumn(column.id)"
-        >
-          <Icon :icon="column.icon" width="18" height="18" />
-          <span>{{ column.label }}</span>
-        </button>
+    <!--
+      Visual order is forced ahead of sort/view via `order: -1` so that when this
+      appears the island grows leftward and the controls keep their spread from the
+      right edge instead of jumping.
+    -->
+    <div
+      v-if="showView && dwellerStore.viewMode === 'table'"
+      ref="columnsTrigger"
+      class="columns-trigger"
+      @keydown.escape="columnsMenuOpen = false"
+    >
+      <button
+        type="button"
+        class="view-toggle-btn"
+        :class="{ active: columnsMenuOpen }"
+        aria-haspopup="true"
+        :aria-expanded="columnsMenuOpen"
+        @click="columnsMenuOpen = !columnsMenuOpen"
+      >
+        <Icon icon="mdi:table-column" width="18" height="18" />
+        <span>Columns {{ visibleColumnCount }}</span>
+        <Icon
+          :icon="columnsMenuOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+          width="16"
+          height="16"
+        />
+      </button>
+
+      <div v-if="columnsMenuOpen" class="columns-menu">
+        <span class="preset-label">Quick presets</span>
+        <div class="view-toggle-controls">
+          <button
+            v-for="preset in DWELLER_TABLE_PRESETS"
+            :key="preset.id"
+            type="button"
+            class="view-toggle-btn"
+            @click="applyPreset(preset.id)"
+          >
+            <Icon :icon="preset.icon" width="18" height="18" />
+            <span>{{ preset.label }}</span>
+          </button>
+        </div>
+        <div class="view-toggle-controls">
+          <button
+            v-for="column in DWELLER_TABLE_COLUMNS"
+            :key="column.id"
+            type="button"
+            :class="[
+              'view-toggle-btn',
+              dwellerStore.tableColumns.includes(column.id) ? 'active' : '',
+            ]"
+            :aria-pressed="dwellerStore.tableColumns.includes(column.id)"
+            @click="dwellerStore.toggleTableColumn(column.id)"
+          >
+            <Icon :icon="column.icon" width="18" height="18" />
+            <span>{{ column.label }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -124,6 +176,10 @@ const toggleSortDirection = () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.2);
+  border-radius: 8px;
 }
 
 .display-group {
@@ -168,12 +224,27 @@ const toggleSortDirection = () => {
   gap: 0.375rem;
 }
 
-.column-controls {
+.columns-trigger {
+  order: -1;
+  position: relative;
+}
+
+.columns-menu {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  width: 100%;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: 24rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  background: var(--color-surface-raised);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 45%, transparent);
+  border-radius: var(--border-radius-base);
+  box-shadow: 0 8px 20px var(--color-theme-glow);
 }
 
 .preset-label {

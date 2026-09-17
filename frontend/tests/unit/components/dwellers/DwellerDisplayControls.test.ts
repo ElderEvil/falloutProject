@@ -66,20 +66,25 @@ describe('DwellerDisplayControls', () => {
     const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
     const store = useDwellerStore().filter
 
-    expect(wrapper.text()).not.toContain('Quick presets')
+    expect(wrapper.find('.columns-trigger').exists()).toBe(false)
 
     store.setViewMode('table')
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('Quick presets')
+    // The picker is collapsed behind its trigger so table mode cannot widen the toolbar.
+    expect(wrapper.find('.columns-menu').exists()).toBe(false)
+    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
+    expect(wrapper.find('.columns-menu').exists()).toBe(true)
+
     const rarityButton = wrapper
-      .findAll('.view-toggle-btn')
+      .findAll('.columns-menu .view-toggle-btn')
       .find((btn) => btn.text().includes('Rarity'))
     expect(rarityButton).toBeDefined()
 
     await rarityButton!.trigger('click')
 
     expect(store.tableColumns).toContain('rarity')
+    expect(wrapper.find('.columns-menu').exists()).toBe(true)
   })
 
   it('applies a column preset', async () => {
@@ -88,9 +93,10 @@ describe('DwellerDisplayControls', () => {
 
     store.setViewMode('table')
     await wrapper.vm.$nextTick()
+    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
 
     const vitalsButton = wrapper
-      .findAll('.view-toggle-btn')
+      .findAll('.columns-menu .view-toggle-btn')
       .find((btn) => btn.text().includes('Vitals'))
     expect(vitalsButton).toBeDefined()
 
@@ -98,6 +104,7 @@ describe('DwellerDisplayControls', () => {
 
     expect(store.tableColumns).toContain('health')
     expect(store.tableColumns).not.toContain('room')
+    expect(wrapper.find('.columns-menu').exists()).toBe(false)
   })
 
   it('styles its controls like the filter panel so the toolbar stays one control set', () => {
@@ -113,6 +120,13 @@ describe('DwellerDisplayControls', () => {
     // The identity selects left behind in the panel must keep the same trigger metrics.
     expect(filterPanelSource).toMatch(
       /\.identity-controls :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
+    )
+    // The Display island reuses the panel's container treatment so the two pair up.
+    expect(displayControlsSource).toMatch(
+      /\.display-controls \{(?=[^}]*background: var\(--color-surface-sunken\);)(?=[^}]*border: 1px solid rgb\(from var\(--color-theme-primary\) r g b \/ 0\.2\);)[^}]*\}/
+    )
+    expect(filterPanelSource).toMatch(
+      /\.filter-panel \{(?=[^}]*background: var\(--color-surface-sunken\);)(?=[^}]*border: 1px solid rgb\(from var\(--color-theme-primary\) r g b \/ 0\.2\);)[^}]*\}/
     )
   })
 

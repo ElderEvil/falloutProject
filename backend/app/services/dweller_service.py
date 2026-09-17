@@ -56,8 +56,7 @@ class DwellerService:
             {}
             if not game_config.features.faction_mechanics
             else {
-                race.value: [faction.value for faction in factions]
-                for race, factions in faction_restrictions.items()
+                race.value: [faction.value for faction in factions] for race, factions in faction_restrictions.items()
             }
         )
         return DwellerIdentityOptions(

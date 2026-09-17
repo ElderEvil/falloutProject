@@ -25,33 +25,53 @@ import { useFeatureFlagsStore } from './featureFlags'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
-export type DwellerStatus =
-  | 'idle'
-  | 'working'
-  | 'exploring'
-  | 'questing'
-  | 'training'
-  | 'resting'
-  | 'fighting'
-  | 'dead'
-export type DwellerAgeGroup = 'child' | 'teen' | 'adult' | 'all'
+export const DWELLER_STATUSES = [
+  'idle',
+  'working',
+  'exploring',
+  'questing',
+  'training',
+  'resting',
+  'fighting',
+  'dead',
+] as const
+export type DwellerStatus = (typeof DWELLER_STATUSES)[number]
+
+export const DWELLER_AGE_GROUPS = ['child', 'teen', 'adult', 'all'] as const
+export type DwellerAgeGroup = (typeof DWELLER_AGE_GROUPS)[number]
 
 export interface DwellerWithStatus extends DwellerShort {
   status: DwellerStatus
 }
 
-export type DwellerSortBy =
-  | 'name'
-  | 'level'
-  | 'happiness'
-  | 'strength'
-  | 'perception'
-  | 'endurance'
-  | 'charisma'
-  | 'intelligence'
-  | 'agility'
-  | 'luck'
-export type SortDirection = 'asc' | 'desc'
+export const DWELLER_SORT_KEYS = [
+  'name',
+  'level',
+  'happiness',
+  'strength',
+  'perception',
+  'endurance',
+  'charisma',
+  'intelligence',
+  'agility',
+  'luck',
+] as const
+export type DwellerSortBy = (typeof DWELLER_SORT_KEYS)[number]
+
+export const SORT_DIRECTIONS = ['asc', 'desc'] as const
+export type SortDirection = (typeof SORT_DIRECTIONS)[number]
+
+export const isDwellerStatus = (value: unknown): value is DwellerStatus =>
+  typeof value === 'string' && (DWELLER_STATUSES as readonly string[]).includes(value)
+
+export const isDwellerAgeGroup = (value: unknown): value is DwellerAgeGroup =>
+  typeof value === 'string' && (DWELLER_AGE_GROUPS as readonly string[]).includes(value)
+
+export const isDwellerSortBy = (value: unknown): value is DwellerSortBy =>
+  typeof value === 'string' && (DWELLER_SORT_KEYS as readonly string[]).includes(value)
+
+export const isSortDirection = (value: unknown): value is SortDirection =>
+  typeof value === 'string' && (SORT_DIRECTIONS as readonly string[]).includes(value)
 export type DwellerViewMode = 'list' | 'grid' | 'table'
 type DwellerFetchOptions = {
   status?: DwellerStatus | 'all'

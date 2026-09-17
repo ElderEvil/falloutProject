@@ -6,6 +6,17 @@ export type {
   SortDirection,
 } from './dwellerFilter'
 
+export {
+  DWELLER_AGE_GROUPS,
+  DWELLER_SORT_KEYS,
+  DWELLER_STATUSES,
+  SORT_DIRECTIONS,
+  isDwellerAgeGroup,
+  isDwellerSortBy,
+  isDwellerStatus,
+  isSortDirection,
+} from './dwellerFilter'
+
 export { useDwellerFilterStore } from './dwellerFilter'
 
 export { useDwellerGenerationStore } from './dwellerGeneration'

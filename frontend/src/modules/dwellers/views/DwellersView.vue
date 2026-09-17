@@ -18,9 +18,10 @@ import USkeleton from '@/core/components/ui/USkeleton.vue'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
-  type DwellerSortBy,
-  type DwellerStatus,
-  type SortDirection,
+  isDwellerAgeGroup,
+  isDwellerSortBy,
+  isDwellerStatus,
+  isSortDirection,
 } from '../stores/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import DwellerFilterPanel from '../components/DwellerFilterPanel.vue'
@@ -137,47 +138,23 @@ const fetchDwellers = async (signal?: AbortSignal) => {
 
 onMounted(async () => {
   // Handle query parameters for sorting/filtering
-  const sortByParam = route.query.sortBy as DwellerSortBy | undefined
-  const orderParam = route.query.order as SortDirection | undefined
-  const filterParam = route.query.filter as DwellerStatus | undefined
-  const ageGroupParam = route.query.ageGroup as 'child' | 'teen' | 'adult' | undefined
+  const {
+    sortBy: sortByParam,
+    order: orderParam,
+    filter: filterParam,
+    ageGroup: ageGroupParam,
+  } = route.query
 
-  if (
-    sortByParam &&
-    [
-      'name',
-      'level',
-      'happiness',
-      'strength',
-      'perception',
-      'endurance',
-      'charisma',
-      'intelligence',
-      'agility',
-      'luck',
-    ].includes(sortByParam)
-  ) {
+  if (isDwellerSortBy(sortByParam)) {
     dwellerStore.setSortBy(sortByParam)
   }
-  if (orderParam && ['asc', 'desc'].includes(orderParam)) {
+  if (isSortDirection(orderParam)) {
     dwellerStore.setSortDirection(orderParam)
   }
-  if (
-    filterParam &&
-    [
-      'idle',
-      'working',
-      'exploring',
-      'questing',
-      'training',
-      'resting',
-      'fighting',
-      'dead',
-    ].includes(filterParam)
-  ) {
+  if (isDwellerStatus(filterParam)) {
     dwellerStore.setFilterStatus(filterParam)
   }
-  if (ageGroupParam && ['child', 'teen', 'adult'].includes(ageGroupParam)) {
+  if (isDwellerAgeGroup(ageGroupParam)) {
     dwellerStore.setFilterAgeGroup(ageGroupParam)
   }
 

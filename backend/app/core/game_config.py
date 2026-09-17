@@ -787,6 +787,13 @@ class DwellerConfig(BaseSettings):
         """Get a validated copy of the race weights (keys = RaceOption values)."""
         return dict(self.race_weights)
 
+    elder_age_years: int = Field(
+        default=60,
+        ge=50,
+        le=90,
+        description="Adults whose birth date is at least this many years ago are elders",
+    )
+
 
 class VaultStartConfig(BaseSettings):
     """Vault start tuning (env prefix ``VAULT_START_``).

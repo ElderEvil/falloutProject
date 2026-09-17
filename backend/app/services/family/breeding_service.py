@@ -29,6 +29,7 @@ from app.options.races import can_breed
 from app.schemas.dweller import DwellerCreate
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
+from app.utils.dwellers import elder_birth_threshold
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +483,8 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID4,
     ) -> list[Dweller]:
-        """Advance children to teens halfway through maturity and teens to adults at completion."""
+        """Advance children to teens halfway through maturity, teens to adults at completion,
+        and adults past the elder threshold to elders."""
         now = datetime.now(UTC).replace(tzinfo=None)
         maturity_hours = game_config.breeding.child_growth_duration_hours
         teen_threshold = now - timedelta(hours=maturity_hours // 2)
@@ -491,6 +493,10 @@ class BreedingService:
         teens = list(await dweller_crud.get_aging_youth(db_session, vault_id, AgeGroupEnum.TEEN, adult_threshold))
 
         children = await dweller_crud.get_aging_youth(db_session, vault_id, AgeGroupEnum.CHILD, teen_threshold)
+
+        elders = await dweller_crud.get_aging_youth(
+            db_session, vault_id, AgeGroupEnum.ADULT, elder_birth_threshold(now)
+        )
 
         aged_dwellers = []
         for child in children:
@@ -518,6 +524,12 @@ class BreedingService:
             teen.updated_at = now
             aged_dwellers.append(teen)
             logger.info(f"Teen became adult: {teen.first_name} {teen.last_name} ({teen.id})")
+
+        for elder in elders:
+            elder.age_group = AgeGroupEnum.ELDER
+            elder.updated_at = now
+            aged_dwellers.append(elder)
+            logger.info(f"Adult became elder: {elder.first_name} {elder.last_name} ({elder.id})")
 
         await db_session.commit()
 

@@ -17,7 +17,7 @@ const props = withDefaults(
 
 const group = computed<AgeGroup>(() => {
   const g = String(props.ageGroup ?? '').toLowerCase()
-  return (g === 'child' || g === 'teen' || g === 'adult' ? g : 'adult') as AgeGroup
+  return (g === 'child' || g === 'teen' || g === 'adult' || g === 'elder' ? g : 'adult') as AgeGroup
 })
 
 const meta = computed(() => AGE_CONFIG_MAP[group.value])

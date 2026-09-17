@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
@@ -327,7 +327,7 @@ class CRUDQuest(
                 Dweller.vault_id == vault_id,
                 ~Dweller.is_deleted,
                 Dweller.is_adult,
-                Dweller.age_group == AgeGroupEnum.ADULT,
+                Dweller.age_group.in_(ADULT_AGE_GROUPS),
                 Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]),
             )
         )

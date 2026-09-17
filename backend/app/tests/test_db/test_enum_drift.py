@@ -41,7 +41,7 @@ from app.core.config import settings
 # Labels are stored as the StrEnum member NAME (uppercase), not the value.
 # Compare against the live PG enum type name (`typname`) and labels (`enumlabel`).
 PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
-    "agegroupenum": {"CHILD", "TEEN", "ADULT"},
+    "agegroupenum": {"CHILD", "TEEN", "ADULT", "ELDER"},
     "craftingorderstatus": {"ACTIVE", "COMPLETED", "COLLECTED"},
     "deathcauseenum": {"HEALTH", "RADIATION", "INCIDENT", "EXPLORATION", "COMBAT"},
     "dwellerlocationrelationenum": {"ORIGIN", "VISITED"},

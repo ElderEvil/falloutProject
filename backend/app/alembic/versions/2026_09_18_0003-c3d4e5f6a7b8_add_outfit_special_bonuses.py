@@ -5,9 +5,6 @@ Revises: 7b2c4d9e1f30
 Create Date: 2026-09-18 00:00:00.000000
 """
 
-import json
-from pathlib import Path
-
 import sqlalchemy as sa
 
 from alembic import op
@@ -19,25 +16,48 @@ depends_on = None
 
 SPECIAL_STATS = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")
 
-#: Catalog files are the source of truth for outfit bonuses; names are unique
-#: across the five files, so a name match is a safe backfill key.
-_CATALOG_DIR = Path(__file__).resolve().parents[2] / "data" / "items" / "outfits"
-
-
-def _catalog_bonuses() -> dict[str, dict[str, int]]:
-    bonuses: dict[str, dict[str, int]] = {}
-    for catalog_file in sorted(_CATALOG_DIR.glob("*.json")):
-        for item in json.loads(catalog_file.read_text()):
-            name = str(item["name"])
-            bonuses[name] = {stat: int(item.get(stat, 0)) for stat in SPECIAL_STATS}
-    return bonuses
+#: Frozen snapshot of the outfit catalog's SPECIAL bonuses, taken at revision
+#: time. Inline so the backfill stays reproducible after catalog refactors;
+#: names are unique across the catalog files, so a name match is a safe key.
+OUTFIT_SPECIAL_BONUSES: dict[str, dict[str, int]] = {
+    "Mechanic jumpsuit": {"strength": 1, "perception": 0, "endurance": 0, "charisma": 1, "intelligence": 0, "agility": 0, "luck": 0},
+    "Abraham's relaxedwear": {"strength": 1, "perception": 2, "endurance": 2, "charisma": 1, "intelligence": 0, "agility": 0, "luck": 0},
+    "Tattered longcoat": {"strength": 2, "perception": 0, "endurance": 2, "charisma": 2, "intelligence": 0, "agility": 0, "luck": 2},
+    "Autumn's uniform": {"strength": 2, "perception": 2, "endurance": 2, "charisma": 1, "intelligence": 0, "agility": 0, "luck": 0},
+    "Bittercup's outfit": {"strength": 2, "perception": 2, "endurance": 2, "charisma": 1, "intelligence": 0, "agility": 0, "luck": 0},
+    "Confessor Cromwell's rags": {"strength": 0, "perception": 2, "endurance": 2, "charisma": 1, "intelligence": 1, "agility": 0, "luck": 2},
+    "Elder robe": {"strength": 0, "perception": 0, "endurance": 0, "charisma": 4, "intelligence": 0, "agility": 3, "luck": 0},
+    "Eulogy Jones' suit": {"strength": 2, "perception": 2, "endurance": 1, "charisma": 2, "intelligence": 0, "agility": 0, "luck": 0},
+    "Heavy synth armor": {"strength": 0, "perception": 0, "endurance": 4, "charisma": 3, "intelligence": 0, "agility": 0, "luck": 0},
+    "Firefighter suit, rad helmet": {"strength": 0, "perception": 0, "endurance": 5, "charisma": 0, "intelligence": 2, "agility": 0, "luck": 0},
+    "T-45a power armor": {"strength": 2, "perception": 3, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-45d power armor": {"strength": 2, "perception": 4, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-45f power armor": {"strength": 2, "perception": 5, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-51a power armor": {"strength": 3, "perception": 1, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-51d power armor": {"strength": 3, "perception": 2, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-51f power armor": {"strength": 4, "perception": 3, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-60a power armor": {"strength": 2, "perception": 0, "endurance": 3, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-60d power armor": {"strength": 2, "perception": 0, "endurance": 4, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "T-60f power armor": {"strength": 1, "perception": 1, "endurance": 5, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "X-01 Mk I power armor": {"strength": 3, "perception": 1, "endurance": 1, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "X-01 Mk IV power armor": {"strength": 4, "perception": 1, "endurance": 1, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "X-01 Mk VI power armor": {"strength": 5, "perception": 1, "endurance": 1, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "NCR Ranger outfit": {"strength": 0, "perception": 4, "endurance": 0, "charisma": 2, "intelligence": 0, "agility": 0, "luck": 0},
+    "RobCo R&D suit": {"strength": 0, "perception": 0, "endurance": 2, "charisma": 0, "intelligence": 4, "agility": 0, "luck": 0},
+    "Robot armor": {"strength": 2, "perception": 0, "endurance": 2, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 2},
+    "Firefighter suit": {"strength": 0, "perception": 0, "endurance": 4, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "Hazmat suit": {"strength": 0, "perception": 0, "endurance": 2, "charisma": 0, "intelligence": 2, "agility": 0, "luck": 0},
+    "Armored vault suit": {"strength": 0, "perception": 3, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "Sturdy vault suit": {"strength": 0, "perception": 5, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+    "Heavy vault suit": {"strength": 0, "perception": 7, "endurance": 0, "charisma": 0, "intelligence": 0, "agility": 0, "luck": 0},
+}
 
 
 def upgrade() -> None:
     for stat in SPECIAL_STATS:
         op.add_column("outfit", sa.Column(stat, sa.Integer(), nullable=False, server_default="0"))
 
-    for name, bonuses in _catalog_bonuses().items():
+    for name, bonuses in OUTFIT_SPECIAL_BONUSES.items():
         op.execute(
             sa.text(
                 "UPDATE outfit SET strength = :strength, perception = :perception, endurance = :endurance, "

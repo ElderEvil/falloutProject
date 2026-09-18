@@ -87,6 +87,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Rebuild the legacy quest_party table from the current quest teams so
+    # assignments made after the cutover survive a rollback. No-op when the
+    # table is absent (e.g. a fresh DB that never ran the legacy migration).
+    if op.get_bind().dialect.has_table(op.get_bind(), "quest_party"):
+        op.execute(sa.text("DELETE FROM quest_party"))
+        op.execute(
+            sa.text(
+                "INSERT INTO quest_party (id, quest_id, vault_id, dweller_id, slot_number, status, created_at, updated_at) "
+                "SELECT gen_random_uuid(), t.quest_id, t.vault_id, tm.dweller_id, tm.slot_number, tm.status, "
+                "tm.created_at, tm.updated_at "
+                "FROM team_member tm JOIN team t ON t.id = tm.team_id "
+                "WHERE t.quest_id IS NOT NULL"
+            )
+        )
+
     op.drop_index(op.f("ix_team_member_dweller_id"), table_name="team_member")
     op.drop_index(op.f("ix_team_member_team_id"), table_name="team_member")
     op.drop_index(op.f("ix_team_member_id"), table_name="team_member")

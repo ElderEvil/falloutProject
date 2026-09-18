@@ -400,6 +400,40 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_hazard_team_joined(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        dweller_id: UUID,
+        dweller_name: str,
+        team: str,
+        status: str,
+        promoted: bool,
+        meta_data: dict[str, Any] | None = None,
+        commit: bool = True,
+    ):
+        """Notify user that a dweller earned or stepped up to a hazard-team place."""
+        label = "fire team" if team == "fire" else "radiation team"
+        if promoted:
+            message = f"{dweller_name} stepped up to a place on the vault's {label}."
+        elif status == "active":
+            message = f"{dweller_name} earned a place on the vault's {label}."
+        else:
+            message = f"{dweller_name} earned a bench place on the vault's {label}."
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            from_dweller_id=dweller_id,
+            notification_type=NotificationType.HAZARD_TEAM_JOINED,
+            priority=NotificationPriority.NORMAL,
+            title="Hazard team",
+            message=message,
+            meta_data=meta_data,
+            commit=commit,
+        )
+
+    @staticmethod
     async def notify_quest_completed(
         db: AsyncSession,
         user_id: UUID,

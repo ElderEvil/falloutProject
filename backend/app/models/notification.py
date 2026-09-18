@@ -40,6 +40,9 @@ class NotificationType(StrEnum):
     # Exit events
     DWELLER_EXIT_REQUESTED = "dweller_exit_requested"
 
+    # Hazard team events
+    HAZARD_TEAM_JOINED = "hazard_team_joined"
+
     # Resource events
     RESOURCE_LOW = "resource_low"
     RESOURCE_CRITICAL = "resource_critical"

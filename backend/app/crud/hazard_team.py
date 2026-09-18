@@ -68,6 +68,26 @@ class CRUDHazardTeam(CRUDBase[HazardTeamMember, None, None]):
         )
         return (await db_session.execute(query)).scalar_one_or_none() or 0
 
+    async def get_active_member_ids(
+        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam, dweller_ids: list[UUID4]
+    ) -> set[UUID4]:
+        """Ids among ``dweller_ids`` who hold a living active place on the team."""
+        if not dweller_ids:
+            return set()
+        query = (
+            select(HazardTeamMember.dweller_id)
+            .join(Dweller, Dweller.id == HazardTeamMember.dweller_id)
+            .where(
+                HazardTeamMember.vault_id == vault_id,
+                HazardTeamMember.team == team,
+                HazardTeamMember.status == ACTIVE_STATUS,
+                HazardTeamMember.dweller_id.in_(dweller_ids),
+                Dweller.is_dead.is_(False),
+                Dweller.is_deleted.is_(False),
+            )
+        )
+        return set((await db_session.execute(query)).scalars().all())
+
     async def add(self, db_session: AsyncSession, member: HazardTeamMember) -> HazardTeamMember:
         """Stage a roster place on the caller's transaction."""
         db_session.add(member)

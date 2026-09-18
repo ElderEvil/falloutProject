@@ -127,6 +127,13 @@ BOOSTED_SEED_JUNK: tuple[tuple[JunkTypeEnum, RarityEnum, int], ...] = (
     (JunkTypeEnum.STEEL, RarityEnum.LEGENDARY, 3),
     (JunkTypeEnum.CIRCUITRY, RarityEnum.LEGENDARY, 3),
 )
+# Spare hazard-team gear a boosted vault starts with so the fire/radiation
+# responder team has outfits in storage. Names reference the outfit catalog
+# (items/outfits/rare.json); stats are read from the catalog at seed time.
+BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
+    ("Firefighter suit", 3),
+    ("Hazmat suit", 3),
+)
 BOOSTED_LOADOUTS = (
     ("abraham-washington", "Lever-action rifle", "Abraham's relaxedwear", WeaponSubtypeEnum.RIFLE),
     ("allistair-tenpenny", "Hunting rifle", "Eulogy Jones' suit", WeaponSubtypeEnum.RIFLE),

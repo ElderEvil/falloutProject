@@ -3,16 +3,19 @@
 import logging
 from typing import TYPE_CHECKING, cast
 
+from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
+from app.crud.hazard_team import hazard_team_crud
 from app.models.dweller import Dweller
-from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
+from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition, hazard_team_for
 from app.options.identity_modifiers import identity_modifiers_for
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
+from app.services.contamination_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
 from app.utils.equipped import equipped_outfit
@@ -51,7 +54,11 @@ async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> I
 
 
 async def apply_damage(
-    db_session: AsyncSession, incident: Incident, dwellers: list[Dweller], damage_to_dwellers: float
+    db_session: AsyncSession,
+    incident: Incident,
+    dwellers: list[Dweller],
+    damage_to_dwellers: float,
+    active_member_ids: frozenset[UUID4] = frozenset(),
 ) -> tuple[int, int, int]:
     """Distribute incoming damage across responders; deaths stay pending for the round commit.
 
@@ -79,6 +86,9 @@ async def apply_damage(
             fire_resist = outfit_fire_resist(cast("Outfit | None", equipped_outfit(dweller)))
             if fire_resist:
                 dweller_damage = int(dweller_damage * (1.0 - fire_resist))
+        is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
+        if is_active_member:
+            dweller_damage = int(dweller_damage * (1.0 - TEAM_HAZARD_RESIST))
         damage_taken += dweller_damage
         new_health = max(0, dweller.health - dweller_damage)
 
@@ -86,6 +96,8 @@ async def apply_damage(
             incident.type == IncidentType.RADSCORPION_ATTACK and dweller_damage > 1
         ):  # TODO: should depend on enemy type, not incident type, need to think through
             radiation_damage = min(dweller_damage - 1, dweller_damage // 2)
+            if is_active_member:
+                radiation_damage = int(radiation_damage * (1.0 - TEAM_HAZARD_RESIST))
             apply_radiation_gain(dweller, radiation_damage)
             db_session.add(dweller)
 
@@ -166,11 +178,24 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # leaves no participation behind.
     from app.services.contamination_team_service import contamination_team_service
 
-    await contamination_team_service.record_participation(db_session, incident, dwellers)
+    team_result = await contamination_team_service.record_participation(db_session, incident, dwellers)
+
+    # Active members of the team matching this incident's hazard respond with
+    # extra power and take less damage; bench/reserve members get nothing.
+    team = hazard_team_for(incident.type)
+    active_ids: frozenset[UUID4] = frozenset()
+    if team:
+        active_ids = frozenset(
+            await hazard_team_crud.get_active_member_ids(
+                db_session, incident.vault_id, team, [dweller.id for dweller in dwellers]
+            )
+        )
 
     # Fire is a containment operation: responders suppress a hazard rather
     # than defeat enemies. Other types retain the combat loop.
     dweller_power = incident_math.dweller_combat_power(dwellers)
+    if active_ids:
+        dweller_power = int(dweller_power * (1 + TEAM_RESPONSE_BONUS * len(active_ids)))
     threat_power = incident_math.raider_power(incident.difficulty)
     if incident.type == IncidentType.FIRE:  # TODO: make it more generic
         damage_to_dwellers = incident_math.fire_damage(threat_power, seconds_passed)
@@ -181,7 +206,9 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
         response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / threat_power
         damage_to_raiders = response_progress * threat_power
 
-    damaged_count, deaths_count, total_damage = await apply_damage(db_session, incident, dwellers, damage_to_dwellers)
+    damaged_count, deaths_count, total_damage = await apply_damage(
+        db_session, incident, dwellers, damage_to_dwellers, active_member_ids=active_ids
+    )
 
     # Track total damage dealt by raiders
     incident.damage_dealt += total_damage
@@ -234,6 +261,13 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     from app.services.leveling_service import leveling_service
 
     await leveling_service.deliver_deferred_level_ups(db_session)
+
+    # Auto-equip runs after the round committed: outfit_crud.equip commits
+    # internally, so it must not ride the round's transaction.
+    if team and team_result.active_gainers:
+        await contamination_team_service.equip_hazard_outfits(
+            db_session, incident.vault_id, team_result.active_gainers, team
+        )
 
     if resolved:
         experience_earned = (incident.loot or {}).get("experience", 0)

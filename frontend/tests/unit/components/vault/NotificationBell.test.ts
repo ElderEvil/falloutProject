@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
 
 /**
  * NotificationBell SSE Watcher Regression Tests
@@ -160,6 +161,52 @@ describe('NotificationBell SSE watcher null-safety', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Level Up!')
     expect(wrapper.text()).toContain('A dweller reached a new level')
+
+    wrapper.unmount()
+  })
+
+  it('toasts and adds a bell entry when a hazard team join notification arrives', async () => {
+    // ARRANGE: authenticated user, SSE delivers a hazard_team_joined notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const hazardNotifData = JSON.stringify({
+      notification: {
+        id: 'n2',
+        notification_type: 'hazard_team_joined',
+        title: 'Hazard Team Joined',
+        message: 'Jane Doe joined the fire team',
+        priority: 'normal',
+        created_at: '2026-08-11T10:00:00',
+        meta_data: {
+          dweller_id: 'd1',
+          dweller_name: 'Jane Doe',
+          team: 'fire',
+          status: 'active',
+          promoted: false,
+          vault_id: 'vault-1',
+        },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(hazardNotifData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: the event surfaced as a toast (progression red line)
+    expect(toasts.value.some((t) => t.message === 'Jane Doe joined the fire team')).toBe(true)
+
+    // ASSERT: the event also produced a normal bell entry
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Hazard Team Joined')
+    expect(wrapper.text()).toContain('Jane Doe joined the fire team')
 
     wrapper.unmount()
   })

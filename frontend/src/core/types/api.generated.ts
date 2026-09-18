@@ -7746,7 +7746,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
         /** Objective */
         Objective: {
             /** Challenge */

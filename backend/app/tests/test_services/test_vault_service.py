@@ -439,6 +439,34 @@ class TestCreateInitialItems:
 
         db_session.add.assert_not_called()
 
+    async def test_boosted_vault_seeds_hazard_outfits(self, async_session, vault) -> None:
+        """Boosted vaults start with spare firefighter and hazmat suits in storage."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.outfit import Outfit
+
+        storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=True)
+
+        outfits = await get_items_by_vault(async_session, Outfit, vault.id)
+        firefighter = [o for o in outfits if o.name == "Firefighter suit"]
+        hazmat = [o for o in outfits if o.name == "Hazmat suit"]
+        assert len(firefighter) == 3
+        assert len(hazmat) == 3
+        assert all(o.fire_resist == 0.5 and o.radiation_resist == 0.0 and o.endurance == 4 for o in firefighter)
+        assert all(o.radiation_resist == 1.0 and o.endurance == 2 and o.intelligence == 2 for o in hazmat)
+        assert all(o.storage_id == storage.id for o in firefighter + hazmat)
+
+    async def test_standard_vault_has_no_hazard_outfits(self, async_session, vault) -> None:
+        """Standard vaults do not receive hazard-team outfits."""
+        from app.crud.item_base import get_items_by_vault
+        from app.models.outfit import Outfit
+
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        await VaultService()._create_initial_items(async_session, vault.id, is_boosted=False)
+
+        outfits = await get_items_by_vault(async_session, Outfit, vault.id)
+        assert not any(o.name in {"Firefighter suit", "Hazmat suit"} for o in outfits)
+
 
 # ---------------------------------------------------------------------------
 # Objective assignment is delegated to objective_crud.assign_initial (CRUD layer).

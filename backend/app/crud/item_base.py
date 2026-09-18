@@ -93,6 +93,17 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         result = await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))
         return result.scalar_one_or_none()
 
+    async def get_unassigned_in_storage_by_name(
+        self, db_session: AsyncSession, storage_id: UUID4, name: str
+    ) -> ModelType | None:
+        """An unassigned item of this type in one storage matching the name exactly."""
+        query = select(self.model).where(
+            self.model.storage_id == storage_id,
+            self.model.dweller_id.is_(None),
+            self.model.name == name,
+        )
+        return (await db_session.execute(query)).scalars().first()
+
     async def create_many(
         self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]]
     ) -> Sequence[ModelType]:

@@ -39,6 +39,7 @@ from app.services.vault_seed import (
     BOOSTED_LOADOUTS,
     BOOSTED_MERGED_LIVING_ROOM,
     BOOSTED_SEED_JUNK,
+    BOOSTED_SEED_OUTFITS,
     BOOSTED_TRAINING_STATS,
     SEED_OUTFITS,
     SEED_WEAPONS,
@@ -580,6 +581,15 @@ class VaultService:
 
         weapons = [build_weapon(data, data["rarity"], storage.id) for data in SEED_WEAPONS]
         outfits = [build_outfit(data, data["rarity"], storage.id) for data in SEED_OUTFITS]
+        if is_boosted:
+            from app.services.exploration.data_loader import load_outfits
+
+            catalog = {str(entry["name"]): entry for entry in load_outfits()}
+            for name, count in BOOSTED_SEED_OUTFITS:
+                entry = catalog.get(name)
+                if entry is None:
+                    continue
+                outfits.extend(build_outfit(entry, RarityEnum(entry["rarity"]), storage.id) for _ in range(count))
         await weapon_crud.create_many(db_session, weapons)
         await outfit_crud.create_many(db_session, outfits)
         if is_boosted:

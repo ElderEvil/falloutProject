@@ -9,9 +9,16 @@ export type AudioBus = 'ui' | 'sfx' | 'music'
 
 const STORAGE_KEY = 'audioSettings'
 
+const AUDIO_BUSES: readonly AudioBus[] = ['ui', 'sfx', 'music']
+
 export interface AudioSettings {
   muted: boolean
   volumes: Record<AudioBus, number>
+}
+
+export interface SoundSettingsInput {
+  muted?: boolean
+  volumes?: Partial<Record<AudioBus, number>>
 }
 
 const DEFAULT_SETTINGS: AudioSettings = {
@@ -19,14 +26,42 @@ const DEFAULT_SETTINGS: AudioSettings = {
   volumes: { ui: 0.6, sfx: 0.8, music: 0.4 },
 }
 
+/**
+ * Validate an unknown payload (e.g. `profile.preferences.sound`) into sound
+ * settings. Returns `null` for anything that is not a plain object; unknown
+ * keys and unknown buses are ignored, volumes are clamped to [0, 1].
+ */
+export function parseSoundSettings(raw: unknown): SoundSettingsInput | null {
+  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null
+  }
+  const record = raw as Record<string, unknown>
+  const input: SoundSettingsInput = {}
+  if (typeof record.muted === 'boolean') {
+    input.muted = record.muted
+  }
+  const volumes = record.volumes
+  if (volumes !== null && volumes !== undefined && typeof volumes === 'object' && !Array.isArray(volumes)) {
+    const parsedVolumes: Partial<Record<AudioBus, number>> = {}
+    const volumeRecord = volumes as Record<string, unknown>
+    for (const bus of AUDIO_BUSES) {
+      const value = volumeRecord[bus]
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        parsedVolumes[bus] = Math.min(1, Math.max(0, value))
+      }
+    }
+    input.volumes = parsedVolumes
+  }
+  return input
+}
+
 function loadSettings(): AudioSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_SETTINGS }
-    const parsed = JSON.parse(raw) as Partial<AudioSettings>
+    const cached = parseSoundSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'))
+    if (!cached) return { ...DEFAULT_SETTINGS }
     return {
-      muted: parsed.muted ?? DEFAULT_SETTINGS.muted,
-      volumes: { ...DEFAULT_SETTINGS.volumes, ...parsed.volumes },
+      muted: cached.muted ?? DEFAULT_SETTINGS.muted,
+      volumes: { ...DEFAULT_SETTINGS.volumes, ...cached.volumes },
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -48,6 +83,7 @@ class AudioManager {
   private musicPreview: HTMLAudioElement | null = null
   private currentLoop: { audio: HTMLAudioElement; key: MusicKey } | null = null
   private pendingLoop: MusicKey | null = null
+  private changeHandler: ((settings: AudioSettings) => void) | null = null
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -81,20 +117,16 @@ class AudioManager {
     return this.settings.volumes
   }
 
+  /** Register the persistence hook fired after local mute/volume edits. */
+  setChangeHandler(handler: ((settings: AudioSettings) => void) | null): void {
+    this.changeHandler = handler
+  }
+
   setMuted(muted: boolean): void {
     this.settings.muted = muted
-    if (muted) {
-      this.currentLoop?.audio.pause()
-      this.musicPreview?.pause()
-      this.alarmAudio?.pause()
-    } else if (this.pendingLoop) {
-      this.playLoop(this.pendingLoop)
-      this.pendingLoop = null
-    } else if (this.currentLoop) {
-      void this.currentLoop.audio.play().catch(() => {})
-    }
-    if (!muted && this.alarmWanted) this.startAlarmLoop()
+    this.reconcilePlayback()
     this.persist()
+    this.notifyChange()
   }
 
   setVolume(bus: AudioBus, volume: number): void {
@@ -102,6 +134,31 @@ class AudioManager {
     if (bus === 'music' && this.currentLoop) {
       this.currentLoop.audio.volume = this.settings.volumes.music
     }
+    this.persist()
+    this.notifyChange()
+  }
+
+  /**
+   * Hydrate settings from an external payload (e.g. profile preferences).
+   * Invalid payloads are ignored; valid values merge into the current
+   * settings, apply live audio side effects, and persist. Never notifies the
+   * change handler, so hydration cannot echo back a save.
+   */
+  applySettings(raw: unknown): void {
+    const parsed = parseSoundSettings(raw)
+    if (!parsed) return
+    if (parsed.muted !== undefined) {
+      this.settings.muted = parsed.muted
+    }
+    if (parsed.volumes) {
+      for (const bus of AUDIO_BUSES) {
+        const volume = parsed.volumes[bus]
+        if (volume !== undefined) {
+          this.settings.volumes[bus] = volume
+        }
+      }
+    }
+    this.reconcilePlayback()
     this.persist()
   }
 
@@ -265,12 +322,35 @@ class AudioManager {
     }
   }
 
+  private reconcilePlayback(): void {
+    if (this.settings.muted) {
+      this.currentLoop?.audio.pause()
+      this.musicPreview?.pause()
+      this.alarmAudio?.pause()
+      return
+    }
+    if (this.pendingLoop && !this.musicDucked) {
+      this.playLoop(this.pendingLoop)
+    } else if (this.currentLoop && !this.musicDucked) {
+      this.currentLoop.audio.volume = this.settings.volumes.music
+      void this.currentLoop.audio.play().catch(() => {})
+    }
+    if (this.alarmWanted) this.startAlarmLoop()
+  }
+
   private persist(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings))
     } catch {
       // Storage unavailable (private mode) — settings stay session-only.
     }
+  }
+
+  private notifyChange(): void {
+    this.changeHandler?.({
+      muted: this.settings.muted,
+      volumes: { ...this.settings.volumes },
+    })
   }
 }
 

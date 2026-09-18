@@ -137,3 +137,80 @@ async def test_update_profile_partial(
     assert response.status_code == 200
     profile = response.json()
     assert profile["bio"] == update_data["bio"]
+
+
+@pytest.mark.asyncio
+async def test_update_profile_preferences_nested_round_trip(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test nested preferences dict round-trips through PUT/GET profile."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    # First, get the profile to ensure it exists
+    await async_client.get("/users/me/profile", headers=token_headers)
+
+    preferences = {
+        "sound": {"muted": False, "volumes": {"ui": 0.2, "sfx": 0.5, "music": 0.9}},
+        "theme": "fnv",
+    }
+    response = await async_client.put(
+        "/users/me/profile",
+        json={"preferences": preferences},
+        headers=token_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["preferences"] == preferences
+
+    response = await async_client.get("/users/me/profile", headers=token_headers)
+    assert response.status_code == 200
+    persisted = response.json()["preferences"]
+    assert persisted == preferences
+    # Persisted as a nested object, not a serialized JSON string
+    assert isinstance(persisted, dict)
+    assert isinstance(persisted["sound"], dict)
+    assert isinstance(persisted["sound"]["volumes"], dict)
+
+
+@pytest.mark.asyncio
+async def test_update_profile_bio_only_preserves_preferences(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test a bio-only update leaves existing preferences untouched."""
+    token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
+
+    # First, get the profile to ensure it exists
+    await async_client.get("/users/me/profile", headers=token_headers)
+
+    preferences = {
+        "sound": {"muted": False, "volumes": {"ui": 0.2, "sfx": 0.5, "music": 0.9}},
+        "theme": "fnv",
+    }
+    response = await async_client.put(
+        "/users/me/profile",
+        json={"preferences": preferences},
+        headers=token_headers,
+    )
+    assert response.status_code == 200
+
+    response = await async_client.put("/users/me/profile", json={"bio": "Updated bio only"}, headers=token_headers)
+    assert response.status_code == 200
+    assert response.json()["bio"] == "Updated bio only"
+    assert response.json()["preferences"] == preferences
+
+    response = await async_client.get("/users/me/profile", headers=token_headers)
+    assert response.status_code == 200
+    profile = response.json()
+    assert profile["bio"] == "Updated bio only"
+    assert profile["preferences"] == preferences
+
+
+@pytest.mark.asyncio
+async def test_profile_endpoints_require_authentication(async_client: AsyncClient) -> None:
+    """Test profile endpoints reject requests without auth headers."""
+    response = await async_client.get("/users/me/profile")
+    assert response.status_code == 401
+
+    response = await async_client.put("/users/me/profile", json={"bio": "No auth"})
+    assert response.status_code == 401

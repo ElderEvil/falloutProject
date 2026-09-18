@@ -247,6 +247,158 @@ describe('Profile Store', () => {
     })
   })
 
+  describe('ensureProfileLoaded Action', () => {
+    it('fetches the profile when empty', async () => {
+      const store = useProfileStore()
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockProfile })
+
+      await store.ensureProfileLoaded()
+
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
+      expect(store.profile).toEqual(mockProfile)
+    })
+
+    it('skips the fetch when profile is already set', async () => {
+      const store = useProfileStore()
+      store.profile = mockProfile
+
+      await store.ensureProfileLoaded()
+
+      expect(axios.get).not.toHaveBeenCalled()
+    })
+
+    it('skips the fetch while loading is true', async () => {
+      const store = useProfileStore()
+      store.loading = true
+
+      await store.ensureProfileLoaded()
+
+      expect(axios.get).not.toHaveBeenCalled()
+    })
+
+    it('swallows fetch errors', async () => {
+      const store = useProfileStore()
+      const mockError = new Error('Network error')
+      vi.mocked(axios.get).mockRejectedValueOnce(mockError)
+
+      await expect(store.ensureProfileLoaded()).resolves.toBeUndefined()
+      expect(store.error).toBe('Network error')
+      expect(store.profile).toBeNull()
+      expect(store.loading).toBe(false)
+    })
+  })
+
+  describe('clearProfile Action', () => {
+    it('resets profile, death statistics, AI usage stats and error to null', () => {
+      const store = useProfileStore()
+      store.profile = mockProfile
+      store.deathStatistics = {
+        total_dwellers_born: 50,
+        total_dwellers_died: 10,
+        deaths_by_cause: { health: 3, radiation: 2, incident: 2, exploration: 2, combat: 1 },
+        revivable_count: 3,
+        permanently_dead_count: 7,
+      }
+      store.aiUsageStats = {
+        all_time: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        current_month: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        month: '2026-09',
+        quota_limit: 100,
+        quota_used: 10,
+        quota_remaining: 90,
+        quota_percentage: 10,
+        quota_warning: false,
+        quota_exceeded: false,
+        reset_date: '2026-10-01',
+      }
+      store.error = 'Some error'
+
+      store.clearProfile()
+
+      expect(store.profile).toBeNull()
+      expect(store.deathStatistics).toBeNull()
+      expect(store.aiUsageStats).toBeNull()
+      expect(store.error).toBeNull()
+    })
+  })
+
+  describe('savePreferences Action', () => {
+    it('merges the patch into the latest confirmed preferences', async () => {
+      const store = useProfileStore()
+      store.profile = { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: true } } }
+      const updatedProfile = {
+        ...mockProfile,
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      }
+      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+
+      await store.savePreferences({ sound: { muted: false } })
+
+      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      })
+      expect(store.profile).toEqual(updatedProfile)
+      expect(store.loading).toBe(false)
+      expect(store.error).toBeNull()
+    })
+
+    it('serializes overlapping saves and merges each with the latest preferences', async () => {
+      const store = useProfileStore()
+      store.profile = { ...mockProfile, preferences: { theme: 'fnv' } }
+      let resolveFirst!: (value: { data: UserProfile }) => void
+      vi.mocked(axios.put).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        })
+      )
+      vi.mocked(axios.put).mockResolvedValueOnce({
+        data: { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: false } } },
+      })
+
+      const first = store.savePreferences({ theme: 'fnv' })
+      const second = store.savePreferences({ sound: { muted: false } })
+      await Promise.resolve()
+      expect(axios.put).toHaveBeenCalledTimes(1)
+
+      resolveFirst({ data: { ...mockProfile, preferences: { theme: 'fnv' } } })
+      await first
+      await second
+
+      expect(axios.put).toHaveBeenCalledTimes(2)
+      expect(axios.put).toHaveBeenLastCalledWith('/api/v1/users/me/profile', {
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      })
+    })
+
+    it('ignores a save response that arrives after the profile is cleared', async () => {
+      const store = useProfileStore()
+      store.profile = mockProfile
+      let resolveSave!: (value: { data: UserProfile }) => void
+      vi.mocked(axios.put).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSave = resolve
+        })
+      )
+
+      const pending = store.savePreferences({ theme: 'light' })
+      store.clearProfile()
+      resolveSave({ data: { ...mockProfile, preferences: { theme: 'light' } } })
+      await pending
+
+      expect(store.profile).toBeNull()
+    })
+
+    it('throws on failure without setting error or loading', async () => {
+      const store = useProfileStore()
+      const mockError = new Error('Network error')
+      vi.mocked(axios.put).mockRejectedValueOnce(mockError)
+
+      await expect(store.savePreferences({ theme: 'light' })).rejects.toEqual(mockError)
+      expect(store.error).toBeNull()
+      expect(store.loading).toBe(false)
+    })
+  })
+
   describe('clearError Action', () => {
     it('should clear error state', () => {
       const store = useProfileStore()

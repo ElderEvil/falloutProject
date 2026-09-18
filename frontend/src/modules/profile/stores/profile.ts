@@ -20,6 +20,8 @@ export const useProfileStore = defineStore('profile', () => {
   const aiUsageLoading = ref(false)
   const error = ref<string | null>(null)
   let profileVersion = 0
+  let session = 0
+  let saveChain: Promise<void> = Promise.resolve()
 
   // Getters
   const hasProfile = computed(() => profile.value !== null)
@@ -49,10 +51,13 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   async function fetchProfile(): Promise<void> {
+    const requestSession = session
     loading.value = true
     error.value = null
     try {
-      applyProfile(await loadProfile())
+      const nextProfile = await loadProfile()
+      if (requestSession !== session) return
+      applyProfile(nextProfile)
     } catch (err: unknown) {
       error.value = handleStoreError(err, 'Failed to fetch profile')
       throw err
@@ -62,11 +67,12 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   async function refreshProfile(): Promise<void> {
+    const requestSession = session
     profileRefreshing.value = true
     const version = profileVersion
     try {
       const nextProfile = await loadProfile()
-      if (version === profileVersion) applyProfile(nextProfile)
+      if (requestSession === session && version === profileVersion) applyProfile(nextProfile)
     } catch (err: unknown) {
       handleStoreError(err, 'Failed to refresh profile')
     } finally {
@@ -75,10 +81,12 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   async function updateProfile(data: ProfileUpdate): Promise<void> {
+    const requestSession = session
     loading.value = true
     error.value = null
     try {
       const response = await axios.put<UserProfile>('/api/v1/users/me/profile', data)
+      if (requestSession !== session) return
       profileVersion += 1
       applyProfile(response.data)
     } catch (err: unknown) {
@@ -89,10 +97,45 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function ensureProfileLoaded(): Promise<void> {
+    if (profile.value !== null || loading.value) return
+    try {
+      await fetchProfile()
+    } catch {
+      // fetchProfile already records the error and rethrows; swallow here so
+      // boot-time callers can proceed without crashing.
+    }
+  }
+
+  function clearProfile(): void {
+    session += 1
+    saveChain = Promise.resolve()
+    profile.value = null
+    deathStatistics.value = null
+    aiUsageStats.value = null
+    error.value = null
+  }
+
+  async function savePreferences(patch: Record<string, unknown>): Promise<void> {
+    const requestSession = session
+    const run = saveChain.then(async () => {
+      const response = await axios.put<UserProfile>('/api/v1/users/me/profile', {
+        preferences: { ...profile.value?.preferences, ...patch },
+      })
+      if (requestSession !== session) return
+      profileVersion += 1
+      applyProfile(response.data)
+    })
+    saveChain = run.catch(() => {})
+    return run
+  }
+
   async function fetchDeathStatistics(): Promise<DeathStatistics | null> {
+    const requestSession = session
     deathStatsLoading.value = true
     try {
       const response = await axios.get<DeathStatistics>('/api/v1/users/me/profile/statistics')
+      if (requestSession !== session) return null
       deathStatistics.value = response.data
       return response.data
     } catch (err: unknown) {
@@ -104,9 +147,11 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   async function fetchAIUsage(): Promise<AIUsageStats | null> {
+    const requestSession = session
     aiUsageLoading.value = true
     try {
       const stats = await fetchAIUsageRequest()
+      if (requestSession !== session) return null
       aiUsageStats.value = stats
       return stats
     } catch (err: unknown) {
@@ -142,6 +187,9 @@ export const useProfileStore = defineStore('profile', () => {
     fetchProfile,
     refreshProfile,
     updateProfile,
+    ensureProfileLoaded,
+    clearProfile,
+    savePreferences,
     fetchDeathStatistics,
     fetchAIUsage,
     fetchQuotaStatus,

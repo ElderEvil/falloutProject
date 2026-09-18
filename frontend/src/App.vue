@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide } from 'vue'
+import { provide, watch } from 'vue'
 import DefaultLayout from '@/modules/vault/components/shell/DefaultLayout.vue'
 import UToastContainer from '@/core/components/ui/UToastContainer.vue'
 import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
@@ -14,6 +14,8 @@ import { useVersionDetection } from '@/core/composables/useVersionDetection'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useFakeCrash } from '@/core/composables/useFakeCrash'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useSoundProfileSync } from '@/modules/profile/composables/useSoundProfileSync'
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
@@ -35,6 +37,20 @@ useTokenRefresh({
   refreshAccessToken: () => authStore.refreshAccessToken(),
   logout: () => authStore.logout(),
 })
+
+// Profile boot-loading: load once on login/reload, clear on logout.
+const profileStore = useProfileStore()
+watch(
+  () => authStore.isAuthenticated,
+  (authed) => {
+    if (authed) void profileStore.ensureProfileLoaded()
+    else profileStore.clearProfile()
+  },
+  { immediate: true }
+)
+
+// Sound settings sync: hydrate from the profile and persist local changes.
+useSoundProfileSync()
 
 // Resource warnings system
 useResourceWarnings()

@@ -1,8 +1,26 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import App from '@/App.vue'
+
+const profileStoreMock = vi.hoisted(() => ({
+  ensureProfileLoaded: vi.fn(),
+  clearProfile: vi.fn(),
+}))
+
+vi.mock('@/modules/profile/stores/profile', () => ({
+  useProfileStore: () => ({
+    profile: null,
+    ensureProfileLoaded: profileStoreMock.ensureProfileLoaded,
+    clearProfile: profileStoreMock.clearProfile,
+    savePreferences: vi.fn(),
+  }),
+}))
+
+vi.mock('@/modules/profile/composables/useSoundProfileSync', () => ({
+  useSoundProfileSync: () => ({ flush: vi.fn() }),
+}))
 
 vi.mock('@/core/composables/useVisualEffects', () => ({
   useVisualEffects: () => ({
@@ -36,8 +54,13 @@ vi.mock('@/core/composables/useFakeCrash', () => ({
 }))
 
 describe('App', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
+    localStorage.clear()
   })
 
   it('mounts without unresolved-component warnings after Nuxt UI removal', () => {
@@ -59,5 +82,45 @@ describe('App', () => {
 
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Failed to resolve component'))
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('UApp'))
+  })
+
+  it('loads the profile when authenticated', () => {
+    localStorage.setItem('token', 'test-token')
+
+    mount(App, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          DefaultLayout: { template: '<main><slot /></main>' },
+          UToastContainer: true,
+          ChangelogModal: true,
+          GaryOverlay: true,
+          FakeCrashOverlay: true,
+          'router-view': true,
+        },
+      },
+    })
+
+    expect(profileStoreMock.ensureProfileLoaded).toHaveBeenCalled()
+    expect(profileStoreMock.clearProfile).not.toHaveBeenCalled()
+  })
+
+  it('clears the profile when not authenticated', () => {
+    mount(App, {
+      global: {
+        plugins: [createPinia()],
+        stubs: {
+          DefaultLayout: { template: '<main><slot /></main>' },
+          UToastContainer: true,
+          ChangelogModal: true,
+          GaryOverlay: true,
+          FakeCrashOverlay: true,
+          'router-view': true,
+        },
+      },
+    })
+
+    expect(profileStoreMock.clearProfile).toHaveBeenCalled()
+    expect(profileStoreMock.ensureProfileLoaded).not.toHaveBeenCalled()
   })
 })

@@ -89,6 +89,29 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  async function ensureProfileLoaded(): Promise<void> {
+    if (profile.value !== null || loading.value) return
+    try {
+      await fetchProfile()
+    } catch {
+      // fetchProfile already records the error and rethrows; swallow here so
+      // boot-time callers can proceed without crashing.
+    }
+  }
+
+  function clearProfile(): void {
+    profile.value = null
+    deathStatistics.value = null
+    aiUsageStats.value = null
+    error.value = null
+  }
+
+  async function savePreferences(preferences: Record<string, unknown>): Promise<void> {
+    const response = await axios.put<UserProfile>('/api/v1/users/me/profile', { preferences })
+    profileVersion += 1
+    applyProfile(response.data)
+  }
+
   async function fetchDeathStatistics(): Promise<DeathStatistics | null> {
     deathStatsLoading.value = true
     try {
@@ -142,6 +165,9 @@ export const useProfileStore = defineStore('profile', () => {
     fetchProfile,
     refreshProfile,
     updateProfile,
+    ensureProfileLoaded,
+    clearProfile,
+    savePreferences,
     fetchDeathStatistics,
     fetchAIUsage,
     fetchQuotaStatus,

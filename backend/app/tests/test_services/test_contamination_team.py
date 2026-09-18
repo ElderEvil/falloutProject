@@ -101,6 +101,44 @@ async def test_fourth_qualifier_waits_on_the_bench(
 
 
 @pytest.mark.asyncio
+async def test_fallen_member_frees_a_place_for_the_bench(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A dead member stops holding a place, and the most senior bench member steps up."""
+    room = room_with_dwellers["room"]
+    dwellers = list(room_with_dwellers["dwellers"])
+    while len(dwellers) <= TEAM_SIZE:
+        dwellers.append(
+            await crud.dweller.create(
+                async_session,
+                obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id, room_id=room.id),
+            )
+        )
+
+    for _ in range(QUALIFYING_INCIDENTS):
+        await _fight(async_session, room, IncidentType.FIRE, dwellers)
+
+    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    active_place = next(place for place in roster if place.status == ACTIVE_STATUS)
+    benched = next(place for place in roster if place.status == RESERVE_STATUS)
+
+    fallen = await crud.dweller.get(async_session, active_place.dweller_id)
+    fallen.is_dead = True
+    async_session.add(fallen)
+    await async_session.commit()
+
+    await _fight(async_session, room, IncidentType.FIRE, [dwellers[0]])
+
+    stepped_up = await crud.hazard_team_crud.get_member(
+        async_session, room.vault_id, HazardTeam.FIRE, benched.dweller_id
+    )
+    assert stepped_up.status == ACTIVE_STATUS
+    assert await crud.hazard_team_crud.count_active(async_session, room.vault_id, HazardTeam.FIRE) == TEAM_SIZE
+    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    assert active_place.dweller_id not in {place.dweller_id for place in roster}
+
+
+@pytest.mark.asyncio
 async def test_intruder_incidents_earn_no_team_place(async_session: AsyncSession, room_with_dwellers: dict):
     """Participation is always recorded, but only contamination hazards build a team."""
     room = room_with_dwellers["room"]

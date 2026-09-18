@@ -6,6 +6,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import HazardTeam
+from app.crud.dweller import dweller as crud_dweller
 from app.crud.hazard_team import hazard_team_crud
 from app.crud.incident_participant import incident_participant_crud
 from app.models.dweller import Dweller
@@ -46,7 +47,12 @@ class ContaminationTeamService:
             db_session, incident.id, [dweller.id for dweller in dwellers]
         )
         team = hazard_team_for(incident.type)
-        if not team or not credited_ids:
+        if not team:
+            return []
+        # Bench members step up before a new qualifier is weighed, so seniority
+        # holds and a freed place is never handed to the newest arrival.
+        await self._promote_bench(db_session, incident.vault_id, team)
+        if not credited_ids:
             return []
         dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
         joined: list[Dweller] = []
@@ -85,6 +91,30 @@ class ContaminationTeamService:
             else f"Earned a bench place on the vault's {label} after {callouts}."
         )
         bio_service.add_entry(dweller, BIO_SOURCE, text, {"team": team.value, "status": status})
+
+    async def _promote_bench(
+        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam
+    ) -> list[HazardTeamMember]:
+        """Step the most senior bench members into any places a loss freed."""
+        vacancies = TEAM_SIZE - await hazard_team_crud.count_active(db_session, vault_id, team)
+        promoted: list[HazardTeamMember] = []
+        for place in await hazard_team_crud.get_reserve(db_session, vault_id, team):
+            if vacancies <= 0:
+                break
+            place.status = ACTIVE_STATUS
+            db_session.add(place)
+            await db_session.flush()
+            promoted.append(place)
+            vacancies -= 1
+        for place in promoted:
+            await self._record_step_up_entry(db_session, place, team)
+        return promoted
+
+    async def _record_step_up_entry(self, db_session: AsyncSession, place: HazardTeamMember, team: HazardTeam) -> None:
+        dweller = await crud_dweller.get_or_none(db_session, place.dweller_id)
+        if dweller is None:
+            return
+        bio_service.add_entry(dweller, BIO_SOURCE, f"Stepped up to a place on the vault's {TEAM_LABELS[team]}.")
 
     async def get_roster(self, db_session: AsyncSession, vault_id: UUID4) -> ContaminationTeamRead:
         """Every team's roster for a vault, active places and bench included."""

@@ -7,7 +7,21 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import HazardTeam
 from app.crud.base import CRUDBase
-from app.models.hazard_team import ACTIVE_STATUS, HazardTeamMember
+from app.models.dweller import Dweller
+from app.models.hazard_team import ACTIVE_STATUS, RESERVE_STATUS, HazardTeamMember
+
+
+def _living_places():
+    """Roster places held by a dweller who can still serve.
+
+    A fallen or removed member must stop occupying a place, or the team keeps a
+    phantom slot and no bench member can ever step up.
+    """
+    return (
+        select(HazardTeamMember)
+        .join(Dweller, Dweller.id == HazardTeamMember.dweller_id)
+        .where(Dweller.is_dead.is_(False), Dweller.is_deleted.is_(False))
+    )
 
 
 class CRUDHazardTeam(CRUDBase[HazardTeamMember, None, None]):
@@ -23,23 +37,33 @@ class CRUDHazardTeam(CRUDBase[HazardTeamMember, None, None]):
         return (await db_session.execute(query)).scalar_one_or_none()
 
     async def get_team(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[HazardTeamMember]:
-        """Every roster place on one team, most senior first."""
-        query = (
-            select(HazardTeamMember)
-            .where(HazardTeamMember.vault_id == vault_id, HazardTeamMember.team == team)
-            .order_by(HazardTeamMember.created_at)
+        """Every place a living dweller holds on one team, most senior first."""
+        query = _living_places().where(HazardTeamMember.vault_id == vault_id, HazardTeamMember.team == team)
+        query = query.order_by(HazardTeamMember.created_at)
+        return list((await db_session.execute(query)).scalars().all())
+
+    async def get_reserve(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> list[HazardTeamMember]:
+        """Bench places held by a living dweller, most senior first."""
+        query = _living_places().where(
+            HazardTeamMember.vault_id == vault_id,
+            HazardTeamMember.team == team,
+            HazardTeamMember.status == RESERVE_STATUS,
         )
+        query = query.order_by(HazardTeamMember.created_at)
         return list((await db_session.execute(query)).scalars().all())
 
     async def count_active(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> int:
-        """How many of the team's slots are filled."""
+        """How many of the team's places are held by a living dweller."""
         query = (
             select(func.count())
             .select_from(HazardTeamMember)
+            .join(Dweller, Dweller.id == HazardTeamMember.dweller_id)
             .where(
                 HazardTeamMember.vault_id == vault_id,
                 HazardTeamMember.team == team,
                 HazardTeamMember.status == ACTIVE_STATUS,
+                Dweller.is_dead.is_(False),
+                Dweller.is_deleted.is_(False),
             )
         )
         return (await db_session.execute(query)).scalar_one_or_none() or 0

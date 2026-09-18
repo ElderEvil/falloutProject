@@ -41,6 +41,9 @@ def outfit_radiation_resist(outfit: "Outfit | None") -> float:
     """Share of incoming RAD an equipped outfit removes. Pure: pass an already-loaded outfit or None, never queries."""
     if outfit is None:
         return 0.0
+    declared = getattr(outfit, "radiation_resist", None)
+    if declared is not None:
+        return float(declared)
     by_name = OUTFIT_RADIATION_RESIST_BY_NAME.get(str(getattr(outfit, "name", "")).lower())
     if by_name is not None:
         return by_name

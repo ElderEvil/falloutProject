@@ -15,6 +15,14 @@ if TYPE_CHECKING:
 class OutfitBase(ItemBase):
     outfit_type: OutfitTypeEnum = Field(sa_column=Column(Enum(OutfitTypeEnum)))
     gender: GenderEnum | None = Field(default=None, nullable=True)
+    fire_resist: float = Field(default=0.0, ge=0.0, le=1.0, description="Share of fire damage the outfit removes")
+    radiation_resist: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        nullable=True,
+        description="Share of external radiation removed; None falls back to the outfit type/name table",
+    )
 
     def __str__(self):
         return f"{self.name}"

@@ -22,10 +22,13 @@ def _human(**overrides: object) -> MagicMock:
     return dweller
 
 
-def _outfit(outfit_type: OutfitTypeEnum, name: str) -> MagicMock:
+def _outfit(outfit_type: OutfitTypeEnum, name: str, radiation_resist: float | None = None) -> MagicMock:
     outfit = MagicMock()
     outfit.outfit_type = outfit_type
     outfit.name = name
+    # A real outfit row carries either a declared share or NULL; a bare
+    # MagicMock would answer the column read with another mock.
+    outfit.radiation_resist = radiation_resist
     return outfit
 
 

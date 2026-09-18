@@ -11,6 +11,7 @@ from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.races import RaceModifiers, modifiers_for_race
+from app.utils.equipped import equipped_outfit
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
 _WEAPON_PERK_FIELDS: dict[str, str] = {
@@ -73,14 +74,18 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
 
 def effective_stat(entity: object, stat: str) -> int:
-    """A dweller's stat after identity modifiers, floored at 1.
+    """A dweller's stat after identity and equipped-outfit modifiers, floored at 1.
 
     Derived on read and never persisted: the stored SPECIAL stays the trained value,
-    so removing a race or faction cannot leave a permanent stat change behind.
+    so removing a race, faction, or outfit cannot leave a permanent stat change behind.
+    The outfit is read via ``__dict__`` (no lazy IO, a missing relationship means no
+    bonus), and the result is not capped — a 10 S dweller in a +5 S outfit counts as 15.
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
-    return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat))
+    outfit = equipped_outfit(entity)
+    outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
+    return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat) + outfit_bonus)
 
 
 def weapon_damage_pct(entity: object, weapon_type: str) -> float:

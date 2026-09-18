@@ -145,6 +145,7 @@ withDefaults(
   font-weight: 700;
   color: var(--color-theme-primary);
   text-shadow: 0 0 8px var(--color-theme-glow);
+  overflow-wrap: anywhere;
 }
 
 .experience-value {

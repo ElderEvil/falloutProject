@@ -27,6 +27,7 @@ from app.schemas.incident import (
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.schemas.system import GameBalanceResponse
+from app.schemas.team import TeamMemberRead
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop import game_loop_service
 from app.utils.exceptions import (
@@ -258,6 +259,20 @@ async def assign_incident_responders(
         return IncidentRespondersResponse(
             incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned
         )
+    except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+
+
+@router.get("/vaults/{vault_id}/incidents/{incident_id}/team", response_model=list[TeamMemberRead])
+async def get_incident_team(
+    *,
+    vault: Annotated[Vault, Depends(get_user_vault_or_403)],
+    incident_id: UUID4,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[TeamMemberRead]:
+    """Get the designated responder team for an incident."""
+    try:
+        return await incident_service.get_incident_team_read(db_session, incident_id, vault.id)
     except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 

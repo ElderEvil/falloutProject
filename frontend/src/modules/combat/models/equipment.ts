@@ -59,13 +59,14 @@ export interface Outfit extends ItemBase {
   // legacy type/name fallback in getOutfitRadiationResist.
   fire_resist?: number
   radiation_resist?: number | null
-  strength_bonus?: number
-  perception_bonus?: number
-  endurance_bonus?: number
-  charisma_bonus?: number
-  intelligence_bonus?: number
-  agility_bonus?: number
-  luck_bonus?: number
+  // SPECIAL bonuses granted while equipped (0-7 each, matching the API).
+  strength?: number
+  perception?: number
+  endurance?: number
+  charisma?: number
+  intelligence?: number
+  agility?: number
+  luck?: number
   dweller_id?: string | null
   storage_id?: string | null
 }

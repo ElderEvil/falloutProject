@@ -15,7 +15,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 
 
 @pytest.mark.asyncio
@@ -217,8 +217,8 @@ async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: 
 @pytest.mark.asyncio
 async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
     """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -258,24 +258,24 @@ async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSess
     async_session.add(deleted)
     await async_session.commit()
 
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [assigned.id])
-    with pytest.raises(ValueError, match="Child dweller"):
-        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [child.id])
-    with pytest.raises(ValueError, match="exploring"):
-        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [explorer.id])
-    with pytest.raises(ValueError, match="Deleted dweller"):
-        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [deleted.id])
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [assigned.id])
+    with pytest.raises(ValidationException, match="not an adult"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [child.id])
+    with pytest.raises(ValidationException, match="exploring"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [explorer.id])
+    with pytest.raises(ValidationException, match="deleted"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [deleted.id])
 
-    party = await quest_party_crud.get_party_for_quest(async_session, quest.id, vault.id)
-    assert [member.dweller_id for member in party] == [assigned.id]
+    members = await crud.team_crud.get_quest_team(async_session, quest.id, vault.id)
+    assert [member.dweller_id for member in members] == [assigned.id]
 
 
 @pytest.mark.asyncio
 async def test_start_quest(async_session: AsyncSession) -> None:
     """Test starting a quest (setting the timer)."""
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.services.quest_service import quest_service
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ResourceConflictException
 
@@ -304,7 +304,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
 
     link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
@@ -401,9 +401,9 @@ async def test_start_quest_requires_a_positive_template_duration(async_session: 
 @pytest.mark.asyncio
 async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSession) -> None:
     """Manual completion must not bypass a running quest's timer."""
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.services.quest_service import quest_service
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ValidationException
 
@@ -429,7 +429,7 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
     dweller = Dweller(**dweller_data, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
     await quest_service.start_quest(async_session, quest.id, vault.id)
 
     with pytest.raises(ValidationException, match="not ready to claim"):
@@ -498,13 +498,13 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     """Simulate a party return followed by an atomic reward claim."""
 
     from app.core.event_bus import GameEvent, event_bus
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.models.quest_reward import QuestReward, RewardType
     from app.models.storage import Storage
     from app.models.weapon import Weapon
     from app.schemas.common import AgeGroupEnum
     from app.services.quest_service import quest_service
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -538,7 +538,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     )
     link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
     await async_session.commit()
-    await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
 
     link.started_at = datetime.utcnow() - timedelta(minutes=61)
     link.duration_minutes = 60
@@ -631,9 +631,9 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
 @pytest.mark.asyncio
 async def test_assign_party_replaces_existing(async_session: AsyncSession) -> None:
     """Test that assign_party replaces existing party members."""
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.services.quest_service import quest_service
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ResourceConflictException
 
@@ -666,18 +666,18 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
     async_session.add_all(dwellers)
     await async_session.commit()
 
-    party1 = await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller1.id, dweller2.id])
-    assert len(party1) == 2
-    assert party1[0].dweller_id == dweller1.id
+    members1 = await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller1.id, dweller2.id])
+    assert len(members1) == 2
+    assert members1[0].dweller_id == dweller1.id
 
-    party2 = await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller3.id])
-    assert len(party2) == 1
-    assert party2[0].dweller_id == dweller3.id
+    members2 = await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller3.id])
+    assert len(members2) == 1
+    assert members2[0].dweller_id == dweller3.id
 
     await quest_service.start_quest(async_session, quest.id, vault.id)
 
     with pytest.raises(ResourceConflictException, match="already in progress"):
-        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller1.id])
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller1.id])
 
 
 @pytest.mark.asyncio
@@ -686,9 +686,9 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
     async_session: AsyncSession, link_state: dict[str, bool]
 ) -> None:
     """Reward-ready and completed quests cannot acquire a party."""
-    from app.crud.quest_party import quest_party_crud
     from app.models.dweller import Dweller
     from app.models.vault_quest import VaultQuestCompletionLink
+    from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -710,4 +710,4 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
     await async_session.commit()
 
     with pytest.raises(ResourceConflictException, match="already in progress"):
-        await quest_party_crud.assign_party(async_session, quest.id, vault.id, [dweller.id])
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])

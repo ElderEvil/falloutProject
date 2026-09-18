@@ -22,13 +22,13 @@ withDefaults(defineProps<{ items: LootItem[] }>(), { items: () => [] })
         class="flex items-center justify-between rounded border-l-[3px] bg-terminal-background p-2.5 transition-all duration-200 hover:bg-theme-primary/10"
         :class="getRarityBorderClass(item.rarity)"
       >
-        <div class="flex items-center gap-2">
+        <div class="flex min-w-0 items-center gap-2">
           <Icon
             icon="mdi:treasure-chest"
-            class="h-5 w-5"
+            class="h-5 w-5 shrink-0"
             :class="getRarityTextClass(item.rarity)"
           />
-          <span class="text-sm font-semibold" :class="getRarityTextClass(item.rarity)">
+          <span class="truncate text-sm font-semibold" :class="getRarityTextClass(item.rarity)">
             {{ item.item_name }}
           </span>
         </div>

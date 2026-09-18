@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from app.models.dweller import Dweller
     from app.models.objective import Objective
     from app.models.quest import Quest
-    from app.models.quest_party import QuestParty
     from app.models.room import Room
     from app.models.storage import Storage
+    from app.models.team import Team
     from app.models.user import User
 
 
@@ -68,7 +68,7 @@ class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=Tru
         back_populates="vaults",
         link_model=VaultObjectiveProgressLink,
     )
-    quest_parties: list["QuestParty"] = Relationship(
+    teams: list["Team"] = Relationship(
         back_populates="vault",
         sa_relationship_kwargs={"cascade": "all"},
     )

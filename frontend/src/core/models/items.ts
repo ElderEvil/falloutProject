@@ -136,24 +136,24 @@ export function getOutfitFireResist(outfit: ResistSource): number {
 }
 
 interface BonusSource {
-  strength_bonus?: number
-  perception_bonus?: number
-  endurance_bonus?: number
-  charisma_bonus?: number
-  intelligence_bonus?: number
-  agility_bonus?: number
-  luck_bonus?: number
+  strength?: number
+  perception?: number
+  endurance?: number
+  charisma?: number
+  intelligence?: number
+  agility?: number
+  luck?: number
 }
 
 export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: number }[] {
   const bonuses: { stat: string; bonus: number }[] = []
-  if (outfit.strength_bonus) bonuses.push({ stat: 'S', bonus: outfit.strength_bonus })
-  if (outfit.perception_bonus) bonuses.push({ stat: 'P', bonus: outfit.perception_bonus })
-  if (outfit.endurance_bonus) bonuses.push({ stat: 'E', bonus: outfit.endurance_bonus })
-  if (outfit.charisma_bonus) bonuses.push({ stat: 'C', bonus: outfit.charisma_bonus })
-  if (outfit.intelligence_bonus) bonuses.push({ stat: 'I', bonus: outfit.intelligence_bonus })
-  if (outfit.agility_bonus) bonuses.push({ stat: 'A', bonus: outfit.agility_bonus })
-  if (outfit.luck_bonus) bonuses.push({ stat: 'L', bonus: outfit.luck_bonus })
+  if (outfit.strength) bonuses.push({ stat: 'S', bonus: outfit.strength })
+  if (outfit.perception) bonuses.push({ stat: 'P', bonus: outfit.perception })
+  if (outfit.endurance) bonuses.push({ stat: 'E', bonus: outfit.endurance })
+  if (outfit.charisma) bonuses.push({ stat: 'C', bonus: outfit.charisma })
+  if (outfit.intelligence) bonuses.push({ stat: 'I', bonus: outfit.intelligence })
+  if (outfit.agility) bonuses.push({ stat: 'A', bonus: outfit.agility })
+  if (outfit.luck) bonuses.push({ stat: 'L', bonus: outfit.luck })
   return bonuses
 }
 

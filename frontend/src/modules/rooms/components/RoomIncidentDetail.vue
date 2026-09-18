@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
-import { getIncidentIcon, type Incident } from '@/modules/combat/models/incident'
+import { getIncidentIcon, type Incident, type IncidentTeamMember } from '@/modules/combat/models/incident'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useToast } from '@/core/composables/useToast'
 import IncidentScene from './IncidentScene.vue'
 import IncidentBattleLog from './IncidentBattleLog.vue'
 
@@ -22,6 +23,7 @@ const props = defineProps<Props>()
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const { warning: showWarning } = useToast()
 const assigningDwellerId = ref<string | null>(null)
 const isSendingBest = ref(false)
 // One assignment at a time: both handlers post to the same endpoint, so a second
@@ -49,26 +51,81 @@ const bestResponders = computed(() =>
     .slice(0, 3)
 )
 
+interface TeamMemberEntry {
+  member: IncidentTeamMember
+  dweller: DwellerShort | undefined
+}
+
+const teamMembers = computed<TeamMemberEntry[]>(() =>
+  incidentStore
+    .getIncidentTeam(props.incident.id)
+    .map((member) => ({
+      member,
+      dweller: props.dwellers.find((dweller) => dweller.id === member.dweller_id),
+    }))
+)
+
+const teamMemberLabel = (entry: TeamMemberEntry): string =>
+  entry.dweller?.first_name ?? entry.member.dweller_id.slice(0, 8)
+
+const teamLoaded = ref(false)
+
+const loadTeam = async (): Promise<void> => {
+  teamLoaded.value = false
+  if (!authStore.token) {
+    teamLoaded.value = true
+    return
+  }
+  const incidentId = props.incident.id
+  await incidentStore.fetchIncidentTeam(props.vaultId, incidentId, authStore.token)
+  if (props.incident.id === incidentId) {
+    teamLoaded.value = true
+  }
+}
+
+onMounted(loadTeam)
+watch(() => props.incident.id, loadTeam)
+
+// The POST appends (deduped) to the roster and rejects a roster over 6, so the
+// UI sends only the newly chosen dwellers and never a doomed over-cap request.
+const MAX_TEAM_SIZE = 6
+
+const currentTeamIds = computed(() =>
+  incidentStore.getIncidentTeam(props.incident.id).map((member) => member.dweller_id)
+)
+
+const fitWithinRosterCap = (newIds: string[]): string[] => {
+  const freshIds = newIds.filter((id) => !currentTeamIds.value.includes(id))
+  const fits = Math.max(MAX_TEAM_SIZE - currentTeamIds.value.length, 0)
+  if (freshIds.length > fits) {
+    showWarning(
+      `Incident team is full (${MAX_TEAM_SIZE}) — ${freshIds.length - fits} responder(s) not sent.`
+    )
+    return freshIds.slice(0, fits)
+  }
+  return freshIds
+}
+
 const send = async (dwellerIds: string[]) => {
   if (!authStore.token || !dwellerIds.length) return
   await incidentStore.assignResponders(props.vaultId, props.incident.id, dwellerIds, authStore.token)
 }
 
 const sendBestDefenders = async () => {
-  if (isAssigning.value || !bestResponders.value.length) return
+  if (isAssigning.value || !teamLoaded.value || !bestResponders.value.length) return
   isSendingBest.value = true
   try {
-    await send(bestResponders.value.map((dweller) => dweller.id))
+    await send(fitWithinRosterCap(bestResponders.value.map((dweller) => dweller.id)))
   } finally {
     isSendingBest.value = false
   }
 }
 
 const assignResponder = async (dwellerId: string) => {
-  if (isAssigning.value) return
+  if (isAssigning.value || !teamLoaded.value) return
   assigningDwellerId.value = dwellerId
   try {
-    await send([dwellerId])
+    await send(fitWithinRosterCap([dwellerId]))
   } finally {
     assigningDwellerId.value = null
   }
@@ -102,11 +159,32 @@ const assignResponder = async (dwellerId: string) => {
         {{ incident.response.label }}
       </h4>
 
+      <div v-if="teamMembers.length" class="mb-3">
+        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
+          <Icon icon="mdi:shield-account" class="h-4 w-4" />
+          On scene
+        </h4>
+        <ul class="flex flex-col gap-1.5">
+          <li
+            v-for="entry in teamMembers"
+            :key="entry.member.id"
+            class="flex items-center gap-2 rounded border border-theme-primary/20 bg-surface-canvas px-3 py-1.5 text-xs"
+          >
+            <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-terminal-green" />
+            <span class="truncate text-terminal-green">{{ teamMemberLabel(entry) }}</span>
+            <span class="ml-auto flex items-center gap-1 text-terminal-green-dim">
+              <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
+              POW {{ entry.dweller ? getCombatPower(entry.dweller) : '—' }}
+            </span>
+          </li>
+        </ul>
+      </div>
+
       <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
         <UButton
           variant="primary"
           size="sm"
-          :disabled="isAssigning"
+          :disabled="isAssigning || !teamLoaded"
           :loading="isSendingBest"
           @click="sendBestDefenders"
         >
@@ -140,7 +218,7 @@ const assignResponder = async (dwellerId: string) => {
             <UButton
               variant="secondary"
               size="sm"
-              :disabled="isAssigning"
+              :disabled="isAssigning || !teamLoaded"
               :loading="assigningDwellerId === dweller.id"
               @click="assignResponder(dweller.id)"
             >

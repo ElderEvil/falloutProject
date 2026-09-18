@@ -79,7 +79,7 @@ def dweller_data_fixture():
     stats = get_stats_by_rarity(rarity)
 
     max_health = random.randint(50, 1_000)
-    health = random.randint(0, max_health)
+    health = random.randint(1, max_health)
     radiation = random.randint(0, 1_000)
 
     return stats | {

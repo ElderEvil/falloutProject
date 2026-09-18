@@ -21,6 +21,15 @@
     <span class="shrink-0 text-xl font-bold tracking-widest text-danger">{{ elapsedTime }}</span>
 
     <span
+      v-if="primaryIncident && incidentStore.hasLoadedIncidentTeam(primaryIncident.id)"
+      class="badge-info shrink-0 rounded-full border border-danger/40 px-3 py-1 text-xs font-semibold text-danger"
+      :aria-label="responderStatusLabel"
+    >
+      <Icon icon="mdi:account-group" class="mr-1 inline h-3.5 w-3.5" />
+      {{ responderStatusText }}
+    </span>
+
+    <span
       v-if="incidents.length > 1"
       class="shrink-0 rounded-full bg-danger px-3 py-1 text-xs font-bold text-gray-100"
     >
@@ -34,12 +43,15 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Incident } from '../../models/incident'
 import { getIncidentIcon } from '../../models/incident'
+import { useIncidentStore } from '../../stores/incident'
 
 interface Props {
   incidents: Incident[]
 }
 
 const props = defineProps<Props>()
+
+const incidentStore = useIncidentStore()
 
 defineEmits<{
   click: [incidentId: string]
@@ -98,6 +110,22 @@ const elapsedTime = computed(() => {
 
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
+
+// The designated responder roster is a fact about the incident: informational
+// chip, shown only once the team has loaded so a missing fetch never reads as 0.
+const primaryResponderCount = computed(() =>
+  primaryIncident.value ? incidentStore.getIncidentTeam(primaryIncident.value.id).length : 0
+)
+
+const responderStatusText = computed(() =>
+  primaryResponderCount.value > 0 ? `${primaryResponderCount.value} on scene` : 'No responders'
+)
+
+const responderStatusLabel = computed(() =>
+  primaryResponderCount.value > 0
+    ? `${primaryResponderCount.value} responder${primaryResponderCount.value === 1 ? '' : 's'} on scene`
+    : 'No responders on scene'
+)
 </script>
 
 <style scoped>

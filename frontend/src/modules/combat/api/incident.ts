@@ -1,5 +1,10 @@
 import axios from '@/core/plugins/axios'
-import type { Incident, IncidentListResponse, IncidentOverflowResponse } from '../models/incident'
+import type {
+  Incident,
+  IncidentListResponse,
+  IncidentOverflowResponse,
+  IncidentTeamMember,
+} from '../models/incident'
 
 export const incidentApi = {
   /**
@@ -32,6 +37,18 @@ export const incidentApi = {
       { dweller_ids: dwellerIds },
       { headers: { Authorization: `Bearer ${token}` } }
     )
+  },
+
+  /**
+   * Get the designated responder team for an incident
+   */
+  async getIncidentTeam(vaultId: string, incidentId: string, token: string): Promise<IncidentTeamMember[]> {
+    const response = await axios.get(`/api/v1/game/vaults/${vaultId}/incidents/${incidentId}/team`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    return response.data
   },
 
   /**

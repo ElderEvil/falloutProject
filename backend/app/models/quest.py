@@ -11,9 +11,9 @@ from app.models.vault_quest import (
 )
 
 if TYPE_CHECKING:
-    from app.models.quest_party import QuestParty
     from app.models.quest_requirement import QuestRequirement
     from app.models.quest_reward import QuestReward
+    from app.models.team import Team
     from app.models.vault import Vault
 
 
@@ -61,7 +61,7 @@ class Quest(BaseUUIDModel, QuestBase, TimeStampMixin, table=True):
         back_populates="quest",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
-    party_members: list["QuestParty"] = Relationship(
+    teams: list["Team"] = Relationship(
         back_populates="quest",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )

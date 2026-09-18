@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import type { IncidentTeamMember } from '@/modules/combat/models/incident'
 import { audioManager } from '@/core/audio/audioManager'
 import type { User } from '@/modules/auth/types/user'
 
@@ -128,6 +129,67 @@ describe('NavBar', () => {
 
       expect(audioManager.muted).toBe(true)
       expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+    })
+  })
+
+  describe('responder chip', () => {
+    const teamMember: IncidentTeamMember = {
+      id: 'tm-1',
+      team_id: 'team-1',
+      dweller_id: 'dweller-1',
+      slot_number: 1,
+      status: 'assigned',
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    }
+
+    async function mountNavBar() {
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+      })
+      await router.push('/vault/vault-1')
+      await router.isReady()
+
+      return mount(NavBar, {
+        global: {
+          plugins: [router],
+          stubs: { Icon: true, NotificationBell: true },
+        },
+      })
+    }
+
+    it('is hidden while no incident is active', async () => {
+      const wrapper = await mountNavBar()
+
+      expect(wrapper.find('[aria-label*="responders on scene"]').exists()).toBe(false)
+    })
+
+    it('shows the total responder count while incidents are active', async () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-1', 'incident-2']
+      store.incidentTeams.set('incident-1', [teamMember])
+      store.incidentTeams.set('incident-2', [
+        { ...teamMember, id: 'tm-2', dweller_id: 'dweller-2' },
+        { ...teamMember, id: 'tm-3', dweller_id: 'dweller-3' },
+      ])
+
+      const wrapper = await mountNavBar()
+
+      const chip = wrapper.find('[aria-label="3 responders on scene"]')
+      expect(chip.exists()).toBe(true)
+      expect(chip.text()).toContain('3')
+    })
+
+    it('is informational: no glow or hover intent classes', async () => {
+      useIncidentStore().activeIncidentIds = ['incident-1']
+
+      const wrapper = await mountNavBar()
+
+      const chip = wrapper.find('[aria-label="0 responders on scene"]')
+      expect(chip.classes()).toContain('badge-info')
+      expect(chip.classes()).not.toContain('badge-live')
+      expect(chip.classes()).not.toContain('badge-action')
     })
   })
 })

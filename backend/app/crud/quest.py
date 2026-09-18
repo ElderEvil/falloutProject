@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
@@ -18,6 +17,7 @@ from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
+from app.utils.dweller_availability import available_dweller_conditions
 from app.utils.exceptions import ResourceNotFoundException
 from app.utils.quest_duration import effective_quest_duration_minutes
 
@@ -323,13 +323,7 @@ class CRUDQuest(
     async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
         """Adult, unassigned dwellers of a vault eligible for quest assignment."""
         result = await db_session.execute(
-            select(Dweller).where(
-                Dweller.vault_id == vault_id,
-                ~Dweller.is_deleted,
-                Dweller.is_adult,
-                Dweller.age_group.in_(ADULT_AGE_GROUPS),
-                Dweller.status.notin_([DwellerStatusEnum.QUESTING, DwellerStatusEnum.EXPLORING]),
-            )
+            select(Dweller).where(Dweller.vault_id == vault_id, *available_dweller_conditions())
         )
         return list(result.scalars().all())
 

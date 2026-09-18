@@ -37,7 +37,7 @@ def build_weapon(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
 
 
 def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID4 | None = None) -> Outfit:
-    """Build an Outfit from a catalog dict; SPECIAL bonuses stay name-derived."""
+    """Build an Outfit from a catalog dict; SPECIAL bonuses map to their columns."""
     name = str(data["name"])
     gender = data.get("gender")
     declared_radiation_resist = data.get("radiation_resist")
@@ -48,6 +48,13 @@ def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
         gender=GenderEnum(str(gender).lower()) if gender else None,
         fire_resist=float(data.get("fire_resist") or 0.0),
         radiation_resist=float(declared_radiation_resist) if declared_radiation_resist is not None else None,
+        strength=int(data.get("strength", 0)),
+        perception=int(data.get("perception", 0)),
+        endurance=int(data.get("endurance", 0)),
+        charisma=int(data.get("charisma", 0)),
+        intelligence=int(data.get("intelligence", 0)),
+        agility=int(data.get("agility", 0)),
+        luck=int(data.get("luck", 0)),
         value=data.get("value"),
         image_url=get_outfit_image_url(name),
         storage_id=storage_id,

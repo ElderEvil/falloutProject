@@ -8,6 +8,7 @@ import type {
   IncidentListResponse,
   IncidentLootItem,
   IncidentOutcome,
+  IncidentTeamMember,
 } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
@@ -19,6 +20,7 @@ export const useIncidentStore = defineStore('incident', () => {
   const incidents = ref<Map<string, Incident>>(new Map())
   const activeIncidentIds = ref<string[]>([])
   const aftermaths = ref<Map<string, IncidentAftermath>>(new Map())
+  const incidentTeams = ref<Map<string, IncidentTeamMember[]>>(new Map())
   const isPolling = ref(false)
   const sseConnected = ref(false)
   let sseInstance: ReturnType<typeof useSse> | null = null
@@ -183,6 +185,7 @@ export const useIncidentStore = defineStore('incident', () => {
             recordAftermath(vanished, 'unknown', 0, 0)
             void refreshAftermathOverflow(vaultId, id, token)
           }
+          incidentTeams.value.delete(id)
         })
 
       // Check for new incidents (spawn notifications)
@@ -195,6 +198,13 @@ export const useIncidentStore = defineStore('incident', () => {
           }
         })
       }
+
+      // Fetch the designated responder team for newly spawned incidents and for
+      // active incidents whose roster never loaded — a transient failure must
+      // not leave the roster missing forever. A cached entry (even an empty
+      // roster) is a successful load and is not refetched on every poll.
+      const teamNeedsLoad = newIds.filter((id) => !incidentTeams.value.has(id))
+      await Promise.all(teamNeedsLoad.map((id) => fetchIncidentTeam(vaultId, id, token)))
 
       // Update store
       activeIncidentIds.value = newIds
@@ -216,6 +226,26 @@ export const useIncidentStore = defineStore('incident', () => {
     }
   }
 
+  const getIncidentTeam = (incidentId: string): IncidentTeamMember[] => incidentTeams.value.get(incidentId) ?? []
+
+  const hasLoadedIncidentTeam = (incidentId: string): boolean => incidentTeams.value.has(incidentId)
+
+  const totalResponderCount = computed(() =>
+    activeIncidentIds.value.reduce(
+      (total, id) => total + (incidentTeams.value.get(id)?.length ?? 0),
+      0
+    )
+  )
+
+  async function fetchIncidentTeam(vaultId: string, incidentId: string, token: string): Promise<void> {
+    try {
+      const team = await incidentApi.getIncidentTeam(vaultId, incidentId, token)
+      incidentTeams.value.set(incidentId, team)
+    } catch (error) {
+      handleStoreError(error, 'Failed to load incident team')
+    }
+  }
+
   async function assignResponders(
     vaultId: string,
     incidentId: string,
@@ -225,6 +255,7 @@ export const useIncidentStore = defineStore('incident', () => {
     try {
       await incidentApi.assignResponders(vaultId, incidentId, dwellerIds, token)
       await fetchIncidents(vaultId, token)
+      await fetchIncidentTeam(vaultId, incidentId, token)
       showSuccess('Responders assigned. They will fight on the next vault round.')
     } catch (err) {
       handleStoreError(err, 'Failed to assign incident responders')
@@ -278,6 +309,7 @@ export const useIncidentStore = defineStore('incident', () => {
               announcedResolutions.add(resolvedId)
               activeIncidentIds.value = activeIncidentIds.value.filter((id) => id !== resolvedId)
               incidents.value.delete(resolvedId)
+              incidentTeams.value.delete(resolvedId)
             }
             if (!isFirstNotice) break
             const capsEarned = typeof data.caps_earned === 'number' ? data.caps_earned : 0
@@ -377,6 +409,7 @@ export const useIncidentStore = defineStore('incident', () => {
     incidents.value.clear()
     activeIncidentIds.value = []
     aftermaths.value.clear()
+    incidentTeams.value.clear()
   }
 
   function getIncidentById(id: string): Incident | undefined {
@@ -417,16 +450,21 @@ export const useIncidentStore = defineStore('incident', () => {
     incidents,
     activeIncidentIds,
     aftermaths,
+    incidentTeams,
     isPolling,
 
     // Computed
     activeIncidents,
     hasActiveIncidents,
     incidentCountByVault,
+    totalResponderCount,
 
     // Actions
     fetchIncidents,
     assignResponders,
+    fetchIncidentTeam,
+    getIncidentTeam,
+    hasLoadedIncidentTeam,
     startPolling,
     stopPolling,
     clearIncidents,

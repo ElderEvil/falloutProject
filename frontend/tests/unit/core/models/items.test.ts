@@ -79,8 +79,8 @@ describe('stat rows', () => {
 
   it('builds outfit stat rows with SPECIAL bonuses, gender, weight and durability', () => {
     const stats = getOutfitStats({
-      strength_bonus: 2,
-      agility_bonus: 1,
+      strength: 2,
+      agility: 1,
       gender: 'male',
       weight: 5,
       durability: 40,
@@ -96,7 +96,7 @@ describe('stat rows', () => {
   })
 
   it('collects only non-zero outfit bonuses', () => {
-    expect(getOutfitBonuses({ strength_bonus: 0, luck_bonus: 3 })).toEqual([{ stat: 'L', bonus: 3 }])
+    expect(getOutfitBonuses({ strength: 0, luck: 3 })).toEqual([{ stat: 'L', bonus: 3 }])
   })
 
   it('resolves outfit radiation resist by type, with name overrides winning', () => {
@@ -114,7 +114,7 @@ describe('stat rows', () => {
     const armored = getOutfitStats({ outfit_type: 'power_armor', name: 'T-51d power armor' })
     expect(armored).toContainEqual({ label: 'RAD resist', value: '75%', icon: 'mdi:radiation' })
 
-    const plain = getOutfitStats({ strength_bonus: 1 }).map((s) => s.label)
+    const plain = getOutfitStats({ strength: 1 }).map((s) => s.label)
     expect(plain).not.toContain('RAD resist')
   })
 
@@ -134,7 +134,7 @@ describe('stat rows', () => {
     const rated = getOutfitStats({ fire_resist: 0.5 })
     expect(rated).toContainEqual({ label: 'Fire resist', value: '50%', icon: 'mdi:fire' })
 
-    const plain = getOutfitStats({ fire_resist: 0, strength_bonus: 1 }).map((s) => s.label)
+    const plain = getOutfitStats({ fire_resist: 0, strength: 1 }).map((s) => s.label)
     expect(plain).not.toContain('Fire resist')
   })
 })

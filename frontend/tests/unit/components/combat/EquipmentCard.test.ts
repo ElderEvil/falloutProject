@@ -28,4 +28,24 @@ describe('EquipmentCard', () => {
     await equipped.get('button').trigger('click')
     expect(equipped.emitted('unequip')).toHaveLength(1)
   })
+
+  it('constrains long outfit names so they truncate instead of overflowing the card', () => {
+    const longNames = ['Firefighter suit, rad helmet', "Confessor Cromwell's rags", 'X-01 Mk IV power armor']
+
+    for (const name of longNames) {
+      const wrapper = mount(EquipmentCard, {
+        props: {
+          item: { id: 'outfit-1', name, rarity: 'rare', outfit_type: 'rare_outfit' },
+          type: 'outfit',
+        },
+        global: { stubs: { Icon: true } },
+      })
+
+      const nameContainer = wrapper.find('h4').element.parentElement!
+      expect(nameContainer.classList).toContain('min-w-0')
+      expect(wrapper.find('h4').classes()).toContain('truncate')
+      expect(wrapper.find('p').classes()).toContain('truncate')
+      expect(wrapper.text()).toContain(name)
+    }
+  })
 })

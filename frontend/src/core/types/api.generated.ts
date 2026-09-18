@@ -1775,6 +1775,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Team
+         * @description Get the designated responder team for an incident.
+         */
+        get: operations["get_incident_team_api_v1_game_vaults__vault_id__incidents__incident_id__team_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/overflow/take": {
         parameters: {
             query?: never;
@@ -7831,6 +7851,26 @@ export interface components {
         };
         /** OutfitCreate */
         OutfitCreate: {
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            outfit_type: components["schemas"]["OutfitTypeEnum"];
+            gender?: components["schemas"]["GenderEnum"] | null;
+            /**
+             * Fire Resist
+             * @description Share of fire damage the outfit removes
+             * @default 0
+             */
+            fire_resist: number;
+            /**
+             * Radiation Resist
+             * @description Share of external radiation removed; None falls back to the outfit type/name table
+             */
+            radiation_resist?: number | null;
             /**
              * Strength
              * @default 0
@@ -7866,26 +7906,6 @@ export interface components {
              * @default 0
              */
             luck: number;
-            /** Name */
-            name: string;
-            rarity: components["schemas"]["RarityEnum"];
-            /** Value */
-            value?: number | null;
-            /** Image Url */
-            image_url?: string | null;
-            outfit_type: components["schemas"]["OutfitTypeEnum"];
-            gender?: components["schemas"]["GenderEnum"] | null;
-            /**
-             * Fire Resist
-             * @description Share of fire damage the outfit removes
-             * @default 0
-             */
-            fire_resist: number;
-            /**
-             * Radiation Resist
-             * @description Share of external radiation removed; None falls back to the outfit type/name table
-             */
-            radiation_resist?: number | null;
             /** Storage Id */
             storage_id?: string | null;
         };
@@ -7911,6 +7931,41 @@ export interface components {
              * @description Share of external radiation removed; None falls back to the outfit type/name table
              */
             radiation_resist?: number | null;
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
             /**
              * Id
              * Format: uuid4
@@ -7957,6 +8012,20 @@ export interface components {
              * @description Share of external radiation removed; None falls back to the outfit type/name table
              */
             radiation_resist?: number | null;
+            /** Strength */
+            strength?: number | null;
+            /** Perception */
+            perception?: number | null;
+            /** Endurance */
+            endurance?: number | null;
+            /** Charisma */
+            charisma?: number | null;
+            /** Intelligence */
+            intelligence?: number | null;
+            /** Agility */
+            agility?: number | null;
+            /** Luck */
+            luck?: number | null;
             /** Dweller Id */
             dweller_id?: string | null;
             /** Storage Id */
@@ -9017,6 +9086,35 @@ export interface components {
          * @enum {string}
          */
         SynthTypeEnum: "gen_1" | "gen_2" | "gen_3";
+        /**
+         * TeamMemberRead
+         * @description A team member as returned by team services.
+         */
+        TeamMemberRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Team Id
+             * Format: uuid4
+             */
+            team_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number?: number | null;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /**
          * TestEmailRequest
          * @description Payload for POST /email/test — send a diagnostic email via the configured SMTP server.
@@ -12535,6 +12633,38 @@ export interface operations {
             };
         };
     };
+    get_incident_team_api_v1_game_vaults__vault_id__incidents__incident_id__team_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     take_incident_overflow_item_api_v1_game_vaults__vault_id__incidents__incident_id__overflow_take_post: {
         parameters: {
             query?: never;
@@ -14067,7 +14197,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["QuestPartyMemberRead"][];
                 };
             };
             /** @description Validation Error */

@@ -61,11 +61,11 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
         @error="onImageError"
       />
       <Icon v-else :icon="itemIcon" class="h-16 w-16 text-theme-primary" />
-      <div class="flex-1">
-        <h4 class="text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
+      <div class="min-w-0 flex-1">
+        <h4 class="truncate text-lg font-bold text-shadow-[0_0_4px_currentColor]" :class="rarityTextClass">
           {{ item.name }}
         </h4>
-        <p class="text-xs capitalize text-theme-primary opacity-70">
+        <p class="truncate text-xs capitalize text-theme-primary opacity-70">
           {{ itemTypeLabel }} • {{ item.rarity }}
         </p>
       </div>

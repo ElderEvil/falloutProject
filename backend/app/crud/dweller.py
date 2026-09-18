@@ -95,9 +95,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[Dweller]:
-        """Override to eager load weapon (needed for weapon_type on DwellerReadLess)."""
+        """Override to eager load weapon and outfit (needed for weapon_type and combat_power)."""
         query = (
-            select(self.model).offset(skip).limit(limit).order_by(self.model.id).options(selectinload(Dweller.weapon))
+            select(self.model)
+            .offset(skip)
+            .limit(limit)
+            .order_by(self.model.id)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
         )
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
@@ -162,7 +166,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             else:
                 query = query.order_by(sort_column.desc())
 
-        query = query.offset(skip).limit(limit).options(selectinload(Dweller.weapon))
+        query = query.offset(skip).limit(limit).options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
         response = await db_session.execute(query)
         return response.scalars().all()
 
@@ -444,9 +448,11 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_arena_fighters(
         self, db_session: AsyncSession, room_id: UUID4, *, ids: Sequence[UUID4] | None = None
     ) -> Sequence[Dweller]:
-        """Adult, alive dwellers assigned to a room (arena fighters), weapon eager-loaded."""
+        """Adult, alive dwellers assigned to a room (arena fighters), weapon/outfit eager-loaded."""
         query = (
-            select(self.model).options(selectinload(self.model.weapon)).where(*self._arena_fighter_conditions(room_id))
+            select(self.model)
+            .options(selectinload(self.model.weapon), selectinload(self.model.outfit))
+            .where(*self._arena_fighter_conditions(room_id))
         )
         if ids is not None:
             query = query.where(self.model.id.in_(ids))
@@ -737,7 +743,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             .where(self.model.vault_id == vault_id)
             .where(self.model.is_deleted)
             .order_by(self.model.deleted_at.desc())
-            .options(selectinload(Dweller.weapon))
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
             .offset(skip)
             .limit(limit)
         )

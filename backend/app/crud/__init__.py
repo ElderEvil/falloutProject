@@ -17,6 +17,7 @@ from .objective import objective_crud
 from .pregnancy import pregnancy
 from .quest import quest_crud
 from .room import room
+from .team import team_crud
 from .user import user
 from .vault import vault
 from .world_location import world_location

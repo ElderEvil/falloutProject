@@ -1,23 +1,13 @@
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4
 
 from app.models.outfit import OutfitBase
 from app.schemas.item import ItemUpdate
 from app.utils.partial import optional
 
 
-class SPECIALOutfitCreate(BaseModel):
-    strength: int = Field(default=0, ge=0, le=7)
-    perception: int = Field(default=0, ge=0, le=7)
-    endurance: int = Field(default=0, ge=0, le=7)
-    charisma: int = Field(default=0, ge=0, le=7)
-    intelligence: int = Field(default=0, ge=0, le=7)
-    agility: int = Field(default=0, ge=0, le=7)
-    luck: int = Field(default=0, ge=0, le=7)
-
-
-class OutfitCreate(OutfitBase, SPECIALOutfitCreate):
+class OutfitCreate(OutfitBase):
     # Optional fields - can be omitted, but if provided must be valid UUID
     storage_id: UUID4 | None = None
 

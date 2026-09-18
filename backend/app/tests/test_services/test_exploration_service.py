@@ -439,6 +439,9 @@ async def test_send_dweller_cancels_active_training(
         ),
     )
     dweller.status = DwellerStatusEnum.IDLE
+    # The shared dweller fixture rolls random stats and can land on max strength,
+    # which start_training rejects; pin a trainable value.
+    dweller.strength = 5
     async_session.add(dweller)
     await async_session.commit()
     training = await training_service.start_training(async_session, dweller.id, room.id)

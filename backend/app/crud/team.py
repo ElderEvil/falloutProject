@@ -3,7 +3,7 @@
 import logging
 
 from pydantic import UUID4
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import InstrumentedAttribute, selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,22 +14,35 @@ logger = logging.getLogger(__name__)
 
 
 class CRUDTeam(CRUDBase[Team, None, None]):
-    async def get_quest_team_row(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team | None:
-        """The vault's team row for a quest, members and dwellers eager-loaded, or None."""
-        result = await db_session.execute(
+    async def _team_row(
+        self,
+        db_session: AsyncSession,
+        purpose: InstrumentedAttribute,
+        value: UUID4,
+        vault_id: UUID4,
+        *,
+        refresh: bool = False,
+    ) -> Team | None:
+        """The vault's team row for one purpose, members and dwellers eager-loaded, or None.
+
+        ``refresh`` forces a read even when the row is already in the session's identity
+        map. Incident readers need it so a reassignment sees the committed roster; quest
+        readers must not use it, because a caller may hold uncommitted dweller changes
+        (e.g. the state-objective backfill) that a refresh would discard.
+        """
+        statement = (
             select(Team)
-            .where(Team.vault_id == vault_id, Team.quest_id == quest_id)
+            .where(Team.vault_id == vault_id, purpose == value)
             .options(selectinload(Team.members).selectinload(TeamMember.dweller))
         )
+        if refresh:
+            statement = statement.execution_options(populate_existing=True)
+        result = await db_session.execute(statement)
         return result.scalars().one_or_none()
 
-    async def get_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> list[TeamMember]:
-        """All members of the vault's team for a quest, dweller eager-loaded, slot-ordered.
-
-        Members with a missing slot number sort first, then ascending slot number,
-        so the quest party API/frontend keeps slot order.
-        """
-        team = await self.get_quest_team_row(db_session, quest_id, vault_id)
+    @staticmethod
+    def _members(team: Team | None) -> list[TeamMember]:
+        """A team's members in slot order (missing slots first), or empty when there is no team."""
         if team is None:
             return []
         return sorted(team.members, key=lambda member: (member.slot_number is not None, member.slot_number))
@@ -41,12 +54,21 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         )
         return result.scalars().one_or_none()
 
+    async def get_quest_team_row(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team | None:
+        """The vault's team row for a quest, members and dwellers eager-loaded, or None."""
+        return await self._team_row(db_session, Team.quest_id, quest_id, vault_id)
+
+    async def get_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> list[TeamMember]:
+        """All members of the vault's team for a quest, dweller eager-loaded, slot-ordered."""
+        return self._members(await self.get_quest_team_row(db_session, quest_id, vault_id))
+
     async def get_or_create_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team:
         """The vault's quest team, created on first assignment (flushed so the id is usable)."""
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)
         if team is not None:
             return team
         team = Team(vault_id=vault_id, quest_id=quest_id)
+        team.members = []
         db_session.add(team)
         await db_session.flush()
         return team
@@ -59,20 +81,13 @@ class CRUDTeam(CRUDBase[Team, None, None]):
 
     async def get_incident_team_row(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Team | None:
         """The vault's team row for an incident, members and dwellers eager-loaded, or None."""
-        result = await db_session.execute(
-            select(Team)
-            .where(Team.vault_id == vault_id, Team.incident_id == incident_id)
-            .options(selectinload(Team.members).selectinload(TeamMember.dweller))
-            .execution_options(populate_existing=True)
-        )
-        return result.scalars().one_or_none()
+        return await self._team_row(db_session, Team.incident_id, incident_id, vault_id, refresh=True)
 
     async def get_incident_team(
         self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4
     ) -> list[TeamMember]:
         """All members of the vault's team for an incident, dweller eager-loaded."""
-        team = await self.get_incident_team_row(db_session, incident_id, vault_id)
-        return list(team.members) if team is not None else []
+        return self._members(await self.get_incident_team_row(db_session, incident_id, vault_id))
 
     async def get_or_create_incident_team(self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4) -> Team:
         """The vault's incident team, created on first assignment (flushed so the id is usable)."""

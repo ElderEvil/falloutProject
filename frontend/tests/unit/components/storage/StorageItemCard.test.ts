@@ -93,7 +93,7 @@ describe('StorageItemCard', () => {
           name: 'Lab Coat',
           rarity: 'rare',
           outfit_type: 'rare_outfit',
-          intelligence_bonus: 2,
+          intelligence: 2,
           gender: 'female',
         },
         itemType: 'outfit',

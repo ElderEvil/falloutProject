@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.120.0 (2026-09-18)
+
+### Features
+
+* add ELDER age group for older dwellers 0ea9bd3
+* ask the player to decide when a dweller wants out 0c97936
+* express dweller identity, age, mood and family in chat 8ada8dd
+* let dwellers who ask to leave the vault go 29a28d0
+* surface exit requests in chat, the API and the tick 8e929a9
+
+### Bug Fixes
+
+* keep Gen 3 synths passing as human ca45786
+* narrow optional media-path types in dweller_ai c41e425
+
+### Documentation
+
+* record the dweller-violence idea and its reuse map e81c6c4
+* record the transition cleanup plan 4abc916
+
 ## 2.119.1 (2026-09-17)
 
 ### Bug Fixes

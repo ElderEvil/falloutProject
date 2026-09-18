@@ -100,7 +100,7 @@ class DeathService:
                 user_id=user_id,
                 vault_id=dweller.vault_id,
                 dweller_id=dweller.id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                dweller_name=dweller.display_name,
                 cause=cause.value,
                 meta_data={"cause": cause.value, "vault_id": str(dweller.vault_id)},
                 commit=commit,
@@ -223,7 +223,7 @@ class DeathService:
 
         return RevivalCostResponse(
             dweller_id=dweller.id,
-            dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+            dweller_name=dweller.display_name,
             level=dweller.level,
             revival_cost=revival_cost,
             days_until_permanent=self.get_days_until_permanent(dweller),
@@ -379,7 +379,7 @@ class DeathService:
 
     def _generate_epitaph(self, dweller: Dweller, cause: DeathCauseEnum) -> str:
         """Generate a default epitaph based on death cause."""
-        name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
+        name = dweller.display_name
 
         epitaphs = {
             DeathCauseEnum.HEALTH: f"{name} succumbed to their wounds. Rest in peace.",

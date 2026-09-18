@@ -81,10 +81,16 @@ async def test_request_exit_rejects_children(async_session: AsyncSession, vault:
         await exit_request_service.request_exit(async_session, child.id)
 
 
+@pytest.mark.parametrize(
+    "status",
+    [DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.FIGHTING],
+)
 @pytest.mark.asyncio
-async def test_request_exit_rejects_a_dweller_who_is_away(async_session: AsyncSession, vault: Vault) -> None:
+async def test_request_exit_rejects_a_dweller_who_is_away(
+    async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum
+) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    await crud.dweller.update(async_session, dwellers[0].id, {"status": DwellerStatusEnum.EXPLORING})
+    await crud.dweller.update(async_session, dwellers[0].id, {"status": status})
 
     with pytest.raises(VaultOperationException, match="away from the vault"):
         await exit_request_service.request_exit(async_session, dwellers[0].id)
@@ -118,6 +124,29 @@ async def test_refuse_exit_without_a_request_is_rejected(async_session: AsyncSes
 
     with pytest.raises(VaultOperationException, match="has not asked"):
         await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
+
+
+@pytest.mark.asyncio
+async def test_refuse_exit_from_another_vault_is_rejected(async_session: AsyncSession, vault: Vault) -> None:
+    """A vault cannot answer a request that belongs to a different vault."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    other_vault = Vault(id=uuid4(), number=999)
+
+    with pytest.raises(VaultOperationException, match="does not belong"):
+        await exit_request_service.refuse_exit(async_session, other_vault, dwellers[0].id)
+
+
+@pytest.mark.asyncio
+async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSession, vault: Vault) -> None:
+    """A refusal cannot push happiness below the floor of 10."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    await crud.dweller.update(async_session, dwellers[0].id, {"happiness": 10})
+
+    refused = await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
+
+    assert refused.happiness == 10
 
 
 @pytest.mark.asyncio
@@ -160,6 +189,28 @@ async def test_grant_exit_respects_the_population_floor(async_session: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_grant_exit_rejects_a_dead_dweller(async_session: AsyncSession, vault: Vault) -> None:
+    """A dead dweller cannot be exiled — the pending selector must reject them."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    await crud.dweller.update(async_session, dwellers[0].id, {"is_dead": True, "health": 0})
+
+    with pytest.raises(VaultOperationException, match="already dead"):
+        await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
+
+
+@pytest.mark.asyncio
+async def test_grant_exit_rejects_a_deleted_dweller(async_session: AsyncSession, vault: Vault) -> None:
+    """A soft-deleted dweller cannot be exiled — the pending selector must reject them."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    await exit_request_service.request_exit(async_session, dwellers[0].id)
+    await crud.dweller.delete(async_session, dwellers[0].id, soft=True)
+
+    with pytest.raises(VaultOperationException, match="no longer in this vault"):
+        await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
+
+
+@pytest.mark.asyncio
 async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
@@ -169,6 +220,21 @@ async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Va
     assert [d.id for d in asked] == [sad.id]
     await async_session.refresh(sad)
     assert sad.exit_requested_at is not None
+
+
+@pytest.mark.asyncio
+async def test_despair_raises_no_ask_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
+    """An ask the vault could not grant would only dangle, so it is not raised."""
+    dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
+    for dweller in dwellers:
+        await crud.dweller.update(async_session, dweller.id, {"happiness": game_config.exit_request.despair_happiness})
+
+    asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    assert asked == []
+    for dweller in dwellers:
+        await async_session.refresh(dweller)
+        assert dweller.exit_requested_at is None
 
 
 @pytest.mark.asyncio
@@ -184,6 +250,35 @@ async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession
     await async_session.refresh(sad)
     assert sad.exit_requested_at is None
     assert all(d.exit_requested_at is None for d in dwellers)
+
+
+@pytest.mark.asyncio
+async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """A dweller at exactly the despair threshold is still despairing — the ask stands."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    await exit_request_service.request_exit(async_session, sad.id)
+
+    await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    await async_session.refresh(sad)
+    assert sad.exit_requested_at is not None
+
+
+@pytest.mark.asyncio
+async def test_recovery_does_not_withdraw_a_dead_dwellers_request(async_session: AsyncSession, vault: Vault) -> None:
+    """The withdraw selector mirrors the pending selector: dead dwellers are left alone."""
+    dwellers = await _with_room_for_one_exit(async_session, vault)
+    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    await exit_request_service.request_exit(async_session, sad.id)
+    await crud.dweller.update(async_session, sad.id, {"is_dead": True, "health": 0, "happiness": 90})
+
+    await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    await async_session.refresh(sad)
+    assert sad.exit_requested_at is not None
 
 
 @pytest.mark.asyncio

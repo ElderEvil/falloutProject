@@ -1224,7 +1224,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vaults/{vault_id}/exit-requests": {
+    "/api/v1/dwellers/vault/{vault_id}/exit-requests": {
         parameters: {
             query?: never;
             header?: never;
@@ -1234,8 +1234,11 @@ export interface paths {
         /**
          * List Exit Requests
          * @description List dwellers waiting on an answer to their request to leave.
+         *
+         *     Returns:
+         *         list[ExitRequestRead]: Dwellers with a standing exit request.
          */
-        get: operations["list_exit_requests_api_v1_vaults__vault_id__exit_requests_get"];
+        get: operations["list_exit_requests_api_v1_dwellers_vault__vault_id__exit_requests_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1244,7 +1247,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vaults/{vault_id}/exit-requests/{dweller_id}/grant": {
+    "/api/v1/dwellers/{dweller_id}/grant-exit": {
         parameters: {
             query?: never;
             header?: never;
@@ -1254,17 +1257,20 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Grant Exit
+         * Grant Exit Request
          * @description Let the dweller go: permanent death by exile, with no way back.
+         *
+         *     Returns:
+         *         ExitDecisionResponse: The exile outcome, including the epitaph.
          */
-        post: operations["grant_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__grant_post"];
+        post: operations["grant_exit_request_api_v1_dwellers__dweller_id__grant_exit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vaults/{vault_id}/exit-requests/{dweller_id}/refuse": {
+    "/api/v1/dwellers/{dweller_id}/refuse-exit": {
         parameters: {
             query?: never;
             header?: never;
@@ -1274,10 +1280,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Refuse Exit
+         * Refuse Exit Request
          * @description Refuse the ask: the dweller takes a happiness hit and the request stands.
+         *
+         *     Returns:
+         *         ExitDecisionResponse: The refusal outcome and updated happiness.
          */
-        post: operations["refuse_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__refuse_post"];
+        post: operations["refuse_exit_request_api_v1_dwellers__dweller_id__refuse_exit_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6579,14 +6588,6 @@ export interface components {
             epitaph?: string | null;
         };
         /**
-         * ExitRequestListResponse
-         * @description Every dweller currently waiting on an answer.
-         */
-        ExitRequestListResponse: {
-            /** Requests */
-            requests?: components["schemas"]["ExitRequestRead"][];
-        };
-        /**
          * ExitRequestRead
          * @description A dweller waiting on the vault's answer.
          */
@@ -11655,7 +11656,7 @@ export interface operations {
             };
         };
     };
-    list_exit_requests_api_v1_vaults__vault_id__exit_requests_get: {
+    list_exit_requests_api_v1_dwellers_vault__vault_id__exit_requests_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -11672,7 +11673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ExitRequestListResponse"];
+                    "application/json": components["schemas"]["ExitRequestRead"][];
                 };
             };
             /** @description Validation Error */
@@ -11686,13 +11687,12 @@ export interface operations {
             };
         };
     };
-    grant_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__grant_post: {
+    grant_exit_request_api_v1_dwellers__dweller_id__grant_exit_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 dweller_id: string;
-                vault_id: string;
             };
             cookie?: never;
         };
@@ -11718,13 +11718,12 @@ export interface operations {
             };
         };
     };
-    refuse_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__refuse_post: {
+    refuse_exit_request_api_v1_dwellers__dweller_id__refuse_exit_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 dweller_id: string;
-                vault_id: string;
             };
             cookie?: never;
         };

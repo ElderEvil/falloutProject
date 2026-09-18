@@ -45,6 +45,11 @@ class DwellerBaseWithoutStats(SQLModel):
         """Adult by both flags — children and teens can't take combat assignments."""
         return self.is_adult and self.age_group in ADULT_AGE_GROUPS
 
+    @property
+    def display_name(self) -> str:
+        """Full display name, tolerating a missing last name."""
+        return f"{self.first_name} {self.last_name or ''}".strip()
+
     # Backstory and appearance
     bio: str | None = Field(default=None, max_length=BIO_MAX_CHARS)
     bio_entries: list[dict[str, Any]] = Field(default_factory=list, sa_column=sa.Column(JSONB, nullable=False))

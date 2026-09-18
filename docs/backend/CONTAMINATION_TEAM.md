@@ -1,9 +1,10 @@
 # Contamination Team — Fire & Radiation Responders
 
-> Status: designed — formation and participation settled; dispatch deliberately deferred to the Jev
-> classifier (`docs/backend/JEV_CLASSIFIER.md`). Roadmap stub: `docs/ROADMAP.md`
-> ("Contamination Team"). Inspiration: UA "DUDES OF HAZMAT – Toxic Waste Chase" (music video) —
-> hazmat-suit energy, sirens, toxic chase vibes.
+> Status: **foundation shipped** — team forming, the participation ledger, outfit hazard resistance, and the
+> two fixes this depended on are in. The team is a record, not yet a mechanic: membership has no gameplay
+> effect and a join is not yet surfaced. Next steps tracked in `docs/ROADMAP.md`.
+> Roadmap stub: `docs/ROADMAP.md` ("Contamination Team"). Inspiration: UA "DUDES OF HAZMAT – Toxic Waste
+> Chase" (music video) — hazmat-suit energy, sirens, toxic chase vibes.
 
 ## Idea
 
@@ -75,19 +76,22 @@ whole thing lands as one PR.
 
 ## Slices
 
-Everything below lands in a single pull request.
+Slices 1, 2 and 4 **shipped** together; slice 3 is the first follow-up.
 
-1. **Participation tracking + team forming** — record per-dweller, per-incident-type participation
-   where responders are resolved, derive qualification at three, keep a roster of three plus a bench,
-   and write the bio milestones. Also extract the shared responder-eligibility policy (both
-   `incident_service.assign_responders` and `crud/quest_party.assign_party` carry a TODO for it).
-2. **Make fires real** — wire `get_spawn_weights()` into the runtime spawner so the taxonomy is
-   actually exercised. Small, and arguably a separate bug fix; the fire team is dead content without it.
-3. **The ask** — deliver the dweller's request: extend `ActionSuggestion` with a team-invite variant
-   (Confirm/Dismiss reuses as accept/decline) and pair it with a `notification_service` entry so it
-   reaches the bell, under the modal/toast red line (`docs/backend/GAME_MECHANICS.md`, AGENTS.md rule 9).
-4. **Resistance & outfits** — what "fire-resistant" changes numerically, how rad-suit protection
-   stacks, hooked into `incident_math.py` / `utils/combat.py`, plus the catalog entries.
+1. ~~**Participation tracking + team forming**~~ — **shipped**: the ledger credits each defender once per
+   incident inside the round's commit; qualification at three; three active places plus a bench; a fallen
+   member's place passes to the senior bench member; milestones in the bio.
+2. ~~**Make fires real**~~ — **shipped**: the runtime spawner rolls from `get_spawn_weights()`, so `FIRE`
+   actually occurs. Before this the taxonomy was half-dead content.
+3. **The ask** — *next*: the dweller raises their own bench promotion through chat, extending
+   `ActionSuggestion` with a variant (Confirm/Dismiss reuse as accept/decline), paired with a
+   `notification_service` entry so it reaches the bell under the modal/toast red line. Semantics still
+   open: announcement, consent gate, or teammate suggestion.
+4. ~~**Resistance & outfits**~~ — **shipped**: `fire_resist` / `radiation_resist` columns, fire resistance
+   applied beside `incident_response_pct`, a declared radiation share overriding the legacy type/name
+   table, plus the firefighter suit, the hazmat suit, and the legendary both-hazard outfit. Shown on item
+   cards. This also fixed equip never invalidating the wearer's cached relationship, which had silently
+   zeroed *all* outfit radiation protection.
 
 ## Reuse map (reach for it first)
 

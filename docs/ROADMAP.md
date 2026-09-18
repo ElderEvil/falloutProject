@@ -210,6 +210,33 @@ but the diversity targets below are still open.
 breeding service. **Blocker:** none hard — seeding tables and roll weights are self-contained; coordinate with
 the identity-metadata work so race is read from one source of truth.
 
+### Outfit SPECIAL Bonuses Are Inert — CRITICAL (Target: next branch)
+
+**Outfits do not grant their SPECIAL bonuses.** The catalog declares `strength`…`luck` on every outfit and
+`OutfitCreate` validates them, but `utils/item_factory.build_outfit` drops them, the `Outfit` model has no
+such columns, and nothing applies them. The primary reason a player equips an outfit currently does nothing,
+while outfit *resistance* (shipped with the contamination team) now works — so gear is inconsistently wired.
+
+**Agreed contract:** a 10 S dweller wearing a +5 S outfit must count as **15 S** in combat **and** production.
+
+**Where the fix lands — one choke point, not two.** `options/identity_modifiers.effective_stat` already feeds
+both (`utils/combat.py:14` for combat power, `services/resource_manager.py:176` for production rate), and its
+docstring already establishes the convention: *derived on read and never persisted — the stored SPECIAL stays
+the trained value.* So outfit bonuses must be **effective-only**, folded into that one function, never written
+into the stored stat; unequipping then reverts cleanly.
+
+Steps:
+
+- [ ] Add the seven SPECIAL columns to `Outfit`, with a migration; map them in `build_outfit` from the catalog.
+- [ ] Fold the equipped outfit's bonus into `effective_stat`, reading `entity.__dict__.get("outfit")` (the
+  no-lazy-IO pattern used by `radiation_service` and `apply_damage`) — **audit every caller for outfit
+  eager-loading first**, because a path that lazy-loads would raise `MissingGreenlet` inside a tick.
+- [ ] Decide and pin the cap: the stored field is validated 1–10, but effective stats may exceed it (the
+  agreed contract says 15). Lock this with a test so it is not "corrected" later.
+- [ ] Reconcile the wire shape: the frontend already renders `+S`…`+L` via `getOutfitBonuses` from
+  `strength_bonus`…`luck_bonus`, so confirm which fields the API actually populates and make the card show
+  real numbers.
+
 ### Radiation & Medical Reliability
 
 The irradiated-water overhaul shipped: drought radiation accrues at 1% of max health per tick after a grace period,
@@ -227,32 +254,46 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
 
-### Contamination Team — fire & radiation responders (building, Target: TBD)
+### Contamination Team — fire & radiation responders (SHIPPED — foundation, Target: TBD for follow-ups)
 
 A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
 kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
 Inspiration: UA "DUDES OF HAZMAT - Toxic Waste Chase" (music video) — hazmat-suit energy, sirens, toxic
 chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
 
-Built so far (branch `feat/contamination-team`):
+**Shipped** (PR to `master`):
 
 - **Team forming** — a dweller earns a place by fighting three incidents of a contamination type (fire,
   radiation); the first three hold the team, later qualifiers wait on a bench, and each milestone lands in
-  `bio_entries`. Membership records identity, never position.
+  `bio_entries`. Membership records identity, never position, so a future movement system consumes the
+  roster instead of invalidating it. A fallen member frees their place to the senior bench member.
 - **Participation ledger** — `incident_participant` credits each defender once per incident, inside the
-  round's single commit.
+  round's single commit, so a long incident cannot count twice and a failed round leaves no trace.
 - **Outfit hazard resistance** — `fire_resist` / `radiation_resist` columns, fire resistance applied in
-  `apply_damage`, a declared radiation share overriding the legacy type/name table. Fixes equip never
-  invalidating the wearer's cached relationship, which had silently zeroed all outfit radiation protection.
-- **Spawner** — runtime spawns now roll from `game_config.incident.get_spawn_weights()`; they previously
-  hardcoded radscorpions, so `FIRE` (fully implemented, with its own containment math) never spawned.
+  `apply_damage`, a declared radiation share overriding the legacy type/name table, shown on item cards.
+  Ships the **firefighter suit**, the **hazmat suit** the resist table had always anticipated, and the
+  legendary both-hazard responder outfit.
+- **Two fixes it depended on** — equip now invalidates the wearer's cached relationship (it had silently
+  zeroed *all* outfit radiation protection, including power armor); runtime spawns roll from
+  `game_config.incident.get_spawn_weights()` instead of hardcoding radscorpions, so `FIRE` — fully
+  implemented with its own containment math — actually spawns.
 
-Still open:
+**Known limitation — the team is a record, not yet a mechanic.** Membership currently has no gameplay
+effect and nothing surfaces a join beyond the bio line. That last point is a gap against the progression
+visibility red line (`docs/backend/GAME_MECHANICS.md`), and it is the first follow-up below.
 
-- **Dispatch** — deferred by design to the Jev classifier; the team is currently a designation and a record.
-- **The ask** — the dweller's chat request when a bench place opens (needs a name/scope decision).
-- **Real-time movement** — membership must stay an identity so a future movement system consumes the roster
-  instead of invalidating it; movement would make response latency and a team muster point meaningful.
+**Next, in rough order:**
+
+1. **Surface the join** — a team place is a progression event, so it needs a toast/modal **plus** a bell
+   entry. Small, and it closes the red-line gap.
+2. **The ask** — the dweller raises their own bench promotion through chat when a place opens ("subtle but
+   present", reusing the `ActionSuggestion` accept/dismiss card). Semantics still open: announcement,
+   consent gate, or teammate suggestion.
+3. **Dispatch** — deferred by design to the Jev classifier; until then the team is a designation.
+4. **Firefighter art** — the firefighter suit currently reuses the engineer-armor asset as a placeholder;
+   real turnout gear (helmet, reflective stripes) is uncommissioned.
+5. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
+   matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
 
 ### Shared roster machinery — quest parties and responder teams (Target: TBD)
 

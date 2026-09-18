@@ -311,7 +311,9 @@ describe('Incident Store', () => {
       vi.mocked(incidentApi.assignResponders).mockResolvedValueOnce()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
-      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([teamMember])
+      // The spawned-incident team fetch inside fetchIncidents and the explicit
+      // refresh both read the roster, so the mock must answer every call.
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([teamMember])
 
       await store.assignResponders('vault-1', 'incident-1', union, 'token')
 
@@ -358,6 +360,59 @@ describe('Incident Store', () => {
       store.clearIncidents()
 
       expect(store.getIncidentTeam('incident-1')).toEqual([])
+    })
+
+    it('fetchIncidents loads the team for a newly spawned incident', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([teamMember])
+
+      await store.fetchIncidents('vault-1', 'token')
+
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'token')
+      expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(true)
+    })
+
+    it('fetchIncidents does not refetch teams for known incidents on later polls', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([teamMember])
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(1)
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(1)
+    })
+
+    it('hasLoadedIncidentTeam distinguishes loaded-empty from not-loaded', async () => {
+      const store = useIncidentStore()
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(false)
+
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValueOnce([])
+      await store.fetchIncidentTeam('vault-1', 'incident-1', 'token')
+
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(true)
+      expect(store.getIncidentTeam('incident-1')).toEqual([])
+    })
+
+    it('totalResponderCount sums the designated rosters of active incidents', () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-1', 'incident-2']
+      store.incidentTeams.set('incident-1', [teamMember, { ...teamMember, id: 'tm-2', dweller_id: 'dweller-2' }])
+      store.incidentTeams.set('incident-2', [teamMember])
+
+      expect(store.totalResponderCount).toBe(3)
+    })
+
+    it('totalResponderCount is zero when no teams have loaded', () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-1']
+
+      expect(store.totalResponderCount).toBe(0)
     })
   })
 

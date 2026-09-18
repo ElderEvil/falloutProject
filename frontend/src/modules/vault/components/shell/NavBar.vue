@@ -41,6 +41,12 @@ const soundMuted = computed(() => audioManager.muted)
 // Only surface the sound toggle mid-incident; the alarm is the reason to mute.
 const hasActiveIncidents = computed(() => incidentStore.hasActiveIncidents)
 
+// Informational at-a-glance signal: how many designated responders are on scene.
+const responderCountLabel = computed(() => {
+  const count = incidentStore.totalResponderCount
+  return `${count} responder${count === 1 ? '' : 's'} on scene`
+})
+
 const toggleSound = () => {
   audioManager.setMuted(!audioManager.muted)
 }
@@ -134,6 +140,17 @@ onUnmounted(() => {
         >
           <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
         </button>
+
+        <!-- Responder count (informational, only while incidents are active) -->
+        <span
+          v-if="hasActiveIncidents"
+          class="badge-info flex items-center gap-1 rounded-full border border-theme-primary/30 px-2 py-1 text-xs text-theme-primary"
+          :aria-label="responderCountLabel"
+          :title="responderCountLabel"
+        >
+          <Icon icon="mdi:account-group" class="h-4 w-4" />
+          {{ incidentStore.totalResponderCount }}
+        </span>
 
         <!-- Notification Bell (only when authenticated) -->
         <NotificationBell v-if="isAuthenticated" />

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import IncidentAlert from '@/modules/combat/components/incidents/IncidentAlert.vue'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
-import type { Incident } from '@/modules/combat/models/incident'
+import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 // Mock @iconify/vue
 vi.mock('@iconify/vue', () => ({
@@ -34,6 +36,7 @@ describe('IncidentAlert', () => {
   }
 
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-01-01T00:01:00Z')) // 1 minute after start
   })
@@ -269,6 +272,52 @@ describe('IncidentAlert', () => {
       })
 
       expect(wrapper.exists()).toBe(true)
+    })
+  })
+
+  describe('Responder status', () => {
+    const teamMember: IncidentTeamMember = {
+      id: 'tm-1',
+      team_id: 'team-1',
+      dweller_id: 'dweller-1',
+      slot_number: 1,
+      status: 'assigned',
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    }
+
+    it('shows the responder count when the primary team has members', () => {
+      useIncidentStore().incidentTeams.set('incident-1', [teamMember])
+
+      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+
+      expect(wrapper.text()).toContain('1 on scene')
+    })
+
+    it('shows "No responders" when the primary team is loaded but empty', () => {
+      useIncidentStore().incidentTeams.set('incident-1', [])
+
+      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+
+      expect(wrapper.text()).toContain('No responders')
+    })
+
+    it('shows nothing while the primary team has not loaded', () => {
+      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+
+      expect(wrapper.text()).not.toContain('on scene')
+      expect(wrapper.text()).not.toContain('No responders')
+    })
+
+    it('uses the informational badge tier with no glow', () => {
+      useIncidentStore().incidentTeams.set('incident-1', [teamMember])
+
+      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+
+      const chip = wrapper.find('.badge-info')
+      expect(chip.exists()).toBe(true)
+      expect(chip.classes()).not.toContain('badge-live')
+      expect(chip.classes()).not.toContain('badge-action')
     })
   })
 

@@ -199,6 +199,10 @@ export const useIncidentStore = defineStore('incident', () => {
         })
       }
 
+      // Fetch the designated responder team for newly spawned incidents only.
+      // The roster is stable until reassigned, so polling must not refetch it.
+      await Promise.all(spawned.map((id) => fetchIncidentTeam(vaultId, id, token)))
+
       // Update store
       activeIncidentIds.value = newIds
 
@@ -220,6 +224,15 @@ export const useIncidentStore = defineStore('incident', () => {
   }
 
   const getIncidentTeam = (incidentId: string): IncidentTeamMember[] => incidentTeams.value.get(incidentId) ?? []
+
+  const hasLoadedIncidentTeam = (incidentId: string): boolean => incidentTeams.value.has(incidentId)
+
+  const totalResponderCount = computed(() =>
+    activeIncidentIds.value.reduce(
+      (total, id) => total + (incidentTeams.value.get(id)?.length ?? 0),
+      0
+    )
+  )
 
   async function fetchIncidentTeam(vaultId: string, incidentId: string, token: string): Promise<void> {
     try {
@@ -441,12 +454,14 @@ export const useIncidentStore = defineStore('incident', () => {
     activeIncidents,
     hasActiveIncidents,
     incidentCountByVault,
+    totalResponderCount,
 
     // Actions
     fetchIncidents,
     assignResponders,
     fetchIncidentTeam,
     getIncidentTeam,
+    hasLoadedIncidentTeam,
     startPolling,
     stopPolling,
     clearIncidents,

@@ -147,6 +147,86 @@ bindings; retain runtime styles only where the selected theme changes the value.
 intentional deviations; otherwise factor shared service definitions. Use the
 package-script contract in CI and adopt one action-pinning policy.
 
+## Simplification backlog
+
+These are candidate reductions in accidental complexity identified during a
+read-only source scan. They are intentionally separate from the priority
+findings above: each needs a small, test-backed vertical slice rather than a
+large mechanical refactor. Do not collapse the mandatory endpoint → service →
+CRUD or frontend module boundaries while pursuing them.
+
+### High confidence — one owner for pregnancy state
+
+- `modules/social/stores/relationship.ts` and `pregnancy.ts` both own a
+  `pregnancies` collection and independently request
+  `/api/v1/pregnancies/vault/{vault_id}`.
+- This creates duplicate loading/error policy and can leave the relationship
+  view stale after an action handled by the pregnancy store.
+
+**Recommendation:** retain `usePregnancyStore` as the sole pregnancy-state
+owner and have relationship views consume it. Move HTTP access into the
+module's service/API adapter as part of the existing Store → Service → API
+migration.
+
+### High confidence — retire the generic personal-notification WebSocket
+
+- The generic `core/composables/useWebSocket.ts` contains URL management,
+  reconnection, handler registration, wildcard dispatch, and untyped messages.
+- Its only consumers are chat and the profile's legacy personal-notification
+  socket. The latter duplicates authenticated notification SSE and is also the
+  P0 unauthenticated socket above.
+
+**Recommendation:** migrate profile updates to notification SSE, remove the
+legacy socket, then colocate a typed, chat-specific WebSocket client in the
+chat module. Avoid preserving a generic handler registry for one remaining
+protocol.
+
+### Medium confidence — consolidate history-aware navigation
+
+- `useBackNavigation.ts` and `useGoBack.ts` both inspect browser history and
+  select a fallback, but have distinct implementations and fallback rules.
+- The former additionally supplies labels and breadcrumbs, while the latter
+  interpolates route metadata.
+
+**Recommendation:** establish one tested primitive for “history or fallback”;
+let the breadcrumb helper layer labels on top. Preserve the current back versus
+replace semantics and route-parameter interpolation.
+
+### Medium confidence — remove the single-provider storage factory if no
+provider roadmap exists
+
+- `services/storage/base.py` defines a broad protocol and
+  `services/storage/factory.py` always constructs the sole implementation,
+  `RustFSAdapter`.
+- There is no provider selection configuration or alternative adapter.
+
+**Recommendation:** if supporting another object-store provider is not a
+committed requirement, replace the factory with a cached RustFS dependency and
+use a small capability protocol only where substitution is useful for tests.
+Keep the adapter if a multi-provider roadmap is confirmed.
+
+### Medium confidence, higher regression risk — make simple objective
+evaluators declarative
+
+- `services/objective_evaluators.py` uses eight subclasses and an explicit
+  registration list. Several only supply event types, a simple target-field
+  match, and a constant increment.
+- `ReachEvaluator` has genuinely distinct absolute-progress behavior and must
+  remain specialized.
+
+**Recommendation:** preserve the shared transactional progress engine and
+`ReachEvaluator`; model only the straightforward incrementing evaluators as
+declarative registrations or predicates. Add characterization tests before
+changing progression behavior.
+
+### Low confidence / low risk — centralize sorted changelog reads
+
+- `ChangelogService.get_entries()` and `get_latest()` both parse and sort the
+  same changelog collection.
+
+**Recommendation:** add one sorted-read helper. Decide explicitly whether an
+invalid `since` version should remain silently ignored or return validation.
+
 ## Historical finding verification
 
 | 2026-09-01 item | Current status | Evidence / disposition |

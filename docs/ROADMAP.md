@@ -227,6 +227,39 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
 
+### Contamination Team — fire & radiation responders (idea, Target: TBD)
+
+A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
+kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
+Inspiration: UA "DUDES OF HAZMAT - Toxic Waste Chase" (music video) — hazmat-suit energy, sirens, toxic
+chase vibes. Recorded now so the idea is not lost; none of the machinery below is committed.
+Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
+
+Idea sketch (not yet designed):
+
+- **Fire team** — dwellers designated as firefighters, dispatched to fire-hazard incidents ahead of (or
+  instead of) whoever happens to be in the room. Needs **fire-resistant suits** — new outfit(s) to add
+  (catalog entry, stats, art), plus whatever resistance mechanic they hook into.
+- **Radiation response team** — same shape for radiation incidents: designated responders with rad
+  protection, distinct from the fire team.
+- **Team roster concept** — is this a standing squad assignment (rooms/panel, on-call rotation) or a
+  priority list consulted at spawn time? Undecided — the current system takes whoever is healthy in the
+  room (`assign_responders`), so any roster is new machinery.
+
+Reuse map (all of this already exists — reach for it first):
+
+- **Incident dispatch**: `incident_service.assign_responders`, `incident_spawning` / `incident_tick`,
+  `IncidentType` / `IncidentFamily` in `models/incident.py`.
+- **Damage math**: `services/combat/incident_math.py` + `utils/combat.py` — resistance hooks belong here,
+  not scattered conditionals.
+- **Outfits**: item catalogs + shared item builders (`utils/item_factory.py`); the radiation section above
+  already scopes how resistance-vs-ingestion questions get answered.
+- **Surfacing**: `notification_service` + SSE incident topics under the modal/toast red line.
+
+Gaps to settle before building: what "fire-resistant" modifies numerically (damage taken? suppression
+rate?); whether rad-suits stack with existing radiation resistance; roster UX and tick integration;
+training/eligibility requirements for team membership.
+
 ### Version 3.0 Platform Modernization
 
 3.0 will be a deliberate runtime and tooling boundary — Python 3.14, native TypeScript 7, UUIDv7 identifiers —
@@ -529,6 +562,52 @@ touching incident handling; any breeding change must keep `population_max=None` 
 - ⏸️ **Plan 5 — Pre-generation shift (LM Studio/ComfyUI batch → curated content)** + **Plan 6 — New AI usage ideas** (incident narration, quest flavor, daily digest, dweller ambient chat) — parked, need product decisions + per-operation usage headroom before shipping.
 
 **Guardrails:** no Pydantic AI framework migration, no per-request model/temperature per prompt, no retroactive cost truth; template-first.
+
+---
+
+### TypeSafe Jev Classifier — Dweller Combat Triage & Radiant AI (Proposal, Target: TBD)
+
+**Focus**: Wire TypeSafe Jev (classifier, not a language model: text in, typed judgements out, per-field
+confidence) into dwellers — not chat, but combat decisions and "radiant AI" living-sim. Full model docs:
+`https://pydantic.dev/docs/ai/models/typesafe/`. Complementary to the dweller chat agent — it does NOT replace it.
+Design doc: `docs/backend/JEV_CLASSIFIER.md`.
+
+**Model shape to respect:** prompt = material judged, question = field description; one judgement per field
+(`bool` yes/no, `Literal`/`Enum` pick-one, `float` probability, `list` fan-out, nested `outer.inner`).
+Confidence per field in `provider_details`; pick the threshold per use (act automatically = higher bar) and
+calibrate on own labeled data, then pin the version (`typesafe:jev-1.13.0`) — `jev-latest` moves. Jev is bad
+at arithmetic/counting/dates, multi-judgement questions, indirection, bloated state, adversarial text, and
+option-order shifts — so it triages, never resolves math.
+
+- ⬜ **Radiant `radiant_tick` (recommended first)** — new self-rescheduling Dramatiq actor modeled on
+  `arena_tasks.arena_tick` (Redis lease + `task_session()`); never inline per-dweller calls into
+  `process_game_tick` (one shared session across all vaults). Online-gated via `game_state.is_user_online()`.
+  State text reuses `chat_tools.build_dweller_social_context` / `build_dweller_activity_briefing`; judgement
+  schema modeled on `DwellerChatOutput` (e.g. `wants_rest` / `wants_social` / `wants_change` bools, or a
+  pick-one activity `Literal`). Feeds `dweller_assignment_service`, `happiness_service`, and
+  `exit_request_service.sync_despair_requests`; below-threshold confidence falls back to the deterministic
+  formula. Surfaces via `notification_service.create_and_send` under the modal/toast red line.
+- ⬜ **Combat triage (narrow seams only)** — incident-spawn triage (`incident_spawning.spawn_incident` /
+  `notify_spawn`: `Literal['hold','reinforce','evacuate']` + confidence, hours-scale budget, safe);
+  exploration engage/avoid (`exploration/combat_calculator.calculate_combat_outcome`, 10-min budget behind the
+  existing `to_thread` boundary, formula fallback); responder suggestion (`incident_service.assign_responders`,
+  player-facing ranked subset). Explicitly out: synchronous calls in `incident_round.process_incident` (2s
+  all-vault advisory-locked tick), arena rounds, quests (timer-only, no combat).
+- ⬜ **Measure before shipping** — accuracy, hand-off rate, and threshold on own labeled dwellers/incidents;
+  wire cost through `ai_usage_service` before rollout. No-arg tools Jev can call alone get the
+  `parse_action_suggestion`-style policy re-check plus `UsageLimits(request_limit=...)`; tools with args go
+  behind `FallbackModel` with a language model.
+
+**Reuse:** `DwellerChatOutput` + `validate_dweller_chat_output` (typed judgement contract),
+`parse_action_suggestion` (guarded judgement → action), `AIService.get_model`, `LLMInteraction` logging,
+`quota_service`, append-only `Prompt` registry (`version-prompt radiant_behavior`), `event_bus` + SSE topics.
+**Guardrails:** deterministic resolvers stay in `incident_math.py` / `utils/combat.py`; new module named
+`*_service.py`; CRUD owns queries (no raw `select()` in services); tick path uses `await session.execute(...)`
+never `.exec()`; endpoints stay thin with `verify_dweller_access`.
+
+**Success criteria:** idle/resting dwellers visibly want things and assignments reflect it without tick blowup;
+incident spawn carries a calibrated triage recommendation; every Jev-driven outcome has a measured threshold,
+a deterministic fallback, and test-backed surfacing — no per-tick network calls.
 
 ---
 
@@ -905,8 +984,11 @@ source; curated copies land in `frontend/public/audio/`).
 - 🔄 **UI & feedback SFX pass** — wired: global button-click `select` (delegated listener in the audio manager),
   room-modal `modalOpen` (close intentionally silent), chat typewriter key per keystroke in the message input
   (`typeKey`, fires on `beforeinput`), and `messageReceive` on dweller replies (WS + REST + audio paths via the
-  shared messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
-  `success` on completions, incident alarm on incident spawn (needs an incident event hook).
+  shared messages watcher), incident alarm loops for the whole chain (spawn hook starts the loop and
+  ducks music over 2s; the loop stops and music resumes 5s after the last incident resolves; asset is
+  a public-domain excerpt, see the sound manifest). A speaker toggle in the navbar mutes/unmutes
+  without leaving the page. Remaining: `cardDrop` on dweller drag-and-drop assignment,
+  `upgrade` on room upgrades, `success` on completions.
 - ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it
   instead of the view-level loop.
 - ⬜ **Ambient layers** — per-room ambience loops from `assets/audio/sounds/ambience/` (armory, cafeteria,

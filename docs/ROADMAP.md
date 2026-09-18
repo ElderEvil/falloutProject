@@ -1013,6 +1013,13 @@ Gaps this feature has that exit requests do not:
 - [ ] Reduce Vitest teardown flakiness — parallel runs intermittently hit `EnvironmentTeardownError`
       ("Cannot load ... after the environment was torn down", e.g. `RoomGrid.test.ts` / `RoomDetailModal.vue`).
       Investigate module-teardown ordering / `sequence` isolation so CI is deterministic.
+- [ ] Drop the superseded standalone radio UI — `/vault/:id/radio` (`modules/radio/views/RadioView.vue`, already
+      `hideFromNav`) duplicates the in-room radio panel (`RoomDetailModal` → `ProductionStats` radio mode +
+      `RadioControls`, driven by `modules/rooms/composables/useRadioRoom.ts`). That route is the only external
+      importer of `@/modules/radio`, so deleting it orphans the whole frontend module (view, store,
+      `RadioStatsPanel`, `ManualRecruitButton`, routes) for a clean removal; the backend `/radio` API the room
+      panel calls stays. Confirm every flow (stats, mode switch, manual recruit) is covered by the in-room panel
+      before deleting.
 ### DevOps
 
 - [ ] Deploy immutable images: build and promote commit-SHA tags; production deployments select an explicit tested tag,

@@ -210,6 +210,33 @@ but the diversity targets below are still open.
 breeding service. **Blocker:** none hard — seeding tables and roll weights are self-contained; coordinate with
 the identity-metadata work so race is read from one source of truth.
 
+### Outfit SPECIAL Bonuses Are Inert — CRITICAL (Target: next branch)
+
+**Outfits do not grant their SPECIAL bonuses.** The catalog declares `strength`…`luck` on every outfit and
+`OutfitCreate` validates them, but `utils/item_factory.build_outfit` drops them, the `Outfit` model has no
+such columns, and nothing applies them. The primary reason a player equips an outfit currently does nothing,
+while outfit *resistance* (shipped with the contamination team) now works — so gear is inconsistently wired.
+
+**Agreed contract:** a 10 S dweller wearing a +5 S outfit must count as **15 S** in combat **and** production.
+
+**Where the fix lands — one choke point, not two.** `options/identity_modifiers.effective_stat` already feeds
+both (`utils/combat.py:14` for combat power, `services/resource_manager.py:176` for production rate), and its
+docstring already establishes the convention: *derived on read and never persisted — the stored SPECIAL stays
+the trained value.* So outfit bonuses must be **effective-only**, folded into that one function, never written
+into the stored stat; unequipping then reverts cleanly.
+
+Steps:
+
+- [ ] Add the seven SPECIAL columns to `Outfit`, with a migration; map them in `build_outfit` from the catalog.
+- [ ] Fold the equipped outfit's bonus into `effective_stat`, reading `entity.__dict__.get("outfit")` (the
+  no-lazy-IO pattern used by `radiation_service` and `apply_damage`) — **audit every caller for outfit
+  eager-loading first**, because a path that lazy-loads would raise `MissingGreenlet` inside a tick.
+- [ ] Decide and pin the cap: the stored field is validated 1–10, but effective stats may exceed it (the
+  agreed contract says 15). Lock this with a test so it is not "corrected" later.
+- [ ] Reconcile the wire shape: the frontend already renders `+S`…`+L` via `getOutfitBonuses` from
+  `strength_bonus`…`luck_bonus`, so confirm which fields the API actually populates and make the card show
+  real numbers.
+
 ### Radiation & Medical Reliability
 
 The irradiated-water overhaul shipped: drought radiation accrues at 1% of max health per tick after a grace period,
@@ -226,6 +253,67 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
 - [ ] **Dweller assignment policy on the update path** — `PUT /dwellers/{id}` still accepts `room_id`, so a client can
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
+
+### Contamination Team — fire & radiation responders (SHIPPED — foundation, Target: TBD for follow-ups)
+
+A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
+kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
+Inspiration: UA "DUDES OF HAZMAT - Toxic Waste Chase" (music video) — hazmat-suit energy, sirens, toxic
+chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
+
+**Shipped** (PR to `master`):
+
+- **Team forming** — a dweller earns a place by fighting three incidents of a contamination type (fire,
+  radiation); the first three hold the team, later qualifiers wait on a bench, and each milestone lands in
+  `bio_entries`. Membership records identity, never position, so a future movement system consumes the
+  roster instead of invalidating it. A fallen member frees their place to the senior bench member.
+- **Participation ledger** — `incident_participant` credits each defender once per incident, inside the
+  round's single commit, so a long incident cannot count twice and a failed round leaves no trace.
+- **Outfit hazard resistance** — `fire_resist` / `radiation_resist` columns, fire resistance applied in
+  `apply_damage`, a declared radiation share overriding the legacy type/name table, shown on item cards.
+  Ships the **firefighter suit**, the **hazmat suit** the resist table had always anticipated, and the
+  legendary both-hazard responder outfit.
+- **Two fixes it depended on** — equip now invalidates the wearer's cached relationship (it had silently
+  zeroed *all* outfit radiation protection, including power armor); runtime spawns roll from
+  `game_config.incident.get_spawn_weights()` instead of hardcoding radscorpions, so `FIRE` — fully
+  implemented with its own containment math — actually spawns.
+
+**Known limitation — the team is a record, not yet a mechanic.** Membership currently has no gameplay
+effect and nothing surfaces a join beyond the bio line. That last point is a gap against the progression
+visibility red line (`docs/backend/GAME_MECHANICS.md`), and it is the first follow-up below.
+
+**Next, in rough order:**
+
+1. **Surface the join** — a team place is a progression event, so it needs a toast/modal **plus** a bell
+   entry. Small, and it closes the red-line gap.
+2. **The ask** — the dweller raises their own bench promotion through chat when a place opens ("subtle but
+   present", reusing the `ActionSuggestion` accept/dismiss card). Semantics still open: announcement,
+   consent gate, or teammate suggestion.
+3. **Dispatch** — deferred by design to the Jev classifier; until then the team is a designation.
+4. **Firefighter art** — the firefighter suit currently reuses the engineer-armor asset as a placeholder;
+   real turnout gear (helmet, reflective stripes) is uncommissioned.
+5. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
+   matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
+
+### Shared roster machinery — quest parties and responder teams (Target: TBD)
+
+Quest parties (`QuestParty` + `crud/quest_party.assign_party`) and the contamination teams
+(`HazardTeamMember`, `contamination_team_service`) solve the same shape — "which dwellers are on this
+thing" — with separate implementations. Extract the common parts so the two do not drift: one
+**availability/eligibility policy**, and ideally one roster primitive both consume.
+
+This is the same consolidation the code already asks for in three places:
+
+- `crud/quest_party.py:54` — *"TODO: unify eligibility with incident responder checks; shared availability
+  policy outside services."*
+- `services/exploration_service.py:130` — *"TODO: unify with incident responder eligibility into a shared
+  availability policy outside services."*
+- `docs/ROADMAP.md` simplification backlog — the planned `is_in_vault_and_active` helper (responder,
+  explorer, and dehydration eligibility all point at it).
+
+Constraint: the shared policy cannot live in `app/services/` — the architecture guard permits CRUD to import
+only `room_assignment_policy` there, and new entries fail the suite. It belongs in `app/utils/` beside
+`room_rules.py` / `dwellers.py`, following the precedent AGENTS.md rule 11 sets for the shared policy kernel.
 
 ### Version 3.0 Platform Modernization
 
@@ -393,6 +481,10 @@ that preference persist — without regressing the existing list/grid modes.
 context for the player's own dwellers. Feature contract: `docs/features/WORLD_MAP.md`; delivery plan:
 `docs/WORLD_MAP_PLAN.md`.
 
+**Navigation note (accepted debt):** the map is currently a **separate top-level menu item**. That is fine for
+now, but it should eventually move **under Exploration** — the map is an exploration surface, not a peer of
+it. Design deferred; decide the navigation shape when the exploration module next gets attention.
+
 
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
   discoveries unlock live (the currently deployed worker runs pre-fix code).
@@ -529,6 +621,52 @@ touching incident handling; any breeding change must keep `population_max=None` 
 - ⏸️ **Plan 5 — Pre-generation shift (LM Studio/ComfyUI batch → curated content)** + **Plan 6 — New AI usage ideas** (incident narration, quest flavor, daily digest, dweller ambient chat) — parked, need product decisions + per-operation usage headroom before shipping.
 
 **Guardrails:** no Pydantic AI framework migration, no per-request model/temperature per prompt, no retroactive cost truth; template-first.
+
+---
+
+### TypeSafe Jev Classifier — Dweller Combat Triage & Radiant AI (Proposal, Target: TBD)
+
+**Focus**: Wire TypeSafe Jev (classifier, not a language model: text in, typed judgements out, per-field
+confidence) into dwellers — not chat, but combat decisions and "radiant AI" living-sim. Full model docs:
+`https://pydantic.dev/docs/ai/models/typesafe/`. Complementary to the dweller chat agent — it does NOT replace it.
+Design doc: `docs/backend/JEV_CLASSIFIER.md`.
+
+**Model shape to respect:** prompt = material judged, question = field description; one judgement per field
+(`bool` yes/no, `Literal`/`Enum` pick-one, `float` probability, `list` fan-out, nested `outer.inner`).
+Confidence per field in `provider_details`; pick the threshold per use (act automatically = higher bar) and
+calibrate on own labeled data, then pin the version (`typesafe:jev-1.13.0`) — `jev-latest` moves. Jev is bad
+at arithmetic/counting/dates, multi-judgement questions, indirection, bloated state, adversarial text, and
+option-order shifts — so it triages, never resolves math.
+
+- ⬜ **Radiant `radiant_tick` (recommended first)** — new self-rescheduling Dramatiq actor modeled on
+  `arena_tasks.arena_tick` (Redis lease + `task_session()`); never inline per-dweller calls into
+  `process_game_tick` (one shared session across all vaults). Online-gated via `game_state.is_user_online()`.
+  State text reuses `chat_tools.build_dweller_social_context` / `build_dweller_activity_briefing`; judgement
+  schema modeled on `DwellerChatOutput` (e.g. `wants_rest` / `wants_social` / `wants_change` bools, or a
+  pick-one activity `Literal`). Feeds `dweller_assignment_service`, `happiness_service`, and
+  `exit_request_service.sync_despair_requests`; below-threshold confidence falls back to the deterministic
+  formula. Surfaces via `notification_service.create_and_send` under the modal/toast red line.
+- ⬜ **Combat triage (narrow seams only)** — incident-spawn triage (`incident_spawning.spawn_incident` /
+  `notify_spawn`: `Literal['hold','reinforce','evacuate']` + confidence, hours-scale budget, safe);
+  exploration engage/avoid (`exploration/combat_calculator.calculate_combat_outcome`, 10-min budget behind the
+  existing `to_thread` boundary, formula fallback); responder suggestion (`incident_service.assign_responders`,
+  player-facing ranked subset). Explicitly out: synchronous calls in `incident_round.process_incident` (2s
+  all-vault advisory-locked tick), arena rounds, quests (timer-only, no combat).
+- ⬜ **Measure before shipping** — accuracy, hand-off rate, and threshold on own labeled dwellers/incidents;
+  wire cost through `ai_usage_service` before rollout. No-arg tools Jev can call alone get the
+  `parse_action_suggestion`-style policy re-check plus `UsageLimits(request_limit=...)`; tools with args go
+  behind `FallbackModel` with a language model.
+
+**Reuse:** `DwellerChatOutput` + `validate_dweller_chat_output` (typed judgement contract),
+`parse_action_suggestion` (guarded judgement → action), `AIService.get_model`, `LLMInteraction` logging,
+`quota_service`, append-only `Prompt` registry (`version-prompt radiant_behavior`), `event_bus` + SSE topics.
+**Guardrails:** deterministic resolvers stay in `incident_math.py` / `utils/combat.py`; new module named
+`*_service.py`; CRUD owns queries (no raw `select()` in services); tick path uses `await session.execute(...)`
+never `.exec()`; endpoints stay thin with `verify_dweller_access`.
+
+**Success criteria:** idle/resting dwellers visibly want things and assignments reflect it without tick blowup;
+incident spawn carries a calibrated triage recommendation; every Jev-driven outcome has a measured threshold,
+a deterministic fallback, and test-backed surfacing — no per-tick network calls.
 
 ---
 
@@ -905,8 +1043,11 @@ source; curated copies land in `frontend/public/audio/`).
 - 🔄 **UI & feedback SFX pass** — wired: global button-click `select` (delegated listener in the audio manager),
   room-modal `modalOpen` (close intentionally silent), chat typewriter key per keystroke in the message input
   (`typeKey`, fires on `beforeinput`), and `messageReceive` on dweller replies (WS + REST + audio paths via the
-  shared messages watcher). Remaining: `cardDrop` on dweller drag-and-drop assignment, `upgrade` on room upgrades,
-  `success` on completions, incident alarm on incident spawn (needs an incident event hook).
+  shared messages watcher), incident alarm loops for the whole chain (spawn hook starts the loop and
+  ducks music over 2s; the loop stops and music resumes 5s after the last incident resolves; asset is
+  a public-domain excerpt, see the sound manifest). A speaker toggle in the navbar mutes/unmutes
+  without leaving the page. Remaining: `cardDrop` on dweller drag-and-drop assignment,
+  `upgrade` on room upgrades, `success` on completions.
 - ⬜ **Radio station integration** — the radio room already streams a station concept; pipe music through it
   instead of the view-level loop.
 - ⬜ **Ambient layers** — per-room ambience loops from `assets/audio/sounds/ambience/` (armory, cafeteria,

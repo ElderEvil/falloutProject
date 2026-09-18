@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.122.1 (2026-09-18)
+
+### Bug Fixes
+
+* load outfits in the resource tick without per-dweller queries 3f456b5
+
 ## 2.122.0 (2026-09-18)
 
 ### Features

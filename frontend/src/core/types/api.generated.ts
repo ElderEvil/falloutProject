@@ -428,6 +428,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contamination-team/vault/{vault_id}/roster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Contamination Team Roster
+         * @description Return each hazard team's roster: who holds a place, and who waits on the bench.
+         */
+        get: operations["get_contamination_team_roster_api_v1_contamination_team_vault__vault_id__roster_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/crafting/vault/{vault_id}/recipes/{item_type}": {
         parameters: {
             query?: never;
@@ -5102,6 +5122,16 @@ export interface components {
             /** Proximity Score */
             proximity_score: number;
         };
+        /** ContaminationTeamRead */
+        ContaminationTeamRead: {
+            /**
+             * Vault Id
+             * Format: uuid4
+             */
+            vault_id: string;
+            /** Teams */
+            teams: components["schemas"]["HazardTeamRosterRead"][];
+        };
         /**
          * CountResponse
          * @description Generic count response.
@@ -6986,6 +7016,34 @@ export interface components {
          */
         HappinessReasonCode: "chat_positive" | "chat_neutral" | "chat_negative";
         /**
+         * HazardTeam
+         * @description A standing hazard-response team a dweller earns a place on.
+         *
+         *     Membership is earned from service, never assigned: a dweller qualifies by
+         *     fighting incidents of the team's hazard (see ``models/incident.py`` for the
+         *     type mapping and ``services/contamination_team_service.py`` for the rule).
+         * @enum {string}
+         */
+        HazardTeam: "fire" | "radiation";
+        /** HazardTeamMemberRead */
+        HazardTeamMemberRead: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Status */
+            status: string;
+        };
+        /** HazardTeamRosterRead */
+        HazardTeamRosterRead: {
+            team: components["schemas"]["HazardTeam"];
+            /** Active */
+            active: components["schemas"]["HazardTeamMemberRead"][];
+            /** Reserve */
+            reserve: components["schemas"]["HazardTeamMemberRead"][];
+        };
+        /**
          * IdentityModifiersRead
          * @description Wire shape for a dweller's combined race and faction effects.
          */
@@ -7817,6 +7875,17 @@ export interface components {
             image_url?: string | null;
             outfit_type: components["schemas"]["OutfitTypeEnum"];
             gender?: components["schemas"]["GenderEnum"] | null;
+            /**
+             * Fire Resist
+             * @description Share of fire damage the outfit removes
+             * @default 0
+             */
+            fire_resist: number;
+            /**
+             * Radiation Resist
+             * @description Share of external radiation removed; None falls back to the outfit type/name table
+             */
+            radiation_resist?: number | null;
             /** Storage Id */
             storage_id?: string | null;
         };
@@ -7831,6 +7900,17 @@ export interface components {
             image_url?: string | null;
             outfit_type: components["schemas"]["OutfitTypeEnum"];
             gender?: components["schemas"]["GenderEnum"] | null;
+            /**
+             * Fire Resist
+             * @description Share of fire damage the outfit removes
+             * @default 0
+             */
+            fire_resist: number;
+            /**
+             * Radiation Resist
+             * @description Share of external radiation removed; None falls back to the outfit type/name table
+             */
+            radiation_resist?: number | null;
             /**
              * Id
              * Format: uuid4
@@ -7867,6 +7947,16 @@ export interface components {
             image_url?: string | null;
             outfit_type?: components["schemas"]["OutfitTypeEnum"] | null;
             gender?: components["schemas"]["GenderEnum"] | null;
+            /**
+             * Fire Resist
+             * @description Share of fire damage the outfit removes
+             */
+            fire_resist?: number | null;
+            /**
+             * Radiation Resist
+             * @description Share of external radiation removed; None falls back to the outfit type/name table
+             */
+            radiation_resist?: number | null;
             /** Dweller Id */
             dweller_id?: string | null;
             /** Storage Id */
@@ -10468,6 +10558,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contamination_team_roster_api_v1_contamination_team_vault__vault_id__roster_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContaminationTeamRead"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getItemIcon,
   getOutfitBonuses,
+  getOutfitFireResist,
   getOutfitRadiationResist,
   getOutfitStats,
   getRarityBorderClass,
@@ -115,5 +116,25 @@ describe('stat rows', () => {
 
     const plain = getOutfitStats({ strength_bonus: 1 }).map((s) => s.label)
     expect(plain).not.toContain('RAD resist')
+  })
+
+  it('prefers a declared radiation share over the type fallback', () => {
+    expect(getOutfitRadiationResist({ radiation_resist: 0, outfit_type: 'power_armor' })).toBe(0)
+    expect(getOutfitRadiationResist({ radiation_resist: 1, outfit_type: 'rare_outfit' })).toBe(1)
+    expect(getOutfitRadiationResist({ radiation_resist: null, outfit_type: 'power_armor' })).toBe(0.75)
+  })
+
+  it('reports the declared fire share', () => {
+    expect(getOutfitFireResist({ fire_resist: 0.5 })).toBe(0.5)
+    expect(getOutfitFireResist({ fire_resist: null })).toBe(0)
+    expect(getOutfitFireResist({})).toBe(0)
+  })
+
+  it('shows a fire resist row only when the outfit is fire-rated', () => {
+    const rated = getOutfitStats({ fire_resist: 0.5 })
+    expect(rated).toContainEqual({ label: 'Fire resist', value: '50%', icon: 'mdi:fire' })
+
+    const plain = getOutfitStats({ fire_resist: 0, strength_bonus: 1 }).map((s) => s.label)
+    expect(plain).not.toContain('Fire resist')
   })
 })

@@ -55,6 +55,10 @@ export interface Weapon extends ItemBase {
 export interface Outfit extends ItemBase {
   outfit_type: OutfitType
   gender?: Gender | null
+  // Hazard shares, 0-1. radiation_resist is null on outfits that rely on the
+  // legacy type/name fallback in getOutfitRadiationResist.
+  fire_resist?: number
+  radiation_resist?: number | null
   strength_bonus?: number
   perception_bonus?: number
   endurance_bonus?: number

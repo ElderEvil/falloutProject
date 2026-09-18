@@ -5,8 +5,9 @@ Revises: c3d4e5f6a7b8
 Create Date: 2026-09-18 00:00:00.000000
 
 Expand/contract slice 1: create the reusable ``team``/``team_member`` roster and
-copy every ``quest_party`` row into it. The legacy ``quest_party`` table is left
-untouched for a later release to drop.
+copy every ``quest_party`` row into it. The contract/drop of the legacy
+``quest_party`` table ships in the same release (``0005``), one-way, with the
+app-rollback limitation documented there.
 """
 
 from typing import Sequence, Union

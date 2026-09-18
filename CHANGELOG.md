@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.121.0 (2026-09-18)
+
+### Features
+
+* incident feedback (victory sound, red pulse, gated alarm) 59272c5
+
+### Bug Fixes
+
+* keep incident audio in sync with the active incident set b921486
+
 ## 2.120.1 (2026-09-18)
 
 ### Bug Fixes

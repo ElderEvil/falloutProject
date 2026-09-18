@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from pydantic import UUID4
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -38,7 +39,13 @@ class CRUDResource:
         ).scalar_one()
         room_dwellers = (
             await db_session.execute(
-                select(Room, Dweller).join(Dweller, Room.id == Dweller.room_id).where(Room.vault_id == vault_id)
+                select(Room, Dweller)
+                .join(Dweller, Room.id == Dweller.room_id)
+                .where(Room.vault_id == vault_id)
+                # Production reads the outfit for its SPECIAL bonus, so it must
+                # be loaded here. selectinload batches it into one extra query
+                # for the whole vault rather than one per dweller per tick.
+                .options(selectinload(Dweller.outfit))
             )
         ).all()
 

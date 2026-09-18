@@ -9,7 +9,7 @@ from datetime import datetime
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum
 from app.crud import exploration as crud_exploration
 from app.crud import training as training_crud
 from app.crud.dweller import dweller as dweller_crud
@@ -23,6 +23,7 @@ from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
 from app.services.user_service import user_service
+from app.utils.dweller_availability import availability_error
 
 
 class ExplorationService:
@@ -127,9 +128,9 @@ class ExplorationService:
         dweller = await dweller_crud.get(db_session, dweller_id)
         if dweller.vault_id != vault_id:
             raise ValueError("Dweller does not belong to this vault")
-        # TODO: unify with incident responder eligibility into a shared availability policy outside services.
-        if not dweller.is_adult or dweller.age_group not in ADULT_AGE_GROUPS:
-            raise ValueError("Children cannot be sent on exploration")
+        reason = availability_error(dweller, require_healthy=True)
+        if reason is not None:
+            raise ValueError(reason)
         dweller_stimpaks = dweller.stimpack or 0
         dweller_radaways = dweller.radaway or 0
         total_stimpaks = vault_stimpaks + dweller_stimpaks

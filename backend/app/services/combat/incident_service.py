@@ -5,7 +5,6 @@ import logging
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ADULT_AGE_GROUPS, DwellerStatusEnum
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
 from app.models.dweller import Dweller
@@ -22,6 +21,7 @@ from app.schemas.incident import (
 )
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
+from app.utils.dweller_availability import availability_error
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
@@ -237,15 +237,7 @@ class IncidentService:
         if len(dwellers) != len(unique_ids):
             raise ValidationException("One or more responders do not belong to this vault")
 
-        unavailable = [  # TODO: could be reused, kinda policy - check this one, falls under refactor for me
-            dweller
-            for dweller in dwellers
-            if not dweller.is_adult
-            or dweller.age_group not in ADULT_AGE_GROUPS
-            or dweller.health <= 0
-            or dweller.is_dead
-            or dweller.status in {DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING, DwellerStatusEnum.DEAD}
-        ]
+        unavailable = [dweller for dweller in dwellers if availability_error(dweller, require_healthy=True)]
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
 

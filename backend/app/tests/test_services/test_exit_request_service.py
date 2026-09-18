@@ -253,9 +253,7 @@ async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
 
 
 @pytest.mark.asyncio
-async def test_recovery_does_not_withdraw_a_dead_dwellers_request(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_recovery_does_not_withdraw_a_dead_dwellers_request(async_session: AsyncSession, vault: Vault) -> None:
     """The withdraw selector mirrors the pending selector: dead dwellers are left alone."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)

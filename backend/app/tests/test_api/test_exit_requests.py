@@ -84,9 +84,7 @@ async def test_grant_exit_is_permanent_and_removes_the_request(
     dwelling = await _make_dweller(async_session, vault.id, prefix="Asker")
     await _ask(async_session, dwelling)
 
-    response = await async_client.post(
-        f"/dwellers/{dwelling.id}/grant-exit", headers=superuser_token_headers
-    )
+    response = await async_client.post(f"/dwellers/{dwelling.id}/grant-exit", headers=superuser_token_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -112,9 +110,7 @@ async def test_refuse_exit_keeps_the_request_standing(
     dwelling = await _make_dweller(async_session, vault.id, prefix="Asker", happiness=80)
     await _ask(async_session, dwelling)
 
-    response = await async_client.post(
-        f"/dwellers/{dwelling.id}/refuse-exit", headers=superuser_token_headers
-    )
+    response = await async_client.post(f"/dwellers/{dwelling.id}/refuse-exit", headers=superuser_token_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -135,9 +131,7 @@ async def test_grant_without_a_request_is_rejected(
     vault = await _vault_with_population(async_session, superuser)
     quiet = await _make_dweller(async_session, vault.id, prefix="Quiet")
 
-    response = await async_client.post(
-        f"/dwellers/{quiet.id}/grant-exit", headers=superuser_token_headers
-    )
+    response = await async_client.post(f"/dwellers/{quiet.id}/grant-exit", headers=superuser_token_headers)
 
     assert response.status_code == 400
     assert "has not asked" in response.json()["detail"]

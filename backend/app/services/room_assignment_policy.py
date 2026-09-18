@@ -1,6 +1,7 @@
 """Eligibility rules shared by manual and automatic room assignment."""
 
-# TODO: relocate this kernel plus dweller availability checks outside services so CRUD can share them.
+# TODO: relocate this room-assignment kernel outside services so CRUD can share it
+# (dweller availability now lives in app/utils/dweller_availability.py).
 
 from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession

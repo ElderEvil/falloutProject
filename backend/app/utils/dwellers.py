@@ -83,6 +83,11 @@ def _calendar_years_ago(value: datetime, years: int) -> datetime:
         return value.replace(year=value.year - years, month=2, day=28)
 
 
+def elder_birth_threshold(now: datetime) -> datetime:
+    """Birth date at or before which a dweller counts as an elder."""
+    return _calendar_years_ago(now, game_config.dweller.elder_age_years)
+
+
 def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> dict[str, Any]:
     """Build a validator-passing race/faction/state_of_being identity for a chosen race."""
     if not game_config.features.faction_mechanics:
@@ -146,12 +151,12 @@ def create_random_common_dweller(
 
     gender = gender or rng.choice(list(GenderEnum))
     stats = get_stats_by_rarity(rarity, rng)
-    age_group = AgeGroupEnum.ADULT
     is_adult = True
     now = datetime.now(UTC).replace(tzinfo=None) if seed is None else datetime(2000, 1, 1)
     oldest_birth_date = _calendar_years_ago(now, 80)
     youngest_birth_date = _calendar_years_ago(now, 18)
     birth_date = oldest_birth_date + timedelta(days=rng.randint(0, (youngest_birth_date - oldest_birth_date).days))
+    age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
     origin, visited = _procedural_bio_places(rng, rarity)
     identity = _roll_identity(rng)
     return {

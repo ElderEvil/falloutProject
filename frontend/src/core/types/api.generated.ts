@@ -1224,6 +1224,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/exit-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Exit Requests
+         * @description List dwellers waiting on an answer to their request to leave.
+         */
+        get: operations["list_exit_requests_api_v1_vaults__vault_id__exit_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/exit-requests/{dweller_id}/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant Exit
+         * @description Let the dweller go: permanent death by exile, with no way back.
+         */
+        post: operations["grant_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/exit-requests/{dweller_id}/refuse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refuse Exit
+         * @description Refuse the ask: the dweller takes a happiness hit and the request stands.
+         */
+        post: operations["refuse_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__refuse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/explorations/send": {
         parameters: {
             query?: never;
@@ -4611,7 +4671,7 @@ export interface components {
          * AgeGroupEnum
          * @enum {string}
          */
-        AgeGroupEnum: "child" | "teen" | "adult";
+        AgeGroupEnum: "child" | "teen" | "adult" | "elder";
         /**
          * ArenaEventsCleared
          * @description Journal clear result.
@@ -5236,7 +5296,7 @@ export interface components {
          * DeathCauseEnum
          * @enum {string}
          */
-        DeathCauseEnum: "health" | "radiation" | "incident" | "exploration" | "combat";
+        DeathCauseEnum: "health" | "radiation" | "incident" | "exploration" | "combat" | "exile";
         /**
          * DeathStatsResponse
          * @description Life/death statistics for a user.
@@ -5395,7 +5455,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion based on conversation context
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["RequestExitAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -5515,6 +5575,8 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /** Exit Requested At */
+            exit_requested_at?: string | null;
             /**
              * Is Dead
              * @default false
@@ -5666,6 +5728,8 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /** Exit Requested At */
+            exit_requested_at?: string | null;
             /**
              * Is Dead
              * @default false
@@ -5861,6 +5925,8 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /** Exit Requested At */
+            exit_requested_at?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6012,6 +6078,8 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /** Exit Requested At */
+            exit_requested_at?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6238,6 +6306,8 @@ export interface components {
             radaway: number;
             /** @default idle */
             status: components["schemas"]["DwellerStatusEnum"];
+            /** Exit Requested At */
+            exit_requested_at?: string | null;
             /**
              * Is Dead
              * @default false
@@ -6463,7 +6533,7 @@ export interface components {
              * Action Suggestion
              * @description Optional action suggestion
              */
-            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
+            action_suggestion?: (components["schemas"]["AssignToRoomAction"] | components["schemas"]["StartTrainingAction"] | components["schemas"]["StartExplorationAction"] | components["schemas"]["RecallExplorationAction"] | components["schemas"]["RequestStimpakAction"] | components["schemas"]["RequestRadawayAction"] | components["schemas"]["RequestExitAction"] | components["schemas"]["BioAddendumAction"] | components["schemas"]["NoAction"]) | null;
             /**
              * Unlocked Places
              * @description Map locations newly unlocked by this conversation
@@ -6488,6 +6558,54 @@ export interface components {
             level: number;
             /** Rarity */
             rarity: string;
+        };
+        /**
+         * ExitDecisionResponse
+         * @description Outcome of granting or refusing one exit request.
+         */
+        ExitDecisionResponse: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Dweller Name */
+            dweller_name: string;
+            /** Granted */
+            granted: boolean;
+            /** Happiness */
+            happiness: number;
+            /** Epitaph */
+            epitaph?: string | null;
+        };
+        /**
+         * ExitRequestListResponse
+         * @description Every dweller currently waiting on an answer.
+         */
+        ExitRequestListResponse: {
+            /** Requests */
+            requests?: components["schemas"]["ExitRequestRead"][];
+        };
+        /**
+         * ExitRequestRead
+         * @description A dweller waiting on the vault's answer.
+         */
+        ExitRequestRead: {
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Dweller Name */
+            dweller_name: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Level */
+            level: number;
+            /** Happiness */
+            happiness: number;
+            /** Requested At */
+            requested_at?: string | null;
         };
         /** ExperienceGranted */
         ExperienceGranted: {
@@ -7549,7 +7667,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "resource_low" | "resource_critical" | "power_outage" | "quest_complete" | "achievement_unlocked" | "radio_new_dweller" | "map_registration_failed";
         /** Objective */
         Objective: {
             /** Challenge */
@@ -8419,6 +8537,22 @@ export interface components {
          * @enum {string}
          */
         RelationshipTypeEnum: "acquaintance" | "friend" | "romantic" | "partner" | "MARRIED" | "ex";
+        /**
+         * RequestExitAction
+         * @description Suggestion to let the dweller leave the vault. Granting is permanent.
+         */
+        RequestExitAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action_type: "request_exit";
+            /**
+             * Reason
+             * @description Why the dweller wants to leave
+             */
+            reason: string;
+        };
         /**
          * RequestRadawayAction
          * @description Suggestion to give the dweller a RadAway.
@@ -11508,6 +11642,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DwellerReadLess"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exit_requests_api_v1_vaults__vault_id__exit_requests_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExitRequestListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__grant_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExitDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refuse_exit_api_v1_vaults__vault_id__exit_requests__dweller_id__refuse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExitDecisionResponse"];
                 };
             };
             /** @description Validation Error */

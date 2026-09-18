@@ -323,6 +323,7 @@ body {
     --badge-age-child: #38bdf8;
     --badge-age-teen: #818cf8;
     --badge-age-adult: #4ade80;
+    --badge-age-elder: #fbbf24;
     --badge-rarity-common: var(--color-rarity-common);
     --badge-rarity-rare: var(--color-rarity-rare);
     --badge-rarity-legendary: var(--color-rarity-legendary);
@@ -334,6 +335,7 @@ body {
     --badge-age-child: var(--color-theme-primary);
     --badge-age-teen: var(--color-theme-primary);
     --badge-age-adult: var(--color-theme-primary);
+    --badge-age-elder: var(--color-theme-primary);
     --badge-rarity-common: var(--color-theme-primary);
     --badge-rarity-rare: var(--color-theme-primary);
     --badge-rarity-legendary: var(--color-theme-primary);

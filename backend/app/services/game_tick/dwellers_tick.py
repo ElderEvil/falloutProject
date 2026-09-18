@@ -162,6 +162,7 @@ async def process_dwellers(
         "xp_awarded": 0,
         "deaths": 0,
         "irradiated": 0,
+        "exit_requests_raised": 0,
     }
 
     try:
@@ -218,11 +219,20 @@ async def process_dwellers(
                     stats["xp_awarded"] += dweller_stats["xp_awarded"]
                     stats["leveled_up"] += dweller_stats["leveled_up"]
 
+        stats["exit_requests_raised"] = await process_exit_requests(db_session, vault_id)
+
     except SQLAlchemyError as e:
         logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)
         raise
 
     return stats
+
+
+async def process_exit_requests(db_session: AsyncSession, vault_id: UUID4) -> int:
+    """Dwellers in despair ask to leave; dwellers whose mood recovered withdraw the ask."""
+    from app.services.exit_request_service import exit_request_service
+
+    return len(await exit_request_service.sync_despair_requests(db_session, vault_id))
 
 
 async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID4) -> ApprenticeStats:

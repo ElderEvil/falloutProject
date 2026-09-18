@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import (
+    ADULT_AGE_GROUPS,
     AgeGroupEnum,
     DeathCauseEnum,
     DwellerStatusEnum,
@@ -42,7 +43,7 @@ class DwellerBaseWithoutStats(SQLModel):
     @property
     def is_mature(self) -> bool:
         """Adult by both flags — children and teens can't take combat assignments."""
-        return self.is_adult and self.age_group == AgeGroupEnum.ADULT
+        return self.is_adult and self.age_group in ADULT_AGE_GROUPS
 
     # Backstory and appearance
     bio: str | None = Field(default=None, max_length=BIO_MAX_CHARS)
@@ -74,6 +75,9 @@ class DwellerBaseWithoutStats(SQLModel):
 
     # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
+
+    # Exit requests: a dweller who asks to leave stands by the ask until it is granted or withdrawn.
+    exit_requested_at: datetime | None = Field(default=None)
 
     # Death system
     is_dead: bool = Field(default=False, index=True)

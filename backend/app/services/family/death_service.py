@@ -31,6 +31,7 @@ class DeathService:
         cause: DeathCauseEnum,
         epitaph: str | None = None,
         commit: bool = True,
+        permanent: bool = False,
     ) -> Dweller:
         """Mark a dweller as dead.
 
@@ -42,6 +43,10 @@ class DeathService:
         :type cause: DeathCauseEnum
         :param epitaph: Optional memorial message
         :type epitaph: Optional[str]
+        :param commit: Whether to commit the change
+        :type commit: bool
+        :param permanent: Skip the caps-revival window (used by an exit, which is one-way)
+        :type permanent: bool
         :returns: Updated dweller
         :rtype: Dweller
         :raises ContentNoChangeException: If dweller is already dead
@@ -69,6 +74,7 @@ class DeathService:
                 status=DwellerStatusEnum.DEAD,
                 health=0,
                 room_id=None,  # Remove from room
+                is_permanently_dead=permanent,
             ),
             commit=commit,
         )
@@ -363,6 +369,7 @@ class DeathService:
             DeathCauseEnum.INCIDENT: "deaths_by_incident",
             DeathCauseEnum.EXPLORATION: "deaths_by_exploration",
             DeathCauseEnum.COMBAT: "deaths_by_combat",
+            DeathCauseEnum.EXILE: "deaths_by_exploration",
         }
 
         stat_field = cause_to_field.get(cause)
@@ -380,6 +387,7 @@ class DeathService:
             DeathCauseEnum.INCIDENT: f"{name} fell defending the vault. A true hero.",
             DeathCauseEnum.EXPLORATION: f"{name} was lost in the wasteland. Their sacrifice is remembered.",
             DeathCauseEnum.COMBAT: f"{name} died bravely in combat. Glory to the fallen.",
+            DeathCauseEnum.EXILE: f"{name} asked to go outside. The vault let them go, and they did not return.",
         }
 
         return epitaphs.get(cause, f"In memory of {name}.")

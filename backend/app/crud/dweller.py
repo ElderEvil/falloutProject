@@ -9,7 +9,14 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum, RoomTypeEnum
+from app.core.enums import (
+    ADULT_AGE_GROUPS,
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    GenderEnum,
+    RarityEnum,
+    RoomTypeEnum,
+)
 from app.core.game_config import game_config
 from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
@@ -270,6 +277,53 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
         return result.scalar_one()
 
+    async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
+        """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
+        conditions = [
+            self.model.vault_id == vault_id,
+            ~self.model.is_deleted,
+            ~self.model.is_dead,
+        ]
+        result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
+        return result.scalar_one()
+
+    async def get_pending_exit_requests(self, db_session: AsyncSession, vault_id: UUID4) -> Sequence[Dweller]:
+        """Living dwellers who have asked to leave and are still waiting."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.exit_requested_at.is_not(None))
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_despairing_without_exit_request(
+        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
+    ) -> Sequence[Dweller]:
+        """Living dwellers at or below a happiness threshold who have not asked to leave."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
+            .where(self.model.exit_requested_at.is_(None))
+            .where(self.model.happiness <= threshold)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
+    async def get_exit_requests_above_happiness(
+        self, db_session: AsyncSession, vault_id: UUID4, threshold: int
+    ) -> Sequence[Dweller]:
+        """Dwellers who asked to leave but are no longer below the despair threshold."""
+        query = (
+            select(self.model)
+            .where(self.model.vault_id == vault_id)
+            .where(self.model.exit_requested_at.is_not(None))
+            .where(self.model.happiness > threshold)
+        )
+        return (await db_session.execute(query)).scalars().all()
+
     async def count_room_names_by_type(self, db_session: AsyncSession, vault_id: UUID4) -> list[str]:
         """Room names of a vault (for callers that classify them by normalized type)."""
         result = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
@@ -362,7 +416,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                 (self.model.room_id == room_id)
                 & (self.model.health > 0)
                 & self.model.is_adult
-                & (self.model.age_group == AgeGroupEnum.ADULT)
+                & self.model.age_group.in_(ADULT_AGE_GROUPS)
             )
         )
         return list((await db_session.execute(query)).scalars().all())
@@ -379,7 +433,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         conditions = [
             Dweller.room_id == room_id,
             Dweller.is_adult,
-            Dweller.age_group == AgeGroupEnum.ADULT,
+            Dweller.age_group.in_(ADULT_AGE_GROUPS),
         ]
         if require_alive:
             conditions.append(Dweller.health > 0)
@@ -459,7 +513,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         vault_id: UUID4,
         room_ids: list[UUID4],
     ) -> Sequence[Dweller]:
-        """Active adults with a partner currently assigned to any of the given rooms."""
+        """Breeding-eligible adults (elders excluded) with a partner in any of the given rooms."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)

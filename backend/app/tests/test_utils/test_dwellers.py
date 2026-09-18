@@ -78,6 +78,20 @@ def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:
             assert attrs["state_of_being"] in STATE_OF_BEING_VALUES[race]
 
 
+def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
+    """Adults old enough to reach the elder threshold are generated as elders."""
+    seeded_now = datetime(2000, 1, 1)
+    threshold = _calendar_years_ago(seeded_now, game_config.dweller.elder_age_years)
+    groups = set()
+    for seed in range(300):
+        dweller = create_random_common_dweller(seed=seed)
+        groups.add(dweller["age_group"])
+        assert dweller["is_adult"] is True
+        expected = AgeGroupEnum.ELDER if dweller["birth_date"] <= threshold else AgeGroupEnum.ADULT
+        assert dweller["age_group"] == expected
+    assert groups == {AgeGroupEnum.ADULT, AgeGroupEnum.ELDER}
+
+
 def test_dweller_config_race_weights_rejects_unknown_key() -> None:
     with pytest.raises(ValueError, match="Unknown race"):
         DwellerConfig(race_weights={"human": 70, "ghoul": 15, "synth": 10, "super_mutant": 5, "robot": 10})

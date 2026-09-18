@@ -37,6 +37,9 @@ class NotificationType(StrEnum):
     DWELLER_INJURED = "dweller_injured"
     DWELLER_DIED = "dweller_died"
 
+    # Exit events
+    DWELLER_EXIT_REQUESTED = "dweller_exit_requested"
+
     # Resource events
     RESOURCE_LOW = "resource_low"
     RESOURCE_CRITICAL = "resource_critical"

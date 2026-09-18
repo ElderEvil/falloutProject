@@ -36,6 +36,7 @@ class DeathCauseEnum(CaseInsensitiveEnum):
     INCIDENT = "incident"
     EXPLORATION = "exploration"
     COMBAT = "combat"
+    EXILE = "exile"
 
 
 class RarityEnum(CaseInsensitiveEnum):
@@ -73,6 +74,13 @@ class AgeGroupEnum(CaseInsensitiveEnum):
     CHILD = "child"
     TEEN = "teen"
     ADULT = "adult"
+    ELDER = "elder"
+
+
+#: Grown-up age groups for work, combat, exploration and auto-assignment.
+#: Breeding stays ADULT-only; prefer this set over `== ADULT` so a new
+#: adult-tier group is never silently locked out of a gameplay gate.
+ADULT_AGE_GROUPS: frozenset[AgeGroupEnum] = frozenset({AgeGroupEnum.ADULT, AgeGroupEnum.ELDER})
 
 
 class RelationshipTypeEnum(CaseInsensitiveEnum):

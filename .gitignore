@@ -289,3 +289,6 @@ backend/logs/
 
 # Local audio source library (curated copies live in frontend/public/audio)
 /assets/audio/
+
+# Dweller chat scenario harness output (dev analysis artifacts)
+scripts/scenario_output/

@@ -25,6 +25,7 @@ from app.agents.chat_tools import (
     compute_happiness_delta,
     derive_reason_code,
     get_available_rooms,
+    load_family_members,
     parse_action_suggestion,
 )
 from app.core.enums import RoomTypeEnum
@@ -77,9 +78,10 @@ dweller_chat_agent = Agent(
 
 
 @dweller_chat_agent.instructions
-def chat_instructions(ctx: RunContext[DwellerChatDeps]) -> str:
+async def chat_instructions(ctx: RunContext[DwellerChatDeps]) -> str:
     """Build dynamic instructions with dweller context for this stateless chat run."""
-    return build_chat_instructions(ctx.deps.dweller)
+    family = await load_family_members(ctx.deps.db_session, ctx.deps.dweller)
+    return build_chat_instructions(ctx.deps.dweller, family=family)
 
 
 @dweller_chat_agent.output_validator

@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     crafting,
     dweller,
     email,
+    exit_requests,
     exploration,
     game_control,
     junk,
@@ -42,6 +43,7 @@ api_router.include_router(chat.router)
 api_router.include_router(crafting.router)
 api_router.include_router(email.router)
 api_router.include_router(dweller.router)
+api_router.include_router(exit_requests.router)
 api_router.include_router(exploration.router)
 api_router.include_router(game_control.router)
 api_router.include_router(junk.router)

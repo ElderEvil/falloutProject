@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import NavBar from './NavBar.vue'
+import ExitRequestModal from '@/modules/dwellers/components/modals/ExitRequestModal.vue'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 defineProps<{
   isFlickering: boolean
   flickerOpacity?: number
 }>()
+
+const authStore = useAuthStore()
+const isAuthenticated = computed(() => authStore.isAuthenticated)
 </script>
 
 <template>
@@ -19,6 +25,7 @@ defineProps<{
     >
       <slot></slot>
     </main>
+    <ExitRequestModal v-if="isAuthenticated" />
   </div>
 </template>
 

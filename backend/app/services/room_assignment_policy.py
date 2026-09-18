@@ -2,9 +2,10 @@
 
 # TODO: relocate this kernel plus dweller availability checks outside services so CRUD can share them.
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import ADULT_AGE_GROUPS, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerReadFull
@@ -33,7 +34,7 @@ def calculate_room_capacity(room_size: int | None) -> int:
 
 def adult_assignment_conditions() -> tuple:
     """Return database conditions that select mature dwellers for automatic work assignment."""
-    return Dweller.is_adult, Dweller.age_group == AgeGroupEnum.ADULT
+    return Dweller.is_adult, col(Dweller.age_group).in_(ADULT_AGE_GROUPS)
 
 
 async def validate_room_assignment(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:

@@ -97,6 +97,7 @@ const ageGroupOptions = [
   { value: 'child', label: 'Child', icon: 'mdi:baby' },
   { value: 'teen', label: 'Teen', icon: 'mdi:human-child' },
   { value: 'adult', label: 'Adult', icon: 'mdi:account' },
+  { value: 'elder', label: 'Elder', icon: 'mdi:account-cowboy-hat' },
 ]
 
 const currentFilterStatus = computed({

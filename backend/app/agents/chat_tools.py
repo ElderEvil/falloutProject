@@ -3,7 +3,8 @@
 import logging
 
 from pydantic import UUID4
-from sqlmodel import select
+from sqlalchemy import or_
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.agents.chat_schemas import (
@@ -23,16 +24,19 @@ from app.schemas.chat import (
     BioAddendumAction,
     NoAction,
     RecallExplorationAction,
+    RequestExitAction,
     RequestRadawayAction,
     RequestStimpakAction,
     StartExplorationAction,
     StartTrainingAction,
 )
 from app.schemas.dweller import DwellerReadFull
+from app.services.exit_request_service import exit_request_service
 from app.services.medical_service import (
     get_dweller_medical_status as fetch_dweller_medical_status,
 )
 from app.services.room_assignment_policy import get_highest_special
+from app.utils.exceptions import VaultOperationException
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,7 @@ async def get_available_rooms(
 
     result = []
     for room in rooms:
-        dweller_query = select(Dweller).where(Dweller.room_id == room.id).where(~Dweller.is_deleted)
+        dweller_query = select(Dweller).where(col(Dweller.room_id) == room.id).where(~col(Dweller.is_deleted))
         dweller_response = await db_session.execute(dweller_query)
         current_dwellers = len(dweller_response.scalars().all())
 
@@ -167,9 +171,9 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
     }
     relatives_result = await deps.db_session.execute(
         select(Dweller).where(
-            Dweller.id.in_(family_ids | relation_ids)
-            | (Dweller.parent_1_id == dweller.id)
-            | (Dweller.parent_2_id == dweller.id)
+            col(Dweller.id).in_(family_ids | relation_ids)
+            | (col(Dweller.parent_1_id) == dweller.id)
+            | (col(Dweller.parent_2_id) == dweller.id)
         )
     )
     relatives = {relative.id: relative for relative in relatives_result.scalars().all()}
@@ -205,6 +209,46 @@ async def build_dweller_social_context(deps: DwellerChatDeps) -> dict:
             for relation in relationships
         ],
     }
+
+
+async def load_family_members(db_session: AsyncSession, dweller: DwellerReadFull) -> list[dict]:
+    """Partner, parents and children as {name, relation} entries (empty when none are registered).
+
+    The relationship ids live on the ORM row, not on ``DwellerReadFull``, so the record is
+    re-read the same way ``build_dweller_social_context`` does.
+    """
+    record = await db_session.get(Dweller, dweller.id)
+    if record is None:
+        return []
+
+    partner_and_parents = [
+        member_id for member_id in (record.partner_id, record.parent_1_id, record.parent_2_id) if member_id
+    ]
+    conditions = [col(Dweller.parent_1_id) == record.id, col(Dweller.parent_2_id) == record.id]
+    if partner_and_parents:
+        conditions.append(col(Dweller.id).in_(partner_and_parents))
+    result = await db_session.execute(select(Dweller).where(or_(*conditions)))
+    relatives = {relative.id: relative for relative in result.scalars().all()}
+
+    def name(member_id: UUID4) -> str:
+        member = relatives.get(member_id)
+        return f"{member.first_name} {member.last_name or ''}".strip() if member else ""
+
+    family = [
+        {"name": name(member_id), "relation": relation}
+        for member_id, relation in (
+            (record.partner_id, "partner"),
+            (record.parent_1_id, "parent"),
+            (record.parent_2_id, "parent"),
+        )
+        if member_id
+    ]
+    family.extend(
+        {"name": name(child.id), "relation": "child"}
+        for child in relatives.values()
+        if child.parent_1_id == record.id or child.parent_2_id == record.id
+    )
+    return [entry for entry in family if entry["name"]]
 
 
 def best_room_recommendation_text(dweller: DwellerReadFull) -> str:
@@ -243,6 +287,7 @@ async def parse_action_suggestion(
     | RecallExplorationAction
     | RequestStimpakAction
     | RequestRadawayAction
+    | RequestExitAction
     | BioAddendumAction
     | NoAction
 ):
@@ -341,6 +386,12 @@ async def parse_action_suggestion(
         if medical_status.available_radaways <= 0:
             return NoAction(reason="No RadAway is available")
         return RequestRadawayAction(reason=output.action_reason or "Radiation is at least 30%")
+    if output.action_type == "request_exit":
+        try:
+            await exit_request_service.request_exit(db_session, dweller.id, commit=False)
+        except VaultOperationException as error:
+            return NoAction(reason=error.detail)
+        return RequestExitAction(reason=output.action_reason or "They want to go outside")
     if output.action_type == "bio_addendum":
         text = (output.action_bio_text or "").strip()
         if len(text) < 8:

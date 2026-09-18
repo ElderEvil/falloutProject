@@ -45,6 +45,7 @@ export const AGE_CONFIG_MAP: Record<components['schemas']['AgeGroupEnum'], Badge
   child: { color: 'var(--badge-age-child)', icon: 'mdi:baby-face-outline', label: 'Child' },
   teen: { color: 'var(--badge-age-teen)', icon: 'mdi:account-school', label: 'Teen' },
   adult: { color: 'var(--badge-age-adult)', icon: 'mdi:account', label: 'Adult' },
+  elder: { color: 'var(--badge-age-elder)', icon: 'mdi:account-cowboy-hat', label: 'Elder' },
 }
 
 export const GENDER_CONFIG_MAP: Record<components['schemas']['GenderEnum'], BadgeConfig> = {
@@ -223,6 +224,7 @@ export const DEATH_CAUSE_ICON_MAP: Record<string, string> = {
   incident: 'mdi:fire',
   exploration: 'mdi:compass',
   combat: 'mdi:sword',
+  exile: 'mdi:exit-run',
 }
 
 /** Get the icon for a death cause, defaulting to skull */

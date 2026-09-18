@@ -7,7 +7,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import ADULT_AGE_GROUPS, AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
@@ -220,7 +220,7 @@ class DwellerAssignmentService:
         ``uq_dweller_active_apprentice_room`` index remains the integrity backstop
         for a manual assignment racing the same room.
         """
-        if age_group == AgeGroupEnum.ADULT:
+        if age_group in ADULT_AGE_GROUPS:
             return
 
         await crud.dweller.lock_vault(db_session, vault_id)

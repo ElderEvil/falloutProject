@@ -243,4 +243,16 @@ class DwellerLocationRelationEnum(StrEnum):
     VISITED = "visited"
 
 
+class HazardTeam(CaseInsensitiveEnum):
+    """A standing hazard-response team a dweller earns a place on.
+
+    Membership is earned from service, never assigned: a dweller qualifies by
+    fighting incidents of the team's hazard (see ``models/incident.py`` for the
+    type mapping and ``services/contamination_team_service.py`` for the rule).
+    """
+
+    FIRE = "fire"
+    RADIATION = "radiation"
+
+
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

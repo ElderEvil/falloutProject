@@ -5,7 +5,8 @@ from .crafting_order import CraftingOrder, CraftingOrderStatus
 from .dweller import Dweller
 from .exploration import Exploration
 from .game_state import GameState
-from .incident import Incident, IncidentStatus, IncidentType
+from .hazard_team import HazardTeamMember
+from .incident import Incident, IncidentParticipant, IncidentStatus, IncidentType
 from .incident_event import IncidentEvent
 from .item import Item
 from .junk import Junk

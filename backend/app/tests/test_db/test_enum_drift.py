@@ -48,6 +48,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "dwellerstatusenum": {"IDLE", "WORKING", "EXPLORING", "QUESTING", "TRAINING", "RESTING", "FIGHTING", "DEAD"},
     "explorationstatus": {"ACTIVE", "COMPLETED", "RECALLED"},
     "genderenum": {"MALE", "FEMALE"},
+    "hazardteam": {"FIRE", "RADIATION"},
     "incidentstatus": {"ACTIVE", "SPREADING", "RESOLVED", "FAILED"},
     "incidenttype": {
         "RAIDER_ATTACK",

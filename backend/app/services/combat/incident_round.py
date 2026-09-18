@@ -148,6 +148,13 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     if not dwellers:
         return await no_defender_outcome(db_session, incident)
 
+    # Credit the round's defenders before any damage lands; the ledger and any
+    # team place it earns ride this round's single commit, so a failed round
+    # leaves no participation behind.
+    from app.services.contamination_team_service import contamination_team_service
+
+    await contamination_team_service.record_participation(db_session, incident, dwellers)
+
     # Fire is a containment operation: responders suppress a hazard rather
     # than defeat enemies. Other types retain the combat loop.
     dweller_power = incident_math.dweller_combat_power(dwellers)

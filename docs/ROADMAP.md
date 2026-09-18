@@ -227,38 +227,52 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
 
-### Contamination Team — fire & radiation responders (idea, Target: TBD)
+### Contamination Team — fire & radiation responders (building, Target: TBD)
 
 A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
 kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
 Inspiration: UA "DUDES OF HAZMAT - Toxic Waste Chase" (music video) — hazmat-suit energy, sirens, toxic
-chase vibes. Recorded now so the idea is not lost; none of the machinery below is committed.
-Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
+chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
 
-Idea sketch (not yet designed):
+Built so far (branch `feat/contamination-team`):
 
-- **Fire team** — dwellers designated as firefighters, dispatched to fire-hazard incidents ahead of (or
-  instead of) whoever happens to be in the room. Needs **fire-resistant suits** — new outfit(s) to add
-  (catalog entry, stats, art), plus whatever resistance mechanic they hook into.
-- **Radiation response team** — same shape for radiation incidents: designated responders with rad
-  protection, distinct from the fire team.
-- **Team roster concept** — is this a standing squad assignment (rooms/panel, on-call rotation) or a
-  priority list consulted at spawn time? Undecided — the current system takes whoever is healthy in the
-  room (`assign_responders`), so any roster is new machinery.
+- **Team forming** — a dweller earns a place by fighting three incidents of a contamination type (fire,
+  radiation); the first three hold the team, later qualifiers wait on a bench, and each milestone lands in
+  `bio_entries`. Membership records identity, never position.
+- **Participation ledger** — `incident_participant` credits each defender once per incident, inside the
+  round's single commit.
+- **Outfit hazard resistance** — `fire_resist` / `radiation_resist` columns, fire resistance applied in
+  `apply_damage`, a declared radiation share overriding the legacy type/name table. Fixes equip never
+  invalidating the wearer's cached relationship, which had silently zeroed all outfit radiation protection.
+- **Spawner** — runtime spawns now roll from `game_config.incident.get_spawn_weights()`; they previously
+  hardcoded radscorpions, so `FIRE` (fully implemented, with its own containment math) never spawned.
 
-Reuse map (all of this already exists — reach for it first):
+Still open:
 
-- **Incident dispatch**: `incident_service.assign_responders`, `incident_spawning` / `incident_tick`,
-  `IncidentType` / `IncidentFamily` in `models/incident.py`.
-- **Damage math**: `services/combat/incident_math.py` + `utils/combat.py` — resistance hooks belong here,
-  not scattered conditionals.
-- **Outfits**: item catalogs + shared item builders (`utils/item_factory.py`); the radiation section above
-  already scopes how resistance-vs-ingestion questions get answered.
-- **Surfacing**: `notification_service` + SSE incident topics under the modal/toast red line.
+- **Dispatch** — deferred by design to the Jev classifier; the team is currently a designation and a record.
+- **The ask** — the dweller's chat request when a bench place opens (needs a name/scope decision).
+- **Real-time movement** — membership must stay an identity so a future movement system consumes the roster
+  instead of invalidating it; movement would make response latency and a team muster point meaningful.
 
-Gaps to settle before building: what "fire-resistant" modifies numerically (damage taken? suppression
-rate?); whether rad-suits stack with existing radiation resistance; roster UX and tick integration;
-training/eligibility requirements for team membership.
+### Shared roster machinery — quest parties and responder teams (Target: TBD)
+
+Quest parties (`QuestParty` + `crud/quest_party.assign_party`) and the contamination teams
+(`HazardTeamMember`, `contamination_team_service`) solve the same shape — "which dwellers are on this
+thing" — with separate implementations. Extract the common parts so the two do not drift: one
+**availability/eligibility policy**, and ideally one roster primitive both consume.
+
+This is the same consolidation the code already asks for in three places:
+
+- `crud/quest_party.py:54` — *"TODO: unify eligibility with incident responder checks; shared availability
+  policy outside services."*
+- `services/exploration_service.py:130` — *"TODO: unify with incident responder eligibility into a shared
+  availability policy outside services."*
+- `docs/ROADMAP.md` simplification backlog — the planned `is_in_vault_and_active` helper (responder,
+  explorer, and dehydration eligibility all point at it).
+
+Constraint: the shared policy cannot live in `app/services/` — the architecture guard permits CRUD to import
+only `room_assignment_policy` there, and new entries fail the suite. It belongs in `app/utils/` beside
+`room_rules.py` / `dwellers.py`, following the precedent AGENTS.md rule 11 sets for the shared policy kernel.
 
 ### Version 3.0 Platform Modernization
 
@@ -425,6 +439,10 @@ that preference persist — without regressing the existing list/grid modes.
 **Focus**: Preserve the wasteland map as a legible, per-vault exploration surface: discoveries, routes, and journal
 context for the player's own dwellers. Feature contract: `docs/features/WORLD_MAP.md`; delivery plan:
 `docs/WORLD_MAP_PLAN.md`.
+
+**Navigation note (accepted debt):** the map is currently a **separate top-level menu item**. That is fine for
+now, but it should eventually move **under Exploration** — the map is an exploration surface, not a peer of
+it. Design deferred; decide the navigation shape when the exploration module next gets attention.
 
 
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new

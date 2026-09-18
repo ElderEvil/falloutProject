@@ -147,6 +147,14 @@ Two constraints this places on the current work:
 
 ## Relation to other plans
 
+- **Quest parties share this shape.** `QuestParty` + `crud/quest_party.assign_party` and
+  `HazardTeamMember` + `contamination_team_service` both answer "which dwellers are on this thing", built
+  separately. The common parts should be extracted so they do not drift — one availability/eligibility
+  policy, and ideally one roster primitive both consume. Three TODOs already ask for it
+  (`crud/quest_party.py:54`, `services/exploration_service.py:130`, and the `is_in_vault_and_active` note
+  in the roadmap simplification backlog). The policy cannot live in `app/services/` (the architecture
+  guard allows CRUD to import only `room_assignment_policy`); `app/utils/` is the home, per AGENTS.md
+  rule 11. Tracked in `docs/ROADMAP.md`.
 - The Jev classifier (`docs/backend/JEV_CLASSIFIER.md`) is where **dispatch** lands: the team is
   deliberately a designation-and-record feature until Jev triages threats and decides who gets sent.
   Formation must work deterministically first — Jev consumes the team, it does not gate it.

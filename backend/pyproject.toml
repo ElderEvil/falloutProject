@@ -33,7 +33,7 @@ dependencies = [
     "fastapi-guard>=7.7.0,<8",
     "beautifulsoup4>=4.15.0",
     "cryptography>=50.0.0",
-    "guard-core>=3.12.0,<4",
+    "guard-core>=3.12.0,<5",
 ]
 
 [dependency-groups]

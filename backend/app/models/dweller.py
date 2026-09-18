@@ -23,8 +23,8 @@ BIO_MAX_CHARS = 2_048
 if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.outfit import Outfit
-    from app.models.quest_party import QuestParty
     from app.models.room import Room
+    from app.models.team import TeamMember
     from app.models.training import Training
     from app.models.vault import Vault
     from app.models.weapon import Weapon
@@ -202,7 +202,7 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         back_populates="from_dweller",
         sa_relationship_kwargs={"foreign_keys": "[Notification.from_dweller_id]"},
     )
-    quest_assignments: list["QuestParty"] = Relationship(
+    team_memberships: list["TeamMember"] = Relationship(
         back_populates="dweller",
         sa_relationship_kwargs={"cascade": "all"},
     )

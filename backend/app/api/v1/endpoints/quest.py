@@ -11,6 +11,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.models.quest import Quest
+from app.models.team import TeamMember
 from app.schemas.quest import (
     EligibleDwellerRead,
     QuestCompleteResponse,
@@ -22,9 +23,27 @@ from app.schemas.quest import (
 )
 from app.schemas.rewards import granted_reward_adapter
 from app.services.quest_service import quest_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.services.team_service import team_service
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
+
+
+def _to_party_member_read(member: TeamMember, quest_id: UUID4, vault_id: UUID4) -> QuestPartyMemberRead:
+    """Map a team member into the quest wire contract (quest/vault come from the team)."""
+    slot_number = member.slot_number
+    if slot_number is None:
+        raise ValidationException("Quest team member is missing a slot number")
+    return QuestPartyMemberRead(
+        id=member.id,
+        quest_id=quest_id,
+        vault_id=vault_id,
+        dweller_id=member.dweller_id,
+        slot_number=slot_number,
+        status=member.status,
+        created_at=member.created_at.isoformat() if member.created_at else None,
+        updated_at=member.updated_at.isoformat() if member.updated_at else None,
+    )
 
 
 @router.get("/", response_model=list[QuestRead])
@@ -190,7 +209,7 @@ async def claim_quest_rewards(
     )
 
 
-@router.post("/{vault_id}/{quest_id}/assign-party", status_code=201)
+@router.post("/{vault_id}/{quest_id}/assign-party", response_model=list[QuestPartyMemberRead], status_code=201)
 async def assign_party_to_quest(
     vault_id: UUID4,
     quest_id: UUID4,
@@ -206,20 +225,10 @@ async def assign_party_to_quest(
     Raises:
         ValidationException: If party size is invalid or assignment fails.
     """
-    from app.crud.quest_party import quest_party_crud
-    from app.utils.exceptions import ValidationException
-
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    if len(party_data.dweller_ids) > 3:
-        raise ValidationException("Maximum 3 dwellers per quest")
-    if len(party_data.dweller_ids) < 1:
-        raise ValidationException("Minimum 1 dweller per quest")
-
-    try:
-        return await quest_party_crud.assign_party(db_session, quest_id, vault_id, party_data.dweller_ids)
-    except ValueError as e:
-        raise ValidationException(str(e)) from e
+    members = await team_service.assign_quest_team(db_session, quest_id, vault_id, party_data.dweller_ids)
+    return [_to_party_member_read(member, quest_id, vault_id) for member in members]
 
 
 @router.get("/{vault_id}/{quest_id}/party", response_model=list[QuestPartyMemberRead])
@@ -234,23 +243,9 @@ async def get_quest_party(
     Returns:
         List of party members.
     """
-    from app.crud.quest_party import quest_party_crud
-
     await get_user_vault_or_403(vault_id, user, db_session)
-    party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
-    return [
-        QuestPartyMemberRead(
-            id=p.id,
-            quest_id=p.quest_id,
-            vault_id=p.vault_id,
-            dweller_id=p.dweller_id,
-            slot_number=p.slot_number,
-            status=p.status,
-            created_at=p.created_at.isoformat() if p.created_at else None,
-            updated_at=p.updated_at.isoformat() if p.updated_at else None,
-        )
-        for p in party
-    ]
+    members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
+    return [_to_party_member_read(member, quest_id, vault_id) for member in members]
 
 
 @router.post("/{vault_id}/{quest_id}/start", response_model=QuestRead, status_code=200)

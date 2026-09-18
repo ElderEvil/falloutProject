@@ -54,7 +54,6 @@ class QuestService:
 
     async def start_quest(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> VaultQuestCompletionLink:
         """Start a quest or ready a state objective."""
-        from app.crud.quest_party import quest_party_crud
         from app.utils.exceptions import (
             AccessDeniedException,
             ResourceConflictException,
@@ -85,8 +84,8 @@ class QuestService:
         if quest.duration_minutes is None or quest.duration_minutes <= 0:
             raise ValidationException("Quest duration must be a positive value")
 
-        party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
-        if not party:
+        members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
+        if not members:
             raise ValidationException("Assign at least one dweller before starting this quest")
 
         link.started_at = datetime.utcnow()
@@ -116,7 +115,6 @@ class QuestService:
 
     async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Quest:
         """Return a finished party and make its rewards available to claim."""
-        from app.crud.quest_party import quest_party_crud
         from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
@@ -136,8 +134,8 @@ class QuestService:
         if link.is_reward_ready:
             return quest
 
-        party = await quest_party_crud.get_party_for_quest(db_session, quest_id, vault_id)
-        for member in party:
+        members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
+        for member in members:
             dweller = await crud.dweller.get_or_none(db_session, member.dweller_id, include_deleted=True)
             if dweller:
                 dweller.status = DwellerStatusEnum.IDLE
@@ -180,15 +178,13 @@ class QuestService:
         self, db_session: AsyncSession, quest: Quest, vault_id: UUID4
     ) -> list[dict[str, Any]]:
         """Grant every quest reward within the completion transaction."""
-        from app.crud.quest_party import quest_party_crud
-
         async with defer_reward_delivery(db_session):
             await db_session.refresh(quest, ["quest_rewards"])
             granted_rewards = await reward_service.process_quest_rewards(db_session, vault_id, quest)
-            party = await quest_party_crud.get_party_for_quest(db_session, quest.id, vault_id)
-            if party:
+            members = await crud.team_crud.get_quest_team(db_session, quest.id, vault_id)
+            if members:
                 experience_reward = await reward_service.grant_experience(
-                    db_session, [member.dweller_id for member in party], quest.duration_minutes * 10
+                    db_session, [member.dweller_id for member in members], quest.duration_minutes * 10
                 )
                 experience_reward["name"] = "Quest experience"
                 granted_rewards.append(experience_reward)

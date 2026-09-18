@@ -19,6 +19,7 @@ OUTFIT_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "firefighter suit": "FOS Engineer Armor.png",
     "heavy synth armor": "FOS Combat Armor.png",
     "heavy vault suit": "FOS Armored Vault Suit.png",
+    "firefighter suit, rad helmet": "FOS Rad Suit.png",
     "hazmat suit": "FOS Rad Suit.png",
     "leather armor": "FOS Leather Armor.png",
     "mechanic jumpsuit": "FOS Handyman Outfit.png",

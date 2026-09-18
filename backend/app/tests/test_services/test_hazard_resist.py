@@ -117,6 +117,60 @@ async def test_hazmat_suit_blocks_radiation_once_equipped(async_session: AsyncSe
 
 
 @pytest.mark.asyncio
+async def test_both_hazard_outfit_protects_against_fire_and_radiation(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """The firefighter suit with a rad helmet is the only kit rated for both hazards."""
+    roles = {row["name"]: row for row in _legendary_catalog()}
+    entry = roles["Firefighter suit, rad helmet"]
+    assert entry["fire_resist"] > 0
+    assert entry["radiation_resist"] == 1.0
+
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 100
+    dweller.max_health = 100
+    suit = await crud.outfit.create(
+        async_session,
+        obj_in=OutfitCreate(
+            name=entry["name"],
+            rarity=entry["rarity"],
+            value=entry["value"],
+            outfit_type=entry["outfit_type"],
+            fire_resist=entry["fire_resist"],
+            radiation_resist=entry["radiation_resist"],
+        ),
+    )
+    await crud.outfit.equip(db_session=async_session, item_id=suit.id, dweller_id=dweller.id)
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=2,
+    )
+    await async_session.commit()
+
+    loaded = list(await crud.dweller.get_healthy_adults_in_room(async_session, room.id))
+    wearer = next(row for row in loaded if row.id == dweller.id)
+    assert outfit_fire_resist(wearer.__dict__.get("outfit")) == entry["fire_resist"]
+    assert outfit_radiation_resist(wearer.__dict__.get("outfit")) == 1.0
+
+    with patch("app.services.combat.incident_math.fire_damage", return_value=20.0):
+        await incident_service.process_incident(async_session, incident, 2)
+
+    await async_session.refresh(dweller)
+    per_dweller = int(20.0) // len(loaded)
+    assert dweller.health == 100 - int(per_dweller * (1 - entry["fire_resist"]))
+
+
+def _legendary_catalog() -> list[dict]:
+    from app.services.exploration.data_loader import load_outfits
+
+    return [row for row in load_outfits() if row.get("rarity") == "Legendary"]
+
+
+@pytest.mark.asyncio
 async def test_fire_suit_does_not_help_against_intruders(async_session: AsyncSession, room_with_dwellers: dict):
     """Fire protection is fire-only; a fight is a fight."""
     room = room_with_dwellers["room"]

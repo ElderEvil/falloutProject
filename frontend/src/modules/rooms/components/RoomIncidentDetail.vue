@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
-import { getIncidentIcon, type Incident } from '@/modules/combat/models/incident'
+import { getIncidentIcon, type Incident, type IncidentTeamMember } from '@/modules/combat/models/incident'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import UButton from '@/core/components/ui/UButton.vue'
+import { useToast } from '@/core/composables/useToast'
 import IncidentScene from './IncidentScene.vue'
 import IncidentBattleLog from './IncidentBattleLog.vue'
 
@@ -22,6 +23,7 @@ const props = defineProps<Props>()
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
+const { warning: showWarning } = useToast()
 const assigningDwellerId = ref<string | null>(null)
 const isSendingBest = ref(false)
 // One assignment at a time: both handlers post to the same endpoint, so a second
@@ -49,6 +51,48 @@ const bestResponders = computed(() =>
     .slice(0, 3)
 )
 
+interface TeamMemberEntry {
+  member: IncidentTeamMember
+  dweller: DwellerShort | undefined
+}
+
+const teamMembers = computed<TeamMemberEntry[]>(() =>
+  incidentStore
+    .getIncidentTeam(props.incident.id)
+    .map((member) => ({
+      member,
+      dweller: props.dwellers.find((dweller) => dweller.id === member.dweller_id),
+    }))
+)
+
+const teamMemberLabel = (entry: TeamMemberEntry): string =>
+  entry.dweller?.first_name ?? entry.member.dweller_id.slice(0, 8)
+
+const loadTeam = (): void => {
+  if (authStore.token) {
+    void incidentStore.fetchIncidentTeam(props.vaultId, props.incident.id, authStore.token)
+  }
+}
+
+onMounted(loadTeam)
+watch(() => props.incident.id, loadTeam)
+
+// The POST replaces the roster, so every send submits the union of the current
+// designated team and the new selection, deduped and capped at the backend's 6.
+const MAX_TEAM_SIZE = 6
+
+const buildTeamUnion = (newIds: string[]): string[] => {
+  const currentIds = incidentStore.getIncidentTeam(props.incident.id).map((member) => member.dweller_id)
+  const union = [...new Set([...currentIds, ...newIds])]
+  if (union.length > MAX_TEAM_SIZE) {
+    showWarning(
+      `Incident team is full (${MAX_TEAM_SIZE}) — ${union.length - MAX_TEAM_SIZE} responder(s) not sent.`
+    )
+    return union.slice(0, MAX_TEAM_SIZE)
+  }
+  return union
+}
+
 const send = async (dwellerIds: string[]) => {
   if (!authStore.token || !dwellerIds.length) return
   await incidentStore.assignResponders(props.vaultId, props.incident.id, dwellerIds, authStore.token)
@@ -58,7 +102,7 @@ const sendBestDefenders = async () => {
   if (isAssigning.value || !bestResponders.value.length) return
   isSendingBest.value = true
   try {
-    await send(bestResponders.value.map((dweller) => dweller.id))
+    await send(buildTeamUnion(bestResponders.value.map((dweller) => dweller.id)))
   } finally {
     isSendingBest.value = false
   }
@@ -68,7 +112,7 @@ const assignResponder = async (dwellerId: string) => {
   if (isAssigning.value) return
   assigningDwellerId.value = dwellerId
   try {
-    await send([dwellerId])
+    await send(buildTeamUnion([dwellerId]))
   } finally {
     assigningDwellerId.value = null
   }
@@ -101,6 +145,27 @@ const assignResponder = async (dwellerId: string) => {
         <Icon icon="mdi:account-group" class="h-4 w-4" />
         {{ incident.response.label }}
       </h4>
+
+      <div v-if="teamMembers.length" class="mb-3">
+        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-terminal-green-dim">
+          <Icon icon="mdi:shield-account" class="h-4 w-4" />
+          On scene
+        </h4>
+        <ul class="flex flex-col gap-1.5">
+          <li
+            v-for="entry in teamMembers"
+            :key="entry.member.id"
+            class="flex items-center gap-2 rounded border border-theme-primary/20 bg-surface-canvas px-3 py-1.5 text-xs"
+          >
+            <Icon icon="mdi:account" class="h-4 w-4 shrink-0 text-terminal-green" />
+            <span class="truncate text-terminal-green">{{ teamMemberLabel(entry) }}</span>
+            <span class="ml-auto flex items-center gap-1 text-terminal-green-dim">
+              <Icon icon="mdi:sword" class="h-3.5 w-3.5" />
+              POW {{ entry.dweller ? getCombatPower(entry.dweller) : '—' }}
+            </span>
+          </li>
+        </ul>
+      </div>
 
       <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
         <UButton

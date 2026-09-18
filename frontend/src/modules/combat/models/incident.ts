@@ -125,3 +125,13 @@ export interface IncidentOverflowResponse {
   caps_granted: number
   unclaimed_loot: IncidentLootItem[]
 }
+
+export interface IncidentTeamMember {
+  id: string
+  team_id: string
+  dweller_id: string
+  slot_number: number | null
+  status: string
+  created_at: string | null
+  updated_at: string | null
+}

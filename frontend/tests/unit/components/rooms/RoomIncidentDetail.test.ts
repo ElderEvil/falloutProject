@@ -1,16 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
-import type { Incident } from '@/modules/combat/models/incident'
+import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 const assignResponders = vi.fn()
+const fetchIncidentTeam = vi.fn()
+const getIncidentTeam = vi.fn(() => [])
 
 vi.mock('@/modules/combat/stores/incident', () => ({
-  useIncidentStore: () => ({ assignResponders }),
+  useIncidentStore: () => ({ assignResponders, fetchIncidentTeam, getIncidentTeam }),
 }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({ token: 'test-token' }),
+}))
+
+vi.mock('@/core/composables/useToast', () => ({
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
 }))
 
 const incident = (overrides: Partial<Incident> = {}): Incident =>
@@ -64,6 +70,20 @@ describe('RoomIncidentDetail', () => {
   beforeEach(() => {
     assignResponders.mockReset()
     assignResponders.mockResolvedValue(undefined)
+    fetchIncidentTeam.mockReset()
+    fetchIncidentTeam.mockResolvedValue(undefined)
+    getIncidentTeam.mockReset()
+    getIncidentTeam.mockReturnValue([])
+  })
+
+  const teamMember = (dwellerId: string): IncidentTeamMember => ({
+    id: `tm-${dwellerId}`,
+    team_id: 'team-1',
+    dweller_id: dwellerId,
+    slot_number: 1,
+    status: 'assigned',
+    created_at: null,
+    updated_at: null,
   })
 
   it('names the threat with its family, objective and progress', () => {
@@ -169,5 +189,71 @@ describe('RoomIncidentDetail', () => {
 
     release?.()
     await wrapper.vm.$nextTick()
+  })
+
+  it('fetches the designated team on mount', () => {
+    mountDetail()
+
+    expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'test-token')
+  })
+
+  it('renders the designated team roster with combat power', () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = mountDetail({
+      dwellers: [dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 })],
+    })
+
+    expect(wrapper.text()).toContain('On scene')
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('POW 10')
+  })
+
+  it('falls back to a short id for team members missing from the dweller list', () => {
+    getIncidentTeam.mockReturnValue([teamMember('dweller-unknown-1234')])
+    const wrapper = mountDetail({ dwellers: [] })
+
+    expect(wrapper.text()).toContain('dweller-')
+  })
+
+  it('sends the union of the current team and the new responder', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' }),
+        dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' }),
+      ],
+    })
+
+    const buttons = wrapper.findAll('button')
+    await buttons[buttons.length - 1].trigger('click')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1', 'd2'], 'test-token')
+  })
+
+  it('sends the union when sending the best defenders', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d1')])
+    const wrapper = mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1', combat_power: 10 }),
+        dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2', combat_power: 90 }),
+        dweller({ id: 'd3', first_name: 'Cara', room_id: 'room-2', combat_power: 50 }),
+      ],
+    })
+
+    await wrapper.find('button').trigger('click')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1', 'd2', 'd3'], 'test-token')
+  })
+
+  it('dedupes the union when the new selection is already on the team', async () => {
+    getIncidentTeam.mockReturnValue([teamMember('d2')])
+    const wrapper = mountDetail({
+      dwellers: [dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' })],
+    })
+
+    const buttons = wrapper.findAll('button')
+    await buttons[buttons.length - 1].trigger('click')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
   })
 })

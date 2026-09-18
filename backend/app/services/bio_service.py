@@ -34,6 +34,7 @@ BIO_MIN_ENTRY_CHARS = 8
 # frontend mirrors these keys for labels and falls back for anything unknown.
 BIO_SECTIONS: dict[str, tuple[str, ...]] = {
     "origin": ("template", "legacy"),
+    "service": ("hazard",),
     "exploration": ("exploration",),
     "family": ("family",),
     "dialogue": ("dialogue",),
@@ -150,6 +151,27 @@ class BioService:
         if source == "dialogue" and self.has_dialogue_entry(dweller, normalized):
             raise ContentNoChangeException(detail="That detail is already in the biography")
         return await self._persist(db_session, dweller_id, self.with_entry(dweller, source, normalized, ref))
+
+    def add_entry(
+        self,
+        dweller: BioEntryOwner,
+        source: str,
+        text: str,
+        ref: dict[str, Any] | None = None,
+    ) -> None:
+        """Stage one entry on a dweller the caller already holds, touching no session.
+
+        For callers inside a tick: refetching and refreshing the row would expire
+        the relationships that round has eagerly loaded.
+
+        Raises:
+            ValidationException: The text is blank or shorter than the entry floor.
+        """
+        normalized = text.strip()
+        if len(normalized) < BIO_MIN_ENTRY_CHARS:
+            raise ValidationException(f"Biography entries need at least {BIO_MIN_ENTRY_CHARS} characters")
+        dweller.bio_entries = self.with_entry(dweller, source, normalized, ref)
+        dweller.bio = compile_bio(dweller.bio_entries)
 
     @staticmethod
     def has_dialogue_entry(dweller: BioEntryOwner, text: str) -> bool:

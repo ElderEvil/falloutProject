@@ -118,12 +118,21 @@ const OUTFIT_RADIATION_RESIST_BY_NAME: Record<string, number> = {
 interface ResistSource {
   outfit_type?: string
   name?: string
+  radiation_resist?: number | null
+  fire_resist?: number | null
 }
 
+// An explicit share declared on the outfit wins; older rows without one keep
+// the type/name fallback below (mirrors radiation_service.outfit_radiation_resist).
 export function getOutfitRadiationResist(outfit: ResistSource): number {
+  if (outfit.radiation_resist != null) return outfit.radiation_resist
   const byName = OUTFIT_RADIATION_RESIST_BY_NAME[outfit.name?.trim().toLowerCase() ?? '']
   if (byName !== undefined) return byName
   return OUTFIT_RADIATION_RESIST_BY_TYPE[outfit.outfit_type?.trim().toLowerCase() ?? ''] ?? 0
+}
+
+export function getOutfitFireResist(outfit: ResistSource): number {
+  return outfit.fire_resist ?? 0
 }
 
 interface BonusSource {
@@ -181,6 +190,8 @@ export function getOutfitStats(outfit: OutfitStatsSource): ItemStat[] {
   }))
   const resist = getOutfitRadiationResist(outfit)
   if (resist > 0) stats.push({ label: 'RAD resist', value: `${Math.round(resist * 100)}%`, icon: 'mdi:radiation' })
+  const fireResist = getOutfitFireResist(outfit)
+  if (fireResist > 0) stats.push({ label: 'Fire resist', value: `${Math.round(fireResist * 100)}%`, icon: 'mdi:fire' })
   if (outfit.gender) stats.push({ label: 'Gender', value: outfit.gender, icon: 'mdi:human-male-female' })
   if (outfit.weight !== undefined) stats.push({ label: 'Weight', value: outfit.weight, icon: 'mdi:scale' })
   if (outfit.durability !== undefined) stats.push({ label: 'Durability', value: outfit.durability, icon: 'mdi:shield-check' })

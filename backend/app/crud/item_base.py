@@ -161,6 +161,11 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         await db_session.commit()
         await db_session.refresh(item)
 
+        # Equipping is an FK-only write, so the dweller's cached relationship
+        # still holds the previous value (None for a first equip). Expire it —
+        # without touching the relationship itself, which would cascade-delete
+        # the item just equipped — so the next read re-loads from the FK.
+        db_session.expire(dweller, [item_attr])
         return item
 
     @staticmethod

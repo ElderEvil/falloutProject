@@ -70,5 +70,57 @@
       ],
       "unlock": null
     }
+  },
+  {
+    "name": "Firefighter suit",
+    "outfit_type": "rare_outfit",
+    "rarity": "Rare",
+    "value": 100,
+    "total": 4,
+    "gender": null,
+    "craftable": true,
+    "strength": 0,
+    "perception": 0,
+    "endurance": 4,
+    "charisma": 0,
+    "intelligence": 0,
+    "agility": 0,
+    "luck": 0,
+    "stat": "endurance",
+    "fire_resist": 0.5,
+    "radiation_resist": 0.0,
+    "craft": {
+      "types": [
+        "cloth",
+        "leather",
+        "steel"
+      ],
+      "unlock": null
+    }
+  },
+  {
+    "name": "Hazmat suit",
+    "outfit_type": "rare_outfit",
+    "rarity": "Rare",
+    "value": 100,
+    "total": 4,
+    "gender": null,
+    "craftable": true,
+    "strength": 0,
+    "perception": 0,
+    "endurance": 2,
+    "charisma": 0,
+    "intelligence": 2,
+    "agility": 0,
+    "luck": 0,
+    "stat": "intelligence",
+    "radiation_resist": 1.0,
+    "craft": {
+      "types": [
+        "cloth",
+        "science"
+      ],
+      "unlock": null
+    }
   }
 ]

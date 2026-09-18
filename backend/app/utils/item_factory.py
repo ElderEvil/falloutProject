@@ -40,11 +40,14 @@ def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
     """Build an Outfit from a catalog dict; SPECIAL bonuses stay name-derived."""
     name = str(data["name"])
     gender = data.get("gender")
+    declared_radiation_resist = data.get("radiation_resist")
     return Outfit(
         name=name,
         rarity=rarity,
         outfit_type=OutfitTypeEnum(str(data.get("outfit_type", OutfitTypeEnum.COMMON)).lower()),
         gender=GenderEnum(str(gender).lower()) if gender else None,
+        fire_resist=float(data.get("fire_resist") or 0.0),
+        radiation_resist=float(declared_radiation_resist) if declared_radiation_resist is not None else None,
         value=data.get("value"),
         image_url=get_outfit_image_url(name),
         storage_id=storage_id,

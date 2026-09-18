@@ -198,5 +198,34 @@
       ],
       "unlock": null
     }
+  },
+  {
+    "name": "Firefighter suit, rad helmet",
+    "outfit_type": "legendary_outfit",
+    "warn_by": null,
+    "rarity": "Legendary",
+    "value": 500,
+    "total": 1,
+    "gender": null,
+    "craftable": true,
+    "strength": 0,
+    "perception": 0,
+    "endurance": 5,
+    "charisma": 0,
+    "intelligence": 2,
+    "agility": 0,
+    "luck": 0,
+    "stat": "endurance",
+    "fire_resist": 0.75,
+    "radiation_resist": 1.0,
+    "craft": {
+      "types": [
+        "cloth",
+        "leather",
+        "steel",
+        "science"
+      ],
+      "unlock": null
+    }
   }
 ]

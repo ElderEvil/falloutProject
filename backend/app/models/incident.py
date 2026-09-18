@@ -9,6 +9,7 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.core.enums import HazardTeam
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 
@@ -87,6 +88,27 @@ def get_incident_definition(incident_type: IncidentType) -> IncidentDefinition:
     return INCIDENT_DEFINITIONS[incident_type]
 
 
+#: Incident types that train a standing hazard team, keyed to the team they feed.
+#: Only genuinely contaminating hazards qualify: intruder and infestation combat
+#: (raiders, roaches, mole rats, ghouls, deathclaws) earns no team place.
+HAZARD_TEAM_INCIDENT_TYPES: dict[HazardTeam, frozenset[IncidentType]] = {
+    HazardTeam.FIRE: frozenset({IncidentType.FIRE}),
+    HazardTeam.RADIATION: frozenset({IncidentType.RADSCORPION_ATTACK}),
+}
+
+#: Reverse lookup: incident type → the team it trains, when it trains one.
+_TEAM_BY_INCIDENT_TYPE: dict[IncidentType, HazardTeam] = {
+    incident_type: team
+    for team, incident_types in HAZARD_TEAM_INCIDENT_TYPES.items()
+    for incident_type in incident_types
+}
+
+
+def hazard_team_for(incident_type: IncidentType) -> HazardTeam | None:
+    """The team an incident type trains, or None when it is not a contamination hazard."""
+    return _TEAM_BY_INCIDENT_TYPE.get(incident_type)
+
+
 class IncidentBase(SQLModel):
     """Base model for incidents."""
 
@@ -148,3 +170,21 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
             self.rooms_affected.append(room_id)
             self.spread_count += 1
             self.status = IncidentStatus.SPREADING
+
+
+class IncidentParticipant(BaseUUIDModel, TimeStampMixin, table=True):
+    """A dweller who stood in an incident as a defender.
+
+    There is no other ledger of participation: responders are re-resolved from
+    room occupancy every round, so this row is the only durable record of who
+    actually fought. One row per (incident, dweller) so a long incident cannot
+    count twice, written inside the round's transaction so a round that fails
+    leaves no trace.
+    """
+
+    __tablename__ = "incident_participant"
+
+    incident_id: UUID4 = Field(foreign_key="incident.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+
+    __table_args__ = (sa.UniqueConstraint("incident_id", "dweller_id", name="uq_incident_participant"),)

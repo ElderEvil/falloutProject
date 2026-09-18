@@ -14,6 +14,7 @@ from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
+from app.utils.hazard_resist import outfit_fire_resist
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +62,18 @@ async def apply_damage(
     damage_taken = 0
     incoming_damage = max(0, int(damage_to_dwellers))
     damage_per_dweller, remainder = divmod(incoming_damage, len(dwellers))
+    is_fire = incident.type == IncidentType.FIRE
     for index, dweller in enumerate(dwellers):
         dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
         response_pct = identity_modifiers_for(dweller).incident_response_pct
         if response_pct:
             dweller_damage = int(dweller_damage * (1.0 - response_pct))
+        if is_fire:
+            # __dict__ access mirrors radiation_service: no lazy IO, and a
+            # missing relationship simply means no protection.
+            fire_resist = outfit_fire_resist(dweller.__dict__.get("outfit"))
+            if fire_resist:
+                dweller_damage = int(dweller_damage * (1.0 - fire_resist))
         damage_taken += dweller_damage
         new_health = max(0, dweller.health - dweller_damage)
 
@@ -147,6 +155,13 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     dwellers = list(await crud_dweller.get_healthy_adults_in_room(db_session, incident.room_id))
     if not dwellers:
         return await no_defender_outcome(db_session, incident)
+
+    # Credit the round's defenders before any damage lands; the ledger and any
+    # team place it earns ride this round's single commit, so a failed round
+    # leaves no participation behind.
+    from app.services.contamination_team_service import contamination_team_service
+
+    await contamination_team_service.record_participation(db_session, incident, dwellers)
 
     # Fire is a containment operation: responders suppress a hazard rather
     # than defeat enemies. Other types retain the combat loop.

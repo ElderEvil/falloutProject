@@ -254,6 +254,24 @@ describe('DwellerBio', () => {
       expect(wrapper.text()).toContain('Sold a weapon at the Trading Post.')
     })
 
+    it('gives earned team service its own collapsible section', () => {
+      ctx.dweller = ref({
+        first_name: 'John',
+        bio: 'Born in Megaton.',
+        bio_entries: [
+          { source: 'template', text: 'Born in Megaton.' },
+          { source: 'hazard', text: "Took a place on the vault's fire team after 3 callouts." },
+        ],
+      } as unknown as Dweller)
+      wrapper = mountWithDwellerContext(DwellerBio, { context: ctx })
+
+      const service = wrapper.find('details.bio-section-service')
+      expect(service.exists()).toBe(true)
+      expect(service.text()).toContain('SERVICE RECORD')
+      expect(service.text()).toContain('fire team')
+      expect(wrapper.find('.bio-section-other').exists()).toBe(false)
+    })
+
     it('linkifies places inside entries', () => {
       ctx.dweller = ref({
         first_name: 'John',

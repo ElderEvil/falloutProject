@@ -83,6 +83,12 @@ async def should_spawn_incident(
     return random.random() < spawn_chance
 
 
+def roll_incident_type() -> IncidentType:
+    """Pick a spawn type from the configured balance weights."""
+    weights = game_config.incident.get_spawn_weights()
+    return random.choices(list(weights), weights=list(weights.values()), k=1)[0]
+
+
 async def spawn_incident(
     db_session: AsyncSession, vault_id: UUID4, incident_type: IncidentType | None = None
 ) -> Incident | None:
@@ -97,7 +103,7 @@ async def spawn_incident(
     Args:
         db_session: Database session
         vault_id: ID of the vault
-        incident_type: Type of incident (radscorpion if None)
+        incident_type: Type of incident (rolled from the balance weights if None)
 
     Returns:
         Incident or None if no suitable room found
@@ -123,10 +129,11 @@ async def spawn_incident(
 
     active_types = {incident.type for incident in active_incidents}
 
-    # Runtime spawns use radscorpions; explicit types remain available to
+    # A vault already fighting a hazard gets more of the same; only a fresh wave
+    # rolls from the balance weights. Explicit types stay available to
     # administrative and test callers.
     if incident_type is None:
-        incident_type = IncidentType.RADSCORPION_ATTACK
+        incident_type = next(iter(active_types)) if active_types else roll_incident_type()
 
     # If type specified but vault has different type, don't spawn
     if active_types and incident_type not in active_types:

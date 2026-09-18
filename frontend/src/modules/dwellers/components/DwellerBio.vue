@@ -24,7 +24,7 @@ interface BioEntry {
   created_at?: string | null
 }
 
-type SectionKey = 'origin' | 'exploration' | 'family' | 'dialogue' | 'other'
+type SectionKey = 'origin' | 'service' | 'exploration' | 'family' | 'dialogue' | 'other'
 type KnownSectionKey = Exclude<SectionKey, 'other'>
 
 interface BioSection {
@@ -36,13 +36,19 @@ interface BioSection {
   collapsible: boolean
 }
 
-const SECTION_ORDER: KnownSectionKey[] = ['origin', 'exploration', 'family', 'dialogue']
+const SECTION_ORDER: KnownSectionKey[] = ['origin', 'service', 'exploration', 'family', 'dialogue']
 
 const SECTION_META: Record<
   KnownSectionKey,
   { label: string; icon: string; sources: string[]; collapsible?: boolean }
 > = {
   origin: { label: 'ORIGIN', icon: 'mdi:map-marker-radius', sources: ['template', 'legacy'] },
+  service: {
+    label: 'SERVICE RECORD',
+    icon: 'mdi:shield-star-outline',
+    sources: ['hazard'],
+    collapsible: true,
+  },
   exploration: {
     label: 'FIELD LOG',
     icon: 'mdi:map-marker-path',

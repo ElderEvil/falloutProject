@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.124.0 (2026-09-18)
+
+### Features
+
+* add a reusable team roster and move quest parties onto it 3386cb4
+* assign and read an incident's responder team 0d2ef8a
+* surface and build the incident responder team in the UI ad4dac8
+* surface the incident team in the incident alert and nav 3877ecb
+
+### Bug Fixes
+
+* apply outfit SPECIAL bonuses in combat and production b80231a
+* enforce the incident roster cap, append-only assignment, and service layering 44609c8
+* fit long item names in equipment and exploration cards 66e9d3c
+* retry incident team loads and gate assignment until loaded 2ef6c71
+* serialize incident responder assignment with an incident row lock 73a23c7
+
+### Documentation
+
+* queue the superseded standalone radio route for removal ed9c00c
+
+### Code Refactoring
+
+* collapse quest and incident team CRUD onto one typed helper f26493f
+* drop the legacy quest_party table and make the roster migration reversible 98044c0
+* extract a shared dweller availability policy f9b313d
+
 ## 2.123.0 (2026-09-18)
 
 ### Features

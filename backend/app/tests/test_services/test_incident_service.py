@@ -54,6 +54,46 @@ async def test_spawn_incident_no_rooms(async_session: AsyncSession, vault: Vault
 
 
 @pytest.mark.asyncio
+async def test_runtime_spawn_rolls_from_the_balance_weights(async_session: AsyncSession, room_with_dwellers: dict):
+    """A no-type spawn picks a weighted type instead of always radscorpions."""
+    room = room_with_dwellers["room"]
+
+    with patch("app.services.combat.incident_spawning.random.choices", return_value=[IncidentType.FIRE]) as chooser:
+        incident = await incident_service.spawn_incident(async_session, room.vault_id)
+
+    assert incident is not None
+    assert incident.type == IncidentType.FIRE
+    assert chooser.call_args.kwargs["weights"] == list(game_config.incident.get_spawn_weights().values())
+
+
+@pytest.mark.asyncio
+async def test_runtime_spawn_continues_the_active_wave(async_session: AsyncSession, vault: Vault, dweller_data: dict):
+    """A vault already fighting a hazard spawns more of it without rolling again."""
+    from app.schemas.room import RoomCreate
+
+    for index in range(2):
+        room = await crud.room.create(
+            async_session,
+            RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=index + 1, coordinate_y=1),
+        )
+        dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
+    await async_session.commit()
+
+    first = await incident_service.spawn_incident(async_session, vault.id, IncidentType.MOLE_RAT_ATTACK)
+    assert first is not None
+
+    with patch(
+        "app.services.combat.incident_spawning.random.choices",
+        side_effect=AssertionError("rolled a new type mid-wave"),
+    ):
+        second = await incident_service.spawn_incident(async_session, vault.id)
+
+    assert second is not None
+    assert second.type == IncidentType.MOLE_RAT_ATTACK
+
+
+@pytest.mark.asyncio
 async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, vault: Vault):
     """An arena hosts matches; an incident there has no correct UI to open."""
     from app.schemas.room import RoomCreate

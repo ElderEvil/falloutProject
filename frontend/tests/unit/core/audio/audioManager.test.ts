@@ -150,4 +150,32 @@ describe('audioManager alarm', () => {
     expect(alarm.pause).not.toHaveBeenCalled()
     expect(alarm.volume).toBeCloseTo(0.8)
   })
+
+  it('keeps a loop request deferred until audio unlocks', async () => {
+    const manager = await freshManager()
+    manager.playLoop('vaultAmbient')
+    manager.setMuted(false)
+
+    window.dispatchEvent(new Event('pointerdown'))
+
+    const music = MockAudio.instances.find((audio) => audio.src.includes('vault-ambient'))
+    expect(music?.play).toHaveBeenCalled()
+  })
+
+  it('keeps ducked music paused when playback is reconciled', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    const music = MockAudio.instances.at(-1)!
+    music.play.mockClear()
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(music.pause).toHaveBeenCalled()
+
+    manager.setMuted(false)
+    expect(music.play).not.toHaveBeenCalled()
+  })
 })

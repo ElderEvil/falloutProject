@@ -323,18 +323,69 @@ describe('Profile Store', () => {
   })
 
   describe('savePreferences Action', () => {
-    it('sends only preferences, does not flip loading, and applies the response', async () => {
+    it('merges the patch into the latest confirmed preferences', async () => {
       const store = useProfileStore()
-      const preferences = { theme: 'light', soundEnabled: false }
-      const updatedProfile = { ...mockProfile, preferences }
+      store.profile = { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: true } } }
+      const updatedProfile = {
+        ...mockProfile,
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      }
       vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
 
-      await store.savePreferences(preferences)
+      await store.savePreferences({ sound: { muted: false } })
 
-      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', { preferences })
+      expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', {
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      })
       expect(store.profile).toEqual(updatedProfile)
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
+    })
+
+    it('serializes overlapping saves and merges each with the latest preferences', async () => {
+      const store = useProfileStore()
+      store.profile = { ...mockProfile, preferences: { theme: 'fnv' } }
+      let resolveFirst!: (value: { data: UserProfile }) => void
+      vi.mocked(axios.put).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        })
+      )
+      vi.mocked(axios.put).mockResolvedValueOnce({
+        data: { ...mockProfile, preferences: { theme: 'fnv', sound: { muted: false } } },
+      })
+
+      const first = store.savePreferences({ theme: 'fnv' })
+      const second = store.savePreferences({ sound: { muted: false } })
+      await Promise.resolve()
+      expect(axios.put).toHaveBeenCalledTimes(1)
+
+      resolveFirst({ data: { ...mockProfile, preferences: { theme: 'fnv' } } })
+      await first
+      await second
+
+      expect(axios.put).toHaveBeenCalledTimes(2)
+      expect(axios.put).toHaveBeenLastCalledWith('/api/v1/users/me/profile', {
+        preferences: { theme: 'fnv', sound: { muted: false } },
+      })
+    })
+
+    it('ignores a save response that arrives after the profile is cleared', async () => {
+      const store = useProfileStore()
+      store.profile = mockProfile
+      let resolveSave!: (value: { data: UserProfile }) => void
+      vi.mocked(axios.put).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSave = resolve
+        })
+      )
+
+      const pending = store.savePreferences({ theme: 'light' })
+      store.clearProfile()
+      resolveSave({ data: { ...mockProfile, preferences: { theme: 'light' } } })
+      await pending
+
+      expect(store.profile).toBeNull()
     })
 
     it('throws on failure without setting error or loading', async () => {

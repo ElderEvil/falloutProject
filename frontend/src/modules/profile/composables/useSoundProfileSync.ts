@@ -13,6 +13,13 @@ export function useSoundProfileSync(): void {
   const profileStore = useProfileStore()
   let timer: ReturnType<typeof setTimeout> | null = null
 
+  const cancelPendingSave = () => {
+    if (timer) clearTimeout(timer)
+    timer = null
+  }
+
+  watch(() => profileStore.profile?.id, cancelPendingSave)
+
   watch(
     () => profileStore.profile?.preferences?.sound,
     (sound) => audioManager.applySettings(sound)
@@ -22,15 +29,14 @@ export function useSoundProfileSync(): void {
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => {
       timer = null
-      const profile = profileStore.profile
-      if (!profile) return
+      if (!profileStore.profile) return
       const sound = { muted: audioManager.muted, volumes: { ...audioManager.volumes } }
-      void profileStore.savePreferences({ ...profile.preferences, sound }).catch(() => {})
+      void profileStore.savePreferences({ sound }).catch(() => {})
     }, SAVE_DEBOUNCE_MS)
   })
 
   onScopeDispose(() => {
-    if (timer) clearTimeout(timer)
+    cancelPendingSave()
     audioManager.setChangeHandler(null)
   })
 }

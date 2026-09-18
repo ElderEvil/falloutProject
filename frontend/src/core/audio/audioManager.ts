@@ -329,10 +329,9 @@ class AudioManager {
       this.alarmAudio?.pause()
       return
     }
-    if (this.pendingLoop) {
+    if (this.pendingLoop && !this.musicDucked) {
       this.playLoop(this.pendingLoop)
-      this.pendingLoop = null
-    } else if (this.currentLoop) {
+    } else if (this.currentLoop && !this.musicDucked) {
       this.currentLoop.audio.volume = this.settings.volumes.music
       void this.currentLoop.audio.play().catch(() => {})
     }

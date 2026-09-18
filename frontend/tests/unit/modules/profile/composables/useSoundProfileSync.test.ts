@@ -36,9 +36,9 @@ vi.mock('@/core/audio/audioManager', () => ({
 
 const SOUND = { muted: false, volumes: { ui: 0.2, sfx: 0.5, music: 0.9 } }
 
-function makeProfile(preferences: Record<string, unknown>): UserProfile {
+function makeProfile(preferences: Record<string, unknown>, id = 'profile-1'): UserProfile {
   return {
-    id: 'profile-1',
+    id,
     user_id: 'user-1',
     bio: null,
     avatar_url: null,
@@ -92,7 +92,7 @@ describe('useSoundProfileSync', () => {
     expect(savePreferences).not.toHaveBeenCalled()
   })
 
-  it('debounces local edits into one save that preserves other preference keys', async () => {
+  it('debounces local edits into a single save', async () => {
     store.profile = makeProfile({ theme: 'fnv' })
     await nextTick()
 
@@ -107,9 +107,22 @@ describe('useSoundProfileSync', () => {
 
     expect(savePreferences).toHaveBeenCalledTimes(1)
     expect(savePreferences).toHaveBeenCalledWith({
-      theme: 'fnv',
       sound: { muted: false, volumes: { ui: 0.6, sfx: 0.8, music: 0.4 } },
     })
+  })
+
+  it('cancels a pending save when the profile changes', async () => {
+    store.profile = makeProfile({ theme: 'fnv' })
+    await nextTick()
+
+    audioMock.trigger()
+    store.profile = makeProfile({ theme: 'fnv' }, 'profile-2')
+    await nextTick()
+
+    vi.advanceTimersByTime(400)
+    await nextTick()
+
+    expect(savePreferences).not.toHaveBeenCalled()
   })
 
   it('skips saving while no profile is loaded', async () => {

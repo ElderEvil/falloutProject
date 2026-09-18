@@ -56,10 +56,7 @@ const setBusVolume = (bus: AudioBus, volume: number) => {
 // local choice back to the server-side preference on the next profile load.
 const handleThemeChange = (themeName: ThemeName) => {
   setTheme(themeName)
-  const currentPrefs = (profileStore.profile?.preferences ?? {}) as Record<string, unknown>
-  void profileStore.updateProfile({
-    preferences: { ...currentPrefs, theme: themeName },
-  })
+  void profileStore.savePreferences({ theme: themeName }).catch(() => {})
 }
 
 // Get injected glow class from App.vue (with fallback)

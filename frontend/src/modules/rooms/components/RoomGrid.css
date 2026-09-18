@@ -120,9 +120,6 @@
   }
 }
 
-/* Incident room glow lives in RoomGridCell.vue — its `.room` element is in the
-   cell's scope, which this file (scoped to RoomGrid.vue) cannot reach. */
-
 .empty {
   border: 1px dashed var(--color-gray-600);
   background-color: rgba(0, 0, 0, 0.3);

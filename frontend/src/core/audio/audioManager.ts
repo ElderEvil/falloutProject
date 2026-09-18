@@ -96,6 +96,7 @@ class AudioManager {
           this.playLoop(this.pendingLoop)
           this.pendingLoop = null
         }
+        if (this.alarmWanted) this.startAlarmLoop()
       }
       window.addEventListener('pointerdown', unlock)
       window.addEventListener('keydown', unlock)
@@ -283,6 +284,13 @@ class AudioManager {
     this.fadeTimers.set(audio, timer)
   }
 
+  private cancelFade(audio: HTMLAudioElement): void {
+    const timer = this.fadeTimers.get(audio)
+    if (!timer) return
+    window.clearInterval(timer)
+    this.fadeTimers.delete(audio)
+  }
+
   /** Start the looping incident alarm. Stays on until stopAlarmLoop. */
   startAlarmLoop(): void {
     this.alarmWanted = true
@@ -294,8 +302,9 @@ class AudioManager {
       this.alarmAudio.loop = true
       this.alarmAudio.preload = 'auto'
     }
-    if (!this.alarmAudio.paused) return
+    this.cancelFade(this.alarmAudio)
     this.alarmAudio.volume = this.settings.volumes.sfx
+    if (!this.alarmAudio.paused) return
     this.alarmAudio.play().catch(() => {})
   }
 

@@ -27,17 +27,14 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => sseMock.toast,
 }))
 
-vi.mock('@/core/composables/useSound', () => ({
-  useSound: () => ({
-    playSound: sseMock.playSound,
-    playMusic: vi.fn(),
-    stopMusic: vi.fn(),
-    startAlarm: sseMock.startAlarm,
-    stopAlarm: sseMock.stopAlarm,
+vi.mock('@/core/audio/audioManager', () => ({
+  audioManager: {
+    play: sseMock.playSound,
+    startAlarmLoop: sseMock.startAlarm,
+    stopAlarmLoop: sseMock.stopAlarm,
     duckMusic: sseMock.duckMusic,
     restoreMusic: sseMock.restoreMusic,
-    cancelMusicRestore: sseMock.cancelMusicRestore,
-  }),
+  },
 }))
 
 describe('Incident Store', () => {
@@ -728,6 +725,7 @@ describe('Incident Store', () => {
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
 
       await store.fetchIncidents('vault-1', 'token')
+      await nextTick()
 
       expect(sseMock.startAlarm).toHaveBeenCalled()
       expect(sseMock.duckMusic).toHaveBeenCalled()
@@ -736,9 +734,12 @@ describe('Incident Store', () => {
     it('stops the alarm and restores the music when the chain ends', async () => {
       const store = useIncidentStore()
       store.activeIncidentIds = ['incident-1']
+      await nextTick()
+      sseMock.startAlarm.mockClear()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({ incidents: [] })
 
       await store.fetchIncidents('vault-1', 'token')
+      await nextTick()
 
       expect(sseMock.startAlarm).not.toHaveBeenCalled()
       expect(sseMock.stopAlarm).toHaveBeenCalled()

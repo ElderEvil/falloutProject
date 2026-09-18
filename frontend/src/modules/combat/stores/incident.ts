@@ -11,7 +11,7 @@ import type {
 } from '../models/incident'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
-import { useSound } from '@/core/composables/useSound'
+import { audioManager } from '@/core/audio/audioManager'
 import { useSse } from '@/core/composables/useEventStream'
 import { usePolling } from '@/core/composables/usePolling'
 
@@ -26,14 +26,6 @@ export const useIncidentStore = defineStore('incident', () => {
   const announcedResolutions = new Set<string>()
 
   const { success: showSuccess, error: showError } = useToast()
-  const { playSound, startAlarm, stopAlarm, duckMusic, restoreMusic, cancelMusicRestore } = useSound()
-
-  /** Silence the chain when nothing is active; the manager no-ops when idle. */
-  function syncIncidentAudio(): void {
-    if (activeIncidentIds.value.length > 0) return
-    stopAlarm()
-    restoreMusic()
-  }
 
   // Computed
   const activeIncidents = computed(() => {
@@ -43,6 +35,16 @@ export const useIncidentStore = defineStore('incident', () => {
   })
 
   const hasActiveIncidents = computed(() => activeIncidentIds.value.length > 0)
+
+  watch(hasActiveIncidents, (active) => {
+    if (active) {
+      audioManager.startAlarmLoop()
+      audioManager.duckMusic()
+    } else {
+      audioManager.stopAlarmLoop()
+      audioManager.restoreMusic()
+    }
+  })
 
   const incidentCountByVault = computed(() => {
     const counts: Record<string, number> = {}
@@ -186,8 +188,6 @@ export const useIncidentStore = defineStore('incident', () => {
       // Check for new incidents (spawn notifications)
       const spawned = newIds.filter((id) => !previousIds.includes(id))
       if (spawned.length > 0) {
-        startAlarm()
-        duckMusic()
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
@@ -198,7 +198,6 @@ export const useIncidentStore = defineStore('incident', () => {
 
       // Update store
       activeIncidentIds.value = newIds
-      syncIncidentAudio()
 
       // Fetch full details for each incident; one failed detail must not discard the confirmed list.
       await Promise.all(
@@ -294,7 +293,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
-              playSound('success')
+              audioManager.play('success')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -327,7 +326,6 @@ export const useIncidentStore = defineStore('incident', () => {
             break
           }
         }
-        syncIncidentAudio()
       }
     )
 
@@ -371,8 +369,8 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentPolling?.pause()
     incidentPolling = null
     isPolling.value = false
-    stopAlarm()
-    cancelMusicRestore()
+    // Clearing the active set unwinds the alarm and music through the watcher.
+    activeIncidentIds.value = []
   }
 
   function clearIncidents(): void {

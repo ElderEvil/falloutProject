@@ -7831,6 +7831,26 @@ export interface components {
         };
         /** OutfitCreate */
         OutfitCreate: {
+            /** Name */
+            name: string;
+            rarity: components["schemas"]["RarityEnum"];
+            /** Value */
+            value?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            outfit_type: components["schemas"]["OutfitTypeEnum"];
+            gender?: components["schemas"]["GenderEnum"] | null;
+            /**
+             * Fire Resist
+             * @description Share of fire damage the outfit removes
+             * @default 0
+             */
+            fire_resist: number;
+            /**
+             * Radiation Resist
+             * @description Share of external radiation removed; None falls back to the outfit type/name table
+             */
+            radiation_resist?: number | null;
             /**
              * Strength
              * @default 0
@@ -7866,26 +7886,6 @@ export interface components {
              * @default 0
              */
             luck: number;
-            /** Name */
-            name: string;
-            rarity: components["schemas"]["RarityEnum"];
-            /** Value */
-            value?: number | null;
-            /** Image Url */
-            image_url?: string | null;
-            outfit_type: components["schemas"]["OutfitTypeEnum"];
-            gender?: components["schemas"]["GenderEnum"] | null;
-            /**
-             * Fire Resist
-             * @description Share of fire damage the outfit removes
-             * @default 0
-             */
-            fire_resist: number;
-            /**
-             * Radiation Resist
-             * @description Share of external radiation removed; None falls back to the outfit type/name table
-             */
-            radiation_resist?: number | null;
             /** Storage Id */
             storage_id?: string | null;
         };
@@ -7911,6 +7911,41 @@ export interface components {
              * @description Share of external radiation removed; None falls back to the outfit type/name table
              */
             radiation_resist?: number | null;
+            /**
+             * Strength
+             * @default 0
+             */
+            strength: number;
+            /**
+             * Perception
+             * @default 0
+             */
+            perception: number;
+            /**
+             * Endurance
+             * @default 0
+             */
+            endurance: number;
+            /**
+             * Charisma
+             * @default 0
+             */
+            charisma: number;
+            /**
+             * Intelligence
+             * @default 0
+             */
+            intelligence: number;
+            /**
+             * Agility
+             * @default 0
+             */
+            agility: number;
+            /**
+             * Luck
+             * @default 0
+             */
+            luck: number;
             /**
              * Id
              * Format: uuid4
@@ -7957,6 +7992,20 @@ export interface components {
              * @description Share of external radiation removed; None falls back to the outfit type/name table
              */
             radiation_resist?: number | null;
+            /** Strength */
+            strength?: number | null;
+            /** Perception */
+            perception?: number | null;
+            /** Endurance */
+            endurance?: number | null;
+            /** Charisma */
+            charisma?: number | null;
+            /** Intelligence */
+            intelligence?: number | null;
+            /** Agility */
+            agility?: number | null;
+            /** Luck */
+            luck?: number | null;
             /** Dweller Id */
             dweller_id?: string | null;
             /** Storage Id */
@@ -14067,7 +14116,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["QuestPartyMemberRead"][];
                 };
             };
             /** @description Validation Error */

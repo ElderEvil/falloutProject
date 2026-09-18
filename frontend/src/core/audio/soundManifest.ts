@@ -9,6 +9,9 @@
  */
 export const SOUND_MANIFEST = {
   notification: '/audio/ui/notification.wav',
+  // Synthesized in-repo: soft two-note sine ping, kept gentle so the looping
+  // incident alarm stays calm rather than a bright siren.
+  alarm: '/audio/ui/incident-alarm.wav',
   success: '/audio/ui/success.wav',
   select: '/audio/ui/select.wav',
   tabSwitch: '/audio/ui/tab-switch.wav',

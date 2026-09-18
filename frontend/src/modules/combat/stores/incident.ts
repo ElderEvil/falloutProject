@@ -26,7 +26,14 @@ export const useIncidentStore = defineStore('incident', () => {
   const announcedResolutions = new Set<string>()
 
   const { success: showSuccess, error: showError } = useToast()
-  const { playSound } = useSound()
+  const { playSound, startAlarm, stopAlarm, duckMusic, restoreMusic, cancelMusicRestore } = useSound()
+
+  /** Silence the chain when nothing is active; the manager no-ops when idle. */
+  function syncIncidentAudio(): void {
+    if (activeIncidentIds.value.length > 0) return
+    stopAlarm()
+    restoreMusic()
+  }
 
   // Computed
   const activeIncidents = computed(() => {
@@ -179,7 +186,8 @@ export const useIncidentStore = defineStore('incident', () => {
       // Check for new incidents (spawn notifications)
       const spawned = newIds.filter((id) => !previousIds.includes(id))
       if (spawned.length > 0) {
-        playSound('notification')
+        startAlarm()
+        duckMusic()
         spawned.forEach((id) => {
           const incident = response.incidents.find((inc) => inc.id === id)
           if (incident) {
@@ -190,6 +198,7 @@ export const useIncidentStore = defineStore('incident', () => {
 
       // Update store
       activeIncidentIds.value = newIds
+      syncIncidentAudio()
 
       // Fetch full details for each incident; one failed detail must not discard the confirmed list.
       await Promise.all(
@@ -285,6 +294,7 @@ export const useIncidentStore = defineStore('incident', () => {
               void refreshAftermathOverflow(vaultId, resolvedId, token)
             }
             if (data.success === true) {
+              playSound('success')
               showSuccess(
                 capsEarned > 0
                   ? `Incident victory — recovered ${capsEarned} caps.`
@@ -317,6 +327,7 @@ export const useIncidentStore = defineStore('incident', () => {
             break
           }
         }
+        syncIncidentAudio()
       }
     )
 
@@ -360,6 +371,8 @@ export const useIncidentStore = defineStore('incident', () => {
     incidentPolling?.pause()
     incidentPolling = null
     isPolling.value = false
+    stopAlarm()
+    cancelMusicRestore()
   }
 
   function clearIncidents(): void {

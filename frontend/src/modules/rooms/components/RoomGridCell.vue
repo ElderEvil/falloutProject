@@ -376,7 +376,30 @@ const cellTitle = computed(() => {
 
 .room.has-incident {
   border: 1px solid var(--color-danger);
-  box-shadow: inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
+  box-shadow:
+    inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
+    0 0 15px rgba(255, 51, 51, 0.6);
+  animation: incident-pulse 2s ease-in-out infinite;
+}
+
+@keyframes incident-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
+      0 0 15px rgba(255, 51, 51, 0.6);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 12px color-mix(in srgb, var(--color-danger) 30%, transparent),
+      0 0 30px rgba(255, 51, 51, 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room.has-incident {
+    animation: none;
+  }
 }
 
 .incident-badge {

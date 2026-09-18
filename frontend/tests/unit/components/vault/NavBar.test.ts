@@ -4,6 +4,8 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import NavBar from '@/modules/vault/components/shell/NavBar.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { audioManager } from '@/core/audio/audioManager'
 import type { User } from '@/modules/auth/types/user'
 
 vi.mock('@/core/composables/useVersionDetection', () => ({
@@ -27,6 +29,10 @@ const testUser: User = {
 describe('NavBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    audioManager.setMuted(true)
+    audioManager.setVolume('ui', 0.6)
+    audioManager.setVolume('sfx', 0.8)
+    audioManager.setVolume('music', 0.4)
   })
 
   it('uses a terminal-green highlight for user menu items', async () => {
@@ -78,5 +84,50 @@ describe('NavBar', () => {
     expect(wrapper.find('button[aria-label="User menu for Overseer"]').classes()).toContain(
       'bg-theme-primary/10'
     )
+  })
+
+  describe('sound toggle', () => {
+    async function mountNavBar() {
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id', component: { template: '<div />' } }],
+      })
+      await router.push('/vault/vault-1')
+      await router.isReady()
+
+      return mount(NavBar, {
+        global: {
+          plugins: [router],
+          stubs: { Icon: true, NotificationBell: true },
+        },
+      })
+    }
+
+    it('is hidden while no incident is active', async () => {
+      const wrapper = await mountNavBar()
+
+      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(false)
+      expect(wrapper.find('button[aria-label="Mute sounds"]').exists()).toBe(false)
+    })
+
+    it('shows the unmute action while sounds are muted', async () => {
+      useIncidentStore().activeIncidentIds = ['incident-1']
+
+      const wrapper = await mountNavBar()
+
+      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+    })
+
+    it('mutes and unmutes without leaving the page', async () => {
+      useIncidentStore().activeIncidentIds = ['incident-1']
+      audioManager.setMuted(false)
+
+      const wrapper = await mountNavBar()
+
+      await wrapper.find('button[aria-label="Mute sounds"]').trigger('click')
+
+      expect(audioManager.muted).toBe(true)
+      expect(wrapper.find('button[aria-label="Unmute sounds"]').exists()).toBe(true)
+    })
   })
 })

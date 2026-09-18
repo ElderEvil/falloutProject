@@ -4,12 +4,13 @@ Pure helpers over a dweller model instance: no session, no commits. Callers
 persist changes themselves (attribute tracking or ``db_session.add``).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.core.enums import OutfitTypeEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.options.identity_modifiers import identity_modifiers_for
+from app.utils.equipped import equipped_outfit
 
 if TYPE_CHECKING:
     from app.models.outfit import Outfit
@@ -88,9 +89,9 @@ def apply_radiation_gain(dweller: Dweller, amount: int, *, resisted_by_outfit: b
             return False
 
     if resisted_by_outfit:
-        # __dict__ access mirrors Dweller.weapon_type: no lazy IO, a missing
+        # equipped_outfit mirrors Dweller.weapon_type: no lazy IO, a missing
         # relationship simply means no resist.
-        amount = int(amount * (1.0 - outfit_radiation_resist(dweller.__dict__.get("outfit"))))
+        amount = int(amount * (1.0 - outfit_radiation_resist(cast("Outfit | None", equipped_outfit(dweller)))))
         if amount <= 0:
             return False
 

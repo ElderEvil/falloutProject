@@ -102,6 +102,40 @@ async def test_assign_quest_team_size_limits(async_session: AsyncSession, size: 
 
 
 @pytest.mark.asyncio
+async def test_assign_quest_team_rejects_duplicate_dwellers(async_session: AsyncSession) -> None:
+    """A dweller listed twice is rejected before the size check, never double-slotted."""
+    vault, quest = await _make_quest_vault(async_session)
+    dweller = await _make_adult_dweller(async_session, vault)
+
+    with pytest.raises(ValidationException, match="only once"):
+        await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id, dweller.id])
+
+    assert await crud.team_crud.get_quest_team(async_session, quest.id, vault.id) == []
+
+
+@pytest.mark.asyncio
+async def test_get_quest_team_orders_members_by_slot(async_session: AsyncSession) -> None:
+    """get_quest_team returns members slot-ordered, missing slots first."""
+    vault, quest = await _make_quest_vault(async_session)
+    dwellers = [await _make_adult_dweller(async_session, vault) for _ in range(3)]
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [d.id for d in dwellers])
+
+    # Scramble slot numbers and add a slot-less member to pin the ordering contract.
+    team = await crud.team_crud.get_quest_team_row(async_session, quest.id, vault.id)
+    assert team is not None
+    for member in team.members:
+        member.slot_number = None
+    await async_session.commit()
+    by_dweller = {member.dweller_id: member for member in team.members}
+    by_dweller[dwellers[0].id].slot_number = 3
+    by_dweller[dwellers[2].id].slot_number = 1
+    await async_session.commit()
+
+    members = await crud.team_crud.get_quest_team(async_session, quest.id, vault.id)
+    assert [member.slot_number for member in members] == [None, 1, 3]
+
+
+@pytest.mark.asyncio
 async def test_assign_quest_team_slot_uniqueness(async_session: AsyncSession) -> None:
     """Slots are numbered 1..n with no duplicates."""
     vault, quest = await _make_quest_vault(async_session)

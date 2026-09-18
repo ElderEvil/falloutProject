@@ -11,6 +11,7 @@ from app.core.enums import SPECIAL_STATS
 from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.races import RaceModifiers, modifiers_for_race
+from app.utils.equipped import equipped_outfit
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
 _WEAPON_PERK_FIELDS: dict[str, str] = {
@@ -82,7 +83,7 @@ def effective_stat(entity: object, stat: str) -> int:
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
-    outfit = entity.__dict__.get("outfit")
+    outfit = equipped_outfit(entity)
     outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
     return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat) + outfit_bonus)
 

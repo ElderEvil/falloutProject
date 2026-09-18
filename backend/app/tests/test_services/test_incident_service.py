@@ -537,10 +537,10 @@ async def test_assign_responders_persists_incident_team(
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_reassign_replaces_roster(
+async def test_assign_responders_appends_to_roster(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Re-assigning responders replaces the roster without stale or duplicate members."""
+    """A second assignment keeps prior members, adds new ones, and ignores duplicates."""
     room = room_with_dwellers["room"]
     responder1 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     responder2 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
@@ -548,11 +548,100 @@ async def test_assign_responders_reassign_replaces_roster(
     assert incident is not None
 
     await incident_service.assign_responders(async_session, incident, [responder1.id])
-    await incident_service.assign_responders(async_session, incident, [responder2.id])
+    # Re-sending responder1 alongside a new responder2 must append, not replace or duplicate.
+    await incident_service.assign_responders(async_session, incident, [responder1.id, responder2.id])
 
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
-    assert [member.dweller_id for member in team.members] == [responder2.id]
+    assert sorted(member.dweller_id for member in team.members) == sorted([responder1.id, responder2.id])
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_accepts_six_responders(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A full six-responder roster is accepted."""
+    room = room_with_dwellers["room"]
+    responders = [
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+        for _ in range(6)
+    ]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    assigned = await incident_service.assign_responders(
+        async_session, incident, [responder.id for responder in responders]
+    )
+
+    assert len(assigned) == 6
+    team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
+    assert team is not None
+    assert len(team.members) == 6
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_rejects_seventh_responder(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A seventh responder is rejected and writes no team."""
+    room = room_with_dwellers["room"]
+    responders = [
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+        for _ in range(7)
+    ]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    with pytest.raises(ValidationException, match="at most 6"):
+        await incident_service.assign_responders(async_session, incident, [responder.id for responder in responders])
+
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_rejects_roster_overflow(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Adding two responders to an existing five-responder roster is rejected."""
+    room = room_with_dwellers["room"]
+    first_five = [
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+        for _ in range(5)
+    ]
+    two_more = [
+        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+        for _ in range(2)
+    ]
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    await incident_service.assign_responders(async_session, incident, [responder.id for responder in first_five])
+
+    with pytest.raises(ValidationException, match="at most 6"):
+        await incident_service.assign_responders(async_session, incident, [responder.id for responder in two_more])
+
+    # The existing roster is untouched.
+    team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
+    assert team is not None
+    assert len(team.members) == 5
+
+
+@pytest.mark.asyncio
+async def test_deleting_incident_cascades_its_team(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Deleting an incident removes its team row and members via the ORM cascade."""
+    room = room_with_dwellers["room"]
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is not None
+
+    await crud.incident_crud.remove(async_session, incident.id)
+
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
 
 
 @pytest.mark.asyncio
@@ -617,6 +706,10 @@ async def test_assign_responders_rejections_write_no_team(
     healthy = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
     with pytest.raises(ValidationException, match="only once"):
         await incident_service.assign_responders(async_session, incident, [healthy.id, healthy.id])
+
+    # An empty selection is rejected.
+    with pytest.raises(ValidationException, match="at least one"):
+        await incident_service.assign_responders(async_session, incident, [])
 
     # A dweller from another vault is rejected.
     other_user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))

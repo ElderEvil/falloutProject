@@ -27,6 +27,8 @@ class TeamService:
         self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
     ) -> list[TeamMember]:
         """Assign dwellers to a quest team, replacing any existing roster."""
+        if len(set(dweller_ids)) != len(dweller_ids):
+            raise ValidationException("Choose each dweller only once")
         if len(dweller_ids) > 3 or len(dweller_ids) < 1:
             raise ValidationException("Party size must be 1-3")
 

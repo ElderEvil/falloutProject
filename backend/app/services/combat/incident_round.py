@@ -1,6 +1,7 @@
 """Incident round engine: defender-less outcomes, damage, victory, and XP."""
 
 import logging
+from typing import TYPE_CHECKING, cast
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -14,7 +15,11 @@ from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
+from app.utils.equipped import equipped_outfit
 from app.utils.hazard_resist import outfit_fire_resist
+
+if TYPE_CHECKING:
+    from app.models.outfit import Outfit
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +74,9 @@ async def apply_damage(
         if response_pct:
             dweller_damage = int(dweller_damage * (1.0 - response_pct))
         if is_fire:
-            # __dict__ access mirrors radiation_service: no lazy IO, and a
+            # equipped_outfit mirrors radiation_service: no lazy IO, and a
             # missing relationship simply means no protection.
-            fire_resist = outfit_fire_resist(dweller.__dict__.get("outfit"))
+            fire_resist = outfit_fire_resist(cast("Outfit | None", equipped_outfit(dweller)))
             if fire_resist:
                 dweller_damage = int(dweller_damage * (1.0 - fire_resist))
         damage_taken += dweller_damage

@@ -3,14 +3,18 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.enums import HazardTeam
 from app.models.base import BaseUUIDModel, TimeStampMixin
+
+if TYPE_CHECKING:
+    from app.models.team import Team
 
 
 class IncidentType(StrEnum):
@@ -146,6 +150,12 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
 
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     room_id: UUID4 = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
+
+    # Relationships
+    teams: list["Team"] = Relationship(
+        back_populates="incident",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
     def is_active(self) -> bool:
         """Check if incident is still active."""

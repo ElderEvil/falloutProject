@@ -272,20 +272,7 @@ async def get_incident_team(
 ) -> list[TeamMemberRead]:
     """Get the designated responder team for an incident."""
     try:
-        incident = await incident_service.get_incident_for_vault(db_session, incident_id, vault.id)
-        members = await crud.team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
-        return [
-            TeamMemberRead(
-                id=member.id,
-                team_id=member.team_id,
-                dweller_id=member.dweller_id,
-                slot_number=member.slot_number,
-                status=member.status,
-                created_at=member.created_at,
-                updated_at=member.updated_at,
-            )
-            for member in members
-        ]
+        return await incident_service.get_incident_team_read(db_session, incident_id, vault.id)
     except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 

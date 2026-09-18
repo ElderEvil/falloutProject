@@ -24,9 +24,15 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return result.scalars().one_or_none()
 
     async def get_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> list[TeamMember]:
-        """All members of the vault's team for a quest, dweller eager-loaded."""
+        """All members of the vault's team for a quest, dweller eager-loaded, slot-ordered.
+
+        Members with a missing slot number sort first, then ascending slot number,
+        so the quest party API/frontend keeps slot order.
+        """
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)
-        return list(team.members) if team is not None else []
+        if team is None:
+            return []
+        return sorted(team.members, key=lambda member: (member.slot_number is not None, member.slot_number))
 
     async def get_member(self, db_session: AsyncSession, team_id: UUID4, dweller_id: UUID4) -> TeamMember | None:
         """One member row of a team, or None."""
@@ -79,18 +85,21 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         await db_session.flush()
         return team
 
-    async def replace_incident_team(
+    async def add_incident_team_members(
         self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4, dweller_ids: list[UUID4]
     ) -> list[TeamMember]:
-        """Replace the vault's incident roster with the given dwellers (no slot numbers)."""
-        existing_members = await self.get_incident_team(db_session, incident_id, vault_id)
-        for member in existing_members:
-            await db_session.delete(member)
-        await db_session.flush()
+        """Append dwellers to the vault's incident roster; never removes members.
+
+        The roster is the set of responders sent for the incident; combat presence
+        stays derived from the room, so appending keeps them consistent. Dwellers
+        already on the roster are skipped (no ``uq_team_member_dweller`` violation).
+        """
         team = await self.get_or_create_incident_team(db_session, incident_id, vault_id)
+        existing_ids = {member.dweller_id for member in team.members}
         members = [
             TeamMember(team_id=team.id, dweller_id=dweller_id, slot_number=None, status="assigned")
             for dweller_id in dweller_ids
+            if dweller_id not in existing_ids
         ]
         db_session.add_all(members)
         await db_session.flush()

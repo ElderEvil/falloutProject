@@ -20,6 +20,7 @@ from app.schemas.incident import (
     IncidentRoundResult,
     PendingIncidentOverflowRead,
 )
+from app.schemas.team import TeamMemberRead
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.dweller_availability import availability_error
@@ -28,6 +29,9 @@ from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
+
+#: Hard ceiling on one incident's designated responder roster.
+MAX_INCIDENT_RESPONDERS = 6
 
 
 def _build_held_item(loot_item: dict, storage_id):
@@ -229,12 +233,16 @@ class IncidentService:
         """Move eligible dwellers into an active incident room before its next round.
 
         Records the incident's designated responder team; room presence continues
-        to drive the per-round combat engine.
+        to drive the per-round combat engine. The roster is the set of responders
+        sent for the incident — assignments append, never replace, so the persisted
+        roster cannot diverge from the responders actually sent into the room.
         """
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
 
         unique_ids = list(dict.fromkeys(dweller_ids))
+        if not unique_ids:
+            raise ValidationException("Choose at least one responder")
         if len(unique_ids) != len(dweller_ids):
             raise ValidationException("Choose each responder only once")
 
@@ -246,7 +254,12 @@ class IncidentService:
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
 
-        await team_crud.replace_incident_team(db_session, incident.id, incident.vault_id, unique_ids)
+        existing_members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
+        existing_member_ids = {member.dweller_id for member in existing_members}
+        if len(existing_member_ids | set(unique_ids)) > MAX_INCIDENT_RESPONDERS:
+            raise ValidationException("An incident team holds at most 6 responders")
+
+        await team_crud.add_incident_team_members(db_session, incident.id, incident.vault_id, unique_ids)
 
         from app.services.dweller_service import dweller_service
 
@@ -255,6 +268,25 @@ class IncidentService:
         self._record_event(db_session, incident, "responders_assigned", f"{len(unique_ids)} responder(s) assigned.")
         await db_session.commit()
         return unique_ids
+
+    async def get_incident_team_read(
+        self, db_session: AsyncSession, incident_id: UUID4, vault_id: UUID4
+    ) -> list[TeamMemberRead]:
+        """The vault's designated responder roster for an incident, as read shapes."""
+        incident = await self.get_incident_for_vault(db_session, incident_id, vault_id)
+        members = await team_crud.get_incident_team(db_session, incident.id, incident.vault_id)
+        return [
+            TeamMemberRead(
+                id=member.id,
+                team_id=member.team_id,
+                dweller_id=member.dweller_id,
+                slot_number=member.slot_number,
+                status=member.status,
+                created_at=member.created_at,
+                updated_at=member.updated_at,
+            )
+            for member in members
+        ]
 
     async def _spread_incident(self, db_session: AsyncSession, incident: Incident) -> bool:
         """Spread orchestration — see incident_spawning."""

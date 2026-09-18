@@ -2,9 +2,8 @@
 
 A ``Team`` serves exactly one purpose — a quest or an incident — enforced by
 ``ck_team_one_purpose``. Quest teams are one per ``(vault_id, quest_id)``
-(``uq_team_vault_quest``); incident assignment is not wired yet, but the column
-and constraint exist so the later slice can adopt the same primitive without
-another migration.
+(``uq_team_vault_quest``); incident teams are one per ``(vault_id, incident_id)``
+(``uq_team_vault_incident``) and cascade with their incident.
 """
 
 from typing import TYPE_CHECKING, Optional
@@ -17,6 +16,7 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
     from app.models.dweller import Dweller
+    from app.models.incident import Incident
     from app.models.quest import Quest
     from app.models.vault import Vault
 
@@ -51,6 +51,7 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
     # Relationships
     vault: "Vault" = Relationship(back_populates="teams")
     quest: Optional["Quest"] = Relationship(back_populates="teams")
+    incident: Optional["Incident"] = Relationship(back_populates="teams")
     members: list["TeamMember"] = Relationship(
         back_populates="team",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},

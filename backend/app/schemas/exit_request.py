@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel
 
 
 class ExitRequestRead(BaseModel):
@@ -14,12 +14,6 @@ class ExitRequestRead(BaseModel):
     level: int
     happiness: int
     requested_at: datetime | None = None
-
-
-class ExitRequestListResponse(BaseModel):
-    """Every dweller currently waiting on an answer."""
-
-    requests: list[ExitRequestRead] = Field(default_factory=list)
 
 
 class ExitDecisionResponse(BaseModel):

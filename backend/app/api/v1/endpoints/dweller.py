@@ -33,11 +33,13 @@ from app.schemas.dweller import (
     LineageResponse,
     RevivalCostResponse,
 )
+from app.schemas.exit_request import ExitDecisionResponse, ExitRequestRead
 from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
 from app.services.bio_service import bio_service
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
+from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
 from app.services.family.lineage_service import lineage_service
 from app.services.happiness_service import happiness_service
@@ -584,3 +586,80 @@ async def read_deleted_dwellers_by_vault(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.dweller.get_deleted_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+
+
+# ============================================================================
+# Exit Requests — dwellers who ask to leave the vault. Granting is one-way.
+# ============================================================================
+
+
+def _to_exit_request_read(dweller: Dweller) -> ExitRequestRead:
+    return ExitRequestRead(
+        dweller_id=dweller.id,
+        dweller_name=dweller.display_name,
+        thumbnail_url=dweller.thumbnail_url,
+        level=dweller.level,
+        happiness=dweller.happiness,
+        requested_at=dweller.exit_requested_at,
+    )
+
+
+@router.get("/vault/{vault_id}/exit-requests", response_model=list[ExitRequestRead])
+async def list_exit_requests(
+    vault_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ExitRequestRead]:
+    """List dwellers waiting on an answer to their request to leave.
+
+    Returns:
+        list[ExitRequestRead]: Dwellers with a standing exit request.
+    """
+    await get_user_vault_or_403(vault_id, user, db_session)
+    pending = await exit_request_service.list_pending(db_session, vault_id)
+    return [_to_exit_request_read(dweller) for dweller in pending]
+
+
+@router.post("/{dweller_id}/grant-exit", response_model=ExitDecisionResponse)
+async def grant_exit_request(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> ExitDecisionResponse:
+    """Let the dweller go: permanent death by exile, with no way back.
+
+    Returns:
+        ExitDecisionResponse: The exile outcome, including the epitaph.
+    """
+    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    vault = await get_user_vault_or_403(dweller.vault_id, user, db_session)
+    dweller = await exit_request_service.grant_exit(db_session, vault, dweller_id)
+    return ExitDecisionResponse(
+        dweller_id=dweller.id,
+        dweller_name=dweller.display_name,
+        granted=True,
+        happiness=dweller.happiness,
+        epitaph=dweller.epitaph,
+    )
+
+
+@router.post("/{dweller_id}/refuse-exit", response_model=ExitDecisionResponse)
+async def refuse_exit_request(
+    dweller_id: UUID4,
+    user: CurrentActiveUser,
+    db_session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> ExitDecisionResponse:
+    """Refuse the ask: the dweller takes a happiness hit and the request stands.
+
+    Returns:
+        ExitDecisionResponse: The refusal outcome and updated happiness.
+    """
+    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    vault = await get_user_vault_or_403(dweller.vault_id, user, db_session)
+    dweller = await exit_request_service.refuse_exit(db_session, vault, dweller_id)
+    return ExitDecisionResponse(
+        dweller_id=dweller.id,
+        dweller_name=dweller.display_name,
+        granted=False,
+        happiness=dweller.happiness,
+    )

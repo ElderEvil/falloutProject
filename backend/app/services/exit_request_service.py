@@ -36,8 +36,8 @@ class ExitRequestService:
         """Dwellers of a vault who have asked to leave and are still waiting."""
         return list(await dweller_crud.get_pending_exit_requests(db_session, vault_id))
 
-    async def blocking_reason(self, db_session: AsyncSession, dweller: Dweller) -> str | None:
-        """Why this dweller may not leave the vault, or None when an exit is allowed."""
+    def _eligibility_reason(self, dweller: Dweller) -> str | None:
+        """Why this dweller may not take part in the exit flow, or None when eligible."""
         if dweller.is_dead:
             return "Dweller is already dead"
         if dweller.is_deleted:
@@ -46,7 +46,7 @@ class ExitRequestService:
             return "Only grown dwellers can choose to leave the vault"
         if dweller.status in _AWAY_STATUSES:
             return "Dweller is away from the vault"
-        return await self._population_block(db_session, dweller.vault_id)
+        return None
 
     async def request_exit(self, db_session: AsyncSession, dweller_id: UUID4, *, commit: bool = True) -> Dweller:
         """Record that the dweller has asked to leave, without removing them yet.
@@ -54,7 +54,10 @@ class ExitRequestService:
         ``commit=False`` lets the chat flow fold the ask into its own transaction.
         """
         dweller = await self._get_dweller(db_session, dweller_id)
-        reason = await self.blocking_reason(db_session, dweller)
+        reason = self._eligibility_reason(dweller)
+        if reason:
+            raise VaultOperationException(detail=reason)
+        reason = await self._population_block(db_session, dweller.vault_id)
         if reason:
             raise VaultOperationException(detail=reason)
 
@@ -85,6 +88,9 @@ class ExitRequestService:
     async def grant_exit(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
         """Let the dweller go: permanent death by exile, with no revive window."""
         dweller = await self._get_pending(db_session, vault, dweller_id)
+        reason = self._eligibility_reason(dweller)
+        if reason:
+            raise VaultOperationException(detail=reason)
         reason = await self._population_block(db_session, vault.id)
         if reason:
             raise VaultOperationException(detail=reason)
@@ -108,10 +114,11 @@ class ExitRequestService:
 
         asked = await self._ask_the_despairing(db_session, vault_id, threshold, now)
         withdrawn = await self._withdraw_recovered(db_session, vault_id, threshold)
+        for dweller in asked:
+            await self._announce_request(db_session, dweller, commit=False)
         if asked or withdrawn:
             await db_session.commit()
-        for dweller in asked:
-            await self._announce_request(db_session, dweller, commit=True)
+        await notification_service.deliver_deferred_notifications(db_session)
         if asked:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked
@@ -122,10 +129,8 @@ class ExitRequestService:
         candidates = await dweller_crud.get_despairing_without_exit_request(db_session, vault_id, threshold)
         asked: list[Dweller] = []
         for dweller in candidates:
-            if not dweller.is_mature or dweller.status in _AWAY_STATUSES:
+            if self._eligibility_reason(dweller):
                 continue
-            if await self._population_block(db_session, vault_id):
-                break
             dweller.exit_requested_at = now
             db_session.add(dweller)
             asked.append(dweller)
@@ -152,7 +157,7 @@ class ExitRequestService:
                 user_id=user_id,
                 vault_id=dweller.vault_id,
                 dweller_id=dweller.id,
-                dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                dweller_name=dweller.display_name,
                 meta_data={"vault_id": str(dweller.vault_id)},
                 commit=commit,
             ),
@@ -171,11 +176,15 @@ class ExitRequestService:
         return dweller
 
     async def _get_pending(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID4) -> Dweller:
-        dweller = await self._get_dweller(db_session, dweller_id)
+        dweller = await dweller_crud.get(db_session, dweller_id, include_deleted=True)
         if dweller.vault_id != vault.id:
             raise VaultOperationException(detail="Dweller does not belong to this vault")
         if dweller.exit_requested_at is None:
             raise VaultOperationException(detail="Dweller has not asked to leave")
+        if dweller.is_dead:
+            raise VaultOperationException(detail="Dweller is already dead")
+        if dweller.is_deleted:
+            raise VaultOperationException(detail="Dweller is no longer in this vault")
         return dweller
 
 

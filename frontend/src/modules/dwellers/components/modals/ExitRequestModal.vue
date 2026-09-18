@@ -3,25 +3,28 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import UModal from '@/core/components/ui/UModal.vue'
 import UButton from '@/core/components/ui/UButton.vue'
-import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useExitRequestStore } from '../../stores/exitRequests'
 
-const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const store = useExitRequestStore()
 
-const snoozed = ref<string[]>([])
+const isOpen = ref(false)
 const isDeciding = ref(false)
 
-const current = computed(
-  () => store.requests.find((request) => !snoozed.value.includes(request.dweller_id)) ?? null
+const current = computed(() => store.requests[0] ?? null)
+
+watch(
+  current,
+  (request) => {
+    isOpen.value = request !== null
+  },
+  { immediate: true }
 )
-const isOpen = computed(() => current.value !== null)
 
 const refresh = async () => {
-  if (!vaultStore.activeVaultId || !authStore.token) return
-  await store.load(vaultStore.activeVaultId, authStore.token)
+  if (!vaultStore.activeVaultId) return
+  await store.load(vaultStore.activeVaultId)
 }
 
 onMounted(refresh)
@@ -30,23 +33,19 @@ watch(() => vaultStore.activeVaultId, refresh)
 const decide = async (grant: boolean) => {
   const request = current.value
   const vaultId = vaultStore.activeVaultId
-  if (!request || !vaultId || !authStore.token) return
+  if (!request || !vaultId) return
 
   isDeciding.value = true
   try {
-    if (grant) await store.grant(vaultId, request.dweller_id, authStore.token)
-    else await store.refuse(vaultId, request.dweller_id, authStore.token)
+    if (grant) await store.grant(vaultId, request.dweller_id)
+    else await store.refuse(vaultId, request.dweller_id)
   } finally {
     isDeciding.value = false
   }
 }
 
-const decideLater = () => {
-  if (current.value) snoozed.value = [...snoozed.value, current.value.dweller_id]
-}
-
 const close = () => {
-  decideLater()
+  isOpen.value = false
 }
 </script>
 
@@ -69,7 +68,7 @@ const close = () => {
       </p>
 
       <div class="modal-actions">
-        <UButton variant="secondary" :disabled="isDeciding" @click="decideLater">
+        <UButton variant="secondary" :disabled="isDeciding" @click="close">
           Decide Later
         </UButton>
         <UButton variant="secondary" :disabled="isDeciding" @click="decide(false)"> Refuse </UButton>

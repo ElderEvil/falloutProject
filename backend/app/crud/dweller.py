@@ -315,12 +315,14 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_exit_requests_above_happiness(
         self, db_session: AsyncSession, vault_id: UUID4, threshold: int
     ) -> Sequence[Dweller]:
-        """Dwellers who asked to leave but are no longer below the despair threshold."""
+        """Living dwellers who asked to leave but are no longer below the despair threshold."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
             .where(self.model.exit_requested_at.is_not(None))
             .where(self.model.happiness > threshold)
+            .where(~self.model.is_deleted)
+            .where(~self.model.is_dead)
         )
         return (await db_session.execute(query)).scalars().all()
 

@@ -66,10 +66,10 @@ async def test_list_exit_requests_returns_only_pending(
     dwelling = await _make_dweller(async_session, vault.id, prefix="Asker")
     await _ask(async_session, dwelling)
 
-    response = await async_client.get(f"/vaults/{vault.id}/exit-requests", headers=superuser_token_headers)
+    response = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
 
     assert response.status_code == 200
-    requests = response.json()["requests"]
+    requests = response.json()
     assert [entry["dweller_id"] for entry in requests] == [str(dwelling.id)]
     assert requests[0]["dweller_name"] == "Asker Seeker"
 
@@ -85,7 +85,7 @@ async def test_grant_exit_is_permanent_and_removes_the_request(
     await _ask(async_session, dwelling)
 
     response = await async_client.post(
-        f"/vaults/{vault.id}/exit-requests/{dwelling.id}/grant", headers=superuser_token_headers
+        f"/dwellers/{dwelling.id}/grant-exit", headers=superuser_token_headers
     )
 
     assert response.status_code == 200
@@ -98,8 +98,8 @@ async def test_grant_exit_is_permanent_and_removes_the_request(
     assert dwelling.is_permanently_dead is True
     assert dwelling.death_cause.value == "exile"
 
-    remaining = await async_client.get(f"/vaults/{vault.id}/exit-requests", headers=superuser_token_headers)
-    assert remaining.json()["requests"] == []
+    remaining = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
+    assert remaining.json() == []
 
 
 async def test_refuse_exit_keeps_the_request_standing(
@@ -113,7 +113,7 @@ async def test_refuse_exit_keeps_the_request_standing(
     await _ask(async_session, dwelling)
 
     response = await async_client.post(
-        f"/vaults/{vault.id}/exit-requests/{dwelling.id}/refuse", headers=superuser_token_headers
+        f"/dwellers/{dwelling.id}/refuse-exit", headers=superuser_token_headers
     )
 
     assert response.status_code == 200
@@ -136,7 +136,7 @@ async def test_grant_without_a_request_is_rejected(
     quiet = await _make_dweller(async_session, vault.id, prefix="Quiet")
 
     response = await async_client.post(
-        f"/vaults/{vault.id}/exit-requests/{quiet.id}/grant", headers=superuser_token_headers
+        f"/dwellers/{quiet.id}/grant-exit", headers=superuser_token_headers
     )
 
     assert response.status_code == 400

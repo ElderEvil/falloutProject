@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
+from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
@@ -225,7 +226,11 @@ class IncidentService:
     async def assign_responders(
         self, db_session: AsyncSession, incident: Incident, dweller_ids: list[UUID4]
     ) -> list[UUID4]:
-        """Move eligible dwellers into an active incident room before its next round."""
+        """Move eligible dwellers into an active incident room before its next round.
+
+        Records the incident's designated responder team; room presence continues
+        to drive the per-round combat engine.
+        """
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
 
@@ -240,6 +245,8 @@ class IncidentService:
         unavailable = [dweller for dweller in dwellers if availability_error(dweller, require_healthy=True)]
         if unavailable:
             raise ValidationException("Only healthy adult dwellers in the vault can respond")
+
+        await team_crud.replace_incident_team(db_session, incident.id, incident.vault_id, unique_ids)
 
         from app.services.dweller_service import dweller_service
 

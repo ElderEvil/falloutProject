@@ -15,16 +15,23 @@ from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.incident import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.incident_event import IncidentEvent
+from app.models.quest import Quest
 from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.common import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
 from app.schemas.dweller import DwellerCreate
 from app.schemas.incident import IncidentRoundResult
+from app.schemas.quest import QuestCreate
+from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.services.combat import incident_math
 from app.services.combat.incident_service import incident_service
 from app.services.dweller_service import dweller_service
+from app.services.team_service import team_service
 from app.tests.factory.rooms import create_fake_room
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+from app.tests.factory.users import create_fake_user
+from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 
 
 @pytest_asyncio.fixture(name="room")
@@ -486,6 +493,149 @@ async def test_assign_responders_moves_healthy_adult(
     await async_session.refresh(responder)
     assert assigned == [responder.id]
     assert responder.room_id == room.id
+
+
+async def _assign_quest_to_vault(async_session: AsyncSession, vault: Vault) -> Quest:
+    """Assign a fresh quest to the vault so a quest team can be created."""
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Coexist Quest",
+            short_description="Send a team",
+            long_description="A quest that needs a team roster.",
+            requirements="1 dweller",
+            rewards="100 caps",
+            duration_minutes=60,
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    return quest
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_persists_incident_team(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Assigning responders records the incident's designated team roster."""
+    room = room_with_dwellers["room"]
+    responder = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id),
+    )
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
+    assert team is not None
+    assert team.quest_id is None
+    assert team.incident_id == incident.id
+    assert [member.dweller_id for member in team.members] == [responder.id]
+    assert all(member.slot_number is None for member in team.members)
+    assert all(member.status == "assigned" for member in team.members)
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_reassign_replaces_roster(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Re-assigning responders replaces the roster without stale or duplicate members."""
+    room = room_with_dwellers["room"]
+    responder1 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    responder2 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    await incident_service.assign_responders(async_session, incident, [responder1.id])
+    await incident_service.assign_responders(async_session, incident, [responder2.id])
+
+    team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
+    assert team is not None
+    assert [member.dweller_id for member in team.members] == [responder2.id]
+
+
+@pytest.mark.asyncio
+async def test_incident_team_retrievable_via_crud(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """The persisted incident team is retrievable through team_crud.get_incident_team."""
+    room = room_with_dwellers["room"]
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
+    assert [member.dweller_id for member in members] == [responder.id]
+
+
+@pytest.mark.asyncio
+async def test_quest_and_incident_teams_coexist(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A quest team and an incident team coexist as separate team rows."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    quest = await _assign_quest_to_vault(async_session, vault)
+    quest_dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [quest_dweller.id])
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    assert incident is not None
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    quest_team = await crud.team_crud.get_quest_team_row(async_session, quest.id, vault.id)
+    incident_team = await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id)
+    assert quest_team is not None
+    assert incident_team is not None
+    assert quest_team.id != incident_team.id
+    assert quest_team.incident_id is None
+    assert incident_team.quest_id is None
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_rejections_write_no_team(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """Unhealthy, duplicate, foreign-vault, and inactive-incident rejections write no team."""
+    room = room_with_dwellers["room"]
+    vault = room_with_dwellers["vault"]
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
+    assert incident is not None
+
+    # A wounded dweller is rejected.
+    wounded = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    wounded.health = 0
+    async_session.add(wounded)
+    await async_session.commit()
+    with pytest.raises(ValidationException, match="healthy"):
+        await incident_service.assign_responders(async_session, incident, [wounded.id])
+
+    # Duplicate ids are rejected.
+    healthy = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    with pytest.raises(ValidationException, match="only once"):
+        await incident_service.assign_responders(async_session, incident, [healthy.id, healthy.id])
+
+    # A dweller from another vault is rejected.
+    other_user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    other_vault = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=other_user.id)
+    )
+    foreign = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=other_vault.id))
+    with pytest.raises(ValidationException, match="do not belong"):
+        await incident_service.assign_responders(async_session, incident, [foreign.id])
+
+    # An inactive incident is rejected.
+    incident.status = IncidentStatus.RESOLVED
+    async_session.add(incident)
+    await async_session.commit()
+    with pytest.raises(ValidationException, match="no longer active"):
+        await incident_service.assign_responders(async_session, incident, [healthy.id])
+
+    # No team row was written by any rejected assignment.
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id) is None
 
 
 @pytest.mark.asyncio

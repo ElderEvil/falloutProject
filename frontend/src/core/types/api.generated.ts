@@ -1775,6 +1775,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Incident Team
+         * @description Get the designated responder team for an incident.
+         */
+        get: operations["get_incident_team_api_v1_game_vaults__vault_id__incidents__incident_id__team_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/game/vaults/{vault_id}/incidents/{incident_id}/overflow/take": {
         parameters: {
             query?: never;
@@ -9067,6 +9087,35 @@ export interface components {
          */
         SynthTypeEnum: "gen_1" | "gen_2" | "gen_3";
         /**
+         * TeamMemberRead
+         * @description A team member as returned by team services.
+         */
+        TeamMemberRead: {
+            /**
+             * Id
+             * Format: uuid4
+             */
+            id: string;
+            /**
+             * Team Id
+             * Format: uuid4
+             */
+            team_id: string;
+            /**
+             * Dweller Id
+             * Format: uuid4
+             */
+            dweller_id: string;
+            /** Slot Number */
+            slot_number?: number | null;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
          * TestEmailRequest
          * @description Payload for POST /email/test — send a diagnostic email via the configured SMTP server.
          */
@@ -12571,6 +12620,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentRespondersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_incident_team_api_v1_game_vaults__vault_id__incidents__incident_id__team_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_id: string;
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberRead"][];
                 };
             };
             /** @description Validation Error */

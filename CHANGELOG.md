@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.120.1 (2026-09-18)
+
+### Bug Fixes
+
+* fold exit requests into dwellers router and slim the flow dcebefd
+* remove superseded exit-requests router module 1524eac
+* skip automatic exit asks below the population floor c605f1e
+
 ## 2.120.0 (2026-09-18)
 
 ### Features

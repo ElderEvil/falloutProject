@@ -236,7 +236,19 @@ class IncidentService:
         to drive the per-round combat engine. The roster is the set of responders
         sent for the incident — assignments append, never replace, so the persisted
         roster cannot diverge from the responders actually sent into the room.
+
+        The incident row is re-loaded FOR UPDATE so the roster read, the six-responder
+        cap check, and the insert all run under one row lock: two concurrent
+        assignments cannot both pass the cap check and exceed six members.
         """
+        if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
+            raise ValidationException("Incident is no longer active")
+
+        # Re-load under a FOR UPDATE row lock so the read→check→insert below is
+        # serialized against concurrent assignments to the same incident.
+        incident = await incident_crud.get_for_update(db_session, incident.id)
+        if incident is None:
+            raise ResourceNotFoundException(Incident, incident.id)
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
 

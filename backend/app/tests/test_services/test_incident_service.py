@@ -627,6 +627,52 @@ async def test_assign_responders_rejects_roster_overflow(
 
 
 @pytest.mark.asyncio
+async def test_assign_responders_reloads_incident_for_update(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, monkeypatch: pytest.MonkeyPatch
+):
+    """The roster read and cap check run under a FOR UPDATE re-load of the incident row."""
+    room = room_with_dwellers["room"]
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    from app.crud.incident import incident_crud
+
+    locked_ids: list = []
+    original = incident_crud.get_for_update
+
+    async def spy(db_session, incident_id):
+        locked_ids.append(incident_id)
+        return await original(db_session, incident_id)
+
+    monkeypatch.setattr(incident_crud, "get_for_update", spy)
+
+    await incident_service.assign_responders(async_session, incident, [responder.id])
+
+    assert locked_ids == [incident.id]
+
+
+@pytest.mark.asyncio
+async def test_assign_responders_revalidates_status_under_lock(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A caller's stale incident object cannot bypass the locked row's status."""
+    room = room_with_dwellers["room"]
+    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
+    assert incident is not None
+
+    # The caller holds an ACTIVE object, but the row is already resolved.
+    incident.status = IncidentStatus.RESOLVED
+    async_session.add(incident)
+    await async_session.commit()
+    incident.status = IncidentStatus.ACTIVE  # stale caller-side view
+
+    with pytest.raises(ValidationException, match="no longer active"):
+        await incident_service.assign_responders(async_session, incident, [responder.id])
+
+
+@pytest.mark.asyncio
 async def test_deleting_incident_cascades_its_team(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):

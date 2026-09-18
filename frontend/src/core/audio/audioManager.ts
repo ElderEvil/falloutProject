@@ -1,3 +1,4 @@
+import { reactive } from 'vue'
 import { MUSIC_MANIFEST, SOUND_MANIFEST, type MusicKey, type SoundKey } from './soundManifest'
 
 /**
@@ -8,7 +9,7 @@ export type AudioBus = 'ui' | 'sfx' | 'music'
 
 const STORAGE_KEY = 'audioSettings'
 
-interface AudioSettings {
+export interface AudioSettings {
   muted: boolean
   volumes: Record<AudioBus, number>
 }
@@ -41,7 +42,7 @@ function loadSettings(): AudioSettings {
  * manifests may list sounds before their files exist.
  */
 class AudioManager {
-  private settings: AudioSettings = loadSettings()
+  private settings: AudioSettings = reactive(loadSettings())
   private unlocked = false
   private sfxBuffers = new Map<SoundKey, HTMLAudioElement>()
   private musicPreview: HTMLAudioElement | null = null
@@ -58,6 +59,7 @@ class AudioManager {
           this.playLoop(this.pendingLoop)
           this.pendingLoop = null
         }
+        if (this.alarmWanted) this.startAlarmLoop()
       }
       window.addEventListener('pointerdown', unlock)
       window.addEventListener('keydown', unlock)
@@ -84,11 +86,14 @@ class AudioManager {
     if (muted) {
       this.currentLoop?.audio.pause()
       this.musicPreview?.pause()
+      this.alarmAudio?.pause()
     } else if (this.pendingLoop) {
       this.playLoop(this.pendingLoop)
+      this.pendingLoop = null
     } else if (this.currentLoop) {
       void this.currentLoop.audio.play().catch(() => {})
     }
+    if (!muted && this.alarmWanted) this.startAlarmLoop()
     this.persist()
   }
 
@@ -158,10 +163,106 @@ class AudioManager {
 
   stopLoop(): void {
     this.pendingLoop = null
+    this.musicDucked = false
+    this.cancelMusicRestore()
     if (!this.currentLoop) return
     this.currentLoop.audio.pause()
     this.currentLoop.audio.currentTime = 0
     this.currentLoop = null
+  }
+
+  /** Incident alarm loop + music ducking. All entry points are idempotent. */
+
+  private alarmAudio: HTMLAudioElement | null = null
+  private alarmWanted = false
+  private musicDucked = false
+  private resumeTimer: ReturnType<typeof setTimeout> | null = null
+  private fadeTimers = new Map<HTMLAudioElement, ReturnType<typeof setInterval>>()
+
+  private fadeElement(
+    audio: HTMLAudioElement,
+    target: number,
+    durationMs: number,
+    onDone?: () => void
+  ): void {
+    const previous = this.fadeTimers.get(audio)
+    if (previous) window.clearInterval(previous)
+    const steps = Math.max(1, Math.round(durationMs / 50))
+    const start = audio.volume
+    const delta = (target - start) / steps
+    let n = 0
+    const timer = window.setInterval(() => {
+      n += 1
+      audio.volume = Math.min(1, Math.max(0, start + delta * n))
+      if (n >= steps) {
+        window.clearInterval(timer)
+        this.fadeTimers.delete(audio)
+        onDone?.()
+      }
+    }, 50)
+    this.fadeTimers.set(audio, timer)
+  }
+
+  private cancelFade(audio: HTMLAudioElement): void {
+    const timer = this.fadeTimers.get(audio)
+    if (!timer) return
+    window.clearInterval(timer)
+    this.fadeTimers.delete(audio)
+  }
+
+  /** Start the looping incident alarm. Stays on until stopAlarmLoop. */
+  startAlarmLoop(): void {
+    this.alarmWanted = true
+    if (this.settings.muted || !this.unlocked) return
+    const src = SOUND_MANIFEST.alarm
+    if (!src) return
+    if (!this.alarmAudio) {
+      this.alarmAudio = new Audio(src)
+      this.alarmAudio.loop = true
+      this.alarmAudio.preload = 'auto'
+    }
+    this.cancelFade(this.alarmAudio)
+    this.alarmAudio.volume = this.settings.volumes.sfx
+    if (!this.alarmAudio.paused) return
+    this.alarmAudio.play().catch(() => {})
+  }
+
+  stopAlarmLoop(fadeMs = 500): void {
+    this.alarmWanted = false
+    const audio = this.alarmAudio
+    if (!audio || audio.paused) return
+    this.fadeElement(audio, 0, fadeMs, () => audio.pause())
+  }
+
+  /** Fade the music loop out over 2s so the alarm takes over. */
+  duckMusic(fadeMs = 2000): void {
+    this.cancelMusicRestore()
+    const loop = this.currentLoop
+    if (!loop || this.musicDucked) return
+    this.musicDucked = true
+    this.fadeElement(loop.audio, 0, fadeMs, () => loop.audio.pause())
+  }
+
+  /** Resume a ducked music loop after a delay (5s — mid-range of the 2–8s window). */
+  restoreMusic(delayMs = 5000, fadeMs = 2000): void {
+    this.cancelMusicRestore()
+    if (!this.musicDucked) return
+    this.resumeTimer = window.setTimeout(() => {
+      this.resumeTimer = null
+      this.musicDucked = false
+      const loop = this.currentLoop
+      if (!loop || this.settings.muted || !this.unlocked) return
+      loop.audio.volume = 0
+      loop.audio.play().catch(() => {})
+      this.fadeElement(loop.audio, this.settings.volumes.music, fadeMs)
+    }, delayMs)
+  }
+
+  cancelMusicRestore(): void {
+    if (this.resumeTimer) {
+      window.clearTimeout(this.resumeTimer)
+      this.resumeTimer = null
+    }
   }
 
   private persist(): void {

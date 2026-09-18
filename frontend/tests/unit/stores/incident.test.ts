@@ -12,6 +12,11 @@ const sseMock = vi.hoisted(() => ({
   instance: null as any,
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
   playSound: vi.fn(),
+  startAlarm: vi.fn(),
+  stopAlarm: vi.fn(),
+  duckMusic: vi.fn(),
+  restoreMusic: vi.fn(),
+  cancelMusicRestore: vi.fn(),
 }))
 
 vi.mock('@/core/composables/useEventStream', () => ({
@@ -22,8 +27,14 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => sseMock.toast,
 }))
 
-vi.mock('@/core/composables/useSound', () => ({
-  useSound: () => ({ playSound: sseMock.playSound, playMusic: vi.fn(), stopMusic: vi.fn() }),
+vi.mock('@/core/audio/audioManager', () => ({
+  audioManager: {
+    play: sseMock.playSound,
+    startAlarmLoop: sseMock.startAlarm,
+    stopAlarmLoop: sseMock.stopAlarm,
+    duckMusic: sseMock.duckMusic,
+    restoreMusic: sseMock.restoreMusic,
+  },
 }))
 
 describe('Incident Store', () => {
@@ -708,14 +719,31 @@ describe('Incident Store', () => {
   })
 
   describe('Spawn alert', () => {
-    it('sounds an alert when an incident spawns', async () => {
+    it('loops the alarm and ducks the music when an incident spawns', async () => {
       const store = useIncidentStore()
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
       vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
 
       await store.fetchIncidents('vault-1', 'token')
+      await nextTick()
 
-      expect(sseMock.playSound).toHaveBeenCalledWith('notification')
+      expect(sseMock.startAlarm).toHaveBeenCalled()
+      expect(sseMock.duckMusic).toHaveBeenCalled()
+    })
+
+    it('stops the alarm and restores the music when the chain ends', async () => {
+      const store = useIncidentStore()
+      store.activeIncidentIds = ['incident-1']
+      await nextTick()
+      sseMock.startAlarm.mockClear()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce({ incidents: [] })
+
+      await store.fetchIncidents('vault-1', 'token')
+      await nextTick()
+
+      expect(sseMock.startAlarm).not.toHaveBeenCalled()
+      expect(sseMock.stopAlarm).toHaveBeenCalled()
+      expect(sseMock.restoreMusic).toHaveBeenCalled()
     })
   })
 

@@ -6,9 +6,12 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRouter, useRoute } from 'vue-router'
 import NotificationBell from './NotificationBell.vue'
 import { useVersionDetection } from '@/core/composables/useVersionDetection'
+import { audioManager } from '@/core/audio/audioManager'
+import { useIncidentStore } from '@/modules/combat/stores/incident'
 
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
+const incidentStore = useIncidentStore()
 const router = useRouter()
 const route = useRoute()
 const { versionBadgeVisible, showChangelog } = useVersionDetection({
@@ -29,6 +32,17 @@ const currentVaultId = computed(() => {
 const logout = async () => {
   await authStore.logout()
   router.push('/login')
+}
+
+// Sound toggle — reachable while an incident is active. Reads the manager's
+// reactive settings so profile hydration is reflected.
+const soundMuted = computed(() => audioManager.muted)
+
+// Only surface the sound toggle mid-incident; the alarm is the reason to mute.
+const hasActiveIncidents = computed(() => incidentStore.hasActiveIncidents)
+
+const toggleSound = () => {
+  audioManager.setMuted(!audioManager.muted)
 }
 
 const isFlickering = inject('isFlickering')
@@ -104,6 +118,21 @@ onUnmounted(() => {
           <span
             class="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full animate-pulse"
           ></span>
+        </button>
+
+        <!-- Sound toggle (only while an incident is active) -->
+        <button
+          v-if="hasActiveIncidents"
+          @click="toggleSound"
+          :class="[
+            'relative text-theme-primary hover:text-theme-glow',
+            'focus:outline-none focus:ring-2 focus:ring-theme-primary',
+            'focus:ring-offset-2 focus:ring-offset-gray-800 rounded px-2 py-1 transition-colors',
+          ]"
+          :aria-label="soundMuted ? 'Unmute sounds' : 'Mute sounds'"
+          :aria-pressed="!soundMuted"
+        >
+          <Icon :icon="soundMuted ? 'mdi:volume-off' : 'mdi:volume-high'" class="h-5 w-5" />
         </button>
 
         <!-- Notification Bell (only when authenticated) -->

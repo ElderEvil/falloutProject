@@ -282,25 +282,18 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
 4. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
    matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
 
-### Shared roster machinery — quest parties and responder teams (Target: TBD)
+### Shared roster machinery — one roster model for quest, incident, and hazard teams (Target: next branch, #683)
 
-Quest parties (`QuestParty` + `crud/quest_party.assign_party`) and the contamination teams
-(`HazardTeamMember`, `contamination_team_service`) solve the same shape — "which dwellers are on this
-thing" — with separate implementations. Extract the common parts so the two do not drift: one
-**availability/eligibility policy**, and ideally one roster primitive both consume.
+`Team` / `TeamMember` now backs quest parties and incident responder crews (the legacy `QuestParty` table
+was dropped in v2.123.0), and the shared availability/eligibility policy lives in
+`utils/dweller_availability.py`, consumed by quests, incidents, exploration, room assignment, and the team
+service. The earned hazard teams (`HazardTeamMember`, `contamination_team_service`) are the remaining
+holdout, so "which dwellers are on this thing" still has two implementations.
 
-This is the same consolidation the code already asks for in three places:
-
-- `crud/quest_party.py:54` — *"TODO: unify eligibility with incident responder checks; shared availability
-  policy outside services."*
-- `services/exploration_service.py:130` — *"TODO: unify with incident responder eligibility into a shared
-  availability policy outside services."*
-- `docs/ROADMAP.md` simplification backlog — the planned `is_in_vault_and_active` helper (responder,
-  explorer, and dehydration eligibility all point at it).
-
-Constraint: the shared policy cannot live in `app/services/` — the architecture guard permits CRUD to import
-only `room_assignment_policy` there, and new entries fail the suite. It belongs in `app/utils/` beside
-`room_rules.py` / `dwellers.py`, following the precedent AGENTS.md rule 11 sets for the shared policy kernel.
+Consolidate onto the one primitive: add a third purpose to `Team` (`hazard_team`), map active places to
+`slot_number` 1-3 and the bench to a NULL slot, migrate `HazardTeamMember` rows across preserving
+`created_at`, then drop the table and repoint the service. Retire the contamination/hazard naming split and
+shrink the architecture-guard baseline in the same commit. Tracked in #683.
 
 ### Version 3.0 Platform Modernization
 

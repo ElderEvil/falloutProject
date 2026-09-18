@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { nextTick } from 'vue'
+import { effectScope, nextTick, type EffectScope } from 'vue'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useSoundProfileSync } from '@/modules/profile/composables/useSoundProfileSync'
 import type { UserProfile } from '@/models/profile'
@@ -56,17 +56,21 @@ setActivePinia(createPinia())
 const store = useProfileStore()
 const savePreferences = vi.fn().mockResolvedValue(undefined)
 store.savePreferences = savePreferences
-useSoundProfileSync()
+
+let scope: EffectScope | undefined
 
 describe('useSoundProfileSync', () => {
   beforeEach(async () => {
     vi.useFakeTimers()
+    scope?.stop()
     store.profile = null
     await nextTick()
     savePreferences.mockClear()
     audioMock.applySettings.mockClear()
     audioMock.state.muted = true
     audioMock.state.volumes = { ui: 0.6, sfx: 0.8, music: 0.4 }
+    scope = effectScope()
+    scope.run(() => useSoundProfileSync())
   })
 
   afterEach(() => {

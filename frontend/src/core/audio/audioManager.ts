@@ -57,12 +57,11 @@ export function parseSoundSettings(raw: unknown): SoundSettingsInput | null {
 
 function loadSettings(): AudioSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_SETTINGS }
-    const parsed = JSON.parse(raw) as Partial<AudioSettings>
+    const cached = parseSoundSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'))
+    if (!cached) return { ...DEFAULT_SETTINGS }
     return {
-      muted: parsed.muted ?? DEFAULT_SETTINGS.muted,
-      volumes: { ...DEFAULT_SETTINGS.volumes, ...parsed.volumes },
+      muted: cached.muted ?? DEFAULT_SETTINGS.muted,
+      volumes: { ...DEFAULT_SETTINGS.volumes, ...cached.volumes },
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -125,17 +124,7 @@ class AudioManager {
 
   setMuted(muted: boolean): void {
     this.settings.muted = muted
-    if (muted) {
-      this.currentLoop?.audio.pause()
-      this.musicPreview?.pause()
-      this.alarmAudio?.pause()
-    } else if (this.pendingLoop) {
-      this.playLoop(this.pendingLoop)
-      this.pendingLoop = null
-    } else if (this.currentLoop) {
-      void this.currentLoop.audio.play().catch(() => {})
-    }
-    if (!muted && this.alarmWanted) this.startAlarmLoop()
+    this.reconcilePlayback()
     this.persist()
     this.notifyChange()
   }
@@ -169,20 +158,7 @@ class AudioManager {
         }
       }
     }
-    if (this.settings.muted) {
-      this.currentLoop?.audio.pause()
-      this.musicPreview?.pause()
-      this.alarmAudio?.pause()
-    } else {
-      if (this.pendingLoop) {
-        this.playLoop(this.pendingLoop)
-        this.pendingLoop = null
-      } else if (this.currentLoop) {
-        this.currentLoop.audio.volume = this.settings.volumes.music
-        void this.currentLoop.audio.play().catch(() => {})
-      }
-      if (this.alarmWanted) this.startAlarmLoop()
-    }
+    this.reconcilePlayback()
     this.persist()
   }
 
@@ -344,6 +320,23 @@ class AudioManager {
       window.clearTimeout(this.resumeTimer)
       this.resumeTimer = null
     }
+  }
+
+  private reconcilePlayback(): void {
+    if (this.settings.muted) {
+      this.currentLoop?.audio.pause()
+      this.musicPreview?.pause()
+      this.alarmAudio?.pause()
+      return
+    }
+    if (this.pendingLoop) {
+      this.playLoop(this.pendingLoop)
+      this.pendingLoop = null
+    } else if (this.currentLoop) {
+      this.currentLoop.audio.volume = this.settings.volumes.music
+      void this.currentLoop.audio.play().catch(() => {})
+    }
+    if (this.alarmWanted) this.startAlarmLoop()
   }
 
   private persist(): void {

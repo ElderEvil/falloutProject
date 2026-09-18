@@ -128,6 +128,8 @@ class ExitRequestService:
     ) -> list[Dweller]:
         candidates = await dweller_crud.get_despairing_without_exit_request(db_session, vault_id, threshold)
         asked: list[Dweller] = []
+        if await self._population_block(db_session, vault_id):
+            return asked
         for dweller in candidates:
             if self._eligibility_reason(dweller):
                 continue

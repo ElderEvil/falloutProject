@@ -223,6 +223,21 @@ async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Va
 
 
 @pytest.mark.asyncio
+async def test_despair_raises_no_ask_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
+    """An ask the vault could not grant would only dangle, so it is not raised."""
+    dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
+    for dweller in dwellers:
+        await crud.dweller.update(async_session, dweller.id, {"happiness": game_config.exit_request.despair_happiness})
+
+    asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
+
+    assert asked == []
+    for dweller in dwellers:
+        await async_session.refresh(dweller)
+        assert dweller.exit_requested_at is None
+
+
+@pytest.mark.asyncio
 async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession, vault: Vault) -> None:
     """A dweller who feels better stops asking, without the player doing anything."""
     dwellers = await _with_room_for_one_exit(async_session, vault)

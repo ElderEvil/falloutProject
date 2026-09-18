@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.122.0 (2026-09-18)
+
+### Features
+
+* persist sound settings in profile preferences 7e6cc77
+
+### Bug Fixes
+
+* harden sound-sync writes and profile session handling 09035eb
+
+### Code Refactoring
+
+* consolidate audio playback and sound-sync lifecycle 1294663
+
 ## 2.121.0 (2026-09-18)
 
 ### Features

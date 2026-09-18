@@ -68,29 +68,42 @@ const teamMembers = computed<TeamMemberEntry[]>(() =>
 const teamMemberLabel = (entry: TeamMemberEntry): string =>
   entry.dweller?.first_name ?? entry.member.dweller_id.slice(0, 8)
 
-const loadTeam = (): void => {
-  if (authStore.token) {
-    void incidentStore.fetchIncidentTeam(props.vaultId, props.incident.id, authStore.token)
+const teamLoaded = ref(false)
+
+const loadTeam = async (): Promise<void> => {
+  teamLoaded.value = false
+  if (!authStore.token) {
+    teamLoaded.value = true
+    return
+  }
+  const incidentId = props.incident.id
+  await incidentStore.fetchIncidentTeam(props.vaultId, incidentId, authStore.token)
+  if (props.incident.id === incidentId) {
+    teamLoaded.value = true
   }
 }
 
 onMounted(loadTeam)
 watch(() => props.incident.id, loadTeam)
 
-// The POST replaces the roster, so every send submits the union of the current
-// designated team and the new selection, deduped and capped at the backend's 6.
+// The POST appends (deduped) to the roster and rejects a roster over 6, so the
+// UI sends only the newly chosen dwellers and never a doomed over-cap request.
 const MAX_TEAM_SIZE = 6
 
-const buildTeamUnion = (newIds: string[]): string[] => {
-  const currentIds = incidentStore.getIncidentTeam(props.incident.id).map((member) => member.dweller_id)
-  const union = [...new Set([...currentIds, ...newIds])]
-  if (union.length > MAX_TEAM_SIZE) {
+const currentTeamIds = computed(() =>
+  incidentStore.getIncidentTeam(props.incident.id).map((member) => member.dweller_id)
+)
+
+const fitWithinRosterCap = (newIds: string[]): string[] => {
+  const freshIds = newIds.filter((id) => !currentTeamIds.value.includes(id))
+  const fits = Math.max(MAX_TEAM_SIZE - currentTeamIds.value.length, 0)
+  if (freshIds.length > fits) {
     showWarning(
-      `Incident team is full (${MAX_TEAM_SIZE}) — ${union.length - MAX_TEAM_SIZE} responder(s) not sent.`
+      `Incident team is full (${MAX_TEAM_SIZE}) — ${freshIds.length - fits} responder(s) not sent.`
     )
-    return union.slice(0, MAX_TEAM_SIZE)
+    return freshIds.slice(0, fits)
   }
-  return union
+  return freshIds
 }
 
 const send = async (dwellerIds: string[]) => {
@@ -99,20 +112,20 @@ const send = async (dwellerIds: string[]) => {
 }
 
 const sendBestDefenders = async () => {
-  if (isAssigning.value || !bestResponders.value.length) return
+  if (isAssigning.value || !teamLoaded.value || !bestResponders.value.length) return
   isSendingBest.value = true
   try {
-    await send(buildTeamUnion(bestResponders.value.map((dweller) => dweller.id)))
+    await send(fitWithinRosterCap(bestResponders.value.map((dweller) => dweller.id)))
   } finally {
     isSendingBest.value = false
   }
 }
 
 const assignResponder = async (dwellerId: string) => {
-  if (isAssigning.value) return
+  if (isAssigning.value || !teamLoaded.value) return
   assigningDwellerId.value = dwellerId
   try {
-    await send(buildTeamUnion([dwellerId]))
+    await send(fitWithinRosterCap([dwellerId]))
   } finally {
     assigningDwellerId.value = null
   }
@@ -171,7 +184,7 @@ const assignResponder = async (dwellerId: string) => {
         <UButton
           variant="primary"
           size="sm"
-          :disabled="isAssigning"
+          :disabled="isAssigning || !teamLoaded"
           :loading="isSendingBest"
           @click="sendBestDefenders"
         >
@@ -205,7 +218,7 @@ const assignResponder = async (dwellerId: string) => {
             <UButton
               variant="secondary"
               size="sm"
-              :disabled="isAssigning"
+              :disabled="isAssigning || !teamLoaded"
               :loading="assigningDwellerId === dweller.id"
               @click="assignResponder(dweller.id)"
             >

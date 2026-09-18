@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
 const assignResponders = vi.fn()
 const fetchIncidentTeam = vi.fn()
 const getIncidentTeam = vi.fn(() => [])
+const warning = vi.fn()
 
 vi.mock('@/modules/combat/stores/incident', () => ({
   useIncidentStore: () => ({ assignResponders, fetchIncidentTeam, getIncidentTeam }),
@@ -16,7 +17,7 @@ vi.mock('@/modules/auth/stores/auth', () => ({
 }))
 
 vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning, info: vi.fn() }),
 }))
 
 const incident = (overrides: Partial<Incident> = {}): Incident =>
@@ -48,8 +49,8 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-const mountDetail = (props: Record<string, unknown> = {}) =>
-  mount(RoomIncidentDetail, {
+const mountDetail = async (props: Record<string, unknown> = {}, flush = true) => {
+  const wrapper = mount(RoomIncidentDetail, {
     props: {
       incident: incident(),
       vaultId: 'vault-1',
@@ -65,6 +66,10 @@ const mountDetail = (props: Record<string, unknown> = {}) =>
       },
     },
   })
+  // The team load resolves on mount; send controls stay disabled until then.
+  if (flush) await flushPromises()
+  return wrapper
+}
 
 describe('RoomIncidentDetail', () => {
   beforeEach(() => {
@@ -74,6 +79,7 @@ describe('RoomIncidentDetail', () => {
     fetchIncidentTeam.mockResolvedValue(undefined)
     getIncidentTeam.mockReset()
     getIncidentTeam.mockReturnValue([])
+    warning.mockReset()
   })
 
   const teamMember = (dwellerId: string): IncidentTeamMember => ({
@@ -86,22 +92,22 @@ describe('RoomIncidentDetail', () => {
     updated_at: null,
   })
 
-  it('names the threat with its family, objective and progress', () => {
-    const text = mountDetail().text()
+  it('names the threat with its family, objective and progress', async () => {
+    const text = (await mountDetail()).text()
     expect(text).toContain('RAIDER ATTACK')
     expect(text).toContain('INTRUSION')
     expect(text).toContain('DEFEAT')
     expect(text).toContain('30 / 100')
   })
 
-  it('composes the scene and the battle log', () => {
-    const wrapper = mountDetail()
+  it('composes the scene and the battle log', async () => {
+    const wrapper = await mountDetail()
     expect(wrapper.find('section[aria-label="Incident live status"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Battle log"]').exists()).toBe(true)
   })
 
   it('offers the strongest adults as the best team and sends them together', async () => {
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 }),
         dweller({ id: 'd2', first_name: 'Bob', combat_power: 90 }),
@@ -121,8 +127,8 @@ describe('RoomIncidentDetail', () => {
     )
   })
 
-  it('keeps a dweller already in the incident room out of the send list', () => {
-    const wrapper = mountDetail({
+  it('keeps a dweller already in the incident room out of the send list', async () => {
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' }),
         dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' }),
@@ -135,8 +141,8 @@ describe('RoomIncidentDetail', () => {
     expect(text).toContain('Bob')
   })
 
-  it('excludes dead, away and child dwellers from the send list', () => {
-    const wrapper = mountDetail({
+  it('excludes dead, away and child dwellers from the send list', async () => {
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Away', status: 'exploring' }),
         dweller({ id: 'd2', first_name: 'Gone', status: 'dead' }),
@@ -149,7 +155,7 @@ describe('RoomIncidentDetail', () => {
   })
 
   it('sends a single dweller from the responder list', async () => {
-    const wrapper = mountDetail({ dwellers: [dweller({ id: 'd1', first_name: 'Alice' })] })
+    const wrapper = await mountDetail({ dwellers: [dweller({ id: 'd1', first_name: 'Alice' })] })
 
     const buttons = wrapper.findAll('button')
     await buttons[buttons.length - 1].trigger('click')
@@ -157,8 +163,8 @@ describe('RoomIncidentDetail', () => {
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
-  it('states that room management is locked while the incident is live', () => {
-    expect(mountDetail().text()).toContain('Room management is locked')
+  it('states that room management is locked while the incident is live', async () => {
+    expect((await mountDetail()).text()).toContain('Room management is locked')
   })
 
   it('blocks a second assignment while one is in flight', async () => {
@@ -170,7 +176,7 @@ describe('RoomIncidentDetail', () => {
         })
     )
 
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', combat_power: 90 }),
         dweller({ id: 'd2', first_name: 'Bob', combat_power: 50 }),
@@ -191,15 +197,15 @@ describe('RoomIncidentDetail', () => {
     await wrapper.vm.$nextTick()
   })
 
-  it('fetches the designated team on mount', () => {
-    mountDetail()
+  it('fetches the designated team on mount', async () => {
+    await mountDetail()
 
     expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1', 'test-token')
   })
 
-  it('renders the designated team roster with combat power', () => {
+  it('renders the designated team roster with combat power', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 })],
     })
 
@@ -208,16 +214,16 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('POW 10')
   })
 
-  it('falls back to a short id for team members missing from the dweller list', () => {
+  it('falls back to a short id for team members missing from the dweller list', async () => {
     getIncidentTeam.mockReturnValue([teamMember('dweller-unknown-1234')])
-    const wrapper = mountDetail({ dwellers: [] })
+    const wrapper = await mountDetail({ dwellers: [] })
 
     expect(wrapper.text()).toContain('dweller-')
   })
 
-  it('sends the union of the current team and the new responder', async () => {
+  it('sends only the newly chosen dweller, not the current team', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' }),
         dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' }),
@@ -227,12 +233,12 @@ describe('RoomIncidentDetail', () => {
     const buttons = wrapper.findAll('button')
     await buttons[buttons.length - 1].trigger('click')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1', 'd2'], 'test-token')
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
   })
 
-  it('sends the union when sending the best defenders', async () => {
+  it('sends only the best defenders, not the current team', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1', combat_power: 10 }),
         dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2', combat_power: 90 }),
@@ -242,18 +248,82 @@ describe('RoomIncidentDetail', () => {
 
     await wrapper.find('button').trigger('click')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1', 'd2', 'd3'], 'test-token')
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2', 'd3'], 'test-token')
   })
 
-  it('dedupes the union when the new selection is already on the team', async () => {
+  it('does not re-send a dweller already on the team', async () => {
     getIncidentTeam.mockReturnValue([teamMember('d2')])
-    const wrapper = mountDetail({
+    const wrapper = await mountDetail({
       dwellers: [dweller({ id: 'd2', first_name: 'Bob', room_id: 'room-2' })],
     })
 
     const buttons = wrapper.findAll('button')
     await buttons[buttons.length - 1].trigger('click')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
+    expect(assignResponders).not.toHaveBeenCalled()
+  })
+
+  it('warns and sends only what fits when the roster would exceed 6', async () => {
+    getIncidentTeam.mockReturnValue(['d1', 'd2', 'd3', 'd4', 'd5'].map((id) => teamMember(id)))
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd6', first_name: 'Fay', room_id: 'room-2', combat_power: 90 }),
+        dweller({ id: 'd7', first_name: 'Gus', room_id: 'room-2', combat_power: 80 }),
+        dweller({ id: 'd8', first_name: 'Hal', room_id: 'room-2', combat_power: 70 }),
+      ],
+    })
+
+    await wrapper.find('button').trigger('click')
+
+    expect(warning).toHaveBeenCalled()
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d6'], 'test-token')
+  })
+
+  it('does not send when the roster is already full', async () => {
+    getIncidentTeam.mockReturnValue(['d1', 'd2', 'd3', 'd4', 'd5', 'd6'].map((id) => teamMember(id)))
+    const wrapper = await mountDetail({
+      dwellers: [dweller({ id: 'd7', first_name: 'Gus', room_id: 'room-2' })],
+    })
+
+    const buttons = wrapper.findAll('button')
+    await buttons[buttons.length - 1].trigger('click')
+
+    expect(warning).toHaveBeenCalled()
+    expect(assignResponders).not.toHaveBeenCalled()
+  })
+
+  it('disables the send controls until the team has loaded', async () => {
+    let resolveTeam: (() => void) | undefined
+    fetchIncidentTeam.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveTeam = resolve
+        })
+    )
+
+    const wrapper = await mountDetail(
+      {
+        dwellers: [
+          dweller({ id: 'd1', first_name: 'Alice', combat_power: 90 }),
+          dweller({ id: 'd2', first_name: 'Bob', combat_power: 50 }),
+        ],
+      },
+      false
+    )
+
+    // Pending team load: every send control is inert and a stray click submits nothing.
+    expect(wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)).toBe(
+      true
+    )
+    await wrapper.findAll('button')[0].trigger('click')
+    expect(assignResponders).not.toHaveBeenCalled()
+
+    resolveTeam?.()
+    await flushPromises()
+
+    // Load resolved: the controls are usable again.
+    expect(wrapper.findAll('button').some((button) => button.attributes('disabled') === undefined)).toBe(
+      true
+    )
   })
 })

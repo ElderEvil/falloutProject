@@ -199,9 +199,12 @@ export const useIncidentStore = defineStore('incident', () => {
         })
       }
 
-      // Fetch the designated responder team for newly spawned incidents only.
-      // The roster is stable until reassigned, so polling must not refetch it.
-      await Promise.all(spawned.map((id) => fetchIncidentTeam(vaultId, id, token)))
+      // Fetch the designated responder team for newly spawned incidents and for
+      // active incidents whose roster never loaded — a transient failure must
+      // not leave the roster missing forever. A cached entry (even an empty
+      // roster) is a successful load and is not refetched on every poll.
+      const teamNeedsLoad = newIds.filter((id) => !incidentTeams.value.has(id))
+      await Promise.all(teamNeedsLoad.map((id) => fetchIncidentTeam(vaultId, id, token)))
 
       // Update store
       activeIncidentIds.value = newIds

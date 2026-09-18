@@ -388,6 +388,37 @@ describe('Incident Store', () => {
       expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(1)
     })
 
+    it('retries the team fetch on a later poll after a transient failure', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce([teamMember])
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(false)
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(2)
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(true)
+      expect(store.getIncidentTeam('incident-1')).toEqual([teamMember])
+    })
+
+    it('does not refetch a cached empty roster on later polls', async () => {
+      const store = useIncidentStore()
+      vi.mocked(incidentApi.getActiveIncidents).mockResolvedValue(mockIncidentList)
+      vi.mocked(incidentApi.getIncident).mockResolvedValue(mockIncident)
+      vi.mocked(incidentApi.getIncidentTeam).mockResolvedValue([])
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(store.hasLoadedIncidentTeam('incident-1')).toBe(true)
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(1)
+
+      await store.fetchIncidents('vault-1', 'token')
+      expect(incidentApi.getIncidentTeam).toHaveBeenCalledTimes(1)
+    })
+
     it('hasLoadedIncidentTeam distinguishes loaded-empty from not-loaded', async () => {
       const store = useIncidentStore()
       expect(store.hasLoadedIncidentTeam('incident-1')).toBe(false)
@@ -1033,9 +1064,9 @@ describe('Incident Store', () => {
       store.incidents.set('incident-1', mockIncident)
       store.activeIncidentIds = ['incident-1']
       vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
-      vi.mocked(incidentApi.getIncident)
-        .mockResolvedValueOnce(mockIncident)
-        .mockResolvedValueOnce({ ...mockIncident, unclaimed_loot: heldLoot })
+      // The detail refresh and the aftermath reload both fetch the incident, and
+      // either may run first, so every answer carries the held loot.
+      vi.mocked(incidentApi.getIncident).mockResolvedValue({ ...mockIncident, unclaimed_loot: heldLoot })
       store.startPolling('vault-1', 'token', 10_000)
       await Promise.resolve()
 

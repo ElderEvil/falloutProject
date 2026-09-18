@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.123.0 (2026-09-18)
+
+### Features
+
+* add the both-hazard legendary responder outfit fa8e9d7
+* earn hazard team places from incident service 41c670a
+* give outfits real hazard resistance and fix equip visibility e3fc477
+* show outfit hazard resistance on item cards d20e8b7
+
+### Bug Fixes
+
+* free a fallen member's place and step up the bench 4f3dae5
+* roll incident types from the balance weights at runtime 4bdf3f6
+
+### Documentation
+
+* add contamination team and type-safe Jev classifier proposals a8b6068
+* claim the shipped contamination-team foundation and queue the rest bb49a5e
+* record shared roster machinery and map navigation debt 3e8cc50
+* settle the contamination team design on earned service 931f8d8
+
 ## 2.122.1 (2026-09-18)
 
 ### Bug Fixes

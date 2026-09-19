@@ -192,13 +192,24 @@ class TestHazardConsolidationMigration:
         # A fallen member must not keep an active place either.
         assert by_dweller[fallen] == (None, "reserve")
 
-        assert harness.scalar(
-            "SELECT count(*) FROM team_member tm JOIN team t ON t.id = tm.team_id "
-            "WHERE t.hazard_team IS NOT NULL AND tm.slot_number IS NOT NULL AND tm.slot_number NOT IN (1, 2, 3)"
-        ) == 0
-        assert harness.scalar("SELECT count(*) FROM team WHERE vault_id = :vault_id AND hazard_team = 'FIRE'", vault_id=vault_id) == 1
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM team_member tm JOIN team t ON t.id = tm.team_id "
+                "WHERE t.hazard_team IS NOT NULL AND tm.slot_number IS NOT NULL AND tm.slot_number NOT IN (1, 2, 3)"
+            )
+            == 0
+        )
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM team WHERE vault_id = :vault_id AND hazard_team = 'FIRE'", vault_id=vault_id
+            )
+            == 1
+        )
         # Seniority and history survive the move.
-        assert harness.scalar("SELECT min(tm.created_at)::text FROM team_member tm JOIN team t ON t.id = tm.team_id WHERE t.vault_id = :vault_id", vault_id=vault_id).startswith("2026-01-01")
+        assert harness.scalar(
+            "SELECT min(tm.created_at)::text FROM team_member tm JOIN team t ON t.id = tm.team_id WHERE t.vault_id = :vault_id",
+            vault_id=vault_id,
+        ).startswith("2026-01-01")
 
     def test_downgrade_restores_the_legacy_rows(self, harness: MigrationHarness) -> None:
         harness.upgrade(HAZARD_PARENT)
@@ -221,10 +232,13 @@ class TestHazardConsolidationMigration:
         ) == [("RADIATION", "reserve", dweller_id)]
         # hazard_team no longer exists at this revision; the hazard teams must be gone,
         # so every remaining team row still carries one of the two older purposes.
-        assert harness.scalar(
-            "SELECT count(*) FROM team WHERE vault_id = :vault_id AND quest_id IS NULL AND incident_id IS NULL",
-            vault_id=vault_id,
-        ) == 0
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM team WHERE vault_id = :vault_id AND quest_id IS NULL AND incident_id IS NULL",
+                vault_id=vault_id,
+            )
+            == 0
+        )
 
 
 class TestOutfitSpecialBackfillMigration:

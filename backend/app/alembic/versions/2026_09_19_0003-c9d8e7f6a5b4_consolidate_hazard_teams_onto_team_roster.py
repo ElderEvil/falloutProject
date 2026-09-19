@@ -48,9 +48,11 @@ ACTIVE_SLOT_LIMIT = 3
 
 #: Active members hold slots 1-3 in seniority order; reserve and fallen members
 #: hold no slot (NULL), so a fallen member frees their place for the bench.
-#: Legacy data can carry more than three living ``active`` rows (nothing forced a
-#: revived member to vacate a place that had already been refilled), so ranks past
-#: the limit become bench members rather than granting a fourth active place.
+#: Status is derived from slot occupancy, never copied, so ``active`` always means
+#: "holds a place": legacy data can carry more than three living ``active`` rows
+#: (nothing forced a revived member to vacate a place that had already been
+#: refilled), and fallen rows would otherwise migrate active-but-slotless, where a
+#: later revival would count as a fourth responder.
 MEMBER_BACKFILL_SQL = sa.text(
     "WITH ranked AS ("
     "  SELECT htm2.id AS member_id, "
@@ -63,7 +65,7 @@ MEMBER_BACKFILL_SQL = sa.text(
     "INSERT INTO team_member (id, team_id, dweller_id, slot_number, status, created_at, updated_at) "
     "SELECT gen_random_uuid(), t.id, htm.dweller_id, "
     f"       CASE WHEN ranked.slot_rank <= {ACTIVE_SLOT_LIMIT} THEN ranked.slot_rank END, "
-    f"       CASE WHEN ranked.slot_rank > {ACTIVE_SLOT_LIMIT} THEN 'reserve' ELSE htm.status END, "
+    f"       CASE WHEN ranked.slot_rank <= {ACTIVE_SLOT_LIMIT} THEN 'active' ELSE 'reserve' END, "
     "       htm.created_at, htm.updated_at "
     "FROM hazard_team_member htm "
     "JOIN team t ON t.vault_id = htm.vault_id AND t.hazard_team = htm.team "

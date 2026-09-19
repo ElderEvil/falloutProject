@@ -242,3 +242,28 @@ async def test_failed_notification_flush_does_not_poison_the_round(
     place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
     assert place is not None
     assert place.status == ACTIVE_STATUS
+
+
+@pytest.mark.asyncio
+async def test_fallen_member_is_benched_not_left_slotless_active(async_session: AsyncSession, room_with_dwellers: dict):
+    """A fallen member frees their slot and drops to the bench, so a revival cannot re-add a place."""
+    room = room_with_dwellers["room"]
+    dwellers = list(room_with_dwellers["dwellers"])
+    await make_member(async_session, room.vault_id, dwellers[0].id, HazardTeam.FIRE, ACTIVE_STATUS)
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
+    roster[0].slot_number = 1
+    async_session.add(roster[0])
+    await async_session.commit()
+
+    fallen = await crud.dweller.get(async_session, dwellers[0].id)
+    fallen.is_dead = True
+    async_session.add(fallen)
+    await async_session.commit()
+
+    await crud.team_crud.free_dead_hazard_slots(async_session, room.vault_id, HazardTeam.FIRE)
+
+    place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dwellers[0].id)
+    assert place is not None
+    assert place.slot_number is None
+    assert place.status == RESERVE_STATUS
+    assert await crud.team_crud.count_active_hazard(async_session, room.vault_id, HazardTeam.FIRE) == 0

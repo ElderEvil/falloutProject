@@ -202,10 +202,13 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return row
 
     async def free_dead_hazard_slots(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> None:
-        """Release the slots of fallen hazard members so a bench member can step up.
+        """Bench the fallen members of a hazard team so their place can be refilled.
 
-        A dead member's row persists, but its slot must be freed or the unique
-        slot constraint blocks the promotion that fills the place the loss opened.
+        A dead member's row persists, but its slot must be freed or the unique slot
+        constraint blocks the promotion that fills the place the loss opened. The
+        member is demoted to ``reserve`` at the same time: holding a slot is what
+        makes a member ``active``, so a slot-less active row would count as a
+        responder again if the dweller were later revived.
         """
         await db_session.execute(
             update(TeamMember)
@@ -217,7 +220,7 @@ class CRUDTeam(CRUDBase[Team, None, None]):
                     select(Dweller.id).where(Dweller.is_dead.is_(True) | Dweller.is_deleted.is_(True))
                 ),
             )
-            .values(slot_number=None)
+            .values(slot_number=None, status=RESERVE_STATUS)
         )
 
     async def add_member(self, db_session: AsyncSession, member: TeamMember) -> TeamMember:

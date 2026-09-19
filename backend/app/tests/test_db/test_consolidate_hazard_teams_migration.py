@@ -55,7 +55,14 @@ def test_member_backfill_caps_active_slots_at_the_roster_size() -> None:
 
     assert limit == 3
     assert f"ranked.slot_rank <= {limit} THEN ranked.slot_rank" in sql
-    assert f"ranked.slot_rank > {limit} THEN 'reserve'" in sql
+    assert f"ranked.slot_rank <= {limit} THEN 'active' ELSE 'reserve'" in sql
+
+
+def test_member_backfill_derives_status_from_slot_occupancy() -> None:
+    """Status is never copied: a slot-less row that stayed active would count as a responder."""
+    sql = str(MIGRATION.MEMBER_BACKFILL_SQL)
+
+    assert "ELSE htm.status" not in sql
 
 
 def test_member_backfill_copies_timestamps() -> None:

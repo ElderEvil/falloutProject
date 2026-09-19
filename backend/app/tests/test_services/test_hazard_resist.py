@@ -9,8 +9,7 @@ from app import crud
 from app.models.incident import IncidentType
 from app.schemas.outfit import OutfitCreate
 from app.services.combat.incident_service import incident_service
-from app.services.radiation_service import outfit_radiation_resist
-from app.utils.hazard_resist import outfit_fire_resist
+from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
 
 class _StubOutfit:

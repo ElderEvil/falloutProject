@@ -13,6 +13,7 @@ plain VARCHAR(50), so adding the ``starter`` category needs no enum migration.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlmodel.sql.sqltypes import AutoString
 
 from alembic import op
 
@@ -25,7 +26,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.add_column("objective", sa.Column("sequence", sa.Integer(), nullable=True))
-    op.add_column("objective", sa.Column("description", sa.Text(), nullable=True))
+    op.add_column("objective", sa.Column("description", AutoString(), nullable=True))
     op.create_index(op.f("ix_objective_sequence"), "objective", ["sequence"], unique=False)
 
 

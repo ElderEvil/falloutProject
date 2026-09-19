@@ -42,21 +42,32 @@ TEAM_BACKFILL_SQL = sa.text(
     "FROM hazard_team_member GROUP BY vault_id, team"
 )
 
+#: Roster size the team enforces: only the most senior living active members keep
+#: a slot; any legacy excess becomes a bench place.
+ACTIVE_SLOT_LIMIT = 3
+
 #: Active members hold slots 1-3 in seniority order; reserve and fallen members
 #: hold no slot (NULL), so a fallen member frees their place for the bench.
+#: Legacy data can carry more than three living ``active`` rows (nothing forced a
+#: revived member to vacate a place that had already been refilled), so ranks past
+#: the limit become bench members rather than granting a fourth active place.
 MEMBER_BACKFILL_SQL = sa.text(
-    "INSERT INTO team_member (id, team_id, dweller_id, slot_number, status, created_at, updated_at) "
-    "SELECT gen_random_uuid(), t.id, htm.dweller_id, la.slot_number, htm.status, htm.created_at, htm.updated_at "
-    "FROM hazard_team_member htm "
-    "JOIN team t ON t.vault_id = htm.vault_id AND t.hazard_team = htm.team "
-    "LEFT JOIN ("
+    "WITH ranked AS ("
     "  SELECT htm2.id AS member_id, "
     "         ROW_NUMBER() OVER (PARTITION BY htm2.vault_id, htm2.team ORDER BY htm2.created_at, htm2.id) "
-    "         AS slot_number "
+    "         AS slot_rank "
     "  FROM hazard_team_member htm2 "
     "  JOIN dweller d2 ON d2.id = htm2.dweller_id "
     "  WHERE htm2.status = 'active' AND d2.is_dead = FALSE AND d2.is_deleted = FALSE"
-    ") la ON la.member_id = htm.id"
+    ") "
+    "INSERT INTO team_member (id, team_id, dweller_id, slot_number, status, created_at, updated_at) "
+    "SELECT gen_random_uuid(), t.id, htm.dweller_id, "
+    f"       CASE WHEN ranked.slot_rank <= {ACTIVE_SLOT_LIMIT} THEN ranked.slot_rank END, "
+    f"       CASE WHEN ranked.slot_rank > {ACTIVE_SLOT_LIMIT} THEN 'reserve' ELSE htm.status END, "
+    "       htm.created_at, htm.updated_at "
+    "FROM hazard_team_member htm "
+    "JOIN team t ON t.vault_id = htm.vault_id AND t.hazard_team = htm.team "
+    "LEFT JOIN ranked ON ranked.member_id = htm.id"
 )
 
 MEMBER_RESTORE_SQL = sa.text(

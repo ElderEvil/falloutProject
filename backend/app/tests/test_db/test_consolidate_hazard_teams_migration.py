@@ -48,6 +48,16 @@ def test_member_backfill_assigns_slots_to_living_active_only() -> None:
     assert "slot_number" in sql
 
 
+def test_member_backfill_caps_active_slots_at_the_roster_size() -> None:
+    """A legacy roster can exceed three living active members; the excess becomes bench."""
+    sql = str(MIGRATION.MEMBER_BACKFILL_SQL)
+    limit = MIGRATION.ACTIVE_SLOT_LIMIT
+
+    assert limit == 3
+    assert f"ranked.slot_rank <= {limit} THEN ranked.slot_rank" in sql
+    assert f"ranked.slot_rank > {limit} THEN 'reserve'" in sql
+
+
 def test_member_backfill_copies_timestamps() -> None:
     sql = str(MIGRATION.MEMBER_BACKFILL_SQL)
     assert "htm.created_at" in sql

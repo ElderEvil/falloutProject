@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.4 (2026-09-19)
+
+### Bug Fixes
+
+* count elders as grown-up in the dweller UI c81e065
+
 ## 2.126.3 (2026-09-19)
 
 ### Code Refactoring

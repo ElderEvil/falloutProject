@@ -10,7 +10,7 @@ from pydantic import UUID4
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.enums import HazardTeam
+from app.core.enums import DamageChannel, HazardTeam
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
@@ -90,6 +90,27 @@ INCIDENT_DEFINITIONS: dict[IncidentType, IncidentDefinition] = {
 def get_incident_definition(incident_type: IncidentType) -> IncidentDefinition:
     """Return the UI and rules contract for an incident type."""
     return INCIDENT_DEFINITIONS[incident_type]
+
+
+@dataclass(frozen=True)
+class IncidentEffects:
+    """The damage channel an incident deals and whether it also irradiates."""
+
+    damage: DamageChannel
+    irradiates: bool
+
+
+def effects_for_incident_type(incident_type: IncidentType) -> IncidentEffects:
+    """The damage/radiation contract for an incident type.
+
+    FIRE deals fire damage; RADSCORPION_ATTACK deals physical damage and also
+    irradiates; every other type deals physical damage without radiation.
+    """
+    if incident_type == IncidentType.FIRE:
+        return IncidentEffects(DamageChannel.FIRE, irradiates=False)
+    if incident_type == IncidentType.RADSCORPION_ATTACK:
+        return IncidentEffects(DamageChannel.PHYSICAL, irradiates=True)
+    return IncidentEffects(DamageChannel.PHYSICAL, irradiates=False)
 
 
 #: Incident types that train a standing hazard team, keyed to the team they feed.

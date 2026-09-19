@@ -126,8 +126,9 @@ Slices 1, 2, 4, 5, 6 and 7 **shipped**; slice 3 is the first follow-up.
 
 ## Still open
 
-1. **Persistence shape** — per-type counts as a JSON dict on `Dweller` (mirrors
-   `apprentice_stat_gains`) vs a participation table; membership as a table vs derived.
+1. **Participation counts** — per-type counts as a JSON dict on `Dweller` (mirrors
+   `apprentice_stat_gains`) vs a participation table. Roster membership itself is settled: it is
+   a table (`Team`/`TeamMember` since #683), not derived.
 2. **Bench semantics** — does a member away on an expedition vacate the slot, and does the bench step
    up automatically or only when asked?
 3. **Resistance semantics** — the team bonus is now defined: `TEAM_RESPONSE_BONUS = 0.20` (each active

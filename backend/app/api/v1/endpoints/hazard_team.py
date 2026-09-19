@@ -1,4 +1,4 @@
-"""Contamination team roster endpoints."""
+"""Hazard team roster endpoints."""
 
 from typing import Annotated
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/contamination-team", tags=["Contamination Team"])
 
 
 @router.get("/vault/{vault_id}/roster", response_model=ContaminationTeamRead)
-async def get_contamination_team_roster(
+async def get_hazard_team_roster(
     vault_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

@@ -51,10 +51,13 @@ class HazardTeamRoundResult:
     ``active_gainers`` are the dwellers who now hold an ACTIVE place as a
     result of this round — join-as-active plus bench promotions — so callers
     can notify and auto-equip exactly the members who stepped up.
+    ``active_ids`` are the present dwellers holding an active place on the
+    matching team, so callers apply the response bonus without re-querying.
     """
 
     new_places: list[HazardTeamMember]
     active_gainers: list[Dweller]
+    active_ids: frozenset[UUID4] = frozenset()
 
 
 class ContaminationTeamService:
@@ -77,30 +80,28 @@ class ContaminationTeamService:
         team = hazard_team_for(incident.type)
         if not team:
             return HazardTeamRoundResult(new_places=[], active_gainers=[])
-        # Bench members step up before a new qualifier is weighed, so seniority
-        # holds and a freed place is never handed to the newest arrival.
-        promoted = await self._promote_bench(db_session, incident.vault_id, team)
-        promoted_ids = {place.dweller_id for place in promoted}
-        new_places: list[HazardTeamMember] = list(promoted)
-        active_gainers: list[Dweller] = []
-        for place in promoted:
-            dweller = await crud_dweller.get_or_none(db_session, place.dweller_id)
-            if dweller is not None:
+        dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
+        # Bench members step up first so seniority holds and a freed place is
+        # never handed to the newest arrival.
+        promoted = await self._promote_bench(db_session, incident.vault_id, team, dwellers_by_id)
+        promoted_ids = {place.dweller_id for place, _ in promoted}
+        new_places: list[HazardTeamMember] = [place for place, _ in promoted]
+        active_gainers: list[Dweller] = [dweller for _, dweller in promoted]
+        for dweller_id in credited_ids:
+            dweller = dwellers_by_id.get(dweller_id)
+            if dweller is None:
+                continue
+            place = await self._join_if_qualified(db_session, incident.vault_id, dweller, team)
+            if place is None:
+                continue
+            new_places.append(place)
+            if place.status == ACTIVE_STATUS:
                 active_gainers.append(dweller)
-        if credited_ids:
-            dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
-            for dweller_id in credited_ids:
-                dweller = dwellers_by_id.get(dweller_id)
-                if dweller is None:
-                    continue
-                place = await self._join_if_qualified(db_session, incident.vault_id, dweller, team)
-                if place is None:
-                    continue
-                new_places.append(place)
-                if place.status == ACTIVE_STATUS:
-                    active_gainers.append(dweller)
-        await self._announce_places(db_session, incident.vault_id, team, new_places, promoted_ids)
-        return HazardTeamRoundResult(new_places=new_places, active_gainers=active_gainers)
+        await self._announce_places(db_session, incident.vault_id, team, new_places, promoted_ids, dwellers_by_id)
+        active_ids = frozenset(
+            await hazard_team_crud.get_active_member_ids(db_session, incident.vault_id, team, [d.id for d in dwellers])
+        )
+        return HazardTeamRoundResult(new_places=new_places, active_gainers=active_gainers, active_ids=active_ids)
 
     async def _join_if_qualified(
         self, db_session: AsyncSession, vault_id: UUID4, dweller: Dweller, team: HazardTeam
@@ -131,8 +132,12 @@ class ContaminationTeamService:
         bio_service.add_entry(dweller, BIO_SOURCE, text, {"team": team.value, "status": status})
 
     async def _promote_bench(
-        self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam
-    ) -> list[HazardTeamMember]:
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        team: HazardTeam,
+        dwellers_by_id: dict[UUID4, Dweller],
+    ) -> list[tuple[HazardTeamMember, Dweller]]:
         """Step the most senior bench members into any places a loss freed."""
         vacancies = TEAM_SIZE - await hazard_team_crud.count_active(db_session, vault_id, team)
         promoted: list[HazardTeamMember] = []
@@ -144,15 +149,18 @@ class ContaminationTeamService:
             await db_session.flush()
             promoted.append(place)
             vacancies -= 1
+        missing_ids: list[UUID4 | str] = [
+            place.dweller_id for place in promoted if place.dweller_id not in dwellers_by_id
+        ]
+        if missing_ids:
+            dwellers_by_id.update({d.id: d for d in await crud_dweller.get_by_ids(missing_ids, db_session)})
+        stepped_up: list[tuple[HazardTeamMember, Dweller]] = []
         for place in promoted:
-            await self._record_step_up_entry(db_session, place, team)
-        return promoted
-
-    async def _record_step_up_entry(self, db_session: AsyncSession, place: HazardTeamMember, team: HazardTeam) -> None:
-        dweller = await crud_dweller.get_or_none(db_session, place.dweller_id)
-        if dweller is None:
-            return
-        bio_service.add_entry(dweller, BIO_SOURCE, f"Stepped up to a place on the vault's {TEAM_LABELS[team]}.")
+            dweller = dwellers_by_id.get(place.dweller_id)
+            if dweller is not None:
+                bio_service.add_entry(dweller, BIO_SOURCE, f"Stepped up to a place on the vault's {TEAM_LABELS[team]}.")
+                stepped_up.append((place, dweller))
+        return stepped_up
 
     async def _announce_places(
         self,
@@ -161,10 +169,11 @@ class ContaminationTeamService:
         team: HazardTeam,
         new_places: list[HazardTeamMember],
         promoted_ids: set[UUID4],
+        dwellers_by_id: dict[UUID4, Dweller],
     ) -> None:
         """Tell the owner about every place earned this round, deferred to the round's commit."""
         for place in new_places:
-            dweller = await crud_dweller.get_or_none(db_session, place.dweller_id)
+            dweller = dwellers_by_id.get(place.dweller_id)
             if dweller is None:
                 continue
             promoted = place.dweller_id in promoted_ids
@@ -182,14 +191,6 @@ class ContaminationTeamService:
                         team=team.value,
                         status=place.status,
                         promoted=promoted,
-                        meta_data={
-                            "dweller_id": str(place.dweller_id),
-                            "dweller_name": dweller.display_name,
-                            "team": team.value,
-                            "status": place.status,
-                            "promoted": promoted,
-                            "vault_id": str(vault_id),
-                        },
                         commit=False,
                     )
                 ),

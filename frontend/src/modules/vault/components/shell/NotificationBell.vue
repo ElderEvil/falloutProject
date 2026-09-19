@@ -163,8 +163,9 @@ const markAllAsRead = async () => {
 }
 
 const getNotificationRoute = (notification: Notification): string | null => {
-  if (!notification.vault_id) return null
-  const vaultPath = `/vault/${notification.vault_id}`
+  const vaultId = notification.vault_id ?? notification.meta_data?.vault_id
+  if (!vaultId) return null
+  const vaultPath = `/vault/${vaultId}`
   const dwellerId = notification.meta_data?.dweller_id as string | undefined
 
   switch (notification.notification_type) {

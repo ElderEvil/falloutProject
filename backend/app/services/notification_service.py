@@ -409,7 +409,6 @@ class NotificationService:
         team: str,
         status: str,
         promoted: bool,
-        meta_data: dict[str, Any] | None = None,
         commit: bool = True,
     ):
         """Notify user that a dweller earned or stepped up to a hazard-team place."""
@@ -429,7 +428,14 @@ class NotificationService:
             priority=NotificationPriority.NORMAL,
             title="Hazard team",
             message=message,
-            meta_data=meta_data,
+            meta_data={
+                "dweller_id": str(dweller_id),
+                "dweller_name": dweller_name,
+                "team": team,
+                "status": status,
+                "promoted": promoted,
+                "vault_id": str(vault_id),
+            },
             commit=commit,
         )
 

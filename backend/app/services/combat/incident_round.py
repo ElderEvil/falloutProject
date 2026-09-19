@@ -8,7 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
-from app.crud.hazard_team import hazard_team_crud
 from app.models.dweller import Dweller
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition, hazard_team_for
 from app.options.identity_modifiers import identity_modifiers_for
@@ -183,13 +182,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # Active members of the team matching this incident's hazard respond with
     # extra power and take less damage; bench/reserve members get nothing.
     team = hazard_team_for(incident.type)
-    active_ids: frozenset[UUID4] = frozenset()
-    if team:
-        active_ids = frozenset(
-            await hazard_team_crud.get_active_member_ids(
-                db_session, incident.vault_id, team, [dweller.id for dweller in dwellers]
-            )
-        )
+    active_ids = team_result.active_ids
 
     # Fire is a containment operation: responders suppress a hazard rather
     # than defeat enemies. Other types retain the combat loop.

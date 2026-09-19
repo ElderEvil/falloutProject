@@ -251,13 +251,10 @@ class ArenaService:
         await db_session.commit()
         return room
 
-    async def _try_acquire_tick_lock(self, db_session: AsyncSession) -> bool:
-        """Acquire a cross-process advisory lock so concurrent workers never
-        fight the same arena room in parallel (vault rounds + fast ticks)."""
-        return await db_locks.try_advisory_lock(db_session, "arena-tick")
-
-    async def _release_tick_lock(self, db_session: AsyncSession) -> None:
-        await db_locks.release_advisory_lock(db_session, "arena-tick")
+    @staticmethod
+    def _locked_out() -> dict:
+        """Another worker holds the arena tick lock, so this one fights no rounds."""
+        return {"arena": {"rooms": 0, "rounds": []}}
 
     async def process_arena_fights(
         self,
@@ -266,13 +263,11 @@ class ArenaService:
         seconds_passed: int,
     ) -> dict:
         """Run one fight round per Arena room in a single vault."""
-        with_tick_lock = await self._try_acquire_tick_lock(db_session)
-        try:
+        async with db_locks.hold_advisory_lock(db_session, "arena-tick") as acquired:
+            if not acquired:
+                return self._locked_out()
             rooms = await self._get_arena_rooms(db_session, vault_id)
             return await self._process_rooms(db_session, rooms, seconds_passed)
-        finally:
-            if with_tick_lock:
-                await self._release_tick_lock(db_session)
 
     async def process_arena_ticks(
         self,
@@ -283,15 +278,14 @@ class ArenaService:
 
         Called on its own fast cadence by the ``arena_tick`` dramatiq actor,
         independent of the 60-second vault round. A cross-process advisory lock
-        serializes execution so concurrent workers never fight the same room.
+        serializes execution: the worker that loses the race skips the tick
+        rather than fighting the same room twice.
         """
-        with_tick_lock = await self._try_acquire_tick_lock(db_session)
-        try:
+        async with db_locks.hold_advisory_lock(db_session, "arena-tick") as acquired:
+            if not acquired:
+                return self._locked_out()
             rooms = await room_crud.get_arena_rooms(db_session)
             return await self._process_rooms(db_session, rooms, seconds_passed)
-        finally:
-            if with_tick_lock:
-                await self._release_tick_lock(db_session)
 
     async def _process_rooms(
         self,

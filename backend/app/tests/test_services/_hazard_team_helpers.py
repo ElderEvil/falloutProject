@@ -4,9 +4,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import GenderEnum, HazardTeam, OutfitTypeEnum, RarityEnum
-from app.models.hazard_team import HazardTeamMember
 from app.models.incident import IncidentType
-from app.services.contamination_team_service import contamination_team_service
+from app.models.team import TeamMember
+from app.services.hazard_team_service import hazard_team_service
 
 
 async def raise_incident(session: AsyncSession, room, incident_type: IncidentType):
@@ -18,15 +18,21 @@ async def raise_incident(session: AsyncSession, room, incident_type: IncidentTyp
 async def fight(session: AsyncSession, room, incident_type: IncidentType, dwellers: list):
     """Give each dweller one callout against the given hazard and persist it."""
     incident = await raise_incident(session, room, incident_type)
-    await contamination_team_service.record_participation(session, incident, dwellers)
+    await hazard_team_service.record_participation(session, incident, dwellers)
     await session.commit()
     return incident
 
 
 async def make_member(session: AsyncSession, vault_id, dweller_id, team: HazardTeam, status: str):
-    await crud.hazard_team_crud.add(
+    team_row = await crud.team_crud.get_or_create_hazard_team(session, vault_id, team)
+    slot_number = None
+    if status == "active":
+        active = await crud.team_crud.get_hazard_team(session, vault_id, team)
+        taken = {place.slot_number for place in active if place.slot_number is not None}
+        slot_number = next((slot for slot in (1, 2, 3) if slot not in taken), None)
+    await crud.team_crud.add_member(
         session,
-        HazardTeamMember(vault_id=vault_id, dweller_id=dweller_id, team=team, status=status),
+        TeamMember(team_id=team_row.id, dweller_id=dweller_id, status=status, slot_number=slot_number),
     )
     await session.commit()
 

@@ -14,7 +14,7 @@ from app.options.identity_modifiers import identity_modifiers_for
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
-from app.services.contamination_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
+from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
 from app.utils.equipped import equipped_outfit
@@ -175,9 +175,9 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # Credit the round's defenders before any damage lands; the ledger and any
     # team place it earns ride this round's single commit, so a failed round
     # leaves no participation behind.
-    from app.services.contamination_team_service import contamination_team_service
+    from app.services.hazard_team_service import hazard_team_service
 
-    team_result = await contamination_team_service.record_participation(db_session, incident, dwellers)
+    team_result = await hazard_team_service.record_participation(db_session, incident, dwellers)
 
     # Active members of the team matching this incident's hazard respond with
     # extra power and take less damage; bench/reserve members get nothing.
@@ -269,9 +269,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # from a failed equip with a rollback, which expires loaded instances — so
     # nothing may read the round's ORM objects once this has run.
     if team and team_result.active_gainers:
-        await contamination_team_service.equip_hazard_outfits(
-            db_session, incident.vault_id, team_result.active_gainers, team
-        )
+        await hazard_team_service.equip_hazard_outfits(db_session, incident.vault_id, team_result.active_gainers, team)
 
     return IncidentRoundResult(
         damage_to_dwellers=damage_to_dwellers,

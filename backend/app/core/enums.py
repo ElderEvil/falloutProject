@@ -248,7 +248,7 @@ class HazardTeam(CaseInsensitiveEnum):
 
     Membership is earned from service, never assigned: a dweller qualifies by
     fighting incidents of the team's hazard (see ``models/incident.py`` for the
-    type mapping and ``services/contamination_team_service.py`` for the rule).
+    type mapping and ``services/hazard_team_service.py`` for the rule).
     """
 
     FIRE = "fire"

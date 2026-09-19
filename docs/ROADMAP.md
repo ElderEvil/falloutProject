@@ -282,18 +282,14 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
 4. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
    matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
 
-### Shared roster machinery — one roster model for quest, incident, and hazard teams (Target: next branch, #683)
+### Shared roster machinery — one roster model for quest, incident, and hazard teams — SHIPPED (#683)
 
-`Team` / `TeamMember` now backs quest parties and incident responder crews (the legacy `QuestParty` table
-was dropped in v2.123.0), and the shared availability/eligibility policy lives in
-`utils/dweller_availability.py`, consumed by quests, incidents, exploration, room assignment, and the team
-service. The earned hazard teams (`HazardTeamMember`, `contamination_team_service`) are the remaining
-holdout, so "which dwellers are on this thing" still has two implementations.
-
-Consolidate onto the one primitive: add a third purpose to `Team` (`hazard_team`), map active places to
-`slot_number` 1-3 and the bench to a NULL slot, migrate `HazardTeamMember` rows across preserving
-`created_at`, then drop the table and repoint the service. Retire the contamination/hazard naming split and
-shrink the architecture-guard baseline in the same commit. Tracked in #683.
+`Team` / `TeamMember` is now the single roster primitive: quest parties, incident responder crews, and the
+earned hazard teams all ride it, with the shared availability/eligibility policy in
+`utils/dweller_availability.py`. `Team` gained a third purpose (`hazard_team`), active hazard places map to
+`slot_number` 1-3 and the bench to a NULL slot, and the standalone `HazardTeamMember` table was migrated
+across and dropped. The contamination/hazard naming split is retired internally (service/endpoint modules);
+the public roster route and schema names are unchanged.
 
 ### Version 3.0 Platform Modernization
 

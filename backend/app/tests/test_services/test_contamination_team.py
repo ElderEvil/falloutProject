@@ -8,15 +8,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import HazardTeam
-from app.models.hazard_team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.incident import IncidentType
 from app.models.notification import Notification, NotificationType
+from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_service import incident_service
-from app.services.contamination_team_service import (
+from app.services.hazard_team_service import (
     QUALIFYING_INCIDENTS,
     TEAM_SIZE,
-    contamination_team_service,
+    hazard_team_service,
 )
 from app.tests.test_services._hazard_team_helpers import fight, raise_incident
 
@@ -50,11 +50,11 @@ async def test_third_callout_earns_an_active_place_and_a_bio_entry(
     for _ in range(QUALIFYING_INCIDENTS - 1):
         await fight(async_session, room, IncidentType.FIRE, [dweller])
 
-    assert await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id) is None
+    assert await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id) is None
 
     await fight(async_session, room, IncidentType.FIRE, [dweller])
 
-    place = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
+    place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
     assert place is not None
     assert place.status == ACTIVE_STATUS
 
@@ -83,7 +83,7 @@ async def test_fourth_qualifier_waits_on_the_bench(
     for _ in range(QUALIFYING_INCIDENTS):
         await fight(async_session, room, IncidentType.FIRE, dwellers)
 
-    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
     assert len(roster) == TEAM_SIZE + 1
     assert sum(1 for place in roster if place.status == ACTIVE_STATUS) == TEAM_SIZE
     assert sum(1 for place in roster if place.status == RESERVE_STATUS) == 1
@@ -107,7 +107,7 @@ async def test_fallen_member_frees_a_place_for_the_bench(
     for _ in range(QUALIFYING_INCIDENTS):
         await fight(async_session, room, IncidentType.FIRE, dwellers)
 
-    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
     active_place = next(place for place in roster if place.status == ACTIVE_STATUS)
     benched = next(place for place in roster if place.status == RESERVE_STATUS)
 
@@ -118,12 +118,12 @@ async def test_fallen_member_frees_a_place_for_the_bench(
 
     await fight(async_session, room, IncidentType.FIRE, [dwellers[0]])
 
-    stepped_up = await crud.hazard_team_crud.get_member(
+    stepped_up = await crud.team_crud.get_hazard_member(
         async_session, room.vault_id, HazardTeam.FIRE, benched.dweller_id
     )
     assert stepped_up.status == ACTIVE_STATUS
-    assert await crud.hazard_team_crud.count_active(async_session, room.vault_id, HazardTeam.FIRE) == TEAM_SIZE
-    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    assert await crud.team_crud.count_active_hazard(async_session, room.vault_id, HazardTeam.FIRE) == TEAM_SIZE
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
     assert active_place.dweller_id not in {place.dweller_id for place in roster}
 
 
@@ -137,7 +137,7 @@ async def test_intruder_incidents_earn_no_team_place(async_session: AsyncSession
         await fight(async_session, room, IncidentType.RAIDER_ATTACK, [dweller])
 
     for team in HazardTeam:
-        assert await crud.hazard_team_crud.get_member(async_session, room.vault_id, team, dweller.id) is None
+        assert await crud.team_crud.get_hazard_member(async_session, room.vault_id, team, dweller.id) is None
     fought = await crud.incident_participant_crud.count_incidents(
         async_session, dweller.id, frozenset({IncidentType.RAIDER_ATTACK})
     )
@@ -155,8 +155,8 @@ async def test_hazard_teams_are_tracked_separately(async_session: AsyncSession, 
     for _ in range(QUALIFYING_INCIDENTS):
         await fight(async_session, room, IncidentType.RADSCORPION_ATTACK, [dweller])
 
-    fire = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
-    radiation = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.RADIATION, dweller.id)
+    fire = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
+    radiation = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.RADIATION, dweller.id)
     assert fire is not None
     assert radiation is not None
 
@@ -193,7 +193,7 @@ async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncS
         await incident_service.process_incident(async_session, incident, 2)
 
     assert commit_spy.await_count == 1
-    place = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dwellers[0].id)
+    place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dwellers[0].id)
     assert place is not None
     assert place.status == ACTIVE_STATUS
 
@@ -203,7 +203,7 @@ async def test_roster_reports_both_teams(async_session: AsyncSession, room_with_
     """The roster reads every team, even the ones nobody has qualified for yet."""
     room = room_with_dwellers["room"]
 
-    roster = await contamination_team_service.get_roster(async_session, room.vault_id)
+    roster = await hazard_team_service.get_roster(async_session, room.vault_id)
 
     assert {entry.team for entry in roster.teams} == set(HazardTeam)
     assert all(entry.active == [] and entry.reserve == [] for entry in roster.teams)
@@ -281,7 +281,7 @@ async def test_promotion_emits_notification_without_new_qualifier(
     for _ in range(QUALIFYING_INCIDENTS):
         await fight(async_session, room, IncidentType.FIRE, dwellers)
 
-    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
     active_place = next(place for place in roster if place.status == ACTIVE_STATUS)
     benched = next(place for place in roster if place.status == RESERVE_STATUS)
 

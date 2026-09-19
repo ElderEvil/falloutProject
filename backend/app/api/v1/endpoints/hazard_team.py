@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403
 from app.db.session import get_async_session
 from app.schemas.contamination_team import ContaminationTeamRead
-from app.services.contamination_team_service import contamination_team_service
+from app.services.hazard_team_service import hazard_team_service
 
 router = APIRouter(prefix="/contamination-team", tags=["Contamination Team"])
 
@@ -22,4 +22,4 @@ async def get_contamination_team_roster(
 ) -> ContaminationTeamRead:
     """Return each hazard team's roster: who holds a place, and who waits on the bench."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await contamination_team_service.get_roster(db_session, vault_id)
+    return await hazard_team_service.get_roster(db_session, vault_id)

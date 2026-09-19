@@ -8,16 +8,16 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import HazardTeam
-from app.models.hazard_team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.incident import IncidentType
+from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_round import apply_damage
 from app.services.combat.incident_service import incident_service
-from app.services.contamination_team_service import (
+from app.services.hazard_team_service import (
     QUALIFYING_INCIDENTS,
     TEAM_RESPONSE_BONUS,
     TEAM_SIZE,
-    contamination_team_service,
+    hazard_team_service,
 )
 from app.tests.test_services._hazard_team_helpers import fight, full_health, make_member, outfit_data, raise_incident
 
@@ -73,7 +73,7 @@ async def test_get_active_member_ids_excludes_bench(
         status = ACTIVE_STATUS if index < TEAM_SIZE else RESERVE_STATUS
         await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, status)
 
-    active_ids = await crud.hazard_team_crud.get_active_member_ids(
+    active_ids = await crud.team_crud.get_active_hazard_member_ids(
         async_session, room.vault_id, HazardTeam.FIRE, [dweller.id for dweller in dwellers]
     )
 
@@ -124,7 +124,7 @@ async def test_active_gainer_with_spare_outfit_gets_equipped(async_session: Asyn
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
     await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
 
-    await contamination_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
+    await hazard_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
 
     equipped = await crud.outfit.get_equipped(async_session, dweller.id)
     assert equipped is not None
@@ -137,7 +137,7 @@ async def test_no_spare_outfit_leaves_unchanged(async_session: AsyncSession, roo
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
-    await contamination_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
+    await hazard_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
 
     assert await crud.outfit.get_equipped(async_session, dweller.id) is None
 
@@ -161,15 +161,13 @@ async def test_bench_member_not_equipped(async_session: AsyncSession, room_with_
         await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
 
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
-    result = await contamination_team_service.record_participation(async_session, incident, dwellers)
+    result = await hazard_team_service.record_participation(async_session, incident, dwellers)
     await async_session.commit()
 
     assert len(result.active_gainers) == TEAM_SIZE
-    await contamination_team_service.equip_hazard_outfits(
-        async_session, room.vault_id, result.active_gainers, HazardTeam.FIRE
-    )
+    await hazard_team_service.equip_hazard_outfits(async_session, room.vault_id, result.active_gainers, HazardTeam.FIRE)
 
-    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    roster = await crud.team_crud.get_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
     bench = next(place for place in roster if place.status == RESERVE_STATUS)
     assert await crud.outfit.get_equipped(async_session, bench.dweller_id) is None
     for dweller in result.active_gainers:
@@ -187,7 +185,7 @@ async def test_already_wearing_target_unchanged(async_session: AsyncSession, roo
     worn = await crud.outfit.create(async_session, outfit_data("Firefighter suit", dweller_id=dweller.id))
     spare = await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
 
-    await contamination_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
+    await hazard_team_service.equip_hazard_outfits(async_session, room.vault_id, [dweller], HazardTeam.FIRE)
 
     equipped = await crud.outfit.get_equipped(async_session, dweller.id)
     assert equipped.id == worn.id
@@ -218,7 +216,7 @@ async def test_equip_failure_does_not_abort_batch(
     monkeypatch.setattr(crud.outfit, "equip", flaky_equip)
 
     dweller_ids = [dweller.id for dweller in dwellers]
-    await contamination_team_service.equip_hazard_outfits(async_session, room.vault_id, dwellers, HazardTeam.FIRE)
+    await hazard_team_service.equip_hazard_outfits(async_session, room.vault_id, dwellers, HazardTeam.FIRE)
 
     assert calls["count"] == len(dwellers)
     equipped = [await crud.outfit.get_equipped(async_session, dweller_id) for dweller_id in dweller_ids]
@@ -241,6 +239,6 @@ async def test_failed_notification_flush_does_not_poison_the_round(
         for _ in range(QUALIFYING_INCIDENTS):
             await fight(async_session, room, IncidentType.FIRE, [dweller])
 
-    place = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
+    place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
     assert place is not None
     assert place.status == ACTIVE_STATUS

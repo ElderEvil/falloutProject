@@ -1,9 +1,11 @@
 """Reusable team roster primitive: a named squad of dwellers for one purpose.
 
-A ``Team`` serves exactly one purpose — a quest or an incident — enforced by
-``ck_team_one_purpose``. Quest teams are one per ``(vault_id, quest_id)``
-(``uq_team_vault_quest``); incident teams are one per ``(vault_id, incident_id)``
-(``uq_team_vault_incident``) and cascade with their incident.
+A ``Team`` serves exactly one purpose — a quest, an incident, or a standing
+hazard team — enforced by ``ck_team_one_purpose``. Quest teams are one per
+``(vault_id, quest_id)`` (``uq_team_vault_quest``); incident teams are one per
+``(vault_id, incident_id)`` (``uq_team_vault_incident``) and cascade with their
+incident; hazard teams are one per ``(vault_id, hazard_team)``
+(``uq_team_vault_hazard``) and hold the earned fire/radiation rosters.
 """
 
 from typing import TYPE_CHECKING, Optional
@@ -12,6 +14,7 @@ import sqlalchemy as sa
 from pydantic import UUID4
 from sqlmodel import Field, Relationship
 
+from app.core.enums import HazardTeam
 from app.models.base import BaseUUIDModel, TimeStampMixin
 
 if TYPE_CHECKING:
@@ -20,9 +23,16 @@ if TYPE_CHECKING:
     from app.models.quest import Quest
     from app.models.vault import Vault
 
+#: Shared membership-status vocabulary for every team purpose, homed here.
+#: Quest/incident lifecycle: a member is ``assigned``, then ``in_progress``,
+#: ``completed``, or ``failed``. Hazard teams use ``active`` (holds a slot) and
+#: ``reserve`` (bench).
+ACTIVE_STATUS = "active"
+RESERVE_STATUS = "reserve"
+
 
 class Team(BaseUUIDModel, TimeStampMixin, table=True):
-    """A roster of dwellers gathered for one quest or incident."""
+    """A roster of dwellers gathered for one quest, incident, or hazard team."""
 
     __tablename__ = "team"
 
@@ -46,6 +56,11 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         ondelete="CASCADE",
         description="Incident this team is assigned to, when incident-purposed",
     )
+    hazard_team: HazardTeam | None = Field(
+        default=None,
+        index=True,
+        description="Standing hazard team this roster holds, when hazard-purposed",
+    )
     name: str | None = Field(default=None, max_length=64, description="Optional display name")
 
     # Relationships
@@ -57,20 +72,30 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
-    # One team per (vault, quest) and per (vault, incident); exactly one purpose.
+    # One team per (vault, quest), per (vault, incident), and per (vault, hazard);
+    # exactly one purpose.
     __table_args__ = (
         sa.UniqueConstraint("vault_id", "quest_id", name="uq_team_vault_quest"),
         sa.UniqueConstraint("vault_id", "incident_id", name="uq_team_vault_incident"),
+        sa.UniqueConstraint("vault_id", "hazard_team", name="uq_team_vault_hazard"),
         sa.CheckConstraint(
             "(CASE WHEN quest_id IS NOT NULL THEN 1 ELSE 0 END + "
-            "CASE WHEN incident_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
+            "CASE WHEN incident_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN hazard_team IS NOT NULL THEN 1 ELSE 0 END) = 1",
             name="ck_team_one_purpose",
         ),
     )
 
 
 class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
-    """One dweller's slot on a team roster."""
+    """One dweller's slot on a team roster.
+
+    ``slot_number`` is purpose-scoped: for hazard teams it mirrors placement —
+    1-3 for ``active`` members (assigned in seniority order by ``created_at``),
+    ``NULL`` for ``reserve`` bench members. For incident teams it is always
+    ``NULL`` ("no fixed slot", see ``crud/team.py:add_incident_team_members``).
+    Quest teams use it for the party slot.
+    """
 
     __tablename__ = "team_member"
 
@@ -87,7 +112,10 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
         description="Dweller filling this slot",
     )
     slot_number: int | None = Field(default=None, description="Team slot 1-3")
-    status: str = Field(default="assigned", description="assigned, in_progress, completed, failed")
+    status: str = Field(
+        default="assigned",
+        description="assigned, in_progress, completed, failed (quest/incident); active, reserve (hazard)",
+    )
 
     # Relationships
     team: "Team" = Relationship(back_populates="members")

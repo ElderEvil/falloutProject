@@ -362,7 +362,14 @@ export function getActivitySummary(dweller: Pick<Dweller, 'status' | 'room' | 'i
   return ''
 }
 
+/**
+ * Age groups the backend counts as grown-up (`ADULT_AGE_GROUPS` in `app/core/enums.py`):
+ * work, room assignment, combat and exploration all use this set. Elders are included —
+ * checking `=== 'adult'` silently locked every elder out of those actions.
+ */
+export const ADULT_AGE_GROUPS: ReadonlySet<string> = new Set(['adult', 'elder'])
+
 /** Adult by both flags, mirroring the backend's ``Dweller.is_mature``. */
 export function isMature(dweller: Pick<Dweller, 'is_adult' | 'age_group'>): boolean {
-  return dweller.is_adult && dweller.age_group === 'adult'
+  return dweller.is_adult && ADULT_AGE_GROUPS.has(dweller.age_group)
 }

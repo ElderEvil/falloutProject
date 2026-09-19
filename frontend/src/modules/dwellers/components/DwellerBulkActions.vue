@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useDwellerStore } from '../stores/dweller'
+import { ADULT_AGE_GROUPS } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 interface Props {
@@ -25,7 +26,7 @@ const showConfirmDialog = ref(false)
 const eligibleCount = computed(
   () =>
     filterStore.dwellersWithStatus.filter(
-      (dweller) => dweller.status === 'idle' && !dweller.room_id && dweller.age_group === 'adult'
+      (dweller) => dweller.status === 'idle' && !dweller.room_id && ADULT_AGE_GROUPS.has(dweller.age_group)
     ).length
 )
 

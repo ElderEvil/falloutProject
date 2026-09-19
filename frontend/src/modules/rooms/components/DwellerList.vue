@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { ADULT_AGE_GROUPS } from '@/modules/dwellers/models/dweller'
 import RoomDwellerCard from './RoomDwellerCard.vue'
 
 interface Props {
@@ -24,7 +25,9 @@ const availableDwellers = computed(() =>
       (dweller) =>
         !dweller.room_id &&
         !['dead', 'questing', 'exploring'].includes(dweller.status) &&
-        (assignmentMode.value === 'apprentice' ? dweller.age_group !== 'adult' : dweller.age_group === 'adult')
+        (assignmentMode.value === 'apprentice'
+          ? !ADULT_AGE_GROUPS.has(dweller.age_group)
+          : ADULT_AGE_GROUPS.has(dweller.age_group))
     )
     .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
 )

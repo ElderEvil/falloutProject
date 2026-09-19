@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.2 (2026-09-19)
+
+### Bug Fixes
+
+* replace the admin incident toggles with a CSRF-protected POST page 94571d9
+
 ## 2.126.1 (2026-09-19)
 
 ### Bug Fixes

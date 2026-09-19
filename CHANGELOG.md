@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.1 (2026-09-19)
+
+### Bug Fixes
+
+* hold tick advisory locks on a dedicated connection 33e6832
+* keep the lock connection autocommit and always release it 14262ac
+
 ## 2.126.0 (2026-09-19)
 
 ### Features

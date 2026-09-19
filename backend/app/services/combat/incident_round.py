@@ -1,7 +1,6 @@
 """Incident round engine: defender-less outcomes, damage, victory, and XP."""
 
 import logging
-from typing import TYPE_CHECKING, cast
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -9,19 +8,21 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.game_config import game_config
 from app.crud.dweller import dweller as crud_dweller
 from app.models.dweller import Dweller
-from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition, hazard_team_for
-from app.options.identity_modifiers import identity_modifiers_for
+from app.models.incident import (
+    Incident,
+    IncidentStatus,
+    IncidentType,
+    effects_for_incident_type,
+    get_incident_definition,
+    hazard_team_for,
+)
 from app.schemas.incident import IncidentRoundResult
 from app.services.combat import incident_math, incident_publishing
 from app.services.combat.incident_spawning import spread_incident
 from app.services.hazard_team_service import TEAM_HAZARD_RESIST, TEAM_RESPONSE_BONUS
 from app.services.notification_service import notification_service
 from app.services.radiation_service import apply_radiation_gain
-from app.utils.equipped import equipped_outfit
-from app.utils.hazard_resist import outfit_fire_resist
-
-if TYPE_CHECKING:
-    from app.models.outfit import Outfit
+from app.utils.damage_reductions import damage_reductions
 
 logger = logging.getLogger(__name__)
 
@@ -73,31 +74,19 @@ async def apply_damage(
     damage_taken = 0
     incoming_damage = max(0, int(damage_to_dwellers))
     damage_per_dweller, remainder = divmod(incoming_damage, len(dwellers))
-    is_fire = incident.type == IncidentType.FIRE
+    effects = effects_for_incident_type(incident.type)
     for index, dweller in enumerate(dwellers):
         dweller_damage = damage_per_dweller + (1 if index < remainder else 0)
-        response_pct = identity_modifiers_for(dweller).incident_response_pct
-        if response_pct:
-            dweller_damage = int(dweller_damage * (1.0 - response_pct))
-        if is_fire:
-            # equipped_outfit mirrors radiation_service: no lazy IO, and a
-            # missing relationship simply means no protection.
-            fire_resist = outfit_fire_resist(cast("Outfit | None", equipped_outfit(dweller)))
-            if fire_resist:
-                dweller_damage = int(dweller_damage * (1.0 - fire_resist))
         is_active_member = active_member_ids and getattr(dweller, "id", None) in active_member_ids
-        if is_active_member:
-            dweller_damage = int(dweller_damage * (1.0 - TEAM_HAZARD_RESIST))
+        team_share = TEAM_HAZARD_RESIST if is_active_member else 0.0
+        reductions = damage_reductions(dweller, effects.damage, team_share=team_share)
+        dweller_damage = reductions.apply(dweller_damage)
         damage_taken += dweller_damage
         new_health = max(0, dweller.health - dweller_damage)
 
-        if (
-            incident.type == IncidentType.RADSCORPION_ATTACK and dweller_damage > 1
-        ):  # TODO: should depend on enemy type, not incident type, need to think through
+        if effects.irradiates and dweller_damage > 1:
             radiation_damage = min(dweller_damage - 1, dweller_damage // 2)
-            if is_active_member:
-                radiation_damage = int(radiation_damage * (1.0 - TEAM_HAZARD_RESIST))
-            apply_radiation_gain(dweller, radiation_damage)
+            apply_radiation_gain(dweller, radiation_damage, team_share=team_share)
             db_session.add(dweller)
 
         new_health = min(new_health, dweller.effective_max_health)

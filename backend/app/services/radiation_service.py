@@ -4,49 +4,16 @@ Pure helpers over a dweller model instance: no session, no commits. Callers
 persist changes themselves (attribute tracking or ``db_session.add``).
 """
 
-from typing import TYPE_CHECKING, cast
-
-from app.core.enums import OutfitTypeEnum
+from app.core.enums import DamageChannel
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.options.identity_modifiers import identity_modifiers_for
-from app.utils.equipped import equipped_outfit
-
-if TYPE_CHECKING:
-    from app.models.outfit import Outfit
+from app.utils.damage_reductions import damage_reductions
 
 # Irradiated water deals 1% of max health per tick, so every dweller erodes at
 # the same relative pace (tanks hold out on absolute HP, not rate). Tanks still
 # hit the fixed cap first on paper, but in practice they keep hundreds of
 # effective HP long after weaklings collapse to the 1 HP floor — a multi-hour
 # total drought has already failed the vault by then.
-
-# Outfit radiation resist is name-derived like SPECIAL bonuses (see
-# utils/item_factory.build_outfit): type base, specific names override.
-# Values are shares of incoming RAD removed, 0.0-1.0. Only power armor (by
-# type) and hazmat suits (by name) grant rad resist; other outfits get none
-# unless they declare radiation_resist.
-OUTFIT_RADIATION_RESIST_BY_TYPE = {
-    OutfitTypeEnum.POWER_ARMOR: 0.75,
-    OutfitTypeEnum.COMMON: 0.0,
-}
-OUTFIT_RADIATION_RESIST_BY_NAME = {
-    "hazmat suit": 1.0,
-    "advanced hazmat suit": 1.0,
-}
-
-
-def outfit_radiation_resist(outfit: "Outfit | None") -> float:
-    """Share of incoming RAD an equipped outfit removes. Pure: pass an already-loaded outfit or None, never queries."""
-    if outfit is None:
-        return 0.0
-    declared = getattr(outfit, "radiation_resist", None)
-    if declared is not None:
-        return float(declared)
-    by_name = OUTFIT_RADIATION_RESIST_BY_NAME.get(str(getattr(outfit, "name", "")).lower())
-    if by_name is not None:
-        return by_name
-    return OUTFIT_RADIATION_RESIST_BY_TYPE.get(getattr(outfit, "outfit_type", None), 0.0)
 
 
 def dehydration_rads(max_health: int, ticks: int) -> int:
@@ -64,7 +31,9 @@ def radiation_removal_amount(radiation: int, max_health: int) -> int:
     return min(radiation, max(1, removal))
 
 
-def apply_radiation_gain(dweller: Dweller, amount: int, *, resisted_by_outfit: bool = True) -> bool:
+def apply_radiation_gain(
+    dweller: Dweller, amount: int, *, resisted_by_outfit: bool = True, team_share: float = 0.0
+) -> bool:
     """Add radiation to a dweller, capped at max health.
 
     Also pulls current health down to the radiation-reduced ceiling, so callers
@@ -78,20 +47,12 @@ def apply_radiation_gain(dweller: Dweller, amount: int, *, resisted_by_outfit: b
     if amount <= 0 or dweller.is_dead:
         return False
 
-    modifiers = identity_modifiers_for(dweller)
-    if modifiers.radiation_immune:
+    reductions = damage_reductions(
+        dweller, DamageChannel.RADIATION, team_share=team_share, resisted_by_outfit=resisted_by_outfit
+    )
+    amount = reductions.apply(amount)
+    if amount <= 0:
         return False
-    if modifiers.radiation_resist_pct:
-        amount = int(amount * (1.0 - modifiers.radiation_resist_pct))
-        if amount <= 0:
-            return False
-
-    if resisted_by_outfit:
-        # equipped_outfit mirrors Dweller.weapon_type: no lazy IO, a missing
-        # relationship simply means no resist.
-        amount = int(amount * (1.0 - outfit_radiation_resist(cast("Outfit | None", equipped_outfit(dweller)))))
-        if amount <= 0:
-            return False
 
     old_radiation = dweller.radiation
     old_health = dweller.health

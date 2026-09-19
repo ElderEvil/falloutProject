@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import HazardTeam
+from app.core.game_config import game_config
 from app.models.incident import IncidentType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
 from app.schemas.dweller import DwellerCreate
@@ -267,3 +268,31 @@ async def test_fallen_member_is_benched_not_left_slotless_active(async_session: 
     assert place.slot_number is None
     assert place.status == RESERVE_STATUS
     assert await crud.team_crud.count_active_hazard(async_session, room.vault_id, HazardTeam.FIRE) == 0
+
+
+@pytest.mark.asyncio
+async def test_faction_and_team_reductions_truncate_once(
+    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
+):
+    """Two reductions on one channel combine as complements, then truncate once.
+
+    Applied per source, 3 fire damage with 0.15 faction response and 0.20 team resist
+    truncates twice: int(int(3 * 0.85) * 0.8) = 1. The resolver combines first:
+    int(3 * 0.85 * 0.8) = 2. Pinned through the real combat path, not just the
+    resolver unit, so a change to how apply_damage composes cannot slip past it.
+    """
+    monkeypatch.setattr(game_config.features, "faction_mechanics", True)
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    dweller.health = 100
+    dweller.max_health = 100
+    dweller.visual_attributes = {"faction": "minutemen"}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    incident = await raise_incident(async_session, room, IncidentType.FIRE)
+    _, _, taken = await apply_damage(async_session, incident, [dweller], 3.0, active_member_ids=frozenset({dweller.id}))
+
+    assert int(int(3 * (1 - 0.15)) * (1 - 0.20)) == 1  # what per-source truncation produced
+    assert taken == 2
+    assert dweller.health == 98

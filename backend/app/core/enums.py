@@ -255,4 +255,15 @@ class HazardTeam(CaseInsensitiveEnum):
     RADIATION = "radiation"
 
 
+class DamageChannel(StrEnum):
+    """The damage channel a dweller can reduce; each channel has its own source set.
+
+    Resolved once per dweller per channel by ``utils/damage_reductions.py``.
+    """
+
+    PHYSICAL = "physical"
+    FIRE = "fire"
+    RADIATION = "radiation"
+
+
 STATE_OF_BEING_TYPE = GhoulFeralnessEnum | SuperMutantMutationEnum | SynthTypeEnum

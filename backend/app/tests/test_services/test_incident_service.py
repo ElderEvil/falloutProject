@@ -1250,9 +1250,7 @@ class TestTickCommitBoundaries:
 
 
 @pytest.mark.asyncio
-async def test_failed_incident_rolls_back_before_the_next_one(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_failed_incident_rolls_back_before_the_next_one(async_session: AsyncSession, vault: Vault) -> None:
     """A failed round must recover the session, or every later incident in the tick fails.
 
     SQLite does not poison a session on a failed statement the way PostgreSQL does,

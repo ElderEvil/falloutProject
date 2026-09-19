@@ -102,7 +102,7 @@ describe('StorageItemCard', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('I:')
+    expect(text).toContain('Intelligence:')
     expect(text).toContain('+2')
     expect(text).toContain('Gender:')
     expect(text).toContain('female')

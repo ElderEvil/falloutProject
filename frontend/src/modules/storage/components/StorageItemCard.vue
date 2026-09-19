@@ -104,7 +104,7 @@ const isOpenable = computed(() => itemType === 'lunchbox')
 
       <div
         v-if="itemStats.length > 0"
-        class="grid gap-1 rounded border border-theme-primary/15 bg-surface-sunken p-1.5 text-xs text-(--color-theme-primary)"
+        class="grid grid-cols-2 gap-1 rounded border border-theme-primary/15 bg-surface-sunken p-1.5 text-xs text-(--color-theme-primary)"
       >
         <div
           v-for="stat in itemStats"

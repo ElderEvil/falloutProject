@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.125.0 (2026-09-19)
+
+### Features
+
+* add Item.__str__ matching Weapon and Outfit 25a532c
+* make the hazard team a real mechanic with surfacing and gear e596783
+* manage incident spawning and vault sorting from the admin panel e743d62
+* show full SPECIAL names and weapon subtype, two-column storage stats 7492325
+
+### Bug Fixes
+
+* isolate hazard-team notification and auto-equip failures from the round c651aa5
+* make spawner wave test use spawn-eligible rooms 20499fe
+* narrow outfit radiation resist to power armor and hazmat suits 288216e
+* seed outfit SPECIAL stats from catalogs and backfill existing rows f484780
+
+### Documentation
+
+* correct stale hazard-team and outfit roadmap entries 8dac654
+* queue the roster consolidation onto one model ([#683](https://github.com/ElderEvil/falloutProject/issues/683)) 2e65170, closes #682
+
+### Code Refactoring
+
+* compact hazard-team orchestration, reuse notification metadata dd3317f
+* freeze the outfit SPECIAL backfill mapping 9eafe35
+* make the item factory the sole item constructor, normalize rarity 3872999
+
 ## 2.124.0 (2026-09-18)
 
 ### Features

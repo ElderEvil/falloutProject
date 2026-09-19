@@ -344,15 +344,11 @@ async def test_get_buildable_rooms_excludes_built_unique_rooms(
     assert response.status_code == 200
     initial_buildable = response.json()
 
-    # Find a unique room (no incremental_cost) that's buildable
-    unique_room_data = None
-    for room in initial_buildable:
-        if room.get("incremental_cost") is None:
-            unique_room_data = room
-            break
-
-    if unique_room_data is None:
-        pytest.skip("No unique rooms available for testing")
+    # A fresh vault can always build at least one unique room (no incremental_cost),
+    # so this asserts rather than skips: a broken precondition is a loud failure, not
+    # a silent skip that moves the suite's skip count.
+    unique_room_data = next((room for room in initial_buildable if room.get("incremental_cost") is None), None)
+    assert unique_room_data is not None, "the fixture vault should always have a unique room to build"
 
     # Build the unique room in the vault - exclude fields we'll set explicitly
     exclude_fields = ("capacity_formula", "output_formula", "size", "coordinate_x", "coordinate_y")

@@ -1,5 +1,6 @@
 """Admin configuration regression and authenticated render smoke tests."""
 
+import re
 from collections.abc import AsyncGenerator
 from typing import Any
 from uuid import UUID, uuid4
@@ -33,6 +34,14 @@ from app.models.team import ACTIVE_STATUS, Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
 from main import app
+
+_CSRF_TOKEN_RE = re.compile(r'name="csrf_token" value="([^"]+)"')
+
+
+def _csrf_token_from(response: Any) -> str:
+    match = _CSRF_TOKEN_RE.search(response.text)
+    assert match is not None, "csrf token not found in the incidents page"
+    return match.group(1)
 
 
 def test_user_admin_never_exposes_credentials_or_recovery_tokens() -> None:
@@ -95,7 +104,7 @@ async def admin_client(
 
     test_session_maker = sessionmaker(bind=db_connection, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(admin_auth, "async_engine", db_connection)
-    for view in (DwellerAdmin, LLInteractionAdmin, PromptAdmin, TeamAdmin, TeamMemberAdmin):
+    for view in (DwellerAdmin, LLInteractionAdmin, PromptAdmin, TeamAdmin, TeamMemberAdmin, VaultAdmin):
         monkeypatch.setattr(view, "session_maker", test_session_maker)
 
     # AdminAuth stores user_id as a session string; on PostgreSQL the driver
@@ -154,29 +163,100 @@ def test_vault_admin_sorting_covers_scalar_columns() -> None:
     assert VaultAdmin.column_default_sort == [(Vault.created_at, True)]
 
 
-def test_vault_admin_exposes_incident_spawning_actions() -> None:
-    for action_name in (
-        "disable_incidents",
-        "enable_incidents",
-        "disable_incidents_all",
-        "enable_incidents_all",
-    ):
-        assert hasattr(getattr(VaultAdmin, action_name), "_action")
+def test_vault_admin_exposes_incident_toggle_page() -> None:
+    assert VaultAdmin.incidents_page._exposed is True
+    assert VaultAdmin.incidents_page._methods == ["GET"]
+    assert VaultAdmin.incidents._exposed is True
+    assert VaultAdmin.incidents._methods == ["POST"]
 
 
-async def test_disable_and_enable_incidents_for_all_vaults(
+async def test_incident_toggle_page_renders_with_csrf_token(
+    admin_client: AsyncClient,
+    vault: Vault,
+) -> None:
+    response = await admin_client.get("/admin/vault/incidents")
+    assert response.status_code == 200
+    assert 'name="csrf_token"' in response.text
+    assert str(vault.number) in response.text
+
+
+async def test_incident_toggle_post_without_token_is_forbidden(
     admin_client: AsyncClient,
     vault: Vault,
     async_session: AsyncSession,
-    db_connection: AsyncConnection,
-    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={"action": "disable", "scope": "selected", "vault_id": str(vault.id)},
+    )
+    assert response.status_code == 403
+    await async_session.refresh(vault)
+    assert vault.incidents_disabled is False
+
+
+async def test_incident_toggle_post_with_wrong_token_is_forbidden(
+    admin_client: AsyncClient,
+    vault: Vault,
+    async_session: AsyncSession,
+) -> None:
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={
+            "action": "disable",
+            "scope": "selected",
+            "vault_id": str(vault.id),
+            "csrf_token": "not-the-session-token",
+        },
+    )
+    assert response.status_code == 403
+    await async_session.refresh(vault)
+    assert vault.incidents_disabled is False
+
+
+async def test_incident_toggle_post_flips_selected_vaults(
+    admin_client: AsyncClient,
+    vault: Vault,
+    async_session: AsyncSession,
+) -> None:
+    page = await admin_client.get("/admin/vault/incidents")
+    assert page.status_code == 200
+    token = _csrf_token_from(page)
+
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={
+            "action": "disable",
+            "scope": "selected",
+            "vault_id": str(vault.id),
+            "csrf_token": token,
+        },
+    )
+    assert response.status_code == 303
+    await async_session.refresh(vault)
+    assert vault.incidents_disabled is True
+
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={
+            "action": "enable",
+            "scope": "selected",
+            "vault_id": str(vault.id),
+            "csrf_token": token,
+        },
+    )
+    assert response.status_code == 303
+    await async_session.refresh(vault)
+    assert vault.incidents_disabled is False
+
+
+async def test_incident_toggle_all_scope_flips_every_vault(
+    admin_client: AsyncClient,
+    vault: Vault,
+    async_session: AsyncSession,
 ) -> None:
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID
     from app.tests.factory.vaults import random_vault_number
-
-    test_session_maker = sessionmaker(bind=db_connection, class_=AsyncSession, expire_on_commit=False)
-    monkeypatch.setattr(VaultAdmin, "session_maker", test_session_maker)
 
     suffix = uuid4().hex[:8]
     user2 = await crud.user.create(
@@ -205,19 +285,40 @@ async def test_disable_and_enable_incidents_for_all_vaults(
     async_session.add(vault2)
     await async_session.commit()
 
-    response = await admin_client.get("/admin/vault/action/disable-incidents-all")
+    page = await admin_client.get("/admin/vault/incidents")
+    assert page.status_code == 200
+    token = _csrf_token_from(page)
+
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={"action": "disable", "scope": "all", "csrf_token": token},
+    )
     assert response.status_code == 303
     await async_session.refresh(vault)
     await async_session.refresh(vault2)
     assert vault.incidents_disabled is True
     assert vault2.incidents_disabled is True
 
-    response = await admin_client.get("/admin/vault/action/enable-incidents-all")
+    response = await admin_client.post(
+        "/admin/vault/incidents",
+        data={"action": "enable", "scope": "all", "csrf_token": token},
+    )
     assert response.status_code == 303
     await async_session.refresh(vault)
     await async_session.refresh(vault2)
     assert vault.incidents_disabled is False
     assert vault2.incidents_disabled is False
+
+
+async def test_old_incident_action_urls_no_longer_mutate(
+    admin_client: AsyncClient,
+    vault: Vault,
+    async_session: AsyncSession,
+) -> None:
+    response = await admin_client.get("/admin/vault/action/disable-incidents-all")
+    assert response.status_code == 404
+    await async_session.refresh(vault)
+    assert vault.incidents_disabled is False
 
 
 def test_team_admin_views_are_read_only() -> None:

@@ -15,7 +15,6 @@ from starlette.responses import JSONResponse
 
 from app.admin.auth import AdminAuth
 from app.admin.views import (
-    AISettingsAdmin,
     ChatMessageAdmin,
     DwellerAdmin,
     ExplorationAdmin,
@@ -253,5 +252,4 @@ admin.add_view(QuestAdmin)
 admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)
-admin.add_view(AISettingsAdmin)
 admin.add_view(GameStateAdmin)

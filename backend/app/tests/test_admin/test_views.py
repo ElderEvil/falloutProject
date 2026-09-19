@@ -13,7 +13,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.admin.views import (
-    AISettingsAdmin,
     DwellerAdmin,
     GameStateAdmin,
     ItemAdmin,
@@ -47,7 +46,7 @@ def test_admin_views_disable_deletion_by_default() -> None:
 
 
 def test_operational_and_quest_data_views_are_read_only() -> None:
-    for view in (AISettingsAdmin, GameStateAdmin, QuestAdmin):
+    for view in (GameStateAdmin, QuestAdmin):
         assert view.can_create is False
         assert view.can_edit is False
         assert view.can_delete is False

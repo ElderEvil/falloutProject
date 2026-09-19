@@ -7,7 +7,7 @@ from sqlmodel import col, select, update
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from app.models import AISettings, Item, LLMInteraction, Objective, Storage
+from app.models import Item, LLMInteraction, Objective, Storage
 from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
@@ -388,23 +388,6 @@ class PromptAdmin(AdminModelView, model=Prompt):
     can_create = False
     can_edit = False
     can_export = False
-
-
-class AISettingsAdmin(AdminModelView, model=AISettings):
-    column_list: ClassVar[list] = [
-        AISettings.id,
-        AISettings.provider,
-        AISettings.model,
-        AISettings.base_url,
-        AISettings.gateway_route,
-        AISettings.updated_at,
-    ]
-    can_create = False
-    can_edit = False
-
-    name = "AI Setting"
-    name_plural = "AI Settings"
-    icon = "fa-solid fa-robot"
 
 
 class GameStateAdmin(AdminModelView, model=GameState):

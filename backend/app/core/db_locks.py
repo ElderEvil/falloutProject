@@ -40,13 +40,23 @@ async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncIterat
 
     Yields whether the lock was acquired. Outside PostgreSQL (tests, SQLite) it
     yields True without locking, since SQLite serializes writers itself.
+
+    Needs a session bound to an engine in production. A caller-owned connection must
+    already be autocommit: its isolation level cannot be changed after a transaction
+    has begun, and an idle transaction here could be reaped mid-tick.
     """
     opened: AsyncConnection | None = None
     bind = source.bind
     if isinstance(bind, AsyncEngine):
-        opened = await bind.connect()
+        # AUTOCOMMIT: the lock connection only runs the lock/unlock statements, so a
+        # default implicit transaction would sit idle-in-transaction for the whole
+        # tick and could be terminated by idle_in_transaction_session_timeout,
+        # dropping the lock the tick is relying on.
+        opened = await bind.execution_options(isolation_level="AUTOCOMMIT").connect()
         connection: AsyncConnection | None = opened
     elif isinstance(bind, AsyncConnection):
+        if bind.dialect.name == "postgresql" and bind.in_transaction():
+            raise ValueError("hold_advisory_lock needs an autocommit connection, not one already in a transaction")
         connection = bind
     else:
         connection = None
@@ -59,8 +69,9 @@ async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncIterat
                 await opened.close()
         return
 
-    acquired = bool((await connection.execute(_LOCK_SQL, {"lock_key": lock_key})).scalar())
+    acquired = False
     try:
+        acquired = bool((await connection.execute(_LOCK_SQL, {"lock_key": lock_key})).scalar())
         yield acquired
     finally:
         if acquired:

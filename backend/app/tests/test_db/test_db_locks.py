@@ -5,10 +5,13 @@ riding the caller's session cannot do. These run against live PostgreSQL (SQLite
 has no advisory locks) and skip when it is unavailable.
 """
 
+from unittest.mock import patch
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -76,3 +79,54 @@ async def test_lock_is_released_when_the_block_exits(live_pg_engine: AsyncEngine
         assert acquired is True
 
     assert await _can_take(live_pg_engine, key) is True
+
+
+async def _pooled_engine() -> AsyncEngine:
+    """A pooled engine: NullPool cannot show whether a connection was handed back."""
+    return create_async_engine(str(settings.ASYNC_DATABASE_URI))
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lock_connection_is_handed_back_on_exit(live_pg_engine: AsyncEngine) -> None:
+    """The dedicated lock connection must not stay checked out after the block."""
+    engine = await _pooled_engine()
+    try:
+        async with (
+            _session_maker(engine)() as session,
+            db_locks.hold_advisory_lock(session, "test-688-pool-release") as acquired,
+        ):
+            assert acquired is True
+            assert engine.pool.checkedout() >= 1
+        assert engine.pool.checkedout() == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_lock_connection_is_handed_back_when_acquisition_fails(live_pg_engine: AsyncEngine) -> None:
+    """A failed lock query must still close the connection it opened."""
+    engine = await _pooled_engine()
+    try:
+        async with _session_maker(engine)() as session:
+            with patch.object(db_locks, "_LOCK_SQL", text("SELECT no_such_function_688()")):
+                with pytest.raises(SQLAlchemyError):
+                    async with db_locks.hold_advisory_lock(session, "test-688-fail"):
+                        pass
+        assert engine.pool.checkedout() == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_caller_owned_connection_in_a_transaction_is_rejected(live_pg_engine: AsyncEngine) -> None:
+    """A caller-owned connection cannot be made autocommit, so mid-transaction use is refused."""
+    async with live_pg_engine.connect() as conn:
+        session = AsyncSession(bind=conn)
+        await conn.execute(text("SELECT 1"))
+
+        with pytest.raises(ValueError):
+            async with db_locks.hold_advisory_lock(session, "test-688-ownconn"):
+                pass

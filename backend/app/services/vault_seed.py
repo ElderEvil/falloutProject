@@ -88,6 +88,8 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "value": 20,
         "outfit_type": OutfitTypeEnum.COMMON,
         "gender": None,
+        "charisma": 1,
+        "luck": 1,
     },
     {
         "name": "Leather Armor",
@@ -95,6 +97,8 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "value": 100,
         "outfit_type": OutfitTypeEnum.RARE,
         "gender": None,
+        "strength": 1,
+        "agility": 1,
     },
     {
         "name": "Metal Armor",
@@ -102,6 +106,8 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "value": 250,
         "outfit_type": OutfitTypeEnum.RARE,
         "gender": None,
+        "strength": 2,
+        "endurance": 1,
     },
     {
         "name": "T-51b Power Armor",
@@ -109,6 +115,9 @@ SEED_OUTFITS: list[dict[str, Any]] = [
         "value": 1000,
         "outfit_type": OutfitTypeEnum.POWER_ARMOR,
         "gender": None,
+        "strength": 3,
+        "perception": 1,
+        "endurance": 2,
     },
 ]
 # Crafting materials a boosted vault starts with so item creation is testable
@@ -126,6 +135,13 @@ BOOSTED_SEED_JUNK: tuple[tuple[JunkTypeEnum, RarityEnum, int], ...] = (
     (JunkTypeEnum.CLOTH, RarityEnum.RARE, 3),
     (JunkTypeEnum.STEEL, RarityEnum.LEGENDARY, 3),
     (JunkTypeEnum.CIRCUITRY, RarityEnum.LEGENDARY, 3),
+)
+# Spare hazard-team gear a boosted vault starts with so the fire/radiation
+# responder team has outfits in storage. Names reference the outfit catalog
+# (items/outfits/rare.json); stats are read from the catalog at seed time.
+BOOSTED_SEED_OUTFITS: tuple[tuple[str, int], ...] = (
+    ("Firefighter suit", 3),
+    ("Hazmat suit", 3),
 )
 BOOSTED_LOADOUTS = (
     ("abraham-washington", "Lever-action rifle", "Abraham's relaxedwear", WeaponSubtypeEnum.RIFLE),

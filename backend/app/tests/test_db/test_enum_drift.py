@@ -78,6 +78,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "DWELLER_INJURED",
         "DWELLER_DIED",
         "DWELLER_EXIT_REQUESTED",
+        "HAZARD_TEAM_JOINED",
         "RESOURCE_LOW",
         "RESOURCE_CRITICAL",
         "POWER_OUTAGE",

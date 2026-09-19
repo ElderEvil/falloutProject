@@ -104,9 +104,6 @@ export function getDamageRange(weapon: DamageSource): string {
 // (backend/app/services/radiation_service.py): type base, specific names override.
 const OUTFIT_RADIATION_RESIST_BY_TYPE: Record<string, number> = {
   power_armor: 0.75,
-  rare_outfit: 0.25,
-  legendary_outfit: 0.25,
-  tiered_outfit: 0.1,
   common_outfit: 0,
 }
 
@@ -145,15 +142,27 @@ interface BonusSource {
   luck?: number
 }
 
+// Ordered SPECIAL keys; the capitalized key is the full stat name shown on cards.
+const OUTFIT_BONUS_KEYS = [
+  'strength',
+  'perception',
+  'endurance',
+  'charisma',
+  'intelligence',
+  'agility',
+  'luck',
+] as const satisfies readonly (keyof BonusSource)[]
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 export function getOutfitBonuses(outfit: BonusSource): { stat: string; bonus: number }[] {
   const bonuses: { stat: string; bonus: number }[] = []
-  if (outfit.strength) bonuses.push({ stat: 'S', bonus: outfit.strength })
-  if (outfit.perception) bonuses.push({ stat: 'P', bonus: outfit.perception })
-  if (outfit.endurance) bonuses.push({ stat: 'E', bonus: outfit.endurance })
-  if (outfit.charisma) bonuses.push({ stat: 'C', bonus: outfit.charisma })
-  if (outfit.intelligence) bonuses.push({ stat: 'I', bonus: outfit.intelligence })
-  if (outfit.agility) bonuses.push({ stat: 'A', bonus: outfit.agility })
-  if (outfit.luck) bonuses.push({ stat: 'L', bonus: outfit.luck })
+  for (const key of OUTFIT_BONUS_KEYS) {
+    const bonus = outfit[key]
+    if (bonus) bonuses.push({ stat: capitalize(key), bonus })
+  }
   return bonuses
 }
 
@@ -166,6 +175,7 @@ interface WeaponStatsSource extends DamageSource, CommonItemStats {
   stat?: string
   accuracy?: number | null
   weapon_type?: string
+  weapon_subtype?: string
 }
 
 export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
@@ -173,6 +183,9 @@ export function getWeaponStats(weapon: WeaponStatsSource): ItemStat[] {
   if (weapon.stat) stats.push({ label: 'Uses', value: weapon.stat.toUpperCase(), icon: 'mdi:alphabet-latin' })
   if (weapon.accuracy != null) stats.push({ label: 'Accuracy', value: `${weapon.accuracy}%`, icon: 'mdi:target' })
   if (weapon.weapon_type) stats.push({ label: 'Type', value: weapon.weapon_type, icon: 'mdi:tag' })
+  if (weapon.weapon_subtype) {
+    stats.push({ label: 'Subtype', value: capitalize(weapon.weapon_subtype), icon: 'mdi:tag-outline' })
+  }
   if (weapon.weight !== undefined) stats.push({ label: 'Weight', value: weapon.weight, icon: 'mdi:scale' })
   if (weapon.durability !== undefined) stats.push({ label: 'Durability', value: weapon.durability, icon: 'mdi:shield-check' })
   return stats

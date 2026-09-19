@@ -210,32 +210,13 @@ but the diversity targets below are still open.
 breeding service. **Blocker:** none hard — seeding tables and roll weights are self-contained; coordinate with
 the identity-metadata work so race is read from one source of truth.
 
-### Outfit SPECIAL Bonuses Are Inert — CRITICAL (Target: next branch)
+### Outfit SPECIAL Bonuses — SHIPPED (v2.123.0)
 
-**Outfits do not grant their SPECIAL bonuses.** The catalog declares `strength`…`luck` on every outfit and
-`OutfitCreate` validates them, but `utils/item_factory.build_outfit` drops them, the `Outfit` model has no
-such columns, and nothing applies them. The primary reason a player equips an outfit currently does nothing,
-while outfit *resistance* (shipped with the contamination team) now works — so gear is inconsistently wired.
-
-**Agreed contract:** a 10 S dweller wearing a +5 S outfit must count as **15 S** in combat **and** production.
-
-**Where the fix lands — one choke point, not two.** `options/identity_modifiers.effective_stat` already feeds
-both (`utils/combat.py:14` for combat power, `services/resource_manager.py:176` for production rate), and its
-docstring already establishes the convention: *derived on read and never persisted — the stored SPECIAL stays
-the trained value.* So outfit bonuses must be **effective-only**, folded into that one function, never written
-into the stored stat; unequipping then reverts cleanly.
-
-Steps:
-
-- [ ] Add the seven SPECIAL columns to `Outfit`, with a migration; map them in `build_outfit` from the catalog.
-- [ ] Fold the equipped outfit's bonus into `effective_stat`, reading `entity.__dict__.get("outfit")` (the
-  no-lazy-IO pattern used by `radiation_service` and `apply_damage`) — **audit every caller for outfit
-  eager-loading first**, because a path that lazy-loads would raise `MissingGreenlet` inside a tick.
-- [ ] Decide and pin the cap: the stored field is validated 1–10, but effective stats may exceed it (the
-  agreed contract says 15). Lock this with a test so it is not "corrected" later.
-- [ ] Reconcile the wire shape: the frontend already renders `+S`…`+L` via `getOutfitBonuses` from
-  `strength_bonus`…`luck_bonus`, so confirm which fields the API actually populates and make the card show
-  real numbers.
+Outfit SPECIAL bonuses are live: `models/outfit.py` carries `strength`…`luck` (0-7),
+`utils/item_factory.build_outfit` maps catalog values, and `effective_stat` folds the equipped outfit's
+bonus in. The bonus is effective-only, never persisted: 10 stored + 5 outfit = 15 effective, not capped.
+Migration `alembic/versions/2026_09_18_0003-c3d4e5f6a7b8_add_outfit_special_bonuses.py`; tests in
+`tests/test_services/test_outfit_special_bonuses.py`; evidence commit `b80231af`.
 
 ### Radiation & Medical Reliability
 
@@ -254,7 +235,7 @@ is the ingestion path. Invariants live in `docs/backend/GAME_MECHANICS.md`; the 
   bypass room capacity and assignment rules; route it through the shared assignment policy or drop the field in favour
   of the dedicated move endpoints.
 
-### Contamination Team — fire & radiation responders (SHIPPED — foundation, Target: TBD for follow-ups)
+### Contamination Team — fire & radiation responders (SHIPPED — mechanic + surfacing + hazard gear, Target: TBD)
 
 A dedicated hazard-response outfit for the vault: a **fire team** that answers fire-hazard incidents —
 kinda firefighters — and a **radiation incident response team** for rad leaks and irradiated zones.
@@ -277,43 +258,42 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
   zeroed *all* outfit radiation protection, including power armor); runtime spawns roll from
   `game_config.incident.get_spawn_weights()` instead of hardcoding radscorpions, so `FIRE` — fully
   implemented with its own containment math — actually spawns.
-
-**Known limitation — the team is a record, not yet a mechanic.** Membership currently has no gameplay
-effect and nothing surfaces a join beyond the bio line. That last point is a gap against the progression
-visibility red line (`docs/backend/GAME_MECHANICS.md`), and it is the first follow-up below.
+- **Membership is now a mechanic** — active team members matter during their hazard incident: each
+  active member present adds 20% to vault response/containment power (`TEAM_RESPONSE_BONUS`), and a
+  matching active member takes 20% less incident damage (`TEAM_HAZARD_RESIST`; radiation-team members
+  also take less radiation gain). Bench/reserve members get no bonus; non-matching or non-hazard
+  incidents are unaffected.
+- **Surface the join** — joins, bench places, and bench→active promotions create a
+  `HAZARD_TEAM_JOINED` notification and surface as a toast in addition to the bell, closing the
+  progression-visibility red-line gap.
+- **Hazard gear** — boosted vaults start with spare Firefighter and Hazmat suits in storage, and a
+  dweller earning an ACTIVE place on the matching team is auto-equipped with an available spare (fire
+  team → Firefighter suit, radiation team → Hazmat suit). Bench members are not equipped; there is no
+  auto-unequip on leaving.
 
 **Next, in rough order:**
 
-1. **Surface the join** — a team place is a progression event, so it needs a toast/modal **plus** a bell
-   entry. Small, and it closes the red-line gap.
-2. **The ask** — the dweller raises their own bench promotion through chat when a place opens ("subtle but
+1. **The ask** — the dweller raises their own bench promotion through chat when a place opens ("subtle but
    present", reusing the `ActionSuggestion` accept/dismiss card). Semantics still open: announcement,
    consent gate, or teammate suggestion.
-3. **Dispatch** — deferred by design to the Jev classifier; until then the team is a designation.
-4. **Firefighter art** — the firefighter suit currently reuses the engineer-armor asset as a placeholder;
+2. **Dispatch** — deferred by design to the Jev classifier; until then the team is a designation.
+3. **Firefighter art** — the firefighter suit currently reuses the engineer-armor asset as a placeholder;
    real turnout gear (helmet, reflective stripes) is uncommissioned.
-5. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
+4. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
    matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
 
-### Shared roster machinery — quest parties and responder teams (Target: TBD)
+### Shared roster machinery — one roster model for quest, incident, and hazard teams (Target: next branch, #683)
 
-Quest parties (`QuestParty` + `crud/quest_party.assign_party`) and the contamination teams
-(`HazardTeamMember`, `contamination_team_service`) solve the same shape — "which dwellers are on this
-thing" — with separate implementations. Extract the common parts so the two do not drift: one
-**availability/eligibility policy**, and ideally one roster primitive both consume.
+`Team` / `TeamMember` now backs quest parties and incident responder crews (the legacy `QuestParty` table
+was dropped in v2.123.0), and the shared availability/eligibility policy lives in
+`utils/dweller_availability.py`, consumed by quests, incidents, exploration, room assignment, and the team
+service. The earned hazard teams (`HazardTeamMember`, `contamination_team_service`) are the remaining
+holdout, so "which dwellers are on this thing" still has two implementations.
 
-This is the same consolidation the code already asks for in three places:
-
-- `crud/quest_party.py:54` — *"TODO: unify eligibility with incident responder checks; shared availability
-  policy outside services."*
-- `services/exploration_service.py:130` — *"TODO: unify with incident responder eligibility into a shared
-  availability policy outside services."*
-- `docs/ROADMAP.md` simplification backlog — the planned `is_in_vault_and_active` helper (responder,
-  explorer, and dehydration eligibility all point at it).
-
-Constraint: the shared policy cannot live in `app/services/` — the architecture guard permits CRUD to import
-only `room_assignment_policy` there, and new entries fail the suite. It belongs in `app/utils/` beside
-`room_rules.py` / `dwellers.py`, following the precedent AGENTS.md rule 11 sets for the shared policy kernel.
+Consolidate onto the one primitive: add a third purpose to `Team` (`hazard_team`), map active places to
+`slot_number` 1-3 and the bench to a NULL slot, migrate `HazardTeamMember` rows across preserving
+`created_at`, then drop the table and repoint the service. Retire the contamination/hazard naming split and
+shrink the architecture-guard baseline in the same commit. Tracked in #683.
 
 ### Version 3.0 Platform Modernization
 

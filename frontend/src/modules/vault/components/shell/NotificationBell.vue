@@ -6,6 +6,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useSse, type SseEvent } from '@/core/composables/useEventStream'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
+import { useToast } from '@/core/composables/useToast'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
 import axios from '@/core/plugins/axios'
 
@@ -24,6 +25,7 @@ interface Notification {
 const authStore = useAuthStore()
 const router = useRouter()
 const { playSound } = useSound()
+const toast = useToast()
 const showPopup = ref(false)
 const notifications = ref<Notification[]>([])
 const unreadCount = ref(0)
@@ -131,6 +133,10 @@ watch(currentSseEvent, (evt) => {
     notifications.value.unshift(newNotif)
     unreadCount.value++
     playSound('notification')
+    // A hazard team join surfaces beyond the bell (progression red line).
+    if (notificationData.notification_type === 'hazard_team_joined') {
+      toast.success(notificationData.message)
+    }
 })
 
 const fetchNotifications = async () => {
@@ -157,8 +163,9 @@ const markAllAsRead = async () => {
 }
 
 const getNotificationRoute = (notification: Notification): string | null => {
-  if (!notification.vault_id) return null
-  const vaultPath = `/vault/${notification.vault_id}`
+  const vaultId = notification.vault_id ?? notification.meta_data?.vault_id
+  if (!vaultId) return null
+  const vaultPath = `/vault/${vaultId}`
   const dwellerId = notification.meta_data?.dweller_id as string | undefined
 
   switch (notification.notification_type) {
@@ -179,6 +186,8 @@ const getNotificationRoute = (notification: Notification): string | null => {
       return `${vaultPath}/quests`
     case 'level_up':
       return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : `${vaultPath}/dwellers`
+    case 'hazard_team_joined':
+      return dwellerId ? `${vaultPath}/dwellers/${dwellerId}` : vaultPath
     case 'combat_started':
     case 'combat_victory':
     case 'combat_defeat': {
@@ -229,6 +238,7 @@ const getNotificationIcon = (type: string): string => {
     dweller_exit_requested: 'mdi:exit-run',
     exploration_complete: 'mdi:map-marker-check',
     exploration_update: 'mdi:map-marker',
+    hazard_team_joined: 'mdi:shield-account',
     level_up: 'mdi:arrow-up-bold',
     training_complete: 'mdi:school',
     combat_started: 'mdi:sword-cross',

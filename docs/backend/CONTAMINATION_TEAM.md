@@ -1,8 +1,10 @@
 # Contamination Team — Fire & Radiation Responders
 
-> Status: **foundation shipped** — team forming, the participation ledger, outfit hazard resistance, and the
-> two fixes this depended on are in. The team is a record, not yet a mechanic: membership has no gameplay
-> effect and a join is not yet surfaced. Next steps tracked in `docs/ROADMAP.md`.
+> Status: **shipped** — team forming, the participation ledger, outfit hazard resistance, the two fixes
+> this depended on, the membership mechanic, join surfacing, and hazard-gear seeding/auto-equip are in.
+> Membership now has a gameplay effect (active members add response power and resist their hazard), joins
+> and step-ups surface as toast + bell, and boosted vaults seed spare hazard suits that auto-equip on
+> earning an active place. Next steps tracked in `docs/ROADMAP.md`.
 > Roadmap stub: `docs/ROADMAP.md` ("Contamination Team"). Inspiration: UA "DUDES OF HAZMAT – Toxic Waste
 > Chase" (music video) — hazmat-suit energy, sirens, toxic chase vibes.
 
@@ -76,7 +78,7 @@ whole thing lands as one PR.
 
 ## Slices
 
-Slices 1, 2 and 4 **shipped** together; slice 3 is the first follow-up.
+Slices 1, 2, 4, 5, 6 and 7 **shipped**; slice 3 is the first follow-up.
 
 1. ~~**Participation tracking + team forming**~~ — **shipped**: the ledger credits each defender once per
    incident inside the round's commit; qualification at three; three active places plus a bench; a fallen
@@ -84,14 +86,25 @@ Slices 1, 2 and 4 **shipped** together; slice 3 is the first follow-up.
 2. ~~**Make fires real**~~ — **shipped**: the runtime spawner rolls from `get_spawn_weights()`, so `FIRE`
    actually occurs. Before this the taxonomy was half-dead content.
 3. **The ask** — *next*: the dweller raises their own bench promotion through chat, extending
-   `ActionSuggestion` with a variant (Confirm/Dismiss reuse as accept/decline), paired with a
-   `notification_service` entry so it reaches the bell under the modal/toast red line. Semantics still
-   open: announcement, consent gate, or teammate suggestion.
+   `ActionSuggestion` with a variant (Confirm/Dismiss reuse as accept/decline). Semantics still open:
+   announcement, consent gate, or teammate suggestion.
 4. ~~**Resistance & outfits**~~ — **shipped**: `fire_resist` / `radiation_resist` columns, fire resistance
    applied beside `incident_response_pct`, a declared radiation share overriding the legacy type/name
    table, plus the firefighter suit, the hazmat suit, and the legendary both-hazard outfit. Shown on item
    cards. This also fixed equip never invalidating the wearer's cached relationship, which had silently
    zeroed *all* outfit radiation protection.
+5. ~~**Membership mechanic**~~ — **shipped**: active team members matter during their hazard incident:
+   each active member present adds 20% to vault response/containment power (`TEAM_RESPONSE_BONUS`), and a
+   matching active member takes 20% less incident damage (`TEAM_HAZARD_RESIST`; radiation-team members
+   also take less radiation gain). Bench/reserve members get no bonus; non-matching or non-hazard
+   incidents are unaffected.
+6. ~~**Surface the join**~~ — **shipped**: joins, bench places, and bench→active promotions create a
+   `HAZARD_TEAM_JOINED` notification and surface as a toast in addition to the bell, closing the
+   progression-visibility red-line gap.
+7. ~~**Hazard gear**~~ — **shipped**: boosted vaults start with spare Firefighter and Hazmat suits in
+   storage, and a dweller earning an ACTIVE place on the matching team is auto-equipped with an available
+   spare (fire team → Firefighter suit, radiation team → Hazmat suit). Bench members are not equipped;
+   there is no auto-unequip on leaving.
 
 ## Reuse map (reach for it first)
 
@@ -117,10 +130,13 @@ Slices 1, 2 and 4 **shipped** together; slice 3 is the first follow-up.
    `apprentice_stat_gains`) vs a participation table; membership as a table vs derived.
 2. **Bench semantics** — does a member away on an expedition vacate the slot, and does the bench step
    up automatically or only when asked?
-3. **Resistance semantics** — what fire resistance changes numerically, and how rad-suit protection
-   stacks with existing radiation resistance (slice 4).
-4. **Dispatch** — deferred by design: the team is a designation and a record until the Jev classifier
-   is wired to route threats.
+3. **Resistance semantics** — the team bonus is now defined: `TEAM_RESPONSE_BONUS = 0.20` (each active
+   member present adds 20% to vault response/containment power) and `TEAM_HAZARD_RESIST = 0.20` (a
+   matching active member takes 20% less incident damage; radiation-team members also take less
+   radiation gain). Hazard gear is seeded into boosted vaults and auto-equipped on earning an active
+   place. Still open: how rad-suit protection stacks with existing radiation resistance.
+4. **Dispatch** — deferred by design: the Jev classifier is not yet wired to route threats, so the team
+   is not dispatched to incidents.
 
 ## Future — real-time movement and positioning
 
@@ -159,8 +175,8 @@ Two constraints this places on the current work:
   in the roadmap simplification backlog). The policy cannot live in `app/services/` (the architecture
   guard allows CRUD to import only `room_assignment_policy`); `app/utils/` is the home, per AGENTS.md
   rule 11. Tracked in `docs/ROADMAP.md`.
-- The Jev classifier (`docs/backend/JEV_CLASSIFIER.md`) is where **dispatch** lands: the team is
-  deliberately a designation-and-record feature until Jev triages threats and decides who gets sent.
+- The Jev classifier (`docs/backend/JEV_CLASSIFIER.md`) is where **dispatch** lands: dispatch stays a
+  designation-and-record concern until Jev triages threats and decides who gets sent.
   Formation must work deterministically first — Jev consumes the team, it does not gate it.
 - Race/faction mechanics (`options/identity_modifiers.py`) already shape damage taken — team
   bonuses compose with those at the same choke points, not around them.

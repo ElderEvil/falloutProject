@@ -66,6 +66,16 @@ When adding/removing/renaming a Python `StrEnum`/`IntEnum` mapped to a PostgreSQ
 
 > **Outage trap:** a member added to the Python enum but never migrated → `InvalidTextRepresentationError` → poisoned connection pool → crash-loop. Always migrate before using a new enum member.
 
+### Data-bearing columns & backfills (MANDATORY)
+
+A column that carries semantic data (not just a flag) but ships with a benign DB default (`0`, `""`) leaves every existing row silently wrong: the default is also a legal real value, so nothing — type checker, test, or UI — can tell the difference. The outfit SPECIAL columns shipped defaulting to `0`, so every pre-existing outfit rendered as bonus-less until backfill migration `2026_09_19_0002`.
+
+1. **Backfill in the SAME migration** that adds such a column, or state in the PR why the default is correct for existing rows.
+2. **Prefer `NULL` for "not populated"** over a legal default when the field is derived from a source of truth (a catalog/JSON) — `0` cannot be distinguished from a real value, `NULL` can.
+3. **Backfills are name-keyed and idempotent**: match on the canonical name (`LOWER(TRIM(name))`), update only rows still at the default, and make `downgrade()` a documented no-op. Copy `2026_09_19_0002`.
+
+Catalog-backed `Weapon`/`Outfit`/`Junk` rows must be built through `backend/app/utils/item_factory.py` — a direct constructor call drops every catalog-owned column while still persisting and rendering normally. The factory normalizes `rarity` to `RarityEnum` (raw catalog strings are safe there); `backend/app/tests/test_architecture/test_item_factory_guard.py` fails the suite on any bypass, with a baseline that must shrink.
+
 ### Testing conventions
 
 - **Markers:** default tests are unmarked — fast, SQLite/fakeredis-backed; together they are the "full" suite. Tag only exceptions: `@pytest.mark.smoke` on the curated critical-path subset (`uv run pytest -m smoke`), `slow` for >1s tests, `integration` for tests needing real PostgreSQL/Redis. No `fast`/`full` markers.

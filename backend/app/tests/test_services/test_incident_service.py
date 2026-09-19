@@ -45,10 +45,11 @@ async def room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
 
 
 def create_test_room() -> dict:
-    """Create a test room that is NOT an elevator (ensures incident can spawn)."""
+    """Create a test room that is NOT an elevator or arena (ensures incident can spawn)."""
     room_data = create_fake_room()
-    # Ensure room is not named "Elevator" to allow incident spawning
-    while room_data["name"] == "Elevator":
+    # get_occupied_rooms (the spawner's candidate set) excludes elevators by name
+    # and arenas by category, so a wave-continuation spawn needs both rooms eligible.
+    while room_data["name"] == "Elevator" or room_data["category"] == RoomTypeEnum.ARENA:
         room_data = create_fake_room()
     return room_data
 

@@ -3,12 +3,14 @@
 from unittest.mock import patch
 
 import pytest
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import HazardTeam
 from app.models.hazard_team import ACTIVE_STATUS, RESERVE_STATUS
 from app.models.incident import IncidentType
+from app.models.notification import Notification, NotificationType
 from app.schemas.dweller import DwellerCreate
 from app.services.combat.incident_service import incident_service
 from app.services.contamination_team_service import (
@@ -16,20 +18,7 @@ from app.services.contamination_team_service import (
     TEAM_SIZE,
     contamination_team_service,
 )
-
-
-async def _raise_incident(session: AsyncSession, room, incident_type: IncidentType):
-    return await crud.incident_crud.create(
-        session, vault_id=room.vault_id, room_id=room.id, incident_type=incident_type, difficulty=2
-    )
-
-
-async def _fight(session: AsyncSession, room, incident_type: IncidentType, dwellers: list):
-    """Give each dweller one callout against the given hazard and persist it."""
-    incident = await _raise_incident(session, room, incident_type)
-    await contamination_team_service.record_participation(session, incident, dwellers)
-    await session.commit()
-    return incident
+from app.tests.test_services._hazard_team_helpers import fight, raise_incident
 
 
 @pytest.mark.asyncio
@@ -37,7 +26,7 @@ async def test_participation_is_recorded_once_per_incident(async_session: AsyncS
     """A long incident credits a defender once, however many rounds they fight."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
-    incident = await _raise_incident(async_session, room, IncidentType.FIRE)
+    incident = await raise_incident(async_session, room, IncidentType.FIRE)
     dweller_ids = [dweller.id for dweller in dwellers]
 
     first = await crud.incident_participant_crud.record(async_session, incident.id, dweller_ids)
@@ -59,11 +48,11 @@ async def test_third_callout_earns_an_active_place_and_a_bio_entry(
     dweller = room_with_dwellers["dwellers"][0]
 
     for _ in range(QUALIFYING_INCIDENTS - 1):
-        await _fight(async_session, room, IncidentType.FIRE, [dweller])
+        await fight(async_session, room, IncidentType.FIRE, [dweller])
 
     assert await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id) is None
 
-    await _fight(async_session, room, IncidentType.FIRE, [dweller])
+    await fight(async_session, room, IncidentType.FIRE, [dweller])
 
     place = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
     assert place is not None
@@ -92,7 +81,7 @@ async def test_fourth_qualifier_waits_on_the_bench(
         )
 
     for _ in range(QUALIFYING_INCIDENTS):
-        await _fight(async_session, room, IncidentType.FIRE, dwellers)
+        await fight(async_session, room, IncidentType.FIRE, dwellers)
 
     roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
     assert len(roster) == TEAM_SIZE + 1
@@ -116,7 +105,7 @@ async def test_fallen_member_frees_a_place_for_the_bench(
         )
 
     for _ in range(QUALIFYING_INCIDENTS):
-        await _fight(async_session, room, IncidentType.FIRE, dwellers)
+        await fight(async_session, room, IncidentType.FIRE, dwellers)
 
     roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
     active_place = next(place for place in roster if place.status == ACTIVE_STATUS)
@@ -127,7 +116,7 @@ async def test_fallen_member_frees_a_place_for_the_bench(
     async_session.add(fallen)
     await async_session.commit()
 
-    await _fight(async_session, room, IncidentType.FIRE, [dwellers[0]])
+    await fight(async_session, room, IncidentType.FIRE, [dwellers[0]])
 
     stepped_up = await crud.hazard_team_crud.get_member(
         async_session, room.vault_id, HazardTeam.FIRE, benched.dweller_id
@@ -145,7 +134,7 @@ async def test_intruder_incidents_earn_no_team_place(async_session: AsyncSession
     dweller = room_with_dwellers["dwellers"][0]
 
     for _ in range(QUALIFYING_INCIDENTS + 1):
-        await _fight(async_session, room, IncidentType.RAIDER_ATTACK, [dweller])
+        await fight(async_session, room, IncidentType.RAIDER_ATTACK, [dweller])
 
     for team in HazardTeam:
         assert await crud.hazard_team_crud.get_member(async_session, room.vault_id, team, dweller.id) is None
@@ -162,9 +151,9 @@ async def test_hazard_teams_are_tracked_separately(async_session: AsyncSession, 
     dweller = room_with_dwellers["dwellers"][0]
 
     for _ in range(QUALIFYING_INCIDENTS):
-        await _fight(async_session, room, IncidentType.FIRE, [dweller])
+        await fight(async_session, room, IncidentType.FIRE, [dweller])
     for _ in range(QUALIFYING_INCIDENTS):
-        await _fight(async_session, room, IncidentType.RADSCORPION_ATTACK, [dweller])
+        await fight(async_session, room, IncidentType.RADSCORPION_ATTACK, [dweller])
 
     fire = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
     radiation = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.RADIATION, dweller.id)
@@ -177,7 +166,7 @@ async def test_incident_round_credits_its_defenders(async_session: AsyncSession,
     """A real combat round writes the participation that the rule reads."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
-    incident = await _raise_incident(async_session, room, IncidentType.FIRE)
+    incident = await raise_incident(async_session, room, IncidentType.FIRE)
 
     await incident_service.process_incident(async_session, incident, 2)
 
@@ -191,9 +180,9 @@ async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncS
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     for _ in range(QUALIFYING_INCIDENTS - 1):
-        await _fight(async_session, room, IncidentType.FIRE, dwellers)
+        await fight(async_session, room, IncidentType.FIRE, dwellers)
 
-    incident = await _raise_incident(async_session, room, IncidentType.FIRE)
+    incident = await raise_incident(async_session, room, IncidentType.FIRE)
     await async_session.commit()
 
     with (
@@ -218,3 +207,99 @@ async def test_roster_reports_both_teams(async_session: AsyncSession, room_with_
 
     assert {entry.team for entry in roster.teams} == set(HazardTeam)
     assert all(entry.active == [] and entry.reserve == [] for entry in roster.teams)
+
+
+async def _hazard_notifications(session: AsyncSession) -> list[Notification]:
+    result = await session.execute(
+        select(Notification).where(Notification.notification_type == NotificationType.HAZARD_TEAM_JOINED)
+    )
+    return list(result.scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_join_emits_hazard_team_joined_notification(async_session: AsyncSession, room_with_dwellers: dict):
+    """Earning an active place surfaces as a bell notification with the join meta."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+
+    for _ in range(QUALIFYING_INCIDENTS):
+        await fight(async_session, room, IncidentType.FIRE, [dweller])
+
+    notifications = await _hazard_notifications(async_session)
+    assert len(notifications) == 1
+    notification = notifications[0]
+    assert notification.notification_type == NotificationType.HAZARD_TEAM_JOINED
+    assert notification.title == "Hazard team"
+    assert "earned a place on the vault's fire team" in notification.message
+    assert notification.meta_data["dweller_id"] == str(dweller.id)
+    assert notification.meta_data["dweller_name"] == dweller.display_name
+    assert notification.meta_data["team"] == HazardTeam.FIRE.value
+    assert notification.meta_data["status"] == ACTIVE_STATUS
+    assert notification.meta_data["promoted"] is False
+    assert notification.meta_data["vault_id"] == str(room.vault_id)
+
+
+@pytest.mark.asyncio
+async def test_bench_join_emits_bench_notification(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A bench place surfaces with the bench message and reserve status."""
+    room = room_with_dwellers["room"]
+    dwellers = list(room_with_dwellers["dwellers"])
+    while len(dwellers) <= TEAM_SIZE:
+        dwellers.append(
+            await crud.dweller.create(
+                async_session,
+                obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id, room_id=room.id),
+            )
+        )
+
+    for _ in range(QUALIFYING_INCIDENTS):
+        await fight(async_session, room, IncidentType.FIRE, dwellers)
+
+    notifications = await _hazard_notifications(async_session)
+    bench = next(notification for notification in notifications if notification.meta_data["status"] == RESERVE_STATUS)
+    assert "earned a bench place on the vault's fire team" in bench.message
+    assert bench.meta_data["promoted"] is False
+
+
+@pytest.mark.asyncio
+async def test_promotion_emits_notification_without_new_qualifier(
+    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+):
+    """A bench member stepping up is notified even when nobody newly qualifies."""
+    room = room_with_dwellers["room"]
+    dwellers = list(room_with_dwellers["dwellers"])
+    while len(dwellers) <= TEAM_SIZE:
+        dwellers.append(
+            await crud.dweller.create(
+                async_session,
+                obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id, room_id=room.id),
+            )
+        )
+
+    for _ in range(QUALIFYING_INCIDENTS):
+        await fight(async_session, room, IncidentType.FIRE, dwellers)
+
+    roster = await crud.hazard_team_crud.get_team(async_session, room.vault_id, HazardTeam.FIRE)
+    active_place = next(place for place in roster if place.status == ACTIVE_STATUS)
+    benched = next(place for place in roster if place.status == RESERVE_STATUS)
+
+    fallen = await crud.dweller.get(async_session, active_place.dweller_id)
+    fallen.is_dead = True
+    async_session.add(fallen)
+    await async_session.commit()
+
+    # The fighting dweller already holds a place, so no new qualifier joins.
+    await fight(async_session, room, IncidentType.FIRE, [dwellers[0]])
+
+    notifications = await _hazard_notifications(async_session)
+    promotion = next(
+        notification
+        for notification in notifications
+        if notification.meta_data["dweller_id"] == str(benched.dweller_id)
+        and notification.meta_data["promoted"] is True
+    )
+    assert promotion.meta_data["promoted"] is True
+    assert promotion.meta_data["status"] == ACTIVE_STATUS
+    assert "stepped up to a place on the vault's fire team" in promotion.message

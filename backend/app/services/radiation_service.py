@@ -23,13 +23,11 @@ if TYPE_CHECKING:
 
 # Outfit radiation resist is name-derived like SPECIAL bonuses (see
 # utils/item_factory.build_outfit): type base, specific names override.
-# Values are shares of incoming RAD removed, 0.0-1.0. The hazmat entries are
-# forward-compatible until the catalog adds the suits.
+# Values are shares of incoming RAD removed, 0.0-1.0. Only power armor (by
+# type) and hazmat suits (by name) grant rad resist; other outfits get none
+# unless they declare radiation_resist.
 OUTFIT_RADIATION_RESIST_BY_TYPE = {
     OutfitTypeEnum.POWER_ARMOR: 0.75,
-    OutfitTypeEnum.RARE: 0.25,
-    OutfitTypeEnum.LEGENDARY: 0.25,
-    OutfitTypeEnum.TIERED: 0.10,
     OutfitTypeEnum.COMMON: 0.0,
 }
 OUTFIT_RADIATION_RESIST_BY_NAME = {

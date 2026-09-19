@@ -51,13 +51,14 @@ describe('rarity styling', () => {
 })
 
 describe('stat rows', () => {
-  it('builds full weapon stat rows including accuracy, type, weight and durability', () => {
+  it('builds full weapon stat rows including accuracy, type, subtype, weight and durability', () => {
     const stats = getWeaponStats({
       damage_min: 3,
       damage_max: 7,
       stat: 'strength',
       accuracy: 75,
       weapon_type: 'gun',
+      weapon_subtype: 'rifle',
       weight: 2.5,
       durability: 90,
     })
@@ -67,6 +68,7 @@ describe('stat rows', () => {
       { label: 'Uses', value: 'STRENGTH', icon: 'mdi:alphabet-latin' },
       { label: 'Accuracy', value: '75%', icon: 'mdi:target' },
       { label: 'Type', value: 'gun', icon: 'mdi:tag' },
+      { label: 'Subtype', value: 'Rifle', icon: 'mdi:tag-outline' },
       { label: 'Weight', value: 2.5, icon: 'mdi:scale' },
       { label: 'Durability', value: 90, icon: 'mdi:shield-check' },
     ])
@@ -87,8 +89,8 @@ describe('stat rows', () => {
     })
 
     expect(stats).toEqual([
-      { label: 'S', value: '+2', icon: 'mdi:chevron-up' },
-      { label: 'A', value: '+1', icon: 'mdi:chevron-up' },
+      { label: 'Strength', value: '+2', icon: 'mdi:chevron-up' },
+      { label: 'Agility', value: '+1', icon: 'mdi:chevron-up' },
       { label: 'Gender', value: 'male', icon: 'mdi:human-male-female' },
       { label: 'Weight', value: 5, icon: 'mdi:scale' },
       { label: 'Durability', value: 40, icon: 'mdi:shield-check' },
@@ -96,13 +98,13 @@ describe('stat rows', () => {
   })
 
   it('collects only non-zero outfit bonuses', () => {
-    expect(getOutfitBonuses({ strength: 0, luck: 3 })).toEqual([{ stat: 'L', bonus: 3 }])
+    expect(getOutfitBonuses({ strength: 0, luck: 3 })).toEqual([{ stat: 'Luck', bonus: 3 }])
   })
 
   it('resolves outfit radiation resist by type, with name overrides winning', () => {
     expect(getOutfitRadiationResist({ outfit_type: 'power_armor' })).toBe(0.75)
     expect(getOutfitRadiationResist({ outfit_type: 'POWER_ARMOR' })).toBe(0.75)
-    expect(getOutfitRadiationResist({ outfit_type: 'rare_outfit' })).toBe(0.25)
+    expect(getOutfitRadiationResist({ outfit_type: 'rare_outfit' })).toBe(0)
     expect(getOutfitRadiationResist({ name: 'Hazmat suit', outfit_type: 'rare_outfit' })).toBe(1)
     expect(getOutfitRadiationResist({ name: '  Hazmat suit  ', outfit_type: 'rare_outfit' })).toBe(1)
     expect(getOutfitRadiationResist({ name: 'ADVANCED HAZMAT SUIT', outfit_type: 'legendary_outfit' })).toBe(1)

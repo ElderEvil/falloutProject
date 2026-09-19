@@ -56,6 +56,16 @@ def test_hazmat_blocks_external_radiation_entirely() -> None:
     assert dweller.radiation == 0
 
 
+def test_plain_rare_outfit_does_not_resist_radiation() -> None:
+    """Only power armor (by type) and hazmat suits (by name) resist; a bare
+    rare outfit with no declared share grants nothing."""
+    dweller = _human(outfit=_outfit(OutfitTypeEnum.RARE, "Metal Armor"))
+
+    assert apply_radiation_gain(dweller, 10) is True
+
+    assert dweller.radiation == 10
+
+
 def test_radiation_saturates_at_max_health_and_lowers_the_ceiling() -> None:
     dweller = _human(radiation=95)
 

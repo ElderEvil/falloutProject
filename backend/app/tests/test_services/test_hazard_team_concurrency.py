@@ -61,7 +61,9 @@ async def roster(live_pg_engine: AsyncEngine, dweller_data: dict) -> AsyncIterat
     async with maker() as session:
         user = await crud.user.create(
             session,
-            obj_in=UserCreate(username=f"conc-{suffix}", email=f"conc-{suffix}@example.com", password="secret-password-123"),
+            obj_in=UserCreate(
+                username=f"conc-{suffix}", email=f"conc-{suffix}@example.com", password="secret-password-123"
+            ),
         )
         vault = await crud.vault.create(
             session,
@@ -147,7 +149,9 @@ async def test_contended_roster_defers_the_place_instead_of_colliding(roster: di
         await holder.rollback()
 
     async with maker() as session:
-        team_rows = (await session.execute(text("SELECT count(*) FROM team WHERE vault_id = :vault_id"), {"vault_id": vault_id})).scalar()
+        team_rows = (
+            await session.execute(text("SELECT count(*) FROM team WHERE vault_id = :vault_id"), {"vault_id": vault_id})
+        ).scalar()
         member_rows = (
             await session.execute(
                 text(

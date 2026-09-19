@@ -436,10 +436,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Contamination Team Roster
+         * Get Hazard Team Roster
          * @description Return each hazard team's roster: who holds a place, and who waits on the bench.
          */
-        get: operations["get_contamination_team_roster_api_v1_contamination_team_vault__vault_id__roster_get"];
+        get: operations["get_hazard_team_roster_api_v1_contamination_team_vault__vault_id__roster_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10668,7 +10668,7 @@ export interface operations {
             };
         };
     };
-    get_contamination_team_roster_api_v1_contamination_team_vault__vault_id__roster_get: {
+    get_hazard_team_roster_api_v1_contamination_team_vault__vault_id__roster_get: {
         parameters: {
             query?: never;
             header?: never;

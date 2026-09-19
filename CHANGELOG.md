@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.0 (2026-09-19)
+
+### Features
+
+* track team rosters in the admin panel 684d92d
+
+### Bug Fixes
+
+* cap migrated hazard rosters at the three active slots b8110de
+* keep the active-hazard invariant on migration and demotion 294ea57
+* recover the incident tick session after a failed round 4c1e237
+
+### Code Refactoring
+
+* consolidate quest, incident, and hazard teams onto one roster model 69527d0
+
 ## 2.125.0 (2026-09-19)
 
 ### Features

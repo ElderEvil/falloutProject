@@ -124,6 +124,7 @@ async def test_dweller_admin_bio_flag(
 
     response = await admin_client.get("/admin/dweller/list")
     assert response.status_code == 200
+    assert "..." in response.text
 
 
 def test_vault_admin_exposes_incidents_disabled_column_and_filter() -> None:
@@ -213,4 +214,3 @@ async def test_disable_and_enable_incidents_for_all_vaults(
     await async_session.refresh(vault2)
     assert vault.incidents_disabled is False
     assert vault2.incidents_disabled is False
-    assert "..." in response.text

@@ -59,3 +59,6 @@ class Item(BaseUUIDModel, ItemBase, table=True):
     )
     storage_id: UUID4 | None = Field(default=None, nullable=True, foreign_key="storage.id")
     storage: "Storage" = Relationship(back_populates="items")
+
+    def __str__(self):
+        return f"{self.name}"

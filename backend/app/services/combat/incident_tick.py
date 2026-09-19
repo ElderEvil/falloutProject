@@ -119,28 +119,27 @@ async def process_all_vaults_incidents(
 ) -> dict:  # TODO: Must be tested for performance
     """Process incidents for every active vault (fast-tick entry point).
 
-    A PostgreSQL advisory lock serializes execution across workers; the
-    transaction is rolled back before releasing it so a failed tick cannot
-    leave the session in an aborted state that makes the unlock itself fail.
+    A PostgreSQL advisory lock serializes execution across workers. The lock rides
+    its own connection for the whole tick, so the per-round commits cannot move it
+    to a connection that would unlock nothing.
     """
-    if not await db_locks.try_advisory_lock(db_session, "incident-tick"):
-        return {"vaults": 0, "spawned": 0, "resolved": 0}
+    async with db_locks.hold_advisory_lock(db_session, "incident-tick") as acquired:
+        if not acquired:
+            return {"vaults": 0, "spawned": 0, "resolved": 0}
 
-    try:
-        vaults = await vault_crud.get_active_ordered(db_session)
-        vault_ids = [vault.id for vault in vaults]
+        try:
+            vaults = await vault_crud.get_active_ordered(db_session)
+            vault_ids = [vault.id for vault in vaults]
 
-        totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
-        for vault_id in vault_ids:
-            stats = await process_vault_incidents(service, db_session, vault_id, seconds_passed)
-            totals["spawned"] += stats["spawned"]
-            totals["resolved"] += stats["resolved"]
-    except Exception:
-        # The session is in a failed state after an error; roll back so the
-        # advisory unlock below can run on a healthy transaction.
-        await db_session.rollback()
-        raise
-    else:
-        return totals
-    finally:
-        await db_locks.release_advisory_lock(db_session, "incident-tick", swallow_errors=True)
+            totals = {"vaults": len(vault_ids), "spawned": 0, "resolved": 0}
+            for vault_id in vault_ids:
+                stats = await process_vault_incidents(service, db_session, vault_id, seconds_passed)
+                totals["spawned"] += stats["spawned"]
+                totals["resolved"] += stats["resolved"]
+        except Exception:
+            # Leave the session clean before propagating; the lock no longer
+            # depends on this transaction, so the rollback is only hygiene.
+            await db_session.rollback()
+            raise
+        else:
+            return totals

@@ -129,11 +129,12 @@ recoverable boundary.
 transport exceptions stay in the API layer, transaction boundaries are explicit, and each batch passes its focused
 suite plus the full backend suite.
 
-- [ ] **Advisory-lock connection pinning** — a session-level advisory lock is acquired and released on
-  `db_session`, which may hand out a different pooled connection after intermediate commits. Currently bounded
-  because the tick actors run through `task_session()` (fresh engine per run, disposed at run end), so the lock is
-  freed on dispose — latent, not live. Harden by pinning the lock to a dedicated `AsyncConnection` for its full
-  lifetime, plus a real-PostgreSQL integration test that commits between acquire and release.
+- [x] ~~**Advisory-lock connection pinning**~~ — shipped (#688). The lock now rides a dedicated
+  `AsyncConnection` for its whole block (`db_locks.hold_advisory_lock`), so intermediate commits cannot move it,
+  and a real-PostgreSQL integration test commits between acquire and release. The failure was worse than
+  "latent": when the session's connection is closed on the commit that releases it (fresh or null-pooled
+  engine), the lock is dropped mid-tick, so the serialization did not hold at all rather than merely leaking.
+  The arena tick also discarded whether the lock was acquired and fought regardless — now it skips.
 
 ### P1 — Quest mechanics, rewards, and objectives
 

@@ -291,9 +291,7 @@ async def test_faction_and_team_reductions_truncate_once(
     await async_session.commit()
 
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
-    _, _, taken = await apply_damage(
-        async_session, incident, [dweller], 3.0, active_member_ids=frozenset({dweller.id})
-    )
+    _, _, taken = await apply_damage(async_session, incident, [dweller], 3.0, active_member_ids=frozenset({dweller.id}))
 
     assert int(int(3 * (1 - 0.15)) * (1 - 0.20)) == 1  # what per-source truncation produced
     assert taken == 2

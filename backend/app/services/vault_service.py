@@ -28,6 +28,7 @@ from app.crud.relationship import relationship_crud
 from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models import Dweller, Room, Storage
+from app.models.outfit import Outfit
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride, DwellerUpdate
 from app.schemas.room import RoomCreate, RoomCreateWithoutVaultID
@@ -58,6 +59,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
 )
+from app.utils.item_factory import build_outfit, build_weapon
 from app.utils.resource_warnings import get_resource_warnings
 
 
@@ -570,11 +572,22 @@ class VaultService:
             await db_session.commit()
             self.logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
 
+    def _build_boosted_outfits(self, storage_id: UUID4) -> list[Outfit]:
+        """Spare hazard-team suits from the outfit catalog, so resists stay correct."""
+        from app.services.exploration.data_loader import load_outfits
+
+        catalog = {str(entry["name"]).strip().lower(): entry for entry in load_outfits()}
+        outfits: list[Outfit] = []
+        for name, count in BOOSTED_SEED_OUTFITS:
+            entry = catalog.get(name.strip().lower())
+            if entry is None:
+                self.logger.warning("Boosted outfit %r missing from catalog, skipping", name)
+                continue
+            outfits.extend(build_outfit(entry, entry["rarity"], storage_id) for _ in range(count))
+        return outfits
+
     async def _create_initial_items(self, db_session: AsyncSession, vault_id: UUID4, is_boosted: bool = False) -> None:
         """Create initial weapons and outfits for testing, plus crafting junk when boosted."""
-
-        from app.utils.item_factory import build_outfit, build_weapon
-
         storage = await storage_crud.get_by_vault(db_session, vault_id)
         if not storage:
             return
@@ -582,14 +595,7 @@ class VaultService:
         weapons = [build_weapon(data, data["rarity"], storage.id) for data in SEED_WEAPONS]
         outfits = [build_outfit(data, data["rarity"], storage.id) for data in SEED_OUTFITS]
         if is_boosted:
-            from app.services.exploration.data_loader import load_outfits
-
-            catalog = {str(entry["name"]): entry for entry in load_outfits()}
-            for name, count in BOOSTED_SEED_OUTFITS:
-                entry = catalog.get(name)
-                if entry is None:
-                    continue
-                outfits.extend(build_outfit(entry, RarityEnum(entry["rarity"]), storage.id) for _ in range(count))
+            outfits.extend(self._build_boosted_outfits(storage.id))
         await weapon_crud.create_many(db_session, weapons)
         await outfit_crud.create_many(db_session, outfits)
         if is_boosted:
@@ -598,13 +604,13 @@ class VaultService:
 
     async def _create_boosted_legendary_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> None:
         """Add a small, equipped legendary roster for boosted-vault testing via shared flow."""
-        from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponTypeEnum
-        from app.models.outfit import Outfit
+        from app.core.enums import RarityEnum, WeaponTypeEnum
         from app.models.weapon import Weapon
         from app.services.dweller_service import dweller_service
-        from app.utils.outfit_assets import get_outfit_image_url
+        from app.services.exploration.data_loader import load_outfits
         from app.utils.weapon_assets import get_weapon_image_url
 
+        catalog = {str(entry["name"]).strip().lower(): entry for entry in load_outfits()}
         legendary_weapons = []
         legendary_outfits = []
         for template_id, weapon_name, outfit_name, weapon_subtype in BOOSTED_LOADOUTS:
@@ -626,15 +632,13 @@ class VaultService:
                     dweller_id=dweller.id,
                 )
             )
-            legendary_outfits.append(
-                Outfit(
-                    name=outfit_name,
-                    rarity=RarityEnum.LEGENDARY,
-                    outfit_type=OutfitTypeEnum.LEGENDARY,
-                    image_url=get_outfit_image_url(outfit_name),
-                    dweller_id=dweller.id,
-                )
-            )
+            entry = catalog.get(outfit_name.strip().lower())
+            if entry is None:
+                self.logger.warning("Boosted outfit %r missing from catalog, skipping", outfit_name)
+                continue
+            outfit = build_outfit(entry, entry["rarity"], storage_id=None)
+            outfit.dweller_id = dweller.id
+            legendary_outfits.append(outfit)
 
         if legendary_weapons:
             await weapon_crud.create_many(db_session, legendary_weapons)

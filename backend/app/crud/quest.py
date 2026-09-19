@@ -167,20 +167,12 @@ class CRUDQuest(
             link_result = await db_session.execute(link_stmt)
             links_by_quest = {link.quest_id: link for link in link_result.scalars().all()}
 
-        completed_link_stmt = select(self.link_model.quest_id).where(
-            self.link_model.vault_id == vault_id,
-            self.link_model.is_completed.is_(True),
-        )
-        completed_link_result = await db_session.execute(completed_link_stmt)
-        completed_quest_ids = {str(quest_id) for quest_id in completed_link_result.scalars().all()}
-
         result_items = []
         for quest in quests:
             link = links_by_quest.get(quest.id)
             reqs = reqs_by_quest.get(quest.id, [])
             rewards = rewards_by_quest.get(quest.id, [])
             previous_quest_id = _previous_quest_id(quest, reqs)
-            is_unlocked = previous_quest_id is None or str(previous_quest_id) in completed_quest_ids
 
             result_items.append(
                 QuestRead(
@@ -198,7 +190,7 @@ class CRUDQuest(
                     next_quest_id=quest.next_quest_id,
                     created_at=quest.created_at,
                     updated_at=quest.updated_at,
-                    is_visible=(link.is_visible if link else False) and is_unlocked,
+                    is_visible=link.is_visible if link else False,
                     is_completed=link.is_completed if link else False,
                     is_reward_ready=link.is_reward_ready if link else False,
                     started_at=link.started_at if link else None,
@@ -295,16 +287,14 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
-    async def get_visible_quests_for_vault(self, db_session: AsyncSession, vault_id: UUID4) -> list[Quest]:
-        """Quests with a visible link for the vault, requirements/rewards eager-loaded."""
+    async def get_multi_by_ids(self, db_session: AsyncSession, quest_ids: list[UUID4]) -> list[Quest]:
+        """Quests by ids with requirements/rewards eager-loaded."""
+        if not quest_ids:
+            return []
         result = await db_session.execute(
             select(Quest)
             .options(selectinload(Quest.quest_requirements), selectinload(Quest.quest_rewards))
-            .join(
-                VaultQuestCompletionLink,
-                and_(Quest.id == VaultQuestCompletionLink.quest_id, VaultQuestCompletionLink.vault_id == vault_id),
-            )
-            .where(VaultQuestCompletionLink.is_visible)
+            .where(Quest.id.in_(quest_ids))
         )
         return list(result.scalars().all())
 

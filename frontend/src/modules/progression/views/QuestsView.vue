@@ -36,13 +36,6 @@ const questTabs = [
   { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
 ]
 
-// Check if a quest is unlocked (no previous quest or previous is completed)
-const isQuestUnlocked = (quest: VaultQuest): boolean => {
-  if (!quest.previous_quest_id) return true
-  const previousQuest = questStore.vaultQuests.find((q) => q.id === quest.previous_quest_id)
-  return previousQuest?.is_completed ?? false
-}
-
 // Filtered available quests based on toggle
 const filteredAvailableQuests = computed(() => {
   const isAvailableQuest = (q: VaultQuest) => !q.started_at && !q.is_completed
@@ -51,7 +44,7 @@ const filteredAvailableQuests = computed(() => {
     return questStore.vaultQuests.filter(isAvailableQuest)
   }
   return questStore.vaultQuests.filter(
-    (q) => q.is_visible && isAvailableQuest(q) && isQuestUnlocked(q)
+    (q) => q.is_visible && isAvailableQuest(q) && !q.is_locked
   )
 })
 
@@ -67,11 +60,10 @@ const grantedRewards = ref<components['schemas']['QuestCompleteResponse']['grant
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
 
-const hasOverseerOffice = computed(() => {
-  return roomStore.rooms.some(
-    (room) => room.name.toLowerCase().includes('overseer') || room.category === 'quests'
-  )
-})
+// The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
+const officeLocked = computed(() =>
+  questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")
+)
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
@@ -208,12 +200,10 @@ onMounted(async () => {
     await roomStore.fetchRooms(vaultId.value, token)
     await dwellerStore.fetchDwellersByVault(vaultId.value, token)
 
-    if (hasOverseerOffice.value) {
-      // Fetch all quests so we can filter client-side (including locked ones)
-      await questStore.fetchVaultQuests(vaultId.value)
-      await questStore.fetchAllQuests()
-      await loadPartyMembers()
-    }
+    // Fetch all quests so we can filter client-side (including locked ones)
+    await questStore.fetchVaultQuests(vaultId.value)
+    await questStore.fetchAllQuests()
+    await loadPartyMembers()
   }
 })
 </script>
@@ -230,7 +220,7 @@ onMounted(async () => {
       <div class="main-content flicker" :class="{ collapsed: isCollapsed }">
         <PageContentRail>
           <!-- Locked State -->
-          <div v-if="!hasOverseerOffice" class="locked-container">
+          <div v-if="officeLocked" class="locked-container">
             <div class="locked-icon">
               <Icon icon="mdi:lock" class="text-9xl opacity-50" />
             </div>
@@ -312,8 +302,8 @@ onMounted(async () => {
                         :key="quest.id"
                         :quest="quest"
                         :vault-id="vaultId"
-                        :status="isQuestUnlocked(quest) ? 'available' : 'locked'"
-                        :is-locked="!isQuestUnlocked(quest)"
+                        :status="quest.is_locked ? 'locked' : 'available'"
+                        :is-locked="quest.is_locked"
                         :party-members="questPartyMembersMap[quest.id] || []"
                         @start="vaultId && questStore.startQuest(vaultId, $event)"
                         @assign-party="handleAssignParty"

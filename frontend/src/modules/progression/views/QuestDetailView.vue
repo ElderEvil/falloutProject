@@ -53,6 +53,8 @@ onMounted(async () => {
         quest.value = {
           ...generalQuest,
           is_visible: false,
+          is_locked: false,
+          lock_reason: null,
           is_completed: false,
           started_at: null,
           duration_minutes: null,

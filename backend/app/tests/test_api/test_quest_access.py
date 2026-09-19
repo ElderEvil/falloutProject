@@ -21,7 +21,7 @@ async def test_read_vault_quests_checks_access_before_querying() -> None:
             "app.api.v1.endpoints.quest.get_user_vault_or_403",
             new=AsyncMock(side_effect=HTTPException(status_code=403, detail="Forbidden")),
         ),
-        patch("app.api.v1.endpoints.quest.crud.quest_crud.get_multi_for_vault", new=AsyncMock()) as get_quests,
+        patch("app.api.v1.endpoints.quest.quest_service.get_quests_for_vault", new=AsyncMock()) as get_quests,
         pytest.raises(HTTPException, match="Forbidden"),
     ):
         await read_vault_quests(vault_id, db_session, user)

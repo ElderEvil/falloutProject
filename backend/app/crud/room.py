@@ -13,6 +13,7 @@ from app.schemas.room import RoomCreate, RoomRead, RoomUpdate
 from app.utils.exceptions import (
     UniqueRoomViolationException,
 )
+from app.utils.objective_constants import normalize_room_type
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,15 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         """Get set of lowercase room names that exist in a vault."""
         response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
         return {name.lower() for name in response.scalars().all()}
+
+    @staticmethod
+    async def has_room_type(db_session: AsyncSession, vault_id: UUID4, room_type: str) -> bool:
+        """Whether the vault has a built room matching the normalized room type."""
+        normalized = normalize_room_type(room_type)
+        if normalized is None:
+            return False
+        response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))
+        return any(normalize_room_type(name) == normalized for name in response.scalars().all())
 
     @staticmethod
     async def get_by_name_pattern(db_session: AsyncSession, vault_id: UUID4, pattern: str) -> list[Room]:

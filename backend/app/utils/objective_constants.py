@@ -77,6 +77,7 @@ ROOM_TYPE_ALIASES: dict[str, str] = {
     "water_purifier": "water_purification",
     "nuclear": "nuclear_reactor",
     "garden": "garden",
+    "overseer's_office": "overseers_office",
 }
 
 # Map from resource type aliases to canonical names

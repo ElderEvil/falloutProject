@@ -2,6 +2,7 @@
 
 import logging
 from typing import Any
+from uuid import UUID
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -32,7 +33,7 @@ class PrerequisiteService:
         item_name = requirement_data.get("item_name", "")
         required_count = requirement_data.get("count", 1)
 
-        storage = await crud.storage.get_by_vault(db_session, vault_id)
+        storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         if not storage:
             return False
 
@@ -66,6 +67,12 @@ class PrerequisiteService:
         quest_id = requirement_data.get("quest_id")
         if not quest_id:
             logger.warning("quest_completed requirement missing quest_id")
+            return False
+
+        try:
+            quest_id = UUID(str(quest_id))
+        except (TypeError, ValueError):
+            logger.warning(f"quest_completed requirement has invalid quest_id: {quest_id}")
             return False
 
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)

@@ -141,6 +141,13 @@ suite plus the full backend suite.
 The progression loop must be correct and balanced before it grows. Quest rewards and mechanics need an end-to-end
 audit; objectives need deliberate in-game validation rather than relying only on automated coverage.
 
+- [ ] **Sequenced starter objectives & progress-relative quest gates** — plan ready:
+  `.omo/plans/quest-objective-progression.md`. Make the Objective system the primary instruction surface from vault
+  start until the Overseer's Office is built (an ordered `starter` objective arc whose current step is derived, never
+  written on completion), and replace the fixed dweller-level quest gates with vault-progress gates
+  (population/rooms/completed quests) enforced on both the read and the start path. Locked decisions: sequenced
+  objectives, vault-progress gates, the Office gate kept (18 dwellers + 1000 caps), an earn-by-exploration guidance
+  path (no reward tuning or income floor), pre-Office tabs hidden, and all quests gated on the Office — plan §9.
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.
@@ -902,6 +909,11 @@ Design notes: step order should follow actual dependency order (power → water/
 exploration); each step needs a skippable/dismissable state so returning players are not forced through it;
 completion state should persist per user (localStorage or server-side).
 
+**Delivery vehicle (decided 2026-09-19):** the pre-Overseer's-Office portion is delivered through the **sequenced
+starter objectives** (`.omo/plans/quest-objective-progression.md`), not a separate modal tour. Progress persists
+server-side via `VaultObjectiveProgressLink`, which resolves the localStorage-vs-server-side blocker for that phase;
+later onboarding phases and skippability remain open.
+
 ### Celldweller Easter Egg (idea, Target: TBD)
 
 In-game homage to the band Celldweller (fits the Fallout aesthetic — electro/industrial wasteland vibes).
@@ -1045,6 +1057,35 @@ source; curated copies land in `frontend/public/audio/`).
 and the git-ignored source library never reaches CI. No pipeline changes needed; revisit cache headers or
 object storage only if the curated set grows large.
 
+### Sequenced Starter Objectives & Progress-Relative Quest Gating (P1 — plan ready)
+
+**Plan:** `.omo/plans/quest-objective-progression.md` (recorded 2026-09-19).
+
+**Focus:** the Objective system becomes the source of "what do I do next" from vault start until the Overseer's
+Office is built, and quest unlocking tracks vault progress rather than fixed dweller levels.
+
+- Add a `starter` objective category (column is `VARCHAR(50)` → no PG enum migration) plus explicit `sequence` and
+  `description`, seeded as one ordered arc at vault initiation; the current step is **derived at read time**
+  (lowest unfinished sequence) so there is **no completion→unlock write** across background sessions. Pre-Office,
+  the objectives view shows only this arc (daily/weekly/achievement tabs hidden).
+- The arc teaches the player to **earn** the Overseer's Office's 1000 caps by exploring the wasteland and selling
+  loot (a `collect caps` step already counts that income via `deposit_caps`' `RESOURCE_COLLECTED`), then capstones
+  on **Build Overseer's Office** — the hand-off to quests. The Office gate stays at population 18 + 1000 caps; no
+  income floor or reward tuning is added.
+- Unify quest availability into one function used by both the read path and `POST /start`, fixing the current
+  "listed as available but rejected at start" mismatch.
+- Move the "**all** quests require the Overseer's Office" rule from the frontend into the backend as the single
+  source of truth and expose `is_locked`/`lock_reason` to clients.
+- Re-author the fixed gates — Against the Odds (level 46), A Poorly-Thought-Out Plan (44), A Gathering of Ghouls
+  (27) — and the display-only gates on the 8 `power_struggle` quests onto `DWELLER_COUNT`/`ROOM`/`QUEST_COMPLETED`
+  plus chain order, so advertised gates are always enforced.
+- Boosted vaults (seeded with the Office) skip the arc; existing vaults are not back-filled.
+
+**Non-goals (this plan):** economy changes to the D1 soft-lock (guidance only), persisting `quest_objective` step
+text, and new quest kinds — all tracked separately. **Blocking decisions:** all resolved 2026-09-19 (plan §9).
+
+---
+
 ### Quest System Completion & Expansion (P1 correctness, P2 new mechanics)
 
 **P1 — correctness before expansion:** existing quest mechanics and rewards are the immediate priority (see Active
@@ -1098,12 +1139,12 @@ Current blocker map (what stalls what):
 
 | Blocker                               | Stalls                                                                          | Unblocking work                                                              |
 | ------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Chain gating model decision           | Locked quest chains                                                             | Decide `QuestRequirement` condition types vs new gating table                |
+| Chain gating model (**resolved 2026-09-19**) | Locked quest chains                                                       | Progress-relative gates reuse existing `DWELLER_COUNT`/`ROOM`/`QUEST_COMPLETED` + chain order + a backend-owned Office gate; no new requirement type or gating table (`.omo/plans/quest-objective-progression.md`) |
 | Room construction events              | Building quests                                                                 | Emit quest-checkable events on room create/upgrade                           |
 | Interactive quest-step schema + UI    | Quiz/puzzle quests                                                              | Content schema + quest-detail interaction surface (largest quest item)       |
 | Trading PoC validation                | Trading Post graduation (weapons/outfits tabs, coverage re-inclusion)           | Playtest the dweller loop, then graduate per the WIP sidebar marker          |
 | Bio structured-entry storage decision | Bio extension (action-driven updates)                                           | Decide JSONB vs side-table; template bios are NOT blocked and can ship first |
-| Onboarding step persistence decision  | Onboarding feature                                                              | Choose localStorage vs server-side completion state                          |
+| Onboarding persistence (**pre-Office resolved 2026-09-19**) | Post-Office onboarding phases                                 | Pre-Office phase persists server-side via objective links; later phases still choose localStorage vs server-side |
 
 ---
 
@@ -1117,6 +1158,7 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-09-11_ — progression correctness is P1: audit quest mechanics/rewards, then balance objectives from
-manual playtesting. The world map remains single-vault exploration; multiplayer is out of scope. Investigate reported
-notification click-through failures after reproducible cases are collected.
+_Last updated: 2026-09-19_ — quest/objective progression plan recorded
+(`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive pre-Overseer's-Office guidance and
+quest gates move to vault progress. Progression correctness remains P1; the D1 soft-lock stays a separate decision.
+The world map remains single-vault exploration; multiplayer is out of scope.

@@ -1,6 +1,7 @@
 """Tests for quest seeding utility."""
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,8 +14,52 @@ from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.schemas.quest import QuestRewardJSON
+from app.utils.load_quests import load_all_quest_chain_files
 from app.utils.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
+
+_LEVEL_GATE_RE = re.compile(r"level\s+(\d+)", re.IGNORECASE)
+_PREDECESSOR_RE = re.compile(r"complete\s+['\"]?([^'\"]+?)['\"]?\s+quest", re.IGNORECASE)
+
+
+def test_quest_display_requirements_never_advertise_unenforced_gates() -> None:
+    """Display text must never advertise a gate the quest does not enforce.
+
+    Guards the P-B class of bug: a quest whose display "Requirements" text
+    advertises a "Level N" gate or a "Complete 'X' quest" predecessor while the
+    enforced quest_requirements rows are missing or disagree. Parses the quest
+    JSON the same way the seeder does (load_all_quest_chain_files).
+    """
+    violations: list[str] = []
+    for chain in load_all_quest_chain_files():
+        for quest in chain.quests:
+            display_lines = quest.requirements if isinstance(quest.requirements, list) else [quest.requirements]
+            enforced_levels = {
+                req.requirement_data.get("level")
+                for req in quest.quest_requirements
+                if req.requirement_type.upper() == "LEVEL" and req.is_mandatory
+            }
+            enforced_predecessors = {
+                req.requirement_data.get("quest_name")
+                for req in quest.quest_requirements
+                if req.requirement_type.upper() == "QUEST_COMPLETED" and req.is_mandatory
+            }
+            for line in display_lines:
+                for match in _LEVEL_GATE_RE.finditer(line):
+                    advertised_level = int(match.group(1))
+                    if advertised_level not in enforced_levels:
+                        violations.append(
+                            f"{quest.quest_name}: advertises 'Level {advertised_level}' but has no "
+                            "matching enforced LEVEL requirement"
+                        )
+                for match in _PREDECESSOR_RE.finditer(line):
+                    advertised_quest = match.group(1).strip()
+                    if advertised_quest not in enforced_predecessors:
+                        violations.append(
+                            f"{quest.quest_name}: advertises completing '{advertised_quest}' but has no "
+                            "matching enforced QUEST_COMPLETED requirement"
+                        )
+    assert not violations, "Quest display text advertises gates that are not enforced:\n" + "\n".join(violations)
 
 
 def test_quest_item_reward_normalizes_quantity_to_integer() -> None:

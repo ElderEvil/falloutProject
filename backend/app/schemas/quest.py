@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import UUID4, Field, model_validator
 from sqlmodel import SQLModel
@@ -33,6 +33,8 @@ class QuestRead(QuestBase):
     previous_quest_id: UUID4 | None = None
     next_quest_id: UUID4 | None = None
     is_visible: bool = True
+    is_locked: bool = False
+    lock_reason: str | None = None
     is_completed: bool = False
     is_reward_ready: bool = False
     started_at: datetime | None = None
@@ -102,11 +104,14 @@ class QuestRequirementJSON(SQLModel):
     is_mandatory: bool = True
 
 
+ItemType = Literal["weapon", "outfit", "junk", "consumable", "lunchbox", "pet", "dweller"]
+
+
 class QuestItemData(SQLModel):
     """Typed authored data for an inventory reward, serialized into JSONB on persistence."""
 
     name: str | None = None
-    item_type: Literal["weapon", "outfit", "junk", "consumable", "lunchbox", "pet", "dweller"] | None = None
+    item_type: ItemType | None = None
     rarity: str = "common"
     value: int | None = None
     image_url: str | None = None
@@ -155,7 +160,7 @@ def normalize_item_reward(
     if normalized_item_data.name is None:
         normalized_item_data.name = item_name
     if normalized_item_data.item_type is None:
-        normalized_item_data.item_type = infer_item_type(item_name, normalized_item_data)
+        normalized_item_data.item_type = cast(ItemType, infer_item_type(item_name, normalized_item_data))
     if "quantity" not in normalized_reward_data and "amount" in normalized_reward_data:
         normalized_reward_data["quantity"] = normalized_reward_data["amount"]
     if "quantity" in normalized_reward_data:

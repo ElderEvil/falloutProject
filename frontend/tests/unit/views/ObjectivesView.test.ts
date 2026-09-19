@@ -24,31 +24,31 @@ const claimableObjective: Objective = {
   created_at: '',
 }
 
-describe('ObjectivesView claim flow', () => {
-  let wrapper: VueWrapper
-  let objectivesStore: ReturnType<typeof useObjectivesStore>
+let wrapper: VueWrapper
+let objectivesStore: ReturnType<typeof useObjectivesStore>
 
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    objectivesStore = useObjectivesStore()
-    vi.clearAllMocks()
-    vi.spyOn(objectivesStore, 'fetchObjectives').mockResolvedValue()
-  })
-
-  function mountView() {
-    return mount(ObjectivesView, {
-      attachTo: document.body,
-      global: {
-        stubs: {
-          SidePanel: true,
-          PageContentRail: { template: '<div><slot /></div>' },
-          PageHeader: true,
-          Icon: true,
-        },
+function mountView() {
+  return mount(ObjectivesView, {
+    attachTo: document.body,
+    global: {
+      stubs: {
+        SidePanel: true,
+        PageContentRail: { template: '<div><slot /></div>' },
+        PageHeader: true,
+        Icon: true,
       },
-    })
-  }
+    },
+  })
+}
 
+beforeEach(() => {
+  setActivePinia(createPinia())
+  objectivesStore = useObjectivesStore()
+  vi.clearAllMocks()
+  vi.spyOn(objectivesStore, 'fetchObjectives').mockResolvedValue()
+})
+
+describe('ObjectivesView claim flow', () => {
   it('claiming an objective calls completeObjective and opens the completion modal', async () => {
     objectivesStore.objectives = [{ ...claimableObjective }]
     const completed = { ...claimableObjective, is_completed: true }
@@ -86,5 +86,95 @@ describe('ObjectivesView claim flow', () => {
     const modal = wrapper.findComponent(ObjectiveCompleteModal)
     expect(modal.props('show')).toBe(false)
     expect(wrapper.text()).toContain('Claim failed')
+  })
+})
+
+describe('ObjectivesView starter arc', () => {
+  it('renders the lowest-sequence incomplete starter step as the Next-step hero and hides the tabs', async () => {
+    objectivesStore.objectives = [
+      {
+        ...claimableObjective,
+        id: 'starter-1',
+        category: 'starter',
+        sequence: 1,
+        challenge: 'Assign dwellers to Power',
+        description: 'Open the Power Generator and assign dwellers.',
+        progress: 0,
+        total: 3,
+      },
+      {
+        ...claimableObjective,
+        id: 'starter-2',
+        category: 'starter',
+        sequence: 2,
+        challenge: 'Collect 150 Power',
+        description: 'Power keeps every room running.',
+        progress: 0,
+        total: 150,
+      },
+      { ...claimableObjective, id: 'daily-1', challenge: 'Collect 100 caps' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.next-step-hero').exists()).toBe(true)
+    expect(wrapper.text()).toContain('NEXT STEP')
+    expect(wrapper.text()).toContain('Assign dwellers to Power')
+    expect(wrapper.text()).toContain('Open the Power Generator and assign dwellers.')
+    expect(wrapper.text()).not.toContain('Collect 150 Power')
+    expect(wrapper.find('.utabs').exists()).toBe(false)
+  })
+
+  it('renders the tabbed grid when no starter step is incomplete', async () => {
+    objectivesStore.objectives = [
+      {
+        ...claimableObjective,
+        id: 'starter-1',
+        category: 'starter',
+        sequence: 1,
+        challenge: 'Assign dwellers to Power',
+        progress: 3,
+        total: 3,
+        is_completed: true,
+      },
+      { ...claimableObjective, id: 'daily-1', challenge: 'Collect 100 caps' },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.next-step-hero').exists()).toBe(false)
+    expect(wrapper.find('.utabs').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Collect 100 caps')
+  })
+
+  it('lets the player claim a finished current step from the hero', async () => {
+    objectivesStore.objectives = [
+      {
+        ...claimableObjective,
+        id: 'starter-1',
+        category: 'starter',
+        sequence: 1,
+        challenge: 'Assign dwellers to Power',
+        progress: 3,
+        total: 3,
+      },
+    ]
+    const completed = { ...objectivesStore.objectives[0], is_completed: true }
+    const completeSpy = vi.spyOn(objectivesStore, 'completeObjective').mockResolvedValue(completed)
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const claimButton = wrapper.find('.next-step-hero .claim-btn')
+    expect(claimButton.exists()).toBe(true)
+    await claimButton.trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(completeSpy).toHaveBeenCalledWith('vault-123', 'starter-1')
+    const modal = wrapper.findComponent(ObjectiveCompleteModal)
+    expect(modal.props('show')).toBe(true)
   })
 })

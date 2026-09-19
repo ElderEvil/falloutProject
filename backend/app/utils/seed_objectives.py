@@ -23,6 +23,8 @@ def _transform_objective_create_to_model(objective_data: ObjectiveCreate) -> Obj
         objective_type=objective_data.objective_type,
         target_entity=objective_data.target_entity,
         target_amount=objective_data.target_amount,
+        sequence=objective_data.sequence,
+        description=objective_data.description,
     )
 
 

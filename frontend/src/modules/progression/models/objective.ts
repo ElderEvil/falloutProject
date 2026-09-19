@@ -4,10 +4,11 @@
  * Represents a challenge or objective for a vault that can be completed
  * for rewards (e.g., "Collect 100 caps", "Train 5 dwellers")
  */
-export type ObjectiveCategory = 'daily' | 'weekly' | 'achievement'
+export type ObjectiveCategory = 'daily' | 'weekly' | 'achievement' | 'starter'
 
 export type ObjectiveType =
   | 'assign'
+  | 'assign_correct'
   | 'build'
   | 'collect'
   | 'expedition'
@@ -26,6 +27,8 @@ export interface Objective {
   category: ObjectiveCategory
   objective_type?: ObjectiveType
   target_entity?: Record<string, unknown>
+  sequence?: number | null
+  description?: string | null
   created_at: string
   completed_at?: string
 }

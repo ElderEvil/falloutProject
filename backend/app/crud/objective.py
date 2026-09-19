@@ -3,10 +3,12 @@ import logging
 from collections.abc import Sequence
 
 from pydantic import UUID4
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ObjectiveCategoryEnum
 from app.crud.base import CRUDBase
 from app.models import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
@@ -61,6 +63,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 objective_type=obj.objective_type,
                 target_entity=obj.target_entity,
                 target_amount=obj.target_amount,
+                sequence=obj.sequence,
+                description=obj.description,
                 progress=progress,
                 total=total,
                 is_completed=is_completed,
@@ -108,7 +112,24 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     async def get_active_with_links(
         self, db_session: AsyncSession, vault_id: UUID4, objective_type: str
     ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
-        """(objective, link) pairs of unfinished vault objectives of one objective_type."""
+        """(objective, link) pairs of unfinished vault objectives of one objective_type.
+
+        Only the current ``starter`` step (lowest ``sequence`` unfinished link) is
+        returned for the ``starter`` category; non-current starter steps are excluded
+        so evaluators never progress an out-of-order objective. Non-starter
+        categories are unaffected.
+        """
+        current_starter_id = (
+            select(self.model.id)
+            .join(self.link_model)
+            .where(
+                self.link_model.vault_id == vault_id,
+                self.link_model.is_completed.is_(False),
+                col(self.model.category) == ObjectiveCategoryEnum.STARTER,
+            )
+            .order_by(col(self.model.sequence))
+            .limit(1)
+        )
         query = (
             select(self.model, self.link_model)
             .join(self.link_model)
@@ -116,12 +137,22 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 self.link_model.vault_id == vault_id,
                 self.link_model.is_completed.is_(False),
                 self.model.objective_type == objective_type,
+                or_(
+                    col(self.model.category) != ObjectiveCategoryEnum.STARTER,
+                    col(self.model.id).in_(current_starter_id),
+                ),
             )
         )
         return list((await db_session.execute(query)).all())
 
     async def assign_initial(self, db_session: AsyncSession, vault_id: UUID4, *, is_boosted: bool) -> int:
-        """Assign the deterministic starter objective set for a new vault."""
+        """Assign the deterministic starter objective set for a new vault.
+
+        Standard vaults get the full ``starter`` arc (ordered by ``sequence``)
+        plus the first daily and first weekly objective. Boosted vaults skip the
+        arc (the Overseer's Office is already seeded) and draw 8 objectives from
+        every category except ``daily``/``weekly``/``starter``.
+        """
         try:
             categories = ["daily", "weekly"]
             objectives = [
@@ -139,13 +170,31 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                 result = await db_session.execute(
                     select(self.model)
                     .where(
-                        col(self.model.category).not_in(categories),
+                        col(self.model.category).not_in([*categories, ObjectiveCategoryEnum.STARTER]),
                         col(self.model.objective_type).is_not(None),
                     )
                     .order_by(col(self.model.id))
                     .limit(8)
                 )
                 objectives.extend(result.scalars().all())
+            else:
+                starter = list(
+                    (
+                        await db_session.execute(
+                            select(self.model)
+                            .where(
+                                col(self.model.category) == ObjectiveCategoryEnum.STARTER,
+                                col(self.model.objective_type).is_not(None),
+                            )
+                            .order_by(col(self.model.sequence))
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                if not starter:
+                    logger.error("No starter objectives seeded for vault %s", vault_id)
+                objectives.extend(starter)
             links = [
                 self.link_model(
                     vault_id=vault_id,

@@ -360,6 +360,95 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
     assert vault.bottle_caps == initial_caps + 10
 
 
+@pytest.mark.asyncio
+async def test_only_current_starter_step_progresses(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Only the current starter step (lowest unfinished sequence) progresses."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+
+    links = []
+    for sequence in range(3):
+        objective = Objective(
+            challenge=f"Starter collect {sequence}",
+            reward="10 food",
+            objective_type="collect",
+            target_entity={"resource_type": "caps"},
+            target_amount=5,
+            category=ObjectiveCategoryEnum.STARTER,
+            sequence=sequence,
+        )
+        async_session.add(objective)
+        await async_session.flush()
+        link = VaultObjectiveProgressLink(
+            vault_id=vault.id, objective_id=objective.id, progress=0, total=5, is_completed=False
+        )
+        async_session.add(link)
+        links.append(link)
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
+
+    await async_session.refresh(links[0])
+    await async_session.refresh(links[1])
+    await async_session.refresh(links[2])
+    assert links[0].progress == 1
+    assert links[1].progress == 0
+    assert links[2].progress == 0
+
+
+@pytest.mark.asyncio
+async def test_completing_current_starter_step_advances_to_next(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Completing the current step makes the next step current on the following read."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+
+    links = []
+    for sequence in range(2):
+        objective = Objective(
+            challenge=f"Starter collect {sequence}",
+            reward="10 food",
+            objective_type="collect",
+            target_entity={"resource_type": "caps"},
+            target_amount=1,
+            category=ObjectiveCategoryEnum.STARTER,
+            sequence=sequence,
+        )
+        async_session.add(objective)
+        await async_session.flush()
+        link = VaultObjectiveProgressLink(
+            vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
+        )
+        async_session.add(link)
+        links.append(link)
+    await async_session.commit()
+
+    CollectEvaluator(fresh_event_bus)
+
+    await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
+    await async_session.refresh(links[0])
+    assert links[0].is_completed is True
+
+    await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
+    await async_session.refresh(links[1])
+    assert links[1].progress == 1
+
+
 class TestAliasMatching:
     """Tests for evaluator alias matching functionality."""
 

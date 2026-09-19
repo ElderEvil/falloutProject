@@ -79,6 +79,8 @@ export interface QuestPartyMember {
  */
 export interface VaultQuest extends Quest {
   is_visible: boolean
+  is_locked: boolean
+  lock_reason: string | null
   is_completed: boolean
   is_reward_ready?: boolean
   started_at: string | null

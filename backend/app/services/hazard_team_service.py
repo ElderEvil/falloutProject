@@ -9,12 +9,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.enums import HazardTeam
 from app.crud import outfit as outfit_crud
 from app.crud.dweller import dweller as crud_dweller
-from app.crud.hazard_team import hazard_team_crud
 from app.crud.incident_participant import incident_participant_crud
 from app.crud.storage import storage as crud_storage
+from app.crud.team import team_crud
 from app.models.dweller import Dweller
-from app.models.hazard_team import ACTIVE_STATUS, RESERVE_STATUS, HazardTeamMember
 from app.models.incident import HAZARD_TEAM_INCIDENT_TYPES, Incident, hazard_team_for
+from app.models.team import ACTIVE_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamMemberRead, HazardTeamRosterRead
 from app.services.bio_service import bio_service
 from app.services.notification_service import notification_service
@@ -55,12 +55,12 @@ class HazardTeamRoundResult:
     matching team, so callers apply the response bonus without re-querying.
     """
 
-    new_places: list[HazardTeamMember]
+    new_places: list[TeamMember]
     active_gainers: list[Dweller]
     active_ids: frozenset[UUID4] = frozenset()
 
 
-class ContaminationTeamService:
+class HazardTeamService:
     """Turns incident participation into earned places and bio milestones."""
 
     async def record_participation(
@@ -85,7 +85,7 @@ class ContaminationTeamService:
         # never handed to the newest arrival.
         promoted = await self._promote_bench(db_session, incident.vault_id, team, dwellers_by_id)
         promoted_ids = {place.dweller_id for place, _ in promoted}
-        new_places: list[HazardTeamMember] = [place for place, _ in promoted]
+        new_places: list[TeamMember] = [place for place, _ in promoted]
         active_gainers: list[Dweller] = [dweller for _, dweller in promoted]
         for dweller_id in credited_ids:
             dweller = dwellers_by_id.get(dweller_id)
@@ -99,27 +99,38 @@ class ContaminationTeamService:
                 active_gainers.append(dweller)
         await self._announce_places(db_session, incident.vault_id, team, new_places, promoted_ids, dwellers_by_id)
         active_ids = frozenset(
-            await hazard_team_crud.get_active_member_ids(db_session, incident.vault_id, team, [d.id for d in dwellers])
+            await team_crud.get_active_hazard_member_ids(db_session, incident.vault_id, team, [d.id for d in dwellers])
         )
         return HazardTeamRoundResult(new_places=new_places, active_gainers=active_gainers, active_ids=active_ids)
 
     async def _join_if_qualified(
         self, db_session: AsyncSession, vault_id: UUID4, dweller: Dweller, team: HazardTeam
-    ) -> HazardTeamMember | None:
-        if await hazard_team_crud.get_member(db_session, vault_id, team, dweller.id):
+    ) -> TeamMember | None:
+        if await team_crud.get_hazard_member(db_session, vault_id, team, dweller.id):
             return None
         fought = await incident_participant_crud.count_incidents(
             db_session, dweller.id, HAZARD_TEAM_INCIDENT_TYPES[team]
         )
         if fought < QUALIFYING_INCIDENTS:
             return None
-        active = await hazard_team_crud.count_active(db_session, vault_id, team)
+        active = await team_crud.count_active_hazard(db_session, vault_id, team)
         status = ACTIVE_STATUS if active < TEAM_SIZE else RESERVE_STATUS
-        place = HazardTeamMember(vault_id=vault_id, dweller_id=dweller.id, team=team, status=status)
-        await hazard_team_crud.add(db_session, place)
+        team_row = await team_crud.get_or_create_hazard_team(db_session, vault_id, team)
+        slot_number = await self._next_free_slot(db_session, vault_id, team) if status == ACTIVE_STATUS else None
+        place = TeamMember(team_id=team_row.id, dweller_id=dweller.id, status=status, slot_number=slot_number)
+        await team_crud.add_member(db_session, place)
         self._record_bio_entry(dweller, team, status, fought)
         logger.info(f"{dweller.first_name} {dweller.last_name} joined the {TEAM_LABELS[team]} as {status}")
         return place
+
+    async def _next_free_slot(self, db_session: AsyncSession, vault_id: UUID4, team: HazardTeam) -> int | None:
+        """The lowest unheld slot number (1-3) on the team, or None when full."""
+        await team_crud.free_dead_hazard_slots(db_session, vault_id, team)
+        active = await team_crud.get_hazard_team(db_session, vault_id, team)
+        taken = {
+            place.slot_number for place in active if place.status == ACTIVE_STATUS and place.slot_number is not None
+        }
+        return next((slot for slot in (1, 2, 3) if slot not in taken), None)
 
     def _record_bio_entry(self, dweller: Dweller, team: HazardTeam, status: str, fought: int) -> None:
         label = TEAM_LABELS[team]
@@ -137,14 +148,15 @@ class ContaminationTeamService:
         vault_id: UUID4,
         team: HazardTeam,
         dwellers_by_id: dict[UUID4, Dweller],
-    ) -> list[tuple[HazardTeamMember, Dweller]]:
+    ) -> list[tuple[TeamMember, Dweller]]:
         """Step the most senior bench members into any places a loss freed."""
-        vacancies = TEAM_SIZE - await hazard_team_crud.count_active(db_session, vault_id, team)
-        promoted: list[HazardTeamMember] = []
-        for place in await hazard_team_crud.get_reserve(db_session, vault_id, team):
+        vacancies = TEAM_SIZE - await team_crud.count_active_hazard(db_session, vault_id, team)
+        promoted: list[TeamMember] = []
+        for place in await team_crud.get_hazard_reserve(db_session, vault_id, team):
             if vacancies <= 0:
                 break
             place.status = ACTIVE_STATUS
+            place.slot_number = await self._next_free_slot(db_session, vault_id, team)
             db_session.add(place)
             await db_session.flush()
             promoted.append(place)
@@ -154,7 +166,7 @@ class ContaminationTeamService:
         ]
         if missing_ids:
             dwellers_by_id.update({d.id: d for d in await crud_dweller.get_by_ids(missing_ids, db_session)})
-        stepped_up: list[tuple[HazardTeamMember, Dweller]] = []
+        stepped_up: list[tuple[TeamMember, Dweller]] = []
         for place in promoted:
             dweller = dwellers_by_id.get(place.dweller_id)
             if dweller is not None:
@@ -167,7 +179,7 @@ class ContaminationTeamService:
         db_session: AsyncSession,
         vault_id: UUID4,
         team: HazardTeam,
-        new_places: list[HazardTeamMember],
+        new_places: list[TeamMember],
         promoted_ids: set[UUID4],
         dwellers_by_id: dict[UUID4, Dweller],
     ) -> None:
@@ -239,7 +251,7 @@ class ContaminationTeamService:
         """Every team's roster for a vault, active places and bench included."""
         teams: list[HazardTeamRosterRead] = []
         for team in HazardTeam:
-            places = await hazard_team_crud.get_team(db_session, vault_id, team)
+            places = await team_crud.get_hazard_team(db_session, vault_id, team)
             teams.append(
                 HazardTeamRosterRead(
                     team=team,
@@ -250,8 +262,8 @@ class ContaminationTeamService:
         return ContaminationTeamRead(vault_id=vault_id, teams=teams)
 
 
-contamination_team_service = ContaminationTeamService()
+hazard_team_service = HazardTeamService()
 
 
-def _place_read(place: HazardTeamMember) -> HazardTeamMemberRead:
+def _place_read(place: TeamMember) -> HazardTeamMemberRead:
     return HazardTeamMemberRead(dweller_id=place.dweller_id, status=place.status)

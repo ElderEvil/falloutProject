@@ -126,8 +126,9 @@ Slices 1, 2, 4, 5, 6 and 7 **shipped**; slice 3 is the first follow-up.
 
 ## Still open
 
-1. **Persistence shape** — per-type counts as a JSON dict on `Dweller` (mirrors
-   `apprentice_stat_gains`) vs a participation table; membership as a table vs derived.
+1. **Participation counts** — per-type counts as a JSON dict on `Dweller` (mirrors
+   `apprentice_stat_gains`) vs a participation table. Roster membership itself is settled: it is
+   a table (`Team`/`TeamMember` since #683), not derived.
 2. **Bench semantics** — does a member away on an expedition vacate the slot, and does the bench step
    up automatically or only when asked?
 3. **Resistance semantics** — the team bonus is now defined: `TEAM_RESPONSE_BONUS = 0.20` (each active
@@ -167,14 +168,10 @@ Two constraints this places on the current work:
 
 ## Relation to other plans
 
-- **Quest parties share this shape.** `QuestParty` + `crud/quest_party.assign_party` and
-  `HazardTeamMember` + `contamination_team_service` both answer "which dwellers are on this thing", built
-  separately. The common parts should be extracted so they do not drift — one availability/eligibility
-  policy, and ideally one roster primitive both consume. Three TODOs already ask for it
-  (`crud/quest_party.py:54`, `services/exploration_service.py:130`, and the `is_in_vault_and_active` note
-  in the roadmap simplification backlog). The policy cannot live in `app/services/` (the architecture
-  guard allows CRUD to import only `room_assignment_policy`); `app/utils/` is the home, per AGENTS.md
-  rule 11. Tracked in `docs/ROADMAP.md`.
+- **Quest parties share this shape.** The consolidation shipped in #683: hazard teams ride the same
+  `Team` / `TeamMember` primitive as quest parties and incident crews (third purpose `hazard_team`, active
+  places on `slot_number` 1-3, bench on a NULL slot), with the shared availability/eligibility policy in
+  `utils/dweller_availability.py`. What were three roster shapes is now one.
 - The Jev classifier (`docs/backend/JEV_CLASSIFIER.md`) is where **dispatch** lands: dispatch stays a
   designation-and-record concern until Jev triages threats and decides who gets sent.
   Formation must work deterministically first — Jev consumes the team, it does not gate it.

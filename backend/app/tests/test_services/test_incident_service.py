@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -1246,3 +1247,28 @@ class TestTickCommitBoundaries:
         assert stats["resolved"] == 1
         assert stats["caps_earned"] > 0
         assert commit_spy.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_failed_incident_rolls_back_before_the_next_one(async_session: AsyncSession, vault: Vault) -> None:
+    """A failed round must recover the session, or every later incident in the tick fails.
+
+    SQLite does not poison a session on a failed statement the way PostgreSQL does,
+    so this pins the recovery call itself rather than its downstream symptom.
+    """
+    vault_id = vault.id
+
+    async def poison(*_args, **_kwargs):
+        await async_session.execute(text("SELECT 1 FROM table_that_does_not_exist"))
+
+    with (
+        patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
+        patch.object(incident_service, "process_incident", new=poison),
+        patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
+        patch.object(async_session, "rollback", new=AsyncMock(wraps=async_session.rollback)) as rollback_spy,
+    ):
+        mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
+        result = await incident_service.process_vault_incidents(async_session, vault_id, 2)
+
+    assert result["active_count"] == 1
+    rollback_spy.assert_awaited()

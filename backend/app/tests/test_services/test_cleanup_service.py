@@ -9,6 +9,7 @@ from app import crud
 from app.models.incident import Incident, IncidentStatus, IncidentType
 from app.models.notification import Notification, NotificationPriority, NotificationType
 from app.models.room import Room
+from app.models.team import Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
 from app.services.cleanup_service import cleanup_service
@@ -119,3 +120,42 @@ async def test_cleanup_old_notifications(
 
     assert old_notification.id not in remaining_ids
     assert recent_notification.id in remaining_ids
+
+
+@pytest.mark.asyncio
+async def test_cleanup_prunes_the_incidents_responder_team(
+    async_session: AsyncSession,
+    room_with_dwellers: dict[str, object],
+) -> None:
+    """Deleting an incident cascades to its roster, so incident teams cannot accumulate."""
+    room = cast("Room", room_with_dwellers["room"])
+    dwellers = cast("list", room_with_dwellers["dwellers"])
+
+    incident = await crud.incident_crud.create(
+        async_session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=IncidentType.FIRE,
+        difficulty=3,
+    )
+    await crud.team_crud.add_incident_team_members(
+        async_session, incident.id, room.vault_id, [dweller.id for dweller in dwellers]
+    )
+    incident.resolve(success=True)
+    incident.end_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=10)
+    async_session.add(incident)
+    await async_session.commit()
+
+    team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
+    assert team is not None
+    team_id = team.id
+    member_ids = {member.id for member in team.members}
+    assert member_ids
+
+    assert await cleanup_service.cleanup_old_incidents(async_session, retention_days=7, batch_size=100) == 1
+
+    assert (await async_session.execute(select(Team).where(Team.id == team_id))).scalars().all() == []
+    remaining_members = (
+        (await async_session.execute(select(TeamMember).where(TeamMember.id.in_(member_ids)))).scalars().all()
+    )
+    assert remaining_members == []

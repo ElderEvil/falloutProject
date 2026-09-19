@@ -1,12 +1,13 @@
 from typing import ClassVar
 from uuid import UUID
 
-from sqladmin import ModelView, action
+from sqladmin import ModelView, action, expose
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter
 from sqlmodel import col, select, update
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 
+from app.admin.csrf import issue_token, validate_token
 from app.models import Item, LLMInteraction, Objective, Storage
 from app.models.chat_message import ChatMessage
 from app.models.dweller import Dweller
@@ -154,58 +155,43 @@ class VaultAdmin(AdminModelView, model=Vault):
 
     icon = "fa-solid fa-house-lock"
 
-    async def _set_incidents_disabled(
-        self, request: Request, *, disabled: bool, vault_ids: list[str] | None
-    ) -> RedirectResponse:
-        """Flip incident spawning on selected vaults, or on every vault when vault_ids is None."""
+    @expose("/incidents", methods=["GET"])
+    async def incidents_page(self, request: Request) -> Response:
+        """Render the incident-spawning toggle page."""
         async with self.session_maker() as session:
-            if vault_ids is None:
+            vaults = (await session.execute(select(Vault).order_by(col(Vault.number)))).scalars().all()
+        csrf_token = issue_token(request)
+        return await self.templates.TemplateResponse(
+            request,
+            "vault_incidents.html",
+            {"vaults": vaults, "csrf_token": csrf_token},
+        )
+
+    @expose("/incidents", methods=["POST"])
+    async def incidents(self, request: Request) -> Response:
+        """Apply the incident-spawning toggle to the selected vaults, or all."""
+        form = await request.form()
+        submitted = form.get("csrf_token")
+        if not validate_token(request, submitted if isinstance(submitted, str) else None):
+            return Response(status_code=403)
+        action = str(form.get("action") or "")
+        if action not in ("disable", "enable"):
+            return Response(status_code=400)
+        disabled = action == "disable"
+        try:
+            ids = [UUID(str(vault_id)) for vault_id in form.getlist("vault_id") if str(vault_id)]
+        except ValueError:
+            return Response(status_code=400)
+
+        async with self.session_maker() as session:
+            if form.get("scope") == "all":
                 await session.execute(update(Vault).values(incidents_disabled=disabled))
             else:
-                ids = [UUID(vault_id) for vault_id in vault_ids if vault_id]
                 vaults = (await session.execute(select(Vault).where(col(Vault.id).in_(ids)))).scalars()
                 for vault in vaults:
                     vault.incidents_disabled = disabled
             await session.commit()
-        return RedirectResponse(request.headers.get("Referer", "/admin/vault/list"), status_code=303)
-
-    @action(
-        name="disable-incidents",
-        label="Disable incident spawning",
-        confirmation_message="Disable incident spawning for the selected vaults?",
-    )
-    async def disable_incidents(self, request: Request) -> RedirectResponse:
-        """Suppress incident spawns and processing on the selected vaults."""
-        vault_ids = request.query_params.get("pks", "").split(",")
-        return await self._set_incidents_disabled(request, disabled=True, vault_ids=vault_ids)
-
-    @action(
-        name="enable-incidents",
-        label="Enable incident spawning",
-        confirmation_message="Enable incident spawning for the selected vaults?",
-    )
-    async def enable_incidents(self, request: Request) -> RedirectResponse:
-        """Resume incident spawns and processing on the selected vaults."""
-        vault_ids = request.query_params.get("pks", "").split(",")
-        return await self._set_incidents_disabled(request, disabled=False, vault_ids=vault_ids)
-
-    @action(
-        name="disable-incidents-all",
-        label="Disable incidents for ALL vaults",
-        confirmation_message="Disable incident spawning for EVERY vault (ignores the current selection)?",
-    )
-    async def disable_incidents_all(self, request: Request) -> RedirectResponse:
-        """Suppress incident spawns and processing on every vault."""
-        return await self._set_incidents_disabled(request, disabled=True, vault_ids=None)
-
-    @action(
-        name="enable-incidents-all",
-        label="Enable incidents for ALL vaults",
-        confirmation_message="Enable incident spawning for EVERY vault (ignores the current selection)?",
-    )
-    async def enable_incidents_all(self, request: Request) -> RedirectResponse:
-        """Resume incident spawns and processing on every vault."""
-        return await self._set_incidents_disabled(request, disabled=False, vault_ids=None)
+        return RedirectResponse("/admin/vault/incidents", status_code=303)
 
 
 class StorageAdmin(AdminModelView, model=Storage):

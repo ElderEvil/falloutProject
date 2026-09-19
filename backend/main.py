@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI, Request
@@ -186,8 +187,15 @@ app.add_middleware(
 # Create authentication backend
 authentication_backend = AdminAuth(secret_key=settings.SECRET_KEY)
 
-# Create admin with authentication
-admin = Admin(app, async_engine, authentication_backend=authentication_backend)
+# Create admin with authentication. The templates dir is an absolute path so
+# SQLAdmin's ChoiceLoader can find our overrides (e.g. vault_incidents.html)
+# ahead of its packaged templates regardless of the process working directory.
+admin = Admin(
+    app,
+    async_engine,
+    authentication_backend=authentication_backend,
+    templates_dir=str(Path(__file__).resolve().parent / "app" / "admin" / "templates"),
+)
 
 app.add_middleware(
     CORSMiddleware,

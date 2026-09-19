@@ -1,0 +1,68 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Vault incident spawning</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">
+            Select vaults below, then disable or enable incident spawning for the selection.
+          </p>
+          <form method="post" action="/admin/vault/incidents">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="scope" value="selected">
+            <div class="table-responsive">
+              <table class="table card-table table-vcenter text-nowrap">
+                <thead>
+                  <tr>
+                    <th class="w-1"></th>
+                    <th>Vault</th>
+                    <th>Incidents disabled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for vault in vaults %}
+                  <tr>
+                    <td>
+                      <input class="form-check-input m-0 align-middle" type="checkbox" name="vault_id"
+                        value="{{ vault.id }}" {% if vault.incidents_disabled %}checked{% endif %}>
+                    </td>
+                    <td>{{ vault.number }}</td>
+                    <td>{{ "Yes" if vault.incidents_disabled else "No" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3">
+              <button type="submit" name="action" value="disable" class="btn btn-primary">
+                Disable incident spawning
+              </button>
+              <button type="submit" name="action" value="enable" class="btn btn-secondary">
+                Enable incident spawning
+              </button>
+            </div>
+          </form>
+          <hr>
+          <form method="post" action="/admin/vault/incidents">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="scope" value="all">
+            <p class="text-muted">
+              These actions apply to EVERY vault and ignore the selection above.
+            </p>
+            <button type="submit" name="action" value="disable" class="btn btn-danger">
+              Disable incidents for ALL vaults
+            </button>
+            <button type="submit" name="action" value="enable" class="btn btn-success">
+              Enable incidents for ALL vaults
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

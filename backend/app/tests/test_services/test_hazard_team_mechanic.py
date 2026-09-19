@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -192,3 +193,54 @@ async def test_already_wearing_target_unchanged(async_session: AsyncSession, roo
     assert equipped.id == worn.id
     spare_after = await crud.outfit.get(async_session, spare.id)
     assert spare_after.dweller_id is None
+
+
+@pytest.mark.asyncio
+async def test_equip_failure_does_not_abort_batch(
+    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
+):
+    """One failed auto-equip is contained; the remaining members still get their outfit."""
+    room = room_with_dwellers["room"]
+    dwellers = room_with_dwellers["dwellers"]
+    storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
+    for _ in dwellers:
+        await crud.outfit.create(async_session, outfit_data("Firefighter suit", storage_id=storage.id))
+
+    original_equip = crud.outfit.equip
+    calls = {"count": 0}
+
+    async def flaky_equip(*, db_session, item_id, dweller_id):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("equip boom")
+        return await original_equip(db_session=db_session, item_id=item_id, dweller_id=dweller_id)
+
+    monkeypatch.setattr(crud.outfit, "equip", flaky_equip)
+
+    dweller_ids = [dweller.id for dweller in dwellers]
+    await contamination_team_service.equip_hazard_outfits(async_session, room.vault_id, dwellers, HazardTeam.FIRE)
+
+    assert calls["count"] == len(dwellers)
+    equipped = [await crud.outfit.get_equipped(async_session, dweller_id) for dweller_id in dweller_ids]
+    assert equipped[0] is None
+    assert all(item is not None for item in equipped[1:])
+
+
+@pytest.mark.asyncio
+async def test_failed_notification_flush_does_not_poison_the_round(
+    async_session: AsyncSession, room_with_dwellers: dict
+):
+    """A deferred notification that errors rolls back to its savepoint, so the round still commits."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+
+    async def failing_send(*args, **kwargs):
+        await async_session.execute(text("SELECT 1 FROM table_that_does_not_exist"))
+
+    with patch("app.services.notification_service.NotificationService.create_and_send", new=failing_send):
+        for _ in range(QUALIFYING_INCIDENTS):
+            await fight(async_session, room, IncidentType.FIRE, [dweller])
+
+    place = await crud.hazard_team_crud.get_member(async_session, room.vault_id, HazardTeam.FIRE, dweller.id)
+    assert place is not None
+    assert place.status == ACTIVE_STATUS

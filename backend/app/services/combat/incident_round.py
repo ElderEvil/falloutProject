@@ -255,13 +255,6 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
 
     await leveling_service.deliver_deferred_level_ups(db_session)
 
-    # Auto-equip runs after the round committed: outfit_crud.equip commits
-    # internally, so it must not ride the round's transaction.
-    if team and team_result.active_gainers:
-        await contamination_team_service.equip_hazard_outfits(
-            db_session, incident.vault_id, team_result.active_gainers, team
-        )
-
     if resolved:
         experience_earned = (incident.loot or {}).get("experience", 0)
         await incident_publishing.notify_resolution(
@@ -269,6 +262,15 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
         )
         await incident_publishing.publish_sse(
             incident, "incident_resolved", success=True, caps_earned=caps_earned, experience_earned=experience_earned
+        )
+
+    # Auto-equip runs last, after the round committed: outfit_crud.equip commits
+    # internally, so it must not ride the round's transaction. It also recovers
+    # from a failed equip with a rollback, which expires loaded instances — so
+    # nothing may read the round's ORM objects once this has run.
+    if team and team_result.active_gainers:
+        await contamination_team_service.equip_hazard_outfits(
+            db_session, incident.vault_id, team_result.active_gainers, team
         )
 
     return IncidentRoundResult(

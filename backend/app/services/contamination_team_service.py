@@ -177,12 +177,12 @@ class ContaminationTeamService:
             if dweller is None:
                 continue
             promoted = place.dweller_id in promoted_ids
-            await notification_service.notify_owner(
-                db_session,
-                vault_id,
-                context=f"hazard_team_joined vault={vault_id} dweller={place.dweller_id}",
-                sender=lambda user_id, place=place, dweller=dweller, promoted=promoted: (
-                    notification_service.notify_hazard_team_joined(
+
+            async def sender(user_id, place=place, dweller=dweller, promoted=promoted) -> None:
+                # A failed flush must roll back to this savepoint (the exception has to
+                # leave the block for that) so the round's transaction stays committable.
+                async with db_session.begin_nested():
+                    await notification_service.notify_hazard_team_joined(
                         db_session,
                         user_id=user_id,
                         vault_id=vault_id,
@@ -193,7 +193,12 @@ class ContaminationTeamService:
                         promoted=promoted,
                         commit=False,
                     )
-                ),
+
+            await notification_service.notify_owner(
+                db_session,
+                vault_id,
+                context=f"hazard_team_joined vault={vault_id} dweller={place.dweller_id}",
+                sender=sender,
             )
 
     async def equip_hazard_outfits(
@@ -214,14 +219,21 @@ class ContaminationTeamService:
         storage = await crud_storage.get_by_vault(db_session, vault_id)
         if storage is None:
             return
-        for dweller in active_gainers:
-            current = await outfit_crud.get_equipped(db_session, dweller.id)
-            if current is not None and current.name == target_name:
-                continue
-            spare = await outfit_crud.get_unassigned_in_storage_by_name(db_session, storage.id, target_name)
-            if spare is None:
-                continue
-            await outfit_crud.equip(db_session=db_session, item_id=spare.id, dweller_id=dweller.id)
+        storage_id = storage.id
+        # Read the ids up front: a rollback in the loop expires every loaded instance,
+        # so touching dweller/storage attributes afterwards would trigger lazy IO.
+        for dweller_id in [dweller.id for dweller in active_gainers]:
+            try:
+                current = await outfit_crud.get_equipped(db_session, dweller_id)
+                if current is not None and current.name == target_name:
+                    continue
+                spare = await outfit_crud.get_unassigned_in_storage_by_name(db_session, storage_id, target_name)
+                if spare is None:
+                    continue
+                await outfit_crud.equip(db_session=db_session, item_id=spare.id, dweller_id=dweller_id)
+            except Exception:  # broad by design: one failed equip must not abort the batch or poison the session
+                await db_session.rollback()
+                logger.exception("Failed to auto-equip %s on dweller %s", target_name, dweller_id)
 
     async def get_roster(self, db_session: AsyncSession, vault_id: UUID4) -> ContaminationTeamRead:
         """Every team's roster for a vault, active places and bench included."""

@@ -32,6 +32,8 @@ from app.admin.views import (
     RelationshipAdmin,
     RoomAdmin,
     StorageAdmin,
+    TeamAdmin,
+    TeamMemberAdmin,
     TrainingAdmin,
     UserAdmin,
     UserProfileAdmin,
@@ -249,6 +251,8 @@ admin.add_view(WeaponAdmin)
 admin.add_view(JunkAdmin)
 admin.add_view(ItemAdmin)
 admin.add_view(QuestAdmin)
+admin.add_view(TeamAdmin)
+admin.add_view(TeamMemberAdmin)
 admin.add_view(ObjectiveAdmin)
 admin.add_view(PromptAdmin)
 admin.add_view(LLInteractionAdmin)

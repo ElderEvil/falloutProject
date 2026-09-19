@@ -19,13 +19,17 @@ from app.admin.views import (
     LLInteractionAdmin,
     PromptAdmin,
     QuestAdmin,
+    TeamAdmin,
+    TeamMemberAdmin,
     UserAdmin,
     VaultAdmin,
 )
 from app.core.config import settings
+from app.core.enums import HazardTeam
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.prompt import Prompt
+from app.models.team import ACTIVE_STATUS, Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
 from main import app
@@ -91,7 +95,7 @@ async def admin_client(
 
     test_session_maker = sessionmaker(bind=db_connection, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(admin_auth, "async_engine", db_connection)
-    for view in (DwellerAdmin, LLInteractionAdmin, PromptAdmin):
+    for view in (DwellerAdmin, LLInteractionAdmin, PromptAdmin, TeamAdmin, TeamMemberAdmin):
         monkeypatch.setattr(view, "session_maker", test_session_maker)
 
     # AdminAuth stores user_id as a session string; on PostgreSQL the driver
@@ -214,3 +218,45 @@ async def test_disable_and_enable_incidents_for_all_vaults(
     await async_session.refresh(vault2)
     assert vault.incidents_disabled is False
     assert vault2.incidents_disabled is False
+
+
+def test_team_admin_views_are_read_only() -> None:
+    """Rosters are derived from gameplay; the admin view exists to inspect them."""
+    for view in (TeamAdmin, TeamMemberAdmin):
+        assert view.can_create is False
+        assert view.can_edit is False
+        assert view.can_delete is False
+
+
+def test_team_admin_exposes_purpose_and_placement_columns() -> None:
+    assert {Team.hazard_team, Team.quest_id, Team.incident_id, Team.vault} <= set(TeamAdmin.column_list)
+    assert {TeamMember.team, TeamMember.dweller, TeamMember.slot_number, TeamMember.status} <= set(
+        TeamMemberAdmin.column_list
+    )
+
+
+async def test_team_admin_pages_render(admin_client: AsyncClient) -> None:
+    for view in (TeamAdmin, TeamMemberAdmin):
+        response = await admin_client.get(f"/admin/{view.identity}/list")
+        assert response.status_code == 200, view.identity
+
+
+async def test_team_admin_lists_an_earned_roster(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    room_with_dwellers: dict,
+) -> None:
+    """An earned hazard place is visible in the admin roster, so the team can be tracked."""
+    room = room_with_dwellers["room"]
+    dweller = room_with_dwellers["dwellers"][0]
+    team = await crud.team_crud.get_or_create_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
+    async_session.add(
+        TeamMember(team_id=team.id, dweller_id=dweller.id, status=ACTIVE_STATUS, slot_number=1)
+    )
+    await async_session.commit()
+
+    response = await admin_client.get("/admin/team-member/list")
+
+    assert response.status_code == 200
+    assert dweller.first_name in response.text
+    assert "active" in response.text

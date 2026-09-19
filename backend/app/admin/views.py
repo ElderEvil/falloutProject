@@ -21,6 +21,7 @@ from app.models.prompt import Prompt
 from app.models.quest import Quest
 from app.models.relationship import Relationship
 from app.models.room import Room
+from app.models.team import Team, TeamMember
 from app.models.training import Training
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -624,3 +625,53 @@ class NotificationAdmin(AdminModelView, model=Notification):
 
     can_create = False
     can_edit = True
+
+
+class TeamAdmin(AdminModelView, model=Team):
+    column_list: ClassVar[list] = [
+        Team.id,
+        Team.vault,
+        Team.hazard_team,
+        Team.quest_id,
+        Team.incident_id,
+        Team.name,
+        Team.created_at,
+        Team.updated_at,
+    ]
+    column_sortable_list: ClassVar[list] = [Team.created_at, Team.hazard_team]
+    column_default_sort: ClassVar[list] = [(Team.created_at, True)]
+    column_labels: ClassVar[dict] = {
+        Team.hazard_team: "Hazard team",
+        Team.quest_id: "Quest",
+        Team.incident_id: "Incident",
+    }
+
+    name = "Team"
+    name_plural = "Teams"
+    icon = "fa-solid fa-people-group"
+
+    can_create = False
+    can_edit = False
+    can_delete = False
+
+
+class TeamMemberAdmin(AdminModelView, model=TeamMember):
+    column_list: ClassVar[list] = [
+        TeamMember.id,
+        TeamMember.team,
+        TeamMember.dweller,
+        TeamMember.slot_number,
+        TeamMember.status,
+        TeamMember.created_at,
+    ]
+    column_sortable_list: ClassVar[list] = [TeamMember.created_at, TeamMember.status]
+    column_default_sort: ClassVar[list] = [(TeamMember.created_at, True)]
+    column_labels: ClassVar[dict] = {TeamMember.slot_number: "Slot", TeamMember.team: "Team"}
+
+    name = "Team member"
+    name_plural = "Team members"
+    icon = "fa-solid fa-user-group"
+
+    can_create = False
+    can_edit = False
+    can_delete = False

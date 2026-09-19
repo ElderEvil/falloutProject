@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "2.126.4",
+  "version": "2.126.5",
   "private": true,
   "type": "module",
   "scripts": {

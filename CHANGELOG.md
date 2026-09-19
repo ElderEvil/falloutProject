@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.5 (2026-09-19)
+
+### Bug Fixes
+
+* serialize the hazard roster mutation with a transaction-scoped lock a09e97d
+
 ## 2.126.4 (2026-09-19)
 
 ### Bug Fixes

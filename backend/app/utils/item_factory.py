@@ -5,6 +5,12 @@ Both reward settlement and crafting build items from the same JSON catalogs
 shape to ORM model lives here exactly once. Junk rows carry no catalog row:
 pricing and prose stay caller-owned because incidents and exploration value
 and describe held junk differently.
+
+These are the only sanctioned constructors for these models — building an item
+directly leaves every catalog-owned column at its default, a state no test can
+distinguish from a legitimate one. `tests/test_architecture/test_item_factory_guard.py`
+enforces that. ``rarity`` is normalized to ``RarityEnum`` here so callers may pass the
+raw catalog string.
 """
 
 from typing import Any
@@ -24,7 +30,7 @@ def build_weapon(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
     name = str(data["name"])
     return Weapon(
         name=name,
-        rarity=rarity,
+        rarity=RarityEnum(rarity),
         weapon_type=WeaponTypeEnum(str(data.get("weapon_type", "melee")).lower()),
         weapon_subtype=WeaponSubtypeEnum(str(data.get("weapon_subtype", "blunt")).lower()),
         stat=str(data.get("stat", "strength")),
@@ -43,7 +49,7 @@ def build_outfit(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUI
     declared_radiation_resist = data.get("radiation_resist")
     return Outfit(
         name=name,
-        rarity=rarity,
+        rarity=RarityEnum(rarity),
         outfit_type=OutfitTypeEnum(str(data.get("outfit_type", OutfitTypeEnum.COMMON)).lower()),
         gender=GenderEnum(str(gender).lower()) if gender else None,
         fire_resist=float(data.get("fire_resist") or 0.0),
@@ -73,7 +79,7 @@ def build_junk(
     return Junk(
         name=name,
         junk_type=JunkTypeEnum.VALUABLES,
-        rarity=rarity,
+        rarity=RarityEnum(rarity),
         value=value,
         description=description,
         storage_id=storage_id,

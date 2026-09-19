@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import db_locks
 from app.core.enums import HazardTeam
 from app.crud import outfit as outfit_crud
 from app.crud.dweller import dweller as crud_dweller
@@ -41,6 +42,11 @@ TEAM_OUTFIT_NAMES: dict[HazardTeam, str] = {
     HazardTeam.FIRE: "Firefighter suit",
     HazardTeam.RADIATION: "Hazmat suit",
 }
+
+
+def roster_lock_key(vault_id: UUID4, team: HazardTeam) -> str:
+    """Advisory-lock key guarding one vault's hazard roster against concurrent mutation."""
+    return f"hazard-team:{vault_id}:{team.value}"
 
 
 @dataclass
@@ -81,23 +87,37 @@ class HazardTeamService:
         if not team:
             return HazardTeamRoundResult(new_places=[], active_gainers=[])
         dwellers_by_id = {dweller.id: dweller for dweller in dwellers}
-        # Bench members step up first so seniority holds and a freed place is
-        # never handed to the newest arrival.
-        promoted = await self._promote_bench(db_session, incident.vault_id, team, dwellers_by_id)
-        promoted_ids = {place.dweller_id for place, _ in promoted}
-        new_places: list[TeamMember] = [place for place, _ in promoted]
-        active_gainers: list[Dweller] = [dweller for _, dweller in promoted]
-        for dweller_id in credited_ids:
-            dweller = dwellers_by_id.get(dweller_id)
-            if dweller is None:
-                continue
-            place = await self._join_if_qualified(db_session, incident.vault_id, dweller, team)
-            if place is None:
-                continue
-            new_places.append(place)
-            if place.status == ACTIVE_STATUS:
-                active_gainers.append(dweller)
-        await self._announce_places(db_session, incident.vault_id, team, new_places, promoted_ids, dwellers_by_id)
+        new_places: list[TeamMember] = []
+        active_gainers: list[Dweller] = []
+
+        # Roster places are read-then-insert, so two workers could both pass the read and
+        # then collide on uq_team_vault_hazard / uq_team_member_slot. A transaction-scoped
+        # lock keyed by the roster serializes the mutation until this round commits — the
+        # credit recorded above is untouched, so a deferred place is simply earned next round.
+        if await db_locks.try_advisory_xact_lock(db_session, roster_lock_key(incident.vault_id, team)):
+            # Bench members step up first so seniority holds and a freed place is
+            # never handed to the newest arrival.
+            promoted = await self._promote_bench(db_session, incident.vault_id, team, dwellers_by_id)
+            promoted_ids = {place.dweller_id for place, _ in promoted}
+            new_places = [place for place, _ in promoted]
+            active_gainers = [dweller for _, dweller in promoted]
+            for dweller_id in credited_ids:
+                dweller = dwellers_by_id.get(dweller_id)
+                if dweller is None:
+                    continue
+                place = await self._join_if_qualified(db_session, incident.vault_id, dweller, team)
+                if place is None:
+                    continue
+                new_places.append(place)
+                if place.status == ACTIVE_STATUS:
+                    active_gainers.append(dweller)
+            await self._announce_places(db_session, incident.vault_id, team, new_places, promoted_ids, dwellers_by_id)
+        else:
+            logger.info(
+                "Hazard roster %s busy for vault %s; deferring the place to the next round",
+                team.value,
+                incident.vault_id,
+            )
         active_ids = frozenset(
             await team_crud.get_active_hazard_member_ids(db_session, incident.vault_id, team, [d.id for d in dwellers])
         )

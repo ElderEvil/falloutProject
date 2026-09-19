@@ -156,6 +156,6 @@ async def test_cleanup_prunes_the_incidents_responder_team(
 
     assert (await async_session.execute(select(Team).where(Team.id == team_id))).scalars().all() == []
     remaining_members = (
-        await async_session.execute(select(TeamMember).where(TeamMember.id.in_(member_ids)))
-    ).scalars().all()
+        (await async_session.execute(select(TeamMember).where(TeamMember.id.in_(member_ids)))).scalars().all()
+    )
     assert remaining_members == []

@@ -250,9 +250,7 @@ async def test_team_admin_lists_an_earned_roster(
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     team = await crud.team_crud.get_or_create_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
-    async_session.add(
-        TeamMember(team_id=team.id, dweller_id=dweller.id, status=ACTIVE_STATUS, slot_number=1)
-    )
+    async_session.add(TeamMember(team_id=team.id, dweller_id=dweller.id, status=ACTIVE_STATUS, slot_number=1))
     await async_session.commit()
 
     response = await admin_client.get("/admin/team-member/list")

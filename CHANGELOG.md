@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.126.3 (2026-09-19)
+
+### Code Refactoring
+
+* resolve damage and radiation reductions in one place 1998f1d
+
 ## 2.126.2 (2026-09-19)
 
 ### Bug Fixes

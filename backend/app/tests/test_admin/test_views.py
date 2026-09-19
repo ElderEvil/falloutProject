@@ -19,15 +19,15 @@ from app.admin.views import (
     LLInteractionAdmin,
     PromptAdmin,
     QuestAdmin,
-    VaultAdmin,
     UserAdmin,
+    VaultAdmin,
 )
 from app.core.config import settings
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
 from app.models.prompt import Prompt
-from app.models.vault import Vault
 from app.models.user import User
+from app.models.vault import Vault
 from main import app
 
 

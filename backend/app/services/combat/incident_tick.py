@@ -90,6 +90,9 @@ async def process_vault_incidents(
                 from app.services.leveling_service import leveling_service
 
                 leveling_service.discard_deferred_level_ups(db_session)
+                # A failed statement leaves the session unusable, which would fail
+                # every later incident in this tick rather than just this one.
+                await db_session.rollback()
                 logger.error(f"Error processing incident {incident.id}: {e}", exc_info=True)
 
         if total_caps_earned > 0:
@@ -102,6 +105,9 @@ async def process_vault_incidents(
                 logger.info(f"Awarded {total_caps_earned} caps to vault {vault_id} from incidents")
 
     except (SQLAlchemyError, ResourceNotFoundException) as e:  # TODO: Should it be here?
+        # Recover before the next vault: a poisoned session would fail every
+        # remaining vault in this tick.
+        await db_session.rollback()
         logger.error(f"Error managing incidents for vault {vault_id}: {e}", exc_info=True)
         stats["error"] = str(e)
 

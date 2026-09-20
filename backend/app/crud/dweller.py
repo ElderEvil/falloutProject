@@ -290,6 +290,22 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return result.scalar_one_or_none()
 
+    async def count_alive_with_weapon_attack(self, db_session: AsyncSession, vault_id: UUID4, min_attack: int) -> int:
+        """Count living dwellers whose equipped weapon's average damage is at least ``min_attack``."""
+        from app.models.weapon import Weapon
+
+        query = (
+            select(func.count(self.model.id))
+            .join(Weapon, Weapon.dweller_id == self.model.id)
+            .where(
+                self.model.vault_id == vault_id,
+                ~self.model.is_deleted,
+                ~self.model.is_dead,
+                (Weapon.damage_min + Weapon.damage_max) >= 2 * min_attack,
+            )
+        )
+        return int((await db_session.execute(query)).scalar_one())
+
     async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
         conditions = [

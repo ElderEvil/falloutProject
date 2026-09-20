@@ -533,3 +533,119 @@ async def test_start_quest_with_equipped_item_party(async_session: AsyncSession)
     link = await quest_service.start_quest(async_session, quest.id, vault.id)
 
     assert link.started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_start_quest_rejects_party_below_attack(async_session: AsyncSession) -> None:
+    """A party whose weapons deal below the required attack cannot start the quest."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_weapon
+    from app.utils.exceptions import ValidationException
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Attack Party Gate")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ATTACK,
+            requirement_data={"attack": 20},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    weapon_data = create_fake_weapon()
+    weapon_data["damage_min"] = 5
+    weapon_data["damage_max"] = 10
+    weapon_data["dweller_id"] = dweller.id
+    await crud.weapon.create(async_session, obj_in=weapon_data)
+
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    with pytest.raises(ValidationException, match="20"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_start_quest_with_attack_qualifying_party(async_session: AsyncSession) -> None:
+    """A party member with a weapon meeting the attack threshold lets the quest start."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_weapon
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Attack Party Pass")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ATTACK,
+            requirement_data={"attack": 20},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    weapon_data = create_fake_weapon()
+    weapon_data["damage_min"] = 15
+    weapon_data["damage_max"] = 25
+    weapon_data["dweller_id"] = dweller.id
+    await crud.weapon.create(async_session, obj_in=weapon_data)
+
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_attack_requirement_met_by_equipped_weapon(async_session: AsyncSession) -> None:
+    """The read-path ATTACK check counts dwellers with a qualifying equipped weapon."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_weapon
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Attack Read")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ATTACK,
+            requirement_data={"attack": 20},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    weapon_data = create_fake_weapon()
+    weapon_data["damage_min"] = 15
+    weapon_data["damage_max"] = 25
+    weapon_data["dweller_id"] = dweller.id
+    await crud.weapon.create(async_session, obj_in=weapon_data)
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next(q for q in quest_reads if q.id == quest.id)
+
+    assert quest_read.is_locked is False
+    assert quest_read.is_visible is True

@@ -425,6 +425,12 @@ const handleAction = () => {
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>
             </template>
+            <template v-else-if="req.requirement_type === 'attack' && req.requirement_data">
+              Requires {{ req.requirement_data.attack || 1 }}+ Attack
+              <span v-if="getRequirementCount(req.requirement_data) > 1">
+                (x{{ getRequirementCount(req.requirement_data) }})
+              </span>
+            </template>
                   <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
                     Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ roomDisplayName(req.requirement_data) }}
             </template>

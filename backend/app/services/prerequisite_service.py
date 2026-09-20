@@ -46,6 +46,15 @@ class PrerequisiteService:
 
         return storage_count + equipped_count >= required_count
 
+    async def validate_attack_requirement(
+        self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    ) -> bool:
+        required_attack = requirement_data.get("attack", 0)
+        required_count = requirement_data.get("count", 1)
+
+        matching_count = await crud.dweller.count_alive_with_weapon_attack(db_session, vault_id, required_attack)
+        return matching_count >= required_count
+
     async def validate_room_requirement(
         self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
     ) -> bool:
@@ -107,6 +116,10 @@ class PrerequisiteService:
                 party_dwellers, req.requirement_data
             ):
                 missing.append(self._describe_party_item(req.requirement_data))
+            elif req.requirement_type == RequirementType.ATTACK and not self._party_meets_attack(
+                party_dwellers, req.requirement_data
+            ):
+                missing.append(self._describe_party_attack(req.requirement_data))
         return missing
 
     @staticmethod
@@ -125,6 +138,18 @@ class PrerequisiteService:
             for dweller in party_dwellers
             if (dweller.weapon is not None and dweller.weapon.name == item_name)
             or (dweller.outfit is not None and dweller.outfit.name == item_name)
+        )
+        return matching >= required_count
+
+    @staticmethod
+    def _party_meets_attack(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
+        required_attack = requirement_data.get("attack", 0)
+        required_count = requirement_data.get("count", 1)
+        matching = sum(
+            1
+            for dweller in party_dwellers
+            if dweller.weapon is not None
+            and (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2 >= required_attack
         )
         return matching >= required_count
 
@@ -164,6 +189,7 @@ class PrerequisiteService:
             RequirementType.ROOM: self.validate_room_requirement,
             RequirementType.DWELLER_COUNT: self.validate_dweller_count_requirement,
             RequirementType.QUEST_COMPLETED: self.validate_quest_completed_requirement,
+            RequirementType.ATTACK: self.validate_attack_requirement,
         }
 
         validator = validators.get(requirement.requirement_type)
@@ -202,6 +228,22 @@ class PrerequisiteService:
         return f"Need a party dweller equipped with {item_name}"
 
     @staticmethod
+    def _describe_attack(data: dict[str, Any]) -> str:
+        attack = data.get("attack", "?")
+        count = data.get("count", 1)
+        if count > 1:
+            return f"Need {count} dweller(s) with {attack}+ attack"
+        return f"Need a dweller with {attack}+ attack"
+
+    @staticmethod
+    def _describe_party_attack(data: dict[str, Any]) -> str:
+        attack = data.get("attack", "?")
+        count = data.get("count", 1)
+        if count > 1:
+            return f"Need {count} party dweller(s) with {attack}+ attack"
+        return f"Need a party dweller with {attack}+ attack"
+
+    @staticmethod
     def _describe_room(data: dict[str, Any]) -> str:
         room_type = data.get("room_type", "Unknown room")
         room_display = room_type.replace("_", " ").title()
@@ -227,6 +269,7 @@ class PrerequisiteService:
             RequirementType.ROOM: self._describe_room,
             RequirementType.DWELLER_COUNT: self._describe_dweller_count,
             RequirementType.QUEST_COMPLETED: self._describe_quest_completed,
+            RequirementType.ATTACK: self._describe_attack,
         }
 
         describer = describers.get(requirement.requirement_type)

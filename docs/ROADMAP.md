@@ -91,11 +91,11 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   `fo-cli debug` commands (evaluators wired as at startup); remaining `/pregnancies/debug/*` routes to reassess.
 - [ ] **Oversized-module splits (Area 4)** — seam maps ready for `vault_service` (807), `crud/dweller` (760),
   `reward_service` (635), `breeding_service` (601), `family_scenario_service` (570), `ai_service` (563),
-  `exploration/rewards_service` (557), `dweller_ai` (540), `map_service` (483),
-  `progression/objectives/evaluators` (469, moved into the domain package by #702 — split still pending),
-  `arena_service` (464), `health_check` (462) — plus `relationship_service`/`notification_service`/`radio_service`
+  `exploration/rewards_service` (557), `dweller_ai` (540), `map_service` (483), `arena_service` (464),
+  `health_check` (462) — plus `relationship_service`/`notification_service`/`radio_service`
   (all >400). Use the `combat/` + `game_tick/` facade pattern; deleting a grandfathered top-level name requires
-  removing its `SERVICE_NAME_GRANDFATHER` entry in the same commit.
+  removing its `SERVICE_NAME_GRANDFATHER` entry in the same commit. (`progression/objectives/evaluators` is no
+  longer on this list — split into a `base`/`concrete`/`manager` sub-package, no file above ~270 lines.)
 - [ ] **Duplication clusters (Area 4)** — ranked: item builders (`reward_service` vs `exploration/rewards_service` vs
   vault seeding), health/radiation appliers (`event_service` trio vs `radiation_service` vs `incident_round`),
   `notify_owner` + `create_and_send` repetition, `LETTER_TO_STAT` vs `ABILITY_TO_STAT_MAP`, prod helpers duplicated
@@ -145,14 +145,13 @@ suite plus the full backend suite.
 The progression loop must be correct and balanced before it grows. Quest rewards and mechanics need an end-to-end
 audit; objectives need deliberate in-game validation rather than relying only on automated coverage.
 
-- [ ] **Sequenced starter objectives & progress-relative quest gates** — plan ready:
-  `.omo/plans/quest-objective-progression.md`. Make the Objective system the primary instruction surface from vault
-  start until the Overseer's Office is built (an ordered `starter` objective arc whose current step is derived, never
-  written on completion), and gate quests faithfully to the real game: dweller-LEVEL + equipment requirements
-  validated against the dwellers SENT on the quest, with progressive reveal hiding quests more than 10 levels above
-  the vault's max dweller level. Locked decisions: sequenced objectives, party-based level/equipment gates, the
-  Office gate kept (18 dwellers + 1000 caps), an earn-by-exploration guidance path (no reward tuning or income
-  floor), pre-Office tabs hidden, and all quests gated on the Office — plan §9.
+- [x] ~~**Sequenced starter objectives & progress-relative quest gates**~~ — shipped (#700 + the quest-requirement
+  branch): the ordered `starter` arc (current step derived, never written on completion), dweller-LEVEL +
+  equipment gates validated against the dwellers SENT on the quest, progressive reveal beyond the vault's max
+  dweller level + 10, the backend-owned Office gate, and pre-Office Next-step surfacing all landed. One locked
+  decision was reversed: the three high-gate quests (Against the Odds 46, A Poorly-Thought-Out Plan 44, A Gathering
+  of Ghouls 27) keep their LEVEL gates — enforced against the party, matching the real game — rather than being
+  re-authored to progress gates (plan §WS2c). Plan: `.omo/plans/quest-objective-progression.md` (complete).
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.

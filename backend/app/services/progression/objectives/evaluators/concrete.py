@@ -1,29 +1,20 @@
-"""Objective evaluators that automatically track progress via EventBus subscriptions.
+"""Concrete objective evaluators: the per-type event-matching rules.
 
-Each evaluator listens for specific game events, finds matching active objectives
-for the vault, updates progress, and auto-completes when the target is reached.
-
-Example flow:
-    Player collects 100 caps
-    -> Game code emits RESOURCE_COLLECTED event
-    -> CollectEvaluator receives event
-    -> Finds "Collect 100 Caps" objective for vault
-    -> Updates progress: 50 -> 100
-    -> Auto-completes and grants reward
+All evaluators share the engine in ``base.ObjectiveEvaluator``; each class here
+declares its ``objective_type``, the events it listens for, and how event data
+matches an objective's ``target_entity``.
 """
 
-import abc
-import contextvars
 import logging
 from typing import Any
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.event_bus import EventBus, GameEvent, event_bus
-from app.db.session import async_session_maker
+from app.core.event_bus import GameEvent
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.services.progression.objectives.evaluators.base import ObjectiveEvaluator
 from app.utils.objective_constants import (
     normalize_item_type,
     normalize_resource_type,
@@ -31,125 +22,6 @@ from app.utils.objective_constants import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Loop-local session maker: dramatiq worker threads each run ``asyncio.run(run_tick())``
-# with their own event loop, so handlers must open sessions from the maker bound to
-# the loop that emitted the event (not the module-global one, which would share a
-# single asyncpg connection across loops and trigger InterfaceError collisions).
-current_session_maker: contextvars.ContextVar[Any] = contextvars.ContextVar("current_session_maker", default=None)
-
-
-def set_current_session_maker(maker: Any) -> None:
-    """Set the session maker for the current event loop's context."""
-    current_session_maker.set(maker)
-
-
-class ObjectiveEvaluator(abc.ABC):
-    """Base class for objective evaluators.
-
-    Each evaluator handles a specific objective_type (e.g. "collect", "build")
-    by subscribing to relevant GameEvent types and updating progress when
-    matching events are emitted.
-    """
-
-    objective_type: str
-    subscribed_events: tuple[GameEvent, ...]
-
-    def __init__(self, event_bus: EventBus) -> None:
-        self._event_bus = event_bus
-        for event_type in self.subscribed_events:
-            self._event_bus.subscribe(event_type, self._handle_event)
-
-    def unsubscribe(self) -> None:
-        for event_type in self.subscribed_events:
-            self._event_bus.unsubscribe(event_type, self._handle_event)
-
-    async def _handle_event(self, event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
-        logger.debug(f"[DEBUG] {self.__class__.__name__} received {event_type} for vault {vault_id} with data: {data}")
-        maker = current_session_maker.get() or async_session_maker
-        async with maker() as db_session:
-            objectives = await self._get_active_objectives(db_session, vault_id)
-            for objective, link in objectives:
-                try:
-                    if self._matches(objective, event_type, data):
-                        logger.debug(f"[DEBUG] MATCH: Objective '{objective.challenge}' matches {event_type}")
-                        amount = self._extract_amount(data)
-                        await self._update_progress(db_session, vault_id, objective, link, amount)
-                    else:
-                        logger.debug(f"[DEBUG] NO MATCH: Objective '{objective.challenge}' does not match {event_type}")
-                except Exception:
-                    logger.exception(
-                        f"{self.__class__.__name__} failed handling objective '{objective.challenge}' "
-                        f"(id={objective.id}) for vault {vault_id} on event {event_type}"
-                    )
-
-    async def _get_active_objectives(
-        self, db_session: AsyncSession, vault_id: UUID4
-    ) -> list[tuple[Objective, VaultObjectiveProgressLink]]:
-        from app.crud.objective import objective_crud
-
-        objectives = await objective_crud.get_active_with_links(db_session, vault_id, self.objective_type)
-        logger.debug(f"Found {len(objectives)} active '{self.objective_type}' objectives for vault {vault_id}")
-        return objectives
-
-    @abc.abstractmethod
-    def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
-        """Return True if this event data matches the objective's target_entity criteria."""
-
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return data.get("amount", 1)
-
-    async def _update_progress(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        objective: Objective,
-        link: VaultObjectiveProgressLink,
-        amount: int,
-    ) -> None:
-        old_progress = link.progress
-        link.progress = min(link.progress + amount, objective.target_amount)
-        link.total = objective.target_amount
-
-        logger.info(
-            f"Objective '{objective.challenge}' progress for vault {vault_id}: "
-            f"{old_progress} -> {link.progress}/{objective.target_amount}"
-        )
-
-        if link.progress >= objective.target_amount:
-            await self._auto_complete(db_session, vault_id, objective, link)
-        else:
-            await db_session.commit()
-
-    async def _auto_complete(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID4,
-        objective: Objective,
-        link: VaultObjectiveProgressLink,
-    ) -> None:
-        """Auto-complete objective and grant reward in single transaction."""
-        from app.services.reward_service import reward_service
-        from app.utils.reward_delivery import defer_reward_delivery
-
-        link.progress = objective.target_amount
-
-        try:
-            async with defer_reward_delivery(db_session):
-                await reward_service.process_objective_reward(db_session, vault_id, link)
-                link.is_completed = True
-                await db_session.commit()
-        except Exception:
-            await db_session.rollback()
-            logger.exception(f"Failed to grant reward for objective '{objective.challenge}' in vault {vault_id}")
-            return
-
-        await self._event_bus.emit(
-            GameEvent.OBJECTIVE_COMPLETED,
-            vault_id,
-            {"objective_id": str(objective.id), "challenge": objective.challenge},
-        )
-        logger.info(f"Objective '{objective.challenge}' auto-completed and reward granted for vault {vault_id}")
 
 
 class CollectEvaluator(ObjectiveEvaluator):
@@ -215,9 +87,6 @@ class BuildEvaluator(ObjectiveEvaluator):
 
         return event_room_type == target_normalized
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
-
 
 class TrainEvaluator(ObjectiveEvaluator):
     """Evaluates 'train' objectives (e.g. 'Train a Dweller').
@@ -237,9 +106,6 @@ class TrainEvaluator(ObjectiveEvaluator):
             return True
 
         return data.get("stat_trained") == target_stat
-
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
 
 
 class AssignEvaluator(ObjectiveEvaluator):
@@ -263,9 +129,6 @@ class AssignEvaluator(ObjectiveEvaluator):
         target_normalized = normalize_room_type(target_room_type)
         return event_room_type == target_normalized
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
-
 
 class AssignCorrectEvaluator(ObjectiveEvaluator):
     """Evaluates 'assign_correct' objectives (e.g. 'Correctly Assign 5 Dwellers').
@@ -281,9 +144,6 @@ class AssignCorrectEvaluator(ObjectiveEvaluator):
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         return data.get("is_correct", False)
-
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
 
 
 class ReachEvaluator(ObjectiveEvaluator):
@@ -381,9 +241,6 @@ class ExpeditionEvaluator(ObjectiveEvaluator):
         event_quest_type = data.get("quest_type", "")
         return event_quest_type.lower() == target_quest_type.lower()
 
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
-
 
 class LevelUpEvaluator(ObjectiveEvaluator):
     """Evaluates 'level_up' objectives (e.g. 'Level up 2 Dwellers to Lv.5+').
@@ -406,64 +263,3 @@ class LevelUpEvaluator(ObjectiveEvaluator):
 
         new_level = data.get("new_level", data.get("level", 1))
         return new_level >= min_level
-
-    def _extract_amount(self, data: dict[str, Any]) -> int:
-        return 1
-
-
-class ObjectiveEvaluatorManager:
-    """Manages all objective evaluators, initializing them with the event bus.
-
-    Provides a centralized point for registration/unregistration of evaluators.
-    Use the module-level `evaluator_manager` singleton instance.
-    """
-
-    def __init__(self, event_bus: EventBus) -> None:
-        self._event_bus = event_bus
-        self._evaluators: list[ObjectiveEvaluator] = []
-        self._initialized = False
-
-    def initialize(self) -> None:
-        if self._initialized:
-            logger.debug("ObjectiveEvaluatorManager already initialized, skipping")
-            return
-
-        evaluator_classes: list[type[ObjectiveEvaluator]] = [
-            CollectEvaluator,
-            BuildEvaluator,
-            TrainEvaluator,
-            AssignEvaluator,
-            AssignCorrectEvaluator,
-            ReachEvaluator,
-            ExpeditionEvaluator,
-            LevelUpEvaluator,
-        ]
-
-        for cls in evaluator_classes:
-            evaluator = cls(self._event_bus)
-            self._evaluators.append(evaluator)
-            logger.info(f"[INIT] Registered {cls.__name__} for '{cls.objective_type}' objectives")
-            logger.debug(f"[INIT] Subscribed to events: {cls.subscribed_events}")
-
-        self._initialized = True
-        logger.info(f"ObjectiveEvaluatorManager initialized with {len(self._evaluators)} evaluator(s)")
-
-    def shutdown(self) -> None:
-        for evaluator in self._evaluators:
-            evaluator.unsubscribe()
-            logger.debug(f"Unregistered {evaluator.__class__.__name__}")
-
-        self._evaluators.clear()
-        self._initialized = False
-        logger.info("ObjectiveEvaluatorManager shut down")
-
-    @property
-    def evaluators(self) -> list[ObjectiveEvaluator]:
-        return list(self._evaluators)
-
-    @property
-    def is_initialized(self) -> bool:
-        return self._initialized
-
-
-evaluator_manager = ObjectiveEvaluatorManager(event_bus)

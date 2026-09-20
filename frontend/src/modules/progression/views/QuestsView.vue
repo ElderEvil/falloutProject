@@ -14,7 +14,6 @@ import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { UButton, UTabs } from '@/core/components/ui'
-import type { components } from '@/core/types/api.generated'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
@@ -55,7 +54,6 @@ const questPartyMembers = ref<DwellerShort[]>([])
 const questPartyMembersMap = ref<Record<string, DwellerShort[]>>({})
 const showClaimModal = ref(false)
 const claimQuest = ref<VaultQuest | null>(null)
-const grantedRewards = ref<components['schemas']['QuestCompleteResponse']['granted_rewards'] | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -169,20 +167,20 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
 
 const handleClaimRewards = async (questId: string) => {
   claimQuest.value = readyToClaimQuests.value.find((quest) => quest.id === questId) ?? null
-  grantedRewards.value = null
   showClaimModal.value = claimQuest.value !== null
 }
 
 const closeClaimModal = () => {
   showClaimModal.value = false
   claimQuest.value = null
-  grantedRewards.value = null
 }
 
 const confirmClaimRewards = async () => {
   if (!vaultId.value || !claimQuest.value) return
-  const result = await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
-  grantedRewards.value = result?.granted_rewards ?? null
+  // The store claims and announces the granted rewards via toast; Confirm & Claim
+  // is the final screen — the modal closes once delivery is confirmed.
+  await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
+  closeClaimModal()
 }
 
 const goToQuestDetail = (questId: string) => {
@@ -357,7 +355,6 @@ onMounted(async () => {
           <QuestRewardsModal
             :quest="claimQuest"
             :show="showClaimModal"
-            :granted-rewards="grantedRewards"
             @close="closeClaimModal"
             @confirm="confirmClaimRewards"
           />

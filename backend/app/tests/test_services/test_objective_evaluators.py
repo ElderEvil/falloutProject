@@ -46,7 +46,7 @@ def patched_session_maker(async_session):
         async def __aexit__(self, *args):
             pass
 
-    with patch("app.services.progression.objectives.evaluators.async_session_maker", MockSessionMaker):
+    with patch("app.services.progression.objectives.evaluators.base.async_session_maker", MockSessionMaker):
         yield
 
 

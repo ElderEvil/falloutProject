@@ -304,5 +304,4 @@ async def get_eligible_dwellers(
         List of eligible dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    result = await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)
-    return [EligibleDwellerRead(**d) for d in result]
+    return await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)

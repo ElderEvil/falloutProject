@@ -1,22 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UModal } from '@/core/components/ui'
+import { UModal } from '@/core/components/ui'
 import RewardCard from '@/core/components/common/RewardCard.vue'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
-import type { components } from '@/core/types/api.generated'
 import type { QuestReward, VaultQuest } from '../models/quest'
-import { describeGrantedReward } from '../models/quest'
-
-type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 
 interface Props {
   quest: VaultQuest | null
   show: boolean
-  grantedRewards?: GrantedReward[] | null
 }
 
-const props = withDefaults(defineProps<Props>(), { grantedRewards: null })
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
@@ -48,8 +43,6 @@ const RESOURCE_META: Record<string, { icon: string, label: string }> = {
   food: { icon: 'mdi:food-apple', label: 'Food' },
   water: { icon: 'mdi:water', label: 'Water' },
 }
-
-const isGrantedMode = computed(() => props.grantedRewards !== null)
 
 const rewards = computed(() => props.quest?.quest_rewards ?? [])
 
@@ -89,55 +82,28 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
 
   return base
 }
-
-interface GrantedCard {
-  icon: string
-  label: string
-  value: string
-}
-
-const grantedCards = computed<GrantedCard[]>(() => (props.grantedRewards ?? []).map(describeGrantedReward))
-
-const hasUnopenedLunchbox = computed(() => (props.grantedRewards ?? []).some(
-  reward => reward.reward_type === 'item' && reward.item_type === 'lunchbox',
-))
 </script>
 
 <template>
   <UModal
     :model-value="show && !!quest"
-    :title="isGrantedMode ? 'Delivery Confirmed!' : 'Quest Complete!'"
+    title="Quest Complete!"
     size="wide"
     @close="emit('close')"
   >
     <template #header="{ titleId }">
       <div class="quest-complete-header flex items-center gap-3">
         <Icon icon="mdi:treasure-chest" class="h-8 w-8 text-theme-primary terminal-glow" />
-        <h2 :id="titleId" class="text-2xl font-bold text-theme-primary terminal-glow">{{ isGrantedMode ? 'Delivery Confirmed!' : 'Quest Complete!' }}</h2>
+        <h2 :id="titleId" class="text-2xl font-bold text-theme-primary terminal-glow">Quest Complete!</h2>
       </div>
     </template>
 
-    <div v-if="quest && !isGrantedMode" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
+    <div v-if="quest" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
       <Icon icon="mdi:flag-checkered" class="h-6 w-6 shrink-0 text-theme-accent" />
       {{ quest.title }} has returned. Confirm delivery to your vault.
     </div>
 
-    <div v-if="quest && isGrantedMode" class="quest-return-banner mb-6 flex items-center gap-3 rounded-md border border-theme-primary/30 bg-theme-primary/10 p-4 text-lg text-theme-primary">
-      <Icon icon="mdi:check-bold" class="h-6 w-6 shrink-0 text-theme-accent" />
-      {{ quest.title }} delivered. This is what arrived in your vault.
-    </div>
-
-    <div v-if="isGrantedMode && grantedCards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <RewardCard
-        v-for="(card, index) in grantedCards"
-        :key="index"
-        :icon="card.icon"
-        :label="card.label"
-        :value="card.value"
-      />
-    </div>
-
-    <div v-else-if="!isGrantedMode && rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div v-if="rewards.length > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <RewardCard
         v-for="reward in rewards"
         :key="reward.id"
@@ -152,14 +118,8 @@ const hasUnopenedLunchbox = computed(() => (props.grantedRewards ?? []).some(
       <p>No rewards listed for this quest</p>
     </div>
 
-    <div v-if="isGrantedMode && hasUnopenedLunchbox" class="mt-4 flex items-center gap-3 rounded-md border border-theme-accent/30 bg-theme-accent/10 p-4 text-theme-accent">
-      <Icon icon="mdi:gift" class="h-6 w-6 shrink-0" />
-      Contains an unopened lunchbox — open it from the Storage supplies tab.
-    </div>
-
     <template #footer>
       <TerminalModalActions
-        v-if="!isGrantedMode"
         cancel-label="Review Later"
         confirm-label="Confirm & Claim"
         confirm-icon="mdi:check-bold"
@@ -167,9 +127,6 @@ const hasUnopenedLunchbox = computed(() => (props.grantedRewards ?? []).some(
         @cancel="emit('close')"
         @confirm="emit('confirm')"
       />
-      <div v-else class="flex w-full justify-end">
-        <UButton variant="primary" @click="emit('close')">Done</UButton>
-      </div>
     </template>
   </UModal>
 </template>

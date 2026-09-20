@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.128.1 (2026-09-20)
+
+### Documentation
+
+* **roadmap:** mark quest/objective domain refactor shipped, record deferred incident tasks 77b8152, closes #702
+
+### Code Refactoring
+
+* **quests:** extract requirement policy and progression domain package ba5640f
+
 ## 2.128.0 (2026-09-20)
 
 ### Features

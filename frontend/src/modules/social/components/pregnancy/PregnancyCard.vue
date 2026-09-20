@@ -8,7 +8,7 @@
             :thumbnail-url="mother?.thumbnail_url"
             :alt="motherName"
             prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover"
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
           />
           <span class="font-mono text-sm truncate">{{ motherName }}</span>
           <span class="shrink-0 text-pink-400">+</span>
@@ -17,7 +17,7 @@
             :thumbnail-url="father?.thumbnail_url"
             :alt="fatherName"
             prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover"
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
           />
         </div>
 

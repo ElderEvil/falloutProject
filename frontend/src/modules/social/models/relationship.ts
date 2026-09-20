@@ -11,15 +11,32 @@ export const COMMITTED_RELATIONSHIP_TYPES: readonly RelationshipType[] = [
   'romantic',
 ]
 
-export type RelationshipVariant = 'success' | 'warning' | 'danger' | 'info' | 'default'
+export type RelationshipVariant =
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'default'
+  | 'primary'
+  | 'secondary'
+  | 'outline'
 
 export const RELATIONSHIP_TYPE_VARIANT: Record<RelationshipType, RelationshipVariant> = {
-  acquaintance: 'success',
-  friend: 'warning',
-  romantic: 'info',
-  partner: 'danger',
-  MARRIED: 'danger',
+  acquaintance: 'outline',
+  friend: 'success',
+  romantic: 'warning',
+  partner: 'info',
+  MARRIED: 'primary',
   ex: 'default',
+}
+
+export const RELATIONSHIP_TYPE_LABEL: Record<RelationshipType, string> = {
+  acquaintance: 'Acquaintance',
+  friend: 'Friend',
+  romantic: 'Romantic',
+  partner: 'Partner',
+  MARRIED: 'Married',
+  ex: 'Ex',
 }
 
 export function isRelationshipType(

@@ -125,13 +125,13 @@ describe('RelationshipCard', () => {
 
   describe('badge variant per relationship type', () => {
     it.each([
-      { type: 'acquaintance', expectClass: 'bg-success' },
-      { type: 'friend', expectClass: 'bg-warning' },
-      { type: 'romantic', expectClass: 'border-2' },
-      { type: 'partner', expectClass: 'bg-danger' },
-      { type: 'MARRIED', expectClass: 'bg-danger' },
-      { type: 'ex', expectClass: 'bg-surface-raised' },
-    ])('$type badge should have correct variant class', async ({ type, expectClass }) => {
+      { type: 'acquaintance', expectClasses: ['bg-transparent'], label: 'Acquaintance' },
+      { type: 'friend', expectClasses: ['bg-success'], label: 'Friend' },
+      { type: 'romantic', expectClasses: ['bg-warning'], label: 'Romantic' },
+      { type: 'partner', expectClasses: ['border-2'], label: 'Partner' },
+      { type: 'MARRIED', expectClasses: ['bg-success', 'text-terminal-background'], label: 'Married' },
+      { type: 'ex', expectClasses: ['bg-surface-raised'], label: 'Ex' },
+    ])('$type badge should have correct variant class', async ({ type, expectClasses, label }) => {
       const wrapper = createWrapper({
         id: '1',
         dweller_1_id: 'd1',
@@ -142,8 +142,10 @@ describe('RelationshipCard', () => {
 
       const badge = wrapper.find('.relationship-badge')
       expect(badge.exists()).toBe(true)
-      expect(badge.text()).toBe(type)
-      expect(badge.classes().includes(expectClass)).toBe(true)
+      expect(badge.text()).toBe(label)
+      for (const cls of expectClasses) {
+        expect(badge.classes()).toContain(cls)
+      }
     })
 
     it('defaults to success variant for unknown type', () => {
@@ -157,6 +159,33 @@ describe('RelationshipCard', () => {
 
       const badge = wrapper.find('.relationship-badge')
       expect(badge.classes()).toContain('bg-success')
+    })
+
+    it('shows the Married label with a heart icon for MARRIED relationships', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'MARRIED',
+        affinity: 90,
+      })
+
+      const badge = wrapper.find('.relationship-badge')
+      expect(badge.text()).toContain('Married')
+      expect(badge.find('.icon-mock').attributes('data-icon')).toBe('mdi:heart')
+    })
+
+    it('shows the Partner label for partner relationships', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      const badge = wrapper.find('.relationship-badge')
+      expect(badge.text()).toContain('Partner')
     })
   })
 

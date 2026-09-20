@@ -13,7 +13,7 @@
             :thumbnail-url="dweller1.thumbnail_url"
             :alt="dweller1Name"
             prefer-thumbnail
-            image-class="h-12 w-12 shrink-0 rounded object-cover"
+            image-class="h-12 w-12 shrink-0 rounded object-cover" fallback-class="h-12 w-12 shrink-0 text-theme-primary/60"
           />
           <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
           <span class="flex items-center justify-center gap-1.5">
@@ -24,7 +24,8 @@
         <div class="flex flex-col items-center gap-1 text-theme-primary/70">
           <Icon icon="mdi:heart" class="h-5 w-5 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]" />
           <UBadge :variant="relationshipColor" class="relationship-badge mt-1 text-[0.625rem]">
-            {{ relationship.relationship_type }}
+            <Icon v-if="relationship.relationship_type === 'MARRIED'" icon="mdi:heart" class="h-3.5 w-3.5" />
+            {{ RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ?? relationship.relationship_type }}
           </UBadge>
         </div>
         <button
@@ -38,7 +39,7 @@
             :thumbnail-url="dweller2.thumbnail_url"
             :alt="dweller2Name"
             prefer-thumbnail
-            image-class="h-12 w-12 shrink-0 rounded object-cover"
+            image-class="h-12 w-12 shrink-0 rounded object-cover" fallback-class="h-12 w-12 shrink-0 text-theme-primary/60"
           />
           <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
           <span class="flex items-center justify-center gap-1.5">
@@ -127,7 +128,7 @@
             :thumbnail-url="dweller1.thumbnail_url"
             :alt="dweller1Name"
             prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover"
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
           />
           <button
             type="button"
@@ -142,7 +143,7 @@
             :thumbnail-url="dweller2.thumbnail_url"
             :alt="dweller2Name"
             prefer-thumbnail
-            image-class="h-8 w-8 shrink-0 rounded object-cover"
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
           />
           <button
             type="button"
@@ -154,7 +155,8 @@
           </button>
         </div>
         <UBadge :variant="relationshipColor" class="relationship-badge mt-1 text-[0.625rem]">
-          {{ relationship.relationship_type }}
+          <Icon v-if="relationship.relationship_type === 'MARRIED'" icon="mdi:heart" class="h-3.5 w-3.5" />
+          {{ RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ?? relationship.relationship_type }}
         </UBadge>
       </div>
       <div class="rounded border border-theme-primary/15 bg-surface-sunken px-2.5 py-2">
@@ -229,6 +231,7 @@ import {
   COMMITTED_RELATIONSHIP_TYPES,
   isRelationshipType,
   PARTNER_LINKED_RELATIONSHIP_TYPES,
+  RELATIONSHIP_TYPE_LABEL,
   RELATIONSHIP_TYPE_VARIANT,
   type Relationship,
 } from '../../models/relationship'

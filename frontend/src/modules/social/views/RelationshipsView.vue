@@ -109,7 +109,8 @@ const navigateToDweller = (dwellerId: string) => {
             v-for="metric in summaryMetrics"
             :key="metric.label"
             type="button"
-            class="flex cursor-pointer items-center gap-3 rounded border bg-transparent p-4 text-left transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
+            :aria-pressed="activeStage === metric.tab"
+            class="flex cursor-pointer items-center gap-3 rounded border bg-transparent p-4 text-left transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10 focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
             :class="activeStage === metric.tab ? 'border-theme-primary/60 bg-theme-glow/10' : 'border-theme-primary/20'"
             @click="setActiveStage(metric.tab)"
           >

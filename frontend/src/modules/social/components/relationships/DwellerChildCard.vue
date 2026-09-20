@@ -32,7 +32,7 @@ const specialStats = computed(() => [
 <template>
   <button
     type="button"
-    class="flex flex-col gap-2 rounded border border-theme-primary/20 bg-surface-sunken p-3 text-left transition-all hover:border-theme-primary/50 hover:bg-surface-hover"
+    class="flex flex-col gap-2 rounded border border-theme-primary/20 bg-surface-sunken p-3 text-left transition-colors hover:border-theme-primary/50 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
     @click="emit('select', dweller.id)"
   >
     <div class="flex items-center gap-3">

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.129.0 (2026-09-20)
+
+### Features
+
+* **exploration:** record structured radiation_removed on RadAway auto-use d3772a5
+* **exploration:** surface radiation series in the expedition journal f43d8f9
+
+### Bug Fixes
+
+* **dweller:** reject room assignment via PUT /dwellers/{id} 7fe8d35
+* **exploration:** render radiation-only journeys and gate the -0 rad badge e8d3c7f
+
+### Documentation
+
+* **roadmap:** record grey-surface styling policy decision bda2361
+
 ## 2.128.3 (2026-09-20)
 
 ### Bug Fixes

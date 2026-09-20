@@ -3,11 +3,10 @@
   "Long description": "Okay, maybe 77 is an exaggeration, but there are a lot of them, and only one of you. Have you got what it takes?",
   "Quest objective": "Kill the Psycho 77's leader.",
   "Short description": "Wipe out the Psycho 77.",
-  "Requirements": "45 dwellers, 1 Nuclear Reactor",
+  "Requirements": "Level 46 dwellers",
   "Rewards": "Legendary junk, Rare weapon, 200 caps",
   "quest_requirements": [
-    {"requirement_type": "dweller_count", "requirement_data": {"count": 45}, "is_mandatory": true},
-    {"requirement_type": "room", "requirement_data": {"room_type": "nuclear_reactor", "count": 1}, "is_mandatory": true}
+    {"requirement_type": "level", "requirement_data": {"level": 46}, "is_mandatory": true}
   ],
   "quest_rewards": [
     {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary Junk", "rarity": "legendary", "value": 50}},

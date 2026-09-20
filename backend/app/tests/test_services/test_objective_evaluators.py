@@ -290,6 +290,58 @@ async def test_reach_evaluator_population_reached(
 
 
 @pytest.mark.asyncio
+async def test_reach_evaluator_reacts_to_dweller_added(
+    async_session: AsyncSession,
+    fresh_event_bus,
+    patched_session_maker,
+) -> None:
+    """Population growth via DWELLER_ADDED (radio/birth) must drive a dweller-count reach objective."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    objective = Objective(
+        challenge="Reach 10 dwellers",
+        reward="500 caps",
+        objective_type="reach",
+        target_entity={"reach_type": "dweller_count", "target": 10},
+        target_amount=10,
+        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    )
+    async_session.add(objective)
+    await async_session.commit()
+    await async_session.refresh(objective)
+    link = VaultObjectiveProgressLink(
+        vault_id=vault.id, objective_id=objective.id, progress=0, total=10, is_completed=False
+    )
+    async_session.add(link)
+    await async_session.commit()
+
+    ReachEvaluator(fresh_event_bus)
+
+    for i in range(5):
+        dweller = Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
+        async_session.add(dweller)
+    await async_session.commit()
+
+    await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
+    await async_session.refresh(link)
+    assert link.progress == 5
+    assert link.is_completed is False
+
+    for i in range(5, 10):
+        dweller = Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
+        async_session.add(dweller)
+    await async_session.commit()
+
+    await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
+    await async_session.refresh(link)
+    assert link.progress == 10
+    assert link.is_completed is True
+
+
+@pytest.mark.asyncio
 async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
     async_session: AsyncSession,
     fresh_event_bus,

@@ -31,6 +31,7 @@ class GameEvent(StrEnum):
     DWELLER_ASSIGNED = "dweller_assigned"
     DWELLER_ASSIGNED_CORRECTLY = "dweller_assigned_correctly"
     DWELLER_LEVEL_UP = "dweller_level_up"
+    DWELLER_ADDED = "dweller_added"
     ITEM_COLLECTED = "item_collected"
     QUEST_COMPLETED = "quest_completed"
     OBJECTIVE_COMPLETED = "objective_completed"

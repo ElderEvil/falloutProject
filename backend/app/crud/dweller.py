@@ -281,6 +281,13 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
         return result.scalar_one()
 
+    async def get_max_level(self, db_session: AsyncSession, vault_id: UUID4) -> int | None:
+        """Highest level among a vault's non-deleted dwellers, or None when the vault has none."""
+        result = await db_session.execute(
+            select(func.max(self.model.level)).where(self.model.vault_id == vault_id, ~self.model.is_deleted)
+        )
+        return result.scalar_one_or_none()
+
     async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
         conditions = [

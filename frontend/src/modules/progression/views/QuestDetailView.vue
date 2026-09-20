@@ -53,8 +53,8 @@ onMounted(async () => {
         quest.value = {
           ...generalQuest,
           is_visible: false,
-          is_locked: false,
-          lock_reason: null,
+          is_locked: true,
+          lock_reason: 'Not available in this vault',
           is_completed: false,
           started_at: null,
           duration_minutes: null,
@@ -121,7 +121,12 @@ const prerequisitesMet = computed(() => {
 })
 
 const canStart = computed(() => {
-  return !quest.value?.is_visible && !quest.value?.is_completed && prerequisitesMet.value
+  return (
+    Boolean(quest.value?.is_visible) &&
+    !quest.value?.is_completed &&
+    prerequisitesMet.value &&
+    !quest.value?.is_locked
+  )
 })
 
 const isInProgress = computed(() => {
@@ -333,9 +338,9 @@ const goBack = () => {
                     <span>Quest Completed - Rewards Claimed</span>
                   </div>
 
-                  <div v-else-if="!prerequisitesMet" class="locked-message">
+                  <div v-else-if="!prerequisitesMet || quest.is_locked" class="locked-message">
                     <Icon icon="mdi:lock" class="message-icon" />
-                    <span>Prerequisites not met</span>
+                    <span>{{ quest.is_locked ? (quest.lock_reason ?? 'Quest locked') : 'Prerequisites not met' }}</span>
                   </div>
                 </div>
 

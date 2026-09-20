@@ -58,6 +58,22 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         """All members of the vault's team for a quest, dweller eager-loaded, slot-ordered."""
         return self._members(await self.get_quest_team_row(db_session, quest_id, vault_id))
 
+    async def get_quest_team_dwellers(
+        self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4
+    ) -> list[Dweller]:
+        """The quest party's Dweller rows, weapon/outfit eager-loaded, in slot order."""
+        team = await self.get_quest_team_row(db_session, quest_id, vault_id)
+        members = self._members(team)
+        if not members:
+            return []
+        result = await db_session.execute(
+            select(Dweller)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .where(Dweller.id.in_([member.dweller_id for member in members]))
+        )
+        by_id = {dweller.id: dweller for dweller in result.scalars().all()}
+        return [by_id[member.dweller_id] for member in members if member.dweller_id in by_id]
+
     async def get_or_create_quest_team(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Team:
         """The vault's quest team, created on first assignment (flushed so the id is usable)."""
         team = await self.get_quest_team_row(db_session, quest_id, vault_id)

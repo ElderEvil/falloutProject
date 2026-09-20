@@ -113,3 +113,64 @@ describe('QuestDetailView chain links', () => {
     expect(wrapper.text()).toContain('Previous quest must be completed first')
   })
 })
+
+describe('QuestDetailView start button', () => {
+  let wrapper: VueWrapper
+  let questStore: ReturnType<typeof useQuestStore>
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    questStore = useQuestStore()
+    vi.clearAllMocks()
+    vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
+  })
+
+  function mountView() {
+    return mount(QuestDetailView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          PageNavigation: true,
+          Icon: true,
+        },
+      },
+    })
+  }
+
+  it('does not render the Start button for a locked quest', async () => {
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: false,
+        is_locked: true,
+        lock_reason: 'Not available in this vault',
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.action-btn').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Not available in this vault')
+  })
+
+  it('renders the Start button for an available quest', async () => {
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_locked: false,
+        lock_reason: null,
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const startButton = wrapper.find('.action-btn')
+    expect(startButton.exists()).toBe(true)
+    expect(startButton.text()).toContain('Start Quest')
+  })
+})

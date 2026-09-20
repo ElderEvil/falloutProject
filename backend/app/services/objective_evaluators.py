@@ -289,7 +289,7 @@ class AssignCorrectEvaluator(ObjectiveEvaluator):
 class ReachEvaluator(ObjectiveEvaluator):
     """Evaluates 'reach' objectives (e.g. 'Reach 10 Dwellers', 'Reach Level 5').
 
-    Listens to DWELLER_LEVEL_UP events.
+    Listens to DWELLER_LEVEL_UP, DWELLER_ASSIGNED and DWELLER_ADDED events.
     For dweller count targets, checks current vault population.
     For level targets, checks if the leveled dweller meets the target.
 
@@ -298,7 +298,7 @@ class ReachEvaluator(ObjectiveEvaluator):
     """
 
     objective_type = "reach"
-    subscribed_events = (GameEvent.DWELLER_LEVEL_UP, GameEvent.DWELLER_ASSIGNED)
+    subscribed_events = (GameEvent.DWELLER_LEVEL_UP, GameEvent.DWELLER_ASSIGNED, GameEvent.DWELLER_ADDED)
 
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
@@ -306,7 +306,7 @@ class ReachEvaluator(ObjectiveEvaluator):
 
         # Handle various target type keys
         if target_type in ("dweller_count", "population"):
-            return event_type == GameEvent.DWELLER_ASSIGNED
+            return event_type in (GameEvent.DWELLER_ASSIGNED, GameEvent.DWELLER_ADDED)
 
         if target_type == "level":
             return event_type == GameEvent.DWELLER_LEVEL_UP

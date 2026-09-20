@@ -1076,9 +1076,12 @@ Office is built, and quest unlocking tracks vault progress rather than fixed dwe
   "listed as available but rejected at start" mismatch.
 - Move the "**all** quests require the Overseer's Office" rule from the frontend into the backend as the single
   source of truth and expose `is_locked`/`lock_reason` to clients.
-- Re-author the fixed gates — Against the Odds (level 46), A Poorly-Thought-Out Plan (44), A Gathering of Ghouls
-  (27) — and the display-only gates on the 8 `power_struggle` quests onto `DWELLER_COUNT`/`ROOM`/`QUEST_COMPLETED`
-  plus chain order, so advertised gates are always enforced.
+- Keep the real-game dweller-**LEVEL** gates (Against the Odds 46, A Poorly-Thought-Out Plan 44, A Gathering of
+  Ghouls 27, `power_struggle` 20) and enforce them against the dwellers **sent** on the quest (the party must meet
+  level/equipment requirements), matching the real game — not a vault-wide population check. Progress-relativeness
+  comes from **progressive reveal**: a quest is hidden until the vault has a dweller within ~10 levels of its
+  requirement, so a fresh board never shows level-46 quests, then shown locked with its requirement reason until a
+  qualifying party exists. Advertised gates are always enforced (seed guard).
 - Boosted vaults (seeded with the Office) skip the arc; existing vaults are not back-filled.
 
 **Non-goals (this plan):** economy changes to the D1 soft-lock (guidance only), persisting `quest_objective` step

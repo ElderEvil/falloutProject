@@ -1,8 +1,9 @@
 """Quest seeding utility to populate database from JSON files on startup."""
 
+import json
 import logging
 from pathlib import Path
-from typing import TypedDict
+from typing import Any
 from uuid import UUID
 
 from sqlmodel import select
@@ -16,13 +17,6 @@ from app.utils.load_quests import load_all_quest_chain_files
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
-
-
-class QuestMetadata(TypedDict):
-    quest_type: QuestType
-    quest_category: str | None
-    chain_id: str | None
-    chain_order: int
 
 
 def generate_rewards_string(quest_json: QuestJSON) -> str:
@@ -63,7 +57,7 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
     return ", ".join(format_reward(r) for r in quest_json.quest_rewards)
 
 
-def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> QuestMetadata:
+def _quest_metadata(quest_json: QuestJSON, chain_id: str | None) -> dict[str, Any]:
     return {
         "quest_type": QuestType(quest_json.quest_type or QuestType.SIDE),
         "quest_category": quest_json.quest_category,
@@ -94,9 +88,7 @@ async def _sync_existing_quest_rewards(
         quest = quests_by_title.get(quest_json.quest_name)
         if quest is None:
             continue
-        rewards = list(
-            (await db_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
-        )
+        rewards = list((await db_session.exec(select(QuestReward).where(QuestReward.quest_id == quest.id))).all())
         for reward_json in quest_json.quest_rewards:
             item_data = reward_json.item_data_json
             reward = next((candidate for candidate in rewards if _matches_reward_json(candidate, reward_json)), None)
@@ -129,6 +121,91 @@ async def _sync_existing_quest_rewards(
     return updated_count
 
 
+def _desired_requirements(
+    quest_json: QuestJSON, quests_by_title: dict[str, Quest]
+) -> list[tuple[RequirementType, dict[str, Any], bool]]:
+    """Build the canonical stored representation of a quest's JSON requirements."""
+    desired: list[tuple[RequirementType, dict[str, Any], bool]] = []
+    for req_json in quest_json.quest_requirements:
+        try:
+            requirement_type = RequirementType(req_json.requirement_type.lower())
+        except ValueError as e:
+            logger.warning(f"Failed to parse requirement type for quest '{quest_json.quest_name}': {e}")
+            continue
+        requirement_data = dict(req_json.requirement_data)
+        if requirement_type == RequirementType.QUEST_COMPLETED:
+            quest_name = requirement_data.get("quest_name")
+            if quest_name:
+                predecessor = quests_by_title.get(quest_name)
+                if predecessor is not None:
+                    requirement_data["quest_id"] = str(predecessor.id)
+                    del requirement_data["quest_name"]
+                else:
+                    logger.warning(
+                        f"Could not resolve quest_name '{quest_name}' "
+                        f"for QUEST_COMPLETED requirement in quest '{quest_json.quest_name}'"
+                    )
+        desired.append((requirement_type, requirement_data, req_json.is_mandatory))
+    return desired
+
+
+def _predecessor_id(desired: list[tuple[RequirementType, dict[str, Any], bool]]) -> UUID | None:
+    """Return the first mandatory QUEST_COMPLETED predecessor id, if any."""
+    for requirement_type, requirement_data, is_mandatory in desired:
+        if requirement_type == RequirementType.QUEST_COMPLETED and is_mandatory:
+            quest_id = requirement_data.get("quest_id")
+            if quest_id:
+                return UUID(str(quest_id))
+    return None
+
+
+def _requirements_in_sync(
+    existing: list[QuestRequirement], desired: list[tuple[RequirementType, dict[str, Any], bool]]
+) -> bool:
+    if len(existing) != len(desired):
+        return False
+    existing_sorted = sorted(
+        (r.requirement_type.value, json.dumps(r.requirement_data, sort_keys=True, default=str), r.is_mandatory)
+        for r in existing
+    )
+    desired_sorted = sorted(
+        (rt.value, json.dumps(rd, sort_keys=True, default=str), mandatory) for rt, rd, mandatory in desired
+    )
+    return existing_sorted == desired_sorted
+
+
+async def _sync_existing_quest_requirements(
+    db_session: AsyncSession, quests_by_title: dict[str, Quest], quest_jsons: list[QuestJSON]
+) -> int:
+    """Reconcile existing quest requirements with the typed quest-data source of truth."""
+    updated_count = 0
+    for quest_json in quest_jsons:
+        quest = quests_by_title.get(quest_json.quest_name)
+        if quest is None:
+            continue
+        existing = list(
+            (await db_session.exec(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id))).all()
+        )
+        desired = _desired_requirements(quest_json, quests_by_title)
+        predecessor_id = _predecessor_id(desired)
+        if _requirements_in_sync(existing, desired) and quest.previous_quest_id == predecessor_id:
+            continue
+        for requirement in existing:
+            await db_session.delete(requirement)
+        for requirement_type, requirement_data, is_mandatory in desired:
+            db_session.add(
+                QuestRequirement(
+                    quest_id=quest.id,
+                    requirement_type=requirement_type,
+                    requirement_data=requirement_data,
+                    is_mandatory=is_mandatory,
+                )
+            )
+        quest.previous_quest_id = predecessor_id
+        updated_count += 1
+    return updated_count
+
+
 async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
     """Seed quests from JSON files into database if they don't already exist.
 
@@ -153,7 +230,7 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
         logger.info("Loaded %d quests from %d quest chains", len(all_quest_jsons), len(quest_chains))
 
         # Check which quests already exist in database
-        existing_quests = (await db_session.execute(select(Quest))).scalars().all()
+        existing_quests = (await db_session.exec(select(Quest))).all()
         existing_quests_by_title = {quest.title: quest for quest in existing_quests}
         existing_titles = set(existing_quests_by_title)
 
@@ -215,8 +292,9 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                                 del requirement_data["quest_name"]
                             else:
                                 # Query database for existing quests by name
-                                result = await db_session.execute(select(Quest).where(Quest.title == quest_name))
-                                existing_quest = result.scalars().first()
+                                existing_quest = (
+                                    await db_session.exec(select(Quest).where(Quest.title == quest_name))
+                                ).first()
                                 if existing_quest:
                                     requirement_data["quest_id"] = str(existing_quest.id)
                                     quest_name_to_id[quest_name] = str(existing_quest.id)
@@ -278,11 +356,15 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
             updated_reward_count = await _sync_existing_quest_rewards(
                 db_session, existing_quests_by_title, all_quest_jsons
             )
+            updated_requirement_count = await _sync_existing_quest_requirements(
+                db_session, existing_quests_by_title, all_quest_jsons
+            )
             await db_session.commit()
             logger.info(
-                "Seeded %d new quests and updated %d existing quest rewards",
+                "Seeded %d new quests and updated %d existing quest rewards and %d existing quest requirements",
                 seeded_count,
                 updated_reward_count,
+                updated_requirement_count,
             )
         else:
             updated_quest_count = 0
@@ -296,12 +378,17 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
             updated_reward_count = await _sync_existing_quest_rewards(
                 db_session, existing_quests_by_title, all_quest_jsons
             )
-            if updated_quest_count or updated_reward_count:
+            updated_requirement_count = await _sync_existing_quest_requirements(
+                db_session, existing_quests_by_title, all_quest_jsons
+            )
+            if updated_quest_count or updated_reward_count or updated_requirement_count:
                 await db_session.commit()
                 logger.info(
-                    "Updated %d quest definitions and %d existing quest rewards from static data",
+                    "Updated %d quest definitions, %d existing quest rewards, and %d existing quest requirements "
+                    "from static data",
                     updated_quest_count,
                     updated_reward_count,
+                    updated_requirement_count,
                 )
             else:
                 logger.info("No new quests to seed, all quests already exist in database")

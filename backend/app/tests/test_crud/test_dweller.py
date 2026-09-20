@@ -175,6 +175,31 @@ async def test_move_adult_to_arena_sets_fighting_status(async_session: AsyncSess
 
 
 @pytest.mark.asyncio
+async def test_get_max_level(async_session: AsyncSession):
+    """get_max_level returns the highest dweller level in a vault, or None when empty."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_dweller
+
+    user_data = create_fake_user()
+    user_in = UserCreate(**user_data)
+    user = await crud.user.create(async_session, obj_in=user_in)
+
+    vault_data = create_fake_vault()
+    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
+    vault = await crud.vault.create(async_session, obj_in=vault_in)
+
+    assert await crud.dweller.get_max_level(async_session, vault.id) is None
+
+    for level in (5, 20, 12):
+        dweller_data = create_fake_dweller()
+        dweller_data["level"] = level
+        async_session.add(Dweller(**dweller_data, vault_id=vault.id))
+    await async_session.commit()
+
+    assert await crud.dweller.get_max_level(async_session, vault.id) == 20
+
+
+@pytest.mark.asyncio
 async def test_get_dwellers_by_status(async_session: AsyncSession):
     """Test getting dwellers filtered by status."""
     from app.schemas.common import DwellerStatusEnum

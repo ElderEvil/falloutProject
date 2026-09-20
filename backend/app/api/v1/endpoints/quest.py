@@ -100,15 +100,14 @@ async def get_available_quests(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[QuestRead]:
+) -> Sequence[QuestRead]:
     """Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
 
     Returns:
         List of available quests.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    quests = await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit)
-    return [quest for quest in quests if not quest.is_locked]
+    return await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit, available_only=True)
 
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)

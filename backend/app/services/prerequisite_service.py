@@ -1,6 +1,7 @@
 """Prerequisite service for validating quest requirements before a vault can start a quest."""
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -8,6 +9,7 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.utils.objective_constants import normalize_room_type
@@ -82,6 +84,48 @@ class PrerequisiteService:
         missing = await self.get_missing_requirements(db_session, vault_id, quest)
         return len(missing) == 0, missing
 
+    async def validate_party_requirements(
+        self, db_session: AsyncSession, party_dwellers: Sequence[Dweller], quest: Quest
+    ) -> list[str]:
+        """Missing party-level requirements for a quest, given the dwellers being sent.
+
+        LEVEL and ITEM gates are checked against the party itself — the dwellers
+        actually dispatched — while ROOM, DWELLER_COUNT and QUEST_COMPLETED stay
+        vault-level and keep their existing validation in ``get_missing_requirements``.
+        """
+        missing: list[str] = []
+        for req in quest.quest_requirements:
+            if not req.is_mandatory:
+                continue
+            if req.requirement_type == RequirementType.LEVEL and not self._party_meets_level(
+                party_dwellers, req.requirement_data
+            ):
+                missing.append(self._describe_level(req.requirement_data))
+            elif req.requirement_type == RequirementType.ITEM and not self._party_meets_item(
+                party_dwellers, req.requirement_data
+            ):
+                missing.append(self._describe_party_item(req.requirement_data))
+        return missing
+
+    @staticmethod
+    def _party_meets_level(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
+        required_level = requirement_data.get("level", 1)
+        required_count = requirement_data.get("count", 1)
+        matching = sum(1 for dweller in party_dwellers if dweller.level >= required_level)
+        return matching >= required_count
+
+    @staticmethod
+    def _party_meets_item(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
+        item_name = requirement_data.get("item_name", "")
+        required_count = requirement_data.get("count", 1)
+        matching = sum(
+            1
+            for dweller in party_dwellers
+            if (dweller.weapon is not None and dweller.weapon.name == item_name)
+            or (dweller.outfit is not None and dweller.outfit.name == item_name)
+        )
+        return matching >= required_count
+
     async def get_missing_requirements(self, db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
         missing: list[str] = []
         requirements: list[QuestRequirement] = quest.quest_requirements
@@ -146,6 +190,14 @@ class PrerequisiteService:
         if count > 1:
             return f"Need {count}x {item_name} in storage"
         return f"Need {item_name} in storage"
+
+    @staticmethod
+    def _describe_party_item(data: dict[str, Any]) -> str:
+        item_name = data.get("item_name", "Unknown item")
+        count = data.get("count", 1)
+        if count > 1:
+            return f"Need {count} party dweller(s) equipped with {item_name}"
+        return f"Need a party dweller equipped with {item_name}"
 
     @staticmethod
     def _describe_room(data: dict[str, Any]) -> str:

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.quest import Quest
-from app.models.quest_requirement import QuestRequirement
+from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.quest_reward import QuestReward
 from app.schemas.quest import QuestRewardJSON
 from app.utils.load_quests import load_all_quest_chain_files
@@ -426,3 +426,163 @@ async def test_seed_quests_rollback_on_error(async_session: AsyncSession, tmp_pa
     result = await async_session.execute(select(Quest))
     quests = result.scalars().all()
     assert len(quests) == 0
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_reconciles_existing_requirements(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding restores an existing quest's gates to the JSON source of truth."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Reconciled Gates Quest",
+            "Long description": "A quest whose gates were re-authored.",
+            "Short description": "Reconcile gates",
+            "Requirements": "Level 5",
+            "Rewards": "10 caps",
+            "quest_requirements": [
+                {"requirement_type": "LEVEL", "requirement_data": {"level": 5}, "is_mandatory": True},
+                {"requirement_type": "ITEM", "requirement_data": {"item_name": "Stimpak"}, "is_mandatory": True},
+            ],
+        }
+    ]
+    with (quest_dir / "gates.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Reconciled Gates Quest"))).scalar_one()
+    requirements = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
+        .scalars()
+        .all()
+    )
+    for requirement in requirements:
+        await async_session.delete(requirement)
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 99},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    requirements = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
+        .scalars()
+        .all()
+    )
+    assert sorted((r.requirement_type.value, r.requirement_data) for r in requirements) == [
+        ("item", {"item_name": "Stimpak"}),
+        ("level", {"level": 5}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_reconciles_existing_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding resolves a QUEST_COMPLETED gate on an existing quest and restores previous_quest_id."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = {
+        "chain_name": "Test chain",
+        "quests": [
+            {
+                "quest_name": "Chain Starter",
+                "long_description": "The first quest in a test chain.",
+                "short_description": "Start the chain",
+                "requirements": "Level 1",
+                "rewards": "10 caps",
+            },
+            {
+                "quest_name": "Chain Follow-up",
+                "long_description": "The second quest in a test chain.",
+                "short_description": "Continue the chain",
+                "requirements": "Level 1",
+                "rewards": "20 caps",
+                "quest_requirements": [
+                    {
+                        "requirement_type": "QUEST_COMPLETED",
+                        "requirement_data": {"quest_name": "Chain Starter"},
+                    }
+                ],
+            },
+        ],
+    }
+    with (quest_dir / "chain.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 2
+
+    quests = (await async_session.execute(select(Quest))).scalars().all()
+    quests_by_title = {quest.title: quest for quest in quests}
+    follow_up = quests_by_title["Chain Follow-up"]
+    starter = quests_by_title["Chain Starter"]
+    assert follow_up.previous_quest_id == starter.id
+
+    # Drop the gate and clear the predecessor link in the DB
+    requirements = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == follow_up.id)))
+        .scalars()
+        .all()
+    )
+    for requirement in requirements:
+        await async_session.delete(requirement)
+    follow_up.previous_quest_id = None
+    await async_session.commit()
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    follow_up = (await async_session.execute(select(Quest).where(Quest.title == "Chain Follow-up"))).scalar_one()
+    requirements = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == follow_up.id)))
+        .scalars()
+        .all()
+    )
+    assert len(requirements) == 1
+    assert requirements[0].requirement_type == RequirementType.QUEST_COMPLETED
+    assert requirements[0].requirement_data == {"quest_id": str(starter.id)}
+    assert follow_up.previous_quest_id == starter.id
+
+
+@pytest.mark.asyncio
+async def test_seed_quests_requirement_sync_is_idempotent(async_session: AsyncSession, tmp_path: Path) -> None:
+    """Re-seeding with no JSON change leaves requirement rows untouched."""
+    quest_dir = tmp_path / "quests"
+    quest_dir.mkdir()
+    quest_data = [
+        {
+            "Quest name": "Idempotent Gates Quest",
+            "Long description": "A quest with stable gates.",
+            "Short description": "Stable gates",
+            "Requirements": "Level 3",
+            "Rewards": "10 caps",
+            "quest_requirements": [
+                {"requirement_type": "LEVEL", "requirement_data": {"level": 3}, "is_mandatory": True},
+            ],
+        }
+    ]
+    with (quest_dir / "gates.json").open("w", encoding="utf-8") as file:
+        json.dump(quest_data, file)
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
+
+    quest = (await async_session.execute(select(Quest).where(Quest.title == "Idempotent Gates Quest"))).scalar_one()
+    before = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
+        .scalars()
+        .all()
+    )
+    before_ids = {requirement.id for requirement in before}
+
+    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
+
+    after = (
+        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
+        .scalars()
+        .all()
+    )
+    assert {requirement.id for requirement in after} == before_ids

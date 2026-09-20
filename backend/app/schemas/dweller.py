@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import UUID4, BaseModel, Field, computed_field, model_validator
 from sqlmodel import SQLModel
@@ -374,7 +374,9 @@ class DwellerUpdateRequest(SQLModel):
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)
-    room_id: UUID4 | None = None
+    # Room assignment only happens via the dedicated move endpoints
+    # (POST /dwellers/{id}/move_to/{room_id}, auto_assign); PUT may only unassign.
+    room_id: Literal[None] | None = None  # ruff: ignore[redundant-none-literal]  # @optional() ORs None in; only null is accepted
 
     # Reject game state loudly instead of silently dropping it, so a client that
     # tries to write health/radiation/level learns why it cannot.

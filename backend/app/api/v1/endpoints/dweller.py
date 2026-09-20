@@ -138,7 +138,9 @@ async def update_dweller(
     """Update a dweller's player-editable fields.
 
     Game state (health, radiation, level, experience, supplies, status, death) is
-    not accepted here — see `DwellerUpdateRequest`.
+    not accepted here — see `DwellerUpdateRequest`. Room assignment only happens
+    via the dedicated move endpoints (`POST /dwellers/{id}/move_to/{room_id}`,
+    auto_assign); this endpoint only accepts `room_id: null` to unassign.
 
     Returns:
         DwellerRead: The updated dweller.

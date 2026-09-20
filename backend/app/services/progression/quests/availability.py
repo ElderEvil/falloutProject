@@ -4,7 +4,7 @@ The read-path gate that the start path also consumes (via ``quest_service``) so 
 can never disagree. Quest lifecycle — start, claim, complete — lives in ``service.py``.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from pydantic import UUID4
@@ -47,6 +47,25 @@ def _highest_mandatory_level_requirement(quest_read: QuestRead) -> int:
     return highest
 
 
+async def _chain_lock_reason(
+    db_session: AsyncSession,
+    previous_quest_id: UUID4,
+    resolve_quest: Callable[[UUID4], Quest | None] | None,
+) -> str:
+    """Requirement-driven unlock feedback: name the predecessor, else the generic reason.
+
+    ``resolve_quest`` avoids per-quest lookups on the batch read path (the caller
+    already holds the vault quest map); a lone caller (the start path) falls back
+    to one query only when no resolver is supplied.
+    """
+    predecessor = resolve_quest(previous_quest_id) if resolve_quest is not None else None
+    if predecessor is None and resolve_quest is None:
+        predecessor = await crud.quest_crud.get_or_none(db_session, previous_quest_id)
+    if predecessor is not None:
+        return f"Complete '{predecessor.title}' first"
+    return CHAIN_LOCK_REASON
+
+
 async def quest_availability(
     db_session: AsyncSession,
     vault_id: UUID4,
@@ -54,6 +73,7 @@ async def quest_availability(
     *,
     has_office: bool | None = None,
     completed_quest_ids: set[UUID4] | None = None,
+    resolve_quest: Callable[[UUID4], Quest | None] | None = None,
 ) -> QuestAvailability:
     """Whether a vault can start a quest: Office rule, chain predecessor, then mandatory requirements.
 
@@ -69,7 +89,8 @@ async def quest_availability(
     if completed_quest_ids is None:
         completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
     if quest.previous_quest_id is not None and quest.previous_quest_id not in completed_quest_ids:
-        return QuestAvailability(available=False, lock_reason=CHAIN_LOCK_REASON)
+        lock_reason = await _chain_lock_reason(db_session, quest.previous_quest_id, resolve_quest)
+        return QuestAvailability(available=False, lock_reason=lock_reason)
 
     state = inspect(quest)
     if state is not None and "quest_requirements" in state.unloaded:
@@ -112,7 +133,12 @@ async def get_quests_for_vault(
         if has_office and _highest_mandatory_level_requirement(quest_read) > reveal_threshold:
             continue
         availability = await quest_availability(
-            db_session, vault_id, quest, has_office=has_office, completed_quest_ids=completed_quest_ids
+            db_session,
+            vault_id,
+            quest,
+            has_office=has_office,
+            completed_quest_ids=completed_quest_ids,
+            resolve_quest=quest_by_id.get,
         )
         quest_read.is_visible = quest_read.is_visible and availability.available
         quest_read.is_locked = not availability.available

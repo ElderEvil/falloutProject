@@ -133,7 +133,7 @@ async def test_chain_locked_quest(async_session: AsyncSession) -> None:
 
     availability = await quest_service.get_quest_availability(async_session, vault.id, quest_b)
     assert availability.available is False
-    assert availability.lock_reason == "Requires completing a previous quest"
+    assert availability.lock_reason == "Complete 'Chain Starter' first"
 
     await crud.quest_crud.assign_to_vault(async_session, quest_a.id, vault.id, is_visible=True)
     link = await crud.quest_crud.get_link(async_session, quest_id=quest_a.id, vault_id=vault.id)
@@ -143,6 +143,22 @@ async def test_chain_locked_quest(async_session: AsyncSession) -> None:
     availability = await quest_service.get_quest_availability(async_session, vault.id, quest_b)
     assert availability.available is True
     assert availability.lock_reason is None
+
+
+@pytest.mark.asyncio
+async def test_chain_lock_reason_names_the_predecessor_on_the_read_path(async_session: AsyncSession) -> None:
+    """The vault quest read surfaces which quest gates a chain follow-up."""
+    vault = await _vault_with_office(async_session)
+    quest_a = await _create_quest(async_session, title="Getting Started")
+    quest_b = await _create_quest(async_session, title="Next Steps", previous_quest_id=quest_a.id)
+    await crud.quest_crud.assign_to_vault(async_session, quest_a.id, vault.id, is_visible=True)
+    await crud.quest_crud.assign_to_vault(async_session, quest_b.id, vault.id, is_visible=True)
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    follow_up = next(q for q in quest_reads if q.title == "Next Steps")
+
+    assert follow_up.is_locked is True
+    assert follow_up.lock_reason == "Complete 'Getting Started' first"
 
 
 @pytest.mark.asyncio

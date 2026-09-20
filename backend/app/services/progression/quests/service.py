@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextlib import suppress
 from datetime import datetime, timedelta
 from typing import Any
@@ -119,10 +119,16 @@ class QuestService:
         *,
         has_office: bool | None = None,
         completed_quest_ids: set[UUID4] | None = None,
+        resolve_quest: Callable[[UUID4], Quest | None] | None = None,
     ) -> QuestAvailability:
         """Whether a vault can start a quest; delegates to the availability policy."""
         return await availability.quest_availability(
-            db_session, vault_id, quest, has_office=has_office, completed_quest_ids=completed_quest_ids
+            db_session,
+            vault_id,
+            quest,
+            has_office=has_office,
+            completed_quest_ids=completed_quest_ids,
+            resolve_quest=resolve_quest,
         )
 
     async def get_quests_for_vault(

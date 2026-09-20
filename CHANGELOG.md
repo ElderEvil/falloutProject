@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.128.0 (2026-09-20)
+
+### Features
+
+* **quests:** add STAT requirement type (minimum SPECIAL stat) ce1f489
+
+### Documentation
+
+* **roadmap:** record quest/objective domain refactor plan 16e9b37
+
 ## 2.127.0 (2026-09-20)
 
 ### Features

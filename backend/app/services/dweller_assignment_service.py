@@ -1,5 +1,6 @@
 """Service for intelligent dweller assignment to rooms."""
 
+import logging
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -13,6 +14,7 @@ from app.crud.dweller import determine_status_for_room
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.schemas.dweller import DwellerUpdate
+from app.services import jev_service
 from app.services.room_assignment_policy import ABILITY_TO_STAT_MAP, calculate_room_capacity
 from app.services.training_service import training_service
 
@@ -25,6 +27,8 @@ PRODUCTION_ABILITIES = [
 MEDSCI_ABILITIES = [SPECIALEnum.INTELLIGENCE]
 RADIO_ABILITIES = [SPECIALEnum.CHARISMA]
 TRAINING_ABILITIES = list(SPECIALEnum)
+
+logger = logging.getLogger(__name__)
 
 
 class DwellerAssignmentService:
@@ -260,6 +264,40 @@ class DwellerAssignmentService:
             candidates.remove(youth)
 
         await db_session.commit()
+
+    async def suggest_room(self, dweller: Dweller, rooms: list[Room]) -> Room | None:
+        """Ask Jev which candidate room fits the dweller best (experimental).
+
+        Returns the chosen room on a confident answer, else None so the caller
+        keeps its deterministic pick. Never raises on Jev errors.
+        """
+        if not rooms:
+            return None
+        stats = ", ".join(f"{stat.value} {getattr(dweller, ABILITY_TO_STAT_MAP[stat], '?')}" for stat in SPECIALEnum)
+        state = f"Dweller {dweller.first_name} (level {dweller.level}, {stats}) needs a work assignment."
+        criteria = {
+            room.name: f"{room.category.value} room" + (f" training {room.ability.value}" if room.ability else "")
+            for room in rooms
+        }
+        try:
+            payload = await jev_service.decide(
+                state,
+                {"room": jev_service.make_choice("Which room is the best fit for this dweller?", criteria)},
+            )
+        except Exception:
+            logger.exception("Jev room suggestion failed; keeping deterministic pick")
+            return None
+        answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
+        answer = answers.get("room")
+        if not isinstance(answer, dict):
+            return None
+        try:
+            confidence = float(answer.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            return None
+        if confidence < 0.8:
+            return None
+        return next((room for room in rooms if room.name == answer.get("choice")), None)
 
     async def unassign_all_dwellers(
         self,

@@ -22,9 +22,10 @@ from app.models.base import SPECIALModel
 from app.schemas.chat import NoAction
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
+from app.services import jev_service
 from app.services.ai_service import get_ai_service
 from app.services.chat.models import AgentChatResult
-from app.services.chat_happiness_service import apply_chat_happiness
+from app.services.chat_happiness_service import apply_chat_happiness, distress_adjustment
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 
 logger = logging.getLogger(__name__)
@@ -124,6 +125,8 @@ async def run_chat_agent(
             output: DwellerChatOutput = result.output
 
             delta = compute_happiness_delta(output.sentiment_score)
+            if jev_service.is_configured():
+                delta += await distress_adjustment(message_text)
             new_dweller_happiness, _ = await apply_chat_happiness(
                 db_session=db_session,
                 dweller_id=dweller.id,

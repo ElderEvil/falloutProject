@@ -12,6 +12,10 @@ Question types: ``noul`` (yes/no), ``choice`` (pick one of ``criteria``),
 are evaluated in parallel. Use ``jev-1.13-free`` for the free tier.
 Pricing: $0.042 / 1M input tokens, output tokens free, 70-500 ms.
 
+Auth: the paid model needs ``OPENCODE_ZEN_API_KEY`` (or ``OPENCODE_API_KEY``).
+The free model works keyless - when no key is configured, ``decide`` degrades
+to the free model without an Authorization header instead of failing.
+
 Source: https://opencode.ai/docs/zen (Jev section), https://typesafe.ai
 """
 
@@ -33,8 +37,15 @@ def get_api_key() -> str | None:
 
 
 def is_configured() -> bool:
-    """True when a Zen API key is present."""
+    """True when a Zen API key is present (paid models available)."""
     return bool(get_api_key())
+
+
+def resolve_model(model: str | None) -> str:
+    """Pick the model to call: explicit choice wins, otherwise paid with a key, free without."""
+    if model is not None:
+        return model
+    return DEFAULT_MODEL if get_api_key() else FREE_MODEL
 
 
 def make_noul(instructions: str) -> dict:
@@ -52,6 +63,22 @@ def make_score(instructions: str, criteria: list) -> dict:
     return {"type": "score", "instructions": instructions, "criteria": criteria}
 
 
+def noul_probability(answer: dict) -> float:
+    """Return P(yes) for a noul answer in either known Zen shape; 0.0 for anything else."""
+    if not isinstance(answer, dict):
+        return 0.0
+    if "value" in answer:
+        try:
+            confidence = float(answer.get("confidence", 1.0))
+        except (TypeError, ValueError):
+            return 0.0
+        return confidence if answer["value"] else 1.0 - confidence
+    try:
+        return float(answer.get("noul", 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 async def decide(
     state: str,
     questions: dict,
@@ -60,19 +87,22 @@ async def decide(
 ) -> dict:
     """Evaluate ``state`` against ``questions`` via Zen; return raw Jev payload.
 
+    Keyless callers degrade to the free model; an explicitly requested paid
+    model without a key fails fast instead of silently downgrading.
+
     Raises:
-        RuntimeError: No API key configured, or Zen returned an HTTP error.
+        RuntimeError: Paid model requested without an API key, or Zen returned an HTTP error.
     """
+    model = resolve_model(model)
     api_key = get_api_key()
-    if not api_key:
-        raise RuntimeError("Jev not configured: set OPENCODE_ZEN_API_KEY (or OPENCODE_API_KEY).")
-    payload = {"model": model or DEFAULT_MODEL, "state": state, "questions": questions}
+    if api_key is None and model != FREE_MODEL:
+        raise RuntimeError(f"Jev model {model} needs OPENCODE_ZEN_API_KEY (or OPENCODE_API_KEY).")
+    headers = {"Content-Type": "application/json"}
+    if api_key is not None:
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = {"model": model, "state": state, "questions": questions}
     async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(
-            ZEN_SYSTEMONE_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json=payload,
-        )
+        response = await client.post(ZEN_SYSTEMONE_URL, headers=headers, json=payload)
         if response.status_code == 401:
             raise RuntimeError("Jev request rejected (401): check your Zen API key.")
         response.raise_for_status()

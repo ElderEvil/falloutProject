@@ -39,6 +39,7 @@ from app.schemas.dweller import (
     DwellerUpdate,
     DwellerUpdateRequest,
 )
+from app.services import jev_service
 from app.services.leveling_service import leveling_service
 from app.services.map_service import map_service
 from app.services.room_assignment_policy import (
@@ -331,16 +332,23 @@ class DwellerService:
                     detail=f"Dweller is already assigned to the best matching room ({current_room.name})"
                 )
 
-        # Find room with available capacity (based on room size): 2 dwellers per 3 size units
-        best_room = None
+        # Find rooms with available capacity (based on room size): 2 dwellers per 3 size units
+        open_rooms = []
         for room in matching_rooms:
             dweller_count = await crud.dweller.count_in_room(db_session, room.id, include_apprentices=False)
             if dweller_count < calculate_room_capacity(room.size):
-                best_room = room
-                break
+                open_rooms.append(room)
 
-        if not best_room:
+        if not open_rooms:
             raise ResourceConflictException(detail=f"All {best_stat.value} production rooms are at full capacity")
+
+        best_room = open_rooms[0]
+        if len(open_rooms) > 1 and jev_service.is_configured():
+            from app.services.dweller_assignment_service import dweller_assignment_service
+
+            suggested = await dweller_assignment_service.suggest_room(dweller_obj, open_rooms)
+            if suggested is not None:
+                best_room = suggested
 
         # Move dweller to the best room
         return await self.move_to_room(db_session, dweller_id, best_room.id)

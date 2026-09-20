@@ -17,11 +17,23 @@ def test_is_configured_true_with_fallback_key(monkeypatch):
     assert jev_service.is_configured() is True
 
 
-async def test_decide_raises_without_key(monkeypatch):
+def test_resolve_model_prefers_paid_with_key(monkeypatch):
+    monkeypatch.setenv("OPENCODE_ZEN_API_KEY", "test-key")
+    assert jev_service.resolve_model(None) == jev_service.DEFAULT_MODEL
+    assert jev_service.resolve_model(jev_service.FREE_MODEL) == jev_service.FREE_MODEL
+
+
+def test_resolve_model_degrades_to_free_without_key(monkeypatch):
     monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
     monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="not configured"):
-        await jev_service.decide("state", {"q": jev_service.make_noul("Is it?")})
+    assert jev_service.resolve_model(None) == jev_service.FREE_MODEL
+
+
+async def test_decide_rejects_paid_model_without_key(monkeypatch):
+    monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
+    monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="needs OPENCODE_ZEN_API_KEY"):
+        await jev_service.decide("state", {"q": jev_service.make_noul("Is it?")}, model=jev_service.DEFAULT_MODEL)
 
 
 def test_question_builders_shape():
@@ -73,3 +85,47 @@ async def test_decide_posts_expected_payload(monkeypatch):
     assert seen["auth"] == "Bearer test-key"
     assert seen["json"]["model"] == jev_service.FREE_MODEL
     assert result["is_urgent"]["value"] is True
+
+
+async def test_decide_goes_keyless_free_without_key(monkeypatch):
+    monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
+    monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
+    seen = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"q": {"noul": 0.1}}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            seen["auth"] = headers.get("Authorization")
+            seen["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(jev_service.httpx, "AsyncClient", FakeClient)
+    result = await jev_service.decide("state", {"q": jev_service.make_noul("Is it?")})
+    assert seen["auth"] is None
+    assert seen["json"]["model"] == jev_service.FREE_MODEL
+    assert result["q"]["noul"] == 0.1
+
+
+def test_noul_probability_shapes():
+    assert jev_service.noul_probability({"value": True, "confidence": 0.97}) == 0.97
+    assert jev_service.noul_probability({"type": "noul", "noul": 0.96}) == 0.96
+    assert jev_service.noul_probability({}) == 0.0
+    assert jev_service.noul_probability("yes") == 0.0
+    assert jev_service.noul_probability({"noul": "high"}) == 0.0

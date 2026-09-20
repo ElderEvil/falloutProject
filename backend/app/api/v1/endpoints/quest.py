@@ -22,6 +22,7 @@ from app.schemas.quest import (
     QuestUpdate,
 )
 from app.schemas.rewards import granted_reward_adapter
+from app.services import jev_service
 from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
@@ -72,6 +73,10 @@ async def create_quest(
     Returns:
         The created quest.
     """
+    if jev_service.is_configured():
+        await quest_service.validate_quest_text(
+            quest_data.title, quest_data.short_description, quest_data.long_description
+        )
     return await crud.quest_crud.create(db_session, quest_data)
 
 

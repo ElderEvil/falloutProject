@@ -35,8 +35,9 @@ from app.schemas.dweller import (
 )
 from app.schemas.exit_request import ExitDecisionResponse, ExitRequestRead
 from app.schemas.happiness import HappinessModifiersResponse
-from app.services import medical_service
+from app.services import jev_service, medical_service
 from app.services.bio_service import bio_service
+from app.services.content_moderation_service import moderate_player_text
 from app.services.dweller_ai import dweller_ai
 from app.services.dweller_service import dweller_service
 from app.services.exit_request_service import exit_request_service
@@ -162,6 +163,8 @@ async def rename_dweller(
         DwellerRead: The renamed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
+    if jev_service.is_configured():
+        await moderate_player_text(rename.first_name, field="name")
     dweller_data = DwellerUpdate(first_name=rename.first_name)
     return await crud.dweller.update(db_session, dweller_id, dweller_data)
 
@@ -286,6 +289,8 @@ async def add_bio_addendum(
 ) -> DwellerReadFull:
     """Record a player-confirmed conversation detail into the dweller's biography."""
     await verify_dweller_access(dweller_id, user, db_session)
+    if jev_service.is_configured():
+        await moderate_player_text(request.text, field="bio text")
     await bio_service.append_entry(db_session, dweller_id, "dialogue", request.text, ref={"source": "chat"})
     return await crud.dweller.get_full_info(db_session, dweller_id)
 

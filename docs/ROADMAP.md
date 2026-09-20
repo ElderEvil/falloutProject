@@ -64,6 +64,9 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   lineage around explicit domain services and CRUD operations.
 - [ ] **Quest/exploration/reward batch** — separate quest settlement, objective evaluation, exploration state,
   reward delivery, and prerequisite rules.
+  - **Shipped (#702):** prerequisite rules are now a policy (`progression/quests/requirements.py`) and the quest +
+    objective services live in a `progression/` domain package behind thin facades (see the SHIPPED section below).
+    Remaining: quest reward settlement and exploration state still live in `reward_service` / `exploration_service`.
 - [ ] **Infrastructure batch** — clean up health checks, storage, email, WebSocket/streaming, notifications, and
   backfill services without hiding operational failures.
 - [ ] **Upward-dependency elimination (Area 2)** — nothing below the API layer may import `app.api`.
@@ -88,7 +91,8 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   `fo-cli debug` commands (evaluators wired as at startup); remaining `/pregnancies/debug/*` routes to reassess.
 - [ ] **Oversized-module splits (Area 4)** — seam maps ready for `vault_service` (807), `crud/dweller` (760),
   `reward_service` (635), `breeding_service` (601), `family_scenario_service` (570), `ai_service` (563),
-  `exploration/rewards_service` (557), `dweller_ai` (540), `map_service` (483), `objective_evaluators` (469),
+  `exploration/rewards_service` (557), `dweller_ai` (540), `map_service` (483),
+  `progression/objectives/evaluators` (469, moved into the domain package by #702 — split still pending),
   `arena_service` (464), `health_check` (462) — plus `relationship_service`/`notification_service`/`radio_service`
   (all >400). Use the `combat/` + `game_tick/` facade pattern; deleting a grandfathered top-level name requires
   removing its `SERVICE_NAME_GRANDFATHER` entry in the same commit.
@@ -290,6 +294,25 @@ chase vibes. Design doc: `docs/backend/CONTAMINATION_TEAM.md`.
    real turnout gear (helmet, reflective stripes) is uncommissioned.
 4. **Real-time movement (long term)** — response gains latency, so *where* the team stands starts to
    matter; the team gets a home (Fire Station / Hazmat Bay) as a muster point rather than a roster.
+
+### Incident pacing & spread + SSE round events (deferred from the incidents UI redesign)
+
+The room-state combat overlay shipped (waves 1–3: `defeat` shape, `contain`/flame, aftermath + failure
+surfacing; net source-LOC −221). Two tasks were explicitly deferred with their findings recorded; both need
+sign-off before scheduling:
+
+- **Pacing & spread** — cooldown floor (1h measured from the latest incident's `end_time`) then a linear spawn
+  ramp: `chance_per_hour = min(cap, cap * hours_since_last / ramp_hours)` per tick, proposed `cap = 0.25` and
+  `ramp_hours = 6` (~4%/h at 1h → 25%/h at 6h+). Re-enable spread (`max_spread_count = 5`, `spread_duration` 60s)
+  with the escalation UI it produces (`rooms_affected > 1`), and reset the ramp baseline on return so absence
+  never dumps an incident on login. **Every parameter is proposed, not agreed.** Touches `core/game_config.py`
+  defaults, `combat/incident_spawning.should_spawn_incident`, spread re-enablement + escalation UI, and
+  cooldown/ramp/spread test coverage.
+- **SSE round-event publishing** — push per-round events from `combat/incident_round.process_incident` (same
+  numbers already written to the journal) so the battle log updates without the 5s refresh. Must satisfy the
+  reconciliation contract first: monotonic per-incident sequence (the journal order, not the UUID), de-dup after
+  reconnect, strict sequence ordering (never arrival), and a refetch fallback from `incident.events` — the journal
+  stays the source of truth, the stream is an optimisation.
 
 ### Shared roster machinery — one roster model for quest, incident, and hazard teams — SHIPPED (#683)
 
@@ -1091,28 +1114,22 @@ text, and new quest kinds — all tracked separately. **Blocking decisions:** al
 
 ---
 
-### Quest & Objective Domain Refactor — requirement policy + `progression/` domain (plan ready)
+### Quest & Objective Domain Refactor — requirement policy + `progression/` domain — SHIPPED (#702)
 
-**Plan:** `.omo/plans/quest-objective-domain-refactor.md` (recorded 2026-09-20).
+Delivered per `.omo/plans/quest-objective-domain-refactor.md` (plan complete).
 
-**Focus:** `prerequisite_service.py` is a policy wearing a service hat (no orchestration/transactions/events,
-imported only by `quest_service`), and the quest + objective services are flat top-level files instead of a bounded
-domain package like `combat/`, `family/`, `chat/`, `exploration/`.
-
-- **Phase 1 (requirement policy):** move requirement validation into `progression/quests/requirements.py` as
-  module-level policy functions with two explicit entry points — `vault_missing_requirements` (read gating) and
-  `party_missing_requirements` (start validation) — plus the describers; update `quest_service`'s two call sites;
-  delete `prerequisite_service.py`. Behavior-neutral; no schema/migration/data change.
-- **Phase 2 (`progression/` domain):** group the quest and objective services under one package
-  (`quests/{service,availability,requirements,rewards}`, `objectives/{service,evaluators,assignment,notifications}`)
-  behind thin top-level facades that preserve public imports. `reward_service`, `notification_service`, and
-  `team_service` stay shared/cross-cutting outside the domain.
-
-**Guardrails:** facades preserve public names; `SERVICE_NAME_GRANDFATHER` shrinks, never grows; services keep
-queries in CRUD; net-LOC preferred; no behavior change (locked by the existing suites + architecture guards).
-
-**Open decisions (plan §8):** Phase 1 only vs 1+2 together; domain name (`progression/` recommended); policy
-shape (module functions recommended).
+- `prerequisite_service.py` → module-level requirement policy in `progression/quests/requirements.py`
+  (`vault_missing_requirements` read gate, `party_missing_requirements` start validation, describers; dead
+  `can_start_quest` dropped). Behavior-neutral, locked by the existing suites + new regression cases.
+- Quest + objective services grouped under `services/progression/`:
+  `quests/{service,availability,requirements}`, `objectives/{evaluators,assignment,notifications}`. No
+  `quests/rewards.py` (settlement stays in shared `reward_service`) and no `objectives/service.py` (no objective
+  lifecycle facade exists). Top-level files remain thin compatibility facades; `objective_evaluators` is not the
+  canonical monkeypatch path (tests patch `progression.objectives.evaluators`).
+- Availability logic split into `quests/availability.py` (office gate, progressive reveal, read assembly).
+- `async_session_maker` retyped as `async_sessionmaker` — the sync `sessionmaker` typing broke `async with`
+  across session plumbing and hid `Session.execute` deprecations in `cli/`.
+- Verified: 1737 backend tests pass; ruff/ty clean on changed files; architecture guards green.
 
 ---
 

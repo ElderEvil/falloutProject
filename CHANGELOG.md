@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.127.0 (2026-09-20)
+
+### Features
+
+* **progression:** sequenced starter objectives and progress-relative quest gates 3158c6b
+* **quests:** add ATTACK requirement type (equipped weapon average damage) b5509ca
+
+### Bug Fixes
+
+* **migrations:** create objective.description as AutoString to match the model 059b76a
+* **quests:** address CodeRabbit review comments 99acd55
+* **quests:** faithful real-game gating, party-based validation, review fixes cda2d02
+* **quests:** living-dweller invariant in read-path availability 4d311b8
+
 ## 2.126.5 (2026-09-19)
 
 ### Bug Fixes

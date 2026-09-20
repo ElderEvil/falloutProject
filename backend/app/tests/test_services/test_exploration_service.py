@@ -415,6 +415,44 @@ async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
 
 
 @pytest.mark.asyncio
+async def test_auto_radaway_logs_structured_radiation_removed(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+) -> None:
+    """A RadAway auto-use must record a structured radiation_removed on the journey."""
+    dweller.max_health = 100
+    dweller.radiation = 60  # above the auto-use threshold
+    dweller.health = 40  # at the radiation-reduced ceiling, so no Stimpak branch fires
+    async_session.add(dweller)
+    await async_session.commit()
+
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.start_time = datetime.utcnow() - timedelta(minutes=10)
+    exploration.radaways = 1
+    await async_session.commit()
+    await async_session.refresh(exploration)
+
+    mock_event = LootEventSchema(
+        description="Found treasure!",
+        loot=LootSchema(
+            item=ItemSchema(name="Desk Fan", rarity="Common", value=15),
+            item_type="junk",
+            caps=25,
+        ),
+    )
+
+    with patch.object(event_generator, "generate_event", return_value=mock_event):
+        result = await exploration_service.process_event(async_session, exploration)
+
+    await async_session.refresh(dweller)
+    assert result.radaways == 0
+    item_use = next(e for e in result.events if e["type"] == "item_use")
+    assert item_use["radiation_removed"] == 50
+    assert dweller.radiation == 10
+
+
+@pytest.mark.asyncio
 async def test_send_dweller_cancels_active_training(
     async_session: AsyncSession,
     vault: Vault,

@@ -264,6 +264,7 @@ class EventService:
                 exploration.add_event(
                     event_type=ExplorationEventType.ITEM_USE,
                     description=f"Dweller used a RadAway. Removed {reduction} radiation. {exploration.radaways} left.",
+                    radiation_removed=reduction,
                 )
             )
             db_session.add(dweller_obj)

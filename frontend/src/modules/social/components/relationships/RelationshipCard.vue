@@ -1,11 +1,11 @@
 <template>
   <UCard v-if="props.viewMode === 'grid'" padding="md" class="relationship-card relationship-record--grid h-full">
     <div class="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_auto]">
-      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+      <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
         <button
           type="button"
           :title="`View ${dweller1Name}`"
-          class="group flex min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex h-full min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 01</span>
@@ -13,7 +13,7 @@
             :thumbnail-url="dweller1.thumbnail_url"
             :alt="dweller1Name"
             prefer-thumbnail
-            image-class="h-12 w-12 shrink-0 rounded object-cover" fallback-class="h-12 w-12 shrink-0 text-theme-primary/60"
+            image-class="min-h-24 w-full flex-1 object-cover" fallback-class="h-16 w-16 shrink-0 text-theme-primary/60"
           />
           <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
           <span class="flex items-center justify-center gap-1.5">
@@ -21,7 +21,7 @@
             <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
           </span>
         </button>
-        <div class="flex flex-col items-center gap-1 text-theme-primary/70">
+        <div class="flex flex-col items-center justify-center gap-1 text-theme-primary/70">
           <Icon icon="mdi:heart" class="h-5 w-5 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]" />
           <UBadge :variant="relationshipColor" class="relationship-badge mt-1 text-[0.625rem]">
             <Icon v-if="relationship.relationship_type === 'MARRIED'" icon="mdi:heart" class="h-3.5 w-3.5" />
@@ -31,7 +31,7 @@
         <button
           type="button"
           :title="`View ${dweller2Name}`"
-          class="group flex min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex h-full min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 02</span>
@@ -39,7 +39,7 @@
             :thumbnail-url="dweller2.thumbnail_url"
             :alt="dweller2Name"
             prefer-thumbnail
-            image-class="h-12 w-12 shrink-0 rounded object-cover" fallback-class="h-12 w-12 shrink-0 text-theme-primary/60"
+            image-class="min-h-24 w-full flex-1 object-cover" fallback-class="h-16 w-16 shrink-0 text-theme-primary/60"
           />
           <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
           <span class="flex items-center justify-center gap-1.5">

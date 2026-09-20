@@ -17,6 +17,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.progression.quests import requirements
 from app.services.progression.quests.requirements import (
+    individual_meets_requirement,
     party_missing_requirements,
     validate_dweller_count_requirement,
     validate_quest_completed_requirement,
@@ -272,6 +273,28 @@ async def test_vault_missing_requirements_validator_error_fails_closed(
     assert missing == ["Need a dweller at level 100 or higher"]
 
 
+def test_individual_meets_requirement_ignores_count() -> None:
+    """A candidate meeting a gate's threshold qualifies regardless of the aggregate count."""
+    dweller = _party_dweller(level=5)
+    req = _make_req(RequirementType.LEVEL, {"level": 5, "count": 2})
+    assert individual_meets_requirement(dweller, req) is True
+
+    # Below-threshold candidate fails the gate.
+    assert individual_meets_requirement(_party_dweller(level=4), req) is False
+
+    # Vault-level and optional gates never disqualify an individual.
+    assert (
+        individual_meets_requirement(dweller, _make_req(RequirementType.ROOM, {"room_type": "overseers_office"}))
+        is True
+    )
+    assert (
+        individual_meets_requirement(
+            dweller, _make_req(RequirementType.LEVEL, {"level": 99, "count": 1}, is_mandatory=False)
+        )
+        is True
+    )
+
+
 def test_party_missing_requirements_level_gate() -> None:
     """LEVEL gates evaluate against the dispatched party; optional gates are skipped."""
     party = [_party_dweller(level=5), _party_dweller(level=6)]
@@ -373,6 +396,132 @@ async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_
     dweller_ids = [d["id"] for d in data]
     assert str(dweller_med.id) in dweller_ids
     assert str(dweller_high.id) in dweller_ids
+    assert str(dweller_low.id) not in dweller_ids
+
+
+@pytest.mark.asyncio
+async def test_get_eligible_dwellers_for_stat_requirement(
+    async_client: AsyncClient, async_session: AsyncSession
+) -> None:
+    """A mandatory STAT requirement filters candidates by effective SPECIAL (regression).
+
+    The eligible-dwellers endpoint must agree with the start path's party policy: a
+    STAT-gated quest returns qualifying dwellers instead of an empty list.
+    """
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Strength Quest",
+        short_description="Requires strength 10",
+        long_description="This quest requires a dweller with strength 10",
+        requirements="Strength 10 dweller",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.STAT,
+            requirement_data={"stat": "strength", "value": 10, "count": 1},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+
+    dweller_strong = Dweller(
+        first_name="Strong", gender="male", rarity="common", level=1, vault_id=vault.id, strength=10
+    )
+    dweller_weak = Dweller(first_name="Weak", gender="male", rarity="common", level=1, vault_id=vault.id, strength=5)
+    async_session.add(dweller_strong)
+    async_session.add(dweller_weak)
+    await async_session.commit()
+    await async_session.refresh(dweller_strong)
+    await async_session.refresh(dweller_weak)
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.get(
+        f"/quests/{vault.id}/{quest.id}/eligible-dwellers",
+        headers=headers,
+    )
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    dweller_ids = [d["id"] for d in data]
+    assert str(dweller_strong.id) in dweller_ids
+    assert str(dweller_weak.id) not in dweller_ids
+
+
+@pytest.mark.asyncio
+async def test_get_eligible_dwellers_for_count_two_requirement(
+    async_client: AsyncClient, async_session: AsyncSession
+) -> None:
+    """A count: 2 gate lists every qualifying candidate, not none (regression).
+
+    Eligibility is per-individual: two dwellers who each meet the LEVEL threshold
+    are both listed even though a valid party needs two of them.
+    """
+    from app.tests.utils.user import user_authentication_headers
+
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Two Dwellers Quest",
+        short_description="Requires two level 5 dwellers",
+        long_description="This quest requires two level 5 dwellers",
+        requirements="Two level 5 dwellers",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 5, "count": 2},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+
+    dweller_a = Dweller(first_name="A", gender="male", rarity="common", level=5, vault_id=vault.id)
+    dweller_b = Dweller(first_name="B", gender="male", rarity="common", level=6, vault_id=vault.id)
+    dweller_low = Dweller(first_name="Low", gender="male", rarity="common", level=1, vault_id=vault.id)
+    async_session.add(dweller_a)
+    async_session.add(dweller_b)
+    async_session.add(dweller_low)
+    await async_session.commit()
+    await async_session.refresh(dweller_a)
+    await async_session.refresh(dweller_b)
+    await async_session.refresh(dweller_low)
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+
+    response = await async_client.get(
+        f"/quests/{vault.id}/{quest.id}/eligible-dwellers",
+        headers=headers,
+    )
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    dweller_ids = [d["id"] for d in data]
+    assert str(dweller_a.id) in dweller_ids
+    assert str(dweller_b.id) in dweller_ids
     assert str(dweller_low.id) not in dweller_ids
 
 

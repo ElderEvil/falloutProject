@@ -311,9 +311,15 @@ class CRUDQuest(
         return result.scalars().one_or_none()
 
     async def get_quest_eligible_dwellers(self, db_session: AsyncSession, vault_id: UUID4) -> list[Dweller]:
-        """Adult, unassigned dwellers of a vault eligible for quest assignment."""
+        """Adult, unassigned dwellers of a vault eligible for quest assignment.
+
+        Weapon/outfit are eager-loaded so the party-eligibility policy can evaluate
+        ITEM/ATTACK/STAT gates against each candidate without lazy IO.
+        """
         result = await db_session.execute(
-            select(Dweller).where(Dweller.vault_id == vault_id, *available_dweller_conditions())
+            select(Dweller)
+            .options(selectinload(Dweller.weapon), selectinload(Dweller.outfit))
+            .where(Dweller.vault_id == vault_id, *available_dweller_conditions())
         )
         return list(result.scalars().all())
 

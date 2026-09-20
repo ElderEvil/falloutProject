@@ -14,12 +14,12 @@ from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.quest import QuestRead
+from app.schemas.quest import EligibleDwellerRead, QuestRead
 from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
 from app.services.progression.quests import availability
 from app.services.progression.quests.availability import QuestAvailability
-from app.services.progression.quests.requirements import party_missing_requirements
+from app.services.progression.quests.requirements import individual_meets_requirement, party_missing_requirements
 from app.services.reward_service import reward_service
 from app.utils.quest_duration import effective_quest_duration_minutes
 from app.utils.reward_delivery import defer_reward_delivery
@@ -283,8 +283,15 @@ class QuestService:
 
     async def get_eligible_dwellers(
         self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4
-    ) -> list[dict[str, Any]]:
-        """Get dwellers eligible for a quest based on requirements."""
+    ) -> list[EligibleDwellerRead]:
+        """Dwellers who individually satisfy the quest's party-level requirement gates.
+
+        A candidate is eligible when they meet every per-individual threshold
+        (LEVEL/ITEM/ATTACK/STAT), independent of the gate's aggregate ``count`` —
+        two qualifying dwellers are both eligible for a ``count: 2`` gate. Vault-level
+        gates (ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, so
+        they do not filter candidates here.
+        """
         from app.utils.exceptions import ResourceNotFoundException
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
@@ -295,37 +302,17 @@ class QuestService:
 
         dwellers = await crud.quest_crud.get_quest_eligible_dwellers(db_session, vault_id)
 
-        vault_level_req_types = {"item", "room", "dweller_count", "quest_completed"}
-        eligible = []
-        for dweller in dwellers:
-            meets_req = True
-            for req in quest.quest_requirements:
-                req_type = req.requirement_type
-                req_data = req.requirement_data or {}
-
-                if req_type == "level":
-                    required_level = req_data.get("level", 1)
-                    if dweller.level < required_level:
-                        meets_req = False
-                        break
-                elif req_type in vault_level_req_types:
-                    pass
-                else:
-                    meets_req = False
-                    break
-
-            if meets_req:
-                eligible.append(
-                    {
-                        "id": str(dweller.id),
-                        "first_name": dweller.first_name,
-                        "last_name": dweller.last_name,
-                        "level": dweller.level,
-                        "rarity": dweller.rarity,
-                    }
-                )
-
-        return eligible
+        return [
+            EligibleDwellerRead(
+                id=dweller.id,
+                first_name=dweller.first_name,
+                last_name=dweller.last_name,
+                level=dweller.level,
+                rarity=dweller.rarity,
+            )
+            for dweller in dwellers
+            if all(individual_meets_requirement(dweller, req) for req in quest.quest_requirements)
+        ]
 
 
 quest_service = QuestService()

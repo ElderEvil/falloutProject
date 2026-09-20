@@ -202,45 +202,70 @@ def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) 
     return missing
 
 
+def individual_meets_requirement(dweller: Dweller, requirement: QuestRequirement) -> bool:
+    """Whether a single dweller satisfies a requirement's per-individual threshold.
+
+    Count-independent: a candidate who meets the gate's threshold qualifies even
+    when the requirement needs ``count > 1`` — the aggregate count is enforced on
+    the party by ``party_missing_requirements`` at start. Optional gates and
+    vault-level gates (ROOM, DWELLER_COUNT, QUEST_COMPLETED) are not judged
+    per-individual and never disqualify a candidate.
+    """
+    if not requirement.is_mandatory:
+        return True
+    if requirement.requirement_type == RequirementType.LEVEL:
+        return _individual_meets_level(dweller, requirement.requirement_data)
+    if requirement.requirement_type == RequirementType.ITEM:
+        return _individual_meets_item(dweller, requirement.requirement_data)
+    if requirement.requirement_type == RequirementType.ATTACK:
+        return _individual_meets_attack(dweller, requirement.requirement_data)
+    if requirement.requirement_type == RequirementType.STAT:
+        return _individual_meets_stat(dweller, requirement.requirement_data)
+    # ROOM / DWELLER_COUNT / QUEST_COMPLETED are vault-scoped; not judged here.
+    return True
+
+
+def _individual_meets_level(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
+    return dweller.level >= requirement_data.get("level", 1)
+
+
+def _individual_meets_item(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
+    item_name = requirement_data.get("item_name", "")
+    return (dweller.weapon is not None and dweller.weapon.name == item_name) or (
+        dweller.outfit is not None and dweller.outfit.name == item_name
+    )
+
+
+def _individual_meets_attack(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
+    required_attack = requirement_data.get("attack", 0)
+    return dweller.weapon is not None and (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2 >= required_attack
+
+
+def _individual_meets_stat(dweller: Dweller, requirement_data: dict[str, Any]) -> bool:
+    stat = requirement_data.get("stat")
+    if stat not in SPECIAL_STATS:
+        return False
+    return effective_stat(dweller, stat) >= requirement_data.get("value", 1)
+
+
 def _party_meets_level(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
-    required_level = requirement_data.get("level", 1)
     required_count = requirement_data.get("count", 1)
-    matching = sum(1 for dweller in party_dwellers if dweller.level >= required_level)
-    return matching >= required_count
+    return sum(1 for dweller in party_dwellers if _individual_meets_level(dweller, requirement_data)) >= required_count
 
 
 def _party_meets_item(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
-    item_name = requirement_data.get("item_name", "")
     required_count = requirement_data.get("count", 1)
-    matching = sum(
-        1
-        for dweller in party_dwellers
-        if (dweller.weapon is not None and dweller.weapon.name == item_name)
-        or (dweller.outfit is not None and dweller.outfit.name == item_name)
-    )
-    return matching >= required_count
+    return sum(1 for dweller in party_dwellers if _individual_meets_item(dweller, requirement_data)) >= required_count
 
 
 def _party_meets_attack(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
-    required_attack = requirement_data.get("attack", 0)
     required_count = requirement_data.get("count", 1)
-    matching = sum(
-        1
-        for dweller in party_dwellers
-        if dweller.weapon is not None and (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2 >= required_attack
-    )
-    return matching >= required_count
+    return sum(1 for dweller in party_dwellers if _individual_meets_attack(dweller, requirement_data)) >= required_count
 
 
 def _party_meets_stat(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
-    stat = requirement_data.get("stat")
-    min_value = requirement_data.get("value", 1)
     required_count = requirement_data.get("count", 1)
-    matching = 0
-    for dweller in party_dwellers:
-        if stat in SPECIAL_STATS and effective_stat(dweller, stat) >= min_value:
-            matching += 1
-    return matching >= required_count
+    return sum(1 for dweller in party_dwellers if _individual_meets_stat(dweller, requirement_data)) >= required_count
 
 
 def _describe_level(data: dict[str, Any]) -> str:

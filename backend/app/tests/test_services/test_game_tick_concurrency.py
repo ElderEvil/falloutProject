@@ -205,7 +205,7 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
         _CollectLikeEvaluator(bus)
 
         with (
-            patch("app.services.progression.objectives.evaluators.async_session_maker", shared_maker),
+            patch("app.services.progression.objectives.evaluators.base.async_session_maker", shared_maker),
             caplog.at_level(logging.ERROR, logger="app.core.event_bus"),
         ):
             threads = [_worker_thread(vault_id) for vault_id in vaults]

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.128.3 (2026-09-20)
+
+### Bug Fixes
+
+* **quests:** chain unlock feedback names the predecessor; lock lifecycle contracts 5c1e133
+
+### Documentation
+
+* **roadmap:** mark XP/level-up settlement unification shipped 4d1f9e3, closes #1
+
 ## 2.128.2 (2026-09-20)
 
 ### Bug Fixes

@@ -2,10 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { UButton, UModal } from '@/core/components/ui'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
-import type { components } from '@/core/types/api.generated'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
-
-type GrantedReward = components['schemas']['QuestCompleteResponse']['granted_rewards'][number]
 
 vi.mock('@iconify/vue', () => ({
   Icon: {
@@ -106,55 +103,25 @@ describe('QuestRewardsModal', () => {
     expect(wrapper.text()).toContain('50% chance')
   })
 
-  it('renders granted rewards instead of authored definitions after claiming', () => {
-    const granted: GrantedReward[] = [
-      { reward_type: 'caps', amount: 100 },
-      { reward_type: 'dweller', dweller_id: 'dweller-1', name: 'Jane Doe' },
-    ]
+  it('is a single confirm screen — no separate delivery-confirmed state after claiming', () => {
     const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest, grantedRewards: granted },
+      props: { show: true, quest },
       global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.text()).toContain('Delivery Confirmed!')
-    expect(wrapper.text()).toContain('100')
-    expect(wrapper.text()).toContain('Jane Doe')
-    expect(wrapper.text()).toContain('Done')
-    expect(wrapper.text()).not.toContain('Confirm & Claim')
+    expect(wrapper.text()).toContain('Quest Complete!')
+    expect(wrapper.text()).toContain('Confirm delivery to your vault')
+    expect(wrapper.text()).toContain('Confirm & Claim')
+    expect(wrapper.text()).not.toContain('Delivery Confirmed!')
+    expect(wrapper.text()).not.toContain('Done')
   })
 
-  it('points at Storage when a lunchbox arrived unopened', () => {
-    const granted: GrantedReward[] = [
-      { reward_type: 'item', item_type: 'lunchbox', name: 'Lunchbox', amount: 1, item_id: 'box-1', item_ids: ['box-1'] },
-    ]
+  it('shows the empty state for a quest with no authored rewards', () => {
     const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest, grantedRewards: granted },
+      props: { show: true, quest },
       global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.text()).toContain('Lunchbox')
-    expect(wrapper.text()).toContain('Storage supplies tab')
-  })
-
-  it('shows the empty state instead of authored rewards for an empty grant', () => {
-    const authoredQuest = {
-      ...quest,
-      quest_rewards: [
-        {
-          id: 'reward-1',
-          quest_id: 'quest-1',
-          reward_type: 'caps',
-          reward_data: { amount: 100 },
-          reward_chance: 1,
-        },
-      ] as QuestReward[],
-    } as VaultQuest
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest: authoredQuest, grantedRewards: [] },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
-
-    expect(wrapper.text()).toContain('Delivery Confirmed!')
     expect(wrapper.text()).toContain('No rewards listed for this quest')
     expect(wrapper.text()).not.toContain('100')
   })

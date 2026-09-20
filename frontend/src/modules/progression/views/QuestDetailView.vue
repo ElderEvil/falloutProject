@@ -9,7 +9,6 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import { UCard, UBadge, UButton } from '@/core/components/ui'
-import type { components } from '@/core/types/api.generated'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -138,15 +137,12 @@ const isCompleted = computed(() => {
 })
 const isRewardReady = computed(() => quest.value?.is_reward_ready && !quest.value?.is_completed)
 const showClaimModal = ref(false)
-const grantedRewards = ref<components['schemas']['QuestCompleteResponse']['granted_rewards'] | null>(null)
 
 const closeClaimModal = () => {
   showClaimModal.value = false
-  grantedRewards.value = null
 }
 
 const openClaimModal = () => {
-  grantedRewards.value = null
   showClaimModal.value = true
 }
 
@@ -163,8 +159,10 @@ const handleStartQuest = async () => {
 
 const confirmClaimRewards = async () => {
   if (!vaultId.value || !questId.value) return
-  const result = await questStore.claimQuestRewards(vaultId.value, questId.value)
-  grantedRewards.value = result?.granted_rewards ?? null
+  // The store claims and announces the granted rewards via toast; Confirm & Claim
+  // is the final screen — the modal closes once delivery is confirmed.
+  await questStore.claimQuestRewards(vaultId.value, questId.value)
+  closeClaimModal()
   await questStore.fetchVaultQuests(vaultId.value)
   quest.value = questStore.vaultQuests.find((item) => item.id === questId.value) ?? quest.value
 }
@@ -347,7 +345,6 @@ const goBack = () => {
                 <QuestRewardsModal
                   :quest="quest"
                   :show="showClaimModal"
-                  :granted-rewards="grantedRewards"
                   @close="closeClaimModal"
                   @confirm="confirmClaimRewards"
                 />

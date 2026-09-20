@@ -4,7 +4,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, cast
+from typing import Literal
 
 import aiosmtplib
 import httpx
@@ -87,7 +87,7 @@ class HealthCheckService:
         """
         redis_client = None
         try:
-            redis_client = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
+            redis_client = Redis(host=settings.REDIS_HOST, port=int(settings.REDIS_PORT), decode_responses=True)
             await redis_client.ping()
             return HealthCheckResult(
                 service="redis",
@@ -109,7 +109,14 @@ class HealthCheckService:
 
     @staticmethod
     def check_dramatiq() -> HealthCheckResult:
-        """Check Dramatiq broker and registered actors."""
+        """Check Dramatiq broker and registered actors.
+
+        The API process does not host actors: they register in the dramatiq-worker
+        process via ``periodiq app.core.dramatiq app.api.tasks``. Lazily importing
+        the worker's module here enumerates exactly what the worker registers; a
+        failed import means the worker's actors would not register either, so the
+        check degrades instead of reporting a misleading ``actors: 0``.
+        """
         if broker is None:
             return HealthCheckResult(
                 service="dramatiq",
@@ -119,8 +126,10 @@ class HealthCheckService:
             )
 
         try:
+            from app.api import tasks  # ruff: ignore[unused-import] - registers the scheduled actors (matches the worker entrypoint)
+
             actor_count = len(broker.actors)
-            actor_names = list(broker.actors.keys())
+            actor_names = sorted(broker.actors.keys())
 
             return HealthCheckResult(
                 service="dramatiq",
@@ -130,6 +139,14 @@ class HealthCheckService:
                     "actors": actor_count,
                     "actor_names": actor_names,
                 },
+            )
+        except ImportError as e:
+            logger.exception("Dramatiq actor modules failed to import")
+            return HealthCheckResult(
+                service="dramatiq",
+                status=ServiceStatus.DEGRADED,
+                message=f"Dramatiq actor modules failed to import: {e}",
+                details={"error": str(e), "actors": 0},
             )
         except (RedisError, ConnectionError, TimeoutError, RuntimeError) as e:
             logger.exception("Dramatiq health check failed")
@@ -321,7 +338,7 @@ class HealthCheckService:
                 smtp_kwargs["use_tls"] = True
             elif settings.SMTP_SSL:
                 smtp_kwargs["start_tls"] = True
-            smtp = aiosmtplib.SMTP(**smtp_kwargs)
+            smtp = aiosmtplib.SMTP(**smtp_kwargs)  # ty: ignore[invalid-argument-type]
 
             await smtp.connect()
 
@@ -407,7 +424,7 @@ class HealthCheckService:
 
         # Check local AI provider (Ollama / LM Studio) when one is configured
         if include_local_ai and settings.AI_PROVIDER in _LOCAL_AI_PROVIDERS:
-            local_provider = cast('Literal["ollama", "lmstudio"]', settings.AI_PROVIDER)
+            local_provider = settings.AI_PROVIDER
             results[local_provider] = await self.check_local_ai(local_provider)
 
         # Check SMTP (optional, may timeout if mail service unavailable)

@@ -135,16 +135,38 @@ def test_check_dramatiq_unhealthy() -> None:
     assert "failed" in result.message
 
 
-def test_check_dramatiq_healthy_empty_actors() -> None:
-    """Broker has zero actors but is healthy."""
-    mock_broker = MagicMock()
-    mock_broker.actors = {}
-    with patch("app.services.health_check.broker", mock_broker):
-        result = HealthCheckService.check_dramatiq()
+def test_check_dramatiq_reports_registered_actors() -> None:
+    """Real broker reports the actors the worker entrypoint registers."""
+    result = HealthCheckService.check_dramatiq()
 
+    assert result.service == "dramatiq"
     assert result.status == ServiceStatus.HEALTHY
     assert result.details is not None
-    assert result.details["actors"] == 0
+    assert result.details["actors"] >= 9
+    assert "game_tick" in result.details["actor_names"]
+    assert "arena_tick" in result.details["actor_names"]
+
+
+def test_check_dramatiq_degraded_when_actor_modules_fail_to_import() -> None:
+    """A failed actor-module import degrades the check (worker actors would not register)."""
+    import app.api as api_module
+
+    with patch.dict(sys.modules, {"app.api.tasks": None}):
+        # Drop a previously-imported `tasks` attribute so `from app.api import tasks`
+        # consults sys.modules (None) and raises ImportError.
+        tasks_attr = getattr(api_module, "tasks", None)
+        had_tasks_attr = hasattr(api_module, "tasks")
+        if had_tasks_attr:
+            del api_module.tasks
+        try:
+            result = HealthCheckService.check_dramatiq()
+        finally:
+            if had_tasks_attr:
+                api_module.tasks = tasks_attr
+
+    assert result.service == "dramatiq"
+    assert result.status == ServiceStatus.DEGRADED
+    assert "failed to import" in result.message.lower()
 
 
 # =============================================================================

@@ -17,6 +17,7 @@ class RequirementType(StrEnum):
     ROOM = "room"
     DWELLER_COUNT = "dweller_count"
     QUEST_COMPLETED = "quest_completed"
+    ATTACK = "attack"
 
 
 class QuestRequirementBase(SQLModel):

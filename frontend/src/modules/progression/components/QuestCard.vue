@@ -376,13 +376,17 @@ const handleAction = () => {
     <!-- Description -->
     <p class="quest-description">{{ quest.short_description }}</p>
 
-    <!-- Previous Quest Info (for locked chain quests) -->
-    <div v-if="isLocked && previousQuestName" class="quest-section locked-info">
+    <!-- Lock Reason (backend-owned, e.g. Overseer's Office / chain / requirements) -->
+    <div v-if="isLocked && (quest.lock_reason || previousQuestName)" class="quest-section locked-info">
       <div class="section-label">
         <Icon icon="mdi:lock-alert" class="inline-icon" />
         LOCKED
       </div>
-      <div class="locked-message">
+      <div v-if="quest.lock_reason" class="locked-message">
+        <Icon icon="mdi:lock" class="locked-icon" />
+        {{ quest.lock_reason }}
+      </div>
+      <div v-if="previousQuestName" class="locked-message">
         <Icon icon="mdi:arrow-left" class="locked-icon" />
         Complete "{{ previousQuestName }}" to unlock
       </div>
@@ -416,7 +420,13 @@ const handleAction = () => {
               </span>
             </template>
             <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
-              Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
+              Requires {{ req.requirement_data.item_name || req.requirement_data.name || req.requirement_data.item_id }}
+              <span v-if="getRequirementCount(req.requirement_data) > 1">
+                (x{{ getRequirementCount(req.requirement_data) }})
+              </span>
+            </template>
+            <template v-else-if="req.requirement_type === 'attack' && req.requirement_data">
+              Requires {{ req.requirement_data.attack || 1 }}+ Attack
               <span v-if="getRequirementCount(req.requirement_data) > 1">
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>

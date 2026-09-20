@@ -274,12 +274,37 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def count_alive_in_vault(
         self, db_session: AsyncSession, vault_id: UUID4, *, min_level: int | None = None
     ) -> int:
-        """Count non-deleted dwellers of a vault, optionally with a level floor."""
-        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted]
+        """Count living, non-deleted dwellers of a vault, optionally with a level floor."""
+        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead]
         if min_level is not None:
             conditions.append(self.model.level >= min_level)
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))
         return result.scalar_one()
+
+    async def get_max_level(self, db_session: AsyncSession, vault_id: UUID4) -> int | None:
+        """Highest level among a vault's non-deleted dwellers, or None when the vault has none."""
+        result = await db_session.execute(
+            select(func.max(self.model.level)).where(
+                self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def count_alive_with_weapon_attack(self, db_session: AsyncSession, vault_id: UUID4, min_attack: int) -> int:
+        """Count living dwellers whose equipped weapon's average damage is at least ``min_attack``."""
+        from app.models.weapon import Weapon
+
+        query = (
+            select(func.count(self.model.id))
+            .join(Weapon, Weapon.dweller_id == self.model.id)
+            .where(
+                self.model.vault_id == vault_id,
+                ~self.model.is_deleted,
+                ~self.model.is_dead,
+                (Weapon.damage_min + Weapon.damage_max) >= 2 * min_attack,
+            )
+        )
+        return int((await db_session.execute(query)).scalar_one())
 
     async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""

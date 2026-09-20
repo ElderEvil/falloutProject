@@ -183,6 +183,68 @@ async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_assign_initial_seeds_starter_arc_for_standard_vault(async_session: AsyncSession) -> None:
+    """A standard vault gets the full starter arc, ordered by sequence."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    for sequence in range(8):
+        await crud.objective_crud.create(
+            async_session,
+            obj_in=ObjectiveCreate(
+                challenge=f"Starter step {sequence}",
+                reward="10 caps",
+                category=ObjectiveCategoryEnum.STARTER,
+                objective_type="collect",
+                target_entity={"resource_type": "caps"},
+                target_amount=1,
+                sequence=sequence,
+                description=f"Step {sequence}",
+            ),
+        )
+
+    assigned_count = await crud.objective_crud.assign_initial(async_session, vault.id, is_boosted=False)
+    assigned = await crud.objective_crud.get_multi_for_vault(async_session, vault.id)
+
+    starter = [o for o in assigned if o.category == ObjectiveCategoryEnum.STARTER]
+    assert assigned_count == 8
+    assert len(starter) == 8
+    assert sorted(o.sequence for o in starter) == list(range(8))
+    assert all(o.description is not None for o in starter)
+
+
+@pytest.mark.asyncio
+async def test_assign_initial_skips_starter_arc_for_boosted_vault(async_session: AsyncSession) -> None:
+    """A boosted vault skips the starter arc (the Office is already seeded)."""
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    for sequence in range(8):
+        await crud.objective_crud.create(
+            async_session,
+            obj_in=ObjectiveCreate(
+                challenge=f"Starter step {sequence}",
+                reward="10 caps",
+                category=ObjectiveCategoryEnum.STARTER,
+                objective_type="collect",
+                target_entity={"resource_type": "caps"},
+                target_amount=1,
+                sequence=sequence,
+            ),
+        )
+
+    assigned_count = await crud.objective_crud.assign_initial(async_session, vault.id, is_boosted=True)
+    assigned = await crud.objective_crud.get_multi_for_vault(async_session, vault.id)
+
+    assert assigned_count == 0
+    assert all(o.category != ObjectiveCategoryEnum.STARTER for o in assigned)
+
+
+@pytest.mark.asyncio
 async def test_assign_initial_rolls_back_on_db_error() -> None:
     """A DB failure assigns nothing but leaves the session usable."""
     from unittest.mock import AsyncMock

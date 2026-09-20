@@ -90,7 +90,7 @@ async def read_vault_quests(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
-    return await crud.quest_crud.get_multi_for_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+    return await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit)
 
 
 @router.get("/{vault_id}/available", response_model=list[QuestRead])
@@ -100,14 +100,14 @@ async def get_available_quests(
     user: CurrentActiveUser,
     skip: int = 0,
     limit: int = 100,
-) -> list[Quest]:
-    """Get available quests for a vault (respects quest chain unlocks).
+) -> Sequence[QuestRead]:
+    """Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
 
     Returns:
         List of available quests.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await quest_service.get_available_for_vault(db_session, vault_id, skip, limit)
+    return await quest_service.get_quests_for_vault(db_session, vault_id, skip, limit, available_only=True)
 
 
 @router.get("/{vault_id}/{quest_id}", response_model=QuestRead)
@@ -264,9 +264,6 @@ async def start_quest(
         ResourceNotFoundException: If quest not found.
         ValidationException: If requirements not met or quest cannot be started.
     """
-    from app.services.prerequisite_service import prerequisite_service
-    from app.utils.exceptions import ValidationException
-
     await get_user_vault_or_403(vault_id, user, db_session)
     quest = await db_session.get(Quest, quest_id)
     if quest is None:
@@ -276,9 +273,14 @@ async def start_quest(
 
     await db_session.refresh(quest, ["quest_requirements"])
 
-    can_start, missing = await prerequisite_service.can_start_quest(db_session, vault_id, quest)
-    if not can_start:
-        raise ValidationException(detail=f"Missing requirements: {', '.join(missing)}")
+    availability = await quest_service.get_quest_availability(db_session, vault_id, quest)
+    if not availability.available:
+        detail = (
+            f"Missing requirements: {', '.join(availability.missing)}"
+            if availability.missing
+            else (availability.lock_reason or "Quest is not available")
+        )
+        raise ValidationException(detail=detail)
 
     try:
         await quest_service.start_quest(db_session, quest_id, vault_id)

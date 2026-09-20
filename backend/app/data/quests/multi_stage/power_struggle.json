@@ -8,6 +8,15 @@
     "Rewards": "Lucy MacLean",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -44,6 +53,13 @@
           "item_name": "Lucy's vault suit"
         },
         "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "A Pier into the Future"
+        },
+        "is_mandatory": true
       }
     ],
     "quest_rewards": [
@@ -69,6 +85,36 @@
     "Rewards": "Maximus",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "The Ghoul's coat"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "Ghoul in Black"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -92,6 +138,36 @@
     "Rewards": "Ma June",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "BOS casual"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "My Brothers' Keeper"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -115,6 +191,36 @@
     "Rewards": "Snip Snip",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "The Ghoul's coat"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "BOS casual"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "All Killy No Filly"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -138,6 +244,36 @@
     "Rewards": "Snake oil salesman",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "The Ghoul's coat"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "Snipping Coupons"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -161,6 +297,36 @@
     "Rewards": "CX404",
     "quest_type": "side",
     "quest_category": "exploration",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "The Ghoul's coat"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "Hooked On Tonics"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "DWELLER",
@@ -184,6 +350,36 @@
     "Rewards": "Scarred power armor",
     "quest_type": "side",
     "quest_category": "combat",
+    "quest_requirements": [
+      {
+        "requirement_type": "level",
+        "requirement_data": {
+          "level": 20
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "BOS casual"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "ITEM",
+        "requirement_data": {
+          "item_name": "Lucy's vault suit"
+        },
+        "is_mandatory": true
+      },
+      {
+        "requirement_type": "QUEST_COMPLETED",
+        "requirement_data": {
+          "quest_name": "Codename: DOG"
+        },
+        "is_mandatory": true
+      }
+    ],
     "quest_rewards": [
       {
         "reward_type": "ITEM",

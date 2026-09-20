@@ -42,3 +42,16 @@ def create_fake_room() -> dict[str, Any]:
         "size": size,
         "image_url": image_url,
     }
+
+
+def create_overseers_office() -> dict[str, Any]:
+    """A minimal Overseer's Office room payload for quest-availability tests."""
+    return {
+        "name": "Overseer's Office",
+        "category": RoomTypeEnum.QUESTS,
+        "ability": None,
+        "base_cost": 1000,
+        "size_min": 1,
+        "size_max": 1,
+        "size": 1,
+    }

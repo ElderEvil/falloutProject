@@ -49,6 +49,7 @@ class ObjectiveCategoryEnum(CaseInsensitiveEnum):
     DAILY = "daily"
     WEEKLY = "weekly"
     ACHIEVEMENT = "achievement"
+    STARTER = "starter"
 
 
 class SPECIALEnum(CaseInsensitiveEnum):

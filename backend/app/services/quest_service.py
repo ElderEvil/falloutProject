@@ -1,25 +1,59 @@
 import logging
+from collections.abc import Sequence
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from pydantic import UUID4
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.models.quest import Quest
+from app.models.quest_requirement import RequirementType
 from app.models.vault_quest import VaultQuestCompletionLink
+from app.schemas.quest import QuestRead
 from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
+from app.services.prerequisite_service import prerequisite_service
 from app.services.reward_service import reward_service
 from app.utils.quest_duration import effective_quest_duration_minutes
 from app.utils.reward_delivery import defer_reward_delivery
 
 logger = logging.getLogger(__name__)
+
+OFFICE_ROOM_TYPE = "overseers_office"
+OFFICE_LOCK_REASON = "Requires Overseer's Office"
+CHAIN_LOCK_REASON = "Requires completing a previous quest"
+# Availability filtering happens before pagination, so the full vault quest set is fetched first.
+_AVAILABLE_QUESTS_FETCH_LIMIT = 10_000
+# A quest whose highest mandatory LEVEL gate is more than this many levels above the
+# vault's max dweller level is hidden entirely (progressive reveal, like the real game).
+REVEAL_MARGIN = 10
+
+
+def _highest_mandatory_level_requirement(quest_read: QuestRead) -> int:
+    """Highest mandatory LEVEL requirement of a quest read, or 0 when none."""
+    highest = 0
+    for req in quest_read.quest_requirements or []:
+        if req.requirement_type == RequirementType.LEVEL and req.is_mandatory:
+            level = req.requirement_data.get("level")
+            if isinstance(level, int):
+                highest = max(highest, level)
+    return highest
+
+
+@dataclass
+class QuestAvailability:
+    """Whether a vault can start a quest, and why not when it cannot."""
+
+    available: bool
+    missing: list[str] = field(default_factory=list)
+    lock_reason: str | None = None
 
 
 class QuestService:
@@ -88,6 +122,14 @@ class QuestService:
         if not members:
             raise ValidationException("Assign at least one dweller before starting this quest")
 
+        state = inspect(quest)
+        if state is not None and "quest_requirements" in state.unloaded:
+            await db_session.refresh(quest, ["quest_requirements"])
+        party_dwellers = await crud.team_crud.get_quest_team_dwellers(db_session, quest_id, vault_id)
+        missing = await prerequisite_service.validate_party_requirements(db_session, party_dwellers, quest)
+        if missing:
+            raise ValidationException("; ".join(missing))
+
         link.started_at = datetime.utcnow()
         link.is_reward_ready = False
         link.duration_minutes = effective_quest_duration_minutes(quest.duration_minutes)
@@ -98,20 +140,85 @@ class QuestService:
         logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
 
-    async def get_available_for_vault(
-        self, db_session: AsyncSession, vault_id: UUID4, skip: int = 0, limit: int = 100
-    ) -> list[Quest]:
-        """Get quests available for a vault, respecting quest chain prerequisites."""
+    async def get_quest_availability(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        quest: Quest,
+        *,
+        has_office: bool | None = None,
+        completed_quest_ids: set[UUID4] | None = None,
+    ) -> QuestAvailability:
+        """Whether a vault can start a quest: Office rule, chain predecessor, then mandatory requirements.
+
+        This is the single source of truth for quest availability; both the vault quest
+        read and the start path consume it so they can never disagree. The vault-level
+        lookups can be passed in so a batch caller resolves them once instead of per quest.
+        """
+        if has_office is None:
+            has_office = await crud.room.has_room_type(db_session, vault_id, OFFICE_ROOM_TYPE)
+        if not has_office:
+            return QuestAvailability(available=False, lock_reason=OFFICE_LOCK_REASON)
+
+        if completed_quest_ids is None:
+            completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
+        if quest.previous_quest_id is not None and quest.previous_quest_id not in completed_quest_ids:
+            return QuestAvailability(available=False, lock_reason=CHAIN_LOCK_REASON)
+
+        state = inspect(quest)
+        if state is not None and "quest_requirements" in state.unloaded:
+            await db_session.refresh(quest, ["quest_requirements"])
+        missing = await prerequisite_service.get_missing_requirements(db_session, vault_id, quest)
+        if missing:
+            return QuestAvailability(available=False, missing=missing, lock_reason="; ".join(missing))
+
+        return QuestAvailability(available=True)
+
+    async def get_quests_for_vault(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID4,
+        skip: int = 0,
+        limit: int = 100,
+        available_only: bool = False,
+    ) -> Sequence[QuestRead]:
+        """Vault quest read: link state from CRUD plus honest availability from the shared function.
+
+        The full vault quest set is fetched, reveal/availability filtering applied, then
+        ``skip``/``limit`` paginate the filtered result so later visible quests fill a page.
+        """
+        quest_reads = await crud.quest_crud.get_multi_for_vault(
+            db_session=db_session, vault_id=vault_id, skip=0, limit=_AVAILABLE_QUESTS_FETCH_LIMIT
+        )
+        quests = await crud.quest_crud.get_multi_by_ids(db_session, [quest_read.id for quest_read in quest_reads])
+        quest_by_id = {quest.id: quest for quest in quests}
+        has_office = await crud.room.has_room_type(db_session, vault_id, OFFICE_ROOM_TYPE)
         completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
-        all_quests = await crud.quest_crud.get_visible_quests_for_vault(db_session, vault_id)
+        max_dweller_level = await crud.dweller.get_max_level(db_session, vault_id) or 0
+        reveal_threshold = max_dweller_level + REVEAL_MARGIN
 
-        available = [
-            quest
-            for quest in all_quests
-            if quest.previous_quest_id is None or quest.previous_quest_id in completed_quest_ids
-        ]
+        available_reads = []
+        visible_reads = []
+        for quest_read in quest_reads:
+            quest = quest_by_id.get(quest_read.id)
+            if quest is None:
+                continue
+            if has_office and _highest_mandatory_level_requirement(quest_read) > reveal_threshold:
+                continue
+            availability = await self.get_quest_availability(
+                db_session, vault_id, quest, has_office=has_office, completed_quest_ids=completed_quest_ids
+            )
+            quest_read.is_visible = quest_read.is_visible and availability.available
+            quest_read.is_locked = not availability.available
+            quest_read.lock_reason = availability.lock_reason
+            visible_reads.append(quest_read)
+            if available_only and availability.available:
+                available_reads.append(quest_read)
 
-        return available[skip : skip + limit]
+        if available_only:
+            return available_reads[skip : skip + limit]
+
+        return visible_reads[skip : skip + limit]
 
     async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Quest:
         """Return a finished party and make its rewards available to claim."""

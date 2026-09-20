@@ -234,3 +234,45 @@ async def test_get_multi_complete_returns_only_complete_objectives(async_session
     for obj in complete_objectives:
         assert obj.objective_type is not None
         assert obj.target_amount > 1
+
+
+def test_starter_seed_file_integrity() -> None:
+    """The starter arc seed file is well-formed: supported types, valid targets,
+    unique contiguous sequence, challenge/description within limits."""
+    from app.utils.objective_constants import (
+        VALID_REACH_TYPES,
+        VALID_RESOURCE_TYPES,
+        VALID_ROOM_TYPES,
+        normalize_resource_type,
+        normalize_room_type,
+    )
+    from app.utils.static_data import DATA_DIR
+
+    starter_file = DATA_DIR / "objectives" / "starter.json"
+    assert starter_file.exists(), "starter.json must exist"
+
+    with starter_file.open("r", encoding="utf-8") as f:
+        steps = json.load(f)
+
+    assert len(steps) == 8
+    supported_types = {"assign", "build", "collect", "reach", "assign_correct"}
+    sequences = []
+    for step in steps:
+        assert step["category"] == "starter"
+        assert step["objective_type"] in supported_types, f"unsupported type {step['objective_type']}"
+        assert step["objective_type"] != "kill"
+        assert 3 <= len(step["challenge"]) <= 32
+        assert 3 <= len(step["reward"]) <= 32
+        assert step.get("description"), "description required"
+        sequences.append(step["sequence"])
+        target = step.get("target_entity") or {}
+        if step["objective_type"] == "build":
+            assert normalize_room_type(target.get("room_type")) in VALID_ROOM_TYPES
+        elif step["objective_type"] == "collect":
+            resource = target.get("resource_type")
+            if resource:
+                assert normalize_resource_type(resource) in VALID_RESOURCE_TYPES
+        elif step["objective_type"] == "reach":
+            assert target.get("reach_type") in VALID_REACH_TYPES
+
+    assert sequences == list(range(8)), "sequences must be unique and contiguous 0..7"

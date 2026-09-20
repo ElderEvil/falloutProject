@@ -7783,7 +7783,7 @@ export interface components {
          * ObjectiveCategoryEnum
          * @enum {string}
          */
-        ObjectiveCategoryEnum: "daily" | "weekly" | "achievement";
+        ObjectiveCategoryEnum: "daily" | "weekly" | "achievement" | "starter";
         /** ObjectiveCreate */
         ObjectiveCreate: {
             /** Challenge */
@@ -7837,6 +7837,16 @@ export interface components {
              * @default 1
              */
             target_amount: number;
+            /**
+             * Sequence
+             * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
+             */
+            sequence?: number | null;
+            /**
+             * Description
+             * @description Player-facing guidance for how/why to complete the objective
+             */
+            description?: string | null;
             /**
              * Id
              * Format: uuid4
@@ -8413,6 +8423,13 @@ export interface components {
              * @default true
              */
             is_visible: boolean;
+            /**
+             * Is Locked
+             * @default false
+             */
+            is_locked: boolean;
+            /** Lock Reason */
+            lock_reason?: string | null;
             /**
              * Is Completed
              * @default false

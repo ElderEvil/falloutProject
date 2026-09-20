@@ -25,6 +25,8 @@ const quest = {
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   is_visible: true,
+  is_locked: false,
+  lock_reason: null,
   is_completed: false,
   started_at: null,
   duration_minutes: 60,
@@ -365,5 +367,26 @@ describe('QuestCard', () => {
 
     const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
     expect(icons).toContain('mdi:lock-open')
+  })
+
+  it('renders the backend lock reason on a locked quest card', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          is_locked: true,
+          lock_reason: "Requires Overseer's Office",
+        },
+        vaultId: 'vault-1',
+        status: 'locked',
+        isLocked: true,
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain("Requires Overseer's Office")
+    expect(wrapper.text()).toContain('Locked')
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
   })
 })

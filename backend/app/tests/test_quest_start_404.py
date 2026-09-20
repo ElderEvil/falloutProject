@@ -12,13 +12,17 @@ from app.tests.factory.vaults import create_fake_vault
 @pytest.mark.asyncio
 async def test_start_quest_assigns_and_starts(async_client, async_session):
     """Test that starting a quest assigns it to vault and returns success."""
+    from app.models.room import Room
     from app.services.team_service import team_service
+    from app.tests.factory.rooms import create_overseers_office
     from app.tests.utils.user import user_authentication_headers
 
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    await async_session.commit()
 
     quest = Quest(
         title="Test Quest",

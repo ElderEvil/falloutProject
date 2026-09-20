@@ -98,6 +98,7 @@ class DwellerService:
         """Create a dweller and record the overseer's lifetime total."""
         dweller = await crud.dweller.create(db_session, obj_in)
         await user_service.record_vault_statistic(db_session, dweller.vault_id, "total_dwellers_created")
+        await event_bus.emit(GameEvent.DWELLER_ADDED, dweller.vault_id, {"dweller_id": str(dweller.id)})
         return dweller
 
     async def create_random_dweller(
@@ -145,6 +146,7 @@ class DwellerService:
             payload["bio_entries"] = [make_entry("template", payload["bio"])]
         dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload)
         await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
+        await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
         if bio_places and register_bio_places:
             origin, visited = bio_places
             await map_service.register_bio_places(

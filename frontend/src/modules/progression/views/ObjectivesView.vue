@@ -9,7 +9,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
+import { UTabs } from '@/core/components/ui'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -47,6 +47,14 @@ const weeklyObjectives = computed(() =>
 
 const achievementObjectives = computed(() =>
   objectivesStore.objectives.filter((obj) => obj.category === 'achievement' && !obj.is_completed)
+)
+
+// While a starter step is unfinished it is the only surface (pre-Office); tabs return once the arc is done.
+const currentStarterStep = computed<Objective | null>(
+  () =>
+    objectivesStore.objectives
+      .filter((obj) => obj.category === 'starter' && !obj.is_completed)
+      .sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity))[0] ?? null
 )
 
 // Claim + celebration modal (mirrors the quest claim flow)
@@ -89,7 +97,21 @@ function closeClaimModal(): void {
               subtitle="Complete Vault-Tec directives to earn rewards."
             />
             <p v-if="claimError" class="claim-error" role="alert">{{ claimError }}</p>
-            <UTabs v-model="activeTab" :tabs="objectiveTabs">
+
+            <!-- Next-step hero: the starter arc is the only surface until it is finished -->
+            <div v-if="currentStarterStep" class="next-step-hero">
+              <div class="next-step-label">
+                <Icon icon="mdi:map-marker-path" class="next-step-icon" />
+                NEXT STEP
+              </div>
+              <ObjectiveCard
+                :objective="currentStarterStep"
+                class="next-step-card"
+                @claim="handleClaimObjective"
+              />
+            </div>
+
+            <UTabs v-else v-model="activeTab" :tabs="objectiveTabs">
               <template #default>
                 <div v-if="activeTab === 'daily'" class="tab-content">
                   <div v-if="dailyObjectives.length === 0" class="empty-state">
@@ -215,6 +237,34 @@ function closeClaimModal(): void {
   border-radius: 4px;
   color: var(--color-danger, #ff5555);
   font-size: 0.9rem;
+}
+
+/* Next-step hero (starter arc) */
+.next-step-hero {
+  max-width: 560px;
+  margin: 24px auto;
+}
+
+.next-step-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--color-theme-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 16px;
+  text-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.next-step-icon {
+  font-size: 1.4rem;
+}
+
+.next-step-card {
+  border-width: 3px;
 }
 
 .objective-grid {

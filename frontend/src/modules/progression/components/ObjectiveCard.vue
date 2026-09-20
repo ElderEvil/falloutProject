@@ -33,13 +33,7 @@ const objectiveIcon = computed(() => {
   return 'mdi:target'
 })
 
-// Determine objective category
-const category = computed(() => {
-  const challenge = props.objective.challenge.toLowerCase()
-  if (challenge.includes('daily')) return 'daily'
-  if (challenge.includes('weekly')) return 'weekly'
-  return 'achievement'
-})
+const category = computed(() => props.objective.category)
 
 const categoryLabel = computed(() => {
   return category.value.charAt(0).toUpperCase() + category.value.slice(1)
@@ -73,6 +67,8 @@ const canClaim = computed(() => {
         </UBadge>
       </div>
     </div>
+
+    <p v-if="objective.description" class="objective-description">{{ objective.description }}</p>
 
     <!-- Progress Section -->
     <div class="progress-section">
@@ -189,6 +185,14 @@ const canClaim = computed(() => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+.objective-description {
+  font-size: 0.85rem;
+  color: var(--color-theme-primary);
+  opacity: 0.8;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
 }
 
 .progress-section {

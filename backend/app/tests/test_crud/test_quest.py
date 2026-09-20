@@ -59,6 +59,9 @@ async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession
 async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     """Test vault quests reveal only chain starters until their requirement completes."""
     from app.models.quest_requirement import QuestRequirement, RequirementType
+    from app.models.room import Room
+    from app.services.quest_service import quest_service
+    from app.tests.factory.rooms import create_overseers_office
 
     # Create user and vault
     user_data = create_fake_user()
@@ -68,6 +71,8 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     vault_data = create_fake_vault()
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    await async_session.commit()
 
     # Create multiple quests
     quest1_data = QuestCreate(
@@ -117,7 +122,7 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     )
 
     # Get quests for vault (returns all assigned quests with computed visibility status)
-    quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
+    quests = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
 
     assert len(quests) == 3  # All three quests should be returned
     quest_dict = {q.title: q for q in quests}
@@ -128,15 +133,14 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     assert quest_dict["Quest 1"].duration_minutes == effective_quest_duration_minutes(quest1.duration_minutes)
     assert "Quest 2" in quest_dict
     assert quest_dict["Quest 2"].is_visible is False  # Locked but still returned for Show All
+    assert quest_dict["Quest 2"].is_locked is True
     assert quest_dict["Quest 2"].previous_quest_id == quest1.id
     assert "Quest 3" in quest_dict
     assert quest_dict["Quest 3"].is_visible is True
 
     quest_page_indexes = {}
     for page_index in range(3):
-        page = await crud.quest_crud.get_multi_for_vault(
-            db_session=async_session, skip=page_index, limit=1, vault_id=vault.id
-        )
+        page = await quest_service.get_quests_for_vault(async_session, vault.id, page_index, 1)
         assert len(page) == 1
         quest_page_indexes[page[0].title] = page_index
     assert quest_page_indexes["Quest 1"] != quest_page_indexes["Quest 2"]
@@ -146,14 +150,10 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     quest1_link.is_completed = True
     await async_session.commit()
 
-    unlocked_quests = await crud.quest_crud.get_multi_for_vault(
-        db_session=async_session, skip=0, limit=100, vault_id=vault.id
-    )
+    unlocked_quests = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
     assert {quest.title: quest.is_visible for quest in unlocked_quests}["Quest 2"] is True
 
-    quest2_page = await crud.quest_crud.get_multi_for_vault(
-        db_session=async_session, skip=quest_page_indexes["Quest 2"], limit=1, vault_id=vault.id
-    )
+    quest2_page = await quest_service.get_quests_for_vault(async_session, vault.id, quest_page_indexes["Quest 2"], 1)
     assert quest2_page[0].title == "Quest 2"
     assert quest2_page[0].is_visible is True
 

@@ -37,6 +37,15 @@ class ObjectiveBase(SQLModel):
         ge=1,
         description="How many/much needed to complete the objective",
     )
+    sequence: int | None = Field(
+        default=None,
+        index=True,
+        description="Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Player-facing guidance for how/why to complete the objective",
+    )
 
     def __str__(self):
         return f"{self.challenge}"

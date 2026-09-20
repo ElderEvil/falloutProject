@@ -1,0 +1,82 @@
+[
+  {
+    "challenge": "Assign dwellers to Power",
+    "reward": "25 caps",
+    "category": "starter",
+    "objective_type": "assign",
+    "target_entity": {"room_type": "power_generator"},
+    "target_amount": 3,
+    "sequence": 0,
+    "description": "Open the Power Generator and assign dwellers."
+  },
+  {
+    "challenge": "Collect 150 Power",
+    "reward": "50 power",
+    "category": "starter",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "power"},
+    "target_amount": 150,
+    "sequence": 1,
+    "description": "Power keeps every room running."
+  },
+  {
+    "challenge": "Build a Living Quarters",
+    "reward": "50 caps",
+    "category": "starter",
+    "objective_type": "build",
+    "target_entity": {"room_type": "living_room"},
+    "target_amount": 1,
+    "sequence": 2,
+    "description": "More living space lets the vault grow."
+  },
+  {
+    "challenge": "Assign a dweller correctly",
+    "reward": "50 caps",
+    "category": "starter",
+    "objective_type": "assign_correct",
+    "target_entity": {},
+    "target_amount": 1,
+    "sequence": 3,
+    "description": "Match a dweller's best SPECIAL to the room."
+  },
+  {
+    "challenge": "Scavenge caps in the wasteland",
+    "reward": "100 caps",
+    "category": "starter",
+    "objective_type": "collect",
+    "target_entity": {"resource_type": "caps"},
+    "target_amount": 300,
+    "sequence": 4,
+    "description": "Send a healthy dweller to explore — they return with caps and loot."
+  },
+  {
+    "challenge": "Reach 10 Dwellers",
+    "reward": "100 caps",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "target_amount": 10,
+    "sequence": 5,
+    "description": "Grow population via the radio or breeding."
+  },
+  {
+    "challenge": "Reach 18 Dwellers",
+    "reward": "150 caps",
+    "category": "starter",
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "target_amount": 18,
+    "sequence": 6,
+    "description": "The Overseer's Office needs 18 dwellers."
+  },
+  {
+    "challenge": "Build Overseer's Office",
+    "reward": "200 caps",
+    "category": "starter",
+    "objective_type": "build",
+    "target_entity": {"room_type": "overseers_office"},
+    "target_amount": 1,
+    "sequence": 7,
+    "description": "Costs 1000 caps — keep exploring and selling loot."
+  }
+]

@@ -42,9 +42,26 @@ describe('QuestsView', () => {
     vi.useRealTimers()
   })
 
-  describe('Overseer Office Check', () => {
-    it('should show locked state when no Overseer Office', async () => {
-      roomStore.rooms = []
+  describe('Overseer Office Lock', () => {
+    it('should show locked state when quests report the Overseer Office lock reason', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'First Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'None',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: false,
+          is_locked: true,
+          lock_reason: "Requires Overseer's Office",
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        },
+      ]
 
       wrapper = mount(QuestsView, {
         global: {
@@ -59,28 +76,23 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain("OVERSEER'S OFFICE REQUIRED")
     })
 
-    it('should show quests when Overseer Office exists', async () => {
-      roomStore.rooms = [
+    it('should show quests when no quest reports the Overseer Office lock', async () => {
+      questStore.vaultQuests = [
         {
-          id: 'room-1',
-          name: "Overseer's Office",
-          category: 'quests',
-          ability: null,
-          level: 1,
-          max_level: 3,
-          capacity: 2,
-          x: 0,
-          y: 0,
-          width: 2,
-          height: 1,
-          power_cost: 10,
-          dweller_ids: [],
+          id: 'quest-1',
+          title: 'First Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'None',
+          rewards: '50 caps',
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
-          vault_id: 'vault-123',
-          under_construction: false,
-          build_time: 60,
-          upgrade_cost: 100,
+          is_visible: true,
+          is_locked: false,
+          lock_reason: null,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
         },
       ]
 
@@ -282,7 +294,7 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain('Available Quest')
     })
 
-    it('should reveal locked quests only when Show All is enabled', async () => {
+    it('should reveal locked quests only when Show All is enabled and render their lock reason', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -294,6 +306,8 @@ describe('QuestsView', () => {
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
           is_visible: true,
+          is_locked: false,
+          lock_reason: null,
           is_completed: false,
           started_at: null,
           duration_minutes: null,
@@ -308,7 +322,9 @@ describe('QuestsView', () => {
           previous_quest_id: 'quest-1',
           created_at: '2025-01-01',
           updated_at: '2025-01-01',
-          is_visible: true,
+          is_visible: false,
+          is_locked: true,
+          lock_reason: 'Requires completing a previous quest',
           is_completed: false,
           started_at: null,
           duration_minutes: null,
@@ -326,6 +342,7 @@ describe('QuestsView', () => {
       await wrapper.find('.toggle-input').setValue(true)
 
       expect(wrapper.text()).toContain('Locked Quest')
+      expect(wrapper.text()).toContain('Requires completing a previous quest')
     })
 
     it('should display completed quests in completed tab', async () => {

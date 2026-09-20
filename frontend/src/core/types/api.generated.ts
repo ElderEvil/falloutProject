@@ -648,7 +648,9 @@ export interface paths {
          * @description Update a dweller's player-editable fields.
          *
          *     Game state (health, radiation, level, experience, supplies, status, death) is
-         *     not accepted here — see `DwellerUpdateRequest`.
+         *     not accepted here — see `DwellerUpdateRequest`. Room assignment only happens
+         *     via the dedicated move endpoints (`POST /dwellers/{id}/move_to/{room_id}`,
+         *     auto_assign); this endpoint only accepts `room_id: null` to unassign.
          *
          *     Returns:
          *         DwellerRead: The updated dweller.
@@ -2674,7 +2676,7 @@ export interface paths {
         };
         /**
          * Get Available Quests
-         * @description Get available quests for a vault (respects quest chain unlocks).
+         * @description Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
          *
          *     Returns:
          *         List of available quests.
@@ -6475,7 +6477,7 @@ export interface components {
             /** Thumbnail Url */
             thumbnail_url?: string | null;
             /** Room Id */
-            room_id?: string | null;
+            room_id?: null;
         };
         /**
          * DwellerVisualAttributes
@@ -7774,6 +7776,16 @@ export interface components {
              */
             target_amount: number;
             /**
+             * Sequence
+             * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
+             */
+            sequence?: number | null;
+            /**
+             * Description
+             * @description Player-facing guidance for how/why to complete the objective
+             */
+            description?: string | null;
+            /**
              * Id
              * Format: uuid4
              */
@@ -7810,6 +7822,16 @@ export interface components {
              * @default 1
              */
             target_amount: number;
+            /**
+             * Sequence
+             * @description Ordering within a sequenced category (e.g. the starter arc); NULL for unsequenced categories
+             */
+            sequence?: number | null;
+            /**
+             * Description
+             * @description Player-facing guidance for how/why to complete the objective
+             */
+            description?: string | null;
         };
         /** ObjectiveRead */
         ObjectiveRead: {

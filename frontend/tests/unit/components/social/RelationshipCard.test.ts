@@ -208,7 +208,6 @@ describe('RelationshipCard', () => {
 
     expect(wrapper.emitted('select-dweller')).toEqual([['d1'], ['d2']])
   })
-})
 
   describe('family strip for partner relationships', () => {
     const child = {

@@ -16,7 +16,7 @@ from app.schemas.common import AgeGroupEnum
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.quest_service import quest_service
+from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.users import create_fake_user

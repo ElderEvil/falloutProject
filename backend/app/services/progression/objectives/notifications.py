@@ -1,0 +1,87 @@
+"""Event handlers for objective-related events.
+
+Listens to OBJECTIVE_COMPLETED and creates notifications.
+"""
+
+import logging
+from typing import Any
+from uuid import UUID
+
+from pydantic import UUID4
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.core.event_bus import GameEvent, event_bus
+from app.db.session import async_session_maker
+from app.models.objective import Objective
+from app.services.notification_service import notification_service
+from app.utils.exceptions import ResourceNotFoundException
+
+logger = logging.getLogger(__name__)
+
+
+async def _get_vault_owner(db_session: AsyncSession, vault_id: UUID4) -> UUID4 | None:
+    """Get the owner user_id for a vault."""
+    from app.crud.vault import vault as vault_crud
+
+    vault = await vault_crud.get_or_none(db_session, id=vault_id)
+    return vault.user_id if vault else None
+
+
+async def _get_objective(db_session: AsyncSession, objective_id: UUID4) -> Objective | None:
+    """Get objective by ID."""
+    from app.crud.objective import objective_crud
+
+    try:
+        return await objective_crud.get(db_session, objective_id)
+    except ResourceNotFoundException:
+        return None
+
+
+async def handle_objective_completed(_event_type: str, vault_id: UUID4, data: dict[str, Any]) -> None:
+    """Handle OBJECTIVE_COMPLETED event - send notification to vault owner."""
+    objective_id = data.get("objective_id")
+    challenge = data.get("challenge", "Unknown objective")
+
+    if not objective_id:
+        logger.warning("OBJECTIVE_COMPLETED event missing objective_id")
+        return
+
+    # Dramatiq ticks bind a loop-local maker so their handlers never reuse the
+    # module-global asyncpg connection across worker event loops.
+    from app.services.progression.objectives.evaluators import current_session_maker
+
+    session_maker = current_session_maker.get() or async_session_maker
+    async with session_maker() as db_session:
+        try:
+            # Get objective to fetch reward
+            objective = await _get_objective(db_session, UUID(objective_id))
+            if not objective:
+                logger.warning(f"Objective {objective_id} not found")
+                return
+
+            # Get vault owner
+            user_id = await _get_vault_owner(db_session, vault_id)
+            if not user_id:
+                logger.warning(f"Vault {vault_id} has no owner, skipping notification")
+                return
+
+            # Send notification
+            await notification_service.notify_objective_completed(
+                db=db_session,
+                user_id=user_id,
+                vault_id=vault_id,
+                objective_challenge=challenge,
+                reward=objective.reward,
+                meta_data={"objective_id": str(objective_id), "reward": objective.reward},
+            )
+
+            logger.info(f"Objective completion notification sent for '{challenge}' to user {user_id}")
+
+        except Exception:
+            logger.exception(f"Failed to send objective completion notification for {objective_id}")
+
+
+def register_objective_event_handlers() -> None:
+    """Register event handlers for objective events."""
+    event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, handle_objective_completed)
+    logger.info("Registered handler for OBJECTIVE_COMPLETED event")

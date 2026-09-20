@@ -14,7 +14,7 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.objective_evaluators import (
+from app.services.progression.objectives.evaluators import (
     AssignEvaluator,
     BuildEvaluator,
     CollectEvaluator,
@@ -46,7 +46,7 @@ def patched_session_maker(async_session):
         async def __aexit__(self, *args):
             pass
 
-    with patch("app.services.objective_evaluators.async_session_maker", MockSessionMaker):
+    with patch("app.services.progression.objectives.evaluators.async_session_maker", MockSessionMaker):
         yield
 
 
@@ -642,3 +642,33 @@ async def test_level_up_evaluator_dweller_leveled_up(
 
     await async_session.refresh(link)
     assert link.progress == 1
+
+
+def test_facade_reexports_canonical_evaluator_surface() -> None:
+    """The top-level facade forwards the canonical module's public names by identity.
+
+    The facade is a value re-export only: monkeypatching the facade's
+    ``async_session_maker`` would NOT affect the canonical module, so the surface
+    must stay in lockstep with ``progression.objectives.evaluators``.
+    """
+    from app.services import objective_evaluators as facade
+    from app.services.progression.objectives import evaluators as canonical
+
+    names = (
+        "AssignCorrectEvaluator",
+        "AssignEvaluator",
+        "BuildEvaluator",
+        "CollectEvaluator",
+        "ExpeditionEvaluator",
+        "LevelUpEvaluator",
+        "ObjectiveEvaluator",
+        "ObjectiveEvaluatorManager",
+        "ReachEvaluator",
+        "TrainEvaluator",
+        "async_session_maker",
+        "current_session_maker",
+        "evaluator_manager",
+        "set_current_session_maker",
+    )
+    for name in names:
+        assert getattr(facade, name) is getattr(canonical, name)

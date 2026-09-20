@@ -9,7 +9,7 @@ from app.models.quest_requirement import QuestRequirement, RequirementType
 from app.models.room import Room
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
-from app.services.quest_service import quest_service
+from app.services.progression.quests.service import quest_service
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
@@ -796,3 +796,15 @@ async def test_stat_requirement_met_by_qualifying_dweller(async_session: AsyncSe
 
     assert quest_read.is_locked is False
     assert quest_read.is_visible is True
+
+
+def test_quest_service_facade_reexports_canonical_surface() -> None:
+    """The top-level facade forwards the canonical module's public names by identity."""
+    from app.services import quest_service as facade
+    from app.services.progression.quests import availability
+    from app.services.progression.quests import service as canonical
+
+    for name in ("QuestAvailability", "OFFICE_ROOM_TYPE", "OFFICE_LOCK_REASON", "CHAIN_LOCK_REASON", "REVEAL_MARGIN"):
+        assert getattr(facade, name) is getattr(availability, name)
+    assert facade.QuestService is canonical.QuestService
+    assert facade.quest_service is canonical.quest_service

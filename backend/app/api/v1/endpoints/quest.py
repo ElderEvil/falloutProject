@@ -22,7 +22,7 @@ from app.schemas.quest import (
     QuestUpdate,
 )
 from app.schemas.rewards import granted_reward_adapter
-from app.services.quest_service import quest_service
+from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 

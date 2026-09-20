@@ -11,6 +11,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{ (e: 'select', dwellerId: string): void }>()
 
+/** Full display name of the child dweller. */
 const fullName = computed(() =>
   `${props.dweller.first_name} ${props.dweller.last_name ?? ''}`.trim()
 )

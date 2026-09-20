@@ -138,4 +138,25 @@ describe('PregnancyTracker', () => {
 
     expect(fetchVaultPregnancies).toHaveBeenCalledWith('v1')
   })
+
+  it('passes undefined parents when dwellers are not loaded yet', async () => {
+    activePregnancies.push({
+      id: 'p1',
+      mother_id: 'm1',
+      father_id: 'f1',
+      status: 'pregnant',
+      progress_percentage: 50,
+      time_remaining_seconds: 5400,
+      is_due: false,
+    })
+    fetchVaultPregnancies.mockResolvedValue(undefined)
+
+    const wrapper = mountTracker()
+    await flushPromises()
+
+    const card = wrapper.findComponent({ name: 'PregnancyCard' })
+    expect(card.exists()).toBe(true)
+    expect(card.props('mother')).toBeUndefined()
+    expect(card.props('father')).toBeUndefined()
+  })
 })

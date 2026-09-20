@@ -114,4 +114,18 @@ describe('PregnancyCard', () => {
     expect(wrapper.text()).toContain('Alice')
     expect(wrapper.text()).not.toContain('Alice null')
   })
+
+  it('renders Unknown for a missing mother without crashing', () => {
+    const wrapper = createWrapper({ mother: null })
+
+    expect(wrapper.text()).toContain('Unknown')
+    expect(wrapper.text()).toContain('Bob Jones')
+  })
+
+  it('renders Unknown for a missing father without crashing', () => {
+    const wrapper = createWrapper({ father: undefined })
+
+    expect(wrapper.text()).toContain('Alice Smith')
+    expect(wrapper.text()).toContain('Unknown')
+  })
 })

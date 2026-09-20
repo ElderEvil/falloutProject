@@ -25,24 +25,22 @@ const vaultId = computed(() => route.params.id as string)
 const activeStage = ref<'forming' | 'partners' | 'pregnancies' | 'children'>('forming')
 
 // Stats
+/** Total number of relationships in the vault. */
 const totalRelationships = computed(() => relationshipStore.relationships.length)
+/** Number of relationships that are committed partner links. */
 const partnersCount = computed(
   () =>
     relationshipStore.relationships.filter((r) =>
       isRelationshipType(r.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
     ).length
 )
+/** Number of active pregnancies in the vault. */
 const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
+/** Number of children currently in the vault. */
 const childrenCount = computed(() => allChildren(dwellerStore.allDwellers).length)
 
-const summaryMetrics = computed(() => [
-  { tab: 'forming', icon: 'mdi:heart-multiple', label: 'Total Relationships', value: totalRelationships.value },
-  { tab: 'partners', icon: 'mdi:human-male-female', label: 'Partner Couples', value: partnersCount.value },
-  { tab: 'pregnancies', icon: 'mdi:baby-carriage', label: 'Active Pregnancies', value: pregnanciesCount.value },
-  { tab: 'children', icon: 'mdi:human-child', label: 'Growing Children', value: childrenCount.value },
-])
-
 // Stages configuration
+/** Stage definitions with per-stage relationship counts. */
 const stages = computed(() => [
   {
     id: 'forming',
@@ -72,8 +70,10 @@ const stages = computed(() => [
   },
 ])
 
+/** Tab descriptors for the family stage switcher. */
 const familyTabs = computed(() => stages.value.map((stage) => ({ key: stage.id, label: `${stage.label} (${stage.count})` })))
 
+/** Switch the active family stage tab. */
 function setActiveStage(stage: string) {
   activeStage.value = stage as typeof activeStage.value
 }
@@ -88,6 +88,7 @@ onMounted(async () => {
   }
 })
 
+/** Navigate to the dweller detail page for the given dweller. */
 const navigateToDweller = (dwellerId: string) => {
   router.push(`/vault/${vaultId.value}/dwellers/${dwellerId}`)
 }
@@ -102,30 +103,17 @@ const navigateToDweller = (dwellerId: string) => {
           title="Relationships &amp; Family"
           icon="mdi:heart-multiple"
           subtitle="Track relationships, pregnancies, and the next generation of your vault."
-        />
-
-        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <button
-            v-for="metric in summaryMetrics"
-            :key="metric.label"
-            type="button"
-            :aria-pressed="activeStage === metric.tab"
-            class="flex cursor-pointer items-center gap-3 rounded border bg-transparent p-4 text-left transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10 focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
-            :class="activeStage === metric.tab ? 'border-theme-primary/60 bg-theme-glow/10' : 'border-theme-primary/20'"
-            @click="setActiveStage(metric.tab)"
-          >
-            <Icon
-              :icon="metric.icon"
-              class="h-7 w-7 shrink-0 text-theme-primary/70 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]"
-            />
-            <div class="min-w-0">
-                <div class="stat-value text-2xl font-bold leading-none text-theme-primary">{{ metric.value }}</div>
-                <div class="mt-1 truncate text-[0.65rem] font-bold tracking-[0.1em] text-theme-primary/60">
-                {{ metric.label }}
-                </div>
-            </div>
-          </button>
-        </section>
+        >
+          <template #actions>
+            <span class="flex items-center gap-2 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2">
+              <Icon icon="mdi:heart-multiple" class="h-4 w-4 text-theme-primary/70" />
+              <span class="total-relationships-count text-2xl font-bold leading-none text-theme-primary">{{ totalRelationships }}</span>
+              <span class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">
+                {{ totalRelationships === 1 ? 'relationship' : 'relationships' }}
+              </span>
+            </span>
+          </template>
+        </PageHeader>
 
           <UTabs
             :model-value="activeStage"

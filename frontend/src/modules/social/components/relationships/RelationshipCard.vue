@@ -268,17 +268,22 @@ const emit = defineEmits<{
   'select-dweller': [dwellerId: string]
 }>()
 
+/** Display name of the first relationship member. */
 const dweller1Name = computed(() => formatDwellerName(props.dweller1))
+/** Display name of the second relationship member. */
 const dweller2Name = computed(() => formatDwellerName(props.dweller2))
 
+/** Format a dweller's full name for display. */
 function formatDwellerName(dweller: DwellerShort): string {
   return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
 }
 
+/** Badge variant for the relationship type. */
 const relationshipColor = computed(
   () => RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'
 )
 
+/** Whether the relationship type counts as a committed partner link. */
 const isPartnerLinked = computed(() =>
   isRelationshipType(props.relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
 )

@@ -4,14 +4,17 @@
 
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
+/** Whether the dweller is still a child (not yet grown to adult). */
 export function isChild(dweller: DwellerShort): boolean {
   return dweller.age_group === 'child'
 }
 
+/** All children currently in the vault. */
 export function allChildren(dwellers: readonly DwellerShort[]): DwellerShort[] {
   return dwellers.filter(isChild)
 }
 
+/** Children whose parents are exactly the given couple, in either order. */
 export function childrenOfCouple(
   dwellers: readonly DwellerShort[],
   parent1Id: string,

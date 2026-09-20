@@ -5,7 +5,7 @@
       <div class="min-w-0">
         <div class="flex items-center gap-2 min-w-0">
           <DwellerPortrait
-            :thumbnail-url="mother.thumbnail_url"
+            :thumbnail-url="mother?.thumbnail_url"
             :alt="motherName"
             prefer-thumbnail
             image-class="h-8 w-8 shrink-0 rounded object-cover"
@@ -14,7 +14,7 @@
           <span class="shrink-0 text-pink-400">+</span>
           <span class="font-mono text-sm truncate">{{ fatherName }}</span>
           <DwellerPortrait
-            :thumbnail-url="father.thumbnail_url"
+            :thumbnail-url="father?.thumbnail_url"
             :alt="fatherName"
             prefer-thumbnail
             image-class="h-8 w-8 shrink-0 rounded object-cover"
@@ -76,8 +76,8 @@ import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   pregnancy: Pregnancy
-  mother: DwellerShort
-  father: DwellerShort
+  mother?: DwellerShort | null
+  father?: DwellerShort | null
   isDelivering?: boolean
 }
 
@@ -89,13 +89,18 @@ defineEmits<{
 
 const pregnancyStore = usePregnancyStore()
 
+/** Display name of the mother, falling back to "Unknown" when not loaded. */
 const motherName = computed(() => formatDwellerName(mother))
+
+/** Display name of the father, falling back to "Unknown" when not loaded. */
 const fatherName = computed(() => formatDwellerName(father))
 
-function formatDwellerName(dweller: DwellerShort): string {
-  return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
+/** Format a dweller's full name, or "Unknown" when the dweller is absent. */
+function formatDwellerName(dweller: DwellerShort | null | undefined): string {
+  return dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Unknown'
 }
 
+/** Badge variant reflecting the pregnancy status and due state. */
 const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
   switch (pregnancy.status) {
     case 'pregnant':
@@ -109,6 +114,7 @@ const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'de
   }
 })
 
+/** Human-readable time remaining until the pregnancy is due. */
 const timeRemaining = computed(() => {
   return pregnancyStore.formatTimeRemaining(pregnancy.time_remaining_seconds)
 })

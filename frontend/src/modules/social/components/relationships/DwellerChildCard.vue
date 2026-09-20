@@ -14,10 +14,12 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{ (e: 'select', dwellerId: string): void }>()
 
+/** Full display name of the child dweller. */
 const fullName = computed(() =>
   `${props.dweller.first_name} ${props.dweller.last_name ?? ''}`.trim()
 )
 
+/** SPECIAL stat values rendered as a compact row. */
 const specialStats = computed(() => [
   { letter: 'S', value: props.dweller.strength },
   { letter: 'P', value: props.dweller.perception },

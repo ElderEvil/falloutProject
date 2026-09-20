@@ -6,10 +6,12 @@ dweller was already committed to a third dweller, and ``_set_partner_ids`` just
 overwrote ``partner_id``, leaving the old committed row intact.
 
 This revision enforces the "one committed relationship per dweller" invariant on
-existing data. For every dweller with more than one committed link the canonical
-link is the one whose other side matches the dweller's current ``partner_id``
-(falling back to the most recently updated link); every other link is demoted to
-EX (affinity and updated_at untouched). ``partner_id`` is then synced to the
+existing data. A deterministic global greedy matching keeps the maximal set of
+committed links such that no dweller keeps more than one: links are ranked by
+how many of their two dweller sides already point at the other side via
+``partner_id`` (then by ``updated_at``), and a link is kept only when neither of
+its dwellers was already kept. Every other committed link is demoted to EX
+(affinity and updated_at untouched). ``partner_id`` is then synced to the
 surviving committed link for every committed dweller, and cleared for dwellers
 that have no committed link but a stale non-null ``partner_id``.
 
@@ -49,9 +51,6 @@ def upgrade() -> None:
         {"types": COMMITTED_TYPES},
     ).mappings().all()
 
-    if not committed_rows:
-        return
-
     # Per-dweller committed links: dweller_id -> list of (rel_id, other_id, updated_at).
     links_by_dweller: dict[str, list[dict]] = {}
     for row in committed_rows:
@@ -66,16 +65,27 @@ def upgrade() -> None:
     partner_rows = conn.execute(sa.text("SELECT id, partner_id FROM dweller")).mappings().all()
     partner_by_id = {row["id"]: row["partner_id"] for row in partner_rows}
 
-    # Demote every non-canonical committed link to EX.
-    demote_ids: set[str] = set()
-    for dweller_id, links in links_by_dweller.items():
-        if len(links) <= 1:
-            continue
-        canonical = next(
-            (link for link in links if link["other_id"] == partner_by_id.get(dweller_id)),
-            max(links, key=lambda link: link["updated_at"] or datetime.min),
+    # Deterministic global greedy matching: keep the maximal set of committed
+    # links such that no dweller keeps more than one. A link whose dweller sides
+    # already point at each other via partner_id ranks first (then most recently
+    # updated), so healthy committed pairs survive and both star and cycle
+    # topologies resolve deterministically.
+    def _link_key(link: dict) -> tuple[int, datetime]:
+        sides_match = int(partner_by_id.get(link["dweller_1_id"]) == link["dweller_2_id"]) + int(
+            partner_by_id.get(link["dweller_2_id"]) == link["dweller_1_id"]
         )
-        demote_ids.update(link["id"] for link in links if link["id"] != canonical["id"])
+        return (sides_match, link["updated_at"] or datetime.min)
+
+    kept_ids: set[str] = set()
+    kept_dwellers: set[str] = set()
+    for link in sorted(committed_rows, key=_link_key, reverse=True):
+        if link["dweller_1_id"] in kept_dwellers or link["dweller_2_id"] in kept_dwellers:
+            continue
+        kept_ids.add(link["id"])
+        kept_dwellers.add(link["dweller_1_id"])
+        kept_dwellers.add(link["dweller_2_id"])
+
+    demote_ids = {row["id"] for row in committed_rows} - kept_ids
 
     if demote_ids:
         conn.execute(
@@ -89,24 +99,29 @@ def upgrade() -> None:
             {"ids": sorted(demote_ids), "types": COMMITTED_TYPES},
         )
 
-    # Sync partner_id for every dweller that had a committed link: to the
-    # surviving committed link's other side, or NULL when every link they had was
-    # demoted (a demoted dweller must not keep a stale partner_id that would
-    # still pair them with the ex-partner in lineage/breeding lookups).
+    # Sync partner_id for every dweller that had a committed link: to the kept
+    # link's other side, or NULL when none of their links were kept (a demoted
+    # dweller must not keep a stale partner_id that would still pair them with
+    # the ex-partner in lineage/breeding lookups).
     for dweller_id, links in links_by_dweller.items():
-        remaining = [link for link in links if link["id"] not in demote_ids]
+        remaining = [link for link in links if link["id"] in kept_ids]
         conn.execute(
             sa.text("UPDATE dweller SET partner_id = :other_id WHERE id = :dweller_id"),
             {"other_id": remaining[0]["other_id"] if remaining else None, "dweller_id": dweller_id},
         )
 
     # Clear stale partner_id on dwellers that have no committed link at all.
-    conn.execute(
-        sa.text("UPDATE dweller SET partner_id = NULL WHERE partner_id IS NOT NULL AND id NOT IN :ids").bindparams(
-            sa.bindparam("ids", expanding=True)
-        ),
-        {"ids": sorted(links_by_dweller)},
-    )
+    # This always runs, even when no committed rows exist: with an empty
+    # links_by_dweller every non-null partner_id is stale and must be cleared.
+    if links_by_dweller:
+        conn.execute(
+            sa.text("UPDATE dweller SET partner_id = NULL WHERE partner_id IS NOT NULL AND id NOT IN :ids").bindparams(
+                sa.bindparam("ids", expanding=True)
+            ),
+            {"ids": sorted(links_by_dweller)},
+        )
+    else:
+        conn.execute(sa.text("UPDATE dweller SET partner_id = NULL WHERE partner_id IS NOT NULL"))
 
 
 def downgrade() -> None:

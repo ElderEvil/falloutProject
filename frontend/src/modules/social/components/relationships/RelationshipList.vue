@@ -45,23 +45,23 @@
 
     <div v-else :class="viewMode === 'grid' ? 'grid grid-cols-1 gap-4 xl:grid-cols-2' : 'space-y-2'">
       <div
-        v-for="relationship in filteredRelationships"
-        :key="relationship.id"
+        v-for="entry in resolvedRelationships"
+        :key="entry.relationship.id"
         class="relationship-entry"
       >
         <RelationshipCard
-          :relationship="relationship"
-          :dweller1="getDweller(relationship.dweller_1_id)!"
-          :dweller2="getDweller(relationship.dweller_2_id)!"
-          :children="getChildren(relationship)"
-          :pregnancy="getPregnancy(relationship)"
-          :generation="getGeneration(relationship)"
+          :relationship="entry.relationship"
+          :dweller1="entry.dweller1"
+          :dweller2="entry.dweller2"
+          :children="getChildren(entry.relationship)"
+          :pregnancy="getPregnancy(entry.relationship)"
+          :generation="getGeneration(entry.relationship)"
           :view-mode="viewMode"
           @select-dweller="emit('select-dweller', $event)"
-          @initiate-romance="initiateRomance(relationship.id)"
-          @make-partners="makePartners(relationship.id)"
-          @marry="marry(relationship.id)"
-          @break-up="breakUp(relationship.id)"
+          @initiate-romance="initiateRomance(entry.relationship.id)"
+          @make-partners="makePartners(entry.relationship.id)"
+          @marry="marry(entry.relationship.id)"
+          @break-up="breakUp(entry.relationship.id)"
         />
       </div>
     </div>
@@ -104,6 +104,27 @@ const isLoading = computed(() => relationshipStore.isLoading)
 const error = ref<string | null>(null)
 const viewMode = ref<'list' | 'grid'>('list')
 
+/** A relationship paired with its two resolved dweller records. */
+interface ResolvedRelationship {
+  relationship: Relationship
+  dweller1: DwellerShort
+  dweller2: DwellerShort
+}
+
+/**
+ * Filtered relationships whose both dwellers are present in the roster.
+ * Relationships whose dwellers have not loaded yet are omitted until the
+ * roster arrives (the view fetches all dwellers on mount).
+ */
+const resolvedRelationships = computed<ResolvedRelationship[]>(() =>
+  filteredRelationships.value.flatMap((relationship) => {
+    const dweller1 = getDweller(relationship.dweller_1_id)
+    const dweller2 = getDweller(relationship.dweller_2_id)
+    return dweller1 && dweller2 ? [{ relationship, dweller1, dweller2 }] : []
+  })
+)
+
+/** Relationships filtered by stage and sorted by relationship type priority. */
 const filteredRelationships = computed(() => {
   let filtered = [...relationships.value]
 
@@ -132,6 +153,7 @@ const filteredRelationships = computed(() => {
   })
 })
 
+/** Empty-state title for the current stage filter. */
 const emptyMessage = computed(() => {
   if (props.stageFilter === 'forming') {
     return 'No developing relationships in this vault yet.'
@@ -141,6 +163,7 @@ const emptyMessage = computed(() => {
   return 'No relationships in this vault yet.'
 })
 
+/** Empty-state hint for the current stage filter. */
 const emptyHint = computed(() => {
   if (props.stageFilter === 'forming') {
     return 'Assign dwellers to the same room to start building relationships!'
@@ -150,6 +173,11 @@ const emptyHint = computed(() => {
   return 'Assign dwellers to rooms together to start relationships!'
 })
 
+/**
+ * Resolve a dweller by id from the roster, preferring the filtered list and
+ * falling back to the full dweller list. Returns undefined when the dweller
+ * has not been loaded yet.
+ */
 function getDweller(dwellerId: string): DwellerShort | undefined {
   return (
     dwellerStore.dwellers.find((d) => d.id === dwellerId) ??
@@ -157,6 +185,7 @@ function getDweller(dwellerId: string): DwellerShort | undefined {
   )
 }
 
+/** Children shared by both members of the relationship. */
 function getChildren(relationship: Relationship): DwellerShort[] {
   return childrenOfCouple(
     dwellerStore.allDwellers,
@@ -165,6 +194,7 @@ function getChildren(relationship: Relationship): DwellerShort[] {
   )
 }
 
+/** Active pregnancy for the couple, or null when none is in progress. */
 function getPregnancy(relationship: Relationship): Pregnancy | null {
   return pregnancyForCouple(
     relationshipStore.pregnancies,
@@ -173,6 +203,7 @@ function getPregnancy(relationship: Relationship): Pregnancy | null {
   )
 }
 
+/** Highest in-vault generation among the two relationship members. */
 function getGeneration(relationship: Relationship): number {
   return Math.max(
     generationOf(dwellerStore.allDwellers, relationship.dweller_1_id),
@@ -180,10 +211,12 @@ function getGeneration(relationship: Relationship): number {
   )
 }
 
+/** Whether the relationship type counts as a committed partner link. */
 function isPartnerLinked(relationship: Relationship): boolean {
   return isRelationshipType(relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
 }
 
+/** Reload the vault's relationships, capturing any failure into `error`. */
 async function refreshRelationships() {
   error.value = null
   try {
@@ -193,22 +226,27 @@ async function refreshRelationships() {
   }
 }
 
+/** Re-run the initial relationship load after an error. */
 function retryFetch() {
   refreshRelationships()
 }
 
+/** Promote the relationship to a romantic one. */
 async function initiateRomance(relationshipId: string) {
   await relationshipStore.initiateRomance(relationshipId)
 }
 
+/** Promote the relationship to a committed partner link. */
 async function makePartners(relationshipId: string) {
   await relationshipStore.makePartners(relationshipId)
 }
 
+/** Marry the committed couple. */
 async function marry(relationshipId: string) {
   await relationshipStore.marry(relationshipId)
 }
 
+/** End the relationship after a confirmation prompt. */
 async function breakUp(relationshipId: string) {
   if (confirm('Are you sure you want to end this relationship?')) {
     await relationshipStore.breakUp(relationshipId)

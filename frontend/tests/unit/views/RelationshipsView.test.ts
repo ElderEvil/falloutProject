@@ -133,7 +133,11 @@ describe('RelationshipsView', () => {
       expect(wrapper.text()).toContain('Children')
     })
 
-    it('should render stats overview cards', async () => {
+    it('should render the total relationships count in the header', async () => {
+      relationshipStore.relationships = [
+        { id: 'r1', dweller_1_id: 'd1', dweller_2_id: 'd2', relationship_type: 'friend', affinity: 50 },
+      ]
+
       const wrapper = mount(RelationshipsView, {
         global: {
           plugins: [router],
@@ -142,10 +146,8 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Total Relationships')
-      expect(wrapper.text()).toContain('Partner Couples')
-      expect(wrapper.text()).toContain('Active Pregnancies')
-      expect(wrapper.text()).toContain('Growing Children')
+      expect(wrapper.find('.total-relationships-count').text()).toBe('1')
+      expect(wrapper.text()).toContain('relationship')
     })
 
     it('should have terminal-style tab styling', async () => {
@@ -238,32 +240,10 @@ describe('RelationshipsView', () => {
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
     })
-
-    it('should switch to the partners stage when the Partner Couples metric card is clicked', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const partnerCard = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Partner Couples'))
-      expect(partnerCard).toBeDefined()
-      await partnerCard!.trigger('click')
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Committed partners in living quarters')
-      expect(wrapper.text()).not.toContain('Forming Relationships')
-      expect(partnerCard!.classes()).toContain('border-theme-primary/60')
-    })
   })
 
-  describe('Stats Display', () => {
-    it('should display correct relationship count', async () => {
+  describe('Tab counts', () => {
+    it('should split the relationship count between the Forming and Partners tabs', async () => {
       relationshipStore.relationships = [
         { id: '1', relationship_type: 'friend' },
         { id: '2', relationship_type: 'partner' },
@@ -277,30 +257,11 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const stats = wrapper.findAll('.stat-value')
-      expect(stats[0].text()).toBe('2') // Total relationships
+      expect(wrapper.text()).toContain('Forming (1)')
+      expect(wrapper.text()).toContain('Partners (1)')
     })
 
-    it('should display correct partner count', async () => {
-      relationshipStore.relationships = [
-        { id: '1', relationship_type: 'friend' },
-        { id: '2', relationship_type: 'partner' },
-        { id: '3', relationship_type: 'partner' },
-      ]
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const stats = wrapper.findAll('.stat-value')
-      expect(stats[1].text()).toBe('2') // Partner couples
-    })
-
-    it('should display correct pregnancy count', async () => {
+    it('should display the pregnancy count in the Pregnancies tab', async () => {
       relationshipStore.pregnancies = [{ id: '1' }, { id: '2' }]
 
       const wrapper = mount(RelationshipsView, {
@@ -311,11 +272,10 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const stats = wrapper.findAll('.stat-value')
-      expect(stats[2].text()).toBe('2') // Active pregnancies
+      expect(wrapper.text()).toContain('Pregnancies (2)')
     })
 
-    it('should display correct children count', async () => {
+    it('should display the children count in the Children tab', async () => {
       dwellerStore.allDwellers = [
         { id: '1', age_group: 'child' },
         { id: '2', age_group: 'adult' },
@@ -330,8 +290,7 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const stats = wrapper.findAll('.stat-value')
-      expect(stats[3].text()).toBe('2') // Growing children
+      expect(wrapper.text()).toContain('Children (2)')
     })
   })
 

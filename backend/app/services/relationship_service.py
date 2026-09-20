@@ -112,7 +112,12 @@ class RelationshipService:
             elif relationship.relationship_type == RelationshipTypeEnum.ROMANTIC:
                 # Skip the promotion if either dweller is already committed to a
                 # third dweller (game-loop tick path: log and keep ROMANTIC rather
-                # than raising, which would break the vault).
+                # than raising, which would break the vault). Lock both dweller
+                # rows first so a concurrent manual make_partners cannot race the
+                # guard (the tick holds a per-vault advisory lock, endpoints do not).
+                await RelationshipService._lock_dwellers(
+                    db_session, relationship.dweller_1_id, relationship.dweller_2_id
+                )
                 if await RelationshipService._committed_partner_elsewhere(
                     db_session,
                     relationship.dweller_1_id,
@@ -139,7 +144,10 @@ class RelationshipService:
         if is_marriage_transition:
             # Defense-in-depth: skip the transition if either dweller is already
             # committed to a third dweller (pre-existing corrupt data). Log and
-            # persist only the affinity bump rather than raising.
+            # persist only the affinity bump rather than raising. Lock both
+            # dweller rows first so a concurrent manual make_partners cannot race
+            # the guard (the tick holds a per-vault advisory lock, endpoints do not).
+            await RelationshipService._lock_dwellers(db_session, relationship.dweller_1_id, relationship.dweller_2_id)
             if await RelationshipService._committed_partner_elsewhere(
                 db_session,
                 relationship.dweller_1_id,
@@ -244,6 +252,10 @@ class RelationshipService:
             msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
             raise ValueError(msg)
 
+        # Serialize concurrent commitment transitions: lock both dweller rows
+        # before the guard so two racing make_partners calls cannot both pass it.
+        await RelationshipService._lock_dwellers(db_session, dweller_1_id, dweller_2_id)
+
         # Guard: neither dweller may already be committed to a third dweller.
         for dweller_id in (dweller_1_id, dweller_2_id):
             committed = await RelationshipService._committed_partner_elsewhere(
@@ -255,18 +267,32 @@ class RelationshipService:
 
         update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
 
-        # Update relationship via CRUD
-        relationship = await relationship_crud.update(db_session, relationship.id, update_data)
-
-        # Update both dwellers to have each other as partners in a single transaction
-        await RelationshipService._set_partner_ids(db_session, dweller_1_id, dweller_2_id)
+        # Update relationship and both dwellers' partner_ids in ONE transaction.
+        relationship = await relationship_crud.update(db_session, relationship.id, update_data, commit=False)
+        await RelationshipService._set_partner_ids(db_session, dweller_1_id, dweller_2_id, commit=False)
+        await db_session.commit()
 
         logger.info(f"Partners made: {dweller_1_id} ↔ {dweller_2_id}")
         return relationship
 
     @staticmethod
-    async def _set_partner_ids(db_session: AsyncSession, dweller_1_id: UUID4, dweller_2_id: UUID4) -> None:
-        """Set reciprocal partner_ids on both dwellers atomically."""
+    async def _set_partner_ids(
+        db_session: AsyncSession,
+        dweller_1_id: UUID4,
+        dweller_2_id: UUID4,
+        *,
+        commit: bool = True,
+    ) -> None:
+        """Set reciprocal partner_ids on both dwellers atomically.
+
+        Args:
+            db_session: Database session
+            dweller_1_id: First dweller ID
+            dweller_2_id: Second dweller ID
+            commit: Whether to commit (default True); pass False to defer the
+                commit so it lands in the same transaction as the relationship
+                update.
+        """
         try:
             dweller_1 = await dweller_crud.get(db_session, dweller_1_id)
             dweller_2 = await dweller_crud.get(db_session, dweller_2_id)
@@ -276,13 +302,27 @@ class RelationshipService:
 
             db_session.add(dweller_1)
             db_session.add(dweller_2)
-            await db_session.commit()
-            await db_session.refresh(dweller_1)
-            await db_session.refresh(dweller_2)
+            if commit:
+                await db_session.commit()
+                await db_session.refresh(dweller_1)
+                await db_session.refresh(dweller_2)
         except Exception as e:
             await db_session.rollback()
             msg = f"Failed to update partner IDs for dwellers: {e}"
             raise ValueError(msg) from e
+
+    @staticmethod
+    async def _lock_dwellers(db_session: AsyncSession, id_a: UUID4, id_b: UUID4) -> None:
+        """Lock both dweller rows FOR UPDATE in deterministic id order.
+
+        Serializes concurrent commitment transitions (make_partners / marry /
+        affinity auto-promotion) so the ``_committed_partner_elsewhere`` guard
+        cannot be raced by two requests both passing it. Locks are held until
+        the caller's next commit/rollback; SQLite test engines ignore FOR
+        UPDATE, PostgreSQL enforces it in production.
+        """
+        for dweller_id in sorted((id_a, id_b), key=str):
+            await dweller_crud.get_for_update(db_session, dweller_id)
 
     @staticmethod
     async def _committed_partner_elsewhere(
@@ -350,6 +390,11 @@ class RelationshipService:
             threshold = game_config.relationship.marriage_threshold
             msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
             raise ValidationException(msg)
+
+        # Serialize concurrent commitment transitions: lock both dweller rows
+        # before the guard so a racing make_partners/affinity promotion cannot
+        # slip a second commitment in between the guard and the transition.
+        await RelationshipService._lock_dwellers(db_session, relationship.dweller_1_id, relationship.dweller_2_id)
 
         # Defense-in-depth: reject if either dweller is already committed to a
         # third dweller (pre-existing corrupt data).

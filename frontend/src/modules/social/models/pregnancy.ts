@@ -4,6 +4,7 @@
 
 export type PregnancyStatus = 'pregnant' | 'delivered' | 'miscarried'
 
+/** A pregnancy record for a couple, including progress toward delivery. */
 export interface Pregnancy {
   id: string
   mother_id: string
@@ -18,6 +19,7 @@ export interface Pregnancy {
   updated_at?: string
 }
 
+/** Progress snapshot of a pregnancy, without audit timestamps. */
 export interface PregnancyProgress {
   id: string
   mother_id: string
@@ -30,6 +32,7 @@ export interface PregnancyProgress {
   is_due: boolean
 }
 
+/** Result of delivering a baby, linking the newborn dweller. */
 export interface DeliveryResult {
   pregnancy_id: string
   child_id: string

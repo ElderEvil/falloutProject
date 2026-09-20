@@ -577,6 +577,10 @@ cooldown and naming fixes.
 - 🔲 **Phase 1 — graph visualization.** Replace/augment the rows panel with a real graph (parents →
   dweller + partners → children, multi-generation). Reuse lineage API as-is; no backend change. Extract
   shared lineage/tree helpers instead of duplicating traversal logic.
+  **Design reference (recorded 2026-09-20):** model the tree after The Sims' family tree — horizontal
+  generation rows, head portraits (small circular) connected by vertical parent→child lines, partners
+  side-by-side with a link between them. The same shape should later serve the vault-level family graph
+  on the relationships page.
 - 🔲 **Phase 2 — stage-change celebration.** Relationship stage upgrades (especially MARRIED) currently pass
   silently except happiness math. Surface them under the progression-visibility red line: modal/toast +
   notification, same as quest/objective completion. Backend already emits the transitions; this is frontend

@@ -101,11 +101,12 @@ it incrementally by domain rather than performing a risky all-at-once reorganiza
   `notify_owner` + `create_and_send` repetition, `LETTER_TO_STAT` vs `ABILITY_TO_STAT_MAP`, prod helpers duplicated
   into test utils/factories, CRUD "get dwellers by vault" variants.
   - **Ranked extraction backlog** (highest payoff first; one focused commit per cluster):
-    1. **XP/level-up settlement** — canonical path is `DwellerService.add_experience` (objective events + level-up
-       notification); direct `leveling_service.check_level_up` copies in `exploration/rewards_service`,
-       `combat/incident_round` (`award_combat_xp`), `combat/arena_service`, and `game_tick/dwellers_tick` bypass
-       the notification/event path in whole or part — a progression-visibility violation, not just DRY. Unify
-       behind one settlement entry point.
+    1. ~~**XP/level-up settlement**~~ — shipped: `leveling_service.settle_level_up` is the single surfacing entry
+       point (emits `DWELLER_LEVEL_UP` + notifies the owner) and every XP path uses it — the canonical
+       `DwellerService.add_experience` (quest rewards), `game_tick/dwellers_tick` work XP,
+       `combat/incident_round.award_combat_xp` (parked via `commit=False`, drained post-commit),
+       `combat/arena_service`, and `exploration/rewards_service`. Locked by
+       `tests/test_services/test_xp_settlement.py` (all five paths + deferred queue/drain/discard).
     2. **Exploration departure** — `exploration_service` validates, clears `room_id`, deducts supplies, and sets
        `EXPLORING` inline while `dweller_service` owns room/status transitions; departure already cancels active
        training inline (staged, no commit, so dispatch stays atomic). Remaining: extract a transaction-friendly

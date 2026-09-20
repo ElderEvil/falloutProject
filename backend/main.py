@@ -49,9 +49,9 @@ from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.ai_settings_service import ai_settings_service
 from app.services.health_check import HealthCheckService
-from app.services.objective_evaluators import evaluator_manager
-from app.services.objective_notifications import register_objective_event_handlers
 from app.services.place_seed_service import seed_places_from_json
+from app.services.progression.objectives.evaluators import evaluator_manager
+from app.services.progression.objectives.notifications import register_objective_event_handlers
 from app.services.websocket_manager import manager
 from app.utils.exceptions import DomainError, QuotaExceededException
 from app.utils.seed_objectives import seed_objectives_from_json

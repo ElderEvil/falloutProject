@@ -14,7 +14,7 @@ from app.models.objective import Objective
 from app.models.vault import Vault
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
-from app.services.objective_assignment_service import ObjectiveAssignmentService
+from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 from app.services.reward_service import reward_service
 
 router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depends(get_current_active_user)])

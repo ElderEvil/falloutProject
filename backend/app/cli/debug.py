@@ -50,8 +50,8 @@ def _run(body):
         from sqlmodel.ext.asyncio.session import AsyncSession
 
         from app.core.config import settings
-        from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
-        from app.services.objective_notifications import register_objective_event_handlers
+        from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
+        from app.services.progression.objectives.notifications import register_objective_event_handlers
 
         evaluator_manager.initialize()
         register_objective_event_handlers()
@@ -133,7 +133,7 @@ def evaluators() -> None:
     """Show evaluator-manager status and every subscribed event handler."""
 
     async def body(_session):
-        from app.services.objective_evaluators import evaluator_manager
+        from app.services.progression.objectives.evaluators import evaluator_manager
 
         handlers = _handler_map()
         return {

@@ -10,7 +10,7 @@ from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.common import ObjectiveCategoryEnum
-from app.services.objective_assignment_service import ObjectiveAssignmentService
+from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
 # ---------------------------------------------------------------------------
 # Stable UUIDs for deterministic test IDs

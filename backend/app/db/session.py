@@ -2,7 +2,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
@@ -22,7 +21,7 @@ async_engine = create_async_engine(
 )
 
 # Session maker for Celery tasks and other contexts
-async_session_maker = sessionmaker(
+async_session_maker = async_sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=async_engine,

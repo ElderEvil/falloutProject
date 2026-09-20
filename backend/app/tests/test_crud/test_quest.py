@@ -60,7 +60,7 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
     """Test vault quests reveal only chain starters until their requirement completes."""
     from app.models.quest_requirement import QuestRequirement, RequirementType
     from app.models.room import Room
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.tests.factory.rooms import create_overseers_office
 
     # Create user and vault
@@ -274,7 +274,7 @@ async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSess
 async def test_start_quest(async_session: AsyncSession) -> None:
     """Test starting a quest (setting the timer)."""
     from app.models.dweller import Dweller
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ResourceConflictException
@@ -319,7 +319,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_start_quest_requires_an_assigned_party(async_session: AsyncSession) -> None:
     """A quest cannot run without a party to send into the wasteland."""
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -347,7 +347,7 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
 @pytest.mark.parametrize("quest_category", ["building", "population", "training"])
 async def test_start_state_quest_is_ready_without_a_party(async_session: AsyncSession, quest_category: str) -> None:
     """State quests settle from their prerequisite state, not a dispatched party."""
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -373,7 +373,7 @@ async def test_start_state_quest_is_ready_without_a_party(async_session: AsyncSe
 @pytest.mark.asyncio
 async def test_start_quest_requires_a_positive_template_duration(async_session: AsyncSession) -> None:
     """Quest timers must come from a positive server-side template duration."""
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -402,7 +402,7 @@ async def test_start_quest_requires_a_positive_template_duration(async_session: 
 async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSession) -> None:
     """Manual completion must not bypass a running quest's timer."""
     from app.models.dweller import Dweller
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ValidationException
@@ -442,7 +442,7 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 
     from app.models.quest_reward import QuestReward, RewardType
     from app.models.vault_quest import VaultQuestCompletionLink
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -503,7 +503,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
     from app.models.storage import Storage
     from app.models.weapon import Weapon
     from app.schemas.common import AgeGroupEnum
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -632,7 +632,7 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
 async def test_assign_party_replaces_existing(async_session: AsyncSession) -> None:
     """Test that assign_party replaces existing party members."""
     from app.models.dweller import Dweller
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
     from app.utils.exceptions import ResourceConflictException

@@ -56,8 +56,8 @@ def game_tick():
             from sqlmodel.ext.asyncio.session import AsyncSession
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
-            from app.services.objective_notifications import register_objective_event_handlers
+            from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
+            from app.services.progression.objectives.notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
             register_objective_event_handlers()
@@ -157,8 +157,8 @@ def process_vault_tick(vault_id: str):
             from sqlmodel.ext.asyncio.session import AsyncSession
 
             from app.core.config import settings
-            from app.services.objective_evaluators import evaluator_manager, set_current_session_maker
-            from app.services.objective_notifications import register_objective_event_handlers
+            from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
+            from app.services.progression.objectives.notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
             register_objective_event_handlers()
@@ -211,7 +211,7 @@ def check_permanent_deaths():
 
 async def _check_quest_completion() -> int:
     """Auto-complete quests that have exceeded their duration."""
-    from app.services.quest_service import quest_service
+    from app.services.progression.quests.service import quest_service
 
     async with task_session() as session:
         count = await quest_service.check_and_complete_quests(session)
@@ -241,7 +241,7 @@ async def _refresh_objectives(*, weekly: bool) -> dict:
     from sqlmodel import col, select
 
     from app.models.vault import Vault
-    from app.services.objective_assignment_service import ObjectiveAssignmentService
+    from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
     async with task_session() as session:
         vault_ids = (await session.exec(select(Vault.id).where(col(Vault.deleted_at).is_(None)))).all()

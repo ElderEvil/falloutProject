@@ -162,8 +162,9 @@ audit; objectives need deliberate in-game validation rather than relying only on
     medication `ITEM`s (Stimpak/RadAway) route to dweller stock so treatment can spend them, the Legendary Dweller
     `ITEM` materializes a canonical legendary template, and the storage view shows generic supplies in their own
     tab. Remaining: lunchbox opening (no open mechanic exists yet — a feature, not a correctness fix).
-  - **Verified gap:** chains persist predecessor links and hide locked entries, but do not yet model an explicit
-    chain lifecycle or requirement-driven unlock feedback.
+- **Verified gap:** chains persist predecessor links and hide locked entries; **requirement-driven unlock feedback
+  shipped** — the chain lock reason names the actual predecessor ("Complete 'Getting Started' first"), surfaced on
+  both the read path and the start rejection. An explicit chain lifecycle (beyond predecessor gating) remains open.
 - [ ] **Objective balance review** — enumerate active objective templates and their targets/rewards; identify dead,
   trivial, or excessively grindy objectives and tune from observed normal-vault progression rather than assumptions.
 - [ ] **Quest reward reconciliation** — establish a single reward contract shared by backend settlement, API responses,

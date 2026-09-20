@@ -117,9 +117,15 @@ const { progress: progressPercentage, timeRemaining } = useExplorationProgress((
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
 const outfitName = computed(() => detailedDweller.value?.outfit?.name ?? null)
 
-const { healthJourney, totalDamage, totalHealed, healthTrendPoints } = useExplorationHealthJourney(
-  () => exploration.value?.events
-)
+const {
+  healthJourney,
+  totalDamage,
+  totalHealed,
+  healthTrendPoints,
+  radiationJourney,
+  totalRadiationRemoved,
+  radiationTrendPoints,
+} = useExplorationHealthJourney(() => exploration.value?.events)
 
 // Actions
 type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
@@ -293,6 +299,11 @@ watch(
               <span class="text-theme-primary/70">healed</span>
             </span>
             <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
+            <span v-if="radiationJourney.length > 0" class="flex items-center gap-1.5">
+              <Icon icon="mdi:radioactive" class="h-5 w-5 text-warning" />
+              <span class="font-bold text-warning">-{{ totalRadiationRemoved }}</span>
+              <span class="text-theme-primary/70">rad</span>
+            </span>
             <div
               class="health-sparkline-frame ml-auto rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
             >
@@ -303,6 +314,19 @@ watch(
                 aria-label="Cumulative health change during this expedition"
               >
                 <polyline :points="healthTrendPoints" fill="none" stroke="var(--color-theme-accent)" stroke-width="2" />
+              </svg>
+            </div>
+            <div
+              v-if="radiationJourney.length > 0"
+              class="radiation-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
+            >
+              <svg
+                class="h-7 w-[240px] max-w-full overflow-visible"
+                viewBox="0 0 120 28"
+                role="img"
+                aria-label="Cumulative radiation change during this expedition"
+              >
+                <polyline :points="radiationTrendPoints" fill="none" stroke="var(--color-warning)" stroke-width="2" />
               </svg>
             </div>
           </div>

@@ -19,6 +19,8 @@ export interface ExplorationEvent {
   coord_y?: number
   health_loss?: number
   health_restored?: number
+  radiation_gain?: number
+  radiation_removed?: number
   loot?: {
     item: {
       name: string

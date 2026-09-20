@@ -32,7 +32,9 @@ const dweller2 = {
 function createWrapper(
   relationship: Record<string, unknown>,
   viewMode?: 'list' | 'grid',
-  children: unknown[] = []
+  children: unknown[] = [],
+  pregnancy: unknown = null,
+  generation = 1
 ) {
   return mount(RelationshipCard, {
     props: {
@@ -41,6 +43,8 @@ function createWrapper(
       dweller2,
       viewMode,
       children,
+      pregnancy,
+      generation,
     },
     global: {
       stubs: {
@@ -274,6 +278,57 @@ describe('RelationshipCard', () => {
 
       expect(wrapper.text()).not.toContain('Children')
       expect(wrapper.text()).not.toContain('No children yet')
+    })
+
+    it('shows the generation label and expecting chip for a pregnant partner couple', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [child],
+        { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: false }
+      )
+
+      expect(wrapper.text()).toContain('GEN 1')
+      expect(wrapper.text()).toContain('Children (1)')
+      expect(wrapper.text()).toContain('Expecting')
+    })
+
+    it('shows a due chip when the pregnancy is due', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [],
+        { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: true }
+      )
+
+      expect(wrapper.text()).toContain('Due!')
+      expect(wrapper.text()).not.toContain('Expecting')
+    })
+
+    it('shows no expecting chip when pregnancy is null', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      expect(wrapper.text()).toContain('GEN 1')
+      expect(wrapper.text()).not.toContain('Expecting')
+      expect(wrapper.text()).not.toContain('Due!')
     })
   })
 })

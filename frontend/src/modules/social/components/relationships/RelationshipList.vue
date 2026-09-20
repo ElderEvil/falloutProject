@@ -54,6 +54,8 @@
           :dweller1="getDweller(relationship.dweller_1_id)!"
           :dweller2="getDweller(relationship.dweller_2_id)!"
           :children="getChildren(relationship)"
+          :pregnancy="getPregnancy(relationship)"
+          :generation="getGeneration(relationship)"
           :view-mode="viewMode"
           @select-dweller="emit('select-dweller', $event)"
           @initiate-romance="initiateRomance(relationship.id)"
@@ -79,7 +81,9 @@ import {
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RelationshipCard from './RelationshipCard.vue'
-import { childrenOfCouple } from '../../models/dwellerFamily'
+import { childrenOfCouple, generationOf } from '../../models/dwellerFamily'
+import { pregnancyForCouple } from '../../models/pregnancy'
+import type { Pregnancy } from '../../models/pregnancy'
 import UButton from '@/core/components/ui/UButton.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
@@ -158,6 +162,21 @@ function getChildren(relationship: Relationship): DwellerShort[] {
     dwellerStore.allDwellers,
     relationship.dweller_1_id,
     relationship.dweller_2_id
+  )
+}
+
+function getPregnancy(relationship: Relationship): Pregnancy | null {
+  return pregnancyForCouple(
+    relationshipStore.pregnancies,
+    relationship.dweller_1_id,
+    relationship.dweller_2_id
+  )
+}
+
+function getGeneration(relationship: Relationship): number {
+  return Math.max(
+    generationOf(dwellerStore.allDwellers, relationship.dweller_1_id),
+    generationOf(dwellerStore.allDwellers, relationship.dweller_2_id)
   )
 }
 

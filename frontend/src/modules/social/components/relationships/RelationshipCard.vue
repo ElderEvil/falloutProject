@@ -103,9 +103,18 @@
       v-if="isPartnerLinked"
       class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
     >
+      <span class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">GEN {{ generation }}</span>
       <span class="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">
         <Icon icon="mdi:human-child" class="h-3.5 w-3.5" />
         Children<template v-if="children.length"> ({{ children.length }})</template>
+      </span>
+      <span
+        v-if="pregnancy"
+        class="flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.1em]"
+        :class="pregnancy.is_due ? 'animate-pulse border-yellow-400/50 text-yellow-400' : 'border-theme-primary/30 text-theme-primary/70'"
+      >
+        <Icon icon="mdi:baby-carriage" class="h-3.5 w-3.5" />
+        {{ pregnancy.is_due ? 'Due!' : 'Expecting' }}
       </span>
       <template v-if="children.length">
         <ChildChip
@@ -195,9 +204,18 @@
       v-if="isPartnerLinked"
       class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
     >
+      <span class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">GEN {{ generation }}</span>
       <span class="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">
         <Icon icon="mdi:human-child" class="h-3.5 w-3.5" />
         Children<template v-if="children.length"> ({{ children.length }})</template>
+      </span>
+      <span
+        v-if="pregnancy"
+        class="flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.1em]"
+        :class="pregnancy.is_due ? 'animate-pulse border-yellow-400/50 text-yellow-400' : 'border-theme-primary/30 text-theme-primary/70'"
+      >
+        <Icon icon="mdi:baby-carriage" class="h-3.5 w-3.5" />
+        {{ pregnancy.is_due ? 'Due!' : 'Expecting' }}
       </span>
       <template v-if="children.length">
         <ChildChip
@@ -223,6 +241,7 @@ import {
   type Relationship,
 } from '../../models/relationship'
 import { useRelationshipMilestone } from '../../composables/useRelationshipMilestone'
+import type { Pregnancy } from '../../models/pregnancy'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
@@ -238,11 +257,15 @@ interface Props {
   dweller2: DwellerShort
   children?: DwellerShort[]
   viewMode?: 'list' | 'grid'
+  pregnancy?: Pregnancy | null
+  generation?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   viewMode: 'list',
   children: () => [],
+  pregnancy: null,
+  generation: 1,
 })
 
 const emit = defineEmits<{

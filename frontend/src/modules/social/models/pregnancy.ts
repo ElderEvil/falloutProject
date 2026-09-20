@@ -35,3 +35,23 @@ export interface DeliveryResult {
   child_id: string
   message: string
 }
+
+/**
+ * Find the active pregnancy for a couple, matching the (mother, father) pair in
+ * either order. Returns null when the couple has no pregnancy in 'pregnant'
+ * status.
+ */
+export function pregnancyForCouple(
+  pregnancies: readonly Pregnancy[],
+  dweller1Id: string,
+  dweller2Id: string
+): Pregnancy | null {
+  return (
+    pregnancies.find(
+      (p) =>
+        p.status === 'pregnant' &&
+        ((p.mother_id === dweller1Id && p.father_id === dweller2Id) ||
+          (p.mother_id === dweller2Id && p.father_id === dweller1Id))
+    ) ?? null
+  )
+}

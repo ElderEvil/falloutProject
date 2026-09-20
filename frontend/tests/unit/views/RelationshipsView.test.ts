@@ -238,6 +238,28 @@ describe('RelationshipsView', () => {
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
     })
+
+    it('should switch to the partners stage when the Partner Couples metric card is clicked', async () => {
+      const wrapper = mount(RelationshipsView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      const partnerCard = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Partner Couples'))
+      expect(partnerCard).toBeDefined()
+      await partnerCard!.trigger('click')
+
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Committed partners in living quarters')
+      expect(wrapper.text()).not.toContain('Forming Relationships')
+      expect(partnerCard!.classes()).toContain('border-theme-primary/60')
+    })
   })
 
   describe('Stats Display', () => {

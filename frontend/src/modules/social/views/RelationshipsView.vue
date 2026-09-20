@@ -36,10 +36,10 @@ const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
 const childrenCount = computed(() => allChildren(dwellerStore.allDwellers).length)
 
 const summaryMetrics = computed(() => [
-  { icon: 'mdi:heart-multiple', label: 'Total Relationships', value: totalRelationships.value },
-  { icon: 'mdi:human-male-female', label: 'Partner Couples', value: partnersCount.value },
-  { icon: 'mdi:baby-carriage', label: 'Active Pregnancies', value: pregnanciesCount.value },
-  { icon: 'mdi:human-child', label: 'Growing Children', value: childrenCount.value },
+  { tab: 'forming', icon: 'mdi:heart-multiple', label: 'Total Relationships', value: totalRelationships.value },
+  { tab: 'partners', icon: 'mdi:human-male-female', label: 'Partner Couples', value: partnersCount.value },
+  { tab: 'pregnancies', icon: 'mdi:baby-carriage', label: 'Active Pregnancies', value: pregnanciesCount.value },
+  { tab: 'children', icon: 'mdi:human-child', label: 'Growing Children', value: childrenCount.value },
 ])
 
 // Stages configuration
@@ -105,10 +105,13 @@ const navigateToDweller = (dwellerId: string) => {
         />
 
         <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div
+          <button
             v-for="metric in summaryMetrics"
             :key="metric.label"
-            class="flex items-center gap-3 rounded border border-theme-primary/20 bg-transparent p-4 transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
+            type="button"
+            class="flex cursor-pointer items-center gap-3 rounded border bg-transparent p-4 text-left transition-colors hover:border-theme-primary/50 hover:bg-theme-glow/10"
+            :class="activeStage === metric.tab ? 'border-theme-primary/60 bg-theme-glow/10' : 'border-theme-primary/20'"
+            @click="setActiveStage(metric.tab)"
           >
             <Icon
               :icon="metric.icon"
@@ -120,7 +123,7 @@ const navigateToDweller = (dwellerId: string) => {
                 {{ metric.label }}
                 </div>
             </div>
-          </div>
+          </button>
         </section>
 
           <UTabs

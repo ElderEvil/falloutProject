@@ -34,8 +34,8 @@
         v-for="pregnancy in sortedPregnancies"
         :key="pregnancy.id"
         :pregnancy="pregnancy"
-        :motherName="getDwellerName(pregnancy.mother_id)"
-        :fatherName="getDwellerName(pregnancy.father_id)"
+        :mother="getDweller(pregnancy.mother_id)!"
+        :father="getDweller(pregnancy.father_id)!"
         :isDelivering="deliveringId === pregnancy.id"
         @deliver="deliverBaby(pregnancy.id)"
       />
@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
@@ -85,9 +86,11 @@ const sortedPregnancies = computed(() => {
   })
 })
 
-function getDwellerName(dwellerId: string): string {
-  const dweller = dwellerStore.dwellers.find((d) => d.id === dwellerId)
-  return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
+function getDweller(dwellerId: string): DwellerShort | undefined {
+  return (
+    dwellerStore.allDwellers.find((d) => d.id === dwellerId) ??
+    dwellerStore.dwellers.find((d) => d.id === dwellerId)
+  )
 }
 
 async function refreshPregnancies() {

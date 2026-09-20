@@ -103,6 +103,47 @@ async def test_runtime_spawn_continues_the_active_wave(async_session: AsyncSessi
 
 
 @pytest.mark.asyncio
+async def test_spawn_storm_stops_at_the_active_incident_cap(
+    async_session: AsyncSession,
+    room_with_dwellers: dict,
+    dweller_data: dict,
+):
+    """Recreate the Aug 2026 radroach storm's growth: once the active-incident cap
+    is full, further spawn attempts are refused, so rapidly-lost incidents cannot
+    pile up unboundedly (each would otherwise fire a COMBAT_DEFEAT notification)."""
+    vault = room_with_dwellers["vault"]
+
+    # Population gate: bring the vault to the incident minimum (fixture gives 2).
+    for _ in range(game_config.incident.min_vault_population - len(room_with_dwellers["dwellers"])):
+        dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+        async_session.add(dweller)
+    await async_session.commit()
+
+    # Fill the active-incident cap with fresh radroach incidents past the cooldown.
+    for _ in range(game_config.incident.max_active_incidents):
+        incident = await crud.incident_crud.create(
+            async_session,
+            vault_id=vault.id,
+            room_id=room_with_dwellers["room"].id,
+            incident_type=IncidentType.RADROACH_INFESTATION,
+            difficulty=1,
+        )
+        incident.start_time = datetime.utcnow() - timedelta(seconds=game_config.incident.spawn_cooldown_seconds + 1)
+        async_session.add(incident)
+    await async_session.commit()
+
+    active = await crud.incident_crud.get_active_by_vault(async_session, vault.id)
+    assert len(active) == game_config.incident.max_active_incidents
+
+    # Storm: rapid spawn attempts must all be refused while the cap is full.
+    for _ in range(20):
+        assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False
+
+    after = await crud.incident_crud.get_active_by_vault(async_session, vault.id)
+    assert len(after) == game_config.incident.max_active_incidents
+
+
+@pytest.mark.asyncio
 async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, vault: Vault):
     """An arena hosts matches; an incident there has no correct UI to open."""
     from app.schemas.room import RoomCreate

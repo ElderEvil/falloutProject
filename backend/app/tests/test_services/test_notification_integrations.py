@@ -7,6 +7,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.game_config import game_config
 from app.models.exploration import ExplorationStatus
 from app.models.incident import IncidentStatus, IncidentType
 from app.models.notification import NotificationType
@@ -171,6 +172,47 @@ class TestIncidentNotifications:
         call_args = mock_notify.call_args
         assert call_args.kwargs["notification_type"] == NotificationType.COMBAT_DEFEAT
         assert call_args.kwargs["vault_id"] == vault.id
+
+    @pytest.mark.asyncio
+    async def test_undefended_radroach_storm_fires_one_defeat_per_incident(
+        self,
+        async_session: AsyncSession,
+        user_with_vault: tuple,
+        room_in_vault,
+    ):
+        """Recreate the Aug 2026 defeat storm: many undefended radroach incidents
+        resolving together each fire exactly ONE COMBAT_DEFEAT — the notification
+        count stays bounded by the incident count, never a per-tick flood."""
+        _, vault = user_with_vault
+
+        incidents = []
+        for _ in range(game_config.incident.max_active_incidents + 3):
+            incident = await crud.incident_crud.create(
+                async_session,
+                vault_id=vault.id,
+                room_id=room_in_vault.id,
+                incident_type=IncidentType.RADROACH_INFESTATION,
+                difficulty=1,
+            )
+            # No defenders and past duration: the no-defender path resolves it as
+            # failed in the next round.
+            incident.start_time = datetime.utcnow() - timedelta(seconds=incident.duration + 60)
+            async_session.add(incident)
+            incidents.append(incident)
+        await async_session.commit()
+
+        incident_service = IncidentService()
+        with patch("app.services.combat.incident_publishing.notification_service.create_and_send") as mock_notify:
+            mock_notify.return_value = AsyncMock()
+            for incident in incidents:
+                await incident_service.process_incident(async_session, incident, 60)
+
+        defeat_calls = [
+            call
+            for call in mock_notify.call_args_list
+            if call.kwargs.get("notification_type") == NotificationType.COMBAT_DEFEAT
+        ]
+        assert len(defeat_calls) == len(incidents)
 
 
 class TestNotificationService:

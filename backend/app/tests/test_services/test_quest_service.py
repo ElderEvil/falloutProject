@@ -701,3 +701,98 @@ async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session
     assert quest_read.is_locked is True
     assert "level" in quest_read.lock_reason
     assert "attack" in quest_read.lock_reason
+
+
+@pytest.mark.asyncio
+async def test_start_quest_rejects_party_below_stat(async_session: AsyncSession) -> None:
+    """A party whose members lack the required SPECIAL stat cannot start the quest."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.utils.exceptions import ValidationException
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Stat Party Gate")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.STAT,
+            requirement_data={"stat": "strength", "value": 6},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller_data["strength"] = 3
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    with pytest.raises(ValidationException, match="Strength"):
+        await quest_service.start_quest(async_session, quest.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_start_quest_with_stat_qualifying_party(async_session: AsyncSession) -> None:
+    """A party member with the required SPECIAL stat lets the quest start."""
+    from app.models.dweller import Dweller
+    from app.services.team_service import team_service
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Stat Party Pass")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.STAT,
+            requirement_data={"stat": "strength", "value": 6},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller_data["strength"] = 6
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
+
+    link = await quest_service.start_quest(async_session, quest.id, vault.id)
+
+    assert link.started_at is not None
+
+
+@pytest.mark.asyncio
+async def test_stat_requirement_met_by_qualifying_dweller(async_session: AsyncSession) -> None:
+    """The read-path STAT check counts living dwellers with the effective stat."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Stat Read")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.STAT,
+            requirement_data={"stat": "strength", "value": 6},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller_data["strength"] = 6
+    async_session.add(Dweller(**dweller_data, vault_id=vault.id))
+    await async_session.commit()
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next(q for q in quest_reads if q.id == quest.id)
+
+    assert quest_read.is_locked is False
+    assert quest_read.is_visible is True

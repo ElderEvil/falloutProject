@@ -237,6 +237,11 @@ const getRequirementCount = (requirementData: Record<string, unknown>): number =
   return typeof count === 'number' ? count : 0
 }
 
+const statLabel = (stat: unknown): string => {
+  const label = String(stat ?? 'stat').replace(/_/g, ' ')
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
 function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
   const level = requirementData.level
   if (typeof level !== 'number') return false
@@ -427,6 +432,12 @@ const handleAction = () => {
             </template>
             <template v-else-if="req.requirement_type === 'attack' && req.requirement_data">
               Requires {{ req.requirement_data.attack || 1 }}+ Attack
+              <span v-if="getRequirementCount(req.requirement_data) > 1">
+                (x{{ getRequirementCount(req.requirement_data) }})
+              </span>
+            </template>
+            <template v-else-if="req.requirement_type === 'stat' && req.requirement_data">
+              Requires {{ req.requirement_data.value || 1 }}+ {{ statLabel(req.requirement_data.stat) }}
               <span v-if="getRequirementCount(req.requirement_data) > 1">
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>

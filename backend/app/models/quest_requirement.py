@@ -18,6 +18,7 @@ class RequirementType(StrEnum):
     DWELLER_COUNT = "dweller_count"
     QUEST_COMPLETED = "quest_completed"
     ATTACK = "attack"
+    STAT = "stat"
 
 
 class QuestRequirementBase(SQLModel):

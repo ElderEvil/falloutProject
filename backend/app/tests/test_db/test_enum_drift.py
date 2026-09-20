@@ -93,7 +93,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
     "questtype": {"MAIN", "SIDE", "DAILY", "EVENT", "REPEATABLE"},
     "rarityenum": {"COMMON", "RARE", "LEGENDARY"},
     "relationshiptypeenum": {"ACQUAINTANCE", "FRIEND", "ROMANTIC", "PARTNER", "MARRIED", "EX"},
-    "requirementtype": {"LEVEL", "ITEM", "ROOM", "DWELLER_COUNT", "QUEST_COMPLETED", "ATTACK"},
+    "requirementtype": {"LEVEL", "ITEM", "ROOM", "DWELLER_COUNT", "QUEST_COMPLETED", "ATTACK", "STAT"},
     "rewardtype": {"CAPS", "ITEM", "DWELLER", "RESOURCE", "EXPERIENCE", "STIMPAK", "RADAWAY", "LUNCHBOX"},
     "roomtypeenum": {"CAPACITY", "CRAFTING", "MISC", "PRODUCTION", "QUESTS", "THEME", "TRAINING", "ARENA"},
     "specialenum": {"STRENGTH", "PERCEPTION", "ENDURANCE", "CHARISMA", "INTELLIGENCE", "AGILITY", "LUCK"},

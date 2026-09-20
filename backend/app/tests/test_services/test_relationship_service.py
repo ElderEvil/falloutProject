@@ -43,6 +43,33 @@ async def dweller_2_fixture(async_session: AsyncSession, vault: Vault) -> Dwelle
     return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
 
 
+@pytest_asyncio.fixture(name="dweller_3")
+async def dweller_3_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
+    """Create a third dweller for relationship tests."""
+    dweller_data = {
+        "first_name": "Bob",
+        "last_name": "Brown",
+        "gender": GenderEnum.MALE,
+        "rarity": RarityEnum.COMMON,
+        "age_group": AgeGroupEnum.ADULT,
+        "level": 5,
+        "experience": 100,
+        "max_health": 100,
+        "health": 100,
+        "radiation": 0,
+        "happiness": 60,
+        "strength": 4,
+        "perception": 5,
+        "endurance": 6,
+        "charisma": 7,
+        "intelligence": 5,
+        "agility": 4,
+        "luck": 6,
+    }
+    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
+    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+
+
 @pytest.mark.asyncio
 async def test_get_relationship_none_exists(
     async_session: AsyncSession,
@@ -382,3 +409,109 @@ async def test_marry_records_family_entries(
         assert len(family) == 1
         assert other.first_name in family[0]["text"]
         assert family[0]["ref"]["partner_id"] == str(other.id)
+
+
+@pytest.mark.asyncio
+async def test_make_partners_rejects_when_dweller_already_committed(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    dweller_3: Dweller,
+):
+    """make_partners raises when either dweller is already committed to a third."""
+    await _make_partners(async_session, dweller, dweller_2)
+
+    # dweller <-> dweller_3 is ROMANTIC at the romance threshold
+    rel = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_3.id)
+    rel.affinity = game_config.relationship.romance_threshold
+    rel.relationship_type = RelationshipTypeEnum.ROMANTIC
+    await async_session.commit()
+    await async_session.refresh(rel)
+
+    with pytest.raises(ValidationException, match="already"):
+        await RelationshipService.make_partners(async_session, dweller.id, dweller_3.id)
+
+    await async_session.refresh(dweller)
+    await async_session.refresh(rel)
+    assert dweller.partner_id == dweller_2.id
+    assert rel.relationship_type == RelationshipTypeEnum.ROMANTIC
+
+
+@pytest.mark.asyncio
+async def test_marry_rejects_when_dweller_already_committed_to_third(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    dweller_3: Dweller,
+):
+    """marry rejects a PARTNER relationship when either dweller is already committed to a third."""
+    # dweller MARRIED to dweller_2
+    partner_rel = await _make_partners(async_session, dweller, dweller_2)
+    partner_rel.affinity = game_config.relationship.marriage_threshold
+    await async_session.commit()
+    await RelationshipService.marry(async_session, partner_rel.id)
+
+    # Craft a second committed row dweller <-> dweller_3 as PARTNER
+    rel = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_3.id)
+    rel.affinity = game_config.relationship.marriage_threshold
+    rel.relationship_type = RelationshipTypeEnum.PARTNER
+    await async_session.commit()
+    await async_session.refresh(rel)
+
+    with pytest.raises(ValidationException, match="already"):
+        await RelationshipService.marry(async_session, rel.id)
+
+    await async_session.refresh(rel)
+    assert rel.relationship_type == RelationshipTypeEnum.PARTNER
+
+
+@pytest.mark.asyncio
+async def test_increase_affinity_does_not_promote_already_committed_dweller(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    dweller_3: Dweller,
+):
+    """ROMANTIC->PARTNER promotion is skipped when either dweller is already committed."""
+    await _make_partners(async_session, dweller, dweller_2)
+
+    rel = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_3.id)
+    rel.affinity = game_config.relationship.romance_threshold - 1
+    rel.relationship_type = RelationshipTypeEnum.ROMANTIC
+    await async_session.commit()
+    await async_session.refresh(rel)
+
+    updated = await RelationshipService.increase_affinity(async_session, dweller.id, dweller_3.id, amount=1)
+
+    assert updated.relationship_type == RelationshipTypeEnum.ROMANTIC
+    assert updated.affinity == game_config.relationship.romance_threshold
+    await async_session.refresh(dweller)
+    assert dweller.partner_id == dweller_2.id
+
+
+@pytest.mark.asyncio
+async def test_increase_affinity_does_not_auto_marry_already_committed_dweller(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    dweller_2: Dweller,
+    dweller_3: Dweller,
+):
+    """PARTNER->MARRIED auto-transition is skipped when either dweller is already committed to a third."""
+    await _make_partners(async_session, dweller, dweller_2)
+
+    # Craft a second committed row dweller <-> dweller_3 as PARTNER
+    rel = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_3.id)
+    rel.affinity = game_config.relationship.marriage_threshold
+    rel.relationship_type = RelationshipTypeEnum.PARTNER
+    await async_session.commit()
+    await async_session.refresh(rel)
+
+    first = await relationship_crud.get_by_dweller_pair(async_session, dweller.id, dweller_2.id)
+    first.affinity = game_config.relationship.marriage_threshold - 1
+    await async_session.commit()
+    await async_session.refresh(first)
+
+    updated = await RelationshipService.increase_affinity(async_session, dweller.id, dweller_2.id, amount=1)
+
+    assert updated.relationship_type == RelationshipTypeEnum.PARTNER
+    assert updated.affinity == game_config.relationship.marriage_threshold

@@ -110,19 +110,51 @@ class RelationshipService:
             elif relationship.relationship_type == RelationshipTypeEnum.FRIEND:
                 update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
             elif relationship.relationship_type == RelationshipTypeEnum.ROMANTIC:
-                update_data["relationship_type"] = RelationshipTypeEnum.PARTNER
-                await RelationshipService._set_partner_ids(
-                    db_session, relationship.dweller_1_id, relationship.dweller_2_id
-                )
+                # Skip the promotion if either dweller is already committed to a
+                # third dweller (game-loop tick path: log and keep ROMANTIC rather
+                # than raising, which would break the vault).
+                if await RelationshipService._committed_partner_elsewhere(
+                    db_session,
+                    relationship.dweller_1_id,
+                    except_ids={relationship.dweller_1_id, relationship.dweller_2_id},
+                ) or await RelationshipService._committed_partner_elsewhere(
+                    db_session,
+                    relationship.dweller_2_id,
+                    except_ids={relationship.dweller_1_id, relationship.dweller_2_id},
+                ):
+                    logger.info(
+                        f"Skipping ROMANTIC->PARTNER promotion for {relationship.dweller_1_id} ↔ "
+                        f"{relationship.dweller_2_id}: one dweller is already committed to another dweller"
+                    )
+                else:
+                    update_data["relationship_type"] = RelationshipTypeEnum.PARTNER
+                    await RelationshipService._set_partner_ids(
+                        db_session, relationship.dweller_1_id, relationship.dweller_2_id
+                    )
 
         is_marriage_transition = (
             relationship.relationship_type == RelationshipTypeEnum.PARTNER
             and new_affinity >= game_config.relationship.marriage_threshold
         )
         if is_marriage_transition:
-            # Conditional PARTNER->MARRIED update so only one concurrent request
-            # wins the transition and applies the one-time bonus/notification.
-            if await relationship_crud.transition_partner_to_married(
+            # Defense-in-depth: skip the transition if either dweller is already
+            # committed to a third dweller (pre-existing corrupt data). Log and
+            # persist only the affinity bump rather than raising.
+            if await RelationshipService._committed_partner_elsewhere(
+                db_session,
+                relationship.dweller_1_id,
+                except_ids={relationship.dweller_1_id, relationship.dweller_2_id},
+            ) or await RelationshipService._committed_partner_elsewhere(
+                db_session,
+                relationship.dweller_2_id,
+                except_ids={relationship.dweller_1_id, relationship.dweller_2_id},
+            ):
+                logger.info(
+                    f"Skipping PARTNER->MARRIED transition for {relationship.dweller_1_id} ↔ "
+                    f"{relationship.dweller_2_id}: one dweller is already committed to another dweller"
+                )
+                relationship = await relationship_crud.update(db_session, relationship.id, update_data)
+            elif await relationship_crud.transition_partner_to_married(
                 db_session, relationship.id, affinity=new_affinity
             ):
                 relationship.relationship_type = RelationshipTypeEnum.MARRIED
@@ -212,6 +244,15 @@ class RelationshipService:
             msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
             raise ValueError(msg)
 
+        # Guard: neither dweller may already be committed to a third dweller.
+        for dweller_id in (dweller_1_id, dweller_2_id):
+            committed = await RelationshipService._committed_partner_elsewhere(
+                db_session, dweller_id, except_ids={dweller_1_id, dweller_2_id}
+            )
+            if committed is not None:
+                msg = f"Dweller {dweller_id} is already {committed.relationship_type.value} to another dweller"
+                raise ValidationException(msg)
+
         update_data = {"relationship_type": RelationshipTypeEnum.PARTNER, "updated_at": datetime.utcnow()}
 
         # Update relationship via CRUD
@@ -242,6 +283,25 @@ class RelationshipService:
             await db_session.rollback()
             msg = f"Failed to update partner IDs for dwellers: {e}"
             raise ValueError(msg) from e
+
+    @staticmethod
+    async def _committed_partner_elsewhere(
+        db_session: AsyncSession,
+        dweller_id: UUID4,
+        except_ids: set[UUID4],
+    ) -> Relationship | None:
+        """Return the first committed relationship whose other side is not in except_ids.
+
+        ``get_partner_links_involving`` is the source of truth for committed
+        (PARTNER/MARRIED) relationships; ``except_ids`` lets callers exclude the
+        relationship currently being formed so it does not count as a conflict.
+        """
+        links = await relationship_crud.get_partner_links_involving(db_session, dweller_id)
+        for link in links:
+            other_id = link.dweller_2_id if link.dweller_1_id == dweller_id else link.dweller_1_id
+            if other_id not in except_ids:
+                return link
+        return None
 
     @staticmethod
     async def _apply_marriage_bonus(
@@ -290,6 +350,18 @@ class RelationshipService:
             threshold = game_config.relationship.marriage_threshold
             msg = f"Affinity too low for marriage ({relationship.affinity} < {threshold})"
             raise ValidationException(msg)
+
+        # Defense-in-depth: reject if either dweller is already committed to a
+        # third dweller (pre-existing corrupt data).
+        for dweller_id in (relationship.dweller_1_id, relationship.dweller_2_id):
+            committed = await RelationshipService._committed_partner_elsewhere(
+                db_session,
+                dweller_id,
+                except_ids={relationship.dweller_1_id, relationship.dweller_2_id},
+            )
+            if committed is not None:
+                msg = f"Dweller {dweller_id} is already {committed.relationship_type.value} to another dweller"
+                raise ValidationException(msg)
 
         # Conditional PARTNER->MARRIED update: only one concurrent request wins;
         # the loser raises so it applies no bonus/notification.

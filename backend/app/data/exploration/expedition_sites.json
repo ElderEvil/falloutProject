@@ -1,0 +1,162 @@
+{
+  "sites": [
+    {
+      "id": "red_rocket",
+      "name": "Red Rocket Gas Station",
+      "flavor": "The pumps still tick over. Someone has kept this place running — and mined it.",
+      "min_dweller_level": 3,
+      "rooms": [
+        {
+          "id": "forecourt",
+          "name": "Forecourt",
+          "flavor": "The concrete glints wrong in the sun. Tripwires run between the pumps.",
+          "node": {
+            "kind": "trap",
+            "prompt": "The forecourt is mined. How do you cross it?",
+            "damage_min": 4,
+            "damage_max": 7,
+            "options": [
+              {
+                "id": "disarm",
+                "label": "Disarm the wires (Perception)",
+                "stat": "perception",
+                "difficulty": 1,
+                "success": {"cache_tier": "small"},
+                "failure": {"trap_damage_min": 2, "trap_damage_max": 4}
+              },
+              {
+                "id": "detour",
+                "label": "Detour around back (Luck)",
+                "stat": "luck",
+                "difficulty": 2,
+                "success": {"nothing": true},
+                "failure": {"trap_damage_min": 4, "trap_damage_max": 7}
+              },
+              {
+                "id": "tank",
+                "label": "Walk straight through (Endurance)",
+                "stat": "endurance",
+                "difficulty": 1,
+                "success": {"trap_damage_min": 1, "trap_damage_max": 3},
+                "failure": {"trap_damage_min": 4, "trap_damage_max": 7}
+              }
+            ]
+          }
+        },
+        {
+          "id": "garage",
+          "name": "Garage",
+          "flavor": "Nesting sounds from the service pit. The workbench is still stocked.",
+          "node": {
+            "kind": "combat",
+            "prompt": "Something nests in the service pit!",
+            "enemies": [{"name": "Mole Rat pack"}, {"name": "Mole Rat pack"}, {"name": "Raider gang"}]
+          }
+        },
+        {
+          "id": "bunker",
+          "name": "Bunker Cache",
+          "flavor": "A floor safe hums behind the workbench, wired to a jury-rigged terminal.",
+          "node": {
+            "kind": "finale",
+            "prompt": "The bunker cache. Crack the terminal for the full payout.",
+            "stat": "intelligence",
+            "difficulty": 2,
+            "success": {"nothing": true},
+            "failure": {"nothing": true}
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 80,
+        "caps_max": 140,
+        "item": {"type": "junk", "floor": null, "rolls": 2},
+        "junk_bundles": 1,
+        "stimpaks": 1
+      }
+    },
+    {
+      "id": "super_duper_mart",
+      "name": "Super Duper Mart",
+      "flavor": "Raiders squat the aisles of a pre-war supermarket. The prize stock is in back.",
+      "min_dweller_level": 5,
+      "rooms": [
+        {
+          "id": "parking_lot",
+          "name": "Parking Lot",
+          "flavor": "Shopping carts rust in rows. Movement between the burned-out cars.",
+          "node": {
+            "kind": "combat",
+            "prompt": "Ambush between the burned-out cars!",
+            "enemies": [{"name": "Radroach swarm"}, {"name": "Radroach swarm"}, {"name": "Raider gang"}]
+          }
+        },
+        {
+          "id": "aisles",
+          "name": "Collapsed Aisles",
+          "flavor": "Shelves form a maze. Something glints three aisles down — and something nests above it.",
+          "node": {
+            "kind": "choice",
+            "prompt": "How do you take the aisles?",
+            "options": [
+              {
+                "id": "sneak",
+                "label": "Sneak through (Agility)",
+                "stat": "agility",
+                "difficulty": 2,
+                "success": {"cache_tier": "rich", "cache_item": "weapon", "cache_floor": "rare"},
+                "failure": {"combat_enemies": [{"name": "Giant Radscorpion"}]}
+              },
+              {
+                "id": "sweep",
+                "label": "Loud sweep (Strength)",
+                "stat": "strength",
+                "difficulty": 1,
+                "success": {"cache_tier": "standard", "cache_item": "junk"},
+                "failure": {"trap_damage_min": 4, "trap_damage_max": 9}
+              },
+              {
+                "id": "call_out",
+                "label": "Call out (Charisma)",
+                "stat": "charisma",
+                "difficulty": 3,
+                "success": {"cache_tier": "rich", "cache_item": "outfit", "cache_floor": "rare", "trade_cost_caps": 25},
+                "failure": {"cache_tier": "standard", "cache_item": "junk"}
+              }
+            ]
+          }
+        },
+        {
+          "id": "storage",
+          "name": "Storage Room",
+          "flavor": "The shutter is chained from inside. The boss of the parking lot lives here.",
+          "node": {
+            "kind": "combat",
+            "prompt": "The boss of the parking lot!",
+            "enemies": [
+              {"name": "Raider Boss", "difficulty": 4, "min_damage": 25, "max_damage": 45}
+            ]
+          }
+        },
+        {
+          "id": "prize_stock",
+          "name": "Prize Stock",
+          "flavor": "Behind the boss: the intact prize cage, still locked, still full.",
+          "node": {
+            "kind": "finale",
+            "prompt": "The prize cage. Take it all.",
+            "success": {"nothing": true},
+            "failure": {"nothing": true}
+          }
+        }
+      ],
+      "reward_vault": {
+        "caps_min": 150,
+        "caps_max": 250,
+        "item": {"type": "weapon", "floor": "rare", "rolls": 3},
+        "junk_bundles": 2,
+        "stimpaks": 0
+      }
+    }
+  ]
+}

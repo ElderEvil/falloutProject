@@ -4,6 +4,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from app.schemas.expedition import ExpeditionSiteList, SiteDefinition
 from app.schemas.exploration_event import EnemySchema
 
 # Data directory paths
@@ -87,6 +88,21 @@ def load_discovery_names() -> dict[str, list[str]]:
 def _get_fallback_discovery_names() -> dict[str, list[str]]:
     """Return fallback discovery name pools if JSON file is missing."""
     return {"prefixes": ["Old", "Abandoned", "Ruined"], "suffixes": ["Shack", "Depot", "Bunker"]}
+
+
+@lru_cache(maxsize=1)
+def load_expedition_sites() -> list[SiteDefinition]:
+    """Load hand-authored expedition site definitions from JSON (validated)."""
+    sites_file = EXPLORATION_DIR / "expedition_sites.json"
+    if not sites_file.exists():
+        return []
+    with sites_file.open() as f:
+        return ExpeditionSiteList(**json.load(f)).sites
+
+
+def get_expedition_site(site_id: str) -> SiteDefinition | None:
+    """Return one site definition by id, or None when unknown."""
+    return next((site for site in load_expedition_sites() if site.id == site_id), None)
 
 
 def _get_fallback_enemies() -> list[dict]:

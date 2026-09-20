@@ -5,6 +5,7 @@ from . import storage
 from .ai_settings import ai_settings
 from .crafting_order import crafting_order
 from .dweller import dweller
+from .expedition_run import expedition_run
 from .exploration import exploration
 from .game_state import game_state_crud
 from .incident import incident_crud

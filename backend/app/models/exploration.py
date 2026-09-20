@@ -179,3 +179,30 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         )
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "loot_collected")
+
+
+class ExpeditionRunStatus(StrEnum):
+    """Status of one expedition-site attempt."""
+
+    ENTERED = "entered"
+    IN_ROOM = "in_room"
+    RETREATED = "retreated"
+    CLEARED = "cleared"
+    DIED = "died"
+
+
+class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
+    """One attempt at an expedition site: room cursor plus anti-farm record."""
+
+    exploration_id: UUID4 = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
+    vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
+    dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
+    site_id: str = Field(max_length=64, index=True)
+    room_cursor: int = Field(default=0, ge=0)
+    status: ExpeditionRunStatus = Field(default=ExpeditionRunStatus.ENTERED, index=True)
+    flags: dict = Field(default_factory=dict, sa_column=sa.Column(JSONB))
+    cleared_at: datetime | None = Field(default=None)
+
+    def is_open(self) -> bool:
+        """Return whether the run still accepts room resolutions."""
+        return self.status in (ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM)

@@ -1,0 +1,50 @@
+name: Prod DB cleanup scan (temporary)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    name: Scan prod for stale vaults / cleanup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
+          chmod 600 ~/.ssh/hetzner_key
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Gather DB inventory
+        run: |
+          ssh -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+            set -e
+            PG_POD=$(kubectl -n fallout get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+            q() { kubectl -n fallout exec "$PG_POD" -- sh -c "psql -U \"\$(printenv POSTGRES_USER)\" -d \"\$(printenv POSTGRES_DB)\" -t -A -F '|' -c \"$1\""; }
+
+            echo "===== TABLES ====="
+            q "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
+
+            echo "===== USERS ====="
+            q "SELECT id, username, is_active, is_deleted, created_at::date, updated_at::date, (SELECT count(*) FROM vault v WHERE v.user_id=u.id) AS vaults FROM \"user\" u ORDER BY updated_at DESC;"
+
+            echo "===== VAULT INVENTORY (all) ====="
+            q "SELECT v.number, u.username, v.population_max, v.is_deleted, v.created_at::date, v.updated_at::date, (SELECT count(*) FROM dweller d WHERE d.vault_id=v.id AND d.is_deleted=false) AS live_dwellers FROM vault v JOIN \"user\" u ON u.id=v.user_id ORDER BY v.updated_at DESC;"
+
+            echo "===== DELETED VAULTS ====="
+            q "SELECT count(*) AS deleted_vaults, max(deleted_at)::date AS last_deleted FROM vault WHERE is_deleted=true;"
+
+            echo "===== EMPTY VAULTS (not deleted, 0 live dwellers) ====="
+            q "SELECT v.number, u.username, v.created_at::date, v.updated_at::date FROM vault v JOIN \"user\" u ON u.id=v.user_id WHERE v.is_deleted=false AND NOT EXISTS (SELECT 1 FROM dweller d WHERE d.vault_id=v.id AND d.is_deleted=false);"
+
+            echo "===== INACTIVE VAULTS (updated >30d ago) ====="
+            q "SELECT v.number, u.username, v.updated_at::date FROM vault v JOIN \"user\" u ON u.id=v.user_id WHERE v.updated_at < now() - interval '30 days' ORDER BY v.updated_at;"
+
+            echo "===== TEST USERS (conc_/dbg_/incident_) ====="
+            q "SELECT u.username, u.is_active, count(v.id) AS vaults FROM \"user\" u LEFT JOIN vault v ON v.user_id=u.id WHERE u.username ~ '^(conc|dbg|incident)_' GROUP BY u.username, u.is_active;"
+
+            echo "===== VOLUME ====="
+            q "SELECT 'users', count(*) FROM \"user\" UNION ALL SELECT 'vaults', count(*) FROM vault UNION ALL SELECT 'dwellers_total', count(*) FROM dweller UNION ALL SELECT 'dwellers_soft_deleted', count(*) FROM dweller WHERE is_deleted=true UNION ALL SELECT 'notifications', count(*) FROM notification UNION ALL SELECT 'chat_messages', count(*) FROM chatmessage UNION ALL SELECT 'incidents', count(*) FROM incident UNION ALL SELECT 'relationships', count(*) FROM relationship UNION ALL SELECT 'pregnancies', count(*) FROM pregnancy UNION ALL SELECT 'explorations', count(*) FROM exploration UNION ALL SELECT 'quests', count(*) FROM quest;"
+
+            echo "===== DONE ====="
+          EOF

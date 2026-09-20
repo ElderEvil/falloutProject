@@ -35,7 +35,7 @@ export type QuestType = 'main' | 'side' | 'daily' | 'event' | 'repeatable'
 export interface QuestRequirement {
   id: string
   quest_id: string
-  requirement_type: 'level' | 'item' | 'room' | 'dweller_count' | 'quest_completed' | 'attack'
+  requirement_type: 'level' | 'item' | 'room' | 'dweller_count' | 'quest_completed' | 'attack' | 'stat'
   requirement_data: Record<string, unknown>
   is_mandatory: boolean
 }

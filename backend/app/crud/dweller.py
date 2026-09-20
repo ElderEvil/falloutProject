@@ -306,6 +306,19 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         )
         return int((await db_session.execute(query)).scalar_one())
 
+    async def count_living_with_effective_stat(
+        self, db_session: AsyncSession, vault_id: UUID4, stat: str, min_value: int
+    ) -> int:
+        """Count living dwellers whose effective SPECIAL stat is at least ``min_value``."""
+        from app.options.identity_modifiers import effective_stat
+
+        result = await db_session.execute(
+            select(self.model)
+            .options(selectinload(self.model.outfit))
+            .where(self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead)
+        )
+        return sum(1 for dweller in result.scalars().all() if effective_stat(dweller, stat) >= min_value)
+
     async def count_living_in_vault(self, db_session: AsyncSession, vault_id: UUID4) -> int:
         """Count dwellers still alive in a vault (soft-deleted and dead excluded)."""
         conditions = [

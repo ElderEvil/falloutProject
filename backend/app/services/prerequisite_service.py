@@ -9,9 +9,11 @@ from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.enums import SPECIAL_STATS
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement, RequirementType
+from app.options.identity_modifiers import effective_stat
 from app.utils.objective_constants import normalize_room_type
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,18 @@ class PrerequisiteService:
         required_count = requirement_data.get("count", 1)
 
         matching_count = await crud.dweller.count_alive_with_weapon_attack(db_session, vault_id, required_attack)
+        return matching_count >= required_count
+
+    async def validate_stat_requirement(
+        self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]
+    ) -> bool:
+        stat = requirement_data.get("stat")
+        if stat not in SPECIAL_STATS:
+            return False
+        min_value = requirement_data.get("value", 1)
+        required_count = requirement_data.get("count", 1)
+
+        matching_count = await crud.dweller.count_living_with_effective_stat(db_session, vault_id, stat, min_value)
         return matching_count >= required_count
 
     async def validate_room_requirement(
@@ -120,6 +134,10 @@ class PrerequisiteService:
                 party_dwellers, req.requirement_data
             ):
                 missing.append(self._describe_party_attack(req.requirement_data))
+            elif req.requirement_type == RequirementType.STAT and not self._party_meets_stat(
+                party_dwellers, req.requirement_data
+            ):
+                missing.append(self._describe_party_stat(req.requirement_data))
         return missing
 
     @staticmethod
@@ -151,6 +169,17 @@ class PrerequisiteService:
             if dweller.weapon is not None
             and (dweller.weapon.damage_min + dweller.weapon.damage_max) / 2 >= required_attack
         )
+        return matching >= required_count
+
+    @staticmethod
+    def _party_meets_stat(party_dwellers: Sequence[Dweller], requirement_data: dict[str, Any]) -> bool:
+        stat = requirement_data.get("stat")
+        min_value = requirement_data.get("value", 1)
+        required_count = requirement_data.get("count", 1)
+        matching = 0
+        for dweller in party_dwellers:
+            if stat in SPECIAL_STATS and effective_stat(dweller, stat) >= min_value:
+                matching += 1
         return matching >= required_count
 
     async def get_missing_requirements(self, db_session: AsyncSession, vault_id: UUID4, quest: Quest) -> list[str]:
@@ -190,6 +219,7 @@ class PrerequisiteService:
             RequirementType.DWELLER_COUNT: self.validate_dweller_count_requirement,
             RequirementType.QUEST_COMPLETED: self.validate_quest_completed_requirement,
             RequirementType.ATTACK: self.validate_attack_requirement,
+            RequirementType.STAT: self.validate_stat_requirement,
         }
 
         validator = validators.get(requirement.requirement_type)
@@ -244,6 +274,24 @@ class PrerequisiteService:
         return f"Need a party dweller with {attack}+ attack"
 
     @staticmethod
+    def _describe_stat(data: dict[str, Any]) -> str:
+        label = str(data.get("stat", "?")).replace("_", " ").title()
+        value = data.get("value", "?")
+        count = data.get("count", 1)
+        if count > 1:
+            return f"Need {count} dweller(s) with {label} {value}+"
+        return f"Need a dweller with {label} {value}+"
+
+    @staticmethod
+    def _describe_party_stat(data: dict[str, Any]) -> str:
+        label = str(data.get("stat", "?")).replace("_", " ").title()
+        value = data.get("value", "?")
+        count = data.get("count", 1)
+        if count > 1:
+            return f"Need {count} party dweller(s) with {label} {value}+"
+        return f"Need a party dweller with {label} {value}+"
+
+    @staticmethod
     def _describe_room(data: dict[str, Any]) -> str:
         room_type = data.get("room_type", "Unknown room")
         room_display = room_type.replace("_", " ").title()
@@ -270,6 +318,7 @@ class PrerequisiteService:
             RequirementType.DWELLER_COUNT: self._describe_dweller_count,
             RequirementType.QUEST_COMPLETED: self._describe_quest_completed,
             RequirementType.ATTACK: self._describe_attack,
+            RequirementType.STAT: self._describe_stat,
         }
 
         describer = describers.get(requirement.requirement_type)

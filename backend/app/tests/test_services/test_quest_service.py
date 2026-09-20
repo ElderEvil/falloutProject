@@ -649,3 +649,55 @@ async def test_attack_requirement_met_by_equipped_weapon(async_session: AsyncSes
 
     assert quest_read.is_locked is False
     assert quest_read.is_visible is True
+
+
+@pytest.mark.asyncio
+async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session: AsyncSession) -> None:
+    """Dead dwellers do not satisfy read-path LEVEL/ATTACK availability (living invariant)."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_weapon
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Living Only Gate")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 46},
+            is_mandatory=True,
+        )
+    )
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ATTACK,
+            requirement_data={"attack": 20},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    living_data = create_fake_adult_dweller()
+    living_data["level"] = 40
+    dead_data = create_fake_adult_dweller()
+    dead_data["level"] = 46
+    dead_data["is_dead"] = True
+    living = Dweller(**living_data, vault_id=vault.id)
+    dead = Dweller(**dead_data, vault_id=vault.id)
+    async_session.add_all([living, dead])
+    await async_session.commit()
+
+    weapon_data = create_fake_weapon()
+    weapon_data["damage_min"] = 15
+    weapon_data["damage_max"] = 25
+    weapon_data["dweller_id"] = dead.id
+    await crud.weapon.create(async_session, obj_in=weapon_data)
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next(q for q in quest_reads if q.id == quest.id)
+
+    assert quest_read.is_locked is True
+    assert "level" in quest_read.lock_reason
+    assert "attack" in quest_read.lock_reason

@@ -274,8 +274,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def count_alive_in_vault(
         self, db_session: AsyncSession, vault_id: UUID4, *, min_level: int | None = None
     ) -> int:
-        """Count non-deleted dwellers of a vault, optionally with a level floor."""
-        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted]
+        """Count living, non-deleted dwellers of a vault, optionally with a level floor."""
+        conditions = [self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead]
         if min_level is not None:
             conditions.append(self.model.level >= min_level)
         result = await db_session.execute(select(func.count(self.model.id)).where(and_(*conditions)))

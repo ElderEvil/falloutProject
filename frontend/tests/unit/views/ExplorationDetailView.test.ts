@@ -326,6 +326,71 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.find('.health-trend .text-theme-primary').exists()).toBe(true)
     })
 
+    it('renders the trend panel for a radiation-only journey without health metrics', async () => {
+      explorationStore.activeExplorations['expl-1'] = {
+        ...mockExploration,
+        events: [
+          {
+            type: 'danger',
+            description: 'Encountered a radiation storm.',
+            timestamp: '2026-01-01T00:00:00Z',
+            time_elapsed_hours: 1,
+            radiation_gain: 15,
+          },
+          {
+            type: 'item_use',
+            description: 'Used a RadAway.',
+            timestamp: '2026-01-01T00:30:00Z',
+            time_elapsed_hours: 1.5,
+            radiation_removed: 10,
+          },
+        ],
+      }
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.find('.health-trend').exists()).toBe(true)
+      expect(wrapper.find('.radiation-sparkline-frame').exists()).toBe(true)
+      expect(wrapper.find('.health-sparkline-frame').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('damage')
+      expect(wrapper.text()).not.toContain('healed')
+      expect(wrapper.find('.health-trend .font-bold.text-warning').text()).toBe('-10')
+    })
+
+    it('does not render a misleading -0 rad badge when radiation was only gained', async () => {
+      explorationStore.activeExplorations['expl-1'] = {
+        ...mockExploration,
+        events: [
+          {
+            type: 'danger',
+            description: 'Encountered a radiation storm.',
+            timestamp: '2026-01-01T00:00:00Z',
+            time_elapsed_hours: 1,
+            radiation_gain: 15,
+          },
+        ],
+      }
+
+      const wrapper = mount(ExplorationDetailView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await flushPromises()
+
+      expect(wrapper.find('.health-trend').exists()).toBe(true)
+      expect(wrapper.find('.radiation-sparkline-frame').exists()).toBe(true)
+      expect(wrapper.find('.health-trend .font-bold.text-warning').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('-0')
+    })
+
     it('renders action buttons', async () => {
       const wrapper = mount(ExplorationDetailView, {
         global: {

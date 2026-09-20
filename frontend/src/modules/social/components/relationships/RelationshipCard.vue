@@ -9,7 +9,21 @@
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 01</span>
-          <span class="mt-1 block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
+          <span class="mt-1 flex min-w-0 items-center gap-2">
+            <DwellerPortrait
+              :thumbnail-url="dweller1.thumbnail_url"
+              :alt="dweller1Name"
+              prefer-thumbnail
+              image-class="h-10 w-10 shrink-0 rounded object-cover"
+            />
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
+              <span class="mt-0.5 flex items-center gap-1.5">
+                <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller1.level }}</span>
+                <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
+              </span>
+            </span>
+          </span>
         </button>
         <div class="flex flex-col items-center gap-1 text-theme-primary/70">
           <Icon icon="mdi:heart" class="h-5 w-5 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]" />
@@ -24,7 +38,21 @@
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 02</span>
-          <span class="mt-1 block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
+          <span class="mt-1 flex min-w-0 items-center justify-end gap-2">
+            <DwellerPortrait
+              :thumbnail-url="dweller2.thumbnail_url"
+              :alt="dweller2Name"
+              prefer-thumbnail
+              image-class="h-10 w-10 shrink-0 rounded object-cover"
+            />
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
+              <span class="mt-0.5 flex items-center justify-end gap-1.5">
+                <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller2.level }}</span>
+                <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
+              </span>
+            </span>
+          </span>
         </button>
       </div>
 
@@ -76,19 +104,31 @@
     <div class="grid items-center gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto]">
       <div class="min-w-0">
         <div class="flex min-w-0 items-center gap-2">
+          <DwellerPortrait
+            :thumbnail-url="dweller1.thumbnail_url"
+            :alt="dweller1Name"
+            prefer-thumbnail
+            image-class="h-8 w-8 shrink-0 rounded object-cover"
+          />
           <button
             type="button"
             :title="`View ${dweller1Name}`"
-            class="truncate text-left font-bold text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+            class="min-w-0 truncate text-left font-bold text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
             @click="emit('select-dweller', relationship.dweller_1_id)"
           >
             {{ dweller1Name }}
           </button>
           <Icon icon="mdi:heart" class="h-4 w-4 shrink-0 text-theme-primary/70" />
+          <DwellerPortrait
+            :thumbnail-url="dweller2.thumbnail_url"
+            :alt="dweller2Name"
+            prefer-thumbnail
+            image-class="h-8 w-8 shrink-0 rounded object-cover"
+          />
           <button
             type="button"
             :title="`View ${dweller2Name}`"
-            class="truncate text-left font-bold text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+            class="min-w-0 truncate text-left font-bold text-theme-primary hover:underline focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
             @click="emit('select-dweller', relationship.dweller_2_id)"
           >
             {{ dweller2Name }}
@@ -146,6 +186,9 @@ import {
   type Relationship,
 } from '../../models/relationship'
 import { useRelationshipMilestone } from '../../composables/useRelationshipMilestone'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -153,8 +196,8 @@ import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 
 interface Props {
   relationship: Relationship
-  dweller1Name: string
-  dweller2Name: string
+  dweller1: DwellerShort
+  dweller2: DwellerShort
   viewMode?: 'list' | 'grid'
 }
 
@@ -167,6 +210,13 @@ const emit = defineEmits<{
   'break-up': []
   'select-dweller': [dwellerId: string]
 }>()
+
+const dweller1Name = computed(() => formatDwellerName(props.dweller1))
+const dweller2Name = computed(() => formatDwellerName(props.dweller2))
+
+function formatDwellerName(dweller: DwellerShort): string {
+  return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
+}
 
 const relationshipColor = computed(
   () => RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'

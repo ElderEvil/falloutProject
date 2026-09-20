@@ -81,7 +81,7 @@ describe('RelationshipsView', () => {
     relationshipStore.relationships = []
     relationshipStore.pregnancies = []
     relationshipStore.token = 'mock-token'
-    dwellerStore.dwellers = []
+    dwellerStore.allDwellers = []
     authStore.user = { is_superuser: false } as any
     authStore.token = 'mock-token'
 
@@ -294,7 +294,7 @@ describe('RelationshipsView', () => {
     })
 
     it('should display correct children count', async () => {
-      dwellerStore.dwellers = [
+      dwellerStore.allDwellers = [
         { id: '1', age_group: 'child' },
         { id: '2', age_group: 'adult' },
         { id: '3', age_group: 'child' },

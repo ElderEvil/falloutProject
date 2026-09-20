@@ -51,8 +51,8 @@
       >
         <RelationshipCard
           :relationship="relationship"
-          :dweller1Name="getDwellerName(relationship.dweller_1_id)"
-          :dweller2Name="getDwellerName(relationship.dweller_2_id)"
+          :dweller1="getDweller(relationship.dweller_1_id)!"
+          :dweller2="getDweller(relationship.dweller_2_id)!"
           :view-mode="viewMode"
           @select-dweller="emit('select-dweller', $event)"
           @initiate-romance="initiateRomance(relationship.id)"
@@ -154,13 +154,6 @@ const emptyHint = computed(() => {
   }
   return 'Assign dwellers to rooms together to start relationships!'
 })
-
-function getDwellerName(dwellerId: string): string {
-  const dweller =
-    dwellerStore.dwellers.find((d) => d.id === dwellerId) ??
-    dwellerStore.allDwellers.find((d) => d.id === dwellerId)
-  return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
-}
 
 function getDweller(dwellerId: string): DwellerShort | undefined {
   return (

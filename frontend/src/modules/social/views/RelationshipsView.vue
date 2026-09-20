@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../stores/relationship'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
+import { allChildren } from '../models/dwellerFamily'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -32,9 +33,7 @@ const partnersCount = computed(
     ).length
 )
 const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
-const childrenCount = computed(
-  () => dwellerStore.dwellers.filter((d) => d.age_group === 'child').length
-)
+const childrenCount = computed(() => allChildren(dwellerStore.allDwellers).length)
 
 const summaryMetrics = computed(() => [
   { icon: 'mdi:heart-multiple', label: 'Total Relationships', value: totalRelationships.value },
@@ -197,7 +196,7 @@ const navigateToDweller = (dwellerId: string) => {
                     until grown.
                   </p>
                 </div>
-                <ChildrenList v-if="vaultId" :vaultId="vaultId" />
+                <ChildrenList v-if="vaultId" :vaultId="vaultId" @select="navigateToDweller" />
               </div>
               </section>
             </template>

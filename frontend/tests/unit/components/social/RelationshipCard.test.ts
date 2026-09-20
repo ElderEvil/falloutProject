@@ -11,18 +11,45 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-function createWrapper(relationship: Record<string, unknown>) {
+const dweller1 = {
+  id: 'd1',
+  first_name: 'Alice',
+  last_name: 'Smith',
+  level: 5,
+  thumbnail_url: null,
+  gender: 'female',
+}
+
+const dweller2 = {
+  id: 'd2',
+  first_name: 'Bob',
+  last_name: 'Jones',
+  level: 7,
+  thumbnail_url: null,
+  gender: 'male',
+}
+
+function createWrapper(relationship: Record<string, unknown>, viewMode?: 'list' | 'grid') {
   return mount(RelationshipCard, {
     props: {
       relationship,
-      dweller1Name: 'Alice',
-      dweller2Name: 'Bob',
+      dweller1,
+      dweller2,
+      viewMode,
     },
     global: {
       stubs: {
         UButton: {
           template: '<button class="ubutton-stub"><slot /></button>',
           props: ['color', 'size'],
+        },
+        DwellerPortrait: {
+          template: '<span class="dweller-portrait-stub" :data-alt="alt" />',
+          props: ['alt'],
+        },
+        DwellerGenderBadge: {
+          template: '<span class="dweller-gender-stub" :data-gender="gender" />',
+          props: ['gender', 'size'],
         },
       },
     },
@@ -40,6 +67,51 @@ describe('RelationshipCard', () => {
     })
 
     expect(wrapper.find('.relationship-record--list').exists()).toBe(true)
+  })
+
+  it('renders dweller thumbnails in list mode', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+    })
+
+    const portraits = wrapper.findAll('.dweller-portrait-stub')
+    expect(portraits).toHaveLength(2)
+    expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
+    expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
+  })
+
+  describe('grid mode identity presentation', () => {
+    it('renders portraits, level, and gender badge for both dwellers', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
+        'grid'
+      )
+
+      expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
+
+      const portraits = wrapper.findAll('.dweller-portrait-stub')
+      expect(portraits).toHaveLength(2)
+      expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
+      expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
+
+      expect(wrapper.text()).toContain('LVL 5')
+      expect(wrapper.text()).toContain('LVL 7')
+
+      const genderBadges = wrapper.findAll('.dweller-gender-stub')
+      expect(genderBadges).toHaveLength(2)
+      expect(genderBadges[0].attributes('data-gender')).toBe('female')
+      expect(genderBadges[1].attributes('data-gender')).toBe('male')
+    })
   })
 
   describe('badge variant per relationship type', () => {
@@ -126,8 +198,8 @@ describe('RelationshipCard', () => {
       affinity: 50,
     })
 
-    await wrapper.get('button[title="View Alice"]').trigger('click')
-    await wrapper.get('button[title="View Bob"]').trigger('click')
+    await wrapper.get('button[title="View Alice Smith"]').trigger('click')
+    await wrapper.get('button[title="View Bob Jones"]').trigger('click')
 
     expect(wrapper.emitted('select-dweller')).toEqual([['d1'], ['d2']])
   })

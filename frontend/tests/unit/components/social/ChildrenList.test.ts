@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import ChildrenList from '@/modules/social/components/relationships/ChildrenList.vue'
-import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 // The component uses `const { filter: dwellerStore } = useDwellerStore()`
 // so the mock must return an object with a `filter` property containing the dwellers array.
@@ -10,9 +9,29 @@ const mockDwellers: any[] = []
 
 vi.mock('@/modules/dwellers/stores/dweller', () => ({
   useDwellerStore: () => ({
-    filter: { dwellers: mockDwellers },
+    filter: { allDwellers: mockDwellers },
   }) as any,
 }))
+
+const child = {
+  id: 'child-1',
+  first_name: 'Test',
+  last_name: 'Child',
+  age_group: 'child',
+  gender: 'male',
+  rarity: 'common',
+  health: 80,
+  max_health: 100,
+  happiness: 90,
+  strength: 5,
+  perception: 5,
+  endurance: 5,
+  charisma: 5,
+  intelligence: 5,
+  agility: 5,
+  luck: 5,
+  thumbnail_url: null,
+}
 
 describe('ChildrenList', () => {
   beforeEach(() => {
@@ -42,63 +61,39 @@ describe('ChildrenList', () => {
   })
 
   it('should still render real data fields', () => {
-    mockDwellers.push({
-      id: 'child-1',
-      first_name: 'Test',
-      last_name: 'Child',
-      age_group: 'child',
-      health: 80,
-      max_health: 100,
-      happiness: 90,
-      strength: 5,
-      perception: 5,
-      endurance: 5,
-      charisma: 5,
-      intelligence: 5,
-      agility: 5,
-      luck: 5,
-    })
+    mockDwellers.push({ ...child })
 
     const wrapper = mount(ChildrenList, {
       props: { vaultId: 'test-vault' },
       global: { plugins: [createPinia()] },
     })
 
-    const childCard = wrapper.find('.child-card')
-    expect(childCard.exists()).toBe(true)
-
-    // Each detail-row shows one field — check both individually
-    const detailRows = wrapper.findAll('[class*="detail-row"]')
-    const rowTexts = detailRows.map((r) => r.text())
-    expect(rowTexts.join(' ')).toContain('Health')
-    expect(rowTexts.join(' ')).toContain('Happiness')
+    expect(wrapper.text()).toContain('Test Child')
+    expect(wrapper.text()).toContain('HP 80/100')
+    expect(wrapper.text()).toContain('Happy 90%')
   })
 
   it('should keep SPECIAL stats in a compact row', () => {
-    mockDwellers.push({
-      id: 'child-1',
-      first_name: 'Test',
-      last_name: 'Child',
-      age_group: 'child',
-      health: 80,
-      max_health: 100,
-      happiness: 90,
-      strength: 5,
-      perception: 5,
-      endurance: 5,
-      charisma: 5,
-      intelligence: 5,
-      agility: 5,
-      luck: 5,
-    })
+    mockDwellers.push({ ...child })
 
     const wrapper = mount(ChildrenList, {
       props: { vaultId: 'test-vault' },
       global: { plugins: [createPinia()] },
     })
 
-    const specialStats = wrapper.find('.special-preview')
-    expect(specialStats.exists()).toBe(true)
-    expect(specialStats.findAll('.stat-mini')).toHaveLength(7)
+    expect(wrapper.findAll('.stat-mini')).toHaveLength(7)
+  })
+
+  it('emits select with the child id when a card is clicked', async () => {
+    mockDwellers.push({ ...child })
+
+    const wrapper = mount(ChildrenList, {
+      props: { vaultId: 'test-vault' },
+      global: { plugins: [createPinia()] },
+    })
+
+    await wrapper.find('button').trigger('click')
+
+    expect(wrapper.emitted('select')?.[0]).toEqual(['child-1'])
   })
 })

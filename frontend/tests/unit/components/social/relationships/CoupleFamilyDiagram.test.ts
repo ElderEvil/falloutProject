@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import CoupleFamilyDiagram from '@/modules/social/components/relationships/CoupleFamilyDiagram.vue'
+import DwellerChildCard from '@/modules/social/components/relationships/DwellerChildCard.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 vi.mock('@iconify/vue', () => ({
@@ -14,7 +15,25 @@ vi.mock('@iconify/vue', () => ({
 
 const parent1 = { id: 'd1', first_name: 'John', last_name: 'Smith' }
 const parent2 = { id: 'd2', first_name: 'Jane', last_name: 'Smith' }
-const child = { id: 'c1', first_name: 'Kid', last_name: 'Smith' }
+const child = {
+  id: 'c1',
+  first_name: 'Kid',
+  last_name: 'Smith',
+  age_group: 'child',
+  gender: 'male',
+  rarity: 'common',
+  health: 80,
+  max_health: 100,
+  happiness: 90,
+  strength: 5,
+  perception: 5,
+  endurance: 5,
+  charisma: 5,
+  intelligence: 5,
+  agility: 5,
+  luck: 5,
+  thumbnail_url: null,
+}
 
 function mountDiagram(props = {}) {
   return mount(CoupleFamilyDiagram, {
@@ -31,7 +50,7 @@ describe('CoupleFamilyDiagram', () => {
   function setDwellers(dwellers: unknown[]) {
     const store = useDwellerStore()
     const filter = store.filter
-    filter.dwellers = dwellers as never
+    filter.allDwellers = dwellers as never
   }
 
   it('does not repeat the partner names (they are shown by the relationship card)', () => {
@@ -42,20 +61,22 @@ describe('CoupleFamilyDiagram', () => {
     expect(wrapper.text()).not.toContain('Jane Smith')
   })
 
-  it('shows the children of the couple', () => {
+  it('shows a Children heading with the count and a child card', () => {
     setDwellers([{ ...child, parent_1_id: 'd1', parent_2_id: 'd2' }])
     const wrapper = mountDiagram()
 
-    expect(wrapper.text()).toContain('Kid')
+    expect(wrapper.text()).toContain('Children (1)')
+    expect(wrapper.findComponent(DwellerChildCard).exists()).toBe(true)
+    expect(wrapper.text()).toContain('Kid Smith')
   })
 
-  it('emits select with the child id when a child is clicked', async () => {
+  it('emits select with the child id when a child card is clicked', async () => {
     setDwellers([{ ...child, parent_1_id: 'd1', parent_2_id: 'd2' }])
     const wrapper = mountDiagram()
 
-    const childNode = wrapper.find('button.child-node')
-    expect(childNode.exists()).toBe(true)
-    await childNode.trigger('click')
+    const childCard = wrapper.findComponent(DwellerChildCard)
+    expect(childCard.exists()).toBe(true)
+    await childCard.trigger('click')
 
     const emitted = wrapper.emitted('select')
     expect(emitted).toBeTruthy()
@@ -66,7 +87,7 @@ describe('CoupleFamilyDiagram', () => {
     setDwellers([{ ...child, parent_1_id: 'd9', parent_2_id: 'd8' }])
     const wrapper = mountDiagram()
 
-    expect(wrapper.text()).toContain('No children')
+    expect(wrapper.text()).toContain('No children yet')
     expect(wrapper.text()).not.toContain('Kid')
   })
 
@@ -74,6 +95,6 @@ describe('CoupleFamilyDiagram', () => {
     setDwellers([])
     const wrapper = mountDiagram()
 
-    expect(wrapper.text()).toContain('No children')
+    expect(wrapper.text()).toContain('No children yet')
   })
 })

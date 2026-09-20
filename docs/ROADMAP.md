@@ -1091,6 +1091,31 @@ text, and new quest kinds — all tracked separately. **Blocking decisions:** al
 
 ---
 
+### Quest & Objective Domain Refactor — requirement policy + `progression/` domain (plan ready)
+
+**Plan:** `.omo/plans/quest-objective-domain-refactor.md` (recorded 2026-09-20).
+
+**Focus:** `prerequisite_service.py` is a policy wearing a service hat (no orchestration/transactions/events,
+imported only by `quest_service`), and the quest + objective services are flat top-level files instead of a bounded
+domain package like `combat/`, `family/`, `chat/`, `exploration/`.
+
+- **Phase 1 (requirement policy):** move requirement validation into `progression/quests/requirements.py` as
+  module-level policy functions with two explicit entry points — `vault_missing_requirements` (read gating) and
+  `party_missing_requirements` (start validation) — plus the describers; update `quest_service`'s two call sites;
+  delete `prerequisite_service.py`. Behavior-neutral; no schema/migration/data change.
+- **Phase 2 (`progression/` domain):** group the quest and objective services under one package
+  (`quests/{service,availability,requirements,rewards}`, `objectives/{service,evaluators,assignment,notifications}`)
+  behind thin top-level facades that preserve public imports. `reward_service`, `notification_service`, and
+  `team_service` stay shared/cross-cutting outside the domain.
+
+**Guardrails:** facades preserve public names; `SERVICE_NAME_GRANDFATHER` shrinks, never grows; services keep
+queries in CRUD; net-LOC preferred; no behavior change (locked by the existing suites + architecture guards).
+
+**Open decisions (plan §8):** Phase 1 only vs 1+2 together; domain name (`progression/` recommended); policy
+shape (module functions recommended).
+
+---
+
 ### Quest System Completion & Expansion (P1 correctness, P2 new mechanics)
 
 **P1 — correctness before expansion:** existing quest mechanics and rewards are the immediate priority (see Active

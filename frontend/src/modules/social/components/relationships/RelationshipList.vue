@@ -53,22 +53,13 @@
           :relationship="relationship"
           :dweller1="getDweller(relationship.dweller_1_id)!"
           :dweller2="getDweller(relationship.dweller_2_id)!"
+          :children="getChildren(relationship)"
           :view-mode="viewMode"
           @select-dweller="emit('select-dweller', $event)"
           @initiate-romance="initiateRomance(relationship.id)"
           @make-partners="makePartners(relationship.id)"
           @marry="marry(relationship.id)"
           @break-up="breakUp(relationship.id)"
-        />
-        <CoupleFamilyDiagram
-          v-if="
-            isPartnerLinked(relationship) &&
-            getDweller(relationship.dweller_1_id) &&
-            getDweller(relationship.dweller_2_id)
-          "
-          :dweller1="getDweller(relationship.dweller_1_id)!"
-          :dweller2="getDweller(relationship.dweller_2_id)!"
-          @select="emit('select-dweller', $event)"
         />
       </div>
     </div>
@@ -88,7 +79,7 @@ import {
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import RelationshipCard from './RelationshipCard.vue'
-import CoupleFamilyDiagram from './CoupleFamilyDiagram.vue'
+import { childrenOfCouple } from '../../models/dwellerFamily'
 import UButton from '@/core/components/ui/UButton.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
@@ -159,6 +150,14 @@ function getDweller(dwellerId: string): DwellerShort | undefined {
   return (
     dwellerStore.dwellers.find((d) => d.id === dwellerId) ??
     dwellerStore.allDwellers.find((d) => d.id === dwellerId)
+  )
+}
+
+function getChildren(relationship: Relationship): DwellerShort[] {
+  return childrenOfCouple(
+    dwellerStore.allDwellers,
+    relationship.dweller_1_id,
+    relationship.dweller_2_id
   )
 }
 

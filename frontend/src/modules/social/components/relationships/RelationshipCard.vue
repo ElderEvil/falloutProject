@@ -99,6 +99,24 @@
         </UButton>
       </div>
     </div>
+    <div
+      v-if="isPartnerLinked"
+      class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
+    >
+      <span class="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">
+        <Icon icon="mdi:human-child" class="h-3.5 w-3.5" />
+        Children<template v-if="children.length"> ({{ children.length }})</template>
+      </span>
+      <template v-if="children.length">
+        <ChildChip
+          v-for="child in children"
+          :key="child.id"
+          :dweller="child"
+          @select="emit('select-dweller', $event)"
+        />
+      </template>
+      <span v-else class="text-xs text-theme-primary/40">No children yet</span>
+    </div>
   </UCard>
   <UCard v-else padding="sm" class="relationship-record--list">
     <div class="grid items-center gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto]">
@@ -173,6 +191,24 @@
         </UButton>
       </div>
     </div>
+    <div
+      v-if="isPartnerLinked"
+      class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-theme-primary/15 pt-2"
+    >
+      <span class="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-theme-primary/55">
+        <Icon icon="mdi:human-child" class="h-3.5 w-3.5" />
+        Children<template v-if="children.length"> ({{ children.length }})</template>
+      </span>
+      <template v-if="children.length">
+        <ChildChip
+          v-for="child in children"
+          :key="child.id"
+          :dweller="child"
+          @select="emit('select-dweller', $event)"
+        />
+      </template>
+      <span v-else class="text-xs text-theme-primary/40">No children yet</span>
+    </div>
   </UCard>
 </template>
 
@@ -182,6 +218,7 @@ import { Icon } from '@iconify/vue'
 import {
   COMMITTED_RELATIONSHIP_TYPES,
   isRelationshipType,
+  PARTNER_LINKED_RELATIONSHIP_TYPES,
   RELATIONSHIP_TYPE_VARIANT,
   type Relationship,
 } from '../../models/relationship'
@@ -189,6 +226,7 @@ import { useRelationshipMilestone } from '../../composables/useRelationshipMiles
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import ChildChip from './ChildChip.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
@@ -198,10 +236,14 @@ interface Props {
   relationship: Relationship
   dweller1: DwellerShort
   dweller2: DwellerShort
+  children?: DwellerShort[]
   viewMode?: 'list' | 'grid'
 }
 
-const props = withDefaults(defineProps<Props>(), { viewMode: 'list' })
+const props = withDefaults(defineProps<Props>(), {
+  viewMode: 'list',
+  children: () => [],
+})
 
 const emit = defineEmits<{
   'initiate-romance': []
@@ -220,6 +262,10 @@ function formatDwellerName(dweller: DwellerShort): string {
 
 const relationshipColor = computed(
   () => RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'
+)
+
+const isPartnerLinked = computed(() =>
+  isRelationshipType(props.relationship.relationship_type, PARTNER_LINKED_RELATIONSHIP_TYPES)
 )
 
 const { nextMilestone } = useRelationshipMilestone(() => props.relationship)

@@ -29,13 +29,18 @@ const dweller2 = {
   gender: 'male',
 }
 
-function createWrapper(relationship: Record<string, unknown>, viewMode?: 'list' | 'grid') {
+function createWrapper(
+  relationship: Record<string, unknown>,
+  viewMode?: 'list' | 'grid',
+  children: unknown[] = []
+) {
   return mount(RelationshipCard, {
     props: {
       relationship,
       dweller1,
       dweller2,
       viewMode,
+      children,
     },
     global: {
       stubs: {
@@ -202,5 +207,74 @@ describe('RelationshipCard', () => {
     await wrapper.get('button[title="View Bob Jones"]').trigger('click')
 
     expect(wrapper.emitted('select-dweller')).toEqual([['d1'], ['d2']])
+  })
+})
+
+  describe('family strip for partner relationships', () => {
+    const child = {
+      id: 'c1',
+      first_name: 'Kid',
+      last_name: 'Smith',
+      age_group: 'child',
+      gender: 'male',
+      rarity: 'common',
+      health: 80,
+      max_health: 100,
+      happiness: 90,
+      strength: 5,
+      perception: 5,
+      endurance: 5,
+      charisma: 5,
+      intelligence: 5,
+      agility: 5,
+      luck: 5,
+      thumbnail_url: null,
+    }
+
+    it('shows the children strip with count and child chip for partner relationships', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [child]
+      )
+
+      expect(wrapper.text()).toContain('Children (1)')
+      expect(wrapper.text()).toContain('Kid')
+    })
+
+    it('shows the empty state when a partner relationship has no children', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      expect(wrapper.text()).toContain('No children yet')
+    })
+
+    it('does not render the family strip for non-partner relationships', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
+        undefined,
+        [child]
+      )
+
+      expect(wrapper.text()).not.toContain('Children')
+      expect(wrapper.text()).not.toContain('No children yet')
+    })
   })
 })

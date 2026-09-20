@@ -11,18 +11,54 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-function createWrapper(relationship: Record<string, unknown>) {
+const dweller1 = {
+  id: 'd1',
+  first_name: 'Alice',
+  last_name: 'Smith',
+  level: 5,
+  thumbnail_url: null,
+  gender: 'female',
+}
+
+const dweller2 = {
+  id: 'd2',
+  first_name: 'Bob',
+  last_name: 'Jones',
+  level: 7,
+  thumbnail_url: null,
+  gender: 'male',
+}
+
+function createWrapper(
+  relationship: Record<string, unknown>,
+  viewMode?: 'list' | 'grid',
+  children: unknown[] = [],
+  pregnancy: unknown = null,
+  generation = 1
+) {
   return mount(RelationshipCard, {
     props: {
       relationship,
-      dweller1Name: 'Alice',
-      dweller2Name: 'Bob',
+      dweller1,
+      dweller2,
+      viewMode,
+      children,
+      pregnancy,
+      generation,
     },
     global: {
       stubs: {
         UButton: {
           template: '<button class="ubutton-stub"><slot /></button>',
           props: ['color', 'size'],
+        },
+        DwellerPortrait: {
+          template: '<span class="dweller-portrait-stub" :data-alt="alt" />',
+          props: ['alt'],
+        },
+        DwellerGenderBadge: {
+          template: '<span class="dweller-gender-stub" :data-gender="gender" />',
+          props: ['gender', 'size'],
         },
       },
     },
@@ -42,15 +78,60 @@ describe('RelationshipCard', () => {
     expect(wrapper.find('.relationship-record--list').exists()).toBe(true)
   })
 
+  it('renders dweller thumbnails in list mode', () => {
+    const wrapper = createWrapper({
+      id: '1',
+      dweller_1_id: 'd1',
+      dweller_2_id: 'd2',
+      relationship_type: 'friend',
+      affinity: 50,
+    })
+
+    const portraits = wrapper.findAll('.dweller-portrait-stub')
+    expect(portraits).toHaveLength(2)
+    expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
+    expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
+  })
+
+  describe('grid mode identity presentation', () => {
+    it('renders portraits, level, and gender badge for both dwellers', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
+        'grid'
+      )
+
+      expect(wrapper.find('.relationship-record--grid').exists()).toBe(true)
+
+      const portraits = wrapper.findAll('.dweller-portrait-stub')
+      expect(portraits).toHaveLength(2)
+      expect(portraits[0].attributes('data-alt')).toBe('Alice Smith')
+      expect(portraits[1].attributes('data-alt')).toBe('Bob Jones')
+
+      expect(wrapper.text()).toContain('LVL 5')
+      expect(wrapper.text()).toContain('LVL 7')
+
+      const genderBadges = wrapper.findAll('.dweller-gender-stub')
+      expect(genderBadges).toHaveLength(2)
+      expect(genderBadges[0].attributes('data-gender')).toBe('female')
+      expect(genderBadges[1].attributes('data-gender')).toBe('male')
+    })
+  })
+
   describe('badge variant per relationship type', () => {
     it.each([
-      { type: 'acquaintance', expectClass: 'bg-success' },
-      { type: 'friend', expectClass: 'bg-warning' },
-      { type: 'romantic', expectClass: 'border-2' },
-      { type: 'partner', expectClass: 'bg-danger' },
-      { type: 'MARRIED', expectClass: 'bg-danger' },
-      { type: 'ex', expectClass: 'bg-surface-raised' },
-    ])('$type badge should have correct variant class', async ({ type, expectClass }) => {
+      { type: 'acquaintance', expectClasses: ['bg-transparent'], label: 'Acquaintance' },
+      { type: 'friend', expectClasses: ['bg-success'], label: 'Friend' },
+      { type: 'romantic', expectClasses: ['bg-warning'], label: 'Romantic' },
+      { type: 'partner', expectClasses: ['border-2'], label: 'Partner' },
+      { type: 'MARRIED', expectClasses: ['bg-success', 'text-terminal-background'], label: 'Married' },
+      { type: 'ex', expectClasses: ['bg-surface-raised'], label: 'Ex' },
+    ])('$type badge should have correct variant class', async ({ type, expectClasses, label }) => {
       const wrapper = createWrapper({
         id: '1',
         dweller_1_id: 'd1',
@@ -61,8 +142,10 @@ describe('RelationshipCard', () => {
 
       const badge = wrapper.find('.relationship-badge')
       expect(badge.exists()).toBe(true)
-      expect(badge.text()).toBe(type)
-      expect(badge.classes().includes(expectClass)).toBe(true)
+      expect(badge.text()).toBe(label)
+      for (const cls of expectClasses) {
+        expect(badge.classes()).toContain(cls)
+      }
     })
 
     it('defaults to success variant for unknown type', () => {
@@ -76,6 +159,33 @@ describe('RelationshipCard', () => {
 
       const badge = wrapper.find('.relationship-badge')
       expect(badge.classes()).toContain('bg-success')
+    })
+
+    it('shows the Married label with a heart icon for MARRIED relationships', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'MARRIED',
+        affinity: 90,
+      })
+
+      const badge = wrapper.find('.relationship-badge')
+      expect(badge.text()).toContain('Married')
+      expect(badge.find('.icon-mock').attributes('data-icon')).toBe('mdi:heart')
+    })
+
+    it('shows the Partner label for partner relationships', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      const badge = wrapper.find('.relationship-badge')
+      expect(badge.text()).toContain('Partner')
     })
   })
 
@@ -126,9 +236,128 @@ describe('RelationshipCard', () => {
       affinity: 50,
     })
 
-    await wrapper.get('button[title="View Alice"]').trigger('click')
-    await wrapper.get('button[title="View Bob"]').trigger('click')
+    await wrapper.get('button[title="View Alice Smith"]').trigger('click')
+    await wrapper.get('button[title="View Bob Jones"]').trigger('click')
 
     expect(wrapper.emitted('select-dweller')).toEqual([['d1'], ['d2']])
+  })
+
+  describe('family strip for partner relationships', () => {
+    const child = {
+      id: 'c1',
+      first_name: 'Kid',
+      last_name: 'Smith',
+      age_group: 'child',
+      gender: 'male',
+      rarity: 'common',
+      health: 80,
+      max_health: 100,
+      happiness: 90,
+      strength: 5,
+      perception: 5,
+      endurance: 5,
+      charisma: 5,
+      intelligence: 5,
+      agility: 5,
+      luck: 5,
+      thumbnail_url: null,
+    }
+
+    it('shows the children strip with count and child chip for partner relationships', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [child]
+      )
+
+      expect(wrapper.text()).toContain('Children (1)')
+      expect(wrapper.text()).toContain('Kid')
+    })
+
+    it('shows the empty state when a partner relationship has no children', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      expect(wrapper.text()).toContain('No children yet')
+    })
+
+    it('does not render the family strip for non-partner relationships', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'friend',
+          affinity: 50,
+        },
+        undefined,
+        [child]
+      )
+
+      expect(wrapper.text()).not.toContain('Children')
+      expect(wrapper.text()).not.toContain('No children yet')
+    })
+
+    it('shows the generation label and expecting chip for a pregnant partner couple', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [child],
+        { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: false }
+      )
+
+      expect(wrapper.text()).toContain('GEN 1')
+      expect(wrapper.text()).toContain('Children (1)')
+      expect(wrapper.text()).toContain('Expecting')
+    })
+
+    it('shows a due chip when the pregnancy is due', () => {
+      const wrapper = createWrapper(
+        {
+          id: '1',
+          dweller_1_id: 'd1',
+          dweller_2_id: 'd2',
+          relationship_type: 'partner',
+          affinity: 50,
+        },
+        undefined,
+        [],
+        { id: 'p1', mother_id: 'd1', father_id: 'd2', status: 'pregnant', is_due: true }
+      )
+
+      expect(wrapper.text()).toContain('Due!')
+      expect(wrapper.text()).not.toContain('Expecting')
+    })
+
+    it('shows no expecting chip when pregnancy is null', () => {
+      const wrapper = createWrapper({
+        id: '1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'partner',
+        affinity: 50,
+      })
+
+      expect(wrapper.text()).toContain('GEN 1')
+      expect(wrapper.text()).not.toContain('Expecting')
+      expect(wrapper.text()).not.toContain('Due!')
+    })
   })
 })

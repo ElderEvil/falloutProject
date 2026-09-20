@@ -33,4 +33,58 @@ describe('useExplorationHealthJourney', () => {
     expect(totalHealed.value).toBe(5)
     expect(healthTrendPoints.value).toMatch(/^0\.0,.* 40\.0,.* 80\.0,.* 120\.0,/)
   })
+
+  it('builds a radiation journey from structured radiation fields', () => {
+    const events = ref([
+      {
+        type: 'danger',
+        description: 'Encountered a radiation storm.',
+        timestamp: '2026-01-01T00:00:00Z',
+        time_elapsed_hours: 1,
+        radiation_gain: 15,
+      },
+      {
+        type: 'item_use',
+        description: 'Used a RadAway.',
+        timestamp: '2026-01-01T00:30:00Z',
+        time_elapsed_hours: 1.5,
+        radiation_removed: 10,
+      },
+      {
+        type: 'combat',
+        description: 'A raider attacked.',
+        timestamp: '2026-01-01T01:00:00Z',
+        time_elapsed_hours: 2,
+        health_loss: 3,
+      },
+    ])
+
+    const { radiationJourney, totalRadiationRemoved, radiationTrendPoints } = useExplorationHealthJourney(events)
+
+    expect(radiationJourney.value).toHaveLength(2)
+    expect(totalRadiationRemoved.value).toBe(10)
+    expect(radiationTrendPoints.value).toMatch(/^0\.0,.* 60\.0,.* 120\.0,/)
+  })
+
+  it('excludes events without structured radiation fields from the radiation journey', () => {
+    const events = ref([
+      {
+        type: 'danger',
+        description: 'Radiation levels rose by 20.',
+        timestamp: '2026-01-01T00:00:00Z',
+        time_elapsed_hours: 1,
+      },
+      {
+        type: 'item_use',
+        description: 'Used a RadAway. Removed 10 radiation.',
+        timestamp: '2026-01-01T00:30:00Z',
+        time_elapsed_hours: 1.5,
+      },
+    ])
+
+    const { radiationJourney, totalRadiationRemoved } = useExplorationHealthJourney(events)
+
+    expect(radiationJourney.value).toHaveLength(0)
+    expect(totalRadiationRemoved.value).toBe(0)
+  })
 })

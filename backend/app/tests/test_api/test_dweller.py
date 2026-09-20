@@ -461,6 +461,26 @@ async def test_update_dweller_can_unassign_a_room(
 
 
 @pytest.mark.asyncio
+async def test_update_dweller_rejects_room_assignment(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    dweller: Dweller,
+    room: Room,
+) -> None:
+    """Room assignment must go through the move endpoints, not PUT /dwellers/{id}."""
+    original_room_id = dweller.room_id
+
+    response = await async_client.put(
+        f"/dwellers/{dweller.id}", json={"room_id": str(room.id)}, headers=superuser_token_headers
+    )
+
+    assert response.status_code == 422
+    await async_session.refresh(dweller)
+    assert dweller.room_id == original_room_id
+
+
+@pytest.mark.asyncio
 async def test_filter_dwellers_by_race_and_faction(
     async_client: AsyncClient,
     async_session: AsyncSession,

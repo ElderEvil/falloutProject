@@ -131,6 +131,7 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         health_loss: int | None = None,
         health_restored: int | None = None,
         radiation_gain: int | None = None,
+        radiation_removed: int | None = None,
     ) -> dict:
         """Add an event to the journey log.
 
@@ -158,6 +159,8 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
             event["health_restored"] = health_restored
         if radiation_gain is not None:
             event["radiation_gain"] = radiation_gain
+        if radiation_removed is not None:
+            event["radiation_removed"] = radiation_removed
         self.events.append(event)
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "events")

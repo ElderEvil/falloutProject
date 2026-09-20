@@ -378,6 +378,10 @@ identifier change rather than adding another compatibility dependency now.
 interaction tokens instead of compensating with page-level CSS.
 
 - ⬜ Define and document the canonical canvas, panel, inset-control, hover, and overlay surface roles.
+- ⬜ **Grey-surface policy (recorded 2026-09-20)** — grey backgrounds on quest/objective cards silently
+  disappeared during an earlier styling pass. Decide deliberately which UI parts carry a grey surface, on what
+  condition (card kind, state, emphasis tier), and which shade, then enforce it through the surface-role tokens
+  above instead of per-feature CSS. Purely a future design decision — no immediate change.
 - ⬜ Align `UButton`, `UInput`, `USelect`, `UModal`, cards, and badges to those roles, including visible focus and
   disabled states.
 - ⬜ Replace repeated feature-local button and control styling as related screens are touched; favor smaller shared
@@ -1206,8 +1210,10 @@ Current blocker map (what stalls what):
 
 ---
 
-_Last updated: 2026-09-19_ — quest/objective progression plan recorded
-(`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive pre-Overseer's-Office guidance and
-quest gates follow the real-game level/equipment model with progressive reveal. Progression correctness remains P1;
-the D1 soft-lock stays a separate decision.
+_Last updated: 2026-09-20_ — grey-surface styling policy recorded under Frontend
+Design-System Consolidation (quest/objective cards lost their grey background in an earlier pass; a deliberate
+"which parts, on what condition, which shade" decision is deferred). Also on 2026-09-19: quest/objective progression
+plan recorded (`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive
+pre-Overseer's-Office guidance and quest gates follow the real-game level/equipment model with progressive reveal.
+Progression correctness remains P1; the D1 soft-lock stays a separate decision.
 The world map remains single-vault exploration; multiplayer is out of scope.

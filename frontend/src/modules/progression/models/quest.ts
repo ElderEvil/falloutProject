@@ -195,7 +195,8 @@ export function describeGrantedReward(reward: GrantedReward): GrantedRewardDispl
       return {
         icon: GRANTED_ICONS[reward.reward_type],
         label: GRANTED_LABELS[reward.reward_type],
-        value: String(reward.amount),
+        // amount 0 renders as the bare label, matching the backend summary ("RadAway", not "0 RadAway").
+        value: reward.amount ? String(reward.amount) : GRANTED_LABELS[reward.reward_type],
       }
     case 'item': {
       const quantity = reward.amount > 1 ? `${reward.amount}x ` : ''
@@ -220,7 +221,8 @@ export function formatGrantedReward(reward: GrantedReward): string {
     case 'stimpak':
     case 'radaway': {
       const label = reward.reward_type === 'stimpak' ? 'Stimpak' : 'RadAway'
-      return `${reward.amount} ${label}`
+      // amount 0 renders as the bare label, matching the backend summary ("RadAway", not "0 RadAway").
+      return reward.amount ? `${reward.amount} ${label}` : label
     }
     default:
       return describeGrantedReward(reward).value

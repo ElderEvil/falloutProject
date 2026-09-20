@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.128.2 (2026-09-20)
+
+### Bug Fixes
+
+* **objectives:** serialize evaluator manager lifecycle and cover equipment-backed eligibility 5b0a822
+* **quests:** count-independent eligible-dwellers via shared party policy 9ee4b80
+
+### Code Refactoring
+
+* **quests:** single-screen reward claim — confirm is the final screen 559cd13
+
 ## 2.128.1 (2026-09-20)
 
 ### Documentation

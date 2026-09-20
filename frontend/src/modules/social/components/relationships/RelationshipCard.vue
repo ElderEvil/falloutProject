@@ -5,24 +5,20 @@
         <button
           type="button"
           :title="`View ${dweller1Name}`"
-          class="group min-w-0 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 text-left transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_1_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 01</span>
-          <span class="mt-1 flex min-w-0 items-center gap-2">
-            <DwellerPortrait
-              :thumbnail-url="dweller1.thumbnail_url"
-              :alt="dweller1Name"
-              prefer-thumbnail
-              image-class="h-10 w-10 shrink-0 rounded object-cover"
-            />
-            <span class="min-w-0">
-              <span class="block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
-              <span class="mt-0.5 flex items-center gap-1.5">
-                <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller1.level }}</span>
-                <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
-              </span>
-            </span>
+          <DwellerPortrait
+            :thumbnail-url="dweller1.thumbnail_url"
+            :alt="dweller1Name"
+            prefer-thumbnail
+            image-class="h-12 w-12 shrink-0 rounded object-cover"
+          />
+          <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller1Name }}</span>
+          <span class="flex items-center justify-center gap-1.5">
+            <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller1.level }}</span>
+            <DwellerGenderBadge :gender="dweller1.gender" size="sm" />
           </span>
         </button>
         <div class="flex flex-col items-center gap-1 text-theme-primary/70">
@@ -34,24 +30,20 @@
         <button
           type="button"
           :title="`View ${dweller2Name}`"
-          class="group min-w-0 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 text-right transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
+          class="group flex min-w-0 flex-col items-center gap-1.5 rounded border border-theme-primary/20 bg-surface-sunken px-3 py-2 transition-colors hover:border-theme-primary/60 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-theme-primary/50"
           @click="emit('select-dweller', relationship.dweller_2_id)"
         >
           <span class="block text-[0.65rem] font-bold tracking-[0.12em] text-theme-primary/55">DWELLER 02</span>
-          <span class="mt-1 flex min-w-0 items-center justify-end gap-2">
-            <DwellerPortrait
-              :thumbnail-url="dweller2.thumbnail_url"
-              :alt="dweller2Name"
-              prefer-thumbnail
-              image-class="h-10 w-10 shrink-0 rounded object-cover"
-            />
-            <span class="min-w-0">
-              <span class="block truncate text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
-              <span class="mt-0.5 flex items-center justify-end gap-1.5">
-                <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller2.level }}</span>
-                <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
-              </span>
-            </span>
+          <DwellerPortrait
+            :thumbnail-url="dweller2.thumbnail_url"
+            :alt="dweller2Name"
+            prefer-thumbnail
+            image-class="h-12 w-12 shrink-0 rounded object-cover"
+          />
+          <span class="block w-full truncate text-center text-sm font-bold text-theme-primary group-hover:underline">{{ dweller2Name }}</span>
+          <span class="flex items-center justify-center gap-1.5">
+            <span class="text-[0.65rem] font-bold tracking-[0.08em] text-theme-primary/55">LVL {{ dweller2.level }}</span>
+            <DwellerGenderBadge :gender="dweller2.gender" size="sm" />
           </span>
         </button>
       </div>

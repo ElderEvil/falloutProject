@@ -420,7 +420,7 @@ const handleAction = () => {
               </span>
             </template>
             <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
-              Requires {{ req.requirement_data.name || req.requirement_data.item_id }}
+              Requires {{ req.requirement_data.item_name || req.requirement_data.name || req.requirement_data.item_id }}
               <span v-if="getRequirementCount(req.requirement_data) > 1">
                 (x{{ getRequirementCount(req.requirement_data) }})
               </span>

@@ -36,13 +36,15 @@ class PrerequisiteService:
         required_count = requirement_data.get("count", 1)
 
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
-        if not storage:
-            return False
+        storage_count = 0
+        if storage:
+            storage_count = await crud.weapon.count_in_storage_by_name(db_session, storage.id, item_name)
+            storage_count += await crud.outfit.count_in_storage_by_name(db_session, storage.id, item_name)
 
-        weapon_count = await crud.weapon.count_in_storage_by_name(db_session, storage.id, item_name)
-        outfit_count = await crud.outfit.count_in_storage_by_name(db_session, storage.id, item_name)
+        equipped_count = await crud.weapon.count_equipped_by_name(db_session, vault_id, item_name)
+        equipped_count += await crud.outfit.count_equipped_by_name(db_session, vault_id, item_name)
 
-        return weapon_count + outfit_count >= required_count
+        return storage_count + equipped_count >= required_count
 
     async def validate_room_requirement(
         self, db_session: AsyncSession, vault_id: UUID4, requirement_data: dict[str, Any]

@@ -305,6 +305,101 @@ async def test_available_only_respects_level_reveal(async_session: AsyncSession)
 
 
 @pytest.mark.asyncio
+async def test_level_gated_quest_shown_locked_without_office(async_session: AsyncSession) -> None:
+    """Without the Overseer's Office a far level-gated quest is shown locked, not hidden by reveal."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    dweller_data = create_fake_adult_dweller()
+    dweller_data["level"] = 20
+    async_session.add(Dweller(**dweller_data, vault_id=vault.id))
+    quest = await _create_quest(async_session, title="No Office Level 46")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 46},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next(q for q in quest_reads if q.id == quest.id)
+
+    assert quest_read.is_locked is True
+    assert quest_read.lock_reason == "Requires Overseer's Office"
+
+
+@pytest.mark.asyncio
+async def test_normal_read_fills_page_past_hidden_quests(async_session: AsyncSession) -> None:
+    """The normal quest read paginates after reveal/availability filtering, so a page is full of visible quests."""
+    vault = await _vault_with_level_dweller(async_session, level=20)
+    hidden = await _create_quest(async_session, title="Hidden Level 46")
+    async_session.add(
+        QuestRequirement(
+            quest_id=hidden.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 46},
+            is_mandatory=True,
+        )
+    )
+    open_quests = [await _create_quest(async_session, title=f"Open {i}") for i in range(4)]
+    await async_session.commit()
+    for quest in (hidden, *open_quests):
+        await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    page = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 3)
+
+    assert len(page) == 3
+    assert all(q.id != hidden.id for q in page)
+    assert {q.title for q in page} <= {"Open 0", "Open 1", "Open 2", "Open 3"}
+
+
+@pytest.mark.asyncio
+async def test_item_requirement_met_by_equipped_item(async_session: AsyncSession) -> None:
+    """The read-path ITEM check counts items equipped by vault dwellers, not only storage."""
+    from app.models.dweller import Dweller
+    from app.tests.factory.dwellers import create_fake_adult_dweller
+    from app.tests.factory.items import create_fake_weapon
+
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Equipped Item Read")
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Laser Pistol"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+
+    dweller_data = create_fake_adult_dweller()
+    dweller = Dweller(**dweller_data, vault_id=vault.id)
+    async_session.add(dweller)
+    await async_session.commit()
+
+    weapon_data = create_fake_weapon()
+    weapon_data["name"] = "Laser Pistol"
+    weapon_data["dweller_id"] = dweller.id
+    await crud.weapon.create(async_session, obj_in=weapon_data)
+
+    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next(q for q in quest_reads if q.id == quest.id)
+
+    assert quest_read.is_locked is False
+    assert quest_read.is_visible is True
+
+
+@pytest.mark.asyncio
 async def test_start_quest_rejects_party_below_level_requirement(async_session: AsyncSession) -> None:
     """A party of level-40 dwellers cannot start a quest requiring level 46."""
     from app.models.dweller import Dweller

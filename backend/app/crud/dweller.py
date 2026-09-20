@@ -284,7 +284,9 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_max_level(self, db_session: AsyncSession, vault_id: UUID4) -> int | None:
         """Highest level among a vault's non-deleted dwellers, or None when the vault has none."""
         result = await db_session.execute(
-            select(func.max(self.model.level)).where(self.model.vault_id == vault_id, ~self.model.is_deleted)
+            select(func.max(self.model.level)).where(
+                self.model.vault_id == vault_id, ~self.model.is_deleted, ~self.model.is_dead
+            )
         )
         return result.scalar_one_or_none()
 

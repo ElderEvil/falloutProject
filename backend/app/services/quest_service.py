@@ -184,17 +184,12 @@ class QuestService:
     ) -> Sequence[QuestRead]:
         """Vault quest read: link state from CRUD plus honest availability from the shared function.
 
-        When ``available_only`` is set, availability is computed for the vault's full quest set
-        before ``skip``/``limit`` are applied, so locked quests never starve a page.
+        The full vault quest set is fetched, reveal/availability filtering applied, then
+        ``skip``/``limit`` paginate the filtered result so later visible quests fill a page.
         """
-        if available_only:
-            quest_reads = await crud.quest_crud.get_multi_for_vault(
-                db_session=db_session, vault_id=vault_id, skip=0, limit=_AVAILABLE_QUESTS_FETCH_LIMIT
-            )
-        else:
-            quest_reads = await crud.quest_crud.get_multi_for_vault(
-                db_session=db_session, vault_id=vault_id, skip=skip, limit=limit
-            )
+        quest_reads = await crud.quest_crud.get_multi_for_vault(
+            db_session=db_session, vault_id=vault_id, skip=0, limit=_AVAILABLE_QUESTS_FETCH_LIMIT
+        )
         quests = await crud.quest_crud.get_multi_by_ids(db_session, [quest_read.id for quest_read in quest_reads])
         quest_by_id = {quest.id: quest for quest in quests}
         has_office = await crud.room.has_room_type(db_session, vault_id, OFFICE_ROOM_TYPE)
@@ -208,7 +203,7 @@ class QuestService:
             quest = quest_by_id.get(quest_read.id)
             if quest is None:
                 continue
-            if _highest_mandatory_level_requirement(quest_read) > reveal_threshold:
+            if has_office and _highest_mandatory_level_requirement(quest_read) > reveal_threshold:
                 continue
             availability = await self.get_quest_availability(
                 db_session, vault_id, quest, has_office=has_office, completed_quest_ids=completed_quest_ids
@@ -223,7 +218,7 @@ class QuestService:
         if available_only:
             return available_reads[skip : skip + limit]
 
-        return visible_reads
+        return visible_reads[skip : skip + limit]
 
     async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID4, vault_id: UUID4) -> Quest:
         """Return a finished party and make its rewards available to claim."""

@@ -88,6 +88,17 @@ class CRUDItem[ModelType: Weapon | Outfit, CreateSchemaType: SQLModel, UpdateSch
         )
         return int((await db_session.execute(query)).scalar_one())
 
+    async def count_equipped_by_name(self, db_session: AsyncSession, vault_id: UUID4, name: str) -> int:
+        """Count items of this type equipped by the vault's dwellers, matching the name case-insensitively."""
+        from sqlalchemy import func
+
+        dweller_subquery = select(Dweller.id).where(Dweller.vault_id == vault_id).scalar_subquery()
+        query = select(func.count(self.model.id)).where(
+            self.model.dweller_id.in_(dweller_subquery),
+            func.lower(self.model.name) == name.lower(),
+        )
+        return int((await db_session.execute(query)).scalar_one())
+
     async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID4) -> ModelType | None:
         """The item of this type currently equipped by the dweller, if any."""
         result = await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))

@@ -122,7 +122,7 @@ async def _sync_existing_quest_rewards(
 
 
 def _desired_requirements(
-    quest_json: QuestJSON, quests_by_title: dict[str, Quest]
+    quest_json: QuestJSON, resolve_map: dict[str, Quest]
 ) -> list[tuple[RequirementType, dict[str, Any], bool]]:
     """Build the canonical stored representation of a quest's JSON requirements."""
     desired: list[tuple[RequirementType, dict[str, Any], bool]] = []
@@ -136,7 +136,7 @@ def _desired_requirements(
         if requirement_type == RequirementType.QUEST_COMPLETED:
             quest_name = requirement_data.get("quest_name")
             if quest_name:
-                predecessor = quests_by_title.get(quest_name)
+                predecessor = resolve_map.get(quest_name)
                 if predecessor is not None:
                     requirement_data["quest_id"] = str(predecessor.id)
                     del requirement_data["quest_name"]
@@ -175,9 +175,14 @@ def _requirements_in_sync(
 
 
 async def _sync_existing_quest_requirements(
-    db_session: AsyncSession, quests_by_title: dict[str, Quest], quest_jsons: list[QuestJSON]
+    db_session: AsyncSession,
+    quests_by_title: dict[str, Quest],
+    quest_jsons: list[QuestJSON],
+    *,
+    resolve_map: dict[str, Quest] | None = None,
 ) -> int:
     """Reconcile existing quest requirements with the typed quest-data source of truth."""
+    resolve_map = resolve_map if resolve_map is not None else quests_by_title
     updated_count = 0
     for quest_json in quest_jsons:
         quest = quests_by_title.get(quest_json.quest_name)
@@ -186,7 +191,7 @@ async def _sync_existing_quest_requirements(
         existing = list(
             (await db_session.exec(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id))).all()
         )
-        desired = _desired_requirements(quest_json, quests_by_title)
+        desired = _desired_requirements(quest_json, resolve_map)
         predecessor_id = _predecessor_id(desired)
         if _requirements_in_sync(existing, desired) and quest.previous_quest_id == predecessor_id:
             continue
@@ -353,11 +358,15 @@ async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None
                         quest.sqlmodel_update(metadata)
                         updated_quest_count += 1
 
+            all_quests_by_title = {
+                **existing_quests_by_title,
+                **{quest_json.quest_name: quest for quest, quest_json in quests_to_commit},
+            }
             updated_reward_count = await _sync_existing_quest_rewards(
                 db_session, existing_quests_by_title, all_quest_jsons
             )
             updated_requirement_count = await _sync_existing_quest_requirements(
-                db_session, existing_quests_by_title, all_quest_jsons
+                db_session, existing_quests_by_title, all_quest_jsons, resolve_map=all_quests_by_title
             )
             await db_session.commit()
             logger.info(

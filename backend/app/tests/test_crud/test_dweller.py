@@ -198,6 +198,14 @@ async def test_get_max_level(async_session: AsyncSession):
 
     assert await crud.dweller.get_max_level(async_session, vault.id) == 20
 
+    dead_data = create_fake_dweller()
+    dead_data["level"] = 50
+    dead_data["is_dead"] = True
+    async_session.add(Dweller(**dead_data, vault_id=vault.id))
+    await async_session.commit()
+
+    assert await crud.dweller.get_max_level(async_session, vault.id) == 20
+
 
 @pytest.mark.asyncio
 async def test_get_dwellers_by_status(async_session: AsyncSession):

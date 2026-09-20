@@ -144,10 +144,11 @@ audit; objectives need deliberate in-game validation rather than relying only on
 - [ ] **Sequenced starter objectives & progress-relative quest gates** — plan ready:
   `.omo/plans/quest-objective-progression.md`. Make the Objective system the primary instruction surface from vault
   start until the Overseer's Office is built (an ordered `starter` objective arc whose current step is derived, never
-  written on completion), and replace the fixed dweller-level quest gates with vault-progress gates
-  (population/rooms/completed quests) enforced on both the read and the start path. Locked decisions: sequenced
-  objectives, vault-progress gates, the Office gate kept (18 dwellers + 1000 caps), an earn-by-exploration guidance
-  path (no reward tuning or income floor), pre-Office tabs hidden, and all quests gated on the Office — plan §9.
+  written on completion), and gate quests faithfully to the real game: dweller-LEVEL + equipment requirements
+  validated against the dwellers SENT on the quest, with progressive reveal hiding quests more than 10 levels above
+  the vault's max dweller level. Locked decisions: sequenced objectives, party-based level/equipment gates, the
+  Office gate kept (18 dwellers + 1000 caps), an earn-by-exploration guidance path (no reward tuning or income
+  floor), pre-Office tabs hidden, and all quests gated on the Office — plan §9.
 - [ ] **Quest correctness audit** — inventory every supported quest type and completion path; verify eligibility,
   lifecycle transitions, reward calculation/claiming, storage transfer, notifications, and repeat/duplicate-claim
   protection. Add a regression test for every bug found before changing the implementation.
@@ -1062,7 +1063,8 @@ object storage only if the curated set grows large.
 **Plan:** `.omo/plans/quest-objective-progression.md` (recorded 2026-09-19).
 
 **Focus:** the Objective system becomes the source of "what do I do next" from vault start until the Overseer's
-Office is built, and quest unlocking tracks vault progress rather than fixed dweller levels.
+Office is built, and quest unlocking follows the real game's dweller-LEVEL + equipment gates with progressive
+reveal.
 
 - Add a `starter` objective category (column is `VARCHAR(50)` → no PG enum migration) plus explicit `sequence` and
   `description`, seeded as one ordered arc at vault initiation; the current step is **derived at read time**
@@ -1163,5 +1165,6 @@ Current blocker map (what stalls what):
 
 _Last updated: 2026-09-19_ — quest/objective progression plan recorded
 (`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive pre-Overseer's-Office guidance and
-quest gates move to vault progress. Progression correctness remains P1; the D1 soft-lock stays a separate decision.
+quest gates follow the real-game level/equipment model with progressive reveal. Progression correctness remains P1;
+the D1 soft-lock stays a separate decision.
 The world map remains single-vault exploration; multiplayer is out of scope.

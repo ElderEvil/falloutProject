@@ -68,10 +68,12 @@ describe('describeGrantedReward', () => {
   })
 
   it('falls back to the generic item icon and label for an unknown item type', () => {
-    const reward: GrantedReward = { reward_type: 'item', item_type: 'pet', name: 'Dogmeat', amount: 1 }
-    expect(describeGrantedReward(reward).value).toBe('Dogmeat')
-    expect(describeGrantedReward(reward).icon).toBe('mdi:paw')
-    expect(describeGrantedReward(reward).label).toBe('Pet')
+    const reward: GrantedReward = { reward_type: 'item', item_type: 'unknown', name: 'Mystery Trinket', amount: 1 }
+    expect(describeGrantedReward(reward)).toEqual({
+      icon: 'mdi:package-variant',
+      label: 'Item',
+      value: 'Mystery Trinket',
+    })
   })
 
   it('renders a zero-amount medication as its bare label, like the backend summary', () => {

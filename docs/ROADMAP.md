@@ -232,6 +232,14 @@ bonus in. The bonus is effective-only, never persisted: 10 stored + 5 outfit = 1
 Migration `alembic/versions/2026_09_18_0003-c3d4e5f6a7b8_add_outfit_special_bonuses.py`; tests in
 `tests/test_services/test_outfit_special_bonuses.py`; evidence commit `b80231af`.
 
+### Dweller Detail — Item-Improved Stats Display (idea, Target: TBD)
+
+Show on the dweller detail page which stats are improved by equipped items. Outfit SPECIAL bonuses are
+effective-only today (`effective_stat` folds the equipped outfit's bonus in, never persisted) — surface the
+item-derived portion (base vs effective, e.g. "STR 10 → 15 (+5 from Vault Suit)") so an overseer can see why
+a stat reads higher than the dweller's stored SPECIAL. Effective-only presentation, nothing persisted;
+coordinate with the identity-dossier work so the presentation is shared rather than page-local.
+
 ### Radiation & Medical Reliability
 
 The irradiated-water overhaul shipped: drought radiation accrues at 1% of max health per tick after a grace period,

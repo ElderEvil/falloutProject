@@ -1,81 +1,9 @@
-<template>
-  <div class="children-list">
-    <div v-if="children.length === 0" class="empty-state">
-      <Icon icon="mdi:human-child" class="empty-icon" />
-      <p class="empty-text">No children growing in this vault yet.</p>
-      <p class="empty-hint">Partners need to conceive and give birth first!</p>
-    </div>
-
-    <div v-else class="children-grid">
-      <div v-for="child in children" :key="child.id" class="child-card">
-        <div class="child-header">
-          <div class="child-info">
-            <h3 class="child-name">{{ child.first_name }} {{ child.last_name }}</h3>
-          </div>
-          <Icon icon="mdi:human-child" class="child-avatar-icon" />
-        </div>
-
-        <div class="mb-4 flex items-center gap-1 whitespace-nowrap">
-          <DwellerBadge icon="mdi:human-child" color="var(--color-theme-primary)" :label="child.age_group" size="sm" />
-          <DwellerGenderBadge :gender="child.gender" :show-label="true" size="sm" />
-          <DwellerRarityBadge :rarity="child.rarity" :show-label="true" size="sm" />
-        </div>
-
-        <div class="child-details">
-          <div class="detail-row">
-            <span class="detail-label">Health:</span>
-            <span class="detail-value">{{ child.health }} / {{ child.max_health }}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Happiness:</span>
-            <span class="detail-value">{{ child.happiness }}%</span>
-          </div>
-        </div>
-
-        <div class="child-stats">
-          <div class="special-preview">
-            <div class="stat-mini">
-              <span class="stat-letter">S</span>
-              <span class="stat-val">{{ child.strength }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">P</span>
-              <span class="stat-val">{{ child.perception }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">E</span>
-              <span class="stat-val">{{ child.endurance }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">C</span>
-              <span class="stat-val">{{ child.charisma }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">I</span>
-              <span class="stat-val">{{ child.intelligence }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">A</span>
-              <span class="stat-val">{{ child.agility }}</span>
-            </div>
-            <div class="stat-mini">
-              <span class="stat-letter">L</span>
-              <span class="stat-val">{{ child.luck }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
-import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
-import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import DwellerChildCard from './DwellerChildCard.vue'
+import { allChildren } from '../../models/dwellerFamily'
 
 interface Props {
   vaultId: string
@@ -83,144 +11,31 @@ interface Props {
 
 defineProps<Props>()
 
+const emit = defineEmits<{ (e: 'select', dwellerId: string): void }>()
+
 const { filter: dwellerStore } = useDwellerStore()
 
-const children = computed(() => dwellerStore.dwellers.filter((d) => d.age_group === 'child'))
+const children = computed(() => allChildren(dwellerStore.allDwellers))
 </script>
 
-<style scoped>
-.children-list {
-  padding: 1rem 0;
-}
+<template>
+  <div class="py-4">
+    <div
+      v-if="children.length === 0"
+      class="flex flex-col items-center justify-center px-8 py-16 text-center"
+    >
+      <Icon icon="mdi:human-child" class="mb-4 h-16 w-16 text-theme-primary/30" />
+      <p class="mb-2 text-lg text-theme-primary">No children growing in this vault yet.</p>
+      <p class="text-sm text-theme-primary/60">Partners need to conceive and give birth first!</p>
+    </div>
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: var(--color-theme-primary);
-  opacity: 0.3;
-  margin-bottom: 1rem;
-}
-
-.empty-text {
-  font-size: 1.125rem;
-  color: var(--color-theme-primary);
-  margin-bottom: 0.5rem;
-}
-
-.empty-hint {
-  font-size: 0.875rem;
-  color: var(--color-theme-primary);
-  opacity: 0.6;
-}
-
-.children-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-}
-
-.child-card {
-  background: var(--color-surface);
-  border: 2px solid var(--color-theme-glow);
-  border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 0 10px var(--color-theme-glow);
-  transition: all 0.2s;
-}
-
-.child-card:hover {
-  box-shadow: 0 0 20px var(--color-theme-glow);
-  transform: translateY(-2px);
-}
-
-.child-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--color-theme-glow);
-}
-
-.child-info {
-  flex: 1;
-}
-
-.child-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 8px var(--color-theme-glow);
-  margin-bottom: 0.5rem;
-}
-
-.child-avatar-icon {
-  font-size: 2.5rem;
-  color: var(--color-theme-primary);
-  opacity: 0.5;
-}
-
-.child-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-}
-
-.detail-label {
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-
-.detail-value {
-  color: var(--color-theme-primary);
-  font-weight: 600;
-}
-
-.child-stats {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-theme-glow);
-}
-
-.special-preview {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.stat-mini {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.stat-letter {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  opacity: 0.7;
-}
-
-.stat-val {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-theme-primary);
-  text-shadow: 0 0 5px var(--color-theme-glow);
-}
-</style>
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+      <DwellerChildCard
+        v-for="child in children"
+        :key="child.id"
+        :dweller="child"
+        @select="emit('select', $event)"
+      />
+    </div>
+  </div>
+</template>

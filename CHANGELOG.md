@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.130.0 (2026-09-20)
+
+### Features
+
+* **social:** coherent relationship-stage badge ladder f15cbba
+* **social:** make the relationships page a families hub 492fd95
+* **social:** unify children and couple identity on the relationships page 9c99d5d
+
+### Bug Fixes
+
+* address CodeRabbit round-2 review on the relationships page b3c69a8
+* **relationships:** enforce one committed relationship per dweller c96d8d2
+* **social:** apply CodeRabbit a11y feedback on the relationships page 5087de3
+* **social:** make grid dweller portraits fill the couple-card button height 5395ff6
+* **social:** nest family-strip tests inside the RelationshipCard describe 212ca0c
+* **social:** vertical dweller buttons in the relationships grid view 6cb5a86
+
+### Documentation
+
+* **roadmap:** record item-improved-stats display idea da574f7
+* **roadmap:** record Sims-family-tree design reference for the family tab 65a9b74
+
+### Code Refactoring
+
+* **social:** fold per-couple children into a family strip on the couple card 227ad33
+
 ## 2.129.0 (2026-09-20)
 
 ### Features

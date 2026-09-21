@@ -4,9 +4,21 @@
       <!-- Parent names -->
       <div class="min-w-0">
         <div class="flex items-center gap-2 min-w-0">
+          <DwellerPortrait
+            :thumbnail-url="mother?.thumbnail_url"
+            :alt="motherName"
+            prefer-thumbnail
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
+          />
           <span class="font-mono text-sm truncate">{{ motherName }}</span>
           <span class="shrink-0 text-pink-400">+</span>
           <span class="font-mono text-sm truncate">{{ fatherName }}</span>
+          <DwellerPortrait
+            :thumbnail-url="father?.thumbnail_url"
+            :alt="fatherName"
+            prefer-thumbnail
+            image-class="h-8 w-8 shrink-0 rounded object-cover" fallback-class="h-8 w-8 shrink-0 text-theme-primary/60"
+          />
         </div>
 
         <!-- Status badge -->
@@ -55,19 +67,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Pregnancy } from '../../models/pregnancy'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { usePregnancyStore } from '../../stores/pregnancy'
+import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import UCard from '@/core/components/ui/UCard.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 
 interface Props {
   pregnancy: Pregnancy
-  motherName: string
-  fatherName: string
+  mother?: DwellerShort | null
+  father?: DwellerShort | null
   isDelivering?: boolean
 }
 
-const { isDelivering = false, fatherName, motherName, pregnancy } = defineProps<Props>()
+const { isDelivering = false, father, mother, pregnancy } = defineProps<Props>()
 
 defineEmits<{
   deliver: []
@@ -75,6 +89,18 @@ defineEmits<{
 
 const pregnancyStore = usePregnancyStore()
 
+/** Display name of the mother, falling back to "Unknown" when not loaded. */
+const motherName = computed(() => formatDwellerName(mother))
+
+/** Display name of the father, falling back to "Unknown" when not loaded. */
+const fatherName = computed(() => formatDwellerName(father))
+
+/** Format a dweller's full name, or "Unknown" when the dweller is absent. */
+function formatDwellerName(dweller: DwellerShort | null | undefined): string {
+  return dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Unknown'
+}
+
+/** Badge variant reflecting the pregnancy status and due state. */
 const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
   switch (pregnancy.status) {
     case 'pregnant':
@@ -88,6 +114,7 @@ const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'de
   }
 })
 
+/** Human-readable time remaining until the pregnancy is due. */
 const timeRemaining = computed(() => {
   return pregnancyStore.formatTimeRemaining(pregnancy.time_remaining_seconds)
 })

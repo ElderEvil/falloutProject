@@ -232,6 +232,14 @@ bonus in. The bonus is effective-only, never persisted: 10 stored + 5 outfit = 1
 Migration `alembic/versions/2026_09_18_0003-c3d4e5f6a7b8_add_outfit_special_bonuses.py`; tests in
 `tests/test_services/test_outfit_special_bonuses.py`; evidence commit `b80231af`.
 
+### Dweller Detail — Item-Improved Stats Display (idea, Target: TBD)
+
+Show on the dweller detail page which stats are improved by equipped items. Outfit SPECIAL bonuses are
+effective-only today (`effective_stat` folds the equipped outfit's bonus in, never persisted) — surface the
+item-derived portion (base vs effective, e.g. "STR 10 → 15 (+5 from Vault Suit)") so an overseer can see why
+a stat reads higher than the dweller's stored SPECIAL. Effective-only presentation, nothing persisted;
+coordinate with the identity-dossier work so the presentation is shared rather than page-local.
+
 ### Radiation & Medical Reliability
 
 The irradiated-water overhaul shipped: drought radiation accrues at 1% of max health per tick after a grace period,
@@ -569,6 +577,10 @@ cooldown and naming fixes.
 - 🔲 **Phase 1 — graph visualization.** Replace/augment the rows panel with a real graph (parents →
   dweller + partners → children, multi-generation). Reuse lineage API as-is; no backend change. Extract
   shared lineage/tree helpers instead of duplicating traversal logic.
+  **Design reference (recorded 2026-09-20):** model the tree after The Sims' family tree — horizontal
+  generation rows, head portraits (small circular) connected by vertical parent→child lines, partners
+  side-by-side with a link between them. The same shape should later serve the vault-level family graph
+  on the relationships page.
 - 🔲 **Phase 2 — stage-change celebration.** Relationship stage upgrades (especially MARRIED) currently pass
   silently except happiness math. Surface them under the progression-visibility red line: modal/toast +
   notification, same as quest/objective completion. Backend already emits the transitions; this is frontend

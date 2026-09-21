@@ -34,8 +34,8 @@
         v-for="pregnancy in sortedPregnancies"
         :key="pregnancy.id"
         :pregnancy="pregnancy"
-        :motherName="getDwellerName(pregnancy.mother_id)"
-        :fatherName="getDwellerName(pregnancy.father_id)"
+        :mother="getDweller(pregnancy.mother_id)"
+        :father="getDweller(pregnancy.father_id)"
         :isDelivering="deliveringId === pregnancy.id"
         @deliver="deliverBaby(pregnancy.id)"
       />
@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import UButton from '@/core/components/ui/UButton.vue'
 import UBadge from '@/core/components/ui/UBadge.vue'
@@ -71,10 +72,12 @@ const isLoading = computed(() => pregnancyStore.isLoading)
 const deliveringId = ref<string | null>(null)
 const error = ref<string | null>(null)
 
+/** Number of pregnancies that are currently due for delivery. */
 const dueCount = computed(() => {
   return pregnancies.value.filter((p) => p.is_due).length
 })
 
+/** Active pregnancies sorted with due ones first, then by progress. */
 const sortedPregnancies = computed(() => {
   return [...pregnancies.value].sort((a, b) => {
     // Due pregnancies first
@@ -85,11 +88,19 @@ const sortedPregnancies = computed(() => {
   })
 })
 
-function getDwellerName(dwellerId: string): string {
-  const dweller = dwellerStore.dwellers.find((d) => d.id === dwellerId)
-  return dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Unknown'
+/**
+ * Resolve a dweller by id from the roster, preferring the full dweller list
+ * and falling back to the filtered list. Returns undefined when the dweller
+ * has not been loaded yet.
+ */
+function getDweller(dwellerId: string): DwellerShort | undefined {
+  return (
+    dwellerStore.allDwellers.find((d) => d.id === dwellerId) ??
+    dwellerStore.dwellers.find((d) => d.id === dwellerId)
+  )
 }
 
+/** Reload the vault's pregnancies, capturing any failure into `error`. */
 async function refreshPregnancies() {
   error.value = null
   try {
@@ -99,10 +110,12 @@ async function refreshPregnancies() {
   }
 }
 
+/** Re-run the initial pregnancy load after an error. */
 function retryFetch() {
   refreshPregnancies()
 }
 
+/** Deliver a baby, refreshing the dweller roster so the newborn appears. */
 async function deliverBaby(pregnancyId: string) {
   deliveringId.value = pregnancyId
   try {

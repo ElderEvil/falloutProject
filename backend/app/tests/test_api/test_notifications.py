@@ -178,3 +178,64 @@ async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession
 
     rows = await notification_crud.get_user_notifications(async_session, user_id=user.id)
     assert any(row.id == notification.id for row in rows)
+
+
+# =============================================================================
+# Read-state behavior (AUDIT.md P3): dismissed rows must not be counted or
+# marked read, and the reads must not be row-oriented.
+# =============================================================================
+
+
+async def _create_notification(async_session: AsyncSession, user_id, title: str):
+    return await notification_crud.create(
+        async_session,
+        obj_in=NotificationCreate(
+            user_id=user_id,
+            notification_type=NotificationType.LEVEL_UP,
+            title=title,
+            message=f"{title} message",
+        ),
+    )
+
+
+async def test_mark_all_read_excludes_dismissed(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """Dismissing a notification takes it out of the mark-all-read sweep.
+
+    A dismissed-but-unread row used to be marked read and counted, so the
+    response over-reported and a dismissed notification silently flipped state.
+    """
+    user = await _normal_user(async_session)
+    visible = await _create_notification(async_session, user.id, "Visible")
+    dismissed = await _create_notification(async_session, user.id, "Dismissed")
+    await notification_crud.dismiss(async_session, notification_id=dismissed.id, user_id=user.id)
+
+    response = await async_client.post("/notifications/mark-all-read", headers=normal_user_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()["marked_read"] == 1
+
+    await async_session.refresh(visible)
+    await async_session.refresh(dismissed)
+    assert visible.is_read is True
+    assert dismissed.is_read is False
+
+
+async def test_unread_count_excludes_dismissed(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """The unread badge counts only visible unread notifications."""
+    user = await _normal_user(async_session)
+    await _create_notification(async_session, user.id, "Visible")
+    dismissed = await _create_notification(async_session, user.id, "Dismissed")
+    await notification_crud.dismiss(async_session, notification_id=dismissed.id, user_id=user.id)
+
+    response = await async_client.get("/notifications/unread-count", headers=normal_user_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 1

@@ -1,7 +1,7 @@
 """add expedition_run table for interactive expedition sites
 
 Revision ID: b74a718e1e92
-Revises: 32bf7f844093
+Revises: f0e1d2c3b4a5
 Create Date: 2026-09-21 00:00:00.000000
 
 One row per site attempt: room cursor, open/finished status, flags, and the
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b74a718e1e92"
-down_revision: str | None = "32bf7f844093"
+down_revision: str | None = "f0e1d2c3b4a5"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -50,6 +50,14 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_expeditionrun_id"), "expeditionrun", ["id"], unique=False)
     op.create_index(op.f("ix_expeditionrun_exploration_id"), "expeditionrun", ["exploration_id"], unique=False)
+    # Backstop against concurrent entries: at most one open run per exploration.
+    op.create_index(
+        "uq_expeditionrun_open_exploration",
+        "expeditionrun",
+        ["exploration_id"],
+        unique=True,
+        postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+    )
     op.create_index(op.f("ix_expeditionrun_vault_id"), "expeditionrun", ["vault_id"], unique=False)
     op.create_index(op.f("ix_expeditionrun_dweller_id"), "expeditionrun", ["dweller_id"], unique=False)
     op.create_index(op.f("ix_expeditionrun_site_id"), "expeditionrun", ["site_id"], unique=False)

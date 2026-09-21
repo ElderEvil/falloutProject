@@ -109,7 +109,7 @@ async def _get_exploration(db_session: AsyncSession, exploration_id: UUID4) -> E
 
 
 async def _get_open_run(db_session: AsyncSession, exploration_id: UUID4) -> ExpeditionRun:
-    run = await crud.expedition_run.get_open_for_exploration(db_session, exploration_id)
+    run = await crud.expedition_run.get_open_for_exploration_for_update(db_session, exploration_id)
     if run is None:
         raise ValidationException("No open expedition run for this exploration")
     return run
@@ -118,7 +118,7 @@ async def _get_open_run(db_session: AsyncSession, exploration_id: UUID4) -> Expe
 async def _log_site_event(db_session: AsyncSession, exploration: Exploration, description: str) -> None:
     exploration.add_event(event_type="site", description=description)
     db_session.add(exploration)
-    await db_session.commit()
+    await db_session.flush()
 
 
 async def _apply_radiation(db_session: AsyncSession, exploration: Exploration, rads: int) -> None:
@@ -199,8 +199,8 @@ async def _fight_enemy(
     db_session: AsyncSession, exploration: Exploration, enemy: EnemySchema, result: BranchResult
 ) -> None:
     outcome = combat_calculator.calculate_combat_outcome(exploration, enemy)
+    exploration.enemies_encountered += 1
     if outcome.victory:
-        exploration.enemies_encountered += 1
         result.texts.append(f"Defeated {enemy.name}!")
     else:
         result.texts.append(f"Overpowered by {enemy.name}!")
@@ -324,7 +324,6 @@ async def _pay_reward_vault(
         result.loot_gained.append(f"{junk.name} ({junk.rarity})")
     for _ in range(vault.stimpaks):
         apply_loot_find(exploration, item_name="Stimpak", rarity="Common", item_type="stimpak", caps=0)
-        exploration.stimpaks += 1
         result.loot_gained.append("Stimpak")
 
 
@@ -370,7 +369,7 @@ def build_view(
 
 async def _refresh_run(db_session: AsyncSession, run: ExpeditionRun) -> ExpeditionRun:
     db_session.add(run)
-    await db_session.commit()
+    await db_session.flush()
     await db_session.refresh(run)
     return run
 
@@ -412,6 +411,7 @@ class ExpeditionService:
             site_id=site_id,
         )
         await _log_site_event(db_session, exploration, f"Entered {site.name}: {site.rooms[0].flavor}")
+        await db_session.commit()
         return build_view(exploration_id, site, run, exploration)
 
     async def current_view(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView | None:
@@ -431,6 +431,12 @@ class ExpeditionService:
         """Resolve the current room node and advance the cursor (or finish the run)."""
         exploration = await _get_exploration(db_session, exploration_id)
         run = await _get_open_run(db_session, exploration_id)
+        dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        if dweller_obj.is_dead:
+            run.status = ExpeditionRunStatus.DIED
+            await _refresh_run(db_session, run)
+            await db_session.commit()
+            raise ValidationException("The exploring dweller is dead")
         site = data_loader.get_expedition_site(run.site_id)
         if site is None:
             raise ValidationException(f"Unknown expedition site: {run.site_id!r}")
@@ -455,6 +461,7 @@ class ExpeditionService:
             run.status = ExpeditionRunStatus.IN_ROOM
             run.room_cursor = min(run.room_cursor + 1, len(site.rooms) - 1)
         run = await _refresh_run(db_session, run)
+        await db_session.commit()
         return build_view(exploration_id, site, run, exploration, outcome=outcome, finale_paid=finale_paid)
 
     async def retreat_run(self, db_session: AsyncSession, exploration_id: UUID4) -> SiteRoomView:
@@ -467,6 +474,7 @@ class ExpeditionService:
         run.status = ExpeditionRunStatus.RETREATED
         run = await _refresh_run(db_session, run)
         await _log_site_event(db_session, exploration, f"Retreated from {site.name} with whatever was carried.")
+        await db_session.commit()
         return build_view(exploration_id, site, run, exploration)
 
 

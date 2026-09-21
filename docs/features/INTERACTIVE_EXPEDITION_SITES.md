@@ -5,8 +5,12 @@ original game (Super Duper Mart, Red Rocket gas station): a dweller discovers a
 hand-authored building, the player clears it room by room through combat and
 question nodes, and a finale pays a reward above the random-event budget.
 
-Status: **design mockup, nothing is wired**. All names, numbers, and schemas below are
-proposals. Nothing here changes runtime behavior until the rollout plan in §13 lands.
+Status: **backend slice experimentally implemented** (site JSON + `ExpeditionRun`
+model/migration + resolution engine + enter/resolve/retreat/current endpoints, all
+test-backed). **Deferred**: frontend integration (site modal, store, journal icon)
+and automatic site-entry from discovery events (entering is explicit for now).
+All names, numbers, and schemas below are proposals until the rollout plan in §13
+lands them; nothing here changes the random-event economy.
 
 ## 1. Why
 

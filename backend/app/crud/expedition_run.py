@@ -4,10 +4,12 @@ from datetime import datetime
 
 from pydantic import UUID4
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.exploration import ExpeditionRun, ExpeditionRunStatus
+from app.utils.exceptions import ResourceConflictException
 
 
 class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
@@ -30,7 +32,13 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
             site_id=site_id,
         )
         db_session.add(run)
-        await db_session.commit()
+        try:
+            await db_session.commit()
+        except IntegrityError as e:
+            await db_session.rollback()
+            raise ResourceConflictException(
+                "This exploration already has an open expedition run"
+            ) from e
         await db_session.refresh(run)
         return run
 
@@ -40,6 +48,18 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
             select(ExpeditionRun)
             .where(ExpeditionRun.exploration_id == exploration_id)
             .where(ExpeditionRun.status.in_([ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM]))
+        )
+        return result.scalars().first()
+
+    async def get_open_for_exploration_for_update(
+        self, db_session: AsyncSession, exploration_id: UUID4
+    ) -> ExpeditionRun | None:
+        """Return the open run locked FOR UPDATE so concurrent resolutions serialize."""
+        result = await db_session.execute(
+            select(ExpeditionRun)
+            .where(ExpeditionRun.exploration_id == exploration_id)
+            .where(ExpeditionRun.status.in_([ExpeditionRunStatus.ENTERED, ExpeditionRunStatus.IN_ROOM]))
+            .with_for_update()
         )
         return result.scalars().first()
 

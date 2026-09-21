@@ -16,4 +16,13 @@ MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
 def test_revision_chain() -> None:
     assert MIGRATION.revision == "b74a718e1e92"
-    assert MIGRATION.down_revision == "32bf7f844093"
+    assert MIGRATION.down_revision == "f0e1d2c3b4a5"
+
+
+def test_open_run_partial_unique_index() -> None:
+    import inspect
+
+    source = inspect.getsource(MIGRATION.upgrade)
+    assert "uq_expeditionrun_open_exploration" in source
+    assert "ENTERED" in source
+    assert "IN_ROOM" in source

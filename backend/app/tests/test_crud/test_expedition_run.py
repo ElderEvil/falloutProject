@@ -12,7 +12,7 @@ from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 
 async def _make_exploration(async_session: AsyncSession):
@@ -96,6 +96,26 @@ async def test_recent_clear_found_for_anti_farm(async_session: AsyncSession):
         async_session, vault_id=vault.id, site_id="red_rocket", since=datetime.utcnow() + timedelta(days=1)
     )
     assert old is None
+
+
+@pytest.mark.asyncio
+async def test_second_open_run_conflicts(async_session: AsyncSession):
+    vault, dweller, exploration = await _make_exploration(async_session)
+    await crud.expedition_run.create_run(
+        async_session,
+        exploration_id=exploration.id,
+        vault_id=vault.id,
+        dweller_id=dweller.id,
+        site_id="red_rocket",
+    )
+    with pytest.raises(ResourceConflictException, match="already has an open expedition run"):
+        await crud.expedition_run.create_run(
+            async_session,
+            exploration_id=exploration.id,
+            vault_id=vault.id,
+            dweller_id=dweller.id,
+            site_id="red_rocket",
+        )
 
 
 @pytest.mark.asyncio

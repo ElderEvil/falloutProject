@@ -194,6 +194,16 @@ class ExpeditionRunStatus(StrEnum):
 class ExpeditionRun(BaseUUIDModel, TimeStampMixin, table=True):
     """One attempt at an expedition site: room cursor plus anti-farm record."""
 
+    __table_args__ = (
+        sa.Index(
+            "uq_expeditionrun_open_exploration",
+            "exploration_id",
+            unique=True,
+            postgresql_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+            sqlite_where=sa.text("status IN ('ENTERED', 'IN_ROOM')"),
+        ),
+    )
+
     exploration_id: UUID4 = Field(foreign_key="exploration.id", index=True, ondelete="CASCADE")
     vault_id: UUID4 = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     dweller_id: UUID4 = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")

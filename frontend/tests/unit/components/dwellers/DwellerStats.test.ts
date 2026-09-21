@@ -211,5 +211,22 @@ describe('DwellerStats', () => {
       expect(bar.attributes('title')).toBe('Base 5 + +5 Vault Suit = 10 effective')
       expect(bar.attributes('aria-label')).toContain('Strength: Base 5')
     })
+
+    it('should render taglines from the shared guide', () => {
+      const { wrapper } = mountStats()
+      const descriptions = wrapper.findAll('.stat-description').map((d) => d.text())
+      expect(descriptions[0]).toContain('power rooms')
+      expect(descriptions[3]).toContain('recruits')
+    })
+  })
+
+  describe('Field Guide', () => {
+    it('should open the guide modal from the info button', async () => {
+      const { wrapper } = mountStats()
+      const modal = wrapper.findComponent({ name: 'SpecialGuideModal' })
+      expect(modal.props('modelValue')).toBe(false)
+      await wrapper.find('button[aria-label="Open SPECIAL field guide"]').trigger('click')
+      expect(modal.props('modelValue')).toBe(true)
+    })
   })
 })

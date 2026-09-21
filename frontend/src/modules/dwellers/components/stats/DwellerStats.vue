@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import { UButton } from '@/core/components/ui'
 import type { Dweller } from '../../models/dweller'
 import { describeBonusSources, getSpecialBreakdown } from '../../models/specialBreakdown'
+import { SPECIAL_TAGLINES } from '../../models/specialGuide'
 import { useDwellerDetailContext } from '../DwellerDetailContext'
+import SpecialGuideModal from './SpecialGuideModal.vue'
 
 const ctx = useDwellerDetailContext()
+
+const guideOpen = ref(false)
 
 type StatKey = {
   [Key in keyof Dweller]-?: Dweller[Key] extends number ? Key : never
@@ -19,13 +24,13 @@ const statValue = (key: StatKey): number => {
 }
 
 const stats: Array<{ key: StatKey; label: string; description: string }> = [
-  { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
-  { key: 'P', label: 'Perception', description: 'Accuracy and awareness' },
-  { key: 'E', label: 'Endurance', description: 'Health and radiation resistance' },
-  { key: 'C', label: 'Charisma', description: 'Radio recruitment rate' },
-  { key: 'I', label: 'Intelligence', description: 'Crafting and science efficiency' },
-  { key: 'A', label: 'Agility', description: 'Speed and weapon reload' },
-  { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },
+  { key: 'S', label: 'Strength', description: SPECIAL_TAGLINES.Strength },
+  { key: 'P', label: 'Perception', description: SPECIAL_TAGLINES.Perception },
+  { key: 'E', label: 'Endurance', description: SPECIAL_TAGLINES.Endurance },
+  { key: 'C', label: 'Charisma', description: SPECIAL_TAGLINES.Charisma },
+  { key: 'I', label: 'Intelligence', description: SPECIAL_TAGLINES.Intelligence },
+  { key: 'A', label: 'Agility', description: SPECIAL_TAGLINES.Agility },
+  { key: 'L', label: 'Luck', description: SPECIAL_TAGLINES.Luck },
 ]
 
 const statKeyByLowercase = stats.reduce<Record<string, StatKey>>((acc, stat) => {
@@ -153,9 +158,13 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 
 <template>
   <div class="dweller-stats">
-    <div class="panel-header">
+    <div class="panel-header guide-header-row">
       <h3 class="stats-title panel-title">S.P.E.C.I.A.L.</h3>
+      <UButton variant="ghost" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
+        <Icon icon="mdi:information-outline" class="guide-icon" />
+      </UButton>
     </div>
+    <SpecialGuideModal v-model="guideOpen" />
     <div class="stats-grid">
       <div
         v-for="stat in stats"
@@ -263,6 +272,17 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.guide-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guide-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .stats-grid {

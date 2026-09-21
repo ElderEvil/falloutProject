@@ -34,9 +34,13 @@ logger = logging.getLogger(__name__)
 current_session_maker: contextvars.ContextVar[Any] = contextvars.ContextVar("current_session_maker", default=None)
 
 
-def set_current_session_maker(maker: Any) -> None:
-    """Set the session maker for the current event loop's context."""
-    current_session_maker.set(maker)
+def set_current_session_maker(maker: Any) -> contextvars.Token:
+    """Set the session maker for the current event loop's context.
+
+    Returns the ``contextvars`` token so the caller can restore the previous
+    value via ``current_session_maker.reset(token)``.
+    """
+    return current_session_maker.set(maker)
 
 
 class ObjectiveEvaluator(abc.ABC):

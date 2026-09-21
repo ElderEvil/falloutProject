@@ -10,7 +10,7 @@ export const SPECIAL_TAGLINES: Record<string, string> = {
   Strength: 'Brute force — power rooms and melee',
   Perception: 'Sharp eyes — water production and caps',
   Endurance: 'Grit — shrugs damage, roams farther',
-  Charisma: 'Charm — radio rooms and new recruits',
+  Charisma: 'Charm — radio recruits and relationships',
   Intelligence: 'Smarts — medbay output and energy weapons',
   Agility: 'Quick hands — food production and combat speed',
   Luck: 'Fortune — rare loot and fat caps',
@@ -54,6 +54,7 @@ export const SPECIAL_GUIDE: SpecialGuideEntry[] = [
     effects: [
       'Each point speeds radio recruitment (+5%)',
       'Radio room output scales with Charisma',
+      'High Charisma on both sides speeds relationship affinity',
     ],
   },
   {

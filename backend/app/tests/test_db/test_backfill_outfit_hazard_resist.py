@@ -11,8 +11,7 @@ import importlib.util
 from pathlib import Path
 
 MIGRATION_PATH = (
-    Path(__file__).parents[2]
-    / "alembic/versions/2026_09_21_0001-e5f6a7b8c9d0_backfill_outfit_hazard_resist.py"
+    Path(__file__).parents[2] / "alembic/versions/2026_09_21_0001-e5f6a7b8c9d0_backfill_outfit_hazard_resist.py"
 )
 MIGRATION_SPEC = importlib.util.spec_from_file_location("backfill_outfit_hazard_resist", MIGRATION_PATH)
 assert MIGRATION_SPEC

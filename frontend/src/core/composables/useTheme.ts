@@ -141,11 +141,6 @@ export function useTheme() {
     root.style.setProperty('--color-theme-primary-rgb', hexToRgb(theme.colors.primary))
     root.style.setProperty('--color-theme-secondary-rgb', hexToRgb(theme.colors.secondary))
     root.style.setProperty('--color-theme-accent-rgb', hexToRgb(theme.colors.accent))
-
-    // Legacy support (some components may still use these)
-    root.style.setProperty('--color-primary', theme.colors.primary)
-    root.style.setProperty('--color-secondary', theme.colors.secondary)
-    root.style.setProperty('--color-accent', theme.colors.accent)
   }
 
   // Apply theme on initialization

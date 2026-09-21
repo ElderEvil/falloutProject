@@ -540,7 +540,7 @@ onMounted(() => {
 
 .loading-icon {
   font-size: 3rem;
-  color: var(--color-primary);
+  color: var(--color-theme-primary);
 }
 
 .settings-content {
@@ -555,7 +555,7 @@ onMounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: var(--color-primary);
+  color: var(--color-theme-primary);
 }
 
 .subsection-title {

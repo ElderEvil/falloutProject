@@ -4,7 +4,6 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -12,11 +11,9 @@ from app.api.deps import CurrentActiveUser, CurrentSuperuser, get_user_vault_or_
 from app.core.game_config import game_config
 from app.db.session import get_async_session
 from app.models.incident import IncidentType
-from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.incident import (
     DeleteIncidentsResponse,
-    IncidentListItem,
     IncidentListResponse,
     IncidentRead,
     IncidentRespondersRequest,
@@ -155,31 +152,7 @@ async def list_incidents(
     Returns:
         IncidentListResponse: List of active incidents.
     """
-    incidents = await crud.incident_crud.get_active_by_vault(db_session, vault.id)
-
-    room_ids = [incident.room_id for incident in incidents]
-    rooms_result = await db_session.execute(select(Room).where(col(Room.id).in_(room_ids))) if room_ids else None
-    room_names = {room.id: room.name for room in rooms_result.scalars().all()} if rooms_result else {}
-
-    return IncidentListResponse(
-        vault_id=str(vault.id),
-        incident_count=len(incidents),
-        incidents=[
-            IncidentListItem(
-                id=str(incident.id),
-                type=incident.type,
-                status=incident.status,
-                room_id=str(incident.room_id),
-                room_name=room_names.get(incident.room_id),
-                difficulty=incident.difficulty,
-                start_time=incident.start_time.isoformat(),
-                elapsed_time=incident.elapsed_time(),
-                damage_dealt=incident.damage_dealt,
-                enemies_defeated=incident.enemies_defeated,
-            )
-            for incident in incidents
-        ],
-    )
+    return await incident_service.get_active_incident_list(db_session, vault.id)
 
 
 @router.get(
@@ -209,15 +182,9 @@ async def get_incident(
         IncidentRead: Incident details.
 
     Raises:
-        HTTPException: 404 if incident not found.
+        ResourceNotFoundException: 404 if the incident is not in this vault.
     """
-    incident = await crud.incident_crud.get(db_session, incident_id)
-    if not incident or incident.vault_id != vault.id:
-        raise HTTPException(status_code=404, detail="Incident not found")
-
-    room = await db_session.get(Room, incident.room_id)
-
-    return await incident_service.get_incident_read(db_session, incident, room.name if room else None)
+    return await incident_service.get_incident_read_for_vault(db_session, vault.id, incident_id)
 
 
 @router.post("/vaults/{vault_id}/tick", status_code=200)

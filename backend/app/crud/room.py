@@ -80,6 +80,14 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list(response.scalars().all() or [])
 
     @staticmethod
+    async def get_names_by_ids(db_session: AsyncSession, room_ids: list[UUID4]) -> dict[UUID4, str]:
+        """Map room id to name for the given ids; empty when none are given."""
+        if not room_ids:
+            return {}
+        response = await db_session.execute(select(Room.id, Room.name).where(Room.id.in_(room_ids)))
+        return {row[0]: row[1] for row in response.all()}
+
+    @staticmethod
     async def get_existing_room_names(*, db_session: AsyncSession, vault_id: UUID4) -> set[str]:
         """Get set of lowercase room names that exist in a vault."""
         response = await db_session.execute(select(Room.name).where(Room.vault_id == vault_id))

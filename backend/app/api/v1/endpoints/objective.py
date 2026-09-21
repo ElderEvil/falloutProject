@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,6 +16,7 @@ from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 from app.services.reward_service import reward_service
+from app.utils.exceptions import ResourceNotFoundException
 
 router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depends(get_current_active_user)])
 
@@ -119,9 +120,9 @@ async def assign_random_objectives(
         HTTPException: 404 if vault not found.
     """
     # Validate vault exists first to avoid orphan links
-    vault = await db_session.get(Vault, vault_id)
+    vault = await crud.vault.get_or_none(db_session, vault_id)
     if not vault:
-        raise HTTPException(status_code=404, detail=f"Vault {vault_id} not found")
+        raise ResourceNotFoundException(model=Vault, identifier=vault_id)
 
     service = ObjectiveAssignmentService(db_session)
     assigned = await service.assign_random_objectives(vault_id, count)

@@ -11,6 +11,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import HappinessDashboard from '../components/HappinessDashboard.vue'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
+import { setRadioMode } from '@/modules/radio/api/radio'
 import { Icon } from '@iconify/vue'
 
 const { isCollapsed } = useSidePanel()
@@ -83,8 +84,17 @@ const handleAssignIdle = () => {
   router.push(`/vault/${vaultId.value}/dwellers?filter=idle`)
 }
 
-const handleActivateRadio = () => {
-  router.push(`/vault/${vaultId.value}`)
+const { run: runActivateRadio } = useAsyncAction(
+  async (currentVaultId: string, token: string) => {
+    await setRadioMode(currentVaultId, 'happiness')
+    await vaultStore.refreshVault(currentVaultId, token)
+  },
+  { context: 'Failed to activate radio mode' }
+)
+
+const handleActivateRadio = async () => {
+  if (!vaultId.value || !authStore.token) return
+  await runActivateRadio(vaultId.value, authStore.token)
 }
 
 const handleViewLowHappiness = () => {

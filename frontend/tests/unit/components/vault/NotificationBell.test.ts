@@ -277,4 +277,66 @@ describe('NotificationBell SSE watcher null-safety', () => {
 
     wrapper.unmount()
   })
+
+  it('toasts a level-up in addition to the bell entry (progression red line)', async () => {
+    // ARRANGE: authenticated user, SSE delivers a level_up notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    fetchMock.mockResolvedValue(createMockResponse([encodeSse(notifData, 'notification')], { hang: true }))
+
+    // ACT
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: level-up surfaced beyond the bell, not notification-only
+    expect(toasts.value.some((t) => t.message === 'A dweller reached a new level')).toBe(true)
+
+    // ASSERT: and it still produced a normal bell entry
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Level Up!')
+
+    wrapper.unmount()
+  })
+
+  it('leaves an informational event bell-only', async () => {
+    // ARRANGE: a resource warning is not a progression event, so it must not toast
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const informationalData = JSON.stringify({
+      notification: {
+        id: 'n3',
+        notification_type: 'resource_low',
+        title: 'Water Low',
+        message: 'Water reserves are running low',
+        priority: 'normal',
+        created_at: '2026-08-11T10:00:00',
+        meta_data: {},
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(informationalData, 'notification')], { hang: true })
+    )
+
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: no toast for an informational event
+    expect(toasts.value.some((t) => t.message === 'Water reserves are running low')).toBe(false)
+
+    // ASSERT: it still lands in the bell
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Water Low')
+
+    wrapper.unmount()
+  })
 })

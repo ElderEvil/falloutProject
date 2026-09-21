@@ -8,6 +8,7 @@ import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useSound } from '@/core/composables/useSound'
 import { useToast } from '@/core/composables/useToast'
 import { addPendingReport } from '@/modules/exploration/composables/usePendingReports'
+import { progressionSurfaceFor } from './progressionSurfaces'
 import axios from '@/core/plugins/axios'
 
 interface Notification {
@@ -133,8 +134,9 @@ watch(currentSseEvent, (evt) => {
     notifications.value.unshift(newNotif)
     unreadCount.value++
     playSound('notification')
-    // A hazard team join surfaces beyond the bell (progression red line).
-    if (notificationData.notification_type === 'hazard_team_joined') {
+    // Progression red line: the matrix decides which events also get a toast,
+    // so progression is never notification-only.
+    if (progressionSurfaceFor(notificationData.notification_type) === 'toast') {
       toast.success(notificationData.message)
     }
 })

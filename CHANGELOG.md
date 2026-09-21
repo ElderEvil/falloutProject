@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.5 (2026-09-21)
+
+### Bug Fixes
+
+* remove the superseded standalone radio route e39391f
+* restore ProfileRead as the profile endpoint wire schema 3721e82, closes #721
+* run passive radio recruitment in the game tick 930fe97
+
+### Code Refactoring
+
+* drop the orphaned radio store 0600fbb
+
 ## 2.131.4 (2026-09-21)
 
 ### Bug Fixes

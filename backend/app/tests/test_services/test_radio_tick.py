@@ -80,7 +80,9 @@ async def test_recruits_when_the_roll_succeeds(async_session: AsyncSession, vaul
 
 
 @pytest.mark.asyncio
-async def test_does_not_recruit_when_the_roll_fails(async_session: AsyncSession, vault: Vault, radio_room: Room) -> None:
+async def test_does_not_recruit_when_the_roll_fails(
+    async_session: AsyncSession, vault: Vault, radio_room: Room
+) -> None:
     """A losing roll recruits nobody."""
     await _set_radio_mode(async_session, vault, "recruitment")
     before = await crud.dweller.count_in_vault(async_session, vault.id)
@@ -139,7 +141,9 @@ async def test_process_vault_tick_runs_the_radio_phase(async_session: AsyncSessi
         patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
         patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
         patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
-        patch.object(game_loop_service, "_process_radio", new_callable=AsyncMock, return_value={"recruited": 1}) as radio,
+        patch.object(
+            game_loop_service, "_process_radio", new_callable=AsyncMock, return_value={"recruited": 1}
+        ) as radio,
     ):
         mr.return_value = (mock_update, ResourceTickEvents())
         result = await game_loop_service.process_vault_tick(async_session, vault.id)

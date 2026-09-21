@@ -36,9 +36,7 @@ class CRUDExpeditionRun(CRUDBase[ExpeditionRun, ExpeditionRun, ExpeditionRun]):
             await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
-            raise ResourceConflictException(
-                "This exploration already has an open expedition run"
-            ) from e
+            raise ResourceConflictException("This exploration already has an open expedition run") from e
         await db_session.refresh(run)
         return run
 

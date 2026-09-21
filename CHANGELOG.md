@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.2 (2026-09-21)
+
+### Bug Fixes
+
+* backfill outfit hazard resistance for legacy rows c117fb1
+
 ## 2.131.1 (2026-09-21)
 
 ### Bug Fixes

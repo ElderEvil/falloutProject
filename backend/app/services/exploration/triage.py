@@ -35,13 +35,19 @@ class TriageResult:
 
 
 def parse_choice_answer(answer: dict) -> tuple[str | None, float]:
-    """Extract (choice, confidence) from a choice answer in either known Zen shape."""
+    """Extract (choice, confidence) from a choice answer; (None, 0.0) unless sane."""
     if not isinstance(answer, dict):
         return None, 0.0
     choice = answer.get("choice")
     if not isinstance(choice, str):
         return None, 0.0
-    return choice, float(answer.get("confidence", 0.0))
+    try:
+        confidence = float(answer.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        return None, 0.0
+    if not 0.0 <= confidence <= 1.0:
+        return None, 0.0
+    return choice, confidence
 
 
 async def triage_description(description: str) -> TriageResult:

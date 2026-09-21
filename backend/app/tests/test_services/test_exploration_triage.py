@@ -13,6 +13,9 @@ def test_parse_choice_answer_rejects_garbage():
     assert parse_choice_answer({}) == (None, 0.0)
     assert parse_choice_answer({"choice": 42}) == (None, 0.0)
     assert parse_choice_answer("loot") == (None, 0.0)
+    assert parse_choice_answer({"choice": "loot", "confidence": "high"}) == (None, 0.0)
+    assert parse_choice_answer({"choice": "loot", "confidence": 1.5}) == (None, 0.0)
+    assert parse_choice_answer({"choice": "loot", "confidence": -0.2}) == (None, 0.0)
 
 
 async def test_triage_returns_confident_category(monkeypatch):

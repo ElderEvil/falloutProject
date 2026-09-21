@@ -276,7 +276,9 @@ class DwellerAssignmentService:
         stats = ", ".join(f"{stat.value} {getattr(dweller, ABILITY_TO_STAT_MAP[stat], '?')}" for stat in SPECIALEnum)
         state = f"Dweller {dweller.first_name} (level {dweller.level}, {stats}) needs a work assignment."
         criteria = {
-            room.name: f"{room.category.value} room" + (f" training {room.ability.value}" if room.ability else "")
+            str(room.id): f"{room.name} ({room.category.value} room"
+            + (f", trains {room.ability.value}" if room.ability else "")
+            + ")"
             for room in rooms
         }
         try:
@@ -297,7 +299,7 @@ class DwellerAssignmentService:
             return None
         if confidence < 0.8:
             return None
-        return next((room for room in rooms if room.name == answer.get("choice")), None)
+        return next((room for room in rooms if str(room.id) == answer.get("choice")), None)
 
     async def unassign_all_dwellers(
         self,

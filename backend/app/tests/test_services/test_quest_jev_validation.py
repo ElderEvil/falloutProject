@@ -29,10 +29,17 @@ async def test_validate_quest_text_rejects_broken_text(monkeypatch):
         await quest_service.validate_quest_text("asdf", "TODO write this", "lorem ipsum dolor sit amet")
 
 
-async def test_validate_quest_text_passes_through_jev_errors(monkeypatch):
+async def test_validate_quest_text_fails_open_on_jev_error(monkeypatch):
     async def fake_decide(state, questions, model=None, timeout=10.0):
         raise RuntimeError("Zen is down")
 
     monkeypatch.setattr(jev_service, "decide", fake_decide)
-    with pytest.raises(RuntimeError, match="Zen is down"):
-        await quest_service.validate_quest_text("Title", "Short", "Long")
+    await quest_service.validate_quest_text("Title", "Short", "Long")
+
+
+async def test_validate_quest_text_fails_open_on_malformed_payload(monkeypatch):
+    async def fake_decide(state, questions, model=None, timeout=10.0):
+        return {"unexpected": "shape"}
+
+    monkeypatch.setattr(jev_service, "decide", fake_decide)
+    await quest_service.validate_quest_text("Title", "Short", "Long")

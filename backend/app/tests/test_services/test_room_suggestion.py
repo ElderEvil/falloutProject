@@ -21,21 +21,36 @@ def make_dweller(**overrides):
 
 
 def make_room(name, ability=None):
+    from uuid import uuid4
+
     from app.core.enums import RoomTypeEnum
 
-    return SimpleNamespace(name=name, ability=ability, category=RoomTypeEnum.PRODUCTION)
+    return SimpleNamespace(id=uuid4(), name=name, ability=ability, category=RoomTypeEnum.PRODUCTION)
 
 
 async def test_suggest_room_returns_confident_pick(monkeypatch):
+    rooms = [make_room("Diner"), make_room("Power Plant")]
+
     async def fake_decide(state, questions, model=None, timeout=10.0):
         assert "Strong" in state
-        return {"answers": {"room": {"choice": "Power Plant", "confidence": 0.92}}}
+        return {"answers": {"room": {"choice": str(rooms[1].id), "confidence": 0.92}}}
 
     monkeypatch.setattr(jev_service, "decide", fake_decide)
-    rooms = [make_room("Diner"), make_room("Power Plant")]
     picked = await dweller_assignment_service.suggest_room(make_dweller(), rooms)
     assert picked is not None
     assert picked.name == "Power Plant"
+
+
+async def test_suggest_room_distinguishes_duplicate_names(monkeypatch):
+    rooms = [make_room("Power Plant"), make_room("Power Plant")]
+
+    async def fake_decide(state, questions, model=None, timeout=10.0):
+        return {"answers": {"room": {"choice": str(rooms[1].id), "confidence": 0.9}}}
+
+    monkeypatch.setattr(jev_service, "decide", fake_decide)
+    picked = await dweller_assignment_service.suggest_room(make_dweller(), rooms)
+    assert picked is not None
+    assert picked.id == rooms[1].id
 
 
 async def test_suggest_room_returns_none_on_low_confidence(monkeypatch):

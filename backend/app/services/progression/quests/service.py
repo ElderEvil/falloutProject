@@ -324,23 +324,32 @@ class QuestService:
     async def validate_quest_text(self, title: str, short_description: str, long_description: str) -> None:
         """Reject quest text Jev flags as broken with high confidence (experimental).
 
+        Fails open like the other Jev gates: Jev errors or malformed answers skip
+        validation instead of blocking quest creation.
+
         Raises:
             ValidationException: Jev judged the text incoherent, offensive, or placeholder.
         """
         from app.utils.exceptions import ValidationException
 
         state = f"Title: {title}\nShort: {short_description}\nLong: {long_description}"
-        payload = await jev_service.decide(
-            state,
-            {
-                "broken": jev_service.make_noul(
-                    "Is this quest text incoherent, offensive, gibberish, or an unfinished placeholder?"
-                )
-            },
-        )
-        answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
-        answer = answers.get("broken")
-        if isinstance(answer, dict) and jev_service.noul_probability(answer) >= 0.85:
+        try:
+            payload = await jev_service.decide(
+                state,
+                {
+                    "broken": jev_service.make_noul(
+                        "Is this quest text incoherent, offensive, gibberish, or an unfinished placeholder?"
+                    )
+                },
+            )
+            answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
+            broken = isinstance(answers.get("broken"), dict) and jev_service.noul_probability(
+                answers["broken"]
+            ) >= 0.85
+        except Exception:
+            logger.exception("Jev quest validation failed open; quest creation continues")
+            return
+        if broken:
             raise ValidationException("Quest text failed automated quality review")
 
 

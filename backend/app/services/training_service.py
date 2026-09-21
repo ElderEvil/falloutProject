@@ -150,8 +150,12 @@ class TrainingService:
                 raise ResourceConflictException(detail=reason)
             raise VaultOperationException(detail=reason)
 
-        # Get current stat value
+        # Get current stat value. can_start_training already rejected a room with
+        # no assigned stat; restate it so the invariant is explicit to the reader
+        # (and to the type checker, which cannot see across the validator).
         stat_to_train = room.ability
+        if stat_to_train is None:
+            raise VaultOperationException(detail="Training room has no assigned SPECIAL stat")
         current_stat_value = SPECIALModel.get_stat(dweller, stat_to_train)
 
         # Calculate duration
@@ -173,15 +177,19 @@ class TrainingService:
         )
 
         db_session.add(training)
-        await db_session.commit()
-        await db_session.refresh(training)
 
-        # Update dweller status to TRAINING
+        # One transaction for the whole transition: the training row and the
+        # dweller's assignment must land together or not at all.
         from app.schemas.dweller import DwellerUpdate
 
         await dweller_crud.update(
-            db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.TRAINING, room_id=room.id)
+            db_session,
+            dweller.id,
+            DwellerUpdate(status=DwellerStatusEnum.TRAINING, room_id=room.id),
+            commit=False,
         )
+        await db_session.commit()
+        await db_session.refresh(training)
 
         self.logger.info(
             f"Started training: Dweller {dweller.first_name} training {stat_to_train.value} "
@@ -279,8 +287,12 @@ class TrainingService:
         # Update dweller status back to IDLE and remove from room
         from app.schemas.dweller import DwellerUpdate
 
-        await dweller_crud.update(db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None))
+        await dweller_crud.update(
+            db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
+        )
 
+        # One transaction: the stat, the session status, and the dweller's
+        # release must land together or not at all.
         await db_session.commit()
         await db_session.refresh(training)
         await db_session.refresh(dweller)
@@ -365,8 +377,12 @@ class TrainingService:
         # Update dweller status back to IDLE and remove from room
         from app.schemas.dweller import DwellerUpdate
 
-        await dweller_crud.update(db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None))
+        await dweller_crud.update(
+            db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
+        )
 
+        # One transaction: the cancelled session and the dweller's release must
+        # land together or not at all.
         await db_session.commit()
         await db_session.refresh(training)
 

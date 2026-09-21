@@ -117,4 +117,36 @@ describe('DwellerStats', () => {
       })
     })
   })
+
+  describe('Item-Improved Stats', () => {
+    function mountWithOutfit() {
+      const dweller = {
+        ...stats,
+        outfit: { name: 'Vault Suit', strength: 5 },
+        identity_modifiers: {},
+      } as unknown as Dweller
+      const ctx = createMockDwellerDetailContext({
+        dweller: ref(dweller) as never,
+        highlightStat: ref(undefined) as never,
+      })
+      return mountWithDwellerContext(DwellerStats, { context: ctx })
+    }
+
+    it('should show effective value when outfit improves a stat', () => {
+      const wrapper = mountWithOutfit()
+      expect(wrapper.findAll('.stat-value')[0].text()).toBe('10')
+    })
+
+    it('should render base to effective breakdown with source', () => {
+      const wrapper = mountWithOutfit()
+      const breakdowns = wrapper.findAll('.stat-breakdown')
+      expect(breakdowns).toHaveLength(1)
+      expect(breakdowns[0].text()).toBe('5 → 10 (+5 Vault Suit)')
+    })
+
+    it('should render no breakdown without bonuses', () => {
+      const { wrapper } = mountStats()
+      expect(wrapper.find('.stat-breakdown').exists()).toBe(false)
+    })
+  })
 })

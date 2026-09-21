@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Dweller } from '../../models/dweller'
+import { describeBonusSources, getSpecialBreakdown } from '../../models/specialBreakdown'
 import { useDwellerDetailContext } from '../DwellerDetailContext'
 
 const ctx = useDwellerDetailContext()
@@ -31,6 +32,25 @@ const statKeyByLowercase = stats.reduce<Record<string, StatKey>>((acc, stat) => 
   acc[stat.label.toLowerCase()] = stat.key
   return acc
 }, {})
+
+/**
+ * Base vs effective per stat (stored + identity + outfit, floored at 1, uncapped).
+ * Shared breakdown helper so every surface explains bonuses identically.
+ */
+const breakdowns = computed(() => getSpecialBreakdown(ctx.dweller.value))
+
+const breakdownByKey = computed(() => {
+  const map = new Map<string, (typeof breakdowns.value)[number]>()
+  for (const row of breakdowns.value) map.set(row.letter, row)
+  return map
+})
+
+const effectiveValue = (key: StatKey): number => breakdownByKey.value.get(key)?.effective ?? statValue(key)
+
+const bonusSources = (key: StatKey): string[] => {
+  const row = breakdownByKey.value.get(key)
+  return row ? describeBonusSources(row) : []
+}
 
 const highlightedKey = computed<StatKey | undefined>(() => {
   const highlighted = ctx.highlightStat.value
@@ -113,15 +133,18 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
         <div class="stat-header">
           <span class="stat-label">{{ stat.label }}</span>
           <span class="stat-value-group">
-            <span class="stat-value">{{ statValue(stat.key) }}</span>
+            <span class="stat-value">{{ effectiveValue(stat.key) }}</span>
             <span v-if="isHighlighted(stat.key) && showBadge" class="stat-badge stat-badge-fade"
               >+1</span
             >
           </span>
         </div>
         <div class="stat-bar">
-          <div class="stat-fill" :style="{ width: `${statValue(stat.key) * 10}%` }"></div>
+          <div class="stat-fill" :style="{ width: `${Math.min(100, effectiveValue(stat.key) * 10)}%` }"></div>
         </div>
+        <p v-if="bonusSources(stat.key).length > 0" class="stat-breakdown">
+          {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{ bonusSources(stat.key).join(' · ') }})
+        </p>
         <p class="stat-description">{{ stat.description }}</p>
       </div>
     </div>
@@ -254,6 +277,14 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   color: var(--color-theme-primary);
   opacity: 0.6;
   line-height: 1.3;
+}
+
+.stat-breakdown {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-theme-accent);
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
 }
 
 .stat-value-group {

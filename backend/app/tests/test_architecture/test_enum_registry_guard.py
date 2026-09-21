@@ -25,20 +25,26 @@ SKIP_DIRS = frozenset({"tests", "alembic", "__pycache__"})
 #: Bases that mark a class as an enum declaration.
 ENUM_BASES = frozenset({"StrEnum", "IntEnum", "Enum", "Flag", "IntFlag", "CaseInsensitiveEnum"})
 
-#: Pre-existing files that declare enums outside the registry. Shrink only.
+#: Pre-existing enum declarations outside the registry, as ``(path, class name)``.
+#: Declaration-level, not file-level: adding another enum to a grandfathered file
+#: must fail, so the baseline can only shrink. Shrink only.
 ENUM_REGISTRY_BASELINE = frozenset(
     {
-        "models/crafting_order.py",
-        "models/exploration.py",
-        "models/incident.py",
-        "models/notification.py",
-        "models/quest.py",
-        "models/quest_requirement.py",
-        "models/quest_reward.py",
-        "models/training.py",
-        "schemas/exploration_event.py",
-        "schemas/happiness.py",
-        "services/health_check.py",
+        ("models/crafting_order.py", "CraftingOrderStatus"),
+        ("models/exploration.py", "ExplorationStatus"),
+        ("models/incident.py", "IncidentType"),
+        ("models/incident.py", "IncidentStatus"),
+        ("models/incident.py", "IncidentFamily"),
+        ("models/incident.py", "IncidentObjective"),
+        ("models/notification.py", "NotificationType"),
+        ("models/notification.py", "NotificationPriority"),
+        ("models/quest.py", "QuestType"),
+        ("models/quest_requirement.py", "RequirementType"),
+        ("models/quest_reward.py", "RewardType"),
+        ("models/training.py", "TrainingStatus"),
+        ("schemas/exploration_event.py", "ExplorationEventType"),
+        ("schemas/happiness.py", "HappinessReasonCode"),
+        ("services/health_check.py", "ServiceStatus"),
     }
 )
 
@@ -71,17 +77,16 @@ def test_enums_are_declared_in_the_registry() -> None:
     """New enums belong in app/core/enums.py; the baseline must shrink, never grow."""
     found = set()
     for path, relative in _guarded_files():
-        if _enum_declarations(path.read_text(encoding="utf-8")):
-            found.add(relative)
+        found.update((relative, name) for _, name in _enum_declarations(path.read_text(encoding="utf-8")))
 
     new_violations = found - ENUM_REGISTRY_BASELINE
     stale_entries = ENUM_REGISTRY_BASELINE - found
 
     messages = [
-        f"{relative} declares an enum outside app/core/enums.py (move it to the registry)"
-        for relative in sorted(new_violations)
+        f"{relative} declares {name} outside app/core/enums.py (move it to the registry)"
+        for relative, name in sorted(new_violations)
     ]
-    messages += [f"baseline entry {relative} is stale; remove it" for relative in sorted(stale_entries)]
+    messages += [f"baseline entry {relative} / {name} is stale; remove it" for relative, name in sorted(stale_entries)]
     assert not messages, "Enum locations changed:\n" + "\n".join(messages)
 
 

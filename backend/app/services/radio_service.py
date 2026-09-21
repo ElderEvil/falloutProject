@@ -2,6 +2,7 @@
 
 import logging
 import random
+from types import ModuleType
 
 from pydantic import UUID4
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -91,12 +92,15 @@ class RadioService:
     async def check_for_recruitment(
         db_session: AsyncSession,
         vault_id: UUID4,
+        *,
+        rng: ModuleType = random,
     ) -> Dweller | None:
         """Check if a new dweller should be recruited via radio.
 
         Args:
             db_session: Database session
             vault_id: Vault ID
+            rng: Randomness source for the recruitment roll (injectable for tests)
 
         Returns:
             Newly recruited dweller if successful, None otherwise
@@ -121,7 +125,7 @@ class RadioService:
         rate = await RadioService.calculate_recruitment_rate(db_session, vault, radio_rooms)
 
         # Roll for recruitment
-        if random.random() < rate:
+        if rng.random() < rate:
             dweller, _ = await RadioService.recruit_dweller(db_session, vault_id)
             logger.info(
                 "Radio recruitment successful: %s %s joined vault %s",

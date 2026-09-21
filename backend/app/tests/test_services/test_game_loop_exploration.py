@@ -72,18 +72,31 @@ async def test_vault_tick_processes_explorations(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test that vault tick includes exploration processing."""
+    """Test that vault tick drives the return leg and then finalizes it."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
 
     # Set to expire
     exploration.start_time = datetime.utcnow() - timedelta(hours=2)
     await async_session.commit()
 
-    # Process full vault tick
-    result = await game_loop_service.process_vault_tick(async_session, vault.id)
+    # First tick: exploring ends, dweller heads home — no rewards yet.
+    first = await game_loop_service.process_vault_tick(async_session, vault.id)
 
-    assert "explorations" in result["updates"]
-    assert result["updates"]["explorations"]["completed"] == 1
+    assert "explorations" in first["updates"]
+    assert first["updates"]["explorations"]["returning"] == 1
+    assert first["updates"]["explorations"]["completed"] == 0
+
+    await async_session.refresh(exploration)
+    assert exploration.status == ExplorationStatus.RETURNING
+
+    # Second tick, with the return leg elapsed: the run finalizes.
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    second = await game_loop_service.process_vault_tick(async_session, vault.id)
+
+    assert second["updates"]["explorations"]["completed"] == 1
 
 
 @pytest.mark.asyncio
@@ -123,7 +136,17 @@ async def test_process_explorations_caps_accumulate(
 
     initial_caps = vault.bottle_caps
 
-    # Process explorations
+    # First pass sends both dwellers home; rewards wait for arrival.
+    first = await game_loop_service._process_explorations(async_session, vault.id)
+    assert first["returning"] == 2
+
+    for exploration in (exploration1, exploration2):
+        await async_session.refresh(exploration)
+        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+        async_session.add(exploration)
+    await async_session.commit()
+
+    # Second pass finalizes both and transfers their caps.
     result = await game_loop_service._process_explorations(async_session, vault.id)
 
     assert result["completed"] == 2

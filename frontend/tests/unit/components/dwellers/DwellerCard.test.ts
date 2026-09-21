@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 
 // Mock the happiness service
 vi.mock('@/modules/dwellers/services/happinessService', () => ({
@@ -224,6 +225,24 @@ describe('DwellerCard', () => {
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
+    })
+
+    it('swaps Recall for a Returning state once the dweller is heading home', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'returning' },
+      ] as any
+
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'exploring', room: null },
+          imageUrl: null,
+        },
+      })
+
+      const labels = actionLabels(wrapper)
+      expect(labels).toContain('Returning')
+      expect(labels).not.toContain('Recall')
     })
 
     it('withholds vault actions from a questing dweller', () => {

@@ -18,13 +18,48 @@ logger = logging.getLogger(__name__)
 
 # Error messages as constants to satisfy ruff
 ERROR_NOT_ACTIVE = "Exploration is not active"
+ERROR_NOT_RETURNING = "Exploration is not on the return leg"
 
 
 class ExplorationCoordinator:
     """Coordinates exploration completion and recall; events and rewards live in their own services."""
 
-    async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """Complete an exploration and return rewards summary.
+    async def start_return(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False
+    ) -> Exploration:
+        """Send a dweller home; rewards and loot wait until the return leg finishes.
+
+        Args:
+            db_session: Database session
+            exploration_id: Exploration ID
+            recalled: True for a player-initiated early recall, False for a natural finish
+
+        Returns:
+            Exploration: The exploration now in RETURNING state
+        """
+        exploration = await crud_exploration.get(db_session, exploration_id)
+
+        if not exploration.is_active():
+            raise ValueError(ERROR_NOT_ACTIVE)
+        if not recalled and exploration.time_remaining_seconds() > 0:
+            raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
+
+        exploration = await crud_exploration.start_return(db_session, exploration_id=exploration_id, recalled=recalled)
+
+        await event_service.publish_sse(
+            exploration,
+            "exploration_returning",
+            recalled=recalled,
+            return_started_at=exploration.return_started_at.isoformat() if exploration.return_started_at else None,
+            return_completes_at=exploration.return_completes_at.isoformat()
+            if exploration.return_completes_at
+            else None,
+        )
+
+        return exploration
+
+    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
+        """Finalize an arrived exploration: restore the dweller, release loot, grant rewards.
 
         Args:
             db_session: Database session
@@ -35,39 +70,54 @@ class ExplorationCoordinator:
         """
         exploration = await crud_exploration.get(db_session, exploration_id)
 
-        if not exploration.is_active():
-            raise ValueError(ERROR_NOT_ACTIVE)
-        if exploration.time_remaining_seconds() > 0:
-            raise ValueError("Exploration has not finished yet; recall the dweller to end it early")
+        if not exploration.is_returning():
+            raise ValueError(ERROR_NOT_RETURNING)
 
-        # Mark as completed
-        await crud_exploration.complete_exploration(db_session, exploration_id=exploration_id)
+        recalled_early = exploration.recalled_early
+        progress = exploration.exploring_progress_percentage()
 
-        # Update dweller status
+        # Mark as arrived before releasing anything, so a mid-flight failure cannot
+        # grant rewards twice on the next tick.
+        await crud_exploration.finalize_return(db_session, exploration_id=exploration_id)
+
         await self._update_dweller_status_after_return(db_session, exploration)
 
-        # Calculate and apply rewards
-        rewards = await rewards_service.apply_rewards(db_session, exploration)
+        if recalled_early:
+            rewards = await rewards_service.apply_rewards(db_session, exploration, progress_multiplier=progress / 100)
+            rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
+        else:
+            rewards = await rewards_service.apply_rewards(db_session, exploration)
 
-        # Send notification (non-critical, don't break completion on failure)
+        await self._notify_arrival(db_session, exploration, rewards)
+        await event_service.publish_sse(
+            exploration,
+            "exploration_recalled" if recalled_early else "exploration_complete",
+            rewards=rewards.model_dump(mode="json"),
+        )
+
+        return rewards
+
+    async def _notify_arrival(self, db_session: AsyncSession, exploration: Exploration, rewards: RewardsSchema) -> None:
+        """Send the arrival notification; best-effort, never breaks finalization."""
         try:
             dweller = await dweller_crud.get(db_session, exploration.dweller_id)
             vault = await crud_vault.get(db_session, exploration.vault_id)
 
             if vault and vault.user_id and dweller:
+                dweller_name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
                 await notification_service.notify_exploration_complete(
                     db_session,
                     user_id=vault.user_id,
                     vault_id=exploration.vault_id,
                     dweller_id=dweller.id,
-                    dweller_name=f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                    dweller_name=dweller_name,
                     meta_data={
                         "exploration_id": str(exploration.id),
                         "caps_earned": rewards.caps,
                         "xp_earned": rewards.experience,
                         "items_found": len(rewards.items),
                         "dweller_id": str(dweller.id),
-                        "dweller_name": f"{dweller.first_name} {dweller.last_name or ''}".strip(),
+                        "dweller_name": dweller_name,
                         "rewards": rewards.model_dump(mode="json"),
                     },
                 )
@@ -77,52 +127,6 @@ class ExplorationCoordinator:
                 exploration.vault_id,
                 exploration.dweller_id,
             )
-
-        # Publish SSE event
-        await event_service.publish_sse(
-            exploration,
-            "exploration_complete",
-            rewards=rewards.model_dump(mode="json"),
-        )
-
-        return rewards
-
-    async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """Recall a dweller early from exploration.
-
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            dict: Rewards summary with reduced XP
-        """
-        exploration = await crud_exploration.get(db_session, exploration_id)
-
-        if not exploration.is_active():
-            raise ValueError(ERROR_NOT_ACTIVE)
-
-        # Calculate progress percentage
-        progress = exploration.progress_percentage()
-
-        # Mark as recalled
-        await crud_exploration.recall_exploration(db_session, exploration_id=exploration_id)
-
-        # Update dweller status
-        await self._update_dweller_status_after_return(db_session, exploration)
-
-        # Calculate and apply reduced rewards
-        rewards = await rewards_service.apply_rewards(db_session, exploration, progress_multiplier=progress / 100)
-
-        rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
-
-        await event_service.publish_sse(
-            exploration,
-            "exploration_recalled",
-            rewards=rewards.model_dump(mode="json"),
-        )
-
-        return rewards
 
     async def _update_dweller_status_after_return(self, db_session: AsyncSession, exploration: Exploration) -> None:
         """Restore the dweller's room-appropriate status after exploration."""

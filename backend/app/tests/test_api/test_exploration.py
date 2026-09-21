@@ -177,11 +177,32 @@ async def test_recall_dweller_success(
     assert response.status_code == 200
     data = response.json()
 
-    assert data["exploration"]["status"] == ExplorationStatus.RECALLED
-    assert data["exploration"]["end_time"] is not None
+    # Recall only starts the return leg: no rewards and no loot until arrival.
+    assert data["exploration"]["status"] == ExplorationStatus.RETURNING
+    assert data["exploration"]["return_completes_at"] is not None
+    assert data["rewards_summary"] is None
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps
+
+    # Arrival finalizes the run with reduced (recalled) rewards.
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    arrival = await async_client.post(
+        f"/explorations/{exploration.id}/complete",
+        json={},
+        headers=superuser_token_headers,
+    )
+    assert arrival.status_code == 200
+    arrival_data = arrival.json()
+    assert arrival_data["exploration"]["status"] == ExplorationStatus.RECALLED
+    assert arrival_data["exploration"]["end_time"] is not None
 
     # Check rewards summary
-    rewards = data["rewards_summary"]
+    rewards = arrival_data["rewards_summary"]
     assert rewards["caps"] == 50
     assert rewards["recalled_early"] is True
     assert "progress_percentage" in rewards
@@ -236,11 +257,32 @@ async def test_complete_exploration_success(
     assert response.status_code == 200
     data = response.json()
 
-    assert data["exploration"]["status"] == ExplorationStatus.COMPLETED
-    assert data["exploration"]["end_time"] is not None
+    # Completion starts the return leg; the dweller must travel before rewards land.
+    assert data["exploration"]["status"] == ExplorationStatus.RETURNING
+    assert data["rewards_summary"] is None
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps
+
+    # Arrival finalizes the run and grants full rewards.
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+
+    arrival = await async_client.post(
+        f"/explorations/{exploration.id}/complete",
+        json={},
+        headers=superuser_token_headers,
+    )
+    assert arrival.status_code == 200
+    arrival_data = arrival.json()
+
+    assert arrival_data["exploration"]["status"] == ExplorationStatus.COMPLETED
+    assert arrival_data["exploration"]["end_time"] is not None
 
     # Check rewards summary
-    rewards = data["rewards_summary"]
+    rewards = arrival_data["rewards_summary"]
     assert rewards["caps"] == 100
     assert rewards["distance"] == 50
     assert rewards["enemies_defeated"] == 5

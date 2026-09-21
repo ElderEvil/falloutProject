@@ -4,15 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import { useToast } from '@/core/composables/useToast'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useExplorationStore } from '../stores/exploration'
 import { useExplorationProgress } from '../composables/useExplorationProgress'
+import { useExplorationFinish } from '../composables/useExplorationFinish'
 import { useExplorationHealthJourney } from '../composables/useExplorationHealthJourney'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
 import ExplorerNavbar from '../components/ExplorerNavbar.vue'
@@ -22,15 +21,12 @@ import ExplorationEventLog from '../components/ExplorationEventLog.vue'
 import ExplorationLootList from '../components/ExplorationLootList.vue'
 import ExplorerEquipmentSlots from '../components/ExplorerEquipmentSlots.vue'
 import ExplorerActions from '../components/ExplorerActions.vue'
-import type { RewardsSummary } from '../stores/exploration'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
-const vaultStore = useVaultStore()
-const toast = useToast()
 const { isCollapsed } = useSidePanel()
 
 const vaultId = computed(() => route.params.id as string)
@@ -41,11 +37,17 @@ const breadcrumbs = computed(() => [
   { label: 'Expedition' },
 ])
 
-const showRewardsModal = ref(false)
-const completedExplorationRewards = ref<RewardsSummary | null>(null)
-const completedDwellerName = ref('')
-const completedExplorationId = ref('')
-const rewardsDirty = ref(false)
+const {
+  showRewardsModal,
+  completedExplorationRewards,
+  completedDwellerName,
+  completedExplorationId,
+  rewardsDirty,
+  openRewards,
+  resetRewards,
+  refreshIfDirty,
+  finishExploration: runExplorationFinish,
+} = useExplorationFinish(vaultId)
 
 const exploration = computed(() => {
   return (
@@ -75,7 +77,11 @@ const dwellerName = computed(() => {
 
 const dwellerImageUrl = computed(() => {
   const currentDweller = dweller.value
-  if (!currentDweller || !('image_url' in currentDweller) || typeof currentDweller.image_url !== 'string') {
+  if (
+    !currentDweller ||
+    !('image_url' in currentDweller) ||
+    typeof currentDweller.image_url !== 'string'
+  ) {
     return null
   }
   return currentDweller.image_url
@@ -111,7 +117,13 @@ const goBack = () => {
   router.push(`/vault/${vaultId.value}/exploration`)
 }
 
-const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => exploration.value)
+const {
+  progress: progressPercentage,
+  timeRemaining,
+  isReturning,
+  isReady,
+  canRecall,
+} = useExplorationProgress(() => exploration.value)
 
 // Equipment computed
 const weaponName = computed(() => detailedDweller.value?.weapon?.name ?? null)
@@ -128,53 +140,30 @@ const {
 } = useExplorationHealthJourney(() => exploration.value?.events)
 
 // Actions
-type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
-
-const finishExploration = async (action: ExplorationFinishAction, errorMessage: string) => {
-  if (!authStore.token || !exploration.value) return
-
-  try {
-    const result = await action(exploration.value.id, authStore.token)
-
-    if (result?.rewards_summary) {
-      explorationStore.acknowledgeSseReward(exploration.value.dweller_id)
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = dwellerName.value
-      completedExplorationId.value = exploration.value.id
-      showRewardsModal.value = true
-    }
-
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-
-  } catch (_error) {
-    toast.error(errorMessage)
-  }
+const handleCompleteExploration = () => {
+  if (!exploration.value) return
+  return runExplorationFinish(
+    exploration.value.id,
+    explorationStore.completeExploration,
+    'Failed to complete exploration',
+    { dwellerName: dwellerName.value }
+  )
 }
 
-const handleCompleteExploration = () =>
-  finishExploration(explorationStore.completeExploration, 'Failed to complete exploration')
-
-const handleRecallExploration = () => finishExploration(explorationStore.recallDweller, 'Failed to recall dweller')
+const handleRecallExploration = () => {
+  if (!exploration.value) return
+  return runExplorationFinish(
+    exploration.value.id,
+    explorationStore.recallDweller,
+    'Failed to recall dweller',
+    { dwellerName: dwellerName.value }
+  )
+}
 
 const closeRewardsModal = async () => {
-  if (rewardsDirty.value && vaultId.value && authStore.token) {
-    try {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      rewardsDirty.value = false
-    } catch {
-      toast.error('Failed to refresh vault rewards')
-      return
-    }
-  }
-  showRewardsModal.value = false
-  completedExplorationRewards.value = null
-  // Navigate back when modal is closed
+  if (!(await refreshIfDirty())) return
+  resetRewards()
   goBack()
-  completedDwellerName.value = ''
-  completedExplorationId.value = ''
 }
 
 const refreshExploration = async () => {
@@ -216,24 +205,15 @@ watch(
       explorationStore.clearPendingSseRewards()
       return
     }
-    completedExplorationRewards.value = pending.rewards
-    completedDwellerName.value = dwellerName.value
-    completedExplorationId.value = pending.explorationId ?? ''
-    showRewardsModal.value = true
+    openRewards(pending.rewards, dwellerName.value, pending.explorationId ?? '')
     explorationStore.clearPendingSseRewards()
   }
 )
 
 // Watch for exploration completion
-watch(
-  () => progressPercentage.value,
-  (newProgress) => {
-    if (newProgress >= 100 && exploration.value?.status === 'active') {
-      // Auto-complete when progress reaches 100%
-      handleCompleteExploration()
-    }
-  }
-)
+watch(isReady, (ready) => {
+  if (ready) handleCompleteExploration()
+})
 </script>
 
 <template>
@@ -267,94 +247,107 @@ watch(
             v-if="exploration && dweller"
             class="exploration-detail-content mx-auto w-full max-w-[1200px]"
           >
-          <!-- Top Section: Dweller Info & Progress + Stats Grid -->
-          <ExplorerSummaryCard
-            :dweller-name="dwellerName"
-            :dweller-image-url="dwellerImageUrl"
-            :dweller-thumbnail-url="dwellerThumbnailUrl"
-            :dweller-level="dweller.level"
-            :health="dweller.health"
-            :max-health="dweller.max_health"
-            :radiation="dweller.radiation"
-            :progress-percentage="progressPercentage"
-            :time-remaining="timeRemaining"
-            :exploration-duration="exploration.duration"
-          />
+            <!-- Top Section: Dweller Info & Progress + Stats Grid -->
+            <ExplorerSummaryCard
+              :dweller-name="dwellerName"
+              :dweller-image-url="dwellerImageUrl"
+              :dweller-thumbnail-url="dwellerThumbnailUrl"
+              :dweller-level="dweller.level"
+              :health="dweller.health"
+              :max-health="dweller.max_health"
+              :radiation="dweller.radiation"
+              :progress-percentage="progressPercentage"
+              :time-remaining="timeRemaining"
+              :exploration-duration="exploration.duration"
+              :is-returning="isReturning"
+            />
 
-          <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
+            <ExplorerStatsGrid v-if="exploration" :exploration="exploration" />
 
-          <!-- Vitals journey: cumulative health/radiation change (not an absolute history). -->
-          <div
-            v-if="healthJourney.length > 0 || radiationJourney.length > 0"
-            class="health-trend mt-4 mb-4 flex flex-wrap items-center gap-4 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3 text-sm"
-          >
-            <template v-if="healthJourney.length > 0">
-              <span class="flex items-center gap-1.5">
-                <Icon icon="mdi:heart-broken" class="h-5 w-5 text-danger" />
-                <span class="font-bold text-danger">-{{ totalDamage }}</span>
-                <span class="text-theme-primary/70">damage</span>
+            <!-- Vitals journey: cumulative health/radiation change (not an absolute history). -->
+            <div
+              v-if="healthJourney.length > 0 || radiationJourney.length > 0"
+              class="health-trend mt-4 mb-4 flex flex-wrap items-center gap-4 rounded-lg border-2 border-theme-primary/40 bg-terminal-background p-3 text-sm"
+            >
+              <template v-if="healthJourney.length > 0">
+                <span class="flex items-center gap-1.5">
+                  <Icon icon="mdi:heart-broken" class="h-5 w-5 text-danger" />
+                  <span class="font-bold text-danger">-{{ totalDamage }}</span>
+                  <span class="text-theme-primary/70">damage</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <Icon icon="mdi:heart-plus" class="h-5 w-5 text-theme-primary" />
+                  <span class="font-bold text-theme-primary">+{{ totalHealed }}</span>
+                  <span class="text-theme-primary/70">healed</span>
+                </span>
+                <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
+              </template>
+              <span v-if="totalRadiationRemoved > 0" class="flex items-center gap-1.5">
+                <Icon icon="mdi:radioactive" class="h-5 w-5 text-warning" />
+                <span class="font-bold text-warning">-{{ totalRadiationRemoved }}</span>
+                <span class="text-theme-primary/70">rad</span>
               </span>
-              <span class="flex items-center gap-1.5">
-                <Icon icon="mdi:heart-plus" class="h-5 w-5 text-theme-primary" />
-                <span class="font-bold text-theme-primary">+{{ totalHealed }}</span>
-                <span class="text-theme-primary/70">healed</span>
-              </span>
-              <span class="text-theme-primary/50">over {{ healthJourney.length }} events</span>
-            </template>
-            <span v-if="totalRadiationRemoved > 0" class="flex items-center gap-1.5">
-              <Icon icon="mdi:radioactive" class="h-5 w-5 text-warning" />
-              <span class="font-bold text-warning">-{{ totalRadiationRemoved }}</span>
-              <span class="text-theme-primary/70">rad</span>
-            </span>
-            <div class="ml-auto flex gap-2">
-              <div
-                v-if="healthJourney.length > 0"
-                class="health-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
-              >
-                <svg
-                  class="h-7 w-[240px] max-w-full overflow-visible"
-                  viewBox="0 0 120 28"
-                  role="img"
-                  aria-label="Cumulative health change during this expedition"
+              <div class="ml-auto flex gap-2">
+                <div
+                  v-if="healthJourney.length > 0"
+                  class="health-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
                 >
-                  <polyline :points="healthTrendPoints" fill="none" stroke="var(--color-theme-accent)" stroke-width="2" />
-                </svg>
-              </div>
-              <div
-                v-if="radiationJourney.length > 0"
-                class="radiation-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
-              >
-                <svg
-                  class="h-7 w-[240px] max-w-full overflow-visible"
-                  viewBox="0 0 120 28"
-                  role="img"
-                  aria-label="Cumulative radiation change during this expedition"
+                  <svg
+                    class="h-7 w-[240px] max-w-full overflow-visible"
+                    viewBox="0 0 120 28"
+                    role="img"
+                    aria-label="Cumulative health change during this expedition"
+                  >
+                    <polyline
+                      :points="healthTrendPoints"
+                      fill="none"
+                      stroke="var(--color-theme-accent)"
+                      stroke-width="2"
+                    />
+                  </svg>
+                </div>
+                <div
+                  v-if="radiationJourney.length > 0"
+                  class="radiation-sparkline-frame rounded border border-theme-primary/30 bg-surface-sunken px-2 py-1"
                 >
-                  <polyline :points="radiationTrendPoints" fill="none" stroke="var(--color-warning)" stroke-width="2" />
-                </svg>
+                  <svg
+                    class="h-7 w-[240px] max-w-full overflow-visible"
+                    viewBox="0 0 120 28"
+                    role="img"
+                    aria-label="Cumulative radiation change during this expedition"
+                  >
+                    <polyline
+                      :points="radiationTrendPoints"
+                      fill="none"
+                      stroke="var(--color-warning)"
+                      stroke-width="2"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Loot found mid-journey -->
-          <ExplorationLootList :items="exploration.loot_collected" />
+            <!-- Loot found mid-journey -->
+            <ExplorationLootList :items="exploration.loot_collected" />
 
-          <!-- Event Log Section -->
-          <ExplorationEventLog
-            class="event-log-section mt-4"
-            :events="exploration?.events ?? []"
-            reverse
-          />
+            <!-- Event Log Section -->
+            <ExplorationEventLog
+              class="event-log-section mt-4"
+              :events="exploration?.events ?? []"
+              reverse
+            />
 
-          <!-- Equipment Section -->
-          <ExplorerEquipmentSlots :weapon-name="weaponName" :outfit-name="outfitName" />
+            <!-- Equipment Section -->
+            <ExplorerEquipmentSlots :weapon-name="weaponName" :outfit-name="outfitName" />
 
-          <!-- Action Buttons -->
-          <ExplorerActions
-            :can-complete="progressPercentage >= 100"
-            @complete="handleCompleteExploration"
-            @recall="handleRecallExploration"
-          />
+            <!-- Action Buttons -->
+            <ExplorerActions
+              :can-complete="isReady"
+              :can-recall="canRecall"
+              :is-returning="isReturning"
+              @complete="handleCompleteExploration"
+              @recall="handleRecallExploration"
+            />
           </div>
 
           <!-- Loading/Error State -->
@@ -376,7 +369,7 @@ watch(
             @resolved="rewardsDirty = true"
           />
         </PageContentRail>
-        </div>
       </div>
     </div>
+  </div>
 </template>

@@ -5,7 +5,6 @@ import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { usePolling } from '@/core/composables/usePolling'
@@ -22,15 +21,15 @@ import UCard from '@/core/components/ui/UCard.vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useExplorationStore } from '../stores/exploration'
-import type { PendingOverflow, RewardsSummary } from '../stores/exploration'
+import type { PendingOverflow } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
+import { useExplorationFinish } from '../composables/useExplorationFinish'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
-const vaultStore = useVaultStore()
 const questStore = useQuestStore()
 const toast = useToast()
 
@@ -40,14 +39,21 @@ const selectedQuestPartyId = ref<string | null>(null)
 
 const { isLoading: explorationLoading, error: explorationError } = storeToRefs(explorationStore)
 
-const showRewardsModal = ref(false)
-const completedExplorationRewards = ref<RewardsSummary | null>(null)
-const completedDwellerName = ref('')
-const completedExplorationId = ref('')
-const rewardsDirty = ref(false)
 const activeQueuedReportId = ref<string | null>(null)
 const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
+
+const {
+  showRewardsModal,
+  completedExplorationRewards,
+  completedDwellerName,
+  completedExplorationId,
+  rewardsDirty,
+  openRewards,
+  resetRewards,
+  refreshIfDirty,
+  finishExploration: runExplorationFinish,
+} = useExplorationFinish(vaultId)
 
 const { pendingReports } = usePendingReports(vaultId)
 
@@ -55,31 +61,29 @@ function showNextPendingReport(): void {
   const next = pendingReports.value[0]
   if (next) {
     activeQueuedReportId.value = next.id
-    completedExplorationRewards.value = next.rewards
-    completedDwellerName.value = next.dwellerName
-    completedExplorationId.value = next.explorationId
     isPendingOverflowModal.value = false
-    showRewardsModal.value = true
+    openRewards(next.rewards, next.dwellerName, next.explorationId)
   }
 }
 
 function showPendingOverflow(pending: PendingOverflow): void {
   activeQueuedReportId.value = pending.exploration_id
-  completedExplorationRewards.value = {
-    caps: 0,
-    items: [],
-    overflow_items: pending.unclaimed_loot,
-    experience: 0,
-    distance: 0,
-    enemies_defeated: 0,
-    events_encountered: 0,
-    exploration_id: pending.exploration_id,
-  }
   const dweller = getDwellerById(pending.dweller_id)
-  completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
-  completedExplorationId.value = pending.exploration_id
+  openRewards(
+    {
+      caps: 0,
+      items: [],
+      overflow_items: pending.unclaimed_loot,
+      experience: 0,
+      distance: 0,
+      enemies_defeated: 0,
+      events_encountered: 0,
+      exploration_id: pending.exploration_id,
+    },
+    dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+    pending.exploration_id
+  )
   isPendingOverflowModal.value = true
-  showRewardsModal.value = true
 }
 
 function showNextPendingOverflow(): boolean {
@@ -110,7 +114,10 @@ onMounted(async () => {
   await loadData()
   if (vaultId.value && authStore.token) {
     explorationStore.startSseSubscription(vaultId.value, authStore.token)
-    pendingOverflow.value = await explorationStore.fetchPendingOverflow(vaultId.value, authStore.token)
+    pendingOverflow.value = await explorationStore.fetchPendingOverflow(
+      vaultId.value,
+      authStore.token
+    )
     if (showNextPendingOverflow()) return
   }
   if (pendingReports.value.length > 0) {
@@ -132,11 +139,12 @@ watch(
     }
     activeQueuedReportId.value = pending.explorationId ?? null
     const dweller = getDwellerById(pending.dwellerId)
-    completedExplorationRewards.value = pending.rewards
-    completedDwellerName.value = dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller'
-    completedExplorationId.value = pending.explorationId ?? ''
     isPendingOverflowModal.value = false
-    showRewardsModal.value = true
+    openRewards(
+      pending.rewards,
+      dweller ? `${dweller.first_name} ${dweller.last_name}` : 'Dweller',
+      pending.explorationId ?? ''
+    )
     explorationStore.clearPendingSseRewards()
   }
 )
@@ -185,60 +193,29 @@ const activeQuestsWithParty = computed(() => {
   })
 })
 
-type ExplorationFinishAction = (explorationId: string, token: string) => Promise<{ rewards_summary?: RewardsSummary }>
-
-const finishExploration = async (
-  explorationId: string,
-  action: ExplorationFinishAction,
-  errorMessage: string
-) => {
-  if (!authStore.token) return
-
-  try {
-    const exploration = explorationStore.activeExplorations[explorationId]
-    if (!exploration) return
-
-    const dweller = getDwellerById(exploration.dweller_id)
-    if (!dweller) return
-
-    const result = await action(explorationId, authStore.token)
-
-    if (result?.rewards_summary) {
-      explorationStore.acknowledgeSseReward(dweller.id)
-      completedExplorationRewards.value = result.rewards_summary
-      completedDwellerName.value = `${dweller.first_name} ${dweller.last_name}`
-      completedExplorationId.value = explorationId
-      isPendingOverflowModal.value = false
-      showRewardsModal.value = true
+const handleCompleteExploration = (explorationId: string) => {
+  isPendingOverflowModal.value = false
+  return runExplorationFinish(
+    explorationId,
+    explorationStore.completeExploration,
+    'Failed to complete exploration',
+    {
+      onFinished: () => {
+        if (selectedExplorerId.value === explorationId) selectedExplorerId.value = null
+      },
     }
-
-    if (vaultId.value) {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      await dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token)
-    }
-
-    if (selectedExplorerId.value === explorationId) selectedExplorerId.value = null
-  } catch (_error) {
-    toast.error(errorMessage)
-  }
+  )
 }
 
-const handleCompleteExploration = (explorationId: string) =>
-  finishExploration(explorationId, explorationStore.completeExploration, 'Failed to complete exploration')
-
 const handleRecallExploration = (explorationId: string) =>
-  finishExploration(explorationId, explorationStore.recallDweller, 'Failed to recall dweller')
+  runExplorationFinish(explorationId, explorationStore.recallDweller, 'Failed to recall dweller', {
+    onFinished: () => {
+      if (selectedExplorerId.value === explorationId) selectedExplorerId.value = null
+    },
+  })
 
 const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
-  if (rewardsDirty.value && vaultId.value && authStore.token) {
-    try {
-      await vaultStore.refreshVault(vaultId.value, authStore.token)
-      rewardsDirty.value = false
-    } catch {
-      toast.error('Failed to refresh vault rewards')
-      return
-    }
-  }
+  if (!(await refreshIfDirty())) return
   if (!hasUnresolvedOverflow) {
     removePendingReport(completedExplorationId.value)
     activeQueuedReportId.value = null
@@ -248,10 +225,7 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
       return
     }
   }
-  showRewardsModal.value = false
-  completedExplorationRewards.value = null
-  completedDwellerName.value = ''
-  completedExplorationId.value = ''
+  resetRewards()
   isPendingOverflowModal.value = false
 }
 </script>
@@ -270,97 +244,104 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
 
         <!-- Main Content -->
         <div class="exploration-content">
-        <!-- Loading State -->
-        <TerminalLoadingState v-if="explorationLoading" message="Scanning wasteland frequencies..." />
+          <!-- Loading State -->
+          <TerminalLoadingState
+            v-if="explorationLoading"
+            message="Scanning wasteland frequencies..."
+          />
 
-        <!-- Error State -->
-        <div v-else-if="explorationError" class="error-state">
-          <UCard padding="lg" :bordered="true">
-            <div class="error-content">
-              <Icon icon="mdi:alert-circle" class="error-icon" />
-              <h3 class="error-title">Signal Lost</h3>
-              <p class="error-message">{{ explorationError }}</p>
-              <UButton variant="secondary" size="md" @click="loadData">
-                <Icon icon="mdi:refresh" class="mr-2" />
-                Retry Connection
-              </UButton>
+          <!-- Error State -->
+          <div v-else-if="explorationError" class="error-state">
+            <UCard padding="lg" :bordered="true">
+              <div class="error-content">
+                <Icon icon="mdi:alert-circle" class="error-icon" />
+                <h3 class="error-title">Signal Lost</h3>
+                <p class="error-message">{{ explorationError }}</p>
+                <UButton variant="secondary" size="md" @click="loadData">
+                  <Icon icon="mdi:refresh" class="mr-2" />
+                  Retry Connection
+                </UButton>
+              </div>
+            </UCard>
+          </div>
+
+          <!-- Explorer Cards List -->
+          <div v-else class="explorers-section">
+            <div
+              v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
+              class="empty-state"
+            >
+              <Icon icon="mdi:compass-off" class="empty-icon" />
+              <h3 class="empty-title">No Active Activities</h3>
+              <p class="empty-text">
+                Send dwellers to the wasteland or assign quest parties to see them here.
+              </p>
             </div>
-          </UCard>
-        </div>
 
-        <!-- Explorer Cards List -->
-        <div v-else class="explorers-section">
-          <div
-            v-if="activeExplorationsArray.length === 0 && activeQuestsWithParty.length === 0"
-            class="empty-state"
-          >
-            <Icon icon="mdi:compass-off" class="empty-icon" />
-            <h3 class="empty-title">No Active Activities</h3>
-            <p class="empty-text">
-              Send dwellers to the wasteland or assign quest parties to see them here.
-            </p>
-          </div>
-
-          <div v-else class="activity-groups">
-            <section v-if="activeExplorationsArray.length > 0" class="activity-group">
-              <div class="activity-heading">
-                <div>
-                  <span class="activity-kicker">Wasteland</span>
-                  <h2>Active explorers</h2>
+            <div v-else class="activity-groups">
+              <section v-if="activeExplorationsArray.length > 0" class="activity-group">
+                <div class="activity-heading">
+                  <div>
+                    <span class="activity-kicker">Wasteland</span>
+                    <h2>Active explorers</h2>
+                  </div>
+                  <span>{{ activeExplorationsArray.length }} deployed</span>
                 </div>
-                <span>{{ activeExplorationsArray.length }} deployed</span>
-              </div>
-              <div class="explorers-grid">
-                <ExplorerCard
-                  v-for="exploration in activeExplorationsArray"
-                  :key="exploration.id"
-                  :exploration="exploration"
-                  :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
-                  :selected="selectedExplorerId === exploration.id"
-                  @select="selectedExplorerId = exploration.id"
-                  @complete="handleCompleteExploration"
-                  @recall="handleRecallExploration"
-                />
-              </div>
-            </section>
-
-            <section v-if="activeQuestsWithParty.length > 0" class="activity-group">
-              <div class="activity-heading">
-                <div>
-                  <span class="activity-kicker">Overseer dispatch</span>
-                  <h2>Quest parties</h2>
+                <div class="explorers-grid">
+                  <ExplorerCard
+                    v-for="exploration in activeExplorationsArray"
+                    :key="exploration.id"
+                    :exploration="exploration"
+                    :dweller="getDetailedDweller(exploration.dweller_id) ?? undefined"
+                    :selected="selectedExplorerId === exploration.id"
+                    @select="selectedExplorerId = exploration.id"
+                    @complete="handleCompleteExploration"
+                    @recall="handleRecallExploration"
+                  />
                 </div>
-                <span>{{ activeQuestsWithParty.length }} in progress</span>
-              </div>
-              <div class="explorers-grid">
-                <QuestPartyCard
-                  v-for="quest in activeQuestsWithParty"
-                  :key="quest.id"
-                  :quest="quest"
-                  :party-members="getPartyMembersForQuest(quest.id)"
-                  :selected="selectedQuestPartyId === quest.id"
-                  @select="selectedQuestPartyId = quest.id"
-                />
-              </div>
-            </section>
-          </div>
-        </div>
+              </section>
 
-        <!-- Event Timeline Sidebar -->
-        <div v-if="selectedExploration" class="timeline-section">
-          <div class="timeline-header">
-            <div class="timeline-title">
-              <Icon icon="mdi:timeline-text" class="mr-2" />
-              Event Log
+              <section v-if="activeQuestsWithParty.length > 0" class="activity-group">
+                <div class="activity-heading">
+                  <div>
+                    <span class="activity-kicker">Overseer dispatch</span>
+                    <h2>Quest parties</h2>
+                  </div>
+                  <span>{{ activeQuestsWithParty.length }} in progress</span>
+                </div>
+                <div class="explorers-grid">
+                  <QuestPartyCard
+                    v-for="quest in activeQuestsWithParty"
+                    :key="quest.id"
+                    :quest="quest"
+                    :party-members="getPartyMembersForQuest(quest.id)"
+                    :selected="selectedQuestPartyId === quest.id"
+                    @select="selectedQuestPartyId = quest.id"
+                  />
+                </div>
+              </section>
             </div>
-            <UTooltip text="Close">
-              <button @click="selectedExplorerId = null" class="close-timeline-btn" aria-label="Close event log">
-                <Icon icon="mdi:close" />
-              </button>
-            </UTooltip>
           </div>
-          <ExplorationEventLog :events="selectedExploration.events" reverse />
-        </div>
+
+          <!-- Event Timeline Sidebar -->
+          <div v-if="selectedExploration" class="timeline-section">
+            <div class="timeline-header">
+              <div class="timeline-title">
+                <Icon icon="mdi:timeline-text" class="mr-2" />
+                Event Log
+              </div>
+              <UTooltip text="Close">
+                <button
+                  @click="selectedExplorerId = null"
+                  class="close-timeline-btn"
+                  aria-label="Close event log"
+                >
+                  <Icon icon="mdi:close" />
+                </button>
+              </UTooltip>
+            </div>
+            <ExplorationEventLog :events="selectedExploration.events" reverse />
+          </div>
         </div>
       </PageContentRail>
 

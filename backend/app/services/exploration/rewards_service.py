@@ -225,7 +225,7 @@ class RewardsService:
         exploration = await crud_exploration.get_for_update(db_session, exploration_id)
         if not exploration:
             raise ResourceNotFoundException(Exploration, exploration_id)
-        if exploration.is_active():
+        if exploration.is_in_progress():
             raise ValidationException("Exploration is still in progress")
         return exploration, list(exploration.unclaimed_loot or [])
 
@@ -239,7 +239,7 @@ class RewardsService:
                 unclaimed_loot=exploration.unclaimed_loot,
             )
             for exploration in explorations
-            if not exploration.is_active() and exploration.unclaimed_loot
+            if not exploration.is_in_progress() and exploration.unclaimed_loot
         ]
 
     async def take_unclaimed_item(self, db_session: AsyncSession, exploration_id: UUID4, index: int) -> list[dict]:

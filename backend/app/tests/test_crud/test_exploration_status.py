@@ -26,6 +26,8 @@ async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
     async_session.add(exploration)
     await async_session.commit()
     await async_session.refresh(exploration)
+    await exploration_service.start_return(async_session, exploration.id)
+    await exploration_service.finalize_return(async_session, exploration.id)
 
 
 @pytest.mark.asyncio
@@ -87,7 +89,6 @@ async def test_dweller_status_training_on_exploration_complete_with_training_roo
 
     # Complete exploration
     await _finish_exploration(async_session, exploration)
-    await exploration_service.complete_exploration(async_session, exploration.id)
 
     # Room was vacated at dispatch, so the dweller returns IDLE and must be
     # reassigned explicitly to train again.

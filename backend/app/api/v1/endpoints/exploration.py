@@ -1,5 +1,6 @@
 """Exploration endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -9,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser, get_user_vault_or_403, verify_exploration_access
 from app.crud import exploration as crud_exploration
 from app.db.session import get_async_session
+from app.models.exploration import Exploration
 from app.schemas.exploration import (
     ExplorationCompleteResponse,
     ExplorationProgress,
@@ -31,7 +33,7 @@ async def send_dweller_to_wasteland(
     vault_id: Annotated[UUID4, Query()],
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> ExplorationRead:
+) -> Exploration:
     """Send a dweller to the wasteland for exploration.
 
     Returns:
@@ -60,7 +62,7 @@ async def list_explorations_by_vault(
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
     active_only: bool = True,
-) -> list[ExplorationReadShort]:
+) -> Sequence[Exploration]:
     """List all explorations for a vault.
 
     Returns:
@@ -90,7 +92,7 @@ async def get_exploration(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> ExplorationRead:
+) -> Exploration:
     """Get detailed information about an exploration.
 
     Returns:
@@ -134,7 +136,7 @@ async def recall_dweller(
         exploration, rewards = await exploration_service.recall_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards.model_dump(),
+            rewards_summary=rewards.model_dump() if rewards else None,
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
@@ -159,7 +161,7 @@ async def complete_exploration(
         exploration, rewards = await exploration_service.complete_exploration_with_data(db_session, exploration_id)
         return ExplorationCompleteResponse(
             exploration=exploration,
-            rewards_summary=rewards.model_dump(),
+            rewards_summary=rewards.model_dump() if rewards else None,
         )
     except ValueError as e:
         raise ValidationException(str(e)) from e
@@ -196,7 +198,7 @@ async def generate_event(
     exploration_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> ExplorationRead:
+) -> Exploration:
     """Manually trigger event generation for an exploration (for testing/debugging).
 
     Returns:

@@ -5,7 +5,11 @@ import { UBadge, UTooltip } from '@/core/components/ui'
 import UProgressBar from '@/core/components/ui/UProgressBar.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
-import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
+import {
+  canRecall,
+  getProgressPercentage,
+  isReadyToComplete,
+} from '@/modules/exploration/composables/useExplorationProgress'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -47,15 +51,14 @@ const sortedExplorations = computed(() =>
   [...props.explorations].sort((a, b) => getProgressPercentage(b) - getProgressPercentage(a))
 )
 
-const isReady = (exploration: Exploration) => getProgressPercentage(exploration) >= 100
+const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
 
 // Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
 const isAtRisk = (dwellerId: string) => {
   const detailed = getDetailedDweller(dwellerId)
   if (!detailed || !detailed.max_health) return false
   return (
-    detailed.health / detailed.max_health <= 0.3 ||
-    detailed.radiation / detailed.max_health >= 0.5
+    detailed.health / detailed.max_health <= 0.3 || detailed.radiation / detailed.max_health >= 0.5
   )
 }
 
@@ -80,11 +83,7 @@ const riskTitle = (dwellerId: string) => {
       </UTooltip>
     </div>
     <div class="explorer-list">
-      <div
-        v-for="exploration in sortedExplorations"
-        :key="exploration.id"
-        class="explorer-card"
-      >
+      <div v-for="exploration in sortedExplorations" :key="exploration.id" class="explorer-card">
         <div class="explorer-info">
           <div class="flex items-center justify-between gap-2">
             <div class="flex min-w-0 items-center gap-1.5">
@@ -93,22 +92,29 @@ const riskTitle = (dwellerId: string) => {
                 >{{ getDwellerById(exploration.dweller_id)?.first_name }}
                 {{ getDwellerById(exploration.dweller_id)?.last_name }}</span
               >
-              <UTooltip v-if="isAtRisk(exploration.dweller_id)" :text="riskTitle(exploration.dweller_id)">
-              <span aria-label="Dweller at risk">
-                <UBadge size="sm" variant="warning">
-                  <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
-                  AT RISK
-                </UBadge>
-              </span>
+              <UTooltip
+                v-if="isAtRisk(exploration.dweller_id)"
+                :text="riskTitle(exploration.dweller_id)"
+              >
+                <span aria-label="Dweller at risk">
+                  <UBadge size="sm" variant="warning">
+                    <Icon icon="mdi:heart-pulse" class="h-3 w-3" />
+                    AT RISK
+                  </UBadge>
+                </span>
               </UTooltip>
             </div>
             <span class="flex shrink-0 items-center gap-1">
+              <UBadge v-if="exploration.status === 'returning'" size="sm" variant="secondary"
+                >RETURNING</UBadge
+              >
               <UTooltip v-if="isReady(exploration)" text="Expedition finished — ready to collect">
-              <span>
-                <UBadge size="sm" variant="primary">READY</UBadge>
-              </span>
+                <span>
+                  <UBadge size="sm" variant="primary">READY</UBadge>
+                </span>
               </UTooltip>
-              <span class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
+              <span
+                class="whitespace-nowrap rounded-full border border-[rgba(205,133,63,0.35)] bg-[rgba(205,133,63,0.1)] px-1.5 py-0.5 font-mono text-[0.65rem] font-bold text-wasteland"
                 >{{ Math.round(getProgressPercentage(exploration)) }}%</span
               >
             </span>
@@ -137,7 +143,11 @@ const riskTitle = (dwellerId: string) => {
             </div>
             <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
             <UTooltip :text="`${exploration.enemies_encountered || 0} enemies encountered`">
-              <div class="stat-item"><Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{ exploration.enemies_encountered || 0 }}</span></div>
+              <div class="stat-item">
+                <Icon icon="mdi:skull" class="h-3.5 w-3.5" /><span>{{
+                  exploration.enemies_encountered || 0
+                }}</span>
+              </div>
             </UTooltip>
           </div>
           <div
@@ -150,34 +160,32 @@ const riskTitle = (dwellerId: string) => {
               v-if="getDwellerWeapon(exploration.dweller_id)"
               :text="getDwellerWeapon(exploration.dweller_id)?.name"
             >
-            <span
-              class="stat-item min-w-0 text-amber-400"
-            >
-              <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{{
-                getDwellerWeapon(exploration.dweller_id)?.name
-              }}</span>
-            </span>
+              <span class="stat-item min-w-0 text-amber-400">
+                <Icon icon="mdi:sword" class="h-3 w-3 shrink-0" />
+                <span class="min-w-0 flex-1 truncate">{{
+                  getDwellerWeapon(exploration.dweller_id)?.name
+                }}</span>
+              </span>
             </UTooltip>
             <UTooltip
               v-if="getDwellerOutfit(exploration.dweller_id)"
               :text="getDwellerOutfit(exploration.dweller_id)?.name"
             >
-            <span
-              class="stat-item min-w-0 text-blue-400"
-            >
-              <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{{
-                getDwellerOutfit(exploration.dweller_id)?.name
-              }}</span>
-            </span>
+              <span class="stat-item min-w-0 text-blue-400">
+                <Icon icon="mdi:tshirt-crew" class="h-3 w-3 shrink-0" />
+                <span class="min-w-0 flex-1 truncate">{{
+                  getDwellerOutfit(exploration.dweller_id)?.name
+                }}</span>
+              </span>
             </UTooltip>
           </div>
         </div>
         <ExplorerActions
           compact
           class="explorer-actions"
-          :can-complete="getProgressPercentage(exploration) >= 100"
+          :can-complete="isReady(exploration)"
+          :can-recall="canRecall(exploration)"
+          :is-returning="exploration.status === 'returning'"
           @complete="emit('complete', exploration.id)"
           @recall="emit('recall', exploration.id)"
         />

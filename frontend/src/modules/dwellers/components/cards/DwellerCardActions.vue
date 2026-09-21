@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import UButton from '@/core/components/ui/UButton.vue'
 import UTooltip from '@/core/components/ui/UTooltip.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { isMature } from '../../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
@@ -26,11 +27,18 @@ const emit = defineEmits<{
 }>()
 
 const trainingStore = useTrainingStore()
+const explorationStore = useExplorationStore()
 
 const isTraining = computed(() => trainingStore.isDwellerTraining(props.dweller.id))
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
+/** Recall only applies while exploring; the dweller stays `exploring` on the return leg. */
+const isReturning = computed(
+  () =>
+    isExploring.value &&
+    explorationStore.getExplorationByDwellerId(props.dweller.id)?.status === 'returning'
+)
 /** Away dwellers are out of the vault: room, training and wasteland actions do not apply. */
 const isAway = computed(
   () => props.dweller.status === 'exploring' || props.dweller.status === 'questing'
@@ -52,15 +60,13 @@ const exploreTooltip = computed(() =>
 
     <UTooltip
       v-if="dweller.room === null && !isGone"
-      :text="isMatureDweller ? 'Assign to the best matching room' : 'Assign as an apprentice in a production room'"
+      :text="
+        isMatureDweller
+          ? 'Assign to the best matching room'
+          : 'Assign as an apprentice in a production room'
+      "
     >
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('assign')"
-        :disabled="loading"
-      >
+      <UButton variant="secondary" size="md" block @click="emit('assign')" :disabled="loading">
         <Icon
           :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
           class="h-5 w-5 mr-2"
@@ -70,13 +76,7 @@ const exploreTooltip = computed(() =>
     </UTooltip>
 
     <UTooltip v-else-if="!isGone" text="Unassign from the current room">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('unassign')"
-        :disabled="loading"
-      >
+      <UButton variant="secondary" size="md" block @click="emit('unassign')" :disabled="loading">
         <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
         Unassign
       </UButton>
@@ -95,14 +95,15 @@ const exploreTooltip = computed(() =>
       </UButton>
     </UTooltip>
 
-    <UTooltip v-if="isExploring" text="Recall from the wasteland">
-      <UButton
-        variant="secondary"
-        size="md"
-        block
-        @click="emit('recall')"
-        :disabled="loading"
-      >
+    <UTooltip v-if="isReturning" text="Heading home from the wasteland">
+      <UButton variant="secondary" size="md" block disabled>
+        <Icon icon="mdi:home-import-outline" class="h-5 w-5 mr-2" />
+        Returning
+      </UButton>
+    </UTooltip>
+
+    <UTooltip v-else-if="isExploring" text="Recall from the wasteland">
+      <UButton variant="secondary" size="md" block @click="emit('recall')" :disabled="loading">
         <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
         Recall
       </UButton>

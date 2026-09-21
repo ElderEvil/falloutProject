@@ -5,6 +5,9 @@ import { nextTick } from 'vue'
 import { UProgressBar } from '@/core/components/ui'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vue'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
@@ -15,7 +18,9 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
-  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
+  getIdentityOptions: vi
+    .fn()
+    .mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
 vi.mock('@iconify/vue', () => ({
@@ -53,6 +58,9 @@ const dweller = {
   last_name: 'MacLean',
   image_url: 'example.com/lucy.png',
   thumbnail_url: 'example.com/lucy-thumb.png',
+  age_group: 'adult',
+  gender: 'female',
+  rarity: 'legendary',
 } as Dweller
 
 beforeEach(() => {
@@ -67,7 +75,9 @@ describe('ExplorerCard', () => {
   it('shows the exploring dweller portrait', () => {
     const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/lucy-thumb.png')
+    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
+      'http://example.com/lucy-thumb.png'
+    )
     expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Lucy MacLean portrait')
 
     wrapper.unmount()
@@ -75,7 +85,10 @@ describe('ExplorerCard', () => {
 
   it('uses the thumbnail when image_url is blank', () => {
     const wrapper = mount(ExplorerCard, {
-      props: { exploration, dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' } },
+      props: {
+        exploration,
+        dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' },
+      },
     })
 
     expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
@@ -130,6 +143,15 @@ describe('ExplorerCard', () => {
     expect(wrapper.find('.progress-percentage').text()).toBe('0%')
 
     wrapper.unmount()
+  })
+
+  it('shows the dweller identity badges alongside the explorer state', () => {
+    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+
+    const identityBadges = wrapper.find('.identity-badges')
+    expect(identityBadges.findComponent(DwellerAgeBadge).exists()).toBe(true)
+    expect(identityBadges.findComponent(DwellerGenderBadge).exists()).toBe(true)
+    expect(identityBadges.findComponent(DwellerRarityBadge).exists()).toBe(true)
   })
 
   it('uses compact shared actions to complete or recall the explorer', async () => {

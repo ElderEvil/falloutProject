@@ -56,7 +56,8 @@ async def _completed_with_overflow(async_session, vault, dweller, loots=None):
     async_session.add(exploration)
     await async_session.flush()
     await async_session.refresh(exploration)
-    rewards = await exploration_coordinator.complete_exploration(async_session, exploration.id)
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
     await async_session.refresh(exploration)
     return exploration, rewards
 

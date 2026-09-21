@@ -7,6 +7,9 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 import { useExplorationProgress } from '@/modules/exploration/composables/useExplorationProgress'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { UBadge, UCard, UProgressBar, UTooltip } from '@/core/components/ui'
 import ExplorerActions from './ExplorerActions.vue'
@@ -37,9 +40,13 @@ const dwellerName = computed(() =>
   props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
 )
 
-const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => props.exploration)
-
-const isReady = computed(() => progressPercentage.value >= 100)
+const {
+  progress: progressPercentage,
+  timeRemaining,
+  isReturning,
+  isReady,
+  canRecall,
+} = useExplorationProgress(() => props.exploration)
 
 // Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
 const isAtRisk = computed(() => {
@@ -58,43 +65,63 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 </script>
 
 <template>
-  <UCard padding="md" surface="raised" class="explorer-card" :class="{ selected }" @click="openDetailView">
+  <UCard
+    padding="md"
+    surface="raised"
+    class="explorer-card"
+    :class="{ selected }"
+    @click="openDetailView"
+  >
     <!-- Header -->
     <div class="card-header">
       <UTooltip text="Open dweller detail page">
-      <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
-        <DwellerPortrait
-          :image-url="dweller?.image_url"
-          :thumbnail-url="dweller?.thumbnail_url"
-          prefer-thumbnail
-          :alt="`${dwellerName} portrait`"
-          image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
-          fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
-        />
-        <div>
-          <div class="dweller-name">{{ dwellerName }}</div>
-          <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-          <div v-if="isReady || isAtRisk" class="badge-row">
-            <UTooltip v-if="isReady" text="Expedition finished — ready to collect">
-              <span><UBadge size="sm" variant="primary">READY</UBadge></span>
-            </UTooltip>
-            <UTooltip v-if="isAtRisk" :text="riskTitle">
-              <span aria-label="Dweller at risk"><UBadge size="sm" variant="warning"><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</UBadge></span>
-            </UTooltip>
+        <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
+          <DwellerPortrait
+            :image-url="dweller?.image_url"
+            :thumbnail-url="dweller?.thumbnail_url"
+            prefer-thumbnail
+            :alt="`${dwellerName} portrait`"
+            image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
+            fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
+          />
+          <div>
+            <div class="dweller-name">{{ dwellerName }}</div>
+            <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
+            <div v-if="isReturning || isReady || isAtRisk" class="badge-row">
+              <UTooltip v-if="isReturning" :text="timeRemaining">
+                <span><UBadge size="sm" variant="secondary">RETURNING</UBadge></span>
+              </UTooltip>
+              <UTooltip v-if="isReady" text="Expedition finished — ready to collect">
+                <span><UBadge size="sm" variant="primary">READY</UBadge></span>
+              </UTooltip>
+              <UTooltip v-if="isAtRisk" :text="riskTitle">
+                <span aria-label="Dweller at risk"
+                  ><UBadge size="sm" variant="warning"
+                    ><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</UBadge
+                  ></span
+                >
+              </UTooltip>
+            </div>
+            <div v-if="dweller" class="identity-badges">
+              <DwellerAgeBadge :age-group="dweller.age_group" size="sm" />
+              <DwellerGenderBadge :gender="dweller.gender" size="sm" />
+              <DwellerRarityBadge :rarity="dweller.rarity" size="sm" />
+              <DwellerIdentitySignal :visual-attributes="dweller.visual_attributes" compact />
+            </div>
           </div>
-          <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
-        </div>
-      </button>
+        </button>
       </UTooltip>
       <UTooltip v-if="selected" text="Event timeline open">
-        <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+        <button class="expand-indicator" aria-label="Event timeline open">
+          <Icon icon="mdi:timeline-text" />
+        </button>
       </UTooltip>
     </div>
 
     <!-- Progress Bar -->
     <div class="progress-section">
       <div class="progress-info">
-        <span>Mission progress</span>
+        <span>{{ isReturning ? 'Return progress' : 'Mission progress' }}</span>
         <span class="progress-percentage">{{ Math.round(progressPercentage) }}%</span>
       </div>
       <UProgressBar :model-value="progressPercentage" :height="8" :glow="false" />
@@ -103,11 +130,29 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <TerminalMetric icon="mdi:map-marker-distance" label="Distance" :value="`${exploration.total_distance} mi`" />
-      <TerminalMetric icon="mdi:treasure-chest" label="Items" :value="exploration.loot_collected?.length || 0" />
-      <TerminalMetric icon="mdi:currency-usd" label="Caps" :value="exploration.total_caps_found" tone="caps" />
+      <TerminalMetric
+        icon="mdi:map-marker-distance"
+        label="Distance"
+        :value="`${exploration.total_distance} mi`"
+      />
+      <TerminalMetric
+        icon="mdi:treasure-chest"
+        label="Items"
+        :value="exploration.loot_collected?.length || 0"
+      />
+      <TerminalMetric
+        icon="mdi:currency-usd"
+        label="Caps"
+        :value="exploration.total_caps_found"
+        tone="caps"
+      />
       <TerminalMetric icon="mdi:medical-bag" label="Stimpaks" :value="exploration.stimpaks || 0" />
-      <TerminalMetric icon="mdi:pill" label="RadAway" :value="exploration.radaways || 0" tone="caps" />
+      <TerminalMetric
+        icon="mdi:pill"
+        label="RadAway"
+        :value="exploration.radaways || 0"
+        tone="caps"
+      />
       <TerminalMetric icon="mdi:skull" label="Enemies" :value="exploration.enemies_encountered" />
     </div>
 
@@ -149,7 +194,9 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <!-- Actions -->
     <ExplorerActions
       compact
-      :can-complete="progressPercentage >= 100"
+      :can-complete="isReady"
+      :can-recall="canRecall"
+      :is-returning="isReturning"
       @complete="emit('complete', exploration.id)"
       @recall="emit('recall', exploration.id)"
     />
@@ -180,6 +227,14 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   flex-wrap: wrap;
   gap: 0.375rem;
   margin-top: 0.375rem;
+}
+
+.identity-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
 }
 
 .card-header {
@@ -276,7 +331,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   gap: 0.5rem;
 }
 
-
 .equipment-section {
   display: grid;
   grid-template-columns: 1fr;
@@ -307,7 +361,6 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 
 .recent-events {
   padding: 0.75rem;
@@ -352,5 +405,4 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
   flex: 1;
   line-height: 1.3;
 }
-
 </style>

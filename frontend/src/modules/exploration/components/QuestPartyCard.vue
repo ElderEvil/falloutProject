@@ -4,6 +4,9 @@ import { Icon } from '@iconify/vue'
 import { UCard, UProgressBar } from '@/core/components/ui'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
+import DwellerAgeBadge from '@/modules/dwellers/components/DwellerAgeBadge.vue'
+import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
+import DwellerRarityBadge from '@/modules/dwellers/components/DwellerRarityBadge.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { VaultQuest } from '@/modules/progression/models/quest'
 
@@ -40,7 +43,9 @@ const progressPercentage = computed(() => {
 const timeRemaining = computed(() => {
   if (progressPercentage.value >= 100) return 'Rewards ready'
 
-  const remainingMinutes = Math.ceil((props.quest.duration_minutes ?? 0) * (1 - progressPercentage.value / 100))
+  const remainingMinutes = Math.ceil(
+    (props.quest.duration_minutes ?? 0) * (1 - progressPercentage.value / 100)
+  )
   const hours = Math.floor(remainingMinutes / 60)
   return hours > 0 ? `${hours}h ${remainingMinutes % 60}m left` : `${remainingMinutes}m left`
 })
@@ -49,7 +54,13 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 </script>
 
 <template>
-  <UCard padding="md" surface="raised" class="quest-party-card" :class="{ selected }" @click="emit('select')">
+  <UCard
+    padding="md"
+    surface="raised"
+    class="quest-party-card"
+    :class="{ selected }"
+    @click="emit('select')"
+  >
     <div class="mission-header">
       <div class="mission-type">
         <Icon icon="mdi:sword-cross" class="mission-icon" />
@@ -76,8 +87,15 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
       <div class="party-members">
         <div v-for="member in partyMembers" :key="member.id" class="party-member">
           <Icon icon="mdi:account" class="member-icon" />
-          <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
-          <DwellerIdentitySignal :visual-attributes="member.visual_attributes" compact />
+          <div class="member-info">
+            <span class="member-name">{{ member.first_name }} {{ member.last_name }}</span>
+            <div class="member-badges">
+              <DwellerAgeBadge :age-group="member.age_group" size="sm" />
+              <DwellerGenderBadge :gender="member.gender" size="sm" />
+              <DwellerRarityBadge :rarity="member.rarity" size="sm" />
+              <DwellerIdentitySignal :visual-attributes="member.visual_attributes" compact />
+            </div>
+          </div>
           <span class="member-level">Lv.{{ member.level }}</span>
         </div>
       </div>
@@ -90,7 +108,10 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
   display: grid;
   gap: 14px;
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .quest-party-card:hover,
@@ -181,6 +202,19 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
   gap: 8px;
   color: var(--color-theme-primary);
   font-size: 0.85rem;
+}
+
+.member-info {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.member-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .member-name {

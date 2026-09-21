@@ -251,10 +251,8 @@ pythonpath = ["."]
 addopts = ["-p", "no:cacheprovider", "-n", "2"]
 markers = [
     "smoke: curated critical-path subset for quick dev loops (pytest -m smoke)",
-    "unit: fast pure or mocked unit tests",
     "integration: tests requiring database/redis or real service wiring",
     "slow: tests that take >1s and should be skippable",
-    "e2e: end-to-end or full-stack tests",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

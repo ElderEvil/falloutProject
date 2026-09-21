@@ -81,14 +81,15 @@ def _app_and_client() -> tuple:
     return app, TestClient(app)
 
 
+# ── Configurable threshold ──────────────────────────────────────────
+# RSS is measured inside pytest which already loaded the full app, so
+# absolute values include all imports + conftest fixtures. The growth
+# test is the meaningful regression detector.
+RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
+
+
 class TestMemoryRegression:
     """Guard against dependency-graph memory leaks."""
-
-    # ── Configurable thresholds ─────────────────────────────────────
-    # RSS is measured inside pytest which already loaded the full app,
-    # so absolute values include all imports + conftest fixtures.
-    # The growth test is the meaningful regression detector.
-    RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
 
     def test_rss_growth_after_requests(self, _app_and_client):
         """RSS should not grow excessively after handling 200+ requests."""
@@ -107,8 +108,8 @@ class TestMemoryRegression:
         rss_after = get_rss_mb()
         growth = rss_after - rss_before
 
-        assert growth < self.RSS_GROWTH_MAX, (
-            f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {self.RSS_GROWTH_MAX} MB"
+        assert growth < RSS_GROWTH_MAX, (
+            f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {RSS_GROWTH_MAX} MB"
         )
 
     def test_dependency_endpoints_respond_correctly(self, _app_and_client):

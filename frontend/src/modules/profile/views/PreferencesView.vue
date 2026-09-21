@@ -97,8 +97,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             <!-- Theme Selection -->
             <UCard class="mb-4">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:palette" class="text-xl" />
                 Color Theme
@@ -138,8 +137,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             <!-- Visual Effects -->
             <UCard class="mb-4">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:television-classic" class="text-xl" />
                 CRT Visual Effects
@@ -155,8 +153,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:flash"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Screen Flickering</h3>
                   </div>
@@ -180,8 +177,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:view-sequential"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Scanlines</h3>
                   </div>
@@ -205,8 +201,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   <div class="flex items-center gap-2">
                     <Icon
                       icon="mdi:lightbulb-on"
-                      class="text-xl"
-                      :style="{ color: 'var(--color-theme-primary)' }"
+                      class="text-xl text-theme-primary"
                     />
                     <h3 class="setting-label">Text Glow Intensity</h3>
                   </div>
@@ -216,8 +211,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                     <span class="demo-label">Preview: </span>
                     <span
                       :class="injectedGlowClass"
-                      :style="{ color: 'var(--color-theme-primary)' }"
-                      class="demo-text"
+                      class="demo-text text-theme-primary"
                     >
                       VAULT-TEC TERMINAL
                     </span>
@@ -241,7 +235,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
             <!-- Room Rendering -->
             <UCard class="mb-4">
-              <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2 class="text-xl font-bold mb-2 text-theme-primary">
                 <Icon icon="mdi:image" class="inline mr-2" />
                 Room Rendering
               </h2>
@@ -273,8 +267,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             <!-- Badges -->
             <UCard class="mb-4">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:palette" class="text-xl" />
                 Badge Colors
@@ -305,8 +298,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
             <!-- Sound -->
             <UCard class="mb-4">
               <h2
-                class="text-xl font-bold mb-2 flex items-center gap-2"
-                :style="{ color: 'var(--color-theme-primary)' }"
+                class="text-xl font-bold mb-2 flex items-center gap-2 text-theme-primary"
               >
                 <Icon icon="mdi:volume-high" class="text-xl" />
                 Sound
@@ -355,7 +347,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
             <!-- Quick Actions -->
             <UCard>
-              <h2 class="text-xl font-bold mb-2" :style="{ color: 'var(--color-theme-primary)' }">
+              <h2 class="text-xl font-bold mb-2 text-theme-primary">
                 Quick Actions
               </h2>
               <div class="flex flex-wrap gap-3">

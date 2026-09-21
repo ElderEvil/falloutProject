@@ -19,7 +19,7 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.ai_usage import AIUsageResponse
 from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdate, UserWithTokens
-from app.schemas.user_profile import ProfileUpdate
+from app.schemas.user_profile import ProfileRead, ProfileUpdate
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
 from app.utils.exceptions import ResourceNotFoundException
@@ -180,7 +180,7 @@ async def update_user(
 # =============================================================================
 
 
-@router.get("/me/profile")
+@router.get("/me/profile", response_model=ProfileRead)
 async def get_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
@@ -202,7 +202,7 @@ async def get_my_profile(
     return profile
 
 
-@router.put("/me/profile")
+@router.put("/me/profile", response_model=ProfileRead)
 async def update_my_profile(
     *,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],

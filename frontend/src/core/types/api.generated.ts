@@ -1708,7 +1708,7 @@ export interface paths {
          *         IncidentRead: Incident details.
          *
          *     Raises:
-         *         HTTPException: 404 if incident not found.
+         *         ResourceNotFoundException: 404 if the incident is not in this vault.
          */
         get: operations["get_incident_api_v1_game_vaults__vault_id__incidents__incident_id__get"];
         put?: never;
@@ -2046,14 +2046,7 @@ export interface paths {
          */
         get: operations["get_notifications_api_v1_notifications__get"];
         put?: never;
-        /**
-         * Create Notification
-         * @description Create a new notification (admin/system use).
-         *
-         *     Returns:
-         *         The created notification.
-         */
-        post: operations["create_notification_api_v1_notifications__post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4019,7 +4012,9 @@ export interface paths {
          *         The requested user.
          *
          *     Raises:
-         *         HTTPException: 400 if user lacks privileges to view other users.
+         *         ResourceNotFoundException: 404 if the user does not exist, or the caller
+         *             may not see it. A 403 for an existing id and a 404 for an unknown one
+         *             would let a regular user probe which ids exist.
          */
         get: operations["read_user_by_id_api_v1_users__user_id__get"];
         /**
@@ -4057,9 +4052,6 @@ export interface paths {
          *
          *     Returns:
          *         User's profile with statistics and preferences.
-         *
-         *     Raises:
-         *         HTTPException: 500 if profile retrieval/creation fails unexpectedly.
          */
         get: operations["get_my_profile_api_v1_users_me_profile_get"];
         /**
@@ -4074,8 +4066,7 @@ export interface paths {
          *         Updated profile.
          *
          *     Raises:
-         *         HTTPException: 404 if profile not found.
-         *         HTTPException: 500 if profile update fails unexpectedly.
+         *         ResourceNotFoundException: 404 if the profile does not exist.
          */
         put: operations["update_my_profile_api_v1_users_me_profile_put"];
         post?: never;
@@ -4990,11 +4981,8 @@ export interface components {
             username?: string | null;
             /** Password */
             password?: string | null;
-            /**
-             * Email
-             * Format: email
-             */
-            email?: string;
+            /** Email */
+            email?: string | null;
         };
         /** Body_verify_email_api_v1_auth_verify_email_post */
         Body_verify_email_api_v1_auth_verify_email_post: {
@@ -7659,39 +7647,6 @@ export interface components {
              * @description Optional explanation
              */
             reason?: string | null;
-        };
-        /** NotificationCreate */
-        NotificationCreate: {
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-            /** Vault Id */
-            vault_id?: string | null;
-            /** From Dweller Id */
-            from_dweller_id?: string | null;
-            notification_type: components["schemas"]["NotificationType"];
-            /** @default normal */
-            priority: components["schemas"]["NotificationPriority"];
-            /** Title */
-            title: string;
-            /** Message */
-            message: string;
-            /**
-             * Is Read
-             * @default false
-             */
-            is_read: boolean;
-            /**
-             * Is Dismissed
-             * @default false
-             */
-            is_dismissed: boolean;
-            /** Meta Data */
-            meta_data?: {
-                [key: string]: unknown;
-            } | null;
         };
         /**
          * NotificationPriority
@@ -13106,39 +13061,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_notification_api_v1_notifications__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationRead"];
                 };
             };
             /** @description Validation Error */

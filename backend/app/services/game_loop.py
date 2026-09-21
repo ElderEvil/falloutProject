@@ -328,6 +328,14 @@ class GameLoopService:
         """Process relationships and breeding for a vault."""
         return await family_tick.process_breeding(self, db_session, vault_id)
 
+    async def process_vault_breeding(self, db_session: AsyncSession, vault_id: UUID4) -> BreedingStats:
+        """Process relationships and breeding for one vault on demand.
+
+        Public entry point for callers outside the tick (e.g. the breeding
+        endpoint); delegates to the same phase the tick runs.
+        """
+        return await self._process_breeding(db_session, vault_id)
+
 
 # Global instance
 game_loop_service = GameLoopService()

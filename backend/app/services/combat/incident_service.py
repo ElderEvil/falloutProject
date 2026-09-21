@@ -7,12 +7,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.dweller import dweller as crud_dweller
 from app.crud.incident import incident_crud
+from app.crud.room import room as room_crud
 from app.crud.team import team_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.incident import Incident, IncidentStatus, IncidentType, get_incident_definition
 from app.schemas.incident import (
     IncidentEventRead,
+    IncidentListItem,
+    IncidentListResponse,
     IncidentProgress,
     IncidentRead,
     IncidentResponse,
@@ -71,6 +74,52 @@ class IncidentService:
     ) -> None:
         """Append a meaningful lifecycle event; callers commit with their state change."""
         incident_publishing.record_event(db_session, incident, kind=kind, message=message, data=data)
+
+    async def _room_name(self, db_session: AsyncSession, room_id: UUID4 | None) -> str | None:
+        """Resolve a room's display name; None when the room is gone."""
+        if room_id is None:
+            return None
+        names = await room_crud.get_names_by_ids(db_session, [room_id])
+        return names.get(room_id)
+
+    async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID4) -> IncidentListResponse:
+        """Build the active-incident list contract for a vault."""
+        incidents = await incident_crud.get_active_by_vault(db_session, vault_id)
+        room_names = await room_crud.get_names_by_ids(db_session, [incident.room_id for incident in incidents])
+
+        return IncidentListResponse(
+            vault_id=str(vault_id),
+            incident_count=len(incidents),
+            incidents=[
+                IncidentListItem(
+                    id=str(incident.id),
+                    type=incident.type,
+                    status=incident.status,
+                    room_id=str(incident.room_id),
+                    room_name=room_names.get(incident.room_id),
+                    difficulty=incident.difficulty,
+                    start_time=incident.start_time.isoformat(),
+                    elapsed_time=incident.elapsed_time(),
+                    damage_dealt=incident.damage_dealt,
+                    enemies_defeated=incident.enemies_defeated,
+                )
+                for incident in incidents
+            ],
+        )
+
+    async def get_incident_read_for_vault(
+        self, db_session: AsyncSession, vault_id: UUID4, incident_id: UUID4
+    ) -> IncidentRead:
+        """Get an incident's read contract, scoped to the vault that owns it.
+
+        Raises:
+            ResourceNotFoundException: If the incident does not exist in this vault.
+        """
+        incident = await incident_crud.get(db_session, incident_id)
+        if not incident or incident.vault_id != vault_id:
+            raise ResourceNotFoundException(model=Incident, identifier=incident_id)
+
+        return await self.get_incident_read(db_session, incident, await self._room_name(db_session, incident.room_id))
 
     async def get_incident_read(
         self, db_session: AsyncSession, incident: Incident, room_name: str | None
@@ -246,9 +295,10 @@ class IncidentService:
 
         # Re-load under a FOR UPDATE row lock so the read→check→insert below is
         # serialized against concurrent assignments to the same incident.
-        incident = await incident_crud.get_for_update(db_session, incident.id)
-        if incident is None:
+        locked_incident = await incident_crud.get_for_update(db_session, incident.id)
+        if locked_incident is None:
             raise ResourceNotFoundException(Incident, incident.id)
+        incident = locked_incident
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")
 

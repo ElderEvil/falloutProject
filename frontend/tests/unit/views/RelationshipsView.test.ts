@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import RelationshipsView from '@/modules/social/views/RelationshipsView.vue'
 import { useRelationshipStore } from '@/modules/social/stores/relationship'
+import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -63,23 +64,25 @@ vi.mock('@/core/composables/useToast', () => ({
 describe('RelationshipsView', () => {
   let router: any
   let relationshipStore: any
+  let pregnancyStore: any
   let dwellerStore: any
   let authStore: any
 
   beforeEach(async () => {
     setActivePinia(createPinia())
     relationshipStore = useRelationshipStore()
+    pregnancyStore = usePregnancyStore()
     dwellerStore = useDwellerStore().filter
     authStore = useAuthStore()
 
     // Mock store methods
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
-    vi.spyOn(relationshipStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
+    vi.spyOn(pregnancyStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
     vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue(undefined)
 
     // Set up mock data
     relationshipStore.relationships = []
-    relationshipStore.pregnancies = []
+    pregnancyStore.pregnancies = []
     relationshipStore.token = 'mock-token'
     dwellerStore.allDwellers = []
     authStore.user = { is_superuser: false } as any
@@ -262,7 +265,7 @@ describe('RelationshipsView', () => {
     })
 
     it('should display the pregnancy count in the Pregnancies tab', async () => {
-      relationshipStore.pregnancies = [{ id: '1' }, { id: '2' }]
+      pregnancyStore.pregnancies = [{ id: '1' }, { id: '2' }]
 
       const wrapper = mount(RelationshipsView, {
         global: {
@@ -307,7 +310,7 @@ describe('RelationshipsView', () => {
       await flushPromises()
 
       expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalledWith('test-vault-id')
-      expect(relationshipStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
+      expect(pregnancyStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')
       expect(dwellerStore.fetchAllDwellers).toHaveBeenCalledWith('test-vault-id', 'mock-token')
     })
   })

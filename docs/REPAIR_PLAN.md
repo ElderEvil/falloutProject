@@ -16,7 +16,7 @@
 1. **Retire `/ws/{user_id}`** (`backend/app/api/v1/endpoints/websocket.py:81-91`) in favour of the authenticated SSE stream; remove its `ProfileView.vue:54-61` consumer (legacy unauthenticated socket — retire, do not extend). Keep the chat socket separate. Tests: no token, malformed token, mismatched subject, owner — handshake rejected before `manager.connect()`.
 2. **Lock down `POST /notifications`** (`endpoints/notifications.py:54-65`): remove the public route (server-side callers already go through `NotificationService.create_and_send()`); if an operator endpoint is a real requirement, gate behind `CurrentSuperuser` with no player-facing recipient field. Tests: regular user rejected, actor cannot select another user ID.
 
-**Exit:** regression tests green, touched-file `ty` check clean (see Wave 1 exit), full backend suite passes.
+**Exit:** regression tests green, touched-file `ty` check clean (see Wave 1 exit), full backend suite passes, frontend `pnpm run typecheck` clean (Wave 0A touches `ProfileView.vue`).
 
 ## Wave 0 — Data safety (P0, smallest, do first)
 
@@ -24,7 +24,7 @@
 
 1. **Backfill `fire_resist` / `radiation_resist`** for pre-existing outfit rows.
    - Context: `backend/app/alembic/versions/2026_09_18_0002-7b2c4d9e1f30_add_outfit_hazard_resist.py:19-26` added `fire_resist NOT NULL default 0` + nullable `radiation_resist` with no backfill, while catalog declares values (`backend/app/data/items/outfits/rare.json:90,117`, `legendary.json:219-220`, asserted in `backend/app/tests/test_services/test_vault_service.py:455`).
-   - Approach: new migration, name-keyed idempotent backfill (`LOWER(TRIM(name))`, update only rows still at default), `downgrade()` documented no-op. Copy `2026_09_19_0002`. Decision: keep `fire_resist` NOT NULL and backfill known catalog rows — do not make an established typed field nullable.
+   - Approach: new migration, name-keyed idempotent backfill (`LOWER(TRIM(name))`, update only rows still at default), `downgrade()` documented no-op. Copy `2026_09_19_0002`. Decision: keep `fire_resist` NOT NULL and backfill known catalog rows — do not make an established typed field nullable. Use separate predicates per column: update known catalog rows where `fire_resist = 0` (its default) and where `radiation_resist IS NULL` (nullable, unspecified).
    - Test-first: extend `backend/app/tests/test_alembic/test_data_migrations.py` with a migration case (seed old rows → upgrade → assert catalog values; downgrade is no-op). Add/extend a `test_db/` fragment mirroring `test_backfill_outfit_special_bonuses.py`.
    - Verify: `uv run pytest app/tests/test_alembic/test_data_migrations.py app/tests/test_db/test_backfill_outfit_special_bonuses.py -q`; `uv run alembic upgrade head && uv run alembic check`.
 2. **Assess `item.item_type` default `misc`** (`2026_09_01_0001:18`, no backfill). Confirm whether legacy generic-`item` rows can be non-misc; if yes, same backfill pattern, else record why the default is correct in the PR.
@@ -80,7 +80,7 @@
 
 Ship Wave 3 as: (a) notifications/social state ownership first, then (b) one feature domain per PR, with (c) cosmetic cleanup separate and last.
 
-**Exit:** `pnpm run lint && pnpm run typecheck`, `pnpm run test:run` green; no store/component imports `axios` directly (except service/api layers).
+**Exit:** `pnpm run lint && pnpm run typecheck`, `pnpm run test:run` green; neither `axios` nor `apiClient` is directly imported by stores, composables, views, or components (except service/api layers), matching the import boundary above.
 
 ## Wave 4 — Migration + test hygiene (P2)
 

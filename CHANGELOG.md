@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.1 (2026-09-21)
+
+### Bug Fixes
+
+* retire legacy personal WS and lock down notification POST f216aef
+
+### Documentation
+
+* address CodeRabbit review comments on repair plan 82b7c03
+* implementation plan for vault experiment underlying systems 9ffdec5
+* scope prek gate to staged files, legacy ty debt out of scope 5f1b607
+* waved repair plan for audit findings e68e56b
+
 ## 2.131.0 (2026-09-21)
 
 ### Features

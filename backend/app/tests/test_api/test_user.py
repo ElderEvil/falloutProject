@@ -90,7 +90,8 @@ async def test_create_user_by_normal_user(
         headers=normal_user_token_headers,
         json=user_data,
     )
-    assert response.status_code == 400
+    # Insufficient privileges is an authorization failure, not a bad request.
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio

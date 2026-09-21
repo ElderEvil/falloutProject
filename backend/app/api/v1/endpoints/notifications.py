@@ -9,7 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api.deps import CurrentActiveUser
 from app.crud.notification import notification as notification_crud
 from app.db.session import get_async_session
-from app.models.notification import NotificationCreate, NotificationRead
+from app.models.notification import Notification, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -22,7 +22,7 @@ async def get_notifications(
     unread_only: bool = False,
     limit: int = 50,
     offset: int = 0,
-) -> list[NotificationRead]:
+) -> list[Notification]:
     """Get notifications for the current user.
 
     Returns:
@@ -51,26 +51,12 @@ async def get_unread_count(
     return CountResponse(count=count)
 
 
-@router.post("/", response_model=NotificationRead)
-async def create_notification(
-    notification_data: NotificationCreate,
-    user: CurrentActiveUser,  # ruff: ignore[unused-function-argument]
-    db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> NotificationRead:
-    """Create a new notification (admin/system use).
-
-    Returns:
-        The created notification.
-    """
-    return await notification_crud.create(db_session, obj_in=notification_data)
-
-
 @router.patch("/{notification_id}/read", response_model=NotificationRead)
 async def mark_notification_as_read(
     notification_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> NotificationRead:
+) -> Notification:
     """Mark a notification as read.
 
     Returns:
@@ -104,7 +90,7 @@ async def dismiss_notification(
     notification_id: UUID4,
     user: CurrentActiveUser,
     db_session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> NotificationRead:
+) -> Notification:
     """Dismiss (soft delete) a notification.
 
     Returns:

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { UButton, UCard, UTabs } from '@/core/components/ui'
 import { LifeDeathStatistics } from '@/modules/dwellers/components/death'
-import { useWebSocket } from '@/core/composables/useWebSocket'
 import { usePolling } from '@/core/composables/usePolling'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useBackNavigation } from '@/core/composables/useBackNavigation'
@@ -51,19 +50,7 @@ watch(
 )
 const { isCollapsed } = useSidePanel()
 
-// WebSocket for real-time statistical updates
-// Derive scheme and host from page origin for proper HTTPS/WSS support
-const wsUrl = computed(() => {
-  if (!authStore.user?.id) return ''
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.host
-  return `${protocol}//${host}/api/v1/ws/${authStore.user.id}`
-})
-
-// Register WebSocket composable at setup top-level to avoid lifecycle warning
-const { connect, on, disconnect } = useWebSocket()
-
-// Poll statistics every 30 seconds as a fallback. The polling composable
+// Poll statistics every 30 seconds. The polling composable
 // automatically pauses when this view's scope is disposed.
 usePolling(
   async () => {
@@ -76,51 +63,6 @@ onMounted(async () => {
   await fetchProfile()
   await profileStore.fetchDeathStatistics()
   await profileStore.fetchAIUsage()
-
-  if (wsUrl.value) {
-    connect(wsUrl.value)
-  }
-})
-
-onUnmounted(() => {
-  // Properly close WebSocket connection
-  disconnect()
-})
-
-// Watch for user ID changes and reconnect with proper URL
-watch(wsUrl, (newUrl, oldUrl) => {
-  if (newUrl && newUrl !== oldUrl) {
-    disconnect()
-    connect(newUrl)
-  }
-})
-
-// Watcher to handle cases where user ID arrives late or changes
-watch(
-  () => wsUrl.value,
-  (newUrl) => {
-    if (newUrl) {
-      connect()
-    } else {
-      disconnect()
-    }
-  }
-)
-
-// Register listeners
-on('dweller:born', (message) => {
-  profileStore.fetchDeathStatistics()
-})
-
-on('dweller:died', (message) => {
-  profileStore.fetchDeathStatistics()
-})
-
-on('notification', (message) => {
-  const nType = message.notification?.notification_type
-  if (nType === 'baby_born' || nType === 'dweller_died') {
-    profileStore.fetchDeathStatistics()
-  }
 })
 
 const fetchProfile = async () => {

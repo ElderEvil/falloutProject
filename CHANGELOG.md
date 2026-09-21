@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.6 (2026-09-21)
+
+### Bug Fixes
+
+* give pregnancy state a single frontend owner bca8b0f
+
 ## 2.131.5 (2026-09-21)
 
 ### Bug Fixes

@@ -20,7 +20,7 @@ from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
 from app.services.exploration_service import exploration_service
-from app.services.game_tick.guard import guard_phase, recover_session
+from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
 from app.services.game_tick.tick_results import (
     ApprenticeStats,
     DwellersStats,
@@ -68,13 +68,18 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> Exp
 
         stats["active_count"] = len(active_explorations)
 
-        for exploration in active_explorations:
-            await guard_phase(
-                f"Error processing exploration {exploration.id}",
-                partial(_process_single_exploration, db_session, stats, exploration),
+        # Iterate the ids captured up front: recover_session expires the ORM
+        # instances, so a later iteration must not read one to build its label.
+        exploration_ids = [exploration.id for exploration in active_explorations]
+        for index, exploration_id in enumerate(exploration_ids):
+            error = await guard_phase(
+                f"Error processing exploration {exploration_id}",
+                partial(_process_single_exploration, db_session, stats, active_explorations[index]),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
                 db_session=db_session,
             )
+            if error is not None:
+                await refresh_after_recovery(db_session, active_explorations[index + 1 :])
 
     except (SQLAlchemyError, ResourceNotFoundException) as e:
         await recover_session(db_session)
@@ -305,13 +310,23 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
         # Batch-fetch all dwellers for these training sessions (N+1 optimization)
         dwellers_map = await training_crud.training.get_dwellers_for_trainings(db_session, active_trainings)
 
-        for training in active_trainings:
-            await guard_phase(
-                f"Error processing training {training.id}",
-                partial(_process_single_training, db_session, stats, dwellers_map, training),
+        # Capture ids before the sweep: recover_session expires the ORM instances.
+        training_pairs = [(training.id, training.dweller_id) for training in active_trainings]
+        for index, (training_id, dweller_id) in enumerate(training_pairs):
+            error = await guard_phase(
+                f"Error processing training {training_id}",
+                partial(
+                    _process_single_training, db_session, stats, dwellers_map, active_trainings[index]
+                ),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
                 db_session=db_session,
             )
+            if error is not None:
+                remaining = training_pairs[index + 1 :]
+                await refresh_after_recovery(db_session, active_trainings[index + 1 :])
+                await refresh_after_recovery(
+                    db_session, [dwellers_map[dweller_id] for _, dweller_id in remaining if dweller_id in dwellers_map]
+                )
 
     except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
         await recover_session(db_session)

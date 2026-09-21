@@ -52,6 +52,39 @@ const bonusSources = (key: StatKey): string[] => {
   return row ? describeBonusSources(row) : []
 }
 
+interface BarModel {
+  base: number
+  bonus: number
+  overflow: boolean
+  negative: boolean
+}
+
+/** Stacked bar geometry on the 0–10 scale: base solid, bonus striped, clamped at 100%. */
+const barModel = (key: StatKey): BarModel => {
+  const row = breakdownByKey.value.get(key)
+  const base = row ? row.base : statValue(key)
+  const bonus = row ? row.effective - row.base : 0
+  if (bonus <= 0) {
+    return { base: Math.max(0, Math.min(10, base + bonus)) * 10, bonus: 0, overflow: false, negative: bonus < 0 }
+  }
+  const baseWidth = Math.min(10, base) * 10
+  return {
+    base: baseWidth,
+    bonus: Math.min(10 - baseWidth / 10, bonus) * 10,
+    overflow: base + bonus > 10,
+    negative: false,
+  }
+}
+
+const barTitle = (key: StatKey): string => {
+  const row = breakdownByKey.value.get(key)
+  if (!row) return `${statValue(key)}`
+  const sources = describeBonusSources(row)
+  return sources.length > 0
+    ? `Base ${row.base} + ${sources.join(' + ')} = ${row.effective} effective`
+    : `Base ${row.base}`
+}
+
 const highlightedKey = computed<StatKey | undefined>(() => {
   const highlighted = ctx.highlightStat.value
   if (!highlighted) return undefined
@@ -139,8 +172,27 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
             >
           </span>
         </div>
-        <div class="stat-bar">
-          <div class="stat-fill" :style="{ width: `${Math.min(100, effectiveValue(stat.key) * 10)}%` }"></div>
+        <div
+          class="stat-bar"
+          :class="{ 'stat-overflow-bar': barModel(stat.key).overflow && barModel(stat.key).bonus === 0 }"
+          role="img"
+          :title="barTitle(stat.key)"
+          :aria-label="`${stat.label}: ${barTitle(stat.key)}`"
+        >
+          <div class="stat-track">
+            <div class="stat-fill-base" :style="{ width: `${barModel(stat.key).base}%` }"></div>
+            <div
+              v-if="barModel(stat.key).bonus > 0"
+              class="stat-fill-bonus"
+              :class="{ 'stat-overflow': barModel(stat.key).overflow }"
+              :style="{ width: `${barModel(stat.key).bonus}%` }"
+            ></div>
+          </div>
+          <div
+            v-if="barModel(stat.key).negative"
+            class="stat-tick"
+            :style="{ left: `${Math.min(10, statValue(stat.key)) * 10}%` }"
+          ></div>
         </div>
         <p v-if="bonusSources(stat.key).length > 0" class="stat-breakdown">
           {{ statValue(stat.key) }} → {{ effectiveValue(stat.key) }} ({{ bonusSources(stat.key).join(' · ') }})
@@ -263,13 +315,45 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   margin-bottom: 0.25rem;
 }
 
-.stat-fill {
+.stat-track {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
+  width: 100%;
+  display: flex;
+}
+
+.stat-fill-base {
+  height: 100%;
   background: var(--color-theme-primary);
   transition: width 0.3s ease;
+}
+
+.stat-fill-bonus {
+  height: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-theme-accent) 0 4px,
+    rgba(0, 0, 0, 0.35) 4px 8px
+  );
+  transition: width 0.3s ease;
+}
+
+.stat-fill-bonus.stat-overflow {
+  box-shadow: 0 0 8px var(--color-theme-glow);
+}
+
+.stat-overflow-bar {
+  box-shadow: inset -4px 0 6px var(--color-theme-glow);
+}
+
+.stat-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--color-warning);
 }
 
 .stat-description {

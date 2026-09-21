@@ -149,4 +149,67 @@ describe('DwellerStats', () => {
       expect(wrapper.find('.stat-breakdown').exists()).toBe(false)
     })
   })
+
+  describe('Bonus Bar Segments', () => {
+    function mountWithBonus(overrides: object) {
+      const dweller = {
+        ...stats,
+        outfit: null,
+        identity_modifiers: {},
+        ...overrides,
+      } as unknown as Dweller
+      const ctx = createMockDwellerDetailContext({
+        dweller: ref(dweller) as never,
+        highlightStat: ref(undefined) as never,
+      })
+      return mountWithDwellerContext(DwellerStats, { context: ctx })
+    }
+
+    it('should render base segment only without bonuses', () => {
+      const wrapper = mountWithBonus({})
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      expect(base.attributes('style')).toContain('width: 50%')
+      expect(wrapper.find('.stat-fill-bonus').exists()).toBe(false)
+      expect(wrapper.find('.stat-tick').exists()).toBe(false)
+    })
+
+    it('should stack striped bonus segment on base', () => {
+      const wrapper = mountWithBonus({ outfit: { name: 'Vault Suit', strength: 5 } })
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      const bonus = wrapper.find('.stat-fill-bonus')
+      expect(base.attributes('style')).toContain('width: 50%')
+      expect(bonus.exists()).toBe(true)
+      expect(bonus.attributes('style')).toContain('width: 50%')
+      expect(bonus.classes()).not.toContain('stat-overflow')
+    })
+
+    it('should clamp bonus segment and glow on partial overflow', () => {
+      const wrapper = mountWithBonus({ S: 8, outfit: { name: 'Combat Armor', strength: 5 } })
+      const bonus = wrapper.find('.stat-fill-bonus')
+      expect(bonus.attributes('style')).toContain('width: 20%')
+      expect(bonus.classes()).toContain('stat-overflow')
+    })
+
+    it('should flag overflow when effective exceeds 10', () => {
+      const wrapper = mountWithBonus({ S: 10, outfit: { name: 'Power Armor', strength: 5 } })
+      expect(wrapper.find('.stat-overflow-bar').exists()).toBe(true)
+      expect(wrapper.find('.stat-bar').attributes('title')).toContain('= 15 effective')
+    })
+
+    it('should render effective fill plus base tick on penalty', () => {
+      const wrapper = mountWithBonus({ identity_modifiers: { strength: -3 } })
+      const base = wrapper.findAll('.stat-fill-base')[0]
+      expect(base.attributes('style')).toContain('width: 20%')
+      const tick = wrapper.find('.stat-tick')
+      expect(tick.exists()).toBe(true)
+      expect(tick.attributes('style')).toContain('left: 50%')
+    })
+
+    it('should expose breakdown in bar title and aria-label', () => {
+      const wrapper = mountWithBonus({ outfit: { name: 'Vault Suit', strength: 5 } })
+      const bar = wrapper.findAll('.stat-bar')[0]
+      expect(bar.attributes('title')).toBe('Base 5 + +5 Vault Suit = 10 effective')
+      expect(bar.attributes('aria-label')).toContain('Strength: Base 5')
+    })
+  })
 })

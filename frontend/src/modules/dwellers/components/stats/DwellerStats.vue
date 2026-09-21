@@ -22,7 +22,7 @@ const stats: Array<{ key: StatKey; label: string; description: string }> = [
   { key: 'S', label: 'Strength', description: 'Physical power and melee damage' },
   { key: 'P', label: 'Perception', description: 'Accuracy and awareness' },
   { key: 'E', label: 'Endurance', description: 'Health and radiation resistance' },
-  { key: 'C', label: 'Charisma', description: 'Trading and breeding success' },
+  { key: 'C', label: 'Charisma', description: 'Radio recruitment rate' },
   { key: 'I', label: 'Intelligence', description: 'Crafting and science efficiency' },
   { key: 'A', label: 'Agility', description: 'Speed and weapon reload' },
   { key: 'L', label: 'Luck', description: 'Critical hits and loot quality' },

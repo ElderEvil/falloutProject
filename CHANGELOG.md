@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.4 (2026-09-21)
+
+### Bug Fixes
+
+* exclude dismissed notifications from read-state operations 9d116cb
+* make training start, complete, and cancel one transaction each 798ef00
+
+### Code Refactoring
+
+* expose a public breeding entry point and annotate ORM returns c06d5fa
+* move incident queries and read assembly out of the router 2ad699d
+* move quest-start workflow into the quest service d970070
+
 ## 2.131.3 (2026-09-21)
 
 ### Bug Fixes

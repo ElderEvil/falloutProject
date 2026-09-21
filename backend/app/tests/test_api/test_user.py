@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -92,6 +94,41 @@ async def test_create_user_by_normal_user(
     )
     # Insufficient privileges is an authorization failure, not a bad request.
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_reading_another_user_hides_existence(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """An existing id another user may not see reads as 404, not a distinguishable 403.
+
+    A 403 for an existing id and a 404 for an unknown one would let a regular
+    user probe which user ids exist.
+    """
+    other = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
+
+    existing = await async_client.get(f"/users/{other.id}", headers=normal_user_token_headers)
+    unknown = await async_client.get(f"/users/{uuid4()}", headers=normal_user_token_headers)
+
+    assert existing.status_code == 404
+    assert unknown.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reading_own_user_still_works(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """The self-read path is unaffected by the existence-hiding pre-check."""
+    me = await crud.user.get_by_email(db_session=async_session, email=settings.EMAIL_TEST_USER)
+
+    response = await async_client.get(f"/users/{me.id}", headers=normal_user_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(me.id)
 
 
 @pytest.mark.asyncio

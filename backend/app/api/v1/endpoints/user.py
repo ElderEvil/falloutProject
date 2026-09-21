@@ -22,7 +22,7 @@ from app.schemas.user import DeathStatsResponse, UserCreate, UserRead, UserUpdat
 from app.schemas.user_profile import ProfileUpdate
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -141,14 +141,13 @@ async def read_user_by_id(
         The requested user.
 
     Raises:
-        AccessDeniedException: 403 if user lacks privileges to view other users.
+        ResourceNotFoundException: 404 if the user does not exist, or the caller
+            may not see it. A 403 for an existing id and a 404 for an unknown one
+            would let a regular user probe which ids exist.
     """
-    user_in_db = await crud.user.get(db_session, id=user_id)
-    if user_in_db == user:
-        return user_in_db
-    if not crud.user.is_superuser(user):
-        raise AccessDeniedException("The user doesn't have enough privileges")
-    return user_in_db
+    if user_id != user.id and not crud.user.is_superuser(user):
+        raise ResourceNotFoundException(model=User, identifier=user_id)
+    return await crud.user.get(db_session, id=user_id)
 
 
 @router.put("/{user_id}", response_model=UserRead)

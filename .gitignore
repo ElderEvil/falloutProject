@@ -292,3 +292,6 @@ backend/logs/
 
 # Dweller chat scenario harness output (dev analysis artifacts)
 scripts/scenario_output/
+
+# Claude Code skill symlinks (created by `skills add`; OpenCode/Zed read .agents/skills/)
+.claude/

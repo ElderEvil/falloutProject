@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.0 (2026-09-21)
+
+### Features
+
+* hybrid SPECIAL taglines plus shared field guide modal 48a4528
+* show item-improved SPECIAL breakdown on dweller detail aca694a
+* stacked bonus segments on SPECIAL bars with overflow and penalty states f8361ce
+
+### Bug Fixes
+
+* charisma covers radio recruits and relationship affinity df2d151
+* charisma description reflects radio recruitment mechanic 819bb4a
+
 ## 2.130.0 (2026-09-20)
 
 ### Features

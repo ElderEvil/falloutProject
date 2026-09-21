@@ -343,9 +343,7 @@ class QuestService:
                 },
             )
             answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
-            broken = isinstance(answers.get("broken"), dict) and jev_service.noul_probability(
-                answers["broken"]
-            ) >= 0.85
+            broken = isinstance(answers.get("broken"), dict) and jev_service.noul_probability(answers["broken"]) >= 0.85
         except Exception:
             logger.exception("Jev quest validation failed open; quest creation continues")
             return

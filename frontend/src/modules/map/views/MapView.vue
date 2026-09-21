@@ -130,7 +130,7 @@ const mapPaneHeight = 'var(--map-pane-size)'
               variant="secondary"
               size="sm"
               class="mt-4"
-              @click="$router.push(`/vault/${vaultId}/radio`)"
+              @click="$router.push(`/vault/${vaultId}`)"
             >
               Recruit Dwellers
             </UButton>

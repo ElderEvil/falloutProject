@@ -21,6 +21,7 @@ from app.services.progression.quests import availability
 from app.services.progression.quests.availability import QuestAvailability
 from app.services.progression.quests.requirements import individual_meets_requirement, party_missing_requirements
 from app.services.reward_service import reward_service
+from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.quest_duration import effective_quest_duration_minutes
 from app.utils.reward_delivery import defer_reward_delivery
 
@@ -110,6 +111,35 @@ class QuestService:
 
         logger.info(f"Started quest {quest_id} for vault {vault_id} with duration {link.duration_minutes} minutes")
         return link
+
+    async def start_quest_for_vault(self, db_session: AsyncSession, vault_id: UUID4, quest_id: UUID4) -> Quest:
+        """Start a quest for a vault, checking availability first.
+
+        The whole start workflow lives here so the router only authorizes and
+        delegates.
+
+        Raises:
+            ResourceNotFoundException: If the quest does not exist.
+            ValidationException: If the quest is not currently available.
+        """
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        if quest is None:
+            raise ResourceNotFoundException(Quest, identifier=quest_id)
+
+        await db_session.refresh(quest, ["quest_requirements"])
+
+        availability = await self.get_quest_availability(db_session, vault_id, quest)
+        if not availability.available:
+            detail = (
+                f"Missing requirements: {', '.join(availability.missing)}"
+                if availability.missing
+                else (availability.lock_reason or "Quest is not available")
+            )
+            raise ValidationException(detail=detail)
+
+        await self.start_quest(db_session, quest_id, vault_id)
+        await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
+        return quest
 
     async def get_quest_availability(
         self,

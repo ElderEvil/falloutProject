@@ -1,8 +1,7 @@
 [
   {
     "label": "Fallout: Run Podman infrastructure",
-    "command": "podman",
-    "args": ["compose", "-f", "docker-compose.infra.yml", "up"],
+    "command": "podman compose -f docker-compose.infra.yml up --build --force-recreate",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,

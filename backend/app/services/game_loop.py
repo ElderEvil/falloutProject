@@ -15,7 +15,7 @@ from app.models.dweller import Dweller
 from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
-from app.services.game_tick import crafting_tick, dwellers_tick, family_tick
+from app.services.game_tick import crafting_tick, dwellers_tick, family_tick, radio_tick
 from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
@@ -27,6 +27,7 @@ from app.services.game_tick.tick_results import (
     ExplorationStats,
     GameTickResult,
     PregnancyStats,
+    RadioStats,
     RelationshipsStats,
     TrainingStats,
     VaultTickResult,
@@ -180,6 +181,10 @@ class GameLoopService:
         happiness_update = await self._process_happiness(db_session, vault_id, seconds_passed)
         results["updates"]["happiness"] = happiness_update
 
+        # After happiness so the recruitment rate reads the freshest value.
+        radio_update = await self._process_radio(db_session, vault_id)
+        results["updates"]["radio"] = radio_update
+
         breeding_update = await self._process_breeding(db_session, vault_id)
         results["updates"]["breeding"] = breeding_update
 
@@ -276,6 +281,10 @@ class GameLoopService:
     async def _process_happiness(self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int) -> dict:
         """Process happiness updates for all dwellers in a vault."""
         return await dwellers_tick.process_happiness(db_session, vault_id, seconds_passed)
+
+    async def _process_radio(self, db_session: AsyncSession, vault_id: UUID4) -> RadioStats:
+        """Roll the radio's passive recruitment for a vault."""
+        return await radio_tick.process_radio(db_session, vault_id)
 
     async def _process_events(
         self, db_session: AsyncSession, vault_id: UUID4, seconds_passed: int, game_state: GameState | None = None

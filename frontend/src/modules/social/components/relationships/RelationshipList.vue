@@ -72,6 +72,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../../stores/relationship'
+import { usePregnancyStore } from '../../stores/pregnancy'
 import {
   isRelationshipType,
   PARTNER_LINKED_RELATIONSHIP_TYPES,
@@ -97,6 +98,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{ (e: 'select-dweller', dwellerId: string): void }>()
 
 const relationshipStore = useRelationshipStore()
+const pregnancyStore = usePregnancyStore()
 const { filter: dwellerStore } = useDwellerStore()
 
 const relationships = computed(() => relationshipStore.relationships)
@@ -197,7 +199,7 @@ function getChildren(relationship: Relationship): DwellerShort[] {
 /** Active pregnancy for the couple, or null when none is in progress. */
 function getPregnancy(relationship: Relationship): Pregnancy | null {
   return pregnancyForCouple(
-    relationshipStore.pregnancies,
+    pregnancyStore.pregnancies,
     relationship.dweller_1_id,
     relationship.dweller_2_id
   )

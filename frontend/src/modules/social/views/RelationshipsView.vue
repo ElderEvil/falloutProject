@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useRelationshipStore } from '../stores/relationship'
+import { usePregnancyStore } from '../stores/pregnancy'
 import { isRelationshipType, PARTNER_LINKED_RELATIONSHIP_TYPES } from '../models/relationship'
 import { allChildren } from '../models/dwellerFamily'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -18,6 +19,7 @@ import UTabs from '@/core/components/ui/UTabs.vue'
 const route = useRoute()
 const router = useRouter()
 const relationshipStore = useRelationshipStore()
+const pregnancyStore = usePregnancyStore()
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
 
@@ -35,7 +37,7 @@ const partnersCount = computed(
     ).length
 )
 /** Number of active pregnancies in the vault. */
-const pregnanciesCount = computed(() => relationshipStore.pregnancies.length)
+const pregnanciesCount = computed(() => pregnancyStore.pregnancies.length)
 /** Number of children currently in the vault. */
 const childrenCount = computed(() => allChildren(dwellerStore.allDwellers).length)
 
@@ -82,7 +84,7 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     await Promise.all([
       relationshipStore.fetchVaultRelationships(vaultId.value),
-      relationshipStore.fetchVaultPregnancies(vaultId.value),
+      pregnancyStore.fetchVaultPregnancies(vaultId.value),
       dwellerStore.fetchAllDwellers(vaultId.value, authStore.token),
     ])
   }

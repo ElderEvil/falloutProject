@@ -19,13 +19,18 @@ const { relationships, pregnancies, fetchVaultRelationships } = vi.hoisted(() =>
 vi.mock('@/modules/social/stores/relationship', () => ({
   useRelationshipStore: () => ({
     relationships,
-    pregnancies,
     isLoading: false,
     fetchVaultRelationships,
     initiateRomance: vi.fn(),
     makePartners: vi.fn(),
     marry: vi.fn(),
     breakUp: vi.fn(),
+  }),
+}))
+
+vi.mock('@/modules/social/stores/pregnancy', () => ({
+  usePregnancyStore: () => ({
+    pregnancies,
   }),
 }))
 

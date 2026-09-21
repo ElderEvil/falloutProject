@@ -191,10 +191,9 @@ onUnmounted(() => {
           <Transition name="dropdown">
             <div
               v-if="isDropdownOpen"
-              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary"
+              class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary z-50"
               role="menu"
               aria-label="User menu"
-              style="z-index: 50"
             >
               <router-link
                 to="/profile"

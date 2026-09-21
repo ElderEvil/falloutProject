@@ -1,7 +1,7 @@
 <template>
   <div class="pregnancy-tracker">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-mono" :style="{ color: 'var(--color-theme-primary)' }">
+      <h2 class="text-xl font-mono text-theme-primary">
         Pregnancies
       </h2>
       <div class="flex gap-2">
@@ -14,7 +14,7 @@
 
     <div v-if="isLoading" class="text-center py-8">
       <div class="text-4xl animate-pulse">👶</div>
-      <p class="mt-2" :style="{ color: 'var(--color-theme-primary)' }">Loading pregnancies...</p>
+      <p class="mt-2 text-theme-primary">Loading pregnancies...</p>
     </div>
 
     <div v-else-if="error" class="text-center py-8">

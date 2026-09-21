@@ -132,9 +132,8 @@ const canUseRadaway = computed(
           >
           <Icon
             :icon="generatingPortrait ? 'mdi:loading' : 'mdi:account-circle'"
-            class="placeholder-icon"
+            class="placeholder-icon text-theme-primary opacity-30"
             :class="{ 'animate-spin': generatingPortrait }"
-            style="color: var(--color-theme-primary); opacity: 0.3"
           />
             <span class="placeholder-hint">{{
               generatingPortrait ? 'Generating portrait…' : 'Generate portrait'

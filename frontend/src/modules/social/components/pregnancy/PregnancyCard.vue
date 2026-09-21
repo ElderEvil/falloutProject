@@ -30,8 +30,7 @@
       <!-- Progress bar (fixed column position) -->
       <div class="w-full md:w-56">
         <div
-          class="flex items-center justify-between text-xs mb-1"
-          :style="{ color: 'var(--color-theme-primary)' }"
+          class="flex items-center justify-between text-xs mb-1 text-theme-primary"
         >
           <span>Progress: {{ Math.round(pregnancy.progress_percentage) }}%</span>
           <span v-if="!pregnancy.is_due">{{ timeRemaining }}</span>

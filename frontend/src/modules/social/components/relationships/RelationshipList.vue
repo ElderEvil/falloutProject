@@ -3,8 +3,7 @@
     <div class="flex items-center justify-between mb-4">
       <h2
         v-if="!stageFilter"
-        class="text-xl font-mono"
-        :style="{ color: 'var(--color-theme-primary)' }"
+        class="text-xl font-mono text-theme-primary"
       >
         Relationships
       </h2>
@@ -26,7 +25,7 @@
 
     <div v-if="isLoading" class="text-center py-8">
       <div class="text-4xl animate-pulse">💕</div>
-      <p class="mt-2" :style="{ color: 'var(--color-theme-primary)' }">Loading relationships...</p>
+      <p class="mt-2 text-theme-primary">Loading relationships...</p>
     </div>
 
     <div v-else-if="error" class="error-state text-center py-8">

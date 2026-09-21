@@ -154,7 +154,7 @@ onMounted(async () => {
       </section>
 
       <div v-if="sortedVaults.length" class="order-1 w-full max-w-4xl">
-        <h2 class="mb-4 text-2xl font-bold" :style="{ color: 'var(--color-theme-primary)' }">
+        <h2 class="mb-4 text-2xl font-bold text-theme-primary">
           Your Vaults
         </h2>
         <ul class="space-y-4">

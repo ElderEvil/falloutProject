@@ -18,6 +18,7 @@ from app.db.session import task_session
 from app.services.cleanup_service import cleanup_service
 from app.services.family.death_service import death_service
 from app.services.game_loop import game_loop_service
+from app.services.game_tick.guard import recover_session
 from app.services.tick_chain import claim_tick_chain
 
 logger = logging.getLogger(__name__)
@@ -52,25 +53,17 @@ def game_tick():
         logger.info("Starting game tick")
 
         async def run_tick():
-            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-            from sqlmodel.ext.asyncio.session import AsyncSession
-
-            from app.core.config import settings
-            from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
+            from app.services.progression.objectives.evaluators import evaluator_manager
             from app.services.progression.objectives.notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
-            engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), echo=False, future=True, pool_pre_ping=True)
-            session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-            set_current_session_maker(session_maker)
-
-            try:
-                async with session_maker() as session:
-                    return await game_loop_service.process_game_tick(session)
-            finally:
-                await engine.dispose()
+            # task_session() pins the connection to UTC and binds the loop-local
+            # objective session maker, so handlers fired during the tick open
+            # sessions on this run's engine rather than the module-global pool.
+            async with task_session() as session:
+                return await game_loop_service.process_game_tick(session)
 
         stats = asyncio.run(run_tick())
     except Exception:
@@ -153,25 +146,16 @@ def process_vault_tick(vault_id: str):
         logger.info(f"Processing vault tick for {vault_id}")
 
         async def run_vault_tick():
-            from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-            from sqlmodel.ext.asyncio.session import AsyncSession
-
-            from app.core.config import settings
-            from app.services.progression.objectives.evaluators import evaluator_manager, set_current_session_maker
+            from app.services.progression.objectives.evaluators import evaluator_manager
             from app.services.progression.objectives.notifications import register_objective_event_handlers
 
             evaluator_manager.initialize()
             register_objective_event_handlers()
 
-            engine = create_async_engine(str(settings.ASYNC_DATABASE_URI), echo=False, future=True, pool_pre_ping=True)
-            session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-            set_current_session_maker(session_maker)
-
-            try:
-                async with session_maker() as session:
-                    return await game_loop_service.process_vault_tick(session, UUID(vault_id))
-            finally:
-                await engine.dispose()
+            # See game_tick: task_session() carries the UTC pin and the
+            # loop-local objective session maker.
+            async with task_session() as session:
+                return await game_loop_service.process_vault_tick(session, UUID(vault_id))
 
         result = asyncio.run(run_vault_tick())
     except Exception:
@@ -257,6 +241,9 @@ async def _refresh_objectives(*, weekly: bool) -> dict:
                 )
                 total_assigned += len(assigned)
             except Exception:
+                # Recover before the next vault: a poisoned session would fail
+                # every remaining assignment rather than just this one.
+                await recover_session(session)
                 logger.exception(f"Failed to refresh {'weekly' if weekly else 'daily'} objectives for vault {vault_id}")
                 continue
 

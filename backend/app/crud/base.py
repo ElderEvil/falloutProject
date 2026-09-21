@@ -55,7 +55,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return response.scalar_one_or_none()
 
     async def get_by_ids(
-        self, list_ids: list[UUID4 | str], db_session: AsyncSession, include_deleted: bool = False
+        self, list_ids: Sequence[UUID4 | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[ModelType]:
         """
         Gets a list of items of the specified model type by a list of IDs.

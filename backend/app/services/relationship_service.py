@@ -306,10 +306,12 @@ class RelationshipService:
                 await db_session.commit()
                 await db_session.refresh(dweller_1)
                 await db_session.refresh(dweller_2)
-        except Exception as e:
+        except Exception:
+            # Roll back, then let the driver error surface as a server error:
+            # wrapping it in ValueError made the API report a client error and
+            # leak the database message.
             await db_session.rollback()
-            msg = f"Failed to update partner IDs for dwellers: {e}"
-            raise ValueError(msg) from e
+            raise
 
     @staticmethod
     async def _lock_dwellers(db_session: AsyncSession, id_a: UUID4, id_b: UUID4) -> None:
@@ -505,10 +507,12 @@ class RelationshipService:
             except ResourceNotFoundException:
                 # One or both dwellers may have been deleted, continue with breakup
                 pass
-            except Exception as e:
+            except Exception:
+                # Roll back, then let the driver error surface as a server error:
+                # wrapping it in ValueError made the API report a client error and
+                # leak the database message.
                 await db_session.rollback()
-                msg = f"Failed to clear partner IDs for dwellers: {e}"
-                raise ValueError(msg) from e
+                raise
 
         # Mark as ex via CRUD
         update_data = {

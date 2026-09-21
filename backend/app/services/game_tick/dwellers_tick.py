@@ -315,9 +315,7 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
         for index, (training_id, dweller_id) in enumerate(training_pairs):
             error = await guard_phase(
                 f"Error processing training {training_id}",
-                partial(
-                    _process_single_training, db_session, stats, dwellers_map, active_trainings[index]
-                ),
+                partial(_process_single_training, db_session, stats, dwellers_map, active_trainings[index]),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
                 db_session=db_session,
             )

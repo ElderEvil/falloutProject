@@ -6,10 +6,18 @@
  *
  * This is the single source of truth for which notification types get that
  * extra surface. It deliberately covers only the rule's scope — level-up, loot,
- * training completion, and quest/objective completion — plus the hazard-team
- * join that already surfaced. Informational events (resource warnings, combat
- * updates, exploration chatter) stay bell-only on purpose: adding them would be
- * noise, not progression.
+ * training completion, and quest completion — plus the hazard-team join that
+ * already surfaced. Informational events (resource warnings, combat updates,
+ * exploration chatter) stay bell-only on purpose: adding them would be noise,
+ * not progression.
+ *
+ * Objective completion is NOT listed, despite being in the rule's scope, because
+ * the backend has no type for it: `notify_objective_completed` reuses
+ * `achievement_unlocked`, which also carries vault-event cap rewards — and
+ * `notify_objective_progress` (currently uncalled) would reuse it for 50%/90%
+ * milestones. Toasting that type would surface progress and reward events, not
+ * completion. A distinct backend notification type is required first; until then
+ * objective completion stays bell-only.
  *
  * A new progression flow must add its type here (with a test), otherwise it
  * ships notification-only.
@@ -26,8 +34,6 @@ export const PROGRESSION_SURFACES: Readonly<Record<string, ProgressionSurface>> 
   training_complete: 'toast',
   // quest completion
   quest_complete: 'toast',
-  // objective completion (the backend emits objectives as ACHIEVEMENT_UNLOCKED)
-  achievement_unlocked: 'toast',
   // roster progression (already surfaced before this module existed)
   hazard_team_joined: 'toast',
 })

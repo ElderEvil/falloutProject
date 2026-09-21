@@ -19,12 +19,18 @@ describe('progression surfaces matrix', () => {
       exploration_complete: 'toast', // loot
       training_complete: 'toast',
       quest_complete: 'toast',
-      achievement_unlocked: 'toast', // objective completion
     }
 
     for (const [type, surface] of Object.entries(required)) {
       expect(progressionSurfaceFor(type), `${type} must surface beyond the bell`).toBe(surface)
     }
+  })
+
+  it('leaves the overloaded achievement type bell-only', () => {
+    // achievement_unlocked carries objective completion, vault-event cap rewards,
+    // and (via the uncalled notify_objective_progress) 50%/90% milestones, so it
+    // cannot stand in for completion until the backend emits a distinct type.
+    expect(progressionSurfaceFor('achievement_unlocked')).toBeNull()
   })
 
   it('keeps the pre-existing hazard team join surface', () => {

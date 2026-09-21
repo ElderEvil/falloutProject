@@ -16,6 +16,7 @@ from app.models.game_state import GameState
 from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.services.game_tick import crafting_tick, dwellers_tick, family_tick
+from app.services.game_tick.guard import recover_session
 from app.services.game_tick.tick_results import (
     AgeStats,
     ApprenticeStats,
@@ -62,15 +63,19 @@ class GameLoopService:
 
         # Get all active vaults
         active_vaults = await self._get_active_vaults(db_session)
+        # Iterate plain IDs: recovering a failed vault expires every loaded ORM
+        # instance, so touching vault attributes afterwards would lazy-load.
+        vault_ids = [vault.id for vault in active_vaults]
 
-        self.logger.info(f"Processing game tick for {len(active_vaults)} vaults")
+        self.logger.info(f"Processing game tick for {len(vault_ids)} vaults")
 
-        for vault in active_vaults:
+        for vault_id in vault_ids:
             try:
-                await self.process_vault_tick(db_session, vault.id)
+                await self.process_vault_tick(db_session, vault_id)
                 stats["vaults_processed"] += 1
             except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-                self.logger.error(f"Error processing vault {vault.id}: {e}", exc_info=True)
+                await recover_session(db_session)
+                self.logger.error(f"Error processing vault {vault_id}: {e}", exc_info=True)
                 stats["errors"] += 1
 
         stats["total_time"] = (datetime.utcnow() - start_time).total_seconds()
@@ -147,8 +152,13 @@ class GameLoopService:
                 "events": resource_events.model_dump(),
             }
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
+            # Recover before the remaining phases: a poisoned session would fail
+            # every one of them, not just the resource update. The rollback expires
+            # game_state, so reload it before the later phases read it.
+            await recover_session(db_session)
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
+            game_state = await self._get_or_create_game_state(db_session, vault_id)
 
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 

@@ -20,7 +20,7 @@ from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
 from app.crud.vault import vault as vault_crud
 from app.services.exploration_service import exploration_service
-from app.services.game_tick.guard import guard_phase
+from app.services.game_tick.guard import guard_phase, recover_session
 from app.services.game_tick.tick_results import (
     ApprenticeStats,
     DwellersStats,
@@ -73,9 +73,11 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID4) -> Exp
                 f"Error processing exploration {exploration.id}",
                 partial(_process_single_exploration, db_session, stats, exploration),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
+                db_session=db_session,
             )
 
     except (SQLAlchemyError, ResourceNotFoundException) as e:
+        await recover_session(db_session)
         logger.error(f"Error loading explorations for vault {vault_id}: {e}", exc_info=True)
         stats["error"] = str(e)
 
@@ -308,9 +310,11 @@ async def process_training(db_session: AsyncSession, vault_id: UUID4) -> Trainin
                 f"Error processing training {training.id}",
                 partial(_process_single_training, db_session, stats, dwellers_map, training),
                 catch=(SQLAlchemyError, ValueError, RuntimeError),
+                db_session=db_session,
             )
 
     except (SQLAlchemyError, ResourceNotFoundException, ResourceConflictException, VaultOperationException) as e:
+        await recover_session(db_session)
         logger.error(f"Error loading training sessions for vault {vault_id}: {e}", exc_info=True)
         stats["error"] = str(e)
 

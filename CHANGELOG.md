@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.131.3 (2026-09-21)
+
+### Bug Fixes
+
+* correct auth status codes and stop leaking database errors 56809bb
+* hide another user's existence from unauthorized callers 7023684
+* recover tick sessions after a failed statement 9b20cca
+* reload tick entities expired by session recovery 90823bc
+* run background ticks on UTC-pinned task sessions be60bea
+
 ## 2.131.2 (2026-09-21)
 
 ### Bug Fixes

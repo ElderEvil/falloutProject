@@ -361,7 +361,7 @@ const handleAssignIdle = () => {
 }
 
 const handleActivateRadio = () => {
-  router.push(`/vault/${vaultId.value}/radio`)
+  router.push(`/vault/${vaultId.value}`)
 }
 
 const handleViewLowHappiness = () => {

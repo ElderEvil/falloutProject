@@ -33,6 +33,8 @@ HAZARD_PARENT = "b7c8d9e0f1a2"
 HAZARD_REVISION = "c9d8e7f6a5b4"
 OUTFIT_PARENT = "f6e5d4c3b2a1"
 OUTFIT_REVISION = "b7c8d9e0f1a2"
+OUTFIT_RESIST_PARENT = "f0e1d2c3b4a5"
+OUTFIT_RESIST_REVISION = "e5f6a7b8c9d0"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -270,3 +272,62 @@ class TestOutfitSpecialBackfillMigration:
 
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=empty_id) == 3
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=populated_id) == 9
+
+
+class TestOutfitHazardResistBackfillMigration:
+    """The hazard-resistance backfill fills only rows at each column's own default."""
+
+    def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
+        harness.upgrade(OUTFIT_RESIST_PARENT)
+        # Mixed case and padding prove the LOWER(TRIM(name)) match.
+        firefighter_id = str(uuid.uuid4())
+        legendary_id = str(uuid.uuid4())
+        hazmat_id = str(uuid.uuid4())
+        populated_id = str(uuid.uuid4())
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, '  FIREFIGHTER SUIT  ', 'RARE', 0, NULL)",
+            id=firefighter_id,
+        )
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Firefighter Suit, Rad Helmet', 'LEGENDARY', 0, NULL)",
+            id=legendary_id,
+        )
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Hazmat suit', 'RARE', 0, NULL)",
+            id=hazmat_id,
+        )
+        # Already carries values under a backfilled name: both guards must skip it.
+        harness.execute(
+            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
+            "VALUES (:id, 'Firefighter suit', 'RARE', 0.9, 0.5)",
+            id=populated_id,
+        )
+
+        harness.upgrade(OUTFIT_RESIST_REVISION)
+
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
+            (0.5, 0.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=legendary_id) == [
+            (0.75, 1.0)
+        ]
+        # Hazmat declares no fire resistance, so its fire column stays at the default.
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=hazmat_id) == [
+            (0.0, 1.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
+            (0.9, 0.5)
+        ]
+
+        harness.downgrade(OUTFIT_RESIST_PARENT)
+
+        # downgrade() is a documented no-op: enrichment is never reverted.
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
+            (0.5, 0.0)
+        ]
+        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
+            (0.9, 0.5)
+        ]

@@ -35,6 +35,8 @@ OUTFIT_PARENT = "f6e5d4c3b2a1"
 OUTFIT_REVISION = "b7c8d9e0f1a2"
 OUTFIT_RESIST_PARENT = "f0e1d2c3b4a5"
 OUTFIT_RESIST_REVISION = "e5f6a7b8c9d0"
+RELATIONSHIP_REPAIR_PARENT = "32bf7f844093"
+RELATIONSHIP_REPAIR_REVISION = "f0e1d2c3b4a5"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -152,6 +154,40 @@ def _seed_dweller(harness: MigrationHarness, *, vault_id: str, first_name: str, 
         status="DEAD" if is_dead else "IDLE",
     )
     return dweller_id
+
+
+def _seed_relationship(
+    harness: MigrationHarness,
+    *,
+    dweller_1_id: str,
+    dweller_2_id: str,
+    relationship_type: str,
+    updated_at: datetime,
+    affinity: int = 50,
+) -> str:
+    """Insert a relationship row; the enum value is cast from a bound parameter."""
+    relationship_id = str(uuid.uuid4())
+    harness.execute(
+        "INSERT INTO relationship "
+        "(id, dweller_1_id, dweller_2_id, relationship_type, affinity, created_at, updated_at) "
+        "VALUES (:id, :dweller_1_id, :dweller_2_id, CAST(:relationship_type AS relationshiptypeenum), "
+        ":affinity, :updated_at, :updated_at)",
+        id=relationship_id,
+        dweller_1_id=dweller_1_id,
+        dweller_2_id=dweller_2_id,
+        relationship_type=relationship_type,
+        affinity=affinity,
+        updated_at=updated_at,
+    )
+    return relationship_id
+
+
+def _set_partner(harness: MigrationHarness, *, dweller_id: str, partner_id: str | None) -> None:
+    harness.execute(
+        "UPDATE dweller SET partner_id = :partner_id WHERE id = :dweller_id",
+        dweller_id=dweller_id,
+        partner_id=partner_id,
+    )
 
 
 class TestHazardConsolidationMigration:
@@ -331,3 +367,89 @@ class TestOutfitHazardResistBackfillMigration:
         assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
             (0.9, 0.5)
         ]
+
+
+class TestRepairDuplicateCommittedRelationshipsMigration:
+    """The repair keeps one committed link per dweller and syncs partner_id."""
+
+    def test_keeps_healthy_pair_demotes_duplicates_and_clears_stale_partner(self, harness: MigrationHarness) -> None:
+        harness.upgrade(RELATIONSHIP_REPAIR_PARENT)
+        vault_id = _seed_vault(harness, number=903)
+        dwellers = [
+            _seed_dweller(harness, vault_id=vault_id, first_name=f"Dweller{i}", is_dead=False) for i in range(7)
+        ]
+
+        # A healthy committed pair whose partner_id already points both ways.
+        _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[0],
+            dweller_2_id=dwellers[1],
+            relationship_type="MARRIED",
+            updated_at=datetime(2026, 1, 1),
+        )
+        _set_partner(harness, dweller_id=dwellers[0], partner_id=dwellers[1])
+        _set_partner(harness, dweller_id=dwellers[1], partner_id=dwellers[0])
+
+        # A star: dwellers[2] is committed to both [3] and [4]. The newer link wins.
+        star_kept = _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[2],
+            dweller_2_id=dwellers[3],
+            relationship_type="PARTNER",
+            updated_at=datetime(2026, 3, 1),
+        )
+        star_demoted = _seed_relationship(
+            harness,
+            dweller_1_id=dwellers[2],
+            dweller_2_id=dwellers[4],
+            relationship_type="PARTNER",
+            updated_at=datetime(2026, 2, 1),
+        )
+
+        # A stale partner_id with no committed link at all.
+        _set_partner(harness, dweller_id=dwellers[5], partner_id=dwellers[6])
+
+        harness.upgrade(RELATIONSHIP_REPAIR_REVISION)
+
+        def rel_type(relationship_id: str) -> str:
+            return str(harness.scalar("SELECT relationship_type FROM relationship WHERE id = :id", id=relationship_id))
+
+        # One side of the star is kept, the duplicate is demoted to EX.
+        assert rel_type(star_kept) == "PARTNER"
+        assert rel_type(star_demoted) == "EX"
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM relationship WHERE dweller_1_id = :d AND relationship_type = 'MARRIED'",
+                d=dwellers[0],
+            )
+            == 1
+        )
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[0]) == dwellers[1]
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[1]) == dwellers[0]
+
+        # partner_id is synced to the surviving committed link, cleared for the demoted side.
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[2]) == dwellers[3]
+        assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[3]) == dwellers[2]
+        assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[4]) is None
+
+        # The stale partner_id is cleared.
+        assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[5]) is None
+
+        # The invariant holds: nobody keeps more than one committed link.
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM ("
+                "SELECT dweller_id FROM ("
+                "SELECT dweller_1_id AS dweller_id FROM relationship WHERE relationship_type IN ('PARTNER', 'MARRIED') "
+                "UNION ALL "
+                "SELECT dweller_2_id AS dweller_id FROM relationship WHERE relationship_type IN ('PARTNER', 'MARRIED')"
+                ") sides GROUP BY dweller_id HAVING count(*) > 1"
+                ") duplicated"
+            )
+            == 0
+        )
+
+        harness.downgrade(RELATIONSHIP_REPAIR_PARENT)
+
+        # downgrade() is a documented no-op: demoted rows stay demoted.
+        assert rel_type(star_demoted) == "EX"

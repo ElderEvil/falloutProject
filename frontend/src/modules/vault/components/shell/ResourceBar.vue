@@ -200,7 +200,7 @@ const ariaLabel = computed(
       <span v-if="label" class="text-xs text-gray-400" aria-hidden="true">{{ label }}</span>
     </div>
       </TooltipTrigger>
-      <TooltipContent side="top" class="whitespace-pre-line">{{ tooltipText }}</TooltipContent>
+      <TooltipContent side="bottom" class="whitespace-pre-line">{{ tooltipText }}</TooltipContent>
     </Tooltip>
   </TooltipProvider>
 </template>

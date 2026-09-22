@@ -1,8 +1,6 @@
 {
-  "count": 57,
+  "count": 55,
   "files": [
-    "components/auth/LoginFormTerminal.test.ts",
-    "components/auth/RegisterForm.test.ts",
     "components/chat/DwellerChat.test.ts",
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",

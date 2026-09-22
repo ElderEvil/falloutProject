@@ -2,7 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/core/plugins/axios'
-import { UButton, UInput } from '@/core/components/ui'
+import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,38 +88,44 @@ const handleSubmit = async () => {
           </div>
 
           <div class="form-group">
-            <UInput
+            <Label for="reset-new-password" class="mb-1 text-sm font-medium text-theme-primary/70">
+              > NEW PASSPHRASE:
+            </Label>
+            <Input
+              id="reset-new-password"
               v-model="newPassword"
               type="password"
-              label="> NEW PASSPHRASE:"
               placeholder="Minimum 8 characters"
               :disabled="loading"
-              variant="terminal"
+              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
             />
           </div>
 
           <div class="form-group">
-            <UInput
+            <Label for="reset-confirm-password" class="mb-1 text-sm font-medium text-theme-primary/70">
+              > CONFIRM PASSPHRASE:
+            </Label>
+            <Input
+              id="reset-confirm-password"
               v-model="confirmPassword"
               type="password"
-              label="> CONFIRM PASSPHRASE:"
               placeholder="Re-enter passphrase"
               :disabled="loading"
-              variant="terminal"
+              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
             />
           </div>
 
-          <UButton
-            variant="primary"
-            block
-            :loading="loading"
+          <Button
+            variant="default"
+            class="w-full border-2 border-theme-primary hover:shadow-glow-md"
             :disabled="loading || !token"
             @click.prevent="handleSubmit"
           >
+            <Icon v-if="loading" icon="mdi:loading" class="animate-spin" />
             <span class="button-icon">►</span>
             {{ loading ? 'PROCESSING...' : 'RESET PASSWORD' }}
             <span class="button-icon">◄</span>
-          </UButton>
+          </Button>
         </form>
 
         <!-- Error Message -->

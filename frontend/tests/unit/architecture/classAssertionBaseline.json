@@ -1,5 +1,5 @@
 {
-  "count": 53,
+  "count": 50,
   "files": [
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -42,17 +42,14 @@
     "components/ui/UProgressBar.test.ts",
     "components/ui/UToast.test.ts",
     "components/vault/GameControlPanel.test.ts",
-    "components/vault/HappinessDashboard.test.ts",
     "components/vault/NavBar.test.ts",
     "components/vault/OverseerBriefing.test.ts",
     "core/components/common/TerminalLoadingState.test.ts",
     "core/components/ui/UTooltip.test.ts",
     "modules/profile/components/AIUsageCard.test.ts",
     "views/ExplorationDetailView.test.ts",
-    "views/HomeView.test.ts",
     "views/QuestsView.test.ts",
     "views/RelationshipsView.test.ts",
-    "views/TrainingView.test.ts",
-    "views/VaultView.test.ts"
+    "views/TrainingView.test.ts"
   ]
 }

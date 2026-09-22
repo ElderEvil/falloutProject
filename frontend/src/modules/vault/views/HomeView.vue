@@ -5,7 +5,9 @@ import { useVaultStore } from '../stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { UAlert, UButton, UProgressBar } from '@/core/components/ui'
+import { Alert } from '@/core/components/ui/alert'
+import { Button } from '@/core/components/ui/button'
+import { Progress } from '@/core/components/ui/progress'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import VaultNumberField from '../components/VaultNumberField.vue'
@@ -114,18 +116,23 @@ onMounted(async () => {
         <div class="space-y-2">
           <div class="flex items-start space-x-2">
             <VaultNumberField v-model="newVaultNumber" ref="vaultNumberFieldRef" />
-            <UButton
-              variant="primary"
+            <Button
+              variant="default"
               :disabled="creatingVault || !newVaultNumber"
               @click="createVault"
-              class="mt-6 shrink-0 whitespace-nowrap !border-theme-primary !bg-theme-primary !text-terminal-background shadow-glow-sm hover:shadow-glow-md"
+              class="mt-6 shrink-0 whitespace-nowrap border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md"
             >
               {{ creatingVault ? 'Creating...' : 'Create Vault' }}
-            </UButton>
+            </Button>
           </div>
 
           <div class="mt-3">
-            <!-- Native input preserves keyboard behavior; the sibling renders its warm terminal state. -->
+            <!--
+              Native checkbox stays: it is a peer-styled custom control (sr-only
+              input + styled sibling span), not a simple control, and shadcn
+              Checkbox is out of scope for this migration. Native input preserves
+              keyboard behavior; the sibling renders its warm terminal state.
+            -->
             <label for="boosted-start" class="flex cursor-pointer items-start gap-3 rounded border border-theme-primary/20 bg-surface p-3 transition-colors hover:bg-surface-hover">
             <input
               id="boosted-start"
@@ -147,10 +154,10 @@ onMounted(async () => {
           </div>
         </div>
 
-        <UAlert variant="warning" class="mt-4 text-sm">
+        <Alert variant="default" class="mt-4 border-warning bg-warning/10 text-warning">
           <span class="font-bold">Experimental:</span>
           Vaults are experimental. Vault data might be deleted in a future update.
-        </UAlert>
+        </Alert>
       </section>
 
       <div v-if="sortedVaults.length" class="order-1 w-full max-w-4xl">
@@ -194,15 +201,15 @@ onMounted(async () => {
                 <div class="mt-4 grid grid-cols-2 gap-3 border-t border-theme-primary/20 pt-4 lg:grid-cols-3">
                   <div class="grid gap-1.5">
                     <span><Icon icon="mdi:flash" /> Power</span><strong>{{ vault.power }} / {{ vault.power_max }}</strong>
-                    <UProgressBar :model-value="resourcePercentage(vault.power, vault.power_max)" :height="6" :glow="false" />
+                    <Progress :model-value="resourcePercentage(vault.power, vault.power_max)" class="h-1.5" />
                   </div>
                   <div class="grid gap-1.5">
                     <span><Icon icon="mdi:food" /> Food</span><strong>{{ vault.food }} / {{ vault.food_max }}</strong>
-                    <UProgressBar :model-value="resourcePercentage(vault.food, vault.food_max)" :height="6" :glow="false" />
+                    <Progress :model-value="resourcePercentage(vault.food, vault.food_max)" class="h-1.5" />
                   </div>
                   <div class="grid gap-1.5">
                     <span><Icon icon="mdi:water" /> Water</span><strong>{{ vault.water }} / {{ vault.water_max }}</strong>
-                    <UProgressBar :model-value="resourcePercentage(vault.water, vault.water_max)" :height="6" :glow="false" />
+                    <Progress :model-value="resourcePercentage(vault.water, vault.water_max)" class="h-1.5" />
                   </div>
                 </div>
               </section>
@@ -210,34 +217,33 @@ onMounted(async () => {
 
             <!-- Action Buttons -->
             <div v-if="selectedVaultId === vault.id" class="flex items-center gap-2 border-t border-theme-primary/20 px-4 pb-4 pt-4 max-sm:flex-col">
-              <UButton variant="primary" class="basis-3/4 !bg-theme-primary !text-terminal-background shadow-glow-sm" @click.stop="loadVault(vault.id)">
+              <Button variant="default" class="basis-3/4 border-2 border-theme-primary shadow-glow-sm hover:shadow-glow-md" @click.stop="loadVault(vault.id)">
                 Load Vault
-              </UButton>
-              <UButton
-                variant="danger"
-                size="md"
-                class="basis-1/4 !border-dashed !border-danger/70 !bg-transparent !text-danger hover:!bg-danger/10"
+              </Button>
+              <Button
+                variant="destructive"
+                class="basis-1/4 border-dashed border-danger/70 bg-transparent text-danger hover:bg-danger/10"
                 :disabled="deletingVault === vault.id"
                 @click.stop="deleteVault(vault.id)"
               >
                 {{ deletingVault === vault.id ? 'Deleting...' : 'Delete Vault' }}
-              </UButton>
+              </Button>
             </div>
           </li>
         </ul>
       </div>
 
       <div v-if="sortedVaults.length" class="order-2 mt-6">
-        <UButton
+        <Button
           variant="ghost"
           size="sm"
-          class="!border-dashed !border-theme-primary/60 !bg-surface-raised px-4 shadow-glow-sm hover:!bg-surface-hover hover:shadow-glow-md"
+          class="border-dashed border-theme-primary/60 bg-surface-raised px-4 shadow-glow-sm hover:bg-surface-hover hover:shadow-glow-md"
           :aria-expanded="isCreationVisible"
           @click="showCreation = !showCreation"
         >
           <Icon :icon="isCreationVisible ? 'mdi:minus' : 'mdi:plus'" />
           {{ isCreationVisible ? 'Hide new vault form' : 'Create another vault' }}
-        </UButton>
+        </Button>
       </div>
     </div>
   </div>

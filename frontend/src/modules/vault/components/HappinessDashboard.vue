@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Skeleton } from '@/core/components/ui/skeleton'
 
 interface DwellerDistribution {
   high: number // 75-100
@@ -184,10 +184,10 @@ const distributionPercentage = (count: number) => {
 </script>
 
 <template>
-  <UCard v-if="loading" padding="sm" surface="raised" class="happiness-dashboard">
-    <USkeleton width="100%" height="120px" rounded="lg" />
-  </UCard>
-  <UCard v-else padding="sm" surface="raised" class="happiness-dashboard">
+  <Card v-if="loading" class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0">
+    <Skeleton :style="{ width: '100%', height: '120px' }" class="rounded-lg" />
+  </Card>
+  <Card v-else class="happiness-dashboard gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-4 shadow-none ring-0">
     <div class="dashboard-content compact-dashboard">
       <!-- Main Happiness Gauge -->
       <div class="happiness-gauge">
@@ -332,62 +332,61 @@ const distributionPercentage = (count: number) => {
     </div>
 
     <!-- Quick Actions Footer -->
-    <template #footer>
-      <div v-if="hasNegativeModifiers || irradiatedDwellerCount > 0" class="actions-footer">
-        <h4 class="footer-title">QUICK ACTIONS</h4>
-        <div class="actions-grid">
-          <UButton
-            v-if="irradiatedDwellerCount > 0"
-            variant="secondary"
-            size="sm"
-            :loading="treatingDwellers"
-            @click="emit('treat-irradiated')"
-            class="action-button"
-          >
-            <Icon icon="mdi:radiation" class="action-icon" />
-            Treat Irradiated Dwellers
-          </UButton>
+    <div v-if="hasNegativeModifiers || irradiatedDwellerCount > 0" class="actions-footer">
+      <h4 class="footer-title">QUICK ACTIONS</h4>
+      <div class="actions-grid">
+        <Button
+          v-if="irradiatedDwellerCount > 0"
+          variant="outline"
+          size="sm"
+          :disabled="treatingDwellers"
+          @click="emit('treat-irradiated')"
+          class="action-button border-2 border-theme-primary bg-transparent"
+        >
+          <Icon v-if="treatingDwellers" icon="mdi:loading" class="action-icon animate-spin" />
+          <Icon v-else icon="mdi:radiation" class="action-icon" />
+          Treat Irradiated Dwellers
+        </Button>
 
-          <UButton
-            v-if="idleDwellerCount > 0"
-            variant="secondary"
-            size="sm"
-            @click="emit('assign-idle')"
-            class="action-button"
-          >
-            <Icon icon="mdi:account-arrow-right" class="action-icon" />
-            Assign Idle Dwellers
-          </UButton>
+        <Button
+          v-if="idleDwellerCount > 0"
+          variant="outline"
+          size="sm"
+          @click="emit('assign-idle')"
+          class="action-button border-2 border-theme-primary bg-transparent"
+        >
+          <Icon icon="mdi:account-arrow-right" class="action-icon" />
+          Assign Idle Dwellers
+        </Button>
 
-          <UButton
-            v-if="!radioHappinessMode"
-            variant="secondary"
-            size="sm"
-            @click="emit('activate-radio')"
-            class="action-button"
-          >
-            <Icon icon="mdi:radio" class="action-icon" />
-            Activate Radio Mode
-          </UButton>
+        <Button
+          v-if="!radioHappinessMode"
+          variant="outline"
+          size="sm"
+          @click="emit('activate-radio')"
+          class="action-button border-2 border-theme-primary bg-transparent"
+        >
+          <Icon icon="mdi:radio" class="action-icon" />
+          Activate Radio Mode
+        </Button>
 
-          <UButton
-            v-if="dwellerDistribution.critical > 0 || dwellerDistribution.low > 0"
-            variant="secondary"
-            size="sm"
-            @click="emit('view-low-happiness')"
-            class="action-button"
-          >
-            <Icon icon="mdi:account-alert" class="action-icon" />
-            View Low Happiness
-          </UButton>
-        </div>
+        <Button
+          v-if="dwellerDistribution.critical > 0 || dwellerDistribution.low > 0"
+          variant="outline"
+          size="sm"
+          @click="emit('view-low-happiness')"
+          class="action-button border-2 border-theme-primary bg-transparent"
+        >
+          <Icon icon="mdi:account-alert" class="action-icon" />
+          View Low Happiness
+        </Button>
       </div>
-      <div v-else class="footer-hint">
-        <Icon icon="mdi:check-circle" class="hint-icon" />
-        <span>All vault metrics are optimal</span>
-      </div>
-    </template>
-  </UCard>
+    </div>
+    <div v-else class="footer-hint">
+      <Icon icon="mdi:check-circle" class="hint-icon" />
+      <span>All vault metrics are optimal</span>
+    </div>
+  </Card>
 </template>
 
 <style scoped>

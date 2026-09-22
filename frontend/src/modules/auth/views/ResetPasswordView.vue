@@ -61,9 +61,6 @@ const handleSubmit = async () => {
 
 <template>
   <div class="login-container">
-    <!-- Scanlines overlay -->
-    <div class="scanlines"></div>
-
     <!-- CRT effect container -->
     <div class="crt-container flicker">
       <div class="login-box">
@@ -161,18 +158,6 @@ const handleSubmit = async () => {
   font-family: 'Courier New', monospace;
   position: relative;
   overflow: hidden;
-}
-
-.scanlines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 1;
 }
 
 .crt-container {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useRoomStore } from '@/modules/rooms/stores/room'
@@ -46,7 +46,6 @@ const explorationStore = useExplorationStore()
 const incidentStore = useIncidentStore()
 const { playMusic } = useSound()
 const { isCollapsed } = useSidePanel()
-const scanlinesEnabled = inject('scanlines', ref(true))
 const showRoomMenu = ref(false)
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
@@ -319,8 +318,6 @@ const reviewActiveIncidents = () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <!-- Loading State -->
     <TerminalLoadingState v-if="isLoading" full-height message="Loading vault data..." />
 

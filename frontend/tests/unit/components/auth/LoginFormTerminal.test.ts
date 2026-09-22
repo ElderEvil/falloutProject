@@ -93,14 +93,14 @@ describe('LoginFormTerminal', () => {
       expect(passwordInput.attributes('required')).toBeDefined()
     })
 
-    it('should have scanlines overlay element', () => {
+    it('should not render per-view scanlines overlay (moved to DefaultLayout)', () => {
       const wrapper = mount(LoginFormTerminal, {
         global: {
           plugins: [router],
         },
       })
 
-      expect(wrapper.find('.scanlines').exists()).toBe(true)
+      expect(wrapper.find('.scanlines').exists()).toBe(false)
     })
 
     it('should have CRT flicker effect', () => {

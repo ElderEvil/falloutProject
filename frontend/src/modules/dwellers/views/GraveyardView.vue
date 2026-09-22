@@ -3,7 +3,7 @@
  * GraveyardView - Display permanently dead dwellers
  * @component
  */
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useDwellerStore } from '../stores/dweller'
@@ -23,7 +23,6 @@ const authStore = useAuthStore()
 const { death: dwellerStore } = useDwellerStore()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
-const scanlinesEnabled = inject('scanlines', ref(true))
 
 const vaultId = computed(() => route.params.id as string)
 const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
@@ -47,8 +46,6 @@ const viewDwellerDetails = (dwellerId: string) => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -152,16 +149,5 @@ const viewDwellerDetails = (dwellerId: string) => {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 </style>

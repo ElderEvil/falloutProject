@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, inject, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useMapStore } from '../stores/map'
@@ -17,7 +17,6 @@ const authStore = useAuthStore()
 const mapStore = useMapStore()
 const route = useRoute()
 const { isCollapsed } = useSidePanel()
-const scanlinesEnabled = inject('scanlines', ref(true))
 
 const vaultId = computed(() => route.params.id as string)
 
@@ -94,8 +93,6 @@ const mapPaneHeight = 'var(--map-pane-size)'
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />

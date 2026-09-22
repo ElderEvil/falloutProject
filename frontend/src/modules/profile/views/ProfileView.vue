@@ -116,7 +116,6 @@ const formatDate = (dateString: string) => {
 
 <template>
   <div class="profile-page relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines opacity-40" aria-hidden="true"></div>
     <div class="flex min-h-screen">
       <SidePanel :vault-id="vaultStore.activeVaultId" />
       <main
@@ -278,10 +277,6 @@ const formatDate = (dateString: string) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-page .scanlines {
-    display: none;
-  }
-
   .profile-page .flicker {
     animation: none;
   }

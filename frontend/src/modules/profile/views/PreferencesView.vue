@@ -74,8 +74,6 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines" v-if="scanlines"></div>
-
     <div class="vault-layout">
       <SidePanel />
 

@@ -269,7 +269,6 @@ const closeLunchboxModal = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
-    <div class="scanlines"></div>
     <SidePanel />
 
     <div
@@ -407,16 +406,3 @@ const closeLunchboxModal = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
-}
-</style>

@@ -28,7 +28,6 @@ onMounted(() => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines" aria-hidden="true"></div>
     <div class="flex min-h-screen">
       <SidePanel />
       <main

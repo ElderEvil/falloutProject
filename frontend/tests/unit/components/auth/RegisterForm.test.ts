@@ -83,14 +83,14 @@ describe('RegisterForm', () => {
       expect(inputs[3].attributes('required')).toBeDefined()
     })
 
-    it('should have scanlines overlay element', () => {
+    it('should not render per-view scanlines overlay (moved to DefaultLayout)', () => {
       const wrapper = mount(RegisterForm, {
         global: {
           plugins: [router],
         },
       })
 
-      expect(wrapper.find('.scanlines').exists()).toBe(true)
+      expect(wrapper.find('.scanlines').exists()).toBe(false)
     })
 
     it('should have CRT flicker effect', () => {

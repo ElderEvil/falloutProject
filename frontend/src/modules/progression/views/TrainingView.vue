@@ -61,8 +61,6 @@ onMounted(async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines"></div>
-
     <VaultPageShell flicker>
       <PageContentRail class="flex flex-col gap-6">
         <PageHeader

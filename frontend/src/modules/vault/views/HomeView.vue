@@ -18,7 +18,6 @@ const roomStore = useRoomStore()
 const router = useRouter()
 
 // Inject visual effects
-const scanlinesEnabled = inject('scanlines', ref(true))
 const isFlickering = inject('isFlickering', ref(true))
 const glowClass = inject('glowClass', ref('terminal-glow'))
 
@@ -95,7 +94,6 @@ onMounted(async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
     <div
       class="container mx-auto flex flex-col items-center justify-center px-4 py-8 lg:px-8"
       :class="{ flicker: isFlickering }"

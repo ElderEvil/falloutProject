@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   useRouter,
   useRoute,
@@ -58,7 +58,6 @@ const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
-const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
 const route = useRoute()
 const generatingAI = ref<Record<string, boolean>>({})
@@ -385,8 +384,6 @@ const handleTreatIrradiated = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -566,16 +563,5 @@ const handleTreatIrradiated = async () => {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 </style>

@@ -98,7 +98,6 @@ const navigateToDweller = (dwellerId: string) => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines"></div>
     <!-- Main View -->
     <VaultPageShell>
       <PageContentRail class="flex flex-col gap-6">
@@ -199,16 +198,3 @@ const navigateToDweller = (dwellerId: string) => {
     </VaultPageShell>
   </div>
 </template>
-
-<style scoped>
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
-}
-</style>

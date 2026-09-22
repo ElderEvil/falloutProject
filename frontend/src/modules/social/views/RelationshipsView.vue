@@ -14,7 +14,7 @@ import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
 import ChildrenList from '../components/relationships/ChildrenList.vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,13 +117,13 @@ const navigateToDweller = (dwellerId: string) => {
           </template>
         </PageHeader>
 
-          <UTabs
-            :model-value="activeStage"
-            :tabs="familyTabs"
-            @update:model-value="setActiveStage"
-          >
-            <template #default>
-              <section class="min-w-0">
+          <Tabs :model-value="activeStage" @update:model-value="(value) => setActiveStage(String(value))">
+            <TabsList>
+              <TabsTrigger v-for="tab in familyTabs" :key="tab.key" :value="tab.key">
+                {{ tab.label }}
+              </TabsTrigger>
+            </TabsList>
+            <section class="min-w-0">
               <!-- Stage 1: All Dwellers / Forming Relationships -->
               <div v-if="activeStage === 'forming'" class="space-y-5">
                 <div>
@@ -193,8 +193,7 @@ const navigateToDweller = (dwellerId: string) => {
                 <ChildrenList v-if="vaultId" :vaultId="vaultId" @select="navigateToDweller" />
               </div>
               </section>
-            </template>
-          </UTabs>
+          </Tabs>
       </PageContentRail>
     </VaultPageShell>
   </div>

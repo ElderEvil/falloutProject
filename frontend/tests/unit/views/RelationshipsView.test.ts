@@ -17,15 +17,6 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-// Mock UButton
-vi.mock('@/core/components/ui/UButton.vue', () => ({
-  default: {
-    name: 'UButton',
-    template: '<button class="u-button-mock" @click="$emit(\'click\')"><slot /></button>',
-    props: ['variant', 'size', 'disabled'],
-  },
-}))
-
 // Mock the components
 vi.mock('@/core/components/common/SidePanel.vue', () => ({
   default: { template: '<div class="side-panel-mock"></div>' },
@@ -162,11 +153,11 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
+      const tabs = wrapper.findAll('[role="tab"]')
       expect(tabs.length).toBe(4)
 
       // Check that first tab is active by default
-      expect(tabs[0].classes()).toContain('active')
+      expect(tabs[0].attributes('aria-selected')).toBe('true')
     })
   })
 
@@ -180,12 +171,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[1].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[1].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[1].classes()).toContain('active')
+      expect(tabs[1].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Partner Couples')
     })
 
@@ -198,12 +189,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[2].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[2].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[2].classes()).toContain('active')
+      expect(tabs[2].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Active Pregnancies')
     })
 
@@ -216,12 +207,12 @@ describe('RelationshipsView', () => {
 
       await flushPromises()
 
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[3].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[3].trigger('mousedown')
 
       await flushPromises()
 
-      expect(tabs[3].classes()).toContain('active')
+      expect(tabs[3].attributes('aria-selected')).toBe('true')
       expect(wrapper.text()).toContain('Growing Children')
     })
 
@@ -238,8 +229,8 @@ describe('RelationshipsView', () => {
       expect(wrapper.text()).toContain('Forming Relationships')
 
       // Switch to partners
-      const tabs = wrapper.findAll('.utabs-button')
-      await tabs[1].trigger('click')
+      const tabs = wrapper.findAll('[role="tab"]')
+      await tabs[1].trigger('mousedown')
       await flushPromises()
       expect(wrapper.text()).toContain('Committed partners in living quarters')
     })

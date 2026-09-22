@@ -1,5 +1,5 @@
 {
-  "count": 54,
+  "count": 53,
   "files": [
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -35,7 +35,6 @@
     "components/progression/QuestRewardsModal.test.ts",
     "components/rooms/RoomDetailModal.test.ts",
     "components/rooms/RoomGrid.test.ts",
-    "components/social/RelationshipCard.test.ts",
     "components/training/TrainingProgressCard.test.ts",
     "components/ui/UCard.test.ts",
     "components/ui/UInput.test.ts",

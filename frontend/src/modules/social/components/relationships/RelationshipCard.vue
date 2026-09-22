@@ -1,5 +1,5 @@
 <template>
-  <UCard v-if="props.viewMode === 'grid'" padding="md" class="relationship-card relationship-record--grid h-full">
+  <Card v-if="props.viewMode === 'grid'" class="relationship-card relationship-record--grid h-full gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-none ring-0">
     <div class="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_auto]">
       <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
         <button
@@ -23,10 +23,10 @@
         </button>
         <div class="flex flex-col items-center justify-center gap-1 text-theme-primary/70">
           <Icon icon="mdi:heart" class="h-5 w-5 [filter:drop-shadow(0_0_4px_var(--color-theme-glow))]" />
-          <UBadge :variant="relationshipColor" class="relationship-badge mt-1 text-[0.625rem]">
+          <Badge :variant="badgeVariant" class="relationship-badge mt-1 text-[0.625rem]" :class="badgeClass">
             <Icon v-if="relationship.relationship_type === 'MARRIED'" icon="mdi:heart" class="h-3.5 w-3.5" />
             {{ RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ?? relationship.relationship_type }}
-          </UBadge>
+          </Badge>
         </div>
         <button
           type="button"
@@ -54,42 +54,49 @@
           <span class="font-bold tracking-[0.08em] text-theme-primary/60">AFFINITY</span>
           <span class="font-bold text-theme-primary">{{ relationship.affinity }}/100</span>
         </div>
-        <UProgressBar :model-value="relationship.affinity" :height="8" class="mt-2" />
+        <Progress :model-value="relationship.affinity" class="mt-2 h-2" />
         <p v-if="nextMilestone" class="mt-2 text-xs leading-4 text-theme-primary/60">
           {{ nextMilestone }}
         </p>
       </div>
 
       <div class="flex flex-wrap justify-end gap-2">
-        <UButton
+        <Button
           v-if="relationship.relationship_type === 'acquaintance' && relationship.affinity >= 70"
-          @click="$emit('initiate-romance')"
+          variant="default"
           size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          @click="$emit('initiate-romance')"
         >
           Romance
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="relationship.relationship_type === 'romantic'"
-          @click="$emit('make-partners')"
+          variant="default"
           size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          @click="$emit('make-partners')"
         >
           Partner
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="relationship.relationship_type === 'partner' && relationship.affinity >= 85"
-          @click="$emit('marry')"
+          variant="default"
           size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          @click="$emit('marry')"
         >
           Marry
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="isRelationshipType(relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)"
-          @click="$emit('break-up')"
-          variant="danger"
+          variant="destructive"
           size="sm"
+          class="border-2 border-danger bg-transparent"
+          @click="$emit('break-up')"
         >
           Break Up
-        </UButton>
+        </Button>
       </div>
     </div>
     <div
@@ -119,8 +126,8 @@
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
     </div>
-  </UCard>
-  <UCard v-else padding="sm" class="relationship-record--list">
+  </Card>
+  <Card v-else class="relationship-record--list gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-none ring-0">
     <div class="grid items-center gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto]">
       <div class="min-w-0">
         <div class="flex min-w-0 items-center gap-2">
@@ -154,44 +161,49 @@
             {{ dweller2Name }}
           </button>
         </div>
-        <UBadge :variant="relationshipColor" class="relationship-badge mt-1 text-[0.625rem]">
+        <Badge :variant="badgeVariant" class="relationship-badge mt-1 text-[0.625rem]" :class="badgeClass">
           <Icon v-if="relationship.relationship_type === 'MARRIED'" icon="mdi:heart" class="h-3.5 w-3.5" />
           {{ RELATIONSHIP_TYPE_LABEL[relationship.relationship_type] ?? relationship.relationship_type }}
-        </UBadge>
+        </Badge>
       </div>
       <div class="rounded border border-theme-primary/15 bg-surface-sunken px-2.5 py-2">
         <div class="flex items-center justify-between text-xs text-theme-primary/70">
           <span>AFFINITY</span>
           <span class="font-bold text-theme-primary">{{ relationship.affinity }}/100</span>
         </div>
-        <UProgressBar :model-value="relationship.affinity" :height="6" class="mt-1.5" />
+        <Progress :model-value="relationship.affinity" class="mt-1.5" />
       </div>
       <div class="flex flex-wrap justify-end gap-2">
-        <UButton
+        <Button
           v-if="relationship.relationship_type === 'acquaintance' && relationship.affinity >= 70"
-          @click="emit('initiate-romance')"
+          variant="default"
           size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          @click="emit('initiate-romance')"
         >
           Romance
-        </UButton>
-        <UButton v-if="relationship.relationship_type === 'romantic'" @click="emit('make-partners')" size="sm">
+        </Button>
+        <Button v-if="relationship.relationship_type === 'romantic'" variant="default" size="sm" class="border-2 border-theme-primary hover:shadow-glow-md" @click="emit('make-partners')">
           Partner
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="relationship.relationship_type === 'partner' && relationship.affinity >= 85"
-          @click="emit('marry')"
+          variant="default"
           size="sm"
+          class="border-2 border-theme-primary hover:shadow-glow-md"
+          @click="emit('marry')"
         >
           Marry
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           v-if="isRelationshipType(relationship.relationship_type, COMMITTED_RELATIONSHIP_TYPES)"
-          @click="emit('break-up')"
-          variant="danger"
+          variant="destructive"
           size="sm"
+          class="border-2 border-danger bg-transparent"
+          @click="emit('break-up')"
         >
           Break Up
-        </UButton>
+        </Button>
       </div>
     </div>
     <div
@@ -221,7 +233,7 @@
       </template>
       <span v-else class="text-xs text-theme-primary/40">No children yet</span>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <script setup lang="ts">
@@ -241,10 +253,10 @@ import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerGenderBadge from '@/modules/dwellers/components/DwellerGenderBadge.vue'
 import ChildChip from './ChildChip.vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 
 interface Props {
   relationship: Relationship
@@ -281,10 +293,26 @@ function formatDwellerName(dweller: DwellerShort): string {
   return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
 }
 
-/** Badge variant for the relationship type. */
-const relationshipColor = computed(
-  () => RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'
-)
+/** shadcn Badge variant for the relationship type (UBadge names mapped). */
+const badgeVariant = computed((): 'default' | 'secondary' | 'destructive' | 'outline' => {
+  const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    success: 'default',
+    warning: 'outline',
+    danger: 'destructive',
+    info: 'outline',
+    default: 'secondary',
+    primary: 'default',
+    secondary: 'secondary',
+    outline: 'outline',
+  }
+  return map[RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'] ?? 'secondary'
+})
+
+// No shadcn amber equivalent for `warning`; preserve its colour explicitly.
+const badgeClass = computed(() => {
+  const v = RELATIONSHIP_TYPE_VARIANT[props.relationship.relationship_type] ?? 'success'
+  return v === 'warning' ? 'bg-warning text-black border-warning' : ''
+})
 
 /** Whether the relationship type counts as a committed partner link. */
 const isPartnerLinked = computed(() =>

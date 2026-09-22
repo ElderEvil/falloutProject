@@ -48,10 +48,6 @@ function createWrapper(
     },
     global: {
       stubs: {
-        UButton: {
-          template: '<button class="ubutton-stub"><slot /></button>',
-          props: ['color', 'size'],
-        },
         DwellerPortrait: {
           template: '<span class="dweller-portrait-stub" :data-alt="alt" />',
           props: ['alt'],
@@ -125,13 +121,13 @@ describe('RelationshipCard', () => {
 
   describe('badge variant per relationship type', () => {
     it.each([
-      { type: 'acquaintance', expectClasses: ['bg-transparent'], label: 'Acquaintance' },
-      { type: 'friend', expectClasses: ['bg-success'], label: 'Friend' },
-      { type: 'romantic', expectClasses: ['bg-warning'], label: 'Romantic' },
-      { type: 'partner', expectClasses: ['border-2'], label: 'Partner' },
-      { type: 'MARRIED', expectClasses: ['bg-success', 'text-terminal-background'], label: 'Married' },
-      { type: 'ex', expectClasses: ['bg-surface-raised'], label: 'Ex' },
-    ])('$type badge should have correct variant class', async ({ type, expectClasses, label }) => {
+      { type: 'acquaintance', expectVariant: 'outline', label: 'Acquaintance' },
+      { type: 'friend', expectVariant: 'default', label: 'Friend' },
+      { type: 'romantic', expectVariant: 'outline', label: 'Romantic' },
+      { type: 'partner', expectVariant: 'outline', label: 'Partner' },
+      { type: 'MARRIED', expectVariant: 'default', label: 'Married' },
+      { type: 'ex', expectVariant: 'secondary', label: 'Ex' },
+    ])('$type badge shows the correct variant', async ({ type, expectVariant, label }) => {
       const wrapper = createWrapper({
         id: '1',
         dweller_1_id: 'd1',
@@ -143,9 +139,7 @@ describe('RelationshipCard', () => {
       const badge = wrapper.find('.relationship-badge')
       expect(badge.exists()).toBe(true)
       expect(badge.text()).toBe(label)
-      for (const cls of expectClasses) {
-        expect(badge.classes()).toContain(cls)
-      }
+      expect(badge.attributes('data-variant')).toBe(expectVariant)
     })
 
     it('defaults to success variant for unknown type', () => {
@@ -158,7 +152,7 @@ describe('RelationshipCard', () => {
       })
 
       const badge = wrapper.find('.relationship-badge')
-      expect(badge.classes()).toContain('bg-success')
+      expect(badge.attributes('data-variant')).toBe('default')
     })
 
     it('shows the Married label with a heart icon for MARRIED relationships', () => {

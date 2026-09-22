@@ -9,17 +9,17 @@
       </h2>
       <div class="flex items-center gap-2">
         <div class="flex rounded border border-theme-primary/20 p-0.5">
-          <UButton variant="ghost" size="xs" :class="viewMode === 'list' ? 'bg-theme-glow/20!' : ''" title="List view" @click="viewMode = 'list'">
+          <Button variant="ghost" size="xs" :class="viewMode === 'list' ? 'bg-theme-glow/20!' : ''" title="List view" @click="viewMode = 'list'">
             <Icon icon="mdi:format-list-bulleted" />
-          </UButton>
-          <UButton variant="ghost" size="xs" :class="viewMode === 'grid' ? 'bg-theme-glow/20!' : ''" title="Grid view" @click="viewMode = 'grid'">
+          </Button>
+          <Button variant="ghost" size="xs" :class="viewMode === 'grid' ? 'bg-theme-glow/20!' : ''" title="Grid view" @click="viewMode = 'grid'">
             <Icon icon="mdi:view-grid-outline" />
-          </UButton>
+          </Button>
         </div>
-        <UButton @click="refreshRelationships" :disabled="isLoading" size="sm">
+        <Button variant="default" size="sm" class="border-2 border-theme-primary hover:shadow-glow-md" :disabled="isLoading" @click="refreshRelationships">
           <Icon icon="mdi:refresh" class="mr-1" />
           Refresh
-        </UButton>
+        </Button>
       </div>
     </div>
 
@@ -29,10 +29,10 @@
     </div>
 
     <div v-else-if="error" class="error-state text-center py-8">
-      <UCard glow crt class="p-6">
+      <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen">
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <UButton variant="secondary" @click="retryFetch()">Retry</UButton>
-      </UCard>
+        <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="retryFetch()">Retry</Button>
+      </Card>
     </div>
 
     <TerminalEmptyState
@@ -84,8 +84,8 @@ import RelationshipCard from './RelationshipCard.vue'
 import { childrenOfCouple, generationOf } from '../../models/dwellerFamily'
 import { pregnancyForCouple } from '../../models/pregnancy'
 import type { Pregnancy } from '../../models/pregnancy'
-import UButton from '@/core/components/ui/UButton.vue'
-import UCard from '@/core/components/ui/UCard.vue'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 
 interface Props {

@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { Objective } from '../models/objective'
-import { UBadge, UCard, UProgressBar } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 
 interface Props {
   objective: Objective
@@ -49,7 +51,7 @@ const canClaim = computed(() => {
 </script>
 
 <template>
-  <UCard class="objective-card" :class="{ 'completed-card': isCompleted }">
+  <Card class="objective-card" :class="{ 'completed-card': isCompleted }">
     <!-- Header with icon and category -->
     <div class="objective-header">
       <div class="objective-icon-wrapper">
@@ -57,14 +59,14 @@ const canClaim = computed(() => {
       </div>
       <div class="objective-info">
         <h3 class="objective-title">{{ objective.challenge }}</h3>
-        <UBadge
+        <Badge
           :variant="
-            category === 'daily' ? 'primary' : category === 'weekly' ? 'secondary' : 'outline'
+            category === 'daily' ? 'default' : category === 'weekly' ? 'secondary' : 'outline'
           "
           class="category-badge"
         >
           {{ categoryLabel }}
-        </UBadge>
+        </Badge>
       </div>
     </div>
 
@@ -76,12 +78,11 @@ const canClaim = computed(() => {
         <span class="progress-label">Progress</span>
         <span class="progress-values">{{ objective.progress }} / {{ objective.total }}</span>
       </div>
-      <UProgressBar
+      <!-- @vue-ignore -->
+      <Progress
         :model-value="progressPercent"
-        :height="8"
-        :glow="false"
-        ariaLabel="Objective progress"
-        class="objective-progress-bar"
+        aria-label="Objective progress"
+        class="objective-progress-bar h-2"
       />
       <div class="progress-percent">{{ progressPercent }}%</div>
     </div>
@@ -106,7 +107,7 @@ const canClaim = computed(() => {
       <Icon icon="mdi:check-circle" class="stamp-icon" />
       Completed
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

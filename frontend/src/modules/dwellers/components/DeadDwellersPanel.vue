@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 import { DeadDwellerCard } from './death'
@@ -21,10 +21,10 @@ const emit = defineEmits<{
 <template>
   <section>
     <div class="mb-6 flex w-full justify-end">
-      <UButton variant="secondary" size="sm" @click="emit('view-graveyard')">
+      <Button variant="secondary" size="sm" @click="emit('view-graveyard')">
         <Icon icon="mdi:grave-stone" class="mr-2 h-4 w-4" />
         View Graveyard
-      </UButton>
+      </Button>
     </div>
 
     <div v-if="isLoading" class="w-full py-12 text-center">
@@ -39,10 +39,10 @@ const emit = defineEmits<{
       description="All dwellers are alive and well. Check the graveyard for permanently deceased."
     >
       <template #actions>
-        <UButton variant="secondary" size="sm" @click="emit('view-graveyard')">
+        <Button variant="secondary" size="sm" @click="emit('view-graveyard')">
           <Icon icon="mdi:grave-stone" class="mr-2 h-4 w-4" />
           View Graveyard
-        </UButton>
+        </Button>
       </template>
     </TerminalEmptyState>
 

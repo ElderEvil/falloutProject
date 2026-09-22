@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import {
   happinessService,
@@ -38,33 +38,38 @@ const loadHappinessModifiers = async () => {
 
 <template>
   <div>
-    <UTooltip text="View happiness modifiers">
-      <UButton
-        variant="ghost"
-        size="sm"
-        @click="loadHappinessModifiers"
-        :disabled="loadingModifiers"
-        aria-label="View happiness modifiers"
-      >
-        <Icon
-          :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"
-          :class="{ 'animate-spin': loadingModifiers }"
-          class="h-4 w-4"
-        />
-      </UButton>
-    </UTooltip>
+    <TooltipProvider :delay-duration="200">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            variant="ghost"
+            size="sm"
+            @click="loadHappinessModifiers"
+            :disabled="loadingModifiers"
+            aria-label="View happiness modifiers"
+          >
+            <Icon
+              :icon="loadingModifiers ? 'mdi:loading' : 'mdi:information-outline'"
+              :class="{ 'animate-spin': loadingModifiers }"
+              class="h-4 w-4"
+            />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">View happiness modifiers</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
 
     <div v-if="showModifiers && happinessModifiers" class="happiness-modifiers">
       <div class="modifiers-header">
         <span class="modifiers-title">Happiness Modifiers</span>
-        <UButton
+        <Button
           variant="ghost"
           size="sm"
           @click="showModifiers = false"
           aria-label="Close happiness modifiers"
         >
           <Icon icon="mdi:close" class="h-4 w-4" />
-        </UButton>
+        </Button>
       </div>
 
       <div v-if="happinessModifiers.positive.length > 0" class="modifiers-section">

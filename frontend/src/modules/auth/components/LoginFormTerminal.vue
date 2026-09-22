@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { UButton, UInput } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -29,9 +31,6 @@ const handleSubmit = async () => {
 
 <template>
   <div class="login-container">
-    <!-- Scanlines overlay -->
-    <div class="scanlines"></div>
-
     <!-- CRT effect container -->
     <div class="crt-container flicker">
       <div class="login-box">
@@ -51,32 +50,45 @@ const handleSubmit = async () => {
         <!-- Login Form -->
         <form @submit.prevent="handleSubmit" class="login-form">
           <div class="form-group">
-            <UInput
+            <Label for="login-username" class="mb-1 text-sm font-medium text-theme-primary/70">
+              > USER IDENTIFICATION:
+              <span class="text-danger">*</span>
+            </Label>
+            <Input
+              id="login-username"
               v-model="username"
               type="email"
-              label="> USER IDENTIFICATION:"
               placeholder="overseer@vault-tec.com"
               required
-              variant="terminal"
+              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
             />
           </div>
 
           <div class="form-group">
-            <UInput
+            <Label for="login-password" class="mb-1 text-sm font-medium text-theme-primary/70">
+              > SECURITY PASSPHRASE:
+              <span class="text-danger">*</span>
+            </Label>
+            <Input
+              id="login-password"
               v-model="password"
               type="password"
-              label="> SECURITY PASSPHRASE:"
               placeholder="••••••••"
               required
-              variant="terminal"
+              class="h-auto w-full rounded border-2 border-theme-primary/50 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40 focus:border-theme-primary"
             />
           </div>
 
-          <UButton variant="primary" type="submit" block :disabled="isLoading">
+          <Button
+            variant="default"
+            type="submit"
+            class="w-full border-2 border-theme-primary hover:shadow-glow-md"
+            :disabled="isLoading"
+          >
             <span v-if="!isLoading" class="button-icon">►</span>
             {{ isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE' }}
             <span v-if="!isLoading" class="button-icon">◄</span>
-          </UButton>
+          </Button>
         </form>
 
         <!-- Error Message -->
@@ -116,19 +128,6 @@ const handleSubmit = async () => {
   background: var(--color-surface-dark);
   font-family: 'Courier New', monospace;
   overflow: hidden;
-}
-
-/* Scanlines effect */
-.scanlines {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, rgba(0, 255, 0, 0.02) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 1000;
 }
 
 /* Flicker animation */

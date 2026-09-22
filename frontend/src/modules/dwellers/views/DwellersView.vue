@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   useRouter,
   useRoute,
@@ -21,7 +21,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
@@ -60,7 +60,6 @@ const incidentStore = useIncidentStore()
 const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
-const scanlinesEnabled = inject('scanlines', ref(true))
 const router = useRouter()
 const route = useRoute()
 const generatingAI = ref<Record<string, boolean>>({})
@@ -391,8 +390,6 @@ const handleTreatIrradiated = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div v-if="scanlinesEnabled" class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -408,11 +405,9 @@ const handleTreatIrradiated = async () => {
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
-            <USkeleton
+            <Skeleton
               v-if="!currentVault && !vaultLoadError"
-              width="100%"
-              height="120px"
-              rounded="lg"
+              class="h-[120px] w-full rounded-lg"
             />
             <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <details v-else-if="happinessDashboardData" class="happiness-overview">
@@ -574,16 +569,5 @@ const handleTreatIrradiated = async () => {
 .main-content span,
 .main-content div {
   text-shadow: 0 0 2px var(--color-theme-glow);
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 </style>

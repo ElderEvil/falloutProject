@@ -56,9 +56,6 @@ function createWrapper(props: Record<string, unknown> = {}) {
     },
     global: {
       stubs: {
-        UCard: { template: '<div class="ucard-stub"><slot /></div>' },
-        UBadge: { template: '<span class="ubadge-stub"><slot /></span>' },
-        UButton: { template: '<button class="ubutton-stub"><slot /></button>' },
         DwellerPortrait: {
           template: '<span class="dweller-portrait-stub" :data-alt="alt" />',
           props: ['alt'],
@@ -103,7 +100,8 @@ describe('PregnancyCard', () => {
   it('emits deliver when the deliver button is clicked', async () => {
     const wrapper = createWrapper({ pregnancy: { ...pregnancy, is_due: true } })
 
-    await wrapper.get('.ubutton-stub').trigger('click')
+    const deliverButton = wrapper.findAll('button').find((button) => button.text().includes('Deliver'))
+    await deliverButton!.trigger('click')
 
     expect(wrapper.emitted('deliver')).toBeTruthy()
   })

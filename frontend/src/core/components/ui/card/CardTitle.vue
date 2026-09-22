@@ -1,0 +1,18 @@
+<script setup lang="ts">
+import type { HTMLAttributes } from 'vue'
+import { cn } from '@/core/utils/cn'
+
+const props = defineProps<{
+  class?: HTMLAttributes['class']
+}>()
+</script>
+
+<template>
+  <!-- @vue-ignore -->
+  <div
+    data-slot="card-title"
+    :class="cn('text-base leading-normal font-medium group-data-[size=sm]/card:text-sm cn-font-heading', props.class)"
+  >
+    <slot />
+  </div>
+</template>

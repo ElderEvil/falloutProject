@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { vaultNumberSchema } from '../schemas/vault'
-import { UInput } from '@/core/components/ui'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 
 /**
  * VaultNumberField - Terminal-themed vault number input with validation
@@ -53,15 +54,20 @@ defineExpose({ isValid })
 </script>
 
 <template>
-  <UInput
-    v-model="modelValue"
-    type="number"
-    label="Vault Number"
-    placeholder="Vault Number (1-999)"
-    :error="error || undefined"
-    variant="terminal"
-    class="grow"
-  />
+  <div class="w-full">
+    <Label for="vault-number" class="mb-1 text-sm font-medium text-theme-primary/70">
+      Vault Number
+    </Label>
+    <Input
+      id="vault-number"
+      v-model="modelValue"
+      type="number"
+      placeholder="Vault Number (1-999)"
+      class="grow h-auto w-full rounded border-2 bg-surface-sunken px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+      :class="error ? 'border-danger focus:border-danger' : 'border-theme-primary/50 focus:border-theme-primary'"
+    />
+    <p v-if="error" class="mt-1 text-xs text-danger">{{ error }}</p>
+  </div>
 </template>
 
 <style scoped>

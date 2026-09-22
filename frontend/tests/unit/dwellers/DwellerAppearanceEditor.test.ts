@@ -103,21 +103,7 @@ async function createWrapper(dweller: Dweller, modelValue = true) {
     },
     global: {
       stubs: {
-        UModal: {
-          template: `
-            <div v-if="modelValue" class="modal-stub">
-              <slot />
-              <slot name="footer" />
-            </div>
-          `,
-          props: ['modelValue'],
-        },
-        UTooltip: {
-          template: '<div><slot /></div>',
-        },
-        UButton: {
-          template: '<button @click="$emit(\'click\')"><slot /></button>',
-        },
+        Teleport: { template: '<div><slot /></div>' },
       },
     },
   })
@@ -217,7 +203,10 @@ describe('DwellerAppearanceEditor', () => {
     } as unknown as Dweller
 
     const wrapper = await createWrapper(dwellerWithAge)
-    await wrapper.find('input[type="range"]').setValue('36')
+    const thumb = wrapper.find('[role="slider"]')
+    for (let i = 0; i < 11; i++) {
+      await thumb.trigger('keydown', { key: 'ArrowRight' })
+    }
     await wrapper
       .findAll('button')
       .filter((b) => b.text().includes('Save Changes'))[0]!
@@ -279,7 +268,9 @@ describe('DwellerAppearanceEditor', () => {
 
     const selects = wrapper.findAll('[role="combobox"]')
     expect(selects.length).toBeGreaterThanOrEqual(2)
-    await selects[1].trigger('click')
+    // reka-ui opens the listbox on pointerdown (not click).
+    selects[1].element.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
+    await flushPromises()
     const factionOptions = wrapper.findAll('[role="option"]').map((option) => option.text())
 
     // Super mutants should not have human-only factions

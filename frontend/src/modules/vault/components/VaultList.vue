@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useVaultStore } from '../stores/vault'
 import { useVaultOperations } from '../composables/useVaultOperations'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { Button } from '@/core/components/ui/button'
 
 const vaultStore = useVaultStore()
 const authStore = useAuthStore()
@@ -70,15 +71,22 @@ const handleDeleteVault = async (id: string) => {
           <p class="text-theme-accent">Dwellers: {{ vault.dweller_count }}</p>
         </div>
         <div v-if="selectedVaultId === vault.id" class="flex space-x-2">
-          <button @click.stop="handleLoadVault(vault.id)" class="vault-button vault-button-load">
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-2 border-info bg-info/20 text-info hover:bg-info/40 hover:text-info"
+            @click.stop="handleLoadVault(vault.id)"
+          >
             Load
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-2 border-danger bg-danger/20 text-danger hover:bg-danger/40 hover:text-danger"
             @click.stop="handleDeleteVault(vault.id)"
-            class="vault-button vault-button-delete"
           >
             Delete
-          </button>
+          </Button>
         </div>
       </li>
     </ul>
@@ -106,35 +114,5 @@ const handleDeleteVault = async (id: string) => {
   border-color: var(--color-theme-primary);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 20px var(--color-theme-glow);
-}
-
-.vault-button {
-  padding: 0.5rem 1rem;
-  font-weight: 700;
-  border-radius: 0.5rem;
-  transition: all 0.2s;
-  border: 2px solid;
-}
-
-.vault-button-load {
-  background: color-mix(in srgb, var(--color-info) 20%, transparent);
-  border-color: var(--color-info);
-  color: var(--color-info);
-}
-
-.vault-button-load:hover {
-  background: color-mix(in srgb, var(--color-info) 40%, transparent);
-  box-shadow: 0 0 10px var(--color-info);
-}
-
-.vault-button-delete {
-  background: color-mix(in srgb, var(--color-danger) 20%, transparent);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.vault-button-delete:hover {
-  background: color-mix(in srgb, var(--color-danger) 40%, transparent);
-  box-shadow: 0 0 10px var(--color-danger);
 }
 </style>

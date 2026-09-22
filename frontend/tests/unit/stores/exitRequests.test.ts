@@ -31,23 +31,6 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-vi.mock('@/core/components/ui/UModal.vue', () => ({
-  default: {
-    name: 'UModal',
-    props: ['modelValue', 'title', 'size'],
-    emits: ['update:modelValue', 'close'],
-    template: '<div v-if="modelValue" class="mock-modal"><slot /></div>',
-  },
-}))
-
-vi.mock('@/core/components/ui/UButton.vue', () => ({
-  default: {
-    name: 'UButton',
-    props: ['disabled', 'variant'],
-    template: '<button class="mock-button" :disabled="disabled"><slot /></button>',
-  },
-}))
-
 vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({ activeVaultId: 'vault-1' }),
 }))
@@ -143,7 +126,10 @@ describe('ExitRequestModal', () => {
     })
 
     const wrapper = mount(ExitRequestModal, {
-      global: { plugins: [createPinia()] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+      },
     })
     await flushPromises()
 
@@ -154,7 +140,7 @@ describe('ExitRequestModal', () => {
     await decideLater!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.mock-modal').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     expect(useExitRequestStore().requests).toEqual([pendingRequest])
   })
 })

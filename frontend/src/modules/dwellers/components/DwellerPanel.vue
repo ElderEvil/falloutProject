@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { dwellerDetailSections } from '../composables/useDwellerDetailSections'
 
@@ -24,13 +24,16 @@ const sectionComponent = (key: string) =>
 
 <template>
   <div class="dweller-panel">
-    <UTabs v-model="activeTab" :tabs="tabs">
-      <template #default="{ activeTab: currentTab }">
-        <div class="tab-content">
-          <component :is="sectionComponent(currentTab)" />
-        </div>
-      </template>
-    </UTabs>
+    <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
+      <TabsList>
+        <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+          {{ tab.label }}
+        </TabsTrigger>
+      </TabsList>
+      <div class="tab-content">
+        <component :is="sectionComponent(activeTab)" />
+      </div>
+    </Tabs>
   </div>
 </template>
 

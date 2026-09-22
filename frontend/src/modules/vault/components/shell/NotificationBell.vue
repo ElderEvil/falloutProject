@@ -321,6 +321,7 @@ onBeforeUnmount(() => {
           <h3 class="font-semibold text-theme-primary">
             Notifications
           </h3>
+          <!-- Raw popup buttons: bespoke popup styling; migrate with the component (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
           <button
             v-if="notifications.length > 0"
             @click="markAllAsRead"

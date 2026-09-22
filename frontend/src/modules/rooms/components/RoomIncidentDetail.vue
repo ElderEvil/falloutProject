@@ -7,7 +7,7 @@ import { getIncidentIcon, type Incident, type IncidentTeamMember } from '@/modul
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { getCombatPower } from '@/modules/dwellers/models/dweller'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
 import { useToast } from '@/core/composables/useToast'
 import IncidentScene from './IncidentScene.vue'
 import IncidentBattleLog from './IncidentBattleLog.vue'
@@ -181,15 +181,15 @@ const assignResponder = async (dwellerId: string) => {
       </div>
 
       <div v-if="bestResponders.length" class="mb-3 flex flex-wrap items-center gap-2">
-        <UButton
-          variant="primary"
+        <Button
+          variant="default"
           size="sm"
           :disabled="isAssigning || !teamLoaded"
-          :loading="isSendingBest"
           @click="sendBestDefenders"
         >
+          <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
           Send best {{ bestResponders.length }}
-        </UButton>
+        </Button>
         <span class="text-xs text-terminal-green-dim">
           {{ bestResponders.map((d) => d.first_name).join(', ') }}
         </span>
@@ -215,15 +215,19 @@ const assignResponder = async (dwellerId: string) => {
             </div>
           </template>
           <template #actions>
-            <UButton
+            <Button
               variant="secondary"
               size="sm"
               :disabled="isAssigning || !teamLoaded"
-              :loading="assigningDwellerId === dweller.id"
               @click="assignResponder(dweller.id)"
             >
+              <Icon
+                v-if="assigningDwellerId === dweller.id"
+                icon="mdi:loading"
+                class="mr-1 animate-spin"
+              />
               Send
-            </UButton>
+            </Button>
           </template>
         </DwellerListRow>
       </ul>

@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import DwellerEquipment from '@/modules/dwellers/components/DwellerEquipment.vue'
-import UModal from '@/core/components/ui/UModal.vue'
 import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
@@ -64,7 +63,7 @@ function mountEquip(dweller: Dweller, override: Partial<DwellerDetailContext> = 
     global: {
       stubs: {
         Icon: true,
-        Teleport: true,
+        Teleport: { template: '<div><slot /></div>' },
         EquipmentCard: {
           template: '<button class="equip-slot" @click="$emit(\'unequip\')"></button>',
           props: ['item', 'type', 'equipped', 'showActions'],
@@ -96,10 +95,13 @@ describe('DwellerEquipment', () => {
     const wrapper = mountEquip(makeDweller())
 
     await wrapper.get('button.empty-slot').trigger('click')
+    await flushPromises()
+    await nextTick()
+    await flushPromises()
 
-    const modal = wrapper.findComponent(UModal)
-    expect(modal.props('modelValue')).toBe(true)
-    expect(modal.props('title')).toBe('Select Weapon')
+    const modal = wrapper.findComponent({ name: 'Dialog' })
+    expect(modal.props('open')).toBe(true)
+    expect(wrapper.text()).toContain('Select Weapon')
   })
 
   it('calls the refresh action when a weapon is unequipped', async () => {
@@ -112,7 +114,7 @@ describe('DwellerEquipment', () => {
       global: {
         stubs: {
           Icon: true,
-          Teleport: true,
+          Teleport: { template: '<div><slot /></div>' },
           EquipmentCard: {
             template: '<button class="equip-slot" @click="$emit(\'unequip\')"></button>',
             props: ['item', 'type', 'equipped', 'showActions'],

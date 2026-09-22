@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useDwellerStore } from '../stores/dweller'
 import { ADULT_AGE_GROUPS } from '../models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -95,59 +95,86 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
 
 <template>
   <div class="bulk-actions-toolbar">
-    <UTooltip :text="allRoomsTooltip">
-      <UButton
-        variant="primary"
-        size="sm"
-        @click="handleAutoAssign('all')"
-        :loading="autoAssigning === 'all'"
-        :disabled="eligibleCount === 0"
-      >
-        <Icon icon="mdi:auto-mode" class="h-4 w-4 mr-2" />
-        Auto-Assign All Rooms
-        <span class="action-count on-primary">{{ eligibleCount }}</span>
-      </UButton>
-    </UTooltip>
+    <TooltipProvider :delay-duration="200">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            variant="default"
+            size="sm"
+            @click="handleAutoAssign('all')"
+            :disabled="autoAssigning === 'all' || eligibleCount === 0"
+          >
+            <Icon
+              :icon="autoAssigning === 'all' ? 'mdi:loading' : 'mdi:auto-mode'"
+              class="h-4 w-4 mr-2"
+              :class="{ 'animate-spin': autoAssigning === 'all' }"
+            />
+            Auto-Assign All Rooms
+            <span class="action-count on-primary">{{ eligibleCount }}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{ allRoomsTooltip }}</TooltipContent>
+      </Tooltip>
 
-    <UTooltip :text="productionTooltip">
-      <UButton
-        variant="secondary"
-        size="sm"
-        @click="handleAutoAssign('production')"
-        :loading="autoAssigning === 'production'"
-        :disabled="eligibleCount === 0"
-      >
-        <Icon icon="mdi:factory" class="h-4 w-4 mr-2" />
-        Auto-Assign Production
-        <span class="action-count on-secondary">{{ eligibleCount }}</span>
-      </UButton>
-    </UTooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            variant="secondary"
+            size="sm"
+            @click="handleAutoAssign('production')"
+            :disabled="autoAssigning === 'production' || eligibleCount === 0"
+          >
+            <Icon
+              :icon="autoAssigning === 'production' ? 'mdi:loading' : 'mdi:factory'"
+              class="h-4 w-4 mr-2"
+              :class="{ 'animate-spin': autoAssigning === 'production' }"
+            />
+            Auto-Assign Production
+            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{ productionTooltip }}</TooltipContent>
+      </Tooltip>
 
-    <UTooltip :text="trainingTooltip">
-      <UButton
-        variant="secondary"
-        size="sm"
-        @click="handleAutoAssign('training')"
-        :loading="autoAssigning === 'training'"
-        :disabled="eligibleCount === 0"
-      >
-        <Icon icon="mdi:dumbbell" class="h-4 w-4 mr-2" />
-        Auto-Assign Training
-        <span class="action-count on-secondary">{{ eligibleCount }}</span>
-      </UButton>
-    </UTooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            variant="secondary"
+            size="sm"
+            @click="handleAutoAssign('training')"
+            :disabled="autoAssigning === 'training' || eligibleCount === 0"
+          >
+            <Icon
+              :icon="autoAssigning === 'training' ? 'mdi:loading' : 'mdi:dumbbell'"
+              class="h-4 w-4 mr-2"
+              :class="{ 'animate-spin': autoAssigning === 'training' }"
+            />
+            Auto-Assign Training
+            <span class="action-count on-secondary">{{ eligibleCount }}</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{{ trainingTooltip }}</TooltipContent>
+      </Tooltip>
 
-    <UTooltip text="Remove every dweller from their current room assignments">
-      <UButton
-        variant="danger"
-        size="sm"
-        @click="showConfirmDialog = true"
-        :loading="unassigningAll"
-      >
-        <Icon icon="mdi:account-remove" class="h-4 w-4 mr-2" />
-        Unassign All Dwellers
-      </UButton>
-    </UTooltip>
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <Button
+            variant="destructive"
+            size="sm"
+            @click="showConfirmDialog = true"
+            :disabled="unassigningAll"
+          >
+            <Icon
+              :icon="unassigningAll ? 'mdi:loading' : 'mdi:account-remove'"
+              class="h-4 w-4 mr-2"
+              :class="{ 'animate-spin': unassigningAll }"
+            />
+            Unassign All Dwellers
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Remove every dweller from their current room assignments</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
 
     <!-- Confirmation Dialog -->
     <Teleport to="body">
@@ -157,9 +184,9 @@ const handleAutoAssign = async (target: 'all' | 'production' | 'training') => {
             <h3>Unassign All Dwellers?</h3>
             <p>This will remove all dwellers from their current room assignments.</p>
             <div class="dialog-actions">
-              <UButton variant="secondary" @click="showConfirmDialog = false">Cancel</UButton>
-              <UButton variant="danger" @click="handleUnassignAll" :loading="unassigningAll"
-                >Confirm</UButton
+              <Button variant="secondary" @click="showConfirmDialog = false">Cancel</Button>
+              <Button variant="destructive" @click="handleUnassignAll" :disabled="unassigningAll"
+                >Confirm</Button
               >
             </div>
           </div>

@@ -5,10 +5,10 @@
         Pregnancies
       </h2>
       <div class="flex gap-2">
-        <UBadge v-if="dueCount > 0" variant="warning" class="animate-pulse">
+        <Badge v-if="dueCount > 0" variant="outline" class="animate-pulse bg-warning text-black border-warning">
           {{ dueCount }} Due!
-        </UBadge>
-        <UButton @click="refreshPregnancies" :disabled="isLoading" size="sm"> Refresh </UButton>
+        </Badge>
+        <Button variant="default" size="sm" class="border-2 border-theme-primary hover:shadow-glow-md" :disabled="isLoading" @click="refreshPregnancies"> Refresh </Button>
       </div>
     </div>
 
@@ -18,10 +18,10 @@
     </div>
 
     <div v-else-if="error" class="text-center py-8">
-      <UCard glow crt class="p-6">
+      <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen">
         <p class="text-red-400 mb-4">{{ error }}</p>
-        <UButton variant="secondary" @click="retryFetch()">Retry</UButton>
-      </UCard>
+        <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="retryFetch()">Retry</Button>
+      </Card>
     </div>
 
     <div v-else-if="pregnancies.length === 0" class="text-center py-8 text-gray-400">
@@ -48,9 +48,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
-import UButton from '@/core/components/ui/UButton.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UCard from '@/core/components/ui/UCard.vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import { usePolling } from '@/core/composables/usePolling'
 import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import PregnancyCard from './PregnancyCard.vue'

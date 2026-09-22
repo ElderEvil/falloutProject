@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '../models/map'
 import { useMapStore } from '../stores/map'
@@ -80,15 +80,20 @@ const dwellers = computed(() => {
 })
 
 const badgeVariant = computed(() => {
-  const map: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
-    home_vault: 'success',
-    origin: 'info',
-    visited: 'default',
-    discovery: 'warning',
-    vault: 'danger',
+  const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    home_vault: 'default',
+    origin: 'outline',
+    visited: 'secondary',
+    discovery: 'outline',
+    vault: 'destructive',
   }
-  return map[placeType.value] ?? 'default'
+  return map[placeType.value] ?? 'secondary'
 })
+
+// `discovery` has no shadcn amber equivalent; preserve its warning colour explicitly.
+const badgeClass = computed(() =>
+  placeType.value === 'discovery' ? 'bg-warning text-black border-warning' : ''
+)
 
 const isLocked = computed(
   () =>
@@ -116,7 +121,16 @@ function dwellerDisplayName(first: string, last: string | null) {
 </script>
 
 <template>
-  <UModal v-model="isOpen" :title="modalTitle" size="md" surface="base">
+  <Dialog :open="isOpen" @update:open="(open) => { isOpen = open }">
+    <DialogContent
+      class="flex max-h-[75vh] w-full max-w-xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ modalTitle }}</DialogTitle>
+      </DialogHeader>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
     <div v-if="isLocked" class="flex flex-col items-center py-6 text-center">
       <Icon icon="mdi:lock-question" class="h-16 w-16 text-theme-primary/40" />
       <h3 class="mt-4 text-lg font-bold text-theme-primary">Unknown Location</h3>
@@ -145,7 +159,7 @@ function dwellerDisplayName(first: string, last: string | null) {
             <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
           </div>
           <div class="flex flex-col items-end gap-1.5">
-            <UBadge :variant="badgeVariant" size="md">{{ placeType }}</UBadge>
+            <Badge :variant="badgeVariant" :class="badgeClass">{{ placeType }}</Badge>
             <span
               v-if="placeGroup"
               class="flex items-center gap-1 text-xs text-theme-primary/70"
@@ -186,5 +200,7 @@ function dwellerDisplayName(first: string, last: string | null) {
         </ul>
       </section>
     </div>
-  </UModal>
+      </div>
+    </DialogContent>
+  </Dialog>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 interface Props {
   current: number
@@ -137,7 +137,9 @@ const ariaLabel = computed(
 </script>
 
 <template>
-  <UTooltip :text="tooltipText" position="top">
+  <TooltipProvider :delay-duration="200">
+    <Tooltip>
+      <TooltipTrigger as-child>
     <div
       class="relative flex items-center space-x-2"
       role="meter"
@@ -197,7 +199,10 @@ const ariaLabel = computed(
       <!-- Label (optional) -->
       <span v-if="label" class="text-xs text-gray-400" aria-hidden="true">{{ label }}</span>
     </div>
-  </UTooltip>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" class="whitespace-pre-line">{{ tooltipText }}</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 </template>
 
 <style scoped>

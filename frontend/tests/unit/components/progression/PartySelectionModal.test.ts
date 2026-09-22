@@ -40,9 +40,7 @@ describe('PartySelectionModal', () => {
       },
       global: {
         stubs: {
-          UModal: { template: '<div><slot /><slot name="footer" /></div>' },
-          UBadge: { template: '<span><slot /></span>' },
-          UButton: { template: '<button><slot /></button>' },
+          Teleport: { template: '<div><slot /></div>' },
         },
       },
     })

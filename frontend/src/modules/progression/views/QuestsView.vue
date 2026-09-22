@@ -294,6 +294,7 @@ onMounted(async () => {
                         AVAILABLE QUESTS
                         <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
                       </h2>
+                      <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
                       <label class="toggle-label">
                         <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
                         <span class="toggle-text">Show All</span>

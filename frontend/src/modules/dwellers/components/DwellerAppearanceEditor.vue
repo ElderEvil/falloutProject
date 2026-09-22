@@ -403,6 +403,7 @@ function handleCancel() {
                     </SelectContent>
                   </Select>
                 </div>
+                <!-- Raw <label> wraps the Age slider (a custom control), not a standalone form label (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
                 <label class="flex flex-col gap-1">
                   <span class="flex items-center gap-1 text-sm font-medium text-theme-primary/70">
                     <Icon icon="mdi:calendar-outline" class="h-3.5 w-3.5 text-theme-primary/60" />

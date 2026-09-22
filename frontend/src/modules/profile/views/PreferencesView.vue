@@ -358,6 +358,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
               <h2 class="text-xl font-bold mb-2 text-theme-primary">
                 Quick Actions
               </h2>
+              <!-- Bespoke raw action buttons: custom scoped CSS (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
               <div class="flex flex-wrap gap-3">
                 <button @click="enableAllEffects" class="action-button">
                   <Icon icon="mdi:eye" class="mr-2" />

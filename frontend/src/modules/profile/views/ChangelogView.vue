@@ -149,7 +149,7 @@ onMounted(() => {
     <!-- Filters -->
     <Card class="mb-8 gap-0 bg-surface-warm shadow-glow-md">
       <div class="flex flex-wrap gap-4 items-center">
-        <!-- Search -->
+        <!-- Search: vendored Input exists, but this field carries bespoke terminal classes and migrates with the view (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
         <div class="flex-1 min-w-64">
           <input
             v-model="searchQuery"

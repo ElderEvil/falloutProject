@@ -15,11 +15,12 @@
     <form class="space-y-5" @submit.prevent="handleSubmit">
       <div class="space-y-2">
         <div class="flex items-baseline justify-between gap-4">
-          <label for="bio" class="text-sm font-semibold text-theme-primary/85">Bio</label>
+          <Label for="bio" class="text-sm font-semibold text-theme-primary/85">Bio</Label>
           <span class="text-xs tabular-nums text-theme-primary/50">
             {{ formData.bio?.length || 0 }} / 500 characters
           </span>
         </div>
+        <!-- Raw url input / theme select / JSON textareas: no Textarea primitive; the form migrates as one unit (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
         <textarea
           id="bio"
           v-model="formData.bio"
@@ -34,8 +35,8 @@
       </div>
 
       <div class="space-y-2">
-        <label for="avatar_url" class="block text-sm font-semibold text-theme-primary/85"
-          >Avatar image</label
+        <Label for="avatar_url" class="block text-sm font-semibold text-theme-primary/85"
+          >Avatar image</Label
         >
         <input
           id="avatar_url"
@@ -69,8 +70,8 @@
       </figure>
 
       <div class="space-y-2">
-        <label for="theme" class="block text-sm font-semibold text-theme-primary/85"
-          >Preferred theme</label
+        <Label for="theme" class="block text-sm font-semibold text-theme-primary/85"
+          >Preferred theme</Label
         >
         <select
           id="theme"
@@ -89,9 +90,9 @@
           Advanced preferences (JSON)
         </summary>
         <div class="mt-3 space-y-2">
-          <label for="preferences" class="block text-sm font-semibold text-theme-primary/85">
+          <Label for="preferences" class="block text-sm font-semibold text-theme-primary/85">
             Preferences <span class="font-normal text-theme-primary/50">(JSON)</span>
-          </label>
+          </Label>
           <textarea
             id="preferences"
             v-model="preferencesJson"
@@ -143,6 +144,7 @@ import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
 import { Button } from '@/core/components/ui/button'
+import { Label } from '@/core/components/ui/label'
 import { Icon } from '@iconify/vue'
 
 interface Props {

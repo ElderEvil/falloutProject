@@ -46,6 +46,7 @@ function activate(dwellerId: string) {
 
 <template>
   <div class="dweller-table-wrap">
+    <!-- Raw <table>: no Table primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
     <table class="dweller-table">
       <thead>
         <tr>

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Label } from '@/core/components/ui/label'
 import { Slider } from '@/core/components/ui/slider'
 import TerminalModalActions from '@/core/components/common/TerminalModalActions.vue'
 
@@ -94,7 +95,7 @@ const setRadaways = (value: number[] | undefined) => {
           <div class="flex flex-col gap-5">
             <div class="flex flex-col">
               <div class="flex items-center justify-between mb-1">
-                <label class="text-xs text-theme-primary/80">Stimpaks (Heals HP)</label>
+                <Label class="text-xs text-theme-primary/80">Stimpaks (Heals HP)</Label>
                 <span class="text-xs font-bold text-theme-primary"
                   >{{ selectedStimpaks }} / {{ maxStimpaks }}</span
                 >
@@ -109,7 +110,7 @@ const setRadaways = (value: number[] | undefined) => {
             </div>
             <div class="flex flex-col">
               <div class="flex items-center justify-between mb-1">
-                <label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</label>
+                <Label class="text-xs text-theme-primary/80">RadAway (Removes Rads)</Label>
                 <span class="text-xs font-bold text-theme-primary"
                   >{{ selectedRadaways }} / {{ maxRadaways }}</span
                 >

@@ -97,6 +97,7 @@ function applyPreset(presetId: string) {
       </button>
     </div>
 
+    <!-- Bespoke raw toggle buttons: custom scoped CSS + structural test selectors (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
     <div v-if="showView" class="view-toggle-controls">
       <button
         type="button"

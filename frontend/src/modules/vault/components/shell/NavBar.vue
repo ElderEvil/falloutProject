@@ -189,6 +189,7 @@ onUnmounted(() => {
             {{ user?.username }}
           </button>
           <Transition name="dropdown">
+            <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
             <div
               v-if="isDropdownOpen"
               class="absolute right-0 mt-2 w-48 bg-black shadow-[0_0_20px_var(--color-theme-glow)] rounded border border-theme-primary z-50"

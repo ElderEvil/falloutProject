@@ -126,6 +126,10 @@ async def test_finalize_return_restores_dweller_and_completes(
     exploration = await _expired_exploration(async_session, vault, dweller)
 
     await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
     await exploration_coordinator.finalize_return(async_session, exploration.id)
 
     await async_session.refresh(exploration)

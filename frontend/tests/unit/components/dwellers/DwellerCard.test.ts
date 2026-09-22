@@ -209,6 +209,11 @@ describe('DwellerCard', () => {
         .filter(Boolean)
 
     it('replaces the room actions with Recall while exploring', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'active' },
+      ] as any
+
       const wrapper = mount(DwellerCard, {
         props: {
           dweller: { ...mockDweller, status: 'exploring', room: null },
@@ -222,6 +227,20 @@ describe('DwellerCard', () => {
       expect(labels).not.toContain('Assign')
       expect(labels).not.toContain('Wasteland')
       expect(labels).not.toContain('Train')
+    })
+
+    it('withholds Recall when the exploration record is unavailable', () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = []
+
+      const wrapper = mount(DwellerCard, {
+        props: {
+          dweller: { ...mockDweller, status: 'exploring', room: null },
+          imageUrl: null,
+        },
+      })
+
+      expect(actionLabels(wrapper)).not.toContain('Recall')
     })
 
     it('swaps Recall for a Returning state once the dweller is heading home', () => {
@@ -367,6 +386,11 @@ describe('DwellerCard', () => {
     })
 
     it('should show recall button when dweller is exploring', async () => {
+      const explorationStore = useExplorationStore()
+      explorationStore.explorations = [
+        { id: 'e1', dweller_id: mockDweller.id, vault_id: 'v1', status: 'active' },
+      ] as any
+
       const exploringDweller = { ...mockDweller, status: 'exploring' }
       const wrapper = mount(DwellerCard, {
         props: {

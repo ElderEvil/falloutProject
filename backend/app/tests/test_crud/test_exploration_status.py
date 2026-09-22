@@ -27,6 +27,10 @@ async def _finish_exploration(async_session: AsyncSession, exploration) -> None:
     await async_session.commit()
     await async_session.refresh(exploration)
     await exploration_service.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
     await exploration_service.finalize_return(async_session, exploration.id)
 
 

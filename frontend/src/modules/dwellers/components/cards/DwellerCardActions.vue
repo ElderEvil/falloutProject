@@ -33,12 +33,10 @@ const isTraining = computed(() => trainingStore.isDwellerTraining(props.dweller.
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
+const exploration = computed(() => explorationStore.getExplorationByDwellerId(props.dweller.id))
 /** Recall only applies while exploring; the dweller stays `exploring` on the return leg. */
-const isReturning = computed(
-  () =>
-    isExploring.value &&
-    explorationStore.getExplorationByDwellerId(props.dweller.id)?.status === 'returning'
-)
+const isReturning = computed(() => exploration.value?.status === 'returning')
+const canRecall = computed(() => exploration.value?.status === 'active')
 /** Away dwellers are out of the vault: room, training and wasteland actions do not apply. */
 const isAway = computed(
   () => props.dweller.status === 'exploring' || props.dweller.status === 'questing'
@@ -111,7 +109,7 @@ const exploreTooltip = computed(() =>
         <TooltipContent side="top">Heading home from the wasteland</TooltipContent>
       </Tooltip>
 
-      <Tooltip v-else-if="isExploring">
+      <Tooltip v-else-if="canRecall">
         <TooltipTrigger as-child>
           <Button variant="secondary" class="w-full" @click="emit('recall')" :disabled="loading">
             <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />

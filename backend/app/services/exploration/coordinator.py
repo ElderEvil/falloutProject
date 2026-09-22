@@ -13,12 +13,14 @@ from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.notification_service import notification_service
+from app.utils.exceptions import ResourceNotFoundException
 
 logger = logging.getLogger(__name__)
 
 # Error messages as constants to satisfy ruff
 ERROR_NOT_ACTIVE = "Exploration is not active"
 ERROR_NOT_RETURNING = "Exploration is not on the return leg"
+ERROR_NOT_ARRIVED = "Exploration has not arrived home yet"
 
 
 class ExplorationCoordinator:
@@ -68,10 +70,16 @@ class ExplorationCoordinator:
         Returns:
             dict: Rewards summary
         """
-        exploration = await crud_exploration.get(db_session, exploration_id)
+        # Locked read: concurrent tick/API callers serialize here, so only the first
+        # one can see RETURNING and claim the rewards.
+        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
+        if exploration is None:
+            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
 
         if not exploration.is_returning():
             raise ValueError(ERROR_NOT_RETURNING)
+        if exploration.return_time_remaining_seconds() > 0:
+            raise ValueError(ERROR_NOT_ARRIVED)
 
         recalled_early = exploration.recalled_early
         progress = exploration.exploring_progress_percentage()

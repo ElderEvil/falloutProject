@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ExplorationDetailView from '@/modules/exploration/views/ExplorationDetailView.vue'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -253,7 +254,7 @@ describe('ExplorationDetailView', () => {
 
       await flushPromises()
 
-      expect(wrapper.findAll('.u-progress-bar').length).toBeGreaterThanOrEqual(1)
+      expect(wrapper.findAllComponents(HealthRadiationBar).length).toBeGreaterThanOrEqual(1)
       expect(wrapper.findAll('.exploration-meter')).toHaveLength(1)
       expect(wrapper.findAll('.exploration-meter__fill.rounded-full')).toHaveLength(1)
     })

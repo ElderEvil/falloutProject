@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
-import UIconButton from '@/core/components/ui/UIconButton.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Icon } from '@iconify/vue'
+import { Button } from '@/core/components/ui/button'
+import { Progress } from '@/core/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import type { ArenaFighter, ArenaRosterEntry } from '../api/arena'
 
 interface Props {
@@ -31,14 +32,22 @@ const healthPercent = (f: ArenaFighter | null) =>
 <template>
   <div class="fighter-slot">
     <div v-if="fighter" class="fighter-card">
-      <UIconButton
-        v-if="canChange"
-        class="slot-clear"
-        icon="mdi:close"
-        label="Clear fighter"
-        variant="danger"
-        @click="emit('clear', side)"
-      />
+      <TooltipProvider v-if="canChange" :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              class="slot-clear"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Clear fighter"
+              @click="emit('clear', side)"
+            >
+              <Icon icon="mdi:close" class="h-4 w-4 text-danger" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Clear fighter</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <div class="damage-layer">
         <span v-for="d in damageNumbers" :key="d.id" class="damage-number">-{{ d.amount }}</span>
       </div>
@@ -46,10 +55,10 @@ const healthPercent = (f: ArenaFighter | null) =>
       <div class="fighter-name">{{ fighter.name }}</div>
       <div class="fighter-meta">Lv {{ fighter.level }} &middot; POW {{ powerLabel }}</div>
       <div class="hp-track">
-        <UProgressBar :model-value="healthPercent(fighter)" :height="10" :glow="false" />
+        <Progress :model-value="healthPercent(fighter)" class="h-2.5" />
       </div>
       <div class="hp-text">{{ fighter.health }}/{{ fighter.max_health }}</div>
-      <UButton v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)">SWAP</UButton>
+      <Button v-if="canChange" variant="ghost" size="xs" @click="emit('togglePicker', side)">SWAP</Button>
     </div>
     <button v-else class="fighter-slot-empty" type="button" @click="emit('togglePicker', side)">
       <span>+ PICK FIGHTER</span>

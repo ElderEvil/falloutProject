@@ -50,6 +50,7 @@ function pick(action: 'rename' | 'soft-delete') {
       <Icon icon="mdi:dots-vertical" class="trigger-icon" />
     </button>
 
+    <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
     <div v-if="open" class="menu" role="menu">
       <button type="button" class="menu-item" role="menuitem" @click="pick('rename')">
         <Icon icon="mdi:pencil" class="item-icon" />

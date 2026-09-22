@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Button } from '@/core/components/ui/button'
+import { Alert } from '@/core/components/ui/alert'
 import TrainingProgressCard from './TrainingProgressCard.vue'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -152,13 +152,18 @@ watch(
 </script>
 
 <template>
-  <UModal
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    @close="close"
-    size="lg"
-    :title="room ? `${room.name} - Training Room` : 'Training Room'"
-  >
+  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
+    <DialogContent
+      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">{{ room ? `${room.name} - Training Room` : 'Training Room' }}</DialogTitle>
+      </DialogHeader>
+
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+
     <div v-if="room" class="training-modal">
       <!-- Room Info -->
       <div class="room-info">
@@ -243,17 +248,19 @@ watch(
       </div>
 
       <!-- Capacity Full Message -->
-      <UAlert v-else variant="warning" class="capacity-alert">
+      <Alert v-else variant="default" class="capacity-alert border-warning bg-warning/10 text-warning">
         <Icon icon="mdi:alert" class="h-5 w-5" />
         Training room at full capacity. Wait for current training to complete or cancel one.
-      </UAlert>
+      </Alert>
 
       <!-- Close Button -->
       <div class="modal-actions">
-        <UButton variant="secondary" block @click="close"> Close </UButton>
+        <Button variant="secondary" class="w-full" @click="close"> Close </Button>
+      </div>
       </div>
     </div>
-  </UModal>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

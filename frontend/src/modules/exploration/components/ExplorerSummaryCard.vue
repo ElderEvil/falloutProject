@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
 
 const props = defineProps<{
@@ -58,12 +58,11 @@ const healthPercentage = computed(
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <span class="min-w-[50px] text-xs text-theme-primary/80">Health</span>
-            <UProgressBar
-              :model-value="healthPercentage"
+            <HealthRadiationBar
+              :value="healthPercentage"
               :radiation="radiationPercentage"
               :height="12"
-              :glow="false"
-              ariaLabel="Health"
+              aria-label="Health"
             />
             <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary"
               >{{ getHealthDisplay(health, maxHealth, radiation) }}</span

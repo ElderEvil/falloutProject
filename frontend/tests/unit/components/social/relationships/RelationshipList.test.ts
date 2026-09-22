@@ -62,8 +62,6 @@ function mountList() {
     props: { vaultId: 'v1' },
     global: {
       stubs: {
-        UButton: { template: '<button class="ubutton-stub"><slot /></button>' },
-        UCard: { template: '<div class="ucard-stub"><slot /></div>' },
         TerminalEmptyState: { template: '<div class="empty-stub" />' },
       },
     },

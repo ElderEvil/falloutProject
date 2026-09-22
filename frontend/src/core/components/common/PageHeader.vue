@@ -13,10 +13,10 @@
  *   subtitle="Manage your vault population"
  * >
  *   <template #actions>
- *     <UButton size="sm">Action</UButton>
+ *     <Button size="sm">Action</Button>
  *   </template>
  *   <template #back>
- *     <UButton variant="ghost" size="sm" @click="goBack">← Back</UButton>
+ *     <Button variant="ghost" size="sm" @click="goBack">← Back</Button>
  *   </template>
  * </PageHeader>
  */

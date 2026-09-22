@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { Room } from '../models/room'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 interface UpgradeInfo {
   canUpgrade: boolean
@@ -36,57 +36,62 @@ const emit = defineEmits<{
       Management
     </h3>
     <div class="actions-grid">
-      <UButton
+      <Button
         v-if="upgradeInfo?.canUpgrade"
         @click="emit('upgrade')"
         :disabled="isUpgrading"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade"
+        class="action-btn action-btn--upgrade justify-start"
       >
         <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Upgrade to Tier {{ upgradeInfo.nextTier }}</span>
         <span class="cost-badge">{{ upgradeInfo.upgradeCost }} caps</span>
-      </UButton>
-      <UButton
+      </Button>
+      <Button
         v-else-if="upgradeInfo && upgradeInfo.maxTier > 1"
         disabled
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--upgrade"
+        class="action-btn action-btn--upgrade justify-start"
       >
         <Icon icon="mdi:arrow-up-circle" class="h-4 w-4" />
         <span>Max tier reached ({{ room.tier }}/{{ upgradeInfo.maxTier }})</span>
-      </UButton>
+      </Button>
 
-      <UButton
+      <Button
         @click="emit('unassignAll')"
         :disabled="assignedDwellerCount === 0"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half"
+        class="action-btn action-btn--half justify-start"
       >
         <Icon icon="mdi:account-remove" class="h-4 w-4" />
         Unassign All Dwellers
-      </UButton>
+      </Button>
 
-      <UTooltip v-if="isVaultDoor" text="The Vault Door is vital and cannot be destroyed.">
-        <UButton disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn">
-          <Icon icon="mdi:delete" class="h-4 w-4" />
-          Destroy Room
-        </UButton>
-      </UTooltip>
-      <UButton
+      <TooltipProvider v-if="isVaultDoor" :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button disabled variant="secondary" size="sm" class="action-btn action-btn--half destroy-btn justify-start">
+              <Icon icon="mdi:delete" class="h-4 w-4" />
+              Destroy Room
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>The Vault Door is vital and cannot be destroyed.</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <Button
         v-else
         @click="emit('destroy')"
         :disabled="isDestroying"
         variant="secondary"
         size="sm"
-        class="action-btn action-btn--half destroy-btn"
+        class="action-btn action-btn--half destroy-btn justify-start"
       >
         <Icon icon="mdi:delete" class="h-4 w-4" />
         Destroy Room
-      </UButton>
+      </Button>
     </div>
   </div>
 </template>
@@ -125,10 +130,6 @@ const emit = defineEmits<{
 .action-btn {
   flex: 1 1 200px;
   min-width: 200px;
-}
-
-.action-btn :deep(button) {
-  justify-content: flex-start;
 }
 
 .action-btn.destroy-btn {

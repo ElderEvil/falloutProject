@@ -33,7 +33,7 @@ withDefaults(defineProps<Props>(), {
             <span>{{ totalXP.toLocaleString() }} XP Earned</span>
           </div>
         </div>
-        <div class="scanlines"></div>
+        <div class="modal-scanlines"></div>
       </div>
     </div>
   </Transition>
@@ -143,7 +143,7 @@ withDefaults(defineProps<Props>(), {
   filter: drop-shadow(0 0 4px rgb(250 204 21 / 0.6));
 }
 
-.scanlines {
+.modal-scanlines {
   position: absolute;
   top: 0;
   left: 0;

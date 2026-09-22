@@ -13,7 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UTabs } from '@/core/components/ui'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
@@ -208,8 +208,6 @@ onMounted(async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-terminal-green">
-    <div class="scanlines"></div>
-
     <div class="vault-layout">
       <!-- Side Panel -->
       <SidePanel />
@@ -241,8 +239,13 @@ onMounted(async () => {
               subtitle="Deploy teams, track missions & collect rewards."
             />
 
-            <UTabs v-model="activeTab" :tabs="questTabs">
-              <template #default>
+            <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
+              <TabsList>
+                <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
+                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                  {{ tab.label }}
+                </TabsTrigger>
+              </TabsList>
                 <!-- Active & Available Quests -->
                 <div v-if="activeTab === 'active'" class="tab-content">
                   <div v-if="readyToClaimQuests.length > 0" class="quest-section">
@@ -289,6 +292,7 @@ onMounted(async () => {
                         AVAILABLE QUESTS
                         <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
                       </h2>
+                      <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
                       <label class="toggle-label">
                         <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
                         <span class="toggle-text">Show All</span>
@@ -338,8 +342,7 @@ onMounted(async () => {
                     />
                   </div>
                 </div>
-              </template>
-            </UTabs>
+            </Tabs>
           </div>
 
           <!-- Party Selection Modal -->
@@ -387,17 +390,6 @@ onMounted(async () => {
 .main-content h2,
 .main-content h3 {
   font-weight: 700;
-}
-
-.scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
-  background-size: 100% 2px;
-  pointer-events: none;
 }
 
 /* Locked State */

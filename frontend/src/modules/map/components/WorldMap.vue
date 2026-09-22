@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
 import type {
   DiscoveryRouteRead,
   MarkerClickPayload,
@@ -187,10 +187,10 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
 
       <!-- Zoom controls overlay -->
       <div class="zoom-controls" role="group" aria-label="Map zoom controls">
-        <UButton variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
+        <Button variant="ghost" size="xs" aria-label="Zoom in" class="zoom-btn" @click="zoomIn()">
           <Icon icon="mdi:plus" class="zoom-icon" />
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           variant="ghost"
           size="xs"
           aria-label="Zoom out"
@@ -198,8 +198,8 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           @click="zoomOut()"
         >
           <Icon icon="mdi:minus" class="zoom-icon" />
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           variant="ghost"
           size="xs"
           :disabled="!isZoomed"
@@ -208,7 +208,7 @@ const gridLines = Array.from({ length: 17 }, (_, i) => i * 10)
           @click="resetZoom()"
         >
           <Icon icon="mdi:arrow-expand-all" class="zoom-icon" />
-        </UButton>
+        </Button>
         <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
       </div>
 

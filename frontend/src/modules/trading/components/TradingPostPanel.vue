@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
 import DwellerCardSkeleton from '@/modules/dwellers/components/cards/DwellerCardSkeleton.vue'
 import DwellerBioBadge from '@/modules/dwellers/components/DwellerBioBadge.vue'
@@ -100,14 +100,20 @@ watch(
             </template>
             <template #actions>
               <span class="text-sm font-bold text-terminal-green">{{ offer.price }} caps</span>
-              <UButton
-                variant="secondary"
+              <Button
+                variant="outline"
                 size="xs"
-                :loading="busyDwellerId === offer.dweller.id"
+                class="border-2 border-theme-primary bg-transparent"
+                :disabled="busyDwellerId === offer.dweller.id"
                 @click="sell(offer)"
               >
+                <Icon
+                  v-if="busyDwellerId === offer.dweller.id"
+                  icon="mdi:loading"
+                  class="animate-spin"
+                />
                 Sell
-              </UButton>
+              </Button>
             </template>
           </DwellerListRow>
         </ul>
@@ -127,15 +133,20 @@ watch(
             </template>
             <template #actions>
               <span class="text-sm font-bold text-terminal-green">{{ offer.price }} caps</span>
-              <UButton
-                variant="primary"
+              <Button
+                variant="default"
                 size="xs"
-                :disabled="offer.price > bottleCaps"
-                :loading="busyDwellerId === offer.dweller.id"
+                class="border-2 border-theme-primary hover:shadow-glow-md"
+                :disabled="offer.price > bottleCaps || busyDwellerId === offer.dweller.id"
                 @click="buy(offer)"
               >
+                <Icon
+                  v-if="busyDwellerId === offer.dweller.id"
+                  icon="mdi:loading"
+                  class="animate-spin"
+                />
                 Buy
-              </UButton>
+              </Button>
             </template>
           </DwellerListRow>
         </ul>

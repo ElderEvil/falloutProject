@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import UCard from '@/core/components/ui/UCard.vue'
+import { Card } from '@/core/components/ui/card'
 
 withDefaults(defineProps<{ message: string; fullHeight?: boolean }>(), { fullHeight: false })
 </script>
@@ -12,7 +12,7 @@ withDefaults(defineProps<{ message: string; fullHeight?: boolean }>(), { fullHei
     class="flex items-center justify-center p-8"
     :class="{ 'min-h-[60vh]': fullHeight }"
   >
-    <UCard glow crt padding="lg">
+    <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 shadow-glow-md ring-0 crt-screen">
       <div class="flex flex-col items-center gap-6">
         <Icon icon="mdi:loading" class="h-16 w-16 animate-spin text-theme-primary terminal-glow" />
         <p class="text-base text-theme-primary terminal-glow">{{ message }}</p>
@@ -22,6 +22,6 @@ withDefaults(defineProps<{ message: string; fullHeight?: boolean }>(), { fullHei
           <div class="h-1 w-1/2 rounded-sm bg-theme-primary/30 flicker-random" />
         </div>
       </div>
-    </UCard>
+    </Card>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
 import type { UserProfile } from '../models/profile'
 
 type VaultRecord = Pick<
@@ -49,8 +49,8 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
 
 <template>
   <section aria-label="Vault operations">
-    <UCard glow crt class="overflow-hidden !border-theme-primary/40">
-      <template #header>
+    <Card class="gap-0 overflow-hidden rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen !border-theme-primary/40">
+      <div class="mb-4 border-b border-gray-700 pb-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center border border-theme-primary/30 bg-surface-sunken shadow-glow-sm">
@@ -71,7 +71,7 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
             {{ props.refreshing ? 'SYNCING RECORD' : 'RECORD LINK ACTIVE' }}
           </p>
         </div>
-      </template>
+      </div>
 
       <p class="max-w-2xl text-sm leading-6 text-theme-primary/70">
         All-time activity attributed to this overseer account across every active vault.
@@ -93,6 +93,6 @@ const hasActivity = computed(() => metrics.value.some((metric) => metric.value >
         <p class="mt-3 text-sm font-bold tracking-[0.08em] text-theme-primary/80">No vault activity reported yet.</p>
         <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-theme-primary/55">Records accumulate as your vault operates.</p>
       </div>
-    </UCard>
+    </Card>
   </section>
 </template>

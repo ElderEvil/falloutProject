@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, USkeleton, UProgressBar } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import type { DeathStatistics } from '@/core/types/death'
 
 interface Props {
@@ -70,19 +72,19 @@ const causeData = computed(() => {
 </script>
 
 <template>
-  <UCard
-    title="VITAL STATISTICS REGISTRY"
-    glow
-    crt
-    class="life-death-stats !border-theme-primary/40"
+  <Card
+    class="life-death-stats gap-0 rounded-lg border-2 border-theme-primary/40 p-6 shadow-glow-md ring-0 crt-screen"
   >
+    <div class="mb-4 border-b border-gray-700 pb-4">
+      <h3 class="text-xl font-bold terminal-glow text-theme-primary">VITAL STATISTICS REGISTRY</h3>
+    </div>
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-3 gap-4">
-        <USkeleton class="h-24 w-full" />
-        <USkeleton class="h-24 w-full" />
-        <USkeleton class="h-24 w-full" />
+        <Skeleton class="h-24 w-full" />
+        <Skeleton class="h-24 w-full" />
+        <Skeleton class="h-24 w-full" />
       </div>
-      <USkeleton class="h-40 w-full" />
+      <Skeleton class="h-40 w-full" />
     </div>
 
     <div v-else-if="statistics" class="space-y-6">
@@ -163,7 +165,7 @@ const causeData = computed(() => {
                   </div>
                 </div>
 
-                <UProgressBar :model-value="Number(cause.percentage)" :height="6" :glow="false" />
+                <Progress :model-value="Number(cause.percentage)" class="h-1.5" />
               </div>
             </div>
           </div>
@@ -204,7 +206,7 @@ const causeData = computed(() => {
     <div v-else class="text-center py-8 text-theme-primary/40 font-mono text-sm">
       NO MORTALITY DATA AVAILABLE
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

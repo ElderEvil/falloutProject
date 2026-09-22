@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { ABILITY_CONFIG, getHighestSpecial, isMature } from '../models/dweller'
 
@@ -25,12 +25,17 @@ const tooltip = computed(() =>
 </script>
 
 <template>
-  <UTooltip v-if="applies" :text="tooltip">
-    <span class="role-match" :class="matched ? 'role-match-ok' : 'role-match-off'">
-      <Icon :icon="matched ? 'mdi:check-circle-outline' : 'mdi:alert-circle-outline'" class="role-match-icon" />
-      {{ matched ? 'Matched' : 'Mismatch' }}
-    </span>
-  </UTooltip>
+  <TooltipProvider v-if="applies" :delay-duration="200">
+    <Tooltip>
+      <TooltipTrigger as-child>
+        <span class="role-match" :class="matched ? 'role-match-ok' : 'role-match-off'">
+          <Icon :icon="matched ? 'mdi:check-circle-outline' : 'mdi:alert-circle-outline'" class="role-match-icon" />
+          {{ matched ? 'Matched' : 'Mismatch' }}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top">{{ tooltip }}</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 </template>
 
 <style scoped>

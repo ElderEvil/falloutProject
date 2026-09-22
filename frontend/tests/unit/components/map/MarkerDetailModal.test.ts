@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
-import UModal from '@/core/components/ui/UModal.vue'
 import { useMapStore } from '@/modules/map/stores/map'
 import type { WastelandLocationWithDwellers, VaultMarkerRead } from '@/modules/map/models/map'
 
@@ -66,13 +65,13 @@ beforeEach(() => {
 
 describe('MarkerDetailModal', () => {
   describe('Location marker display', () => {
-    it('uses a compact field-report dialog width', () => {
+    it('renders a dialog when open', () => {
       const wrapper = mount(MarkerDetailModal, {
         props: { modelValue: true, location: createLocation(), vaultMarker: null },
-        global: { stubs: { teleport: true } },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
       })
 
-      expect(wrapper.findComponent(UModal).props('size')).toBe('md')
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
     })
 
     it('should render the place name in the modal title', () => {
@@ -84,7 +83,7 @@ describe('MarkerDetailModal', () => {
         },
         global: {
           stubs: {
-            teleport: true,
+            Teleport: { template: '<div><slot /></div>' },
           },
         },
       })
@@ -100,7 +99,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -124,7 +123,7 @@ describe('MarkerDetailModal', () => {
           location: createLocation({ group_key: 'gas_station' }),
           vaultMarker: null,
         },
-        global: { stubs: { teleport: true } },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
       })
 
       expect(wrapper.text()).toContain('Gas Station')
@@ -138,7 +137,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -156,7 +155,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -173,7 +172,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -193,7 +192,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: createVaultMarker(),
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -209,7 +208,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: createVaultMarker(),
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -224,7 +223,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: createVaultMarker(),
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -241,7 +240,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -260,7 +259,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -283,7 +282,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -299,7 +298,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -316,7 +315,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -333,7 +332,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 
@@ -351,7 +350,7 @@ describe('MarkerDetailModal', () => {
           location: createLocation({ is_unlocked: false }),
           vaultMarker: null,
         },
-        global: { stubs: { teleport: true } },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
       })
 
       await wrapper.find('button.dweller-contact').trigger('click')
@@ -367,7 +366,7 @@ describe('MarkerDetailModal', () => {
           vaultMarker: null,
         },
         global: {
-          stubs: { teleport: true },
+          stubs: { Teleport: { template: '<div><slot /></div>' } },
         },
       })
 

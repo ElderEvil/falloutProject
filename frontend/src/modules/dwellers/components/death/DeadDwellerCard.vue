@@ -5,7 +5,9 @@
  */
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import type { DwellerDead } from '@/modules/dwellers/models/dweller'
 import { getDeathCauseIcon } from '@/modules/dwellers/models/dweller'
 
@@ -62,12 +64,9 @@ const handleViewDetails = () => {
 </script>
 
 <template>
-  <UCard
-    class="dead-dweller-card h-full flex flex-col"
+  <Card
+    class="dead-dweller-card h-full flex flex-col gap-0 rounded-lg border-2 border-theme-primary/20 p-4 shadow-glow-md ring-0 crt-screen"
     :class="{ 'border-red-500/50': isUrgent && !dweller.is_permanently_dead }"
-    glow
-    crt
-    padding="sm"
   >
     <div class="flex gap-4">
       <!-- Thumbnail Section -->
@@ -117,10 +116,10 @@ const handleViewDetails = () => {
             </h3>
 
             <div class="flex items-center gap-2 mt-1">
-              <UBadge variant="danger" size="sm" class="flex items-center gap-1">
+              <Badge variant="destructive" class="flex items-center gap-1">
                 <Icon :icon="getDeathCauseIcon(dweller.death_cause)" class="w-3.5 h-3.5" />
                 <span>{{ deathCauseText }}</span>
-              </UBadge>
+              </Badge>
 
               <span v-if="dweller.is_permanently_dead" class="text-xs text-gray-500 font-mono"
                 >[DECEASED]</span
@@ -154,18 +153,19 @@ const handleViewDetails = () => {
 
     <!-- Actions -->
     <div class="mt-auto flex gap-2">
-      <UButton
+      <Button
         v-if="!dweller.is_permanently_dead"
-        variant="primary"
+        variant="default"
         size="sm"
         class="flex-1"
-        :loading="loading"
-        icon="mdi:medical-bag"
+        :disabled="loading"
         @click="handleRevive"
       >
+        <Icon v-if="loading" icon="mdi:loading" class="mr-2 h-4 w-4 animate-spin" />
+        <Icon v-else icon="mdi:medical-bag" class="mr-2 h-4 w-4" />
         REVIVE
-      </UButton>
-      <UButton
+      </Button>
+      <Button
         v-else
         variant="secondary"
         size="sm"
@@ -173,9 +173,9 @@ const handleViewDetails = () => {
         disabled
       >
         BURIED
-      </UButton>
+      </Button>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

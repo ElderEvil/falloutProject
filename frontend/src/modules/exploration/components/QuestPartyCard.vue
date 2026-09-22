@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UCard, UProgressBar } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
@@ -49,7 +50,12 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 </script>
 
 <template>
-  <UCard padding="md" surface="raised" class="quest-party-card" :class="{ selected }" @click="emit('select')">
+  <!-- @vue-ignore -->
+  <Card
+    class="quest-party-card gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-6 ring-0"
+    :class="{ selected }"
+    @click="emit('select')"
+  >
     <div class="mission-header">
       <div class="mission-type">
         <Icon icon="mdi:sword-cross" class="mission-icon" />
@@ -65,7 +71,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
         <span>Mission progress</span>
         <span>{{ Math.round(progressPercentage) }}%</span>
       </div>
-      <UProgressBar :model-value="progressPercentage" :height="8" :glow="false" />
+      <Progress :model-value="progressPercentage" class="h-2" />
     </div>
 
     <div class="party-section">
@@ -82,7 +88,7 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
         </div>
       </div>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

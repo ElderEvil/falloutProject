@@ -18,9 +18,9 @@ import ExplorerCard from '../components/ExplorerCard.vue'
 import QuestPartyCard from '../components/QuestPartyCard.vue'
 import ExplorationEventLog from '@/modules/exploration/components/ExplorationEventLog.vue'
 import ExplorationRewardsModal from '../components/ExplorationRewardsModal.vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useExplorationStore } from '../stores/exploration'
 import type { PendingOverflow, RewardsSummary } from '../stores/exploration'
 import { usePendingReports, removePendingReport } from '../composables/usePendingReports'
@@ -275,17 +275,17 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
 
         <!-- Error State -->
         <div v-else-if="explorationError" class="error-state">
-          <UCard padding="lg" :bordered="true">
+          <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-8 ring-0">
             <div class="error-content">
               <Icon icon="mdi:alert-circle" class="error-icon" />
               <h3 class="error-title">Signal Lost</h3>
               <p class="error-message">{{ explorationError }}</p>
-              <UButton variant="secondary" size="md" @click="loadData">
+              <Button variant="secondary" @click="loadData">
                 <Icon icon="mdi:refresh" class="mr-2" />
                 Retry Connection
-              </UButton>
+              </Button>
             </div>
-          </UCard>
+          </Card>
         </div>
 
         <!-- Explorer Cards List -->
@@ -353,11 +353,16 @@ const closeRewardsModal = async (hasUnresolvedOverflow = false) => {
               <Icon icon="mdi:timeline-text" class="mr-2" />
               Event Log
             </div>
-            <UTooltip text="Close">
-              <button @click="selectedExplorerId = null" class="close-timeline-btn" aria-label="Close event log">
-                <Icon icon="mdi:close" />
-              </button>
-            </UTooltip>
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button @click="selectedExplorerId = null" class="close-timeline-btn" aria-label="Close event log">
+                    <Icon icon="mdi:close" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Close</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <ExplorationEventLog :events="selectedExploration.events" reverse />
         </div>

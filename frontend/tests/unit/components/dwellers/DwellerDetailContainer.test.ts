@@ -41,6 +41,12 @@ vi.mock('@/modules/exploration/composables/useSendToWasteland', () => ({
   }),
 }))
 
+// The container lazily imports these; importing them up front keeps the dynamic
+// loaders from still being in flight when the test environment tears down.
+import '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
+import '@/modules/dwellers/components/modals/TrainingStartModal.vue'
+import '@/modules/exploration/components/ExplorationDurationModal.vue'
+
 const fakeDweller = {
   id: 'dweller-1',
   first_name: 'Amata',
@@ -114,7 +120,7 @@ describe('DwellerDetailContainer', () => {
     const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1')
     const back = wrapper.findComponent({ name: 'BackButton' })
     expect(back.exists()).toBe(true)
-    await back.trigger('click')
+    await back.find('button').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('dwellers')

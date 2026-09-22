@@ -19,8 +19,8 @@ const MarkerListPanelStub = {
   template: '<div class="marker-list-panel-stub" />',
 }
 
-const UButtonStub = {
-  name: 'UButton',
+const ButtonStub = {
+  name: 'Button',
   props: ['variant', 'size', 'disabled', 'ariaLabel'],
   template: '<button class="ubutton-stub"><slot /></button>',
 }
@@ -34,7 +34,7 @@ const IconStub = {
 const defaultStubs = {
   MapMarker: MapMarkerStub,
   MarkerListPanel: MarkerListPanelStub,
-  UButton: UButtonStub,
+  Button: ButtonStub,
   Icon: IconStub,
 }
 
@@ -274,7 +274,7 @@ describe('WorldMap', () => {
       const controls = wrapper.find('.zoom-controls')
       expect(controls.exists()).toBe(true)
 
-      const buttons = controls.findAllComponents(UButtonStub)
+      const buttons = controls.findAllComponents(ButtonStub)
       expect(buttons).toHaveLength(3)
     })
 

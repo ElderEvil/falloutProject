@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerGridItem from '@/modules/dwellers/components/grid/DwellerGridItem.vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 
 describe('DwellerGridItem', () => {
   beforeEach(() => {
@@ -164,7 +164,7 @@ describe('DwellerGridItem', () => {
       props: { dweller: { ...mockDweller, max_health: 200, radiation: 25 } },
     })
 
-    expect(wrapper.findComponent(UProgressBar).props('radiation')).toBe(12.5)
+    expect(wrapper.findComponent(HealthRadiationBar).props('radiation')).toBe(12.5)
   })
 
   describe('Component Structure', () => {

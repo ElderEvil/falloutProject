@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import AIUsageCard from '@/modules/profile/components/AIUsageCard.vue'
-import { UProgressBar } from '@/core/components/ui'
+import { Progress } from '@/core/components/ui/progress'
 import type { AIUsageStats } from '@/modules/profile/models/aiUsage'
 
 vi.mock('vue-router', () => ({
@@ -250,7 +250,7 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'var(--color-theme-primary)')
+      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('var(--color-theme-primary)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
 
@@ -267,7 +267,7 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(245 158 11)')
+      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-amber-500')
@@ -287,7 +287,7 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(245 158 11)')
+      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(245 158 11)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
 
@@ -304,7 +304,7 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(239 68 68)')
+      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
       expect(quotaBars.length).toBeGreaterThan(0)
 
       const percentageText = wrapper.find('.text-red-500')
@@ -324,7 +324,7 @@ describe('AIUsageCard', () => {
         props: { stats },
       })
 
-      const quotaBars = wrapper.findAllComponents(UProgressBar).filter((b) => b.props('color') === 'rgb(239 68 68)')
+      const quotaBars = wrapper.findAll('[data-slot="progress"]').filter((b) => ((b.attributes('style') ?? '') as string).includes('rgb(239 68 68)'))
       expect(quotaBars.length).toBeGreaterThan(0)
     })
   })
@@ -339,7 +339,7 @@ describe('AIUsageCard', () => {
       })
       await flushPromises()
 
-      const skeletons = wrapper.findAll('.skeleton')
+      const skeletons = wrapper.findAll('[data-slot="skeleton"]')
       expect(skeletons.length).toBeGreaterThan(0)
     })
 

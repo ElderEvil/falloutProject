@@ -1,5 +1,5 @@
 <template>
-  <UCard class="mb-2">
+  <Card class="mb-2 gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-none ring-0">
     <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_14rem_auto] items-center gap-4">
       <!-- Parent names -->
       <div class="min-w-0">
@@ -22,9 +22,9 @@
         </div>
 
         <!-- Status badge -->
-        <UBadge :variant="statusColor" class="mt-1">
+        <Badge :variant="badgeVariant" class="mt-1" :class="badgeClass">
           {{ pregnancy.status }}
-        </UBadge>
+        </Badge>
       </div>
 
       <!-- Progress bar (fixed column position) -->
@@ -50,17 +50,18 @@
 
       <!-- Deliver button -->
       <div class="flex justify-end">
-        <UButton
+        <Button
           v-if="pregnancy.is_due"
-          @click="$emit('deliver')"
+          variant="default"
           :disabled="isDelivering"
-          class="animate-pulse"
+          class="animate-pulse border-2 border-theme-primary hover:shadow-glow-md"
+          @click="$emit('deliver')"
         >
           {{ isDelivering ? 'Delivering...' : 'Deliver Baby' }}
-        </UButton>
+        </Button>
       </div>
     </div>
-  </UCard>
+  </Card>
 </template>
 
 <script setup lang="ts">
@@ -69,9 +70,9 @@ import type { Pregnancy } from '../../models/pregnancy'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { usePregnancyStore } from '../../stores/pregnancy'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UBadge from '@/core/components/ui/UBadge.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 
 interface Props {
   pregnancy: Pregnancy
@@ -99,19 +100,24 @@ function formatDwellerName(dweller: DwellerShort | null | undefined): string {
   return dweller ? `${dweller.first_name} ${dweller.last_name ?? ''}`.trim() : 'Unknown'
 }
 
-/** Badge variant reflecting the pregnancy status and due state. */
-const statusColor = computed((): 'success' | 'warning' | 'danger' | 'info' | 'default' => {
+/** Badge variant reflecting the pregnancy status and due state (shadcn names). */
+const badgeVariant = computed((): 'default' | 'secondary' | 'destructive' | 'outline' => {
   switch (pregnancy.status) {
     case 'pregnant':
-      return pregnancy.is_due ? 'warning' : 'success'
+      return pregnancy.is_due ? 'outline' : 'default'
     case 'delivered':
-      return 'info'
+      return 'outline'
     case 'miscarried':
-      return 'danger'
+      return 'destructive'
     default:
-      return 'default'
+      return 'secondary'
   }
 })
+
+// `pregnant` + due has no shadcn amber equivalent; preserve its warning colour explicitly.
+const badgeClass = computed(() =>
+  pregnancy.status === 'pregnant' && pregnancy.is_due ? 'bg-warning text-black border-warning' : ''
+)
 
 /** Human-readable time remaining until the pregnancy is due. */
 const timeRemaining = computed(() => {

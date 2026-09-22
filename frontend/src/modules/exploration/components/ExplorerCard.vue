@@ -8,7 +8,10 @@ import { useExplorationProgress } from '@/modules/exploration/composables/useExp
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
-import { UBadge, UCard, UProgressBar, UTooltip } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Card } from '@/core/components/ui/card'
+import { Progress } from '@/core/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -58,37 +61,66 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
 </script>
 
 <template>
-  <UCard padding="md" surface="raised" class="explorer-card" :class="{ selected }" @click="openDetailView">
+  <!-- @vue-ignore -->
+  <Card
+    class="explorer-card gap-0 rounded-lg border-2 border-theme-primary/20 bg-surface-raised p-6 ring-0"
+    :class="{ selected }"
+    @click="openDetailView"
+  >
     <!-- Header -->
     <div class="card-header">
-      <UTooltip text="Open dweller detail page">
-      <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
-        <DwellerPortrait
-          :image-url="dweller?.image_url"
-          :thumbnail-url="dweller?.thumbnail_url"
-          prefer-thumbnail
-          :alt="`${dwellerName} portrait`"
-          image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
-          fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
-        />
-        <div>
-          <div class="dweller-name">{{ dwellerName }}</div>
-          <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-          <div v-if="isReady || isAtRisk" class="badge-row">
-            <UTooltip v-if="isReady" text="Expedition finished — ready to collect">
-              <span><UBadge size="sm" variant="primary">READY</UBadge></span>
-            </UTooltip>
-            <UTooltip v-if="isAtRisk" :text="riskTitle">
-              <span aria-label="Dweller at risk"><UBadge size="sm" variant="warning"><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</UBadge></span>
-            </UTooltip>
-          </div>
-          <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
-        </div>
-      </button>
-      </UTooltip>
-      <UTooltip v-if="selected" text="Event timeline open">
-        <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
-      </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button type="button" class="dweller-info dweller-link" @click.stop="openDwellerDetail">
+              <DwellerPortrait
+                :image-url="dweller?.image_url"
+                :thumbnail-url="dweller?.thumbnail_url"
+                prefer-thumbnail
+                :alt="`${dwellerName} portrait`"
+                image-class="dweller-portrait h-12 w-12 rounded-full border border-theme-primary object-cover"
+                fallback-class="h-12 w-12 text-theme-primary drop-shadow-[0_0_6px_var(--color-theme-glow)]"
+              />
+              <div>
+                <div class="dweller-name">{{ dwellerName }}</div>
+                <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
+                <div v-if="isReady || isAtRisk" class="badge-row">
+                  <TooltipProvider v-if="isReady" :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span><Badge variant="default">READY</Badge></span>
+                      </TooltipTrigger>
+                      <TooltipContent>Expedition finished — ready to collect</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider v-if="isAtRisk" :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span aria-label="Dweller at risk"
+                          ><Badge variant="outline" class="border-warning/50 bg-warning/10 text-warning"
+                            ><Icon icon="mdi:heart-pulse" class="h-3 w-3" /> AT RISK</Badge
+                          ></span
+                        >
+                      </TooltipTrigger>
+                      <TooltipContent>{{ riskTitle }}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <DwellerIdentitySignal :visual-attributes="dweller?.visual_attributes" compact class="mt-1" />
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Open dweller detail page</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <TooltipProvider v-if="selected" :delay-duration="200">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button class="expand-indicator" aria-label="Event timeline open"><Icon icon="mdi:timeline-text" /></button>
+          </TooltipTrigger>
+          <TooltipContent>Event timeline open</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <!-- Progress Bar -->
@@ -97,7 +129,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
         <span>Mission progress</span>
         <span class="progress-percentage">{{ Math.round(progressPercentage) }}%</span>
       </div>
-      <UProgressBar :model-value="progressPercentage" :height="8" :glow="false" />
+      <Progress :model-value="progressPercentage" class="h-2" />
       <span class="progress-time">{{ timeRemaining }}</span>
     </div>
 
@@ -153,7 +185,7 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
       @complete="emit('complete', exploration.id)"
       @recall="emit('recall', exploration.id)"
     />
-  </UCard>
+  </Card>
 </template>
 
 <style scoped>

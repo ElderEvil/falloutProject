@@ -1,9 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import type { AcceptableValue } from 'reka-ui'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
 import { useToast } from '@/core/composables/useToast'
-import { UButton, UCard, UInput } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/core/components/ui/card'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/core/components/ui/select'
 import { aiSettingsService } from '../services/aiSettingsService'
 import {
   AI_PROVIDER_OPTIONS,
@@ -23,6 +34,17 @@ const formGatewayRoute = ref('')
 const testResult = ref<AISettingsTestResult | null>(null)
 const resetArmed = ref(false)
 const copiedConfig = ref(false)
+
+// reka-ui's SelectItem rejects empty-string values ('' clears the selection to
+// show the placeholder), so the "Default (from env)" option is mapped to a
+// sentinel at the Select boundary. formProvider keeps its '' semantics.
+const DEFAULT_PROVIDER = 'default'
+const formProviderSelect = computed<AcceptableValue>({
+  get: () => (formProvider.value === '' ? DEFAULT_PROVIDER : formProvider.value),
+  set: (value: AcceptableValue) => {
+    formProvider.value = value === DEFAULT_PROVIDER ? '' : (value as AIProvider)
+  },
+})
 
 const { run: runLoad, isLoading: isLoadingLoad } = useAsyncAction(
   async () => {
@@ -197,281 +219,316 @@ onMounted(() => {
     </div>
 
     <!-- Error State -->
-    <UCard
+    <Card
       v-else-if="!settings && !isLoadingLoad"
-      title="ERROR: LOAD FAILURE"
-      glow
-      crt
-      class="max-w-lg mx-auto"
+      class="mx-auto max-w-lg rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0"
     >
-      <div class="mb-4 text-red-500">Failed to load AI settings</div>
-      <UButton variant="primary" @click="runLoad">
-        <Icon icon="mdi:refresh" class="mr-2" />
-        Retry
-      </UButton>
-    </UCard>
+      <CardHeader class="mb-4">
+        <div class="border-b border-gray-700 pb-4">
+          <CardTitle class="text-xl font-bold terminal-glow text-theme-primary">
+            ERROR: LOAD FAILURE
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div class="mb-4 text-red-500">Failed to load AI settings</div>
+        <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="runLoad">
+          <Icon icon="mdi:refresh" class="mr-2" />
+          Retry
+        </Button>
+      </CardContent>
+    </Card>
 
     <!-- Main Content -->
     <div v-else-if="settings" class="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <!-- Form Card -->
-      <UCard glow crt>
-        <template #header>
-          <div class="flex items-center gap-3">
-            <Icon icon="mdi:cog-outline" class="h-6 w-6 text-theme-accent" />
-            <h3 class="text-xl font-bold terminal-glow text-theme-primary">
-              Provider Configuration
-            </h3>
+      <Card class="rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0">
+        <CardHeader class="mb-4">
+          <div class="border-b border-gray-700 pb-4">
+            <div class="flex items-center gap-3">
+              <Icon icon="mdi:cog-outline" class="h-6 w-6 text-theme-accent" />
+              <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+                Provider Configuration
+              </h3>
+            </div>
           </div>
-        </template>
+        </CardHeader>
 
-        <div class="space-y-5">
-          <!-- Provider -->
-          <div>
-            <label class="block text-sm font-medium text-theme-primary/70 mb-1">
-              Provider
-              <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
-            </label>
-            <select
-              v-model="formProvider"
-              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 border-theme-primary/50 bg-surface-raised px-4 py-2 text-terminal-green transition-colors"
-            >
-              <option
-                v-for="opt in AI_PROVIDER_OPTIONS"
-                :key="opt.value"
-                :value="opt.value"
+        <CardContent>
+          <div class="space-y-5">
+            <!-- Provider -->
+            <div>
+              <Label class="mb-1 text-sm font-medium text-theme-primary/70">
+                Provider
+                <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
+              </Label>
+              <Select v-model="formProviderSelect">
+                <SelectTrigger
+                  class="w-full rounded border-2 border-theme-primary/50 bg-surface-raised py-2 pl-4 pr-4 text-terminal-green"
+                >
+                  <SelectValue placeholder="Default (from env)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="opt in AI_PROVIDER_OPTIONS"
+                    :key="opt.value"
+                    :value="opt.value === '' ? DEFAULT_PROVIDER : opt.value"
+                  >
+                    {{ opt.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p class="mt-1 text-xs text-theme-primary/50">
+                {{ providerHelperText }}
+              </p>
+            </div>
+
+            <!-- Model -->
+            <div>
+              <Label for="ai-model" class="mb-1 text-sm font-medium text-theme-primary/70">
+                Model
+              </Label>
+              <Input
+                id="ai-model"
+                v-model="formModel"
+                placeholder="e.g. gpt-4o-mini, claude-3-haiku, llama3"
+                class="h-auto w-full rounded border-2 border-theme-primary/20 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+              />
+              <p class="mt-1 text-xs text-theme-primary/50">
+                Optional — Leave empty to use the provider default model.
+              </p>
+            </div>
+
+            <!-- Base URL -->
+            <div v-if="showBaseUrlField">
+              <Label for="ai-base-url" class="mb-1 text-sm font-medium text-theme-primary/70">
+                Base URL
+                <span
+                  class="text-xs font-normal ml-1"
+                  :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger' : 'text-theme-primary/50'"
+                >
+                  ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : 'Optional' }})
+                </span>
+              </Label>
+              <Input
+                id="ai-base-url"
+                v-model="formBaseUrl"
+                type="text"
+                placeholder="e.g. http://localhost:11434/v1"
+                class="h-auto w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+                :class="
+                  baseUrlConnected
+                    ? 'border-theme-primary/60 focus:border-theme-primary'
+                    : baseUrlRequired
+                      ? 'border-danger/50 focus:border-danger'
+                      : 'border-theme-primary/50 focus:border-theme-primary'
+                "
+              />
+              <p
+                class="mt-1 text-xs"
+                :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger/80' : 'text-theme-primary/50'"
               >
-                {{ opt.label }}
-              </option>
-            </select>
-            <p class="mt-1 text-xs text-theme-primary/50">
-              {{ providerHelperText }}
-            </p>
+                {{
+                  baseUrlConnected
+                    ? `Connection established — ${testResult?.model} responded via this endpoint.`
+                    : baseUrlRequired
+                      ? 'Required for Ollama / LM Studio — specify the local endpoint.'
+                      : 'Leave empty to use the environment default.'
+                }}
+              </p>
+            </div>
+
+            <!-- Gateway Route -->
+            <div class="opacity-80">
+              <Label for="ai-gateway-route" class="mb-1 text-sm font-medium text-theme-primary/70">
+                Gateway Route
+                <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
+              </Label>
+              <Input
+                id="ai-gateway-route"
+                v-model="formGatewayRoute"
+                type="text"
+                placeholder="e.g. anthropic, openai"
+                class="h-auto w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green placeholder:text-theme-primary/40"
+              />
+              <p class="mt-1 text-xs text-theme-primary/50">
+                Pydantic AI Gateway routing group — leave empty to use the env route.
+              </p>
+            </div>
           </div>
 
-          <!-- Model -->
-          <UInput
-            v-model="formModel"
-            label="Model"
-            placeholder="e.g. gpt-4o-mini, claude-3-haiku, llama3"
-            help-text="Optional — Leave empty to use the provider default model."
-          />
-
-          <!-- Base URL -->
-          <div v-if="showBaseUrlField">
-            <label class="block text-sm font-medium text-theme-primary/70 mb-1">
-              Base URL
-              <span
-                class="text-xs font-normal ml-1"
-                :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger' : 'text-theme-primary/50'"
-              >
-                ({{ baseUrlConnected ? 'Connected' : baseUrlRequired ? 'Required' : 'Optional' }})
-              </span>
-            </label>
-            <input
-              v-model="formBaseUrl"
-              type="text"
-              placeholder="e.g. http://localhost:11434/v1"
-              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
-              :class="
-                baseUrlConnected
-                  ? 'border-theme-primary/60 focus:border-theme-primary'
-                  : baseUrlRequired
-                    ? 'border-danger/50 focus:border-danger'
-                    : 'border-theme-primary/50 focus:border-theme-primary'
-              "
-            />
-            <p
-              class="mt-1 text-xs"
-              :class="baseUrlConnected ? 'text-theme-primary' : baseUrlRequired ? 'text-danger/80' : 'text-theme-primary/50'"
+          <!-- Actions -->
+          <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-gray-700 pt-4">
+            <Button
+              variant="default"
+              class="border-2 border-theme-primary hover:shadow-glow-md"
+              :disabled="!hasChanges || isLoadingSave"
+              @click="handleSave"
             >
-              {{
-                baseUrlConnected
-                  ? `Connection established — ${testResult?.model} responded via this endpoint.`
-                  : baseUrlRequired
-                    ? 'Required for Ollama / LM Studio — specify the local endpoint.'
-                    : 'Leave empty to use the environment default.'
-              }}
-            </p>
+              <Icon v-if="isLoadingSave" icon="mdi:loading" class="mr-1 animate-spin" />
+              <Icon v-else icon="mdi:content-save" class="mr-1" />
+              Save &amp; Apply
+            </Button>
+            <Button
+              variant="outline"
+              class="border-2 border-theme-primary bg-transparent"
+              :disabled="isLoading"
+              @click="handleTest"
+            >
+              <Icon v-if="isLoadingTest" icon="mdi:loading" class="mr-1 animate-spin" />
+              <Icon v-else icon="mdi:connection" class="mr-1" />
+              Test Connection
+            </Button>
+            <Button
+              :variant="resetArmed ? 'destructive' : 'outline'"
+              :class="[
+                resetArmed ? 'border-2 border-danger bg-transparent' : 'border-2 border-theme-primary bg-transparent',
+                'focus-visible:outline-none focus-visible:border-dashed focus-visible:shadow-[0_0_8px_var(--color-theme-glow)]',
+              ]"
+              :disabled="isLoading"
+              @click="handleReset"
+            >
+              <Icon icon="mdi:restore" class="mr-1" />
+              {{ resetArmed ? 'Confirm Reset?' : 'Reset to Env Defaults' }}
+            </Button>
+            <span v-if="!hasChanges" class="text-xs text-theme-primary/40 italic">
+              No unsaved changes
+            </span>
           </div>
 
-          <!-- Gateway Route -->
-          <div class="opacity-80">
-            <label class="block text-sm font-medium text-theme-primary/70 mb-1">
-              Gateway Route
-              <span class="text-xs text-theme-primary/50 font-normal ml-1">(Optional)</span>
-            </label>
-            <input
-              v-model="formGatewayRoute"
-              type="text"
-              placeholder="e.g. anthropic, openai"
-              class="focus-visible:outline-none focus-visible:border-theme-primary focus-visible:shadow-[0_0_0_2px_var(--color-theme-glow)] w-full rounded border-2 border-theme-primary/30 bg-surface-raised px-4 py-2 text-terminal-green transition-colors placeholder:text-theme-primary/40"
-            />
-            <p class="mt-1 text-xs text-theme-primary/50">
-              Pydantic AI Gateway routing group — leave empty to use the env route.
-            </p>
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-gray-700 pt-4">
-          <UButton
-            variant="primary"
-            :disabled="!hasChanges"
-            :loading="isLoadingSave"
-            @click="handleSave"
-          >
-            <Icon icon="mdi:content-save" class="mr-1" />
-            Save &amp; Apply
-          </UButton>
-          <UButton
-            variant="secondary"
-            :disabled="isLoading"
-            :loading="isLoadingTest"
-            @click="handleTest"
-          >
-            <Icon icon="mdi:connection" class="mr-1" />
-            Test Connection
-          </UButton>
-          <UButton
-            :variant="resetArmed ? 'danger' : 'secondary'"
-            :disabled="isLoading"
-            @click="handleReset"
-            class="focus-visible:outline-none focus-visible:border-dashed focus-visible:shadow-[0_0_8px_var(--color-theme-glow)]"
-          >
-            <Icon icon="mdi:restore" class="mr-1" />
-            {{ resetArmed ? 'Confirm Reset?' : 'Reset to Env Defaults' }}
-          </UButton>
-          <span v-if="!hasChanges" class="text-xs text-theme-primary/40 italic">
-            No unsaved changes
-          </span>
-        </div>
-
-        <!-- Test Result -->
-        <div v-if="testResult" class="mt-4 rounded border-2 p-3 font-mono text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/50 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
-          <div class="flex items-start gap-2">
-            <Icon
-              :icon="testResult.status === 'ok' ? 'mdi:check-circle' : 'mdi:alert'"
-              class="mt-0.5 h-5 w-5 shrink-0"
-              :class="testResult.status === 'ok' ? 'text-theme-primary' : 'text-danger'"
-            />
-            <div class="min-w-0 flex-1">
-              <div v-if="testResult.status === 'ok'" class="text-theme-primary">
-                Connected in {{ testResult.latency_ms }} ms — model: {{ testResult.model }}
+          <!-- Test Result -->
+          <div v-if="testResult" class="mt-4 rounded border-2 p-3 font-mono text-sm" :class="testResult.status === 'ok' ? 'border-theme-primary/50 bg-theme-primary/5' : 'border-danger/50 bg-danger/5'">
+            <div class="flex items-start gap-2">
+              <Icon
+                :icon="testResult.status === 'ok' ? 'mdi:check-circle' : 'mdi:alert'"
+                class="mt-0.5 h-5 w-5 shrink-0"
+                :class="testResult.status === 'ok' ? 'text-theme-primary' : 'text-danger'"
+              />
+              <div class="min-w-0 flex-1">
+                <div v-if="testResult.status === 'ok'" class="text-theme-primary">
+                  Connected in {{ testResult.latency_ms }} ms — model: {{ testResult.model }}
+                </div>
+                <div v-else class="text-danger">
+                  {{ testResult.message }}
+                  <span v-if="testResult.latency_ms" class="text-theme-primary/60 ml-2">
+                    ({{ testResult.latency_ms }} ms)
+                  </span>
+                </div>
               </div>
-              <div v-else class="text-danger">
-                {{ testResult.message }}
-                <span v-if="testResult.latency_ms" class="text-theme-primary/60 ml-2">
-                  ({{ testResult.latency_ms }} ms)
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Effective Config Panel -->
+      <Card class="rounded-lg border-2 border-theme-primary/20 shadow-glow-md crt-screen gap-0">
+        <CardHeader class="mb-4">
+          <div class="border-b border-gray-700 pb-4">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
+                <h3 class="text-xl font-bold terminal-glow text-theme-primary">
+                  Effective Configuration
+                </h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="xs"
+                class="rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:bg-transparent hover:text-theme-primary"
+                :disabled="copiedConfig"
+                @click="handleCopyConfig"
+                aria-label="Copy configuration"
+              >
+                <Icon
+                  :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'"
+                  class="mr-1 inline h-3.5 w-3.5"
+                />
+                {{ copiedConfig ? 'Copied' : 'Copy' }}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div class="space-y-3 text-sm font-mono">
+            <div class="flex justify-between items-baseline gap-4 min-w-0">
+              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Provider</span>
+              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.provider }}</span>
+                <span
+                  v-if="getProvenance('provider') === 'profile'"
+                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                >
+                  Override
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-between items-baseline gap-4 min-w-0">
+              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Model</span>
+              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.model }}</span>
+                <span
+                  v-if="getProvenance('model') === 'profile'"
+                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                >
+                  Override
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-between items-baseline gap-4 min-w-0">
+              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Base URL</span>
+              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.base_url || '—' }}</span>
+                <span
+                  v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
+                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                >
+                  Override
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-between items-baseline gap-4 min-w-0">
+              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Gateway Route</span>
+              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.gateway_route || '—' }}</span>
+                <span
+                  v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
+                  class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
+                >
+                  Override
+                </span>
+              </div>
+            </div>
+            <div class="flex justify-between items-baseline gap-4 min-w-0">
+              <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Mode</span>
+              <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <span
+                  class="text-theme-primary text-right break-all min-w-0"
+                  :class="{
+                    'text-terminal-green': settings.effective.mode !== 'disabled',
+                    'text-red-400': settings.effective.mode === 'disabled',
+                  }"
+                >
+                  {{ settings.effective.mode }}
                 </span>
               </div>
             </div>
           </div>
-        </div>
-      </UCard>
 
-      <!-- Effective Config Panel -->
-      <UCard glow crt>
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <Icon icon="mdi:information-outline" class="h-6 w-6 text-theme-accent" />
-              <h3 class="text-xl font-bold terminal-glow text-theme-primary">
-                Effective Configuration
-              </h3>
-            </div>
-            <button
-              class="focus-visible:outline-none focus-visible:border-dashed focus-visible:border-theme-primary focus-visible:shadow-[0_0_8px_var(--color-theme-glow)] rounded border border-theme-primary/30 bg-transparent px-2 py-1 text-xs text-theme-primary/70 transition-colors hover:border-theme-primary/60 hover:text-theme-primary"
-              :disabled="copiedConfig"
-              @click="handleCopyConfig"
-              aria-label="Copy configuration"
-            >
-              <Icon
-                :icon="copiedConfig ? 'mdi:check' : 'mdi:content-copy'"
-                class="mr-1 inline h-3.5 w-3.5"
-              />
-              {{ copiedConfig ? 'Copied' : 'Copy' }}
-            </button>
+          <div class="mt-4 border-t border-gray-700 pt-3 text-xs text-theme-primary/50">
+            <Icon icon="mdi:lightbulb-outline" class="inline h-3.5 w-3.5 mr-1" />
+            Reflects environment + profile overrides after last save.
           </div>
-        </template>
-
-        <div class="space-y-3 text-sm font-mono">
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Provider</span>
-            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.provider }}</span>
-              <span
-                v-if="getProvenance('provider') === 'profile'"
-                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
-              >
-                Override
-              </span>
-            </div>
-          </div>
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Model</span>
-            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.model }}</span>
-              <span
-                v-if="getProvenance('model') === 'profile'"
-                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
-              >
-                Override
-              </span>
-            </div>
-          </div>
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Base URL</span>
-            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.base_url || '—' }}</span>
-              <span
-                v-if="settings.effective.base_url && getProvenance('base_url') === 'profile'"
-                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
-              >
-                Override
-              </span>
-            </div>
-          </div>
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Gateway Route</span>
-            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span class="text-theme-primary text-right break-all min-w-0">{{ settings.effective.gateway_route || '—' }}</span>
-              <span
-                v-if="settings.effective.gateway_route && getProvenance('gateway_route') === 'profile'"
-                class="override-pill rounded border border-theme-accent/50 bg-theme-accent/10 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wider text-theme-accent"
-              >
-                Override
-              </span>
-            </div>
-          </div>
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <span class="text-theme-primary/60 uppercase text-[0.7rem] tracking-[0.05em] flex-shrink-0">Mode</span>
-            <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <span
-                class="text-theme-primary text-right break-all min-w-0"
-                :class="{
-                  'text-terminal-green': settings.effective.mode !== 'disabled',
-                  'text-red-400': settings.effective.mode === 'disabled',
-                }"
-              >
-                {{ settings.effective.mode }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 border-t border-gray-700 pt-3 text-xs text-theme-primary/50">
-          <Icon icon="mdi:lightbulb-outline" class="inline h-3.5 w-3.5 mr-1" />
-          Reflects environment + profile overrides after last save.
-        </div>
-      </UCard>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Focus-visible rings for child-component internals (UButton/UInput/USelect).
+/* Focus-visible rings for child-component internals (shadcn Button/Input/Select).
    These `:deep` rules cannot be expressed as Tailwind utility classes because
-   the focusable element lives inside the library component's own template. */
+   the focusable element lives inside the component's own template. */
 :deep(button):focus-visible {
   outline: none;
   border-style: dashed;
@@ -479,7 +536,7 @@ onMounted(() => {
   box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
-:deep(select):focus-visible {
+:deep([role='combobox']):focus-visible {
   outline: none;
   border-color: var(--color-theme-primary);
   box-shadow: 0 0 0 2px var(--color-theme-glow);

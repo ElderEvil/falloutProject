@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
 import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 
@@ -168,14 +168,15 @@ const attentionIconClass = (tone: BriefingItem['tone']) =>
           <p class="truncate text-xs opacity-80">{{ item.detail }}</p>
         </div>
         <span v-if="item.action === 'incidents'" class="briefing-respond shrink-0">
-          <UButton
-            variant="secondary"
+          <Button
+            variant="outline"
             size="xs"
+            class="border-2 border-theme-primary bg-transparent"
             aria-label="Respond to active incidents"
             @click="emit('reviewIncidents')"
           >
             RESPOND
-          </UButton>
+          </Button>
         </span>
         <router-link
           v-else-if="item.action === 'dwellers'"

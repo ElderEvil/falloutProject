@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
+import { Alert } from '@/core/components/ui/alert'
+import { Button } from '@/core/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -124,70 +124,77 @@ const close = () => {
 </script>
 
 <template>
-  <UModal
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    title="Start Training"
-    size="md"
-    @close="close"
-  >
-    <div class="training-start-modal">
-      <p class="description">
-        Select a SPECIAL stat to improve for
-        <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span
-        >.
-      </p>
+  <Dialog :open="modelValue" @update:open="(open) => { if (!open) close() }">
+    <DialogContent
+      class="flex max-h-[65vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-md"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Start Training</DialogTitle>
+      </DialogHeader>
 
-      <UAlert v-if="errorMessage" variant="danger" class="error-alert">
-        <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-        {{ errorMessage }}
-      </UAlert>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div class="training-start-modal">
+          <p class="description">
+            Select a SPECIAL stat to improve for
+            <span class="dweller-name">{{ dweller.first_name }} {{ dweller.last_name }}</span
+            >.
+          </p>
 
-      <div class="stats-grid">
-        <button
-          v-for="stat in availableStats"
-          :key="stat.key"
-          class="stat-button"
-          :class="{ selected: selectedStat === stat.key }"
-          @click="selectedStat = stat.key"
-        >
-          <div class="stat-icon-wrapper" :class="stat.color">
-            <Icon :icon="stat.icon" class="stat-icon" />
-            <span class="stat-short">{{ stat.short }}</span>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">{{ stat.label }}</span>
-            <span class="stat-value">{{ (dweller as any)[stat.short] }}/10</span>
-          </div>
-        </button>
-      </div>
-
-      <div v-if="selectedStat" class="room-info-section">
-        <template v-if="selectedRoom">
-          <div class="room-found">
-            <Icon icon="mdi:office-building" class="room-icon" />
-            <div class="room-details">
-              <span class="room-label">Training Room Found:</span>
-              <span class="room-name">{{ selectedRoom.name }}</span>
-            </div>
-          </div>
-        </template>
-        <template v-else>
-          <UAlert variant="danger" class="no-room-alert">
+          <Alert v-if="errorMessage" variant="default" class="error-alert border-danger bg-danger/10 text-danger">
             <Icon icon="mdi:alert-circle" class="h-5 w-5" />
-            No training room available for {{ selectedStat }}. Build one first!
-          </UAlert>
-        </template>
-      </div>
+            {{ errorMessage }}
+          </Alert>
 
-      <div class="modal-actions">
-        <UButton variant="secondary" @click="close">Cancel</UButton>
-        <UButton variant="primary" :disabled="!canStart" :loading="loading" @click="handleStart">
-          Start Training
-        </UButton>
+          <div class="stats-grid">
+            <button
+              v-for="stat in availableStats"
+              :key="stat.key"
+              class="stat-button"
+              :class="{ selected: selectedStat === stat.key }"
+              @click="selectedStat = stat.key"
+            >
+              <div class="stat-icon-wrapper" :class="stat.color">
+                <Icon :icon="stat.icon" class="stat-icon" />
+                <span class="stat-short">{{ stat.short }}</span>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">{{ stat.label }}</span>
+                <span class="stat-value">{{ (dweller as any)[stat.short] }}/10</span>
+              </div>
+            </button>
+          </div>
+
+          <div v-if="selectedStat" class="room-info-section">
+            <template v-if="selectedRoom">
+              <div class="room-found">
+                <Icon icon="mdi:office-building" class="room-icon" />
+                <div class="room-details">
+                  <span class="room-label">Training Room Found:</span>
+                  <span class="room-name">{{ selectedRoom.name }}</span>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <Alert variant="default" class="no-room-alert border-danger bg-danger/10 text-danger">
+                <Icon icon="mdi:alert-circle" class="h-5 w-5" />
+                No training room available for {{ selectedStat }}. Build one first!
+              </Alert>
+            </template>
+          </div>
+
+          <div class="modal-actions">
+            <Button variant="secondary" @click="close">Cancel</Button>
+            <Button variant="default" :disabled="!canStart || loading" @click="handleStart">
+              <Icon v-if="loading" icon="mdi:loading" class="mr-1 animate-spin" />
+              Start Training
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
-  </UModal>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

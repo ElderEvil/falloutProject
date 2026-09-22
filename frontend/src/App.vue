@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { provide, watch } from 'vue'
+import { defineAsyncComponent, provide, watch } from 'vue'
 import DefaultLayout from '@/modules/vault/components/shell/DefaultLayout.vue'
 import { Toaster } from '@/core/components/ui/toast'
-import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
 import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
 import FakeCrashOverlay from '@/core/components/easter-eggs/FakeCrashOverlay.vue'
 import { useVisualEffects } from '@/core/composables/useVisualEffects'
@@ -16,6 +15,10 @@ import { useFakeCrash } from '@/core/composables/useFakeCrash'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useProfileStore } from '@/modules/profile/stores/profile'
 import { useSoundProfileSync } from '@/modules/profile/composables/useSoundProfileSync'
+
+// Kept out of the initial payload: the changelog only ever appears when a new
+// version is detected, so its chunk must not be preloaded on every boot.
+const ChangelogModal = defineAsyncComponent(() => import('@/modules/profile/components/ChangelogModal.vue'))
 
 // Visual effects (replaces old useFlickering)
 const visualEffects = useVisualEffects()
@@ -86,8 +89,9 @@ provide('availableThemes', availableThemes)
     </DefaultLayout>
     <Toaster />
 
-    <!-- Changelog Modal -->
+    <!-- Changelog Modal (lazy: only fetched once a new version is detected) -->
     <ChangelogModal
+      v-if="showChangelogModal"
       :show="showChangelogModal"
       :current-version="versionInfo.current"
       :last-seen-version="versionInfo.lastSeen ?? undefined"

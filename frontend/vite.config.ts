@@ -69,48 +69,9 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Vue ecosystem
-          if (id.includes('node_modules/vue/') || id.includes('node_modules/@vue/')) {
-            return 'vue-core'
-          }
-          if (id.includes('node_modules/vue-router')) {
-            return 'vue-router'
-          }
-          if (id.includes('node_modules/pinia')) {
-            return 'pinia'
-          }
-
-          // HTTP client
-          if (id.includes('node_modules/axios')) {
-            return 'axios'
-          }
-
-          // Icons
-          if (id.includes('node_modules/@iconify')) {
-            return 'iconify'
-          }
-
-          // Tailwind
-          if (id.includes('node_modules/tailwindcss')) {
-            return 'tailwind'
-          }
-
-          // UI Components (now in core)
-          if (id.includes('/src/core/components/ui/')) {
-            return 'ui-components'
-          }
-
-          // Stores
-          if (id.includes('/src/stores/') && !id.includes('/src/stores/auth.ts')) {
-            return 'stores'
-          }
-
-          // Other node_modules go to vendor
-          if (id.includes('node_modules')) {
-            return 'vendor'
-          }
-        },
+        // Perf: do not reintroduce manualChunks here. Grouping core/components/ui
+        // and @iconify into named chunks forced them into the initial preload
+        // (~211 kB -> ~177 kB gzip once removed; icons 47.9 -> 6.7 kB gzip).
 
         // Ensure deterministic chunk names for better caching
         chunkFileNames: 'assets/[name]-[hash].js',

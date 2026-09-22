@@ -258,7 +258,7 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-container">
-    <div class="scanlines"></div>
+    <div class="chat-scanlines"></div>
     <div class="chat-identity-header">
       <div class="identity-avatar">
         <DwellerPortrait

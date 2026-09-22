@@ -10,11 +10,17 @@ interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant']
   size?: ButtonVariants['size']
   class?: HTMLAttributes['class']
+  disabled?: boolean
+  'aria-label'?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   as: 'button',
 })
+
+const emit = defineEmits<{
+  (e: 'click', event: MouseEvent): void
+}>()
 </script>
 
 <template>
@@ -25,6 +31,9 @@ const props = withDefaults(defineProps<Props>(), {
     :data-size="size"
     :as="as"
     :as-child="asChild"
+    :disabled="disabled"
+    :aria-label="ariaLabel"
+    @click="emit('click', $event)"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >
     <slot />

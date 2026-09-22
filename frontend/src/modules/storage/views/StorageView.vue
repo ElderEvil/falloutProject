@@ -10,7 +10,7 @@ import { storageService, type StorageItemsResponse } from '../services/storageSe
 import type { components } from '@/core/types/api.generated'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
-import { UButton, UTabs } from '@/core/components/ui'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
@@ -349,46 +349,61 @@ const closeLunchboxModal = async () => {
       </div>
 
       <!-- Tabs -->
-        <UTabs :model-value="activeTab" :tabs="tabs" class="mb-8" @update:model-value="selectTab">
-        <!-- Loading State -->
-        <div
-          v-if="isLoading"
-          class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
-        >
-          <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
-          <p>Loading storage...</p>
-        </div>
+        <Tabs :model-value="activeTab" class="mb-8 gap-0" @update:model-value="(value) => selectTab(String(value))">
+          <TabsList
+            class="mb-6 h-auto w-full justify-start gap-2 rounded-none border-b-2 border-(--color-theme-glow) bg-transparent p-0 group-data-horizontal/tabs:h-auto"
+          >
+            <TabsTrigger
+              v-for="tab in tabs"
+              :key="tab.key"
+              :value="tab.key"
+              class="-mb-0.5 h-auto flex-none rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-6 py-3 text-[0.95rem] font-semibold text-(--color-theme-glow) text-shadow-[0_0_3px_var(--color-theme-glow)] transition-all duration-200 group-data-[variant=default]/tabs-list:data-active:shadow-none! hover:bg-(--color-theme-glow) hover:text-theme-primary hover:text-shadow-[0_0_6px_var(--color-theme-glow)] data-active:border-b-theme-primary data-active:bg-(--color-theme-glow) data-active:text-theme-primary data-active:text-shadow-[0_0_8px_var(--color-theme-glow)]"
+            >
+              {{ tab.label }}
+            </TabsTrigger>
+          </TabsList>
 
-        <!-- Empty State -->
-        <TerminalEmptyState
-          v-else-if="totalItems === 0"
-          icon="mdi:package-variant-closed"
-          title="Storage Empty"
-          description="Your vault storage is empty. Send dwellers on explorations to find items!"
-        />
+          <TabsContent v-for="tab in tabs" :key="tab.key" :value="tab.key" class="py-2 text-base">
+            <!-- Loading State -->
+            <div
+              v-if="isLoading"
+              class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
+            >
+              <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
+              <p>Loading storage...</p>
+            </div>
 
-        <!-- No Items in Category State -->
-        <TerminalEmptyState
-          v-else-if="activeItems.length === 0"
-          icon="mdi:package-variant-closed"
-          :title="`No ${activeTab} Found`"
-          :description="`You don't have any ${activeTab} in storage.`"
-        />
+            <!-- Empty State -->
+            <TerminalEmptyState
+              v-else-if="totalItems === 0"
+              icon="mdi:package-variant-closed"
+              title="Storage Empty"
+              description="Your vault storage is empty. Send dwellers on explorations to find items!"
+            />
 
-        <div v-else class="grid grid-cols-1 gap-4 pb-8 md:grid-cols-2">
-          <StorageItemCard
-            v-for="item in activeItems"
-            :key="item.id"
-            :item="item.item"
-            :item-type="cardItemType(item)"
-            :count="item.count"
-            @sell="handleSellItem(item.ids[0], activeTab)"
-            @sell-all="handleSellItem(item.ids, activeTab)"
-            @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-            @open="handleOpenLunchbox(item.ids[0])"
-          />
-        </div>
-        </UTabs>
+            <!-- No Items in Category State -->
+            <TerminalEmptyState
+              v-else-if="activeItems.length === 0"
+              icon="mdi:package-variant-closed"
+              :title="`No ${activeTab} Found`"
+              :description="`You don't have any ${activeTab} in storage.`"
+            />
+
+            <div v-else class="grid grid-cols-1 gap-4 pb-8 md:grid-cols-2">
+              <StorageItemCard
+                v-for="item in activeItems"
+                :key="item.id"
+                :item="item.item"
+                :item-type="cardItemType(item)"
+                :count="item.count"
+                @sell="handleSellItem(item.ids[0], activeTab)"
+                @sell-all="handleSellItem(item.ids, activeTab)"
+                @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+                @open="handleOpenLunchbox(item.ids[0])"
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
         <LunchboxOpenModal
           :show="showLunchboxModal"
           :result="lunchboxResult"

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UCard } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import {
   getItemIcon,
   getOutfitStats,
@@ -51,10 +53,9 @@ const isOpenable = computed(() => itemType === 'lunchbox')
 </script>
 
 <template>
-  <UCard
-    padding="sm"
+  <Card
     :class="[
-      'h-full w-full overflow-hidden font-mono transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-glow-md',
+      'h-full w-full overflow-hidden rounded-lg border-2 gap-0 p-4 font-mono transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-glow-md',
       rarityBorderClass,
     ]"
   >
@@ -127,52 +128,71 @@ const isOpenable = computed(() => itemType === 'lunchbox')
           <span>{{ item.value || 0 }}</span>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
-          <UButton
-            v-if="isOpenable"
-            variant="primary"
-            size="sm"
-            @click="emit('open')"
-            title="Open lunchbox"
-            class="font-mono"
-          >
-            <Icon icon="mdi:gift-open" class="h-4 w-4" />
-            Open
-          </UButton>
-          <UButton
-            v-if="isActionable"
-            variant="secondary"
-            size="sm"
-            @click="emit('sell')"
-            :title="count > 1 ? 'Sell one' : 'Sell'"
-            class="font-mono border-(--color-caps)! text-(--color-caps)! hover:bg-(--color-caps)/20!"
-          >
-            <Icon icon="mdi:cash" class="h-4 w-4" />
-            Sell
-          </UButton>
-          <UButton
-            v-if="itemType !== 'junk' && isActionable"
-            variant="secondary"
-            size="sm"
-            @click="emit('scrap')"
-            title="Scrap"
-            class="font-mono border-danger/60! text-danger! hover:bg-danger/15!"
-          >
-            <Icon icon="mdi:hammer-wrench" class="h-4 w-4" />
-            Scrap
-          </UButton>
-          <UButton
-            v-if="showSellAll"
-            variant="primary"
-            size="sm"
-            @click="emit('sellAll')"
-            :title="`Sell all (${count})`"
-            class="font-mono border-(--color-caps)! bg-(--color-caps)/20! text-(--color-caps)! hover:bg-(--color-caps)/30!"
-          >
-            <Icon icon="mdi:cash-multiple" class="h-4 w-4" />
-            Sell all
-          </UButton>
+          <!--
+            TooltipProvider delayDuration (200ms) matches the old UTooltip hover
+            delay; reka-ui opens instantly on keyboard focus, which is the
+            stronger a11y contract for icon-only buttons.
+          -->
+          <TooltipProvider :delay-duration="200">
+            <Tooltip v-if="isOpenable">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="default"
+                  size="sm"
+                  @click="emit('open')"
+                  class="border-2 border-theme-primary font-mono"
+                >
+                  <Icon icon="mdi:gift-open" class="h-4 w-4" />
+                  Open
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Open lunchbox</TooltipContent>
+            </Tooltip>
+            <Tooltip v-if="isActionable">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  @click="emit('sell')"
+                  class="border-2 border-(--color-caps) font-mono text-(--color-caps) hover:bg-(--color-caps)/20 hover:text-(--color-caps)"
+                >
+                  <Icon icon="mdi:cash" class="h-4 w-4" />
+                  Sell
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ count > 1 ? 'Sell one' : 'Sell' }}</TooltipContent>
+            </Tooltip>
+            <Tooltip v-if="itemType !== 'junk' && isActionable">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  @click="emit('scrap')"
+                  class="border-2 border-danger/60 font-mono text-danger hover:bg-danger/15 hover:text-danger"
+                >
+                  <Icon icon="mdi:hammer-wrench" class="h-4 w-4" />
+                  Scrap
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Scrap</TooltipContent>
+            </Tooltip>
+            <Tooltip v-if="showSellAll">
+              <TooltipTrigger as-child>
+                <Button
+                  variant="default"
+                  size="sm"
+                  @click="emit('sellAll')"
+                  class="border-2 border-(--color-caps) bg-(--color-caps)/20 font-mono text-(--color-caps) hover:bg-(--color-caps)/30"
+                >
+                  <Icon icon="mdi:cash-multiple" class="h-4 w-4" />
+                  Sell all
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sell all ({{ count }})</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </div>
-  </UCard>
+  </Card>
 </template>

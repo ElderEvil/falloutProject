@@ -122,13 +122,11 @@ Guarded traps:
 
 ## Known integration traps (from the Phase 0 spike)
 
-- **`data-slot` vs `strictTemplates` — run the transform after every `add`.** Every shadcn-vue component
-  passes `data-slot` to Reka UI's `<Primitive>`, whose `PrimitiveProps` does not declare it. Under this repo's
-  `strictTemplates: true` that is a hard `TS2353` on **every** generated component. Module augmentation does
-  **not** work — the barrel re-exports `PrimitiveProps` from `dist/index4`, and a bare
-  `declare module 'reka-ui'` shadows the whole module. Fix: `node scripts/shadcn-post-add.mjs`, which inserts
-  `<!-- @vue-ignore -->` before each component element carrying `data-slot`. Idempotent; `data-slot` still
-  reaches the DOM as a fallthrough attribute.
+- **`data-slot` vs `strictTemplates` — run the transform after every `add`.** shadcn-vue templates put `data-slot` on Reka UI `<Primitive>` components (and occasionally plain elements, e.g. Skeleton's `div`), whose props type does not declare it. Under this repo's `strictTemplates: true` that is a hard `TS2353` on every generated component. Module augmentation does **not** work — the barrel re-exports `PrimitiveProps` from `dist/index4`, and a bare `declare module 'reka-ui'` shadows the whole module. Fix: `node scripts/shadcn-post-add.mjs`, which inserts `<!-- @vue-ignore -->` before each element carrying `data-slot` (component or plain). Idempotent; `data-slot` still reaches the DOM as a fallthrough attribute.
+- **Reka `Dialog` tests need an explicit `Teleport` stub.** `stubs: { teleport: true }` (lowercase) stubbed the old `UModal`'s built-in `<Teleport>` but does not render Reka `DialogPortal` content — tests see an empty wrapper. Use `stubs: { Teleport: { template: '<div><slot /></div>' } }` instead, matching the storage   `LunchboxOpenModal` tests.
+- **`@click` on shadcn `Card` needs `<!-- @vue-ignore -->`, not a declared emit.** `Card` declares no emits, so `@click.stop` (e.g. modal backdrop guard) is a hard `TS2353` under `strictTemplates`. A bare `<!-- @vue-ignore -->` before the `<Card>` element preserves the native fallthrough to the root `div`; adding a `click` emit would swallow it.
+- **Custom `Progress` fill colors go through a `--bar-fill` CSS var, not shared-file edits.** The generated `ProgressIndicator` hardcodes `bg-primary`. Pass `:style="{ '--bar-fill': color }"` on the `Progress` root plus one scoped rule — `:deep(.bar-fill [data-slot='progress-indicator']) { background: var(--bar-fill); }` — which beats `bg-primary` on specificity. Heights via classes (`h-1`, `h-[5px]`, `h-6`); `aria-label` needs `<!-- @vue-ignore -->` (falls through to `ProgressRoot`).
+- **Fragment-root components break wrapper `.element` in tests.** A leading `<!-- @vue-ignore -->` comment makes the template a fragment root, so VTU component-wrapper `.element` resolves to the PARENT node and `attributes('style')` returns `undefined`. Query the real node instead: `wrapper.findAll('[data-slot="progress"]')` (DOM wrappers read attributes reliably).
 - **`components.json` aliases must be corrected after `init`.** Defaults are `@/components`,
   `@/components/ui`, `@/lib/utils`; this repo needs `@/core/components`, `@/core/components/ui`,
   `@/core/utils/cn`, and `tailwind.css: src/assets/tailwind.css`.

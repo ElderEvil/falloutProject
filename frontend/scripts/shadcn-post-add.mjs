@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Inserts `<!-- @vue-ignore -->` before every component element that carries a `data-slot` attribute.
+// Inserts `<!-- @vue-ignore -->` before every element carrying a `data-slot` attribute
+// (component or plain element).
 //
-// Why this exists: shadcn-vue's registry templates pass `data-slot` to Reka UI components whose props
-// type does not declare it. This repo keeps `strictTemplates: true`, so that is a hard TS2353 error on
-// every generated component. `@vue-ignore` suppresses the check for that element only, and `data-slot`
-// still reaches the DOM as a fallthrough attribute.
+// Why this exists: shadcn-vue's registry templates put `data-slot` on Reka UI components
+// (and occasionally plain elements, e.g. Skeleton's div) whose props type does not declare
+// it. This repo keeps `strictTemplates: true`, so that is a hard TS2353 error on every
+// generated component. `@vue-ignore` suppresses the check for that element only, and
+// `data-slot` still reaches the DOM as a fallthrough attribute.
 //
 // Run after every `shadcn-vue add`. Idempotent — re-running changes nothing.
 
@@ -14,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 
 const UI_DIR = fileURLToPath(new URL('../src/core/components/ui', import.meta.url))
 const IGNORE = '<!-- @vue-ignore -->'
-const COMPONENT_TAG = /^(\s*)<([A-Z][\w.]*)\b/
+const COMPONENT_TAG = /^(\s*)<([A-Za-z][\w.]*)\b/
 
 const walk = (dir) =>
   readdirSync(dir).flatMap((name) => {

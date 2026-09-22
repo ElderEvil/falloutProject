@@ -12,6 +12,9 @@ interface Props extends PrimitiveProps {
   class?: HTMLAttributes['class']
   disabled?: boolean
   'aria-label'?: string
+  'aria-expanded'?: boolean
+  title?: string
+  type?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -32,7 +35,10 @@ const emit = defineEmits<{
     :as="as"
     :as-child="asChild"
     :disabled="disabled"
+    :type="type"
     :aria-label="ariaLabel"
+    :aria-expanded="ariaExpanded"
+    :title="title"
     @click="emit('click', $event)"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >

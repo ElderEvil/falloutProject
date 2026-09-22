@@ -1,7 +1,6 @@
 {
-  "count": 55,
+  "count": 54,
   "files": [
-    "components/chat/DwellerChat.test.ts",
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
     "components/common/PageHeader.test.ts",

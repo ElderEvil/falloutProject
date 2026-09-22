@@ -39,7 +39,11 @@ class ExplorationCoordinator:
         Returns:
             Exploration: The exploration now in RETURNING state
         """
-        exploration = await crud_exploration.get(db_session, exploration_id)
+        # Locked read: a concurrent tick finish and player recall serialize here, so the
+        # later caller revalidates against the written state instead of overwriting it.
+        exploration = await crud_exploration.get_for_update(db_session, exploration_id)
+        if exploration is None:
+            raise ResourceNotFoundException(Exploration, identifier=exploration_id)
 
         if not exploration.is_active():
             raise ValueError(ERROR_NOT_ACTIVE)

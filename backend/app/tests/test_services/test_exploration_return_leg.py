@@ -88,13 +88,18 @@ async def test_recall_during_return_leg_raises(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A run already on the return leg cannot be recalled again."""
+    """A run already on the return leg cannot be recalled again, and the racing recall
+    must not overwrite the natural finish's timestamps or recalled_early flag."""
     exploration = await _expired_exploration(async_session, vault, dweller)
 
-    await exploration_coordinator.start_return(async_session, exploration.id)
+    returned = await exploration_coordinator.start_return(async_session, exploration.id)
 
     with pytest.raises(ValueError, match="not active"):
         await exploration_coordinator.start_return(async_session, exploration.id, recalled=True)
+
+    await async_session.refresh(exploration)
+    assert exploration.recalled_early is False
+    assert exploration.return_completes_at == returned.return_completes_at
 
 
 @pytest.mark.asyncio

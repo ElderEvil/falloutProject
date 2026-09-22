@@ -23,12 +23,18 @@
     </div>
 
     <div v-else class="settings-content">
-      <UTabs v-model="activeTab" :tabs="tabs" class="mb-6" />
+      <Tabs :model-value="activeTab" class="mb-6" @update:model-value="activeTab = String($event)">
+        <TabsList>
+          <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+            {{ tab.label }}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <!-- Game Loop -->
       <div v-show="activeTab === 'game-loop'" class="settings-section">
         <h2 class="section-title">Game Loop Configuration</h2>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="Tick Interval"
             :value="settings.game_loop.tick_interval"
@@ -39,13 +45,13 @@
             :value="settings.game_loop.max_offline_catchup"
             unit="seconds"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Incidents -->
       <div v-show="activeTab === 'incidents'" class="settings-section">
         <h2 class="section-title">Incident System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             label="Spawn Chance"
             :value="(settings.incident.spawn_chance_per_hour * 100).toFixed(1)"
@@ -66,33 +72,33 @@
             :value="settings.incident.max_spread_count"
             unit="spreads"
           />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Spawn Weights</h3>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             v-for="(weight, type) in settings.incident.spawn_weights"
             :key="type"
             :label="formatIncidentType(String(type))"
             :value="weight"
           />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Difficulty Ranges</h3>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             v-for="(range, type) in settings.incident.difficulty_ranges"
             :key="type"
             :label="formatIncidentType(String(type))"
             :value="`${range[0]} - ${range[1]}`"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Combat -->
       <div v-show="activeTab === 'combat'" class="settings-section">
         <h2 class="section-title">Combat System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem label="Base Raider Power" :value="settings.combat.base_raider_power" />
           <SettingItem
             label="Strength Weight"
@@ -113,10 +119,10 @@
             label="Level Bonus Multiplier"
             :value="settings.combat.level_bonus_multiplier"
           />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Loot</h3>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             label="Base Caps Reward"
             :value="settings.combat.caps_reward_base"
@@ -142,10 +148,10 @@
             :value="(settings.combat.junk_drop_chance * 100).toFixed(1)"
             unit="%"
           />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Experience</h3>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="XP Per Difficulty"
             :value="settings.combat.xp_per_difficulty"
@@ -156,13 +162,13 @@
             :value="`${((settings.combat.perfect_bonus_multiplier - 1) * 100).toFixed(0)}%`"
             unit="extra"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Happiness -->
       <div v-show="activeTab === 'happiness'" class="settings-section">
         <h2 class="section-title">Happiness System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <h3 class="text-sm font-semibold mb-2">Decay Rates (per 60s tick)</h3>
           <SettingItem label="Base Decay" :value="settings.happiness.base_decay" :decimals="2" />
           <SettingItem
@@ -181,9 +187,9 @@
             :decimals="2"
           />
           <SettingItem label="Idle Decay" :value="settings.happiness.idle_decay" :decimals="2" />
-        </UCard>
+        </Card>
 
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <h3 class="text-sm font-semibold mb-2">Gain Rates (per 60s tick)</h3>
           <SettingItem
             label="Working Gain"
@@ -200,9 +206,9 @@
             :value="settings.happiness.partner_nearby_bonus"
             :decimals="2"
           />
-        </UCard>
+        </Card>
 
-        <UCard>
+        <Card class="gap-0">
           <h3 class="text-sm font-semibold mb-2">Room Bonuses (per 60s tick)</h3>
           <SettingItem
             label="Living Quarters"
@@ -219,13 +225,13 @@
             :value="settings.happiness.radio_room_bonus"
             :decimals="2"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Training -->
       <div v-show="activeTab === 'training'" class="settings-section">
         <h2 class="section-title">Training System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             label="Base Duration"
             :value="settings.training.base_duration_seconds / 3600"
@@ -240,10 +246,10 @@
           />
           <SettingItem label="Min SPECIAL" :value="settings.training.special_stat_min" />
           <SettingItem label="Max SPECIAL" :value="settings.training.special_stat_max" />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Tier Speed Multipliers</h3>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="Tier 1 (Normal)"
             :value="settings.training.tier_1_multiplier"
@@ -257,13 +263,13 @@
             label="Tier 3"
             :value="`${settings.training.tier_3_multiplier} (${((1 - settings.training.tier_3_multiplier) * 100).toFixed(0)}% faster)`"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Resources -->
       <div v-show="activeTab === 'resources'" class="settings-section">
         <h2 class="section-title">Resource Management</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <h3 class="text-sm font-semibold mb-2">Production</h3>
           <SettingItem
             label="Base Rate"
@@ -286,9 +292,9 @@
             :value="settings.resource.tier_3_multiplier"
             :decimals="2"
           />
-        </UCard>
+        </Card>
 
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <h3 class="text-sm font-semibold mb-2">Consumption</h3>
           <SettingItem
             label="Power Rate"
@@ -305,9 +311,9 @@
             :value="(settings.resource.water_consumption_per_dweller * 60).toFixed(3)"
             unit="per min"
           />
-        </UCard>
+        </Card>
 
-        <UCard>
+        <Card class="gap-0">
           <h3 class="text-sm font-semibold mb-2">Warning Thresholds</h3>
           <SettingItem
             label="Low Resource"
@@ -319,13 +325,13 @@
             :value="(settings.resource.critical_threshold * 100).toFixed(0)"
             unit="%"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Leveling -->
       <div v-show="activeTab === 'leveling'" class="settings-section">
         <h2 class="section-title">Leveling System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             label="Base XP Requirement"
             :value="settings.leveling.base_xp_requirement"
@@ -342,10 +348,10 @@
             unit="HP"
           />
           <SettingItem label="Max Level" :value="settings.leveling.max_level" />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Experience Sources</h3>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="Exploration (Per Mile)"
             :value="settings.leveling.exploration_xp_per_distance"
@@ -366,13 +372,13 @@
             :value="settings.leveling.work_xp_per_tick"
             unit="XP"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Relationships -->
       <div v-show="activeTab === 'relationships'" class="settings-section">
         <h2 class="section-title">Relationship System</h2>
-        <UCard class="mb-4">
+        <Card class="mb-4 gap-0">
           <SettingItem
             label="Affinity Increase"
             :value="settings.relationship.affinity_increase_per_tick"
@@ -388,10 +394,10 @@
             :value="settings.relationship.partner_happiness_bonus"
             unit="points"
           />
-        </UCard>
+        </Card>
 
         <h3 class="subsection-title">Compatibility Weights</h3>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="SPECIAL Similarity"
             :value="(settings.relationship.compatibility_special_weight * 100).toFixed(0)"
@@ -412,13 +418,13 @@
             :value="(settings.relationship.compatibility_proximity_weight * 100).toFixed(0)"
             unit="%"
           />
-        </UCard>
+        </Card>
       </div>
 
       <!-- Breeding -->
       <div v-show="activeTab === 'breeding'" class="settings-section">
         <h2 class="section-title">Breeding System</h2>
-        <UCard>
+        <Card class="gap-0">
           <SettingItem
             label="Conception Chance"
             :value="(settings.breeding.conception_chance_per_tick * 100).toFixed(1)"
@@ -449,7 +455,7 @@
             :value="(settings.breeding.child_special_multiplier * 100).toFixed(0)"
             unit="%"
           />
-        </UCard>
+        </Card>
       </div>
     </div>
   </div>
@@ -464,8 +470,8 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 import apiClient from '@/core/plugins/axios'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
-import UCard from '@/core/components/ui/UCard.vue'
-import UTabs from '@/core/components/ui/UTabs.vue'
+import { Card } from '@/core/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import SettingItem from '@/core/components/ui/SettingItem.vue'
 
 const vaultStore = useVaultStore()

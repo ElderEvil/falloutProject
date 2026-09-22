@@ -4,7 +4,8 @@
  * @component
  */
 import { ref, onMounted } from 'vue'
-import { UCard, USkeleton, UButton } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import { Icon } from '@iconify/vue'
 import { systemService } from '../services/systemService'
 import type { InfoResponse } from '../types/system'
@@ -37,12 +38,15 @@ onMounted(async () => {
     <div class="w-full max-w-2xl">
       <PageNavigation class="mb-4" back-label="Back to Home" back-to="/" :breadcrumbs="breadcrumbs" />
     </div>
-    <UCard title="System Information" glow crt class="w-full max-w-2xl">
+    <Card class="w-full max-w-2xl gap-0 shadow-glow-md crt-screen">
+      <div class="mb-4 border-b border-gray-700 pb-4">
+        <h3 class="text-xl font-bold terminal-glow text-theme-primary">System Information</h3>
+      </div>
       <div v-if="isLoading" class="space-y-4">
-        <USkeleton class="h-6 w-full" />
-        <USkeleton class="h-6 w-3/4" />
-        <USkeleton class="h-6 w-5/6" />
-        <USkeleton class="h-6 w-2/3" />
+        <Skeleton class="h-6 w-full" />
+        <Skeleton class="h-6 w-3/4" />
+        <Skeleton class="h-6 w-5/6" />
+        <Skeleton class="h-6 w-2/3" />
       </div>
 
       <div v-else-if="error" class="text-red-500 font-mono">
@@ -107,6 +111,6 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-    </UCard>
+    </Card>
   </div>
 </template>

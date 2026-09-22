@@ -10,7 +10,7 @@ import {
   type ItemStat,
 } from '@/core/models/items'
 import { useItemImage } from '@/core/composables/useItemImage'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
 
 interface Props {
   item: Weapon | Outfit
@@ -85,24 +85,24 @@ const { imageUrl, onImageError } = useItemImage(() => item.image_url)
     </div>
 
     <div v-if="showActions" class="flex gap-2">
-      <UButton
+      <Button
         v-if="!equipped"
-        block
+        class="w-full"
         variant="secondary"
         @click="emit('equip')"
       >
         <Icon icon="mdi:check" />
         Equip
-      </UButton>
-      <UButton
+      </Button>
+      <Button
         v-else
-        block
-        variant="danger"
+        class="w-full"
+        variant="destructive"
         @click="emit('unequip')"
       >
         <Icon icon="mdi:close" />
         Unequip
-      </UButton>
+      </Button>
     </div>
   </div>
 </template>

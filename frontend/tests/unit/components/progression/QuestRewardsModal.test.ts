@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { UButton } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
@@ -62,8 +62,8 @@ describe('QuestRewardsModal', () => {
     expect(actions.classes()).toContain('w-full')
     expect(actions.classes()).toContain('max-sm:flex-col')
     expect(actions.classes()).toContain('justify-between')
-    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('max-sm:w-full'))).toBe(true)
-    expect(actions.findAllComponents(UButton).every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
+    expect(actions.findAll('button').every(button => button.classes().includes('max-sm:w-full'))).toBe(true)
+    expect(actions.findAll('button').every(button => button.classes().includes('whitespace-nowrap'))).toBe(true)
     expect(actions.text()).toContain('Review Later')
     expect(actions.text()).toContain('Confirm & Claim')
   })

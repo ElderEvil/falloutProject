@@ -7,13 +7,6 @@ import type { AISettingsRead } from '@/modules/ai-settings/models/aiSettings'
 
 const mockToast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
 
-// jsdom 29 lacks hasPointerCapture/releasePointerCapture, which reka-ui's
-// SelectTrigger calls on pointerdown to open the listbox.
-if (!HTMLElement.prototype.hasPointerCapture) {
-  HTMLElement.prototype.hasPointerCapture = () => false
-  HTMLElement.prototype.releasePointerCapture = () => {}
-}
-
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 vi.mock('@/modules/ai-settings/services/aiSettingsService', () => ({
   aiSettingsService: {

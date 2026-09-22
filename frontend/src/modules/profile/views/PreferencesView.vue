@@ -13,7 +13,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Card } from '@/core/components/ui/card'
 import { Slider } from '@/core/components/ui/slider'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 const breadcrumbs = [{ label: 'Profile', to: '/profile' }, { label: 'Display Preferences' }]
 
@@ -220,19 +220,21 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
                   </div>
                   <!-- Glow Controls (moved inside setting-info) -->
                   <div class="glow-controls mt-3">
-                    <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
-                      <TooltipTrigger as-child>
-                        <button
-                          @click="setGlowIntensity(option.value)"
-                          class="glow-option"
-                          :class="{ active: glowIntensity === option.value }"
-                          :aria-label="`Set glow to ${option.label}`"
-                        >
-                          {{ option.label }}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">{{ option.description }}</TooltipContent>
-                    </Tooltip>
+                    <TooltipProvider :delay-duration="200">
+                      <Tooltip v-for="option in glowIntensityOptions" :key="option.value">
+                        <TooltipTrigger as-child>
+                          <button
+                            @click="setGlowIntensity(option.value)"
+                            class="glow-option"
+                            :class="{ active: glowIntensity === option.value }"
+                            :aria-label="`Set glow to ${option.label}`"
+                          >
+                            {{ option.label }}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{{ option.description }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               </div>

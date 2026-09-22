@@ -10,7 +10,7 @@ import {
 import { formatIdentityLabel } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
-import USelect from '@/core/components/ui/USelect.vue'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
 import DwellerFilterGroup from './DwellerFilterGroup.vue'
 
 interface Props {
@@ -120,6 +120,9 @@ const currentFilterFaction = computed({
   set: (value: string) => dwellerStore.setFilterFaction(value),
 })
 
+const onRaceChange = (value: unknown) => dwellerStore.setFilterRace(String(value))
+const onFactionChange = (value: unknown) => dwellerStore.setFilterFaction(String(value))
+
 /** Chips preview their own result set, so counts follow only the filters on screen. */
 const statusCounts = computed<Record<string, number> | undefined>(() => {
   if (!showStatusFilter || dwellerStore.allDwellers.length === 0) return undefined
@@ -208,19 +211,36 @@ function clearFilters(): void {
           <span>Filter by Identity</span>
         </div>
         <div class="identity-controls">
-          <USelect
-            v-model="currentFilterRace"
-            :options="raceSelectOptions"
-            size="sm"
-            placeholder="All Races"
-          />
-          <USelect
+          <Select :model-value="currentFilterRace" @update:model-value="onRaceChange">
+            <SelectTrigger
+              size="sm"
+              class="min-w-[8.5rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+            >
+              <SelectValue placeholder="All Races" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="option in raceSelectOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
             v-if="featureFlags.factionMechanics"
-            v-model="currentFilterFaction"
-            :options="factionSelectOptions"
-            size="sm"
-            placeholder="All Factions"
-          />
+            :model-value="currentFilterFaction"
+            @update:model-value="onFactionChange"
+          >
+            <SelectTrigger
+              size="sm"
+              class="min-w-[8.5rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+            >
+              <SelectValue placeholder="All Factions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="option in factionSelectOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -313,32 +333,6 @@ function clearFilters(): void {
 .identity-controls {
   display: flex;
   gap: 0.5rem;
-}
-
-/* Hug the widest race label ("Super Mutant") rather than stretching a lone select across the row. */
-.identity-controls :deep(.select-wrapper) {
-  flex: 0 0 auto;
-  min-width: 8.5rem;
-}
-
-/* Match the status/age chips, keeping the inherited line-height so the heights agree. */
-.identity-controls :deep(.select-trigger) {
-  padding: 0.5rem 0.75rem;
-  border-color: var(--color-theme-glow);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  opacity: 0.85;
-}
-
-/* The USelect chevron defaults to 16px/20px; the chips use 1em. */
-.identity-controls :deep(.select-trigger svg) {
-  width: 1em;
-  height: 1em;
-}
-
-.identity-controls :deep(.select-trigger:hover) {
-  opacity: 1;
-  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 
 .flex-grow {

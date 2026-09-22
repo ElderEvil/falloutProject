@@ -293,7 +293,7 @@ function formatDwellerName(dweller: DwellerShort): string {
   return `${dweller.first_name} ${dweller.last_name ?? ''}`.trim()
 }
 
-/** shadcn Badge variant for the relationship type (UBadge names mapped). */
+/** shadcn Badge variant for the relationship type (previous badge names mapped). */
 const badgeVariant = computed((): 'default' | 'secondary' | 'destructive' | 'outline' => {
   const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     success: 'default',

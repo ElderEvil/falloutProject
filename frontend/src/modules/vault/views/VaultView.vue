@@ -351,9 +351,9 @@ const reviewActiveIncidents = () => {
             <!-- Dwellers Count and Happiness -->
             <div class="flex items-center space-x-4">
               <!--
-                TooltipProvider delayDuration (200ms) matches the old UTooltip
-                hover delay; reka-ui opens instantly on keyboard focus, which is
-                the stronger a11y contract for these focusable stat readouts.
+                TooltipProvider delayDuration (200ms) preserves the previous
+                tooltip hover delay; reka-ui opens instantly on keyboard focus,
+                which is the stronger a11y contract for these focusable stat readouts.
               -->
               <TooltipProvider :delay-duration="200">
                 <Tooltip>

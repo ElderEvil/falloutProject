@@ -7,7 +7,7 @@ import { useRoomProduction } from '../composables/useRoomProduction'
 import { useRoomUpgrade } from '../composables/useRoomUpgrade'
 import { useRoomDwellers } from '../composables/useRoomDwellers'
 import { useRadioRoom } from '../composables/useRadioRoom'
-import UModal from '@/core/components/ui/UModal.vue'
+import { Dialog, DialogContent, DialogHeader } from '@/core/components/ui/dialog'
 import RoomDetailHeader from './RoomDetailHeader.vue'
 import RoomPreviewSection from './RoomPreviewSection.vue'
 import ProductionStats from './ProductionStats.vue'
@@ -124,21 +124,25 @@ watch(
 </script>
 
 <template>
-  <UModal
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    @close="emit('close')"
-    size="lg"
+  <Dialog
+    :open="modelValue"
+    @update:open="(open) => { if (!open) { emit('update:modelValue', false); emit('close') } }"
   >
-    <template #header>
-      <RoomDetailHeader
-        v-if="room"
-        :room="room"
-        :resource-icon="resourceIcon"
-      />
-    </template>
+    <DialogContent
+      class="flex max-h-[80vh] w-full max-w-5xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-5xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <RoomDetailHeader
+          v-if="room"
+          :room="room"
+          :resource-icon="resourceIcon"
+        />
+      </DialogHeader>
 
-    <div v-if="room" class="modal-content">
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div v-if="room" class="modal-content">
       <!-- Error display -->
       <div v-if="actionError && !has('arena') && !has('incident') && !has('aftermath')" class="error-banner">
         <Icon icon="mdi:alert-circle" class="h-5 w-5" />
@@ -248,8 +252,10 @@ watch(
           @unassign-all="handleUnassignAll"
         />
       </template>
-    </div>
-  </UModal>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

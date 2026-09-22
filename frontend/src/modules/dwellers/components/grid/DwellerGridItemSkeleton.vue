@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 </script>
 
 <template>
   <div class="dweller-grid-item-skeleton">
     <!-- Thumbnail area -->
     <div class="thumbnail-skeleton">
-      <USkeleton width="100%" height="100%" />
+      <Skeleton style="width: 100%; height: 100%;" />
     </div>
 
     <!-- Info section -->
     <div class="info-skeleton">
       <div class="header-skeleton">
-        <USkeleton width="120px" height="1rem" />
-        <USkeleton width="50px" height="1.25rem" rounded="full" />
+        <Skeleton style="width: 120px; height: 1rem;" />
+        <Skeleton class="rounded-full" style="width: 50px; height: 1.25rem;" />
       </div>
 
       <div class="stats-skeleton">
-        <USkeleton width="60px" height="0.875rem" />
-        <USkeleton width="70px" height="0.875rem" />
-        <USkeleton width="80px" height="0.875rem" />
+        <Skeleton style="width: 60px; height: 0.875rem;" />
+        <Skeleton style="width: 70px; height: 0.875rem;" />
+        <Skeleton style="width: 80px; height: 0.875rem;" />
       </div>
 
-      <USkeleton width="100%" height="0.5rem" rounded="full" />
-      <USkeleton width="100px" height="0.875rem" />
+      <Skeleton class="rounded-full" style="width: 100%; height: 0.5rem;" />
+      <Skeleton style="width: 100px; height: 0.875rem;" />
     </div>
   </div>
 </template>

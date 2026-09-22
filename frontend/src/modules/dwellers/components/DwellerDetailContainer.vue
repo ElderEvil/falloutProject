@@ -4,7 +4,10 @@ import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import BackButton from '@/core/components/common/BackButton.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
-import { UButton, UInput, UModal } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
 import DwellerDetailPane from './DwellerDetailPane.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
 import { useDwellerDetail } from '../composables/useDwellerDetail'
@@ -86,30 +89,55 @@ const wastelandModalOpen = ctx.wastelandModalOpen
       @cancel="ctx.actions.cancelSendToWasteland"
     />
 
-    <UModal v-model="renameDialogOpen" title="Rename Dweller" size="sm">
-      <UInput
-        v-model="renameDialogName"
-        label="First name"
-        placeholder="Dweller name"
-      />
-      <template #footer>
-        <UButton variant="secondary" @click="renameDialogOpen = false">Cancel</UButton>
-        <UButton variant="primary" :disabled="!renameDialogName.trim()" @click="ctx.actions.confirmRename()">
-          Save
-        </UButton>
-      </template>
-    </UModal>
+    <Dialog v-model:open="renameDialogOpen">
+      <DialogContent
+        class="flex max-h-[60vh] w-full max-w-sm flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-sm"
+      >
+        <DialogHeader
+          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        >
+          <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Rename Dweller</DialogTitle>
+        </DialogHeader>
+        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+          <Label for="rename-dweller" class="mb-1 block text-sm font-medium text-theme-primary/70">
+            First name
+          </Label>
+          <Input id="rename-dweller" v-model="renameDialogName" placeholder="Dweller name" />
+        </div>
+        <DialogFooter
+          class="flex flex-shrink-0 justify-end gap-2 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+        >
+          <Button variant="secondary" @click="renameDialogOpen = false">Cancel</Button>
+          <Button variant="default" :disabled="!renameDialogName.trim()" @click="ctx.actions.confirmRename()">
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-    <UModal v-model="softDeleteDialogOpen" title="Soft-delete Dweller" size="sm">
-      <p class="soft-delete-text">
-        Soft-delete <strong>{{ dweller?.first_name }} {{ dweller?.last_name }}</strong>? They will leave the vault and
-        become tradable at the Trading Post. You can restore them later while they remain listed.
-      </p>
-      <template #footer>
-        <UButton variant="secondary" @click="softDeleteDialogOpen = false">Cancel</UButton>
-        <UButton variant="danger" @click="ctx.actions.confirmSoftDelete()">Soft-delete</UButton>
-      </template>
-    </UModal>
+    <Dialog v-model:open="softDeleteDialogOpen">
+      <DialogContent
+        class="flex max-h-[60vh] w-full max-w-sm flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary p-0 text-base crt-screen sm:max-w-sm"
+      >
+        <DialogHeader
+          class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+        >
+          <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Soft-delete Dweller</DialogTitle>
+        </DialogHeader>
+        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+          <p class="soft-delete-text">
+            Soft-delete <strong>{{ dweller?.first_name }} {{ dweller?.last_name }}</strong>? They will leave the vault and
+            become tradable at the Trading Post. You can restore them later while they remain listed.
+          </p>
+        </div>
+        <DialogFooter
+          class="flex flex-shrink-0 justify-end gap-2 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+        >
+          <Button variant="secondary" @click="softDeleteDialogOpen = false">Cancel</Button>
+          <Button variant="destructive" @click="ctx.actions.confirmSoftDelete()">Soft-delete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 

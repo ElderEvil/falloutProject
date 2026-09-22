@@ -26,7 +26,7 @@ describe('DwellerPanel', () => {
     ctx.initialTab.value = 'stats'
     await nextTick()
 
-    expect(wrapper.find('.utabs-button.active').text()).toBe('Stats')
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Stats')
   })
 
   it('falls back to Profile when the initial tab is unknown', async () => {
@@ -40,6 +40,6 @@ describe('DwellerPanel', () => {
     })
 
     await nextTick()
-    expect(wrapper.find('.utabs-button.active').text()).toBe('Profile')
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Profile')
   })
 })

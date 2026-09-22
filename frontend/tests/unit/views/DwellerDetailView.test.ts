@@ -42,6 +42,12 @@ vi.mock('@/modules/exploration/composables/useSendToWasteland', () => ({
   }),
 }))
 
+// The detail container lazily imports these; importing them up front keeps the
+// dynamic loaders from still being in flight when the test environment tears down.
+import '@/modules/dwellers/components/DwellerAppearanceEditor.vue'
+import '@/modules/dwellers/components/modals/TrainingStartModal.vue'
+import '@/modules/exploration/components/ExplorationDurationModal.vue'
+
 // Minimal fixture: only fields the pane reads at runtime. Cast keeps the
 // assignment to detailedDwellers well-typed without `as any`.
 const fakeDweller = {

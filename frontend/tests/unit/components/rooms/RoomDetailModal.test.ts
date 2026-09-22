@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { config, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomDetailModal from '@/modules/rooms/components/RoomDetailModal.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -17,50 +17,23 @@ vi.mock('@iconify/vue', () => ({
   },
 }))
 
-// Mock UModal and UButton
-vi.mock('@/core/components/ui/UModal.vue', () => ({
-  default: {
-    name: 'UModal',
-    props: ['modelValue', 'size'],
-    emits: ['update:modelValue', 'close'],
-    template: `
-      <div v-if="modelValue" class="mock-modal">
-        <slot name="header" />
-        <slot />
-      </div>
-    `,
-    methods: {
-      $emit: (event: string, payload?: any) => {
-        // Mock emit method
-        console.log('Emitting:', event, payload)
-      },
-    },
-  },
-}))
-
-vi.mock('@/core/components/ui/UButton.vue', () => ({
-  default: {
-    name: 'UButton',
-    props: ['disabled', 'variant'],
+// The modal now composes shadcn primitives; stub them onto the same `mock-*`
+// hooks this suite already selects on (`mock-modal`, `mock-button`, …) and keep
+// Dialog/DialogContent context-free by stubbing both together.
+config.global.stubs = {
+  Dialog: { props: ['open'], template: '<div v-if="open" class="mock-modal"><slot /></div>' },
+  DialogContent: { template: '<div><slot /></div>' },
+  DialogHeader: { template: '<div><slot /></div>' },
+  Button: {
+    props: ['disabled'],
     template: '<button class="mock-button" :disabled="disabled"><slot /></button>',
   },
-}))
-
-vi.mock('@/core/components/ui/UTooltip.vue', () => ({
-  default: {
-    name: 'UTooltip',
-    props: ['text'],
-    template: '<div class="mock-tooltip" :data-tooltip="text"><slot /></div>',
-  },
-}))
-
-vi.mock('@/core/components/ui/UAlert.vue', () => ({
-  default: {
-    name: 'UAlert',
-    props: ['variant'],
-    template: '<div class="mock-alert" :data-variant="variant"><slot /></div>',
-  },
-}))
+  Tooltip: { template: '<div class="mock-tooltip"><slot /></div>' },
+  TooltipProvider: { template: '<div><slot /></div>' },
+  TooltipTrigger: { template: '<div><slot /></div>' },
+  TooltipContent: { template: '<div><slot /></div>' },
+  Alert: { template: '<div class="mock-alert"><slot /></div>' },
+}
 
 // Mock useToast
 vi.mock('@/core/composables/useToast', () => ({
@@ -1184,9 +1157,7 @@ describe('RoomDetailModal', () => {
 
       const tooltip = wrapper.find('.mock-tooltip')
       expect(tooltip.exists()).toBe(true)
-      expect(tooltip.attributes('data-tooltip')).toBe(
-        'The Vault Door is vital and cannot be destroyed.'
-      )
+      expect(tooltip.text()).toContain('The Vault Door is vital and cannot be destroyed.')
     })
 
     it('should wrap vault door destroy button in tooltip', () => {

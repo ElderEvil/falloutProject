@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useToast } from '@/core/composables/useToast'
-import UToast from './UToast.vue'
+import ToastItem from './Toast.vue'
 
 const { toasts, remove } = useToast()
 </script>
@@ -9,7 +9,7 @@ const { toasts, remove } = useToast()
   <Teleport to="body">
     <div class="toast-container">
       <TransitionGroup name="toast-list">
-        <UToast v-for="toast in toasts" :key="toast.id" :toast="toast" @close="remove" />
+        <ToastItem v-for="toast in toasts" :key="toast.id" :toast="toast" @close="remove" />
       </TransitionGroup>
     </div>
   </Teleport>

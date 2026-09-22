@@ -8,7 +8,7 @@ import {
   type DwellerTableColumnId,
 } from '@/modules/dwellers/models/dwellerTable'
 import type { Room } from '@/modules/rooms/models/room'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import DwellerPortrait from '../DwellerPortrait.vue'
 import DwellerStatusBadge from '../stats/DwellerStatusBadge.vue'
 import DwellerAgeBadge from '../DwellerAgeBadge.vue'
@@ -66,7 +66,7 @@ function activate(dwellerId: string) {
       <tbody v-if="isLoading">
         <tr v-for="row in 5" :key="`skeleton-${row}`">
           <td v-for="column in visibleColumns" :key="column.id" class="px-3 py-2">
-            <USkeleton height="1rem" />
+            <Skeleton class="h-4 w-full" />
           </td>
         </tr>
       </tbody>

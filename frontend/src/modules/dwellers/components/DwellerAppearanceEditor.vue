@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import UModal from '@/core/components/ui/UModal.vue'
-import UButton from '@/core/components/ui/UButton.vue'
-import UInput from '@/core/components/ui/UInput.vue'
-import USelect from '@/core/components/ui/USelect.vue'
-import USlider from '@/core/components/ui/USlider.vue'
+import { Button } from '@/core/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
+import { Slider } from '@/core/components/ui/slider'
 import { formatIdentityLabel, type Dweller, type VisualAttributes } from '../models/dweller'
 import { useFeatureFlagsStore } from '../stores/featureFlags'
 import { useIdentityOptions } from '../composables/useIdentityOptions'
@@ -160,6 +161,20 @@ const availableHeadgear = computed(
 const selectOptions = (values: readonly string[]) =>
   values.map((value) => ({ value, label: formatIdentityLabel(value) }))
 
+/** Reka's Select model is `AcceptableValue`; the form keeps plain strings. */
+const setSelect = (key: keyof AppearanceForm, value: unknown) => {
+  ;(form as Record<string, unknown>)[key] = value == null ? undefined : String(value)
+}
+
+const setAge = (value: number[]) => {
+  ageValue.value = value[0] ?? 0
+}
+
+const labelClass = 'flex items-center gap-1 text-sm font-medium text-theme-primary/70'
+const labelIconClass = 'h-3.5 w-3.5 text-theme-primary/60'
+const selectTriggerClass =
+  'w-full rounded border-2 border-theme-primary/50 bg-surface-raised py-2 pl-3 pr-3 text-terminal-green'
+
 // Pick a random element from an array
 function pickRandom<T>(arr: readonly T[] | T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
@@ -231,187 +246,406 @@ function handleCancel() {
 </script>
 
 <template>
-  <UModal
-    :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
-    title="Edit Appearance"
-    size="xl"
-    surface="base"
-  >
-    <div class="editor-workbench">
-      <nav class="section-nav" aria-label="Appearance sections">
-        <button
-          v-for="section in sections"
-          :key="section.id"
-          type="button"
-          class="section-nav-button"
-          :class="{ active: activeSection === section.id }"
-          :aria-current="activeSection === section.id ? 'page' : undefined"
-          @click="activeSection = section.id"
-        >
-          <Icon :icon="section.icon" class="section-nav-icon" />
-          <span>{{ section.label }}</span>
-        </button>
-      </nav>
+  <Dialog :open="modelValue" @update:open="(open) => { if (!open) emit('update:modelValue', false) }">
+    <DialogContent
+      class="flex max-h-[90vh] w-full max-w-6xl flex-col gap-0 overflow-hidden rounded-lg border-2 border-theme-primary bg-surface p-0 text-base crt-screen sm:max-w-6xl"
+    >
+      <DialogHeader
+        class="flex flex-shrink-0 flex-row items-center gap-3 border-b border-theme-primary/25 bg-theme-primary/5 p-6 pb-4"
+      >
+        <DialogTitle class="text-2xl font-bold text-theme-primary terminal-glow">Edit Appearance</DialogTitle>
+      </DialogHeader>
 
-      <div class="editor-scroll">
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
+        <div class="editor-workbench">
+          <nav class="section-nav" aria-label="Appearance sections">
+            <button
+              v-for="section in sections"
+              :key="section.id"
+              type="button"
+              class="section-nav-button"
+              :class="{ active: activeSection === section.id }"
+              :aria-current="activeSection === section.id ? 'page' : undefined"
+              @click="activeSection = section.id"
+            >
+              <Icon :icon="section.icon" class="section-nav-icon" />
+              <span>{{ section.label }}</span>
+            </button>
+          </nav>
 
-      <!-- Identity Section -->
-      <div v-show="activeSection === 'identity'" class="editor-section">
-        <h4 class="section-title">
-          <Icon icon="mdi:badge-account" class="section-icon" />
-          Identity
-        </h4>
-        <div class="form-grid">
-          <div class="form-field">
-            <USelect v-model="form.race" :options="selectOptions(raceOptions)" label="Race" label-icon="mdi:account" />
-          </div>
-          <div class="form-field">
-            <USelect v-if="featureFlags.factionMechanics" v-model="form.faction" :options="selectOptions(availableFactions)" label="Faction" label-icon="mdi:shield-account" />
-          </div>
-          <div v-if="showStateOfBeing" class="form-field">
-            <USelect v-model="form.state_of_being" :options="selectOptions(availableStates || [])" label="State of Being" label-icon="mdi:radioactive" />
+          <div class="editor-scroll">
+            <!-- Identity Section -->
+            <div v-show="activeSection === 'identity'" class="editor-section">
+              <h4 class="section-title">
+                <Icon icon="mdi:badge-account" class="section-icon" />
+                Identity
+              </h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <Label for="appearance-race" :class="labelClass">
+                    <Icon icon="mdi:account" :class="labelIconClass" />
+                    Race
+                  </Label>
+                  <Select :model-value="form.race" @update:model-value="setSelect('race', $event)">
+                    <SelectTrigger id="appearance-race" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(raceOptions)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div v-if="featureFlags.factionMechanics" class="form-field">
+                  <Label for="appearance-faction" :class="labelClass">
+                    <Icon icon="mdi:shield-account" :class="labelIconClass" />
+                    Faction
+                  </Label>
+                  <Select :model-value="form.faction" @update:model-value="setSelect('faction', $event)">
+                    <SelectTrigger id="appearance-faction" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableFactions)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div v-if="showStateOfBeing" class="form-field">
+                  <Label for="appearance-state" :class="labelClass">
+                    <Icon icon="mdi:radioactive" :class="labelIconClass" />
+                    State of Being
+                  </Label>
+                  <Select :model-value="form.state_of_being" @update:model-value="setSelect('state_of_being', $event)">
+                    <SelectTrigger id="appearance-state" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableStates || [])" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Physical Section -->
+            <div v-show="activeSection === 'physical'" class="editor-section">
+              <h4 class="section-title">
+                <Icon icon="mdi:human" class="section-icon" />
+                Physical
+              </h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <Label for="appearance-height" :class="labelClass">
+                    <Icon icon="mdi:human-male-height" :class="labelIconClass" />
+                    Height
+                  </Label>
+                  <Select :model-value="form.height" @update:model-value="setSelect('height', $event)">
+                    <SelectTrigger id="appearance-height" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(heights)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-build" :class="labelClass">
+                    <Icon icon="mdi:arm-flex" :class="labelIconClass" />
+                    Build
+                  </Label>
+                  <Select :model-value="form.build" @update:model-value="setSelect('build', $event)">
+                    <SelectTrigger id="appearance-build" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableBuilds)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-skin-tone" :class="labelClass">
+                    <Icon icon="mdi:palette-outline" :class="labelIconClass" />
+                    Skin Tone
+                  </Label>
+                  <Select :model-value="form.skin_tone" @update:model-value="setSelect('skin_tone', $event)">
+                    <SelectTrigger id="appearance-skin-tone" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableSkinTones)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-eye-color" :class="labelClass">
+                    <Icon icon="mdi:eye-outline" :class="labelIconClass" />
+                    Eye Color
+                  </Label>
+                  <Select :model-value="form.eye_color" @update:model-value="setSelect('eye_color', $event)">
+                    <SelectTrigger id="appearance-eye-color" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(eyeColors)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <label class="flex flex-col gap-1">
+                  <span class="flex items-center gap-1 text-sm font-medium text-theme-primary/70">
+                    <Icon icon="mdi:calendar-outline" class="h-3.5 w-3.5 text-theme-primary/60" />
+                    Age <strong class="ml-auto text-theme-primary">{{ ageValue }}</strong>
+                  </span>
+                  <!-- @vue-ignore -->
+                  <Slider
+                    :model-value="[ageValue]"
+                    :min="18"
+                    :max="80"
+                    aria-label="Age"
+                    @update:model-value="setAge"
+                  />
+                  <span class="flex justify-between text-xs text-theme-primary/50"><span>18</span><span>80</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Facial Features Section -->
+            <div v-show="activeSection === 'face'" class="editor-section">
+              <h4 class="section-title">
+                <Icon icon="mdi:face" class="section-icon" />
+                Facial Features
+              </h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <Label for="appearance-hair-style" :class="labelClass">
+                    <Icon icon="mdi:content-cut" :class="labelIconClass" />
+                    Hair Style
+                  </Label>
+                  <Select :model-value="form.hair_style" @update:model-value="setSelect('hair_style', $event)">
+                    <SelectTrigger id="appearance-hair-style" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableHaircuts)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-hair-color" :class="labelClass">
+                    <Icon icon="mdi:palette" :class="labelIconClass" />
+                    Hair Color
+                  </Label>
+                  <Select :model-value="form.hair_color" @update:model-value="setSelect('hair_color', $event)">
+                    <SelectTrigger id="appearance-hair-color" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(hairColors)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-facial-hair" :class="labelClass">
+                    <Icon icon="mdi:face-man-outline" :class="labelIconClass" />
+                    Facial Hair
+                  </Label>
+                  <Input
+                    id="appearance-facial-hair"
+                    v-model="form.facial_hair"
+                    placeholder="e.g. beard, stubble"
+                  />
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-makeup" :class="labelClass">
+                    <Icon icon="mdi:brush-variant" :class="labelIconClass" />
+                    Makeup
+                  </Label>
+                  <Input id="appearance-makeup" v-model="form.makeup" placeholder="e.g. natural, glamorous" />
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-expression" :class="labelClass">
+                    <Icon icon="mdi:emoticon-outline" :class="labelIconClass" />
+                    Expression
+                  </Label>
+                  <Select :model-value="form.expression" @update:model-value="setSelect('expression', $event)">
+                    <SelectTrigger id="appearance-expression" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(expressions)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-looks" :class="labelClass">
+                    <Icon icon="mdi:account-details-outline" :class="labelIconClass" />
+                    Appearance
+                  </Label>
+                  <Select :model-value="form.appearance" @update:model-value="setSelect('appearance', $event)">
+                    <SelectTrigger id="appearance-looks" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in selectOptions(['attractive', 'cute', 'average', 'unattractive'])"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field form-field-full">
+                  <Label for="appearance-features" :class="labelClass">
+                    <Icon icon="mdi:star-outline" :class="labelIconClass" />
+                    Distinguishing Features
+                  </Label>
+                  <Input
+                    id="appearance-features"
+                    v-model="form.distinguishing_features"
+                    placeholder="e.g. scar, tattoo, mole"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Equipment Section -->
+            <div v-show="activeSection === 'scene'" class="editor-section">
+              <h4 class="section-title">
+                <Icon icon="mdi:backpack" class="section-icon" />
+                Equipment & Scene
+              </h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <Label for="appearance-headgear" :class="labelClass">
+                    <Icon icon="mdi:hard-hat" :class="labelIconClass" />
+                    Headgear
+                  </Label>
+                  <Select :model-value="form.headgear" @update:model-value="setSelect('headgear', $event)">
+                    <SelectTrigger id="appearance-headgear" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(availableHeadgear)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-clothing" :class="labelClass">
+                    <Icon icon="mdi:tshirt-crew-outline" :class="labelIconClass" />
+                    Clothing Style
+                  </Label>
+                  <Input
+                    id="appearance-clothing"
+                    v-model="form.clothing_style"
+                    placeholder="e.g. casual, military"
+                  />
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-accessory" :class="labelClass">
+                    <Icon icon="mdi:watch-variant" :class="labelIconClass" />
+                    Accessory
+                  </Label>
+                  <Input id="appearance-accessory" v-model="form.accessory" placeholder="e.g. Pip-Boy" />
+                </div>
+                <div class="form-field">
+                  <Label for="appearance-object" :class="labelClass">
+                    <Icon icon="mdi:hand-back-right-outline" :class="labelIconClass" />
+                    Object Held
+                  </Label>
+                  <Input id="appearance-object" v-model="form.object_held" placeholder="e.g. Laser Rifle" />
+                </div>
+                <div class="form-field form-field-full">
+                  <Label for="appearance-pose" :class="labelClass">
+                    <Icon icon="mdi:human-greeting" :class="labelIconClass" />
+                    Pose
+                  </Label>
+                  <Select :model-value="form.pose" @update:model-value="setSelect('pose', $event)">
+                    <SelectTrigger id="appearance-pose" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(poses)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field form-field-full">
+                  <Label for="appearance-background" :class="labelClass">
+                    <Icon icon="mdi:panorama-outline" :class="labelIconClass" />
+                    Background
+                  </Label>
+                  <Select :model-value="form.background" @update:model-value="setSelect('background', $event)">
+                    <SelectTrigger id="appearance-background" :class="selectTriggerClass">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="option in selectOptions(backgrounds)" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div class="form-field form-field-full">
+                  <Label for="appearance-voice-line" :class="labelClass">
+                    <Icon icon="mdi:comment-quote-outline" :class="labelIconClass" />
+                    Voice Line
+                  </Label>
+                  <Input
+                    id="appearance-voice-line"
+                    v-model="form.voice_line_text"
+                    placeholder="e.g. For the Brotherhood!"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Physical Section -->
-      <div v-show="activeSection === 'physical'" class="editor-section">
-        <h4 class="section-title">
-          <Icon icon="mdi:human" class="section-icon" />
-          Physical
-        </h4>
-        <div class="form-grid">
-          <div class="form-field">
-            <USelect v-model="form.height" :options="selectOptions(heights)" label="Height" label-icon="mdi:human-male-height" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.build" :options="selectOptions(availableBuilds)" label="Build" label-icon="mdi:arm-flex" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.skin_tone" :options="selectOptions(availableSkinTones)" label="Skin Tone" label-icon="mdi:palette-outline" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.eye_color" :options="selectOptions(eyeColors)" label="Eye Color" label-icon="mdi:eye-outline" />
-          </div>
-          <label class="flex flex-col gap-1">
-            <span class="flex items-center gap-1 text-sm font-medium text-theme-primary/70">
-              <Icon icon="mdi:calendar-outline" class="h-3.5 w-3.5 text-theme-primary/60" />
-              Age <strong class="ml-auto text-theme-primary">{{ ageValue }}</strong>
-            </span>
-            <USlider
-              v-model="ageValue"
-              :min="18"
-              :max="80"
-              aria-label="Age"
-            />
-            <span class="flex justify-between text-xs text-theme-primary/50"><span>18</span><span>80</span></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Facial Features Section -->
-      <div v-show="activeSection === 'face'" class="editor-section">
-        <h4 class="section-title">
-          <Icon icon="mdi:face" class="section-icon" />
-          Facial Features
-        </h4>
-        <div class="form-grid">
-          <div class="form-field">
-            <USelect v-model="form.hair_style" :options="selectOptions(availableHaircuts)" label="Hair Style" label-icon="mdi:content-cut" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.hair_color" :options="selectOptions(hairColors)" label="Hair Color" label-icon="mdi:palette" />
-          </div>
-          <div class="form-field">
-            <UInput
-              v-model="form.facial_hair"
-              label="Facial Hair"
-              label-icon="mdi:face-man-outline"
-              placeholder="e.g. beard, stubble"
-            />
-          </div>
-          <div class="form-field">
-            <UInput v-model="form.makeup" label="Makeup" label-icon="mdi:brush-variant" placeholder="e.g. natural, glamorous" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.expression" :options="selectOptions(expressions)" label="Expression" label-icon="mdi:emoticon-outline" />
-          </div>
-          <div class="form-field">
-            <USelect v-model="form.appearance" :options="selectOptions(['attractive', 'cute', 'average', 'unattractive'])" label="Appearance" label-icon="mdi:account-details-outline" />
-          </div>
-          <div class="form-field form-field-full">
-            <UInput
-              v-model="form.distinguishing_features"
-              label="Distinguishing Features"
-              label-icon="mdi:star-outline"
-              placeholder="e.g. scar, tattoo, mole"
-            />
+      <DialogFooter
+        class="flex flex-shrink-0 border-t border-theme-primary/25 bg-surface-sunken/40 px-5 pt-3 pb-5"
+      >
+        <div class="editor-footer">
+          <Button
+            variant="ghost"
+            class="utility-button"
+            :disabled="raceOptions.length === 0"
+            @click="randomize"
+          >
+            <Icon icon="mdi:dice-5" class="h-4 w-4" />
+            Randomize
+          </Button>
+          <div class="editor-footer-actions">
+            <Button variant="ghost" @click="handleCancel">Cancel</Button>
+            <Button @click="handleSave">Save Changes</Button>
           </div>
         </div>
-      </div>
-
-      <!-- Equipment Section -->
-      <div v-show="activeSection === 'scene'" class="editor-section">
-        <h4 class="section-title">
-          <Icon icon="mdi:backpack" class="section-icon" />
-          Equipment & Scene
-        </h4>
-        <div class="form-grid">
-          <div class="form-field">
-            <USelect v-model="form.headgear" :options="selectOptions(availableHeadgear)" label="Headgear" label-icon="mdi:hard-hat" />
-          </div>
-          <div class="form-field">
-            <UInput
-              v-model="form.clothing_style"
-              label="Clothing Style"
-              label-icon="mdi:tshirt-crew-outline"
-              placeholder="e.g. casual, military"
-            />
-          </div>
-          <div class="form-field">
-            <UInput v-model="form.accessory" label="Accessory" label-icon="mdi:watch-variant" placeholder="e.g. Pip-Boy" />
-          </div>
-          <div class="form-field">
-            <UInput v-model="form.object_held" label="Object Held" label-icon="mdi:hand-back-right-outline" placeholder="e.g. Laser Rifle" />
-          </div>
-          <div class="form-field form-field-full">
-            <USelect v-model="form.pose" :options="selectOptions(poses)" label="Pose" label-icon="mdi:human-greeting" />
-          </div>
-          <div class="form-field form-field-full">
-            <USelect v-model="form.background" :options="selectOptions(backgrounds)" label="Background" label-icon="mdi:panorama-outline" />
-          </div>
-          <div class="form-field form-field-full">
-            <UInput
-              v-model="form.voice_line_text"
-              label="Voice Line"
-              label-icon="mdi:comment-quote-outline"
-              placeholder="e.g. For the Brotherhood!"
-            />
-          </div>
-        </div>
-      </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="editor-footer">
-        <UButton
-          variant="ghost"
-          class="utility-button"
-          :disabled="raceOptions.length === 0"
-          @click="randomize"
-        >
-          <Icon icon="mdi:dice-5" class="h-4 w-4" />
-          Randomize
-        </UButton>
-        <div class="editor-footer-actions">
-          <UButton variant="ghost" @click="handleCancel">Cancel</UButton>
-          <UButton @click="handleSave">Save Changes</UButton>
-        </div>
-      </div>
-    </template>
-  </UModal>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <style scoped>

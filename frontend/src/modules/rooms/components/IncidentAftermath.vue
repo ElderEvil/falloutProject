@@ -5,7 +5,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { getIncidentIcon, type IncidentAftermath } from '@/modules/combat/models/incident'
 import RewardCard from '@/core/components/common/RewardCard.vue'
-import UButton from '@/core/components/ui/UButton.vue'
+import { Button } from '@/core/components/ui/button'
 import { getRarityBorderClass, getRarityTextClass } from '@/core/models/items'
 
 const props = defineProps<{ aftermath: IncidentAftermath; vaultId: string }>()
@@ -151,24 +151,32 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
             <span v-if="(item.quantity ?? 1) > 1" class="text-terminal-green-dim">x{{ item.quantity }}</span>
           </span>
           <span class="flex shrink-0 gap-1">
-            <UButton
+            <Button
               variant="secondary"
               size="sm"
               :disabled="isActing"
-              :loading="acting?.index === index && acting?.action === 'take'"
               @click="act(index, 'take')"
             >
+              <Icon
+                v-if="acting?.index === index && acting?.action === 'take'"
+                icon="mdi:loading"
+                class="mr-1 animate-spin"
+              />
               Take
-            </UButton>
-            <UButton
+            </Button>
+            <Button
               variant="secondary"
               size="sm"
               :disabled="isActing"
-              :loading="acting?.index === index && acting?.action === 'sell'"
               @click="act(index, 'sell')"
             >
+              <Icon
+                v-if="acting?.index === index && acting?.action === 'sell'"
+                icon="mdi:loading"
+                class="mr-1 animate-spin"
+              />
               Sell
-            </UButton>
+            </Button>
           </span>
         </li>
       </ul>
@@ -182,6 +190,6 @@ const dismiss = () => incidentStore.clearAftermath(props.aftermath.roomId)
       The outcome was not reported — the vault was out of contact when this incident ended.
     </p>
 
-    <UButton variant="secondary" size="sm" block @click="dismiss">Dismiss</UButton>
+    <Button variant="secondary" size="sm" class="w-full" @click="dismiss">Dismiss</Button>
   </section>
 </template>

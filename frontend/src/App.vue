@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { provide, watch } from 'vue'
 import DefaultLayout from '@/modules/vault/components/shell/DefaultLayout.vue'
-import UToastContainer from '@/core/components/ui/UToastContainer.vue'
+import { Toaster } from '@/core/components/ui/toast'
 import ChangelogModal from '@/modules/profile/components/ChangelogModal.vue'
 import GaryOverlay from '@/core/components/easter-eggs/GaryOverlay.vue'
 import FakeCrashOverlay from '@/core/components/easter-eggs/FakeCrashOverlay.vue'
@@ -84,7 +84,7 @@ provide('availableThemes', availableThemes)
     <DefaultLayout :isFlickering="flickering" :flicker-opacity="flickerOpacity">
       <router-view></router-view>
     </DefaultLayout>
-    <UToastContainer />
+    <Toaster />
 
     <!-- Changelog Modal -->
     <ChangelogModal

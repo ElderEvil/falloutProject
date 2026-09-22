@@ -14,7 +14,7 @@ import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
-import { UButton, UCard } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
 import { DeadDwellerCard } from '../components/death'
 
 const route = useRoute()
@@ -73,11 +73,9 @@ const viewDwellerDetails = (dwellerId: string) => {
           </div>
 
           <!-- Empty State -->
-          <UCard
+          <Card
             v-else-if="dwellerStore.graveyardDwellers.length === 0"
-            class="w-full max-w-lg text-center"
-            glow
-            crt
+            class="w-full max-w-lg text-center gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen"
           >
             <div class="py-8 px-4">
               <Icon
@@ -89,7 +87,7 @@ const viewDwellerDetails = (dwellerId: string) => {
                 The graveyard is empty. All deceased dwellers are still within the revival window.
               </p>
             </div>
-          </UCard>
+          </Card>
 
           <!-- Graveyard Grid -->
           <div v-else class="w-full graveyard-grid">

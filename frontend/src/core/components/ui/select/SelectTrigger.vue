@@ -8,7 +8,7 @@ import { SelectIcon, SelectTrigger, useForwardProps } from 'reka-ui'
 import { cn } from '@/core/utils/cn'
 
 const props = withDefaults(
-  defineProps<SelectTriggerProps & { class?: HTMLAttributes['class'], size?: 'sm' | 'default' }>(),
+  defineProps<SelectTriggerProps & { class?: HTMLAttributes['class'], size?: 'sm' | 'default', 'aria-label'?: string, id?: string }>(),
   { size: 'default' },
 )
 

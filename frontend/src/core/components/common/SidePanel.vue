@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
-import UTooltip from '@/core/components/ui/UTooltip.vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,55 +181,63 @@ onUnmounted(() => {
     aria-label="Game navigation panel"
   >
     <!-- Toggle Button -->
-    <UTooltip :text="`${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)`">
-      <button
-        @click="toggle"
-        class="toggle-btn"
-        :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
-      >
-        <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
-      </button>
-    </UTooltip>
+    <TooltipProvider :delay-duration="200">
+      <Tooltip>
+        <TooltipTrigger as-child>
+          <button
+            @click="toggle"
+            class="toggle-btn"
+            :aria-label="isCollapsed ? 'Expand navigation panel' : 'Collapse navigation panel'"
+          >
+            <Icon :icon="isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left'" class="h-6 w-6" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{{ `${isCollapsed ? 'Expand' : 'Collapse'} (Ctrl+B)` }}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
 
     <!-- Navigation Items -->
     <div class="nav-items">
-      <UTooltip
-        v-for="item in navItems"
-        :key="item.id"
-        :text="
-          item.comingSoon
-            ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
-            : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
-        "
-      >
-      <button
-        @click="item.path && navigate(item.path)"
-        class="nav-item"
-        :class="{
-          active: isActive(item.path),
-          locked: item.comingSoon,
-        }"
-        :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
-        :aria-keyshortcuts="item.hotkey"
-      >
-        <Icon :icon="item.icon" class="nav-icon" />
-        <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{
-          item.label
-        }}</span>
-        <UTooltip
-          v-if="!isCollapsed && item.comingSoon"
-          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
-        >
-          <Icon icon="mdi:lock" class="lock-icon" />
-        </UTooltip>
-        <UTooltip v-if="!isCollapsed && item.wip" text="Work in progress">
-          <span class="wip-badge">WIP</span>
-        </UTooltip>
-        <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
-          item.hotkey
-        }}</span>
-      </button>
-      </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip v-for="item in navItems" :key="item.id">
+          <TooltipTrigger as-child>
+            <button
+              @click="item.path && navigate(item.path)"
+              class="nav-item"
+              :class="{
+                active: isActive(item.path),
+                locked: item.comingSoon,
+              }"
+              :aria-label="`${item.label}${!isCollapsed && item.hotkey ? ' ' + item.hotkey : ''}`"
+              :aria-keyshortcuts="item.hotkey"
+            >
+              <Icon :icon="item.icon" class="nav-icon" />
+              <span v-if="!isCollapsed" class="nav-label" :class="{ 'locked-label': item.comingSoon }">{{
+                item.label
+              }}</span>
+              <span v-if="!isCollapsed && item.comingSoon" class="lock-icon-wrap">
+                <Icon icon="mdi:lock" class="lock-icon" />
+              </span>
+              <TooltipProvider v-if="!isCollapsed && item.wip" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="wip-badge">WIP</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Work in progress</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <span v-else-if="!isCollapsed && item.hotkey" class="hotkey-badge" aria-hidden="true">{{
+                item.hotkey
+              }}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{{
+            item.comingSoon
+              ? `${item.label} - ${item.comingSoon.phase} (${item.comingSoon.quarter})`
+              : `${item.label}${item.hotkey ? ' (Shortcut: ' + item.hotkey + ')' : ''}`
+          }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Coming Soon Divider -->
       <div v-if="!isCollapsed" class="nav-divider">
@@ -237,24 +245,20 @@ onUnmounted(() => {
       </div>
 
       <!-- Coming Soon Items -->
-      <UTooltip
-        v-for="item in comingSoonItems"
-        :key="item.id"
-        :text="isCollapsed ? `${item.label} - ${item.comingSoon?.phase}` : undefined"
-      >
-      <div
-        class="nav-item locked"
-      >
-        <Icon :icon="item.icon" class="nav-icon" />
-        <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
-        <UTooltip
-          v-if="!isCollapsed && item.comingSoon"
-          :text="`${item.label} - Coming in ${item.comingSoon.phase} (${item.comingSoon.quarter})`"
-        >
-          <Icon icon="mdi:lock" class="lock-icon" />
-        </UTooltip>
-      </div>
-      </UTooltip>
+      <TooltipProvider :delay-duration="200">
+        <Tooltip v-for="item in comingSoonItems" :key="item.id">
+          <TooltipTrigger as-child>
+            <div class="nav-item locked">
+              <Icon :icon="item.icon" class="nav-icon" />
+              <span v-if="!isCollapsed" class="nav-label locked-label">{{ item.label }}</span>
+              <span v-if="!isCollapsed && item.comingSoon" class="lock-icon-wrap">
+                <Icon icon="mdi:lock" class="lock-icon" />
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent v-if="isCollapsed">{{ `${item.label} - ${item.comingSoon?.phase}` }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   </nav>
 </template>

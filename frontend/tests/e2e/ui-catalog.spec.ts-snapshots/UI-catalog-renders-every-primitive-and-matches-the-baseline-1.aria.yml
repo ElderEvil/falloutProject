@@ -12,189 +12,125 @@
 - main:
   - heading "UI Catalog" [level=1]
   - paragraph:
-    - text: Dev-only regression catalog for the core UI primitives. Imports stay pinned to
+    - text: Dev-only regression catalog for the shadcn-vue primitives in
     - code: "@/core/components/ui"
-    - text: so the shadcn-vue swap can be proven visually neutral against the Playwright baselines.
-  - region "UButton":
-    - heading "UButton" [level=2]
-    - button "primary"
+    - text: ", captured by the Playwright visual net."
+  - region "Button":
+    - heading "Button" [level=2]
+    - button "default"
+    - button "outline"
     - button "secondary"
-    - button "success"
-    - button "danger"
     - button "ghost"
+    - button "destructive"
+    - button "link"
+    - button "Size default"
     - button "Size xs"
     - button "Size sm"
-    - button "Size md"
     - button "Size lg"
-    - button "Size xl"
     - button "Disabled" [disabled]
-    - button "⚙ Loading" [disabled]
+    - button "Loading" [disabled]
     - button "With icon"
     - button "Icon right"
-    - button "Both icons"
     - button "Block"
-  - region "UInput":
-    - heading "UInput" [level=2]
+  - region "Input":
+    - heading "Input" [level=2]
     - textbox "Default input"
-    - textbox "Size sm"
-    - textbox "Size md"
-    - textbox "Size lg"
-    - text: Dweller name *
-    - textbox "Dweller name *":
+    - text: Dweller name
+    - textbox "Dweller name":
       - /placeholder: e.g. Butch
-    - text: Caps
-    - textbox "Caps":
-      - /placeholder: Amount
-    - paragraph: How many caps to deposit
-    - text: Radiation
-    - textbox "Radiation":
-      - /placeholder: Error state
-    - paragraph: Radiation exceeds safe levels
     - textbox "Disabled input" [disabled]
-    - textbox "With icon"
-    - textbox "With right icon"
-    - textbox "Terminal variant"
     - textbox "Password"
-  - region "UBadge":
-    - heading "UBadge" [level=2]
-    - text: success warning danger info default primary secondary outline Size sm Size md Size lg Dot Dot With icon With icon
-  - region "UCard":
-    - heading "UCard" [level=2]
-    - paragraph: Padding none
-    - paragraph: Padding sm
-    - paragraph: Padding md
-    - paragraph: Padding lg
-    - paragraph: Padding xl
-    - heading "Glow card" [level=3]
+  - region "Badge":
+    - heading "Badge" [level=2]
+    - text: default secondary destructive outline ghost link With icon With icon
+  - region "Card":
+    - heading "Card" [level=2]
+    - paragraph: Default card
     - paragraph: Glow enabled
-    - heading "CRT card" [level=3]
     - paragraph: CRT screen effect
-    - heading "Unbordered" [level=3]
-    - paragraph: No border
-    - heading "Raised surface" [level=3]
-    - paragraph: Raised
-    - heading "Sunken surface" [level=3]
-    - paragraph: Sunken
-    - text: Custom header
-    - paragraph: Header + footer slots
+    - text: Slotted card
+    - paragraph: Header + footer composition
     - button "Footer action"
-  - region "UAlert":
-    - heading "UAlert" [level=2]
-    - alert:
-      - heading "Success" [level=4]
-      - text: Vault created successfully
-    - alert:
-      - heading "Warning" [level=4]
-      - text: Power reserves are low
-    - alert:
-      - heading "Danger" [level=4]
-      - text: Radiation leak detected
-    - alert:
-      - heading "Info" [level=4]
-      - text: New dweller arrived
-    - alert:
-      - text: Dismissible alert
-      - button "Dismiss alert":
-        - img
-    - alert: Plain alert without title or icon
-  - region "UModal":
-    - heading "UModal" [level=2]
-    - paragraph: Rendered open (default size, title, body and footer) so capture is deterministic.
-  - region "UTabs":
-    - heading "UTabs" [level=2]
-    - button "Overview"
-    - button "Dwellers"
-    - button "Disabled" [disabled]
-    - button "Storage"
-    - paragraph: "Active tab: overview"
-  - region "USelect":
-    - heading "USelect" [level=2]
+  - region "Alert":
+    - heading "Alert" [level=2]
+    - alert: Success Vault created successfully
+    - alert: Danger Radiation leak detected
+  - region "Dialog":
+    - heading "Dialog" [level=2]
+    - paragraph: Rendered open (header, body and footer) so capture is deterministic.
+  - region "Tabs":
+    - heading "Tabs" [level=2]
+    - tablist:
+      - tab "Overview" [selected]
+      - tab "Dwellers"
+      - tab "Storage"
+    - tabpanel "Overview":
+      - paragraph: Overview panel
+  - region "Select":
+    - heading "Select" [level=2]
     - text: Vault
     - combobox "Vault": /Vault \d+/
-    - combobox: /Vault \d+/
-    - combobox: /Vault \d+/
-    - combobox: /Vault \d+/
-    - text: Vault
-    - combobox "Vault": /Vault \d+/
-    - paragraph: Pick the vault to manage
-    - text: Vault
-    - combobox "Vault": /Vault \d+/
-    - paragraph: This vault is not available
-    - text: Vault *
-    - combobox "Vault *": /Vault \d+/
-    - text: Vault
-    - combobox "Vault" [disabled]: /Vault \d+/
-  - region "USlider":
-    - heading "USlider" [level=2]
-    - text: primary
-    - slider: /\d+/
-    - text: success
-    - slider: /\d+/
-    - text: caps
-    - slider: /\d+/
-    - text: danger
-    - slider: /\d+/
-    - text: Values
-    - slider: /\d+/
-    - slider: /\d+/
-    - slider: /\d+/
+    - combobox "Compact vault select": /Vault \d+/
+  - region "Slider":
+    - heading "Slider" [level=2]
+    - text: Value
+    - slider "Slider value"
+    - text: Fixed
+    - slider /Slider \d+/
+    - slider /Slider \d+/
+    - slider /Slider \d+/
     - text: Disabled
-    - slider [disabled]: /\d+/
-  - region "UProgressBar":
-    - heading "UProgressBar" [level=2]
+    - slider "Slider disabled" [disabled]
+  - region "Progress":
+    - heading "Progress" [level=2]
     - text: Values
     - progressbar "Progress 0"
     - progressbar /Progress \d+/
     - progressbar /Progress \d+/
     - progressbar /Progress \d+/
     - progressbar /Progress \d+/
-    - text: Radiation
-    - progressbar "Progress with radiation"
     - text: Heights
-    - progressbar "Progress height 6"
-    - progressbar /Progress height \d+/
-    - progressbar /Progress height \d+/
-    - text: No glow
-    - progressbar "Progress no glow"
-    - text: Animations
-    - progressbar "Progress pulse"
-    - progressbar "Progress shimmer"
-    - progressbar "Progress shine"
-    - text: Color
-    - progressbar "Progress custom color"
-  - region "USkeleton":
-    - heading "USkeleton" [level=2]
-  - region "UTooltip":
-    - heading "UTooltip" [level=2]
+    - progressbar /\d+%/
+    - progressbar /\d+%/
+    - progressbar /\d+%/
+    - text: Custom color
+    - progressbar /\d+%/
+    - text: Radiation
+    - progressbar
+  - region "Skeleton":
+    - heading "Skeleton" [level=2]
+  - region "Tooltip":
+    - heading "Tooltip" [level=2]
     - paragraph: The spec focuses the “Tooltip top” trigger so the teleported tooltip is visible for capture.
     - button "Tooltip top"
     - button "Tooltip bottom"
     - button "Tooltip left"
     - button "Tooltip right"
-  - region "UIconButton":
-    - heading "UIconButton" [level=2]
-    - button "Confirm"
-    - button "Cancel"
-    - button "Delete"
-    - button "Repair" [disabled]
-  - region "UToast":
-    - heading "UToast" [level=2]
-    - paragraph: Inline fixtures; the global UToastContainer is populated on mount (top-right of the viewport).
+  - region "Icon Button":
+    - heading "Icon Button" [level=2]
+    - button
+    - button
+    - button
+    - button
+    - button [disabled]
+  - region "Toast":
+    - heading "Toast" [level=2]
+    - paragraph: Inline fixtures; the global Toaster is populated on mount (top-right of the viewport).
     - status:
-      - paragraph: Direct UToast — success
+      - paragraph: Direct Toast — success
       - button "Close"
     - status:
-      - paragraph: Direct UToast — error
+      - paragraph: Direct Toast — error
       - button "Close"
     - status:
-      - paragraph: Direct UToast — warning
+      - paragraph: Direct Toast — warning
       - text: ×3
       - button "Close"
     - status:
-      - paragraph: Direct UToast — info
+      - paragraph: Direct Toast — info
       - button "Close"
-  - region "UToastContainer":
-    - heading "UToastContainer" [level=2]
+  - region "Toaster":
+    - heading "Toaster" [level=2]
     - paragraph: Mounted globally in App.vue; seeded with four duration-0 toasts on mount (visible top-right).
   - region "SettingItem":
     - heading "SettingItem" [level=2]
@@ -213,9 +149,12 @@
   - button "Close"
 - dialog "Confirm evacuation":
   - heading "Confirm evacuation" [level=2]
-  - button "Close modal":
-    - img
   - paragraph: Are you sure you want to evacuate this vault? All dwellers will be relocated.
   - button "Cancel"
   - button "Evacuate"
-- tooltip "Tooltip on top"
+  - button "Close"
+- text: Tooltip on top
+- img
+- text: Tooltip on bottom
+- img
+- text: Tooltip on left Tooltip on right

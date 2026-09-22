@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import UToast from '@/core/components/ui/UToast.vue'
+import { Toast } from '@/core/components/ui/toast'
 
-describe('UToast', () => {
+describe('Toast', () => {
   it.each([
     ['success', 'border-l-success', 'text-success'],
     ['warning', 'border-l-warning', 'text-warning'],
     ['info', 'border-l-info', 'text-info'],
   ] as const)('uses semantic theme utilities for %s toasts', (variant, borderClass, iconClass) => {
-    const wrapper = mount(UToast, {
+    const wrapper = mount(Toast, {
       props: { toast: { id: 'toast-1', message: 'Vault status updated', variant, count: 2 } },
     })
 
@@ -19,7 +19,7 @@ describe('UToast', () => {
   })
 
   it('uses a polite status announcement and a restrained raised surface for errors', () => {
-    const wrapper = mount(UToast, {
+    const wrapper = mount(Toast, {
       props: { toast: { id: 'toast-1', message: 'Signal lost', variant: 'error' } },
     })
 

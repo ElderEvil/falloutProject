@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import UButton from '@/core/components/ui/UButton.vue'
-import UAlert from '@/core/components/ui/UAlert.vue'
+import { Alert } from '@/core/components/ui/alert'
+import { Button } from '@/core/components/ui/button'
 
 interface Props {
   localRadioMode: string
@@ -59,13 +59,13 @@ const emit = defineEmits<{
     </div>
 
     <!-- Staffing Warning -->
-    <UAlert v-if="assignedDwellers.length === 0" variant="warning" class="mb-3">
+    <Alert v-if="assignedDwellers.length === 0" variant="default" class="mb-3 border-warning bg-warning/10 text-warning">
       <Icon icon="mdi:alert" class="h-4 w-4" />
       Assign at least one dweller to operate the radio room before recruiting.
-    </UAlert>
+    </Alert>
 
     <!-- Recruit Dweller Button -->
-    <UButton
+    <Button
       @click="emit('recruit')"
       :disabled="isRecruiting || assignedDwellers.length === 0 || localRadioMode !== 'recruitment'"
       variant="secondary"
@@ -74,7 +74,7 @@ const emit = defineEmits<{
     >
       <Icon icon="mdi:account-plus" class="h-4 w-4" />
       <span>Recruit Dweller ({{ manualRecruitCost }} caps)</span>
-    </UButton>
+    </Button>
   </div>
 </template>
 

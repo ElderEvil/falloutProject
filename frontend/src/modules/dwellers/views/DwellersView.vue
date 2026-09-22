@@ -20,7 +20,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import ComponentLoader from '@/core/components/common/ComponentLoader.vue'
-import USkeleton from '@/core/components/ui/USkeleton.vue'
+import { Skeleton } from '@/core/components/ui/skeleton'
 import HappinessDashboard from '@/modules/vault/components/HappinessDashboard.vue'
 import {
   useDwellerStore,
@@ -402,11 +402,9 @@ const handleTreatIrradiated = async () => {
 
           <!-- Happiness Dashboard -->
           <div class="mb-6">
-            <USkeleton
+            <Skeleton
               v-if="!currentVault && !vaultLoadError"
-              width="100%"
-              height="120px"
-              rounded="lg"
+              class="h-[120px] w-full rounded-lg"
             />
             <p v-else-if="vaultLoadError" role="alert" class="text-danger">{{ vaultLoadError }}</p>
             <details v-else-if="happinessDashboardData" class="happiness-overview">

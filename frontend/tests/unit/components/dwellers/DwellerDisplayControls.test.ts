@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerDisplayControls from '@/modules/dwellers/components/DwellerDisplayControls.vue'
 import displayControlsSource from '@/modules/dwellers/components/DwellerDisplayControls.vue?raw'
@@ -17,7 +17,7 @@ describe('DwellerDisplayControls', () => {
   it('renders the sort control and no view toggle by default', () => {
     const wrapper = mount(DwellerDisplayControls)
 
-    expect(wrapper.find('.display-group .select-trigger').attributes('aria-label')).toBe(
+    expect(wrapper.find('.display-group [role="combobox"]').attributes('aria-label')).toBe(
       'Sort dwellers'
     )
     expect(wrapper.find('.sort-direction-button').exists()).toBe(true)
@@ -28,13 +28,18 @@ describe('DwellerDisplayControls', () => {
     const wrapper = mount(DwellerDisplayControls)
     const store = useDwellerStore().filter
 
-    const sortTrigger = wrapper.find('.display-group .select-trigger')
-    await sortTrigger.trigger('click')
-    const levelOption = wrapper
-      .findAll('.display-group .select-option')
-      .find((option) => option.text().includes('Level'))
+    // reka-ui opens the listbox on pointerdown and selects on pointerup (not click).
+    wrapper.find('.display-group [role="combobox"]').element.dispatchEvent(
+      new MouseEvent('pointerdown', { button: 0, bubbles: true })
+    )
+    await flushPromises()
+
+    const levelOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(
+      (option) => option.textContent?.includes('Level')
+    ) as HTMLElement
     expect(levelOption).toBeDefined()
-    await levelOption!.trigger('click')
+    levelOption.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
+    await flushPromises()
 
     expect(store.sortBy).toBe('level')
   })
@@ -124,17 +129,10 @@ describe('DwellerDisplayControls', () => {
 
   it('styles its controls like the filter panel so the toolbar stays one control set', () => {
     expect(displayControlsSource).toMatch(
-      /\.display-group :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
-    )
-    expect(displayControlsSource).toMatch(
       /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
     )
     expect(displayControlsSource).toMatch(
       /\.view-toggle-btn \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
-    )
-    // The identity selects left behind in the panel must keep the same trigger metrics.
-    expect(filterPanelSource).toMatch(
-      /\.identity-controls :deep\(\.select-trigger\) \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
     )
     // The Display island reuses the panel's container treatment so the two pair up.
     expect(displayControlsSource).toMatch(

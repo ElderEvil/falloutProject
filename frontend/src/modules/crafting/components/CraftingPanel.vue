@@ -266,9 +266,9 @@ watch(() => [props.vaultId, props.itemType], loadAll)
             </div>
             <div class="mt-1.5 flex items-center gap-2">
               <!--
-                UProgressBar's radiation segment is not used here (no `radiation`
-                prop); shadcn Progress's h-1.5 base matches the old height=6 and
-                it has no glow by default, so glow=false is preserved implicitly.
+                No radiation segment here (the bar carries no `radiation` value);
+                shadcn Progress's h-1.5 base matches the previous height=6 and it
+                has no glow by default, so the old glow=false is kept implicitly.
               -->
               <Progress :model-value="progressPercent(order)" />
               <span class="w-9 shrink-0 text-right text-xs text-theme-primary">
@@ -336,8 +336,8 @@ watch(() => [props.vaultId, props.itemType], loadAll)
           class="flex items-center gap-3 rounded-sm border border-theme-primary/20 bg-surface-sunken/60 px-3 py-2"
         >
           <!--
-            TooltipProvider delayDuration (200ms) matches the old UTooltip hover
-            delay; reka-ui opens instantly on keyboard focus, which is the
+            TooltipProvider delayDuration (200ms) preserves the previous tooltip
+            hover delay; reka-ui opens instantly on keyboard focus, which is the
             stronger a11y contract (same pattern as StorageItemCard.vue).
           -->
           <TooltipProvider :delay-duration="200">

@@ -129,8 +129,8 @@ const isOpenable = computed(() => itemType === 'lunchbox')
         </div>
         <div class="flex flex-wrap justify-end gap-2">
           <!--
-            TooltipProvider delayDuration (200ms) matches the old UTooltip hover
-            delay; reka-ui opens instantly on keyboard focus, which is the
+            TooltipProvider delayDuration (200ms) preserves the previous tooltip
+            hover delay; reka-ui opens instantly on keyboard focus, which is the
             stronger a11y contract for icon-only buttons.
           -->
           <TooltipProvider :delay-duration="200">

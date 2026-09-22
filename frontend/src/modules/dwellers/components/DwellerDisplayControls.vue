@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
 import { useDwellerStore, type DwellerSortBy } from '@/modules/dwellers/stores/dweller'
-import USelect from '@/core/components/ui/USelect.vue'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
 import { DWELLER_TABLE_COLUMNS, DWELLER_TABLE_PRESETS } from '../models/dwellerTable'
 
 interface Props {
@@ -33,6 +33,10 @@ const sortByValue = computed({
   get: () => dwellerStore.sortBy as string,
   set: (value: string) => dwellerStore.setSortBy(value as DwellerSortBy),
 })
+
+const onSortByChange = (value: unknown) => {
+  sortByValue.value = String(value)
+}
 
 const sortDirection = computed({
   get: () => dwellerStore.sortDirection,
@@ -69,7 +73,20 @@ function applyPreset(presetId: string) {
 <template>
   <div class="display-controls">
     <div v-if="showSort" class="display-group">
-      <USelect v-model="sortByValue" :options="sortOptions" size="sm" ariaLabel="Sort dwellers" />
+      <Select :model-value="sortByValue" @update:model-value="onSortByChange">
+        <SelectTrigger
+          size="sm"
+          class="min-w-[8rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+          aria-label="Sort dwellers"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
       <button
         type="button"
         class="sort-direction-button"
@@ -190,10 +207,6 @@ function applyPreset(presetId: string) {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-}
-
-.display-group :deep(.select-wrapper) {
-  min-width: 8rem;
 }
 
 /* Every button in the island shares this terminal control treatment; the rules below are
@@ -319,28 +332,9 @@ function applyPreset(presetId: string) {
   font-weight: 600;
 }
 
-/* The USelect chevron and the sort arrow default to 16px/20px; the chips use 1em. */
+/* The sort arrow defaults to 16px/20px; the chips use 1em. */
 .sort-direction-button :deep(svg) {
   width: 1em;
   height: 1em;
-}
-
-/* Kept identical to the filter panel's identity selects so the toolbar reads as one set. */
-.display-group :deep(.select-trigger) {
-  padding: 0.5rem 0.75rem;
-  border-color: var(--color-theme-glow);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  opacity: 0.85;
-}
-
-.display-group :deep(.select-trigger svg) {
-  width: 1em;
-  height: 1em;
-}
-
-.display-group :deep(.select-trigger:hover) {
-  opacity: 1;
-  box-shadow: 0 0 8px var(--color-theme-glow);
 }
 </style>

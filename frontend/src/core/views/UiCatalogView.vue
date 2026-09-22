@@ -1,59 +1,38 @@
 <script setup lang="ts">
 /**
- * UiCatalogView — dev-only regression catalog for the core UI primitives.
+ * UiCatalogView — dev-only regression catalog for the shadcn-vue primitives.
  *
  * Renders every component from `@/core/components/ui` in all variants, sizes
  * and relevant states so a Playwright aria snapshot + pixel screenshot can
- * prove the upcoming shadcn-vue swap is visually neutral. The imports below
- * are the invariant contract: they must keep pointing at `@/core/components/ui`
- * while the primitives' internals get replaced.
+ * prove a primitive change is visually neutral.
  *
  * Overlay primitives are rendered open/visible (never hover-dependent):
- * - UModal is open by default.
- * - UTooltip triggers are focused by the spec (focus, not hover).
- * - UToast fixtures are rendered inline; the global UToastContainer (mounted
+ * - Dialog is open by default.
+ * - Tooltip triggers are focused by the spec (focus, not hover).
+ * - Toast fixtures are rendered inline; the global Toaster (mounted
  *   in App.vue) is populated on mount with duration-0 toasts.
  */
-import { defineComponent, h, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import {
-  UAlert,
-  UBadge,
-  UButton,
-  UCard,
-  UIconButton,
-  UInput,
-  UModal,
-  UProgressBar,
-  USelect,
-  USkeleton,
-  USlider,
-  UTabs,
-  UTooltip,
-} from '@/core/components/ui'
-import UToast from '@/core/components/ui/UToast.vue'
+import { Alert, AlertDescription, AlertTitle } from '@/core/components/ui/alert'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/core/components/ui/card'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/core/components/ui/dialog'
+import { Input } from '@/core/components/ui/input'
+import { Label } from '@/core/components/ui/label'
+import { Progress } from '@/core/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
+import { Skeleton } from '@/core/components/ui/skeleton'
+import { Slider } from '@/core/components/ui/slider'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { Toast, Toaster } from '@/core/components/ui/toast'
+import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import SettingItem from '@/core/components/ui/SettingItem.vue'
-import { useToast, type Toast } from '@/core/composables/useToast'
+import { useToast, type Toast as ToastModel } from '@/core/composables/useToast'
 
-// Icon components for the primitives' `icon` props (IconComponent = Component | string).
-const CheckIcon = defineComponent({
-  name: 'CheckIcon',
-  render: () => h(Icon, { icon: 'mdi:check' }),
-})
-const AlertIcon = defineComponent({
-  name: 'AlertIcon',
-  render: () => h(Icon, { icon: 'mdi:alert' }),
-})
-const InfoIcon = defineComponent({
-  name: 'InfoIcon',
-  render: () => h(Icon, { icon: 'mdi:information' }),
-})
-const WrenchIcon = defineComponent({
-  name: 'WrenchIcon',
-  render: () => h(Icon, { icon: 'mdi:wrench' }),
-})
-
-// --- toast seeding: populate the global UToastContainer deterministically ---
+// --- toast seeding: populate the global Toaster deterministically ---
 const { toasts, remove, show } = useToast()
 onMounted(() => {
   while (toasts.value.length > 0) remove(toasts.value[0]!.id)
@@ -63,356 +42,397 @@ onMounted(() => {
   show('Quest completed', 'info', 0)
 })
 
-// --- static fixtures ---
-const toastFixtures: Toast[] = [
-  { id: 'toast-fixture-success', message: 'Direct UToast — success', variant: 'success' },
-  { id: 'toast-fixture-error', message: 'Direct UToast — error', variant: 'error' },
-  { id: 'toast-fixture-warning', message: 'Direct UToast — warning', variant: 'warning', count: 3 },
-  { id: 'toast-fixture-info', message: 'Direct UToast — info', variant: 'info' },
+const toastFixtures: ToastModel[] = [
+  { id: 'toast-fixture-success', message: 'Direct Toast — success', variant: 'success' },
+  { id: 'toast-fixture-error', message: 'Direct Toast — error', variant: 'error' },
+  { id: 'toast-fixture-warning', message: 'Direct Toast — warning', variant: 'warning', count: 3 },
+  { id: 'toast-fixture-info', message: 'Direct Toast — info', variant: 'info' },
 ]
 
-const buttonVariants = ['primary', 'secondary', 'success', 'danger', 'ghost'] as const
-const buttonSizes = ['xs', 'sm', 'md', 'lg', 'xl'] as const
-const inputSizes = ['sm', 'md', 'lg'] as const
-const badgeVariants = [
-  'success',
-  'warning',
-  'danger',
-  'info',
-  'default',
-  'primary',
-  'secondary',
-  'outline',
-] as const
-const badgeSizes = ['sm', 'md', 'lg'] as const
-const cardPaddings = ['none', 'sm', 'md', 'lg', 'xl'] as const
-const sliderAccents = ['primary', 'success', 'caps', 'danger'] as const
-const skeletonRounded = ['none', 'sm', 'md', 'lg', 'full'] as const
-
+const buttonVariants = ['default', 'outline', 'secondary', 'ghost', 'destructive', 'link'] as const
+const buttonSizes = ['default', 'xs', 'sm', 'lg'] as const
+const iconButtonSizes = ['icon-xs', 'icon-sm', 'icon', 'icon-lg'] as const
+const badgeVariants = ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link'] as const
 const selectOptions = [
   { value: 'vault-1', label: 'Vault 101' },
   { value: 'vault-2', label: 'Vault 13' },
   { value: 'vault-3', label: 'Vault 111' },
 ]
 
-const tabs = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'dwellers', label: 'Dwellers', icon: 'mdi:account-group' },
-  { key: 'disabled', label: 'Disabled', disabled: true },
-  { key: 'storage', label: 'Storage' },
-]
-
 const modalOpen = ref(true)
 const activeTab = ref('overview')
-const selectValue = ref('vault-1')
+const selectValue = ref<string>('vault-1')
 const sliderValue = ref(50)
 const inputValue = ref('')
+
+const setActiveTab = (value: unknown) => {
+  activeTab.value = String(value)
+}
+const setSelectValue = (value: unknown) => {
+  selectValue.value = value == null ? '' : String(value)
+}
+const setSlider = (value: number[] | undefined) => {
+  sliderValue.value = value?.[0] ?? 0
+}
 </script>
 
 <template>
   <div class="mx-auto max-w-6xl px-6 py-8">
     <h1 class="text-3xl font-bold terminal-glow text-theme-primary">UI Catalog</h1>
     <p class="mt-2 text-sm text-theme-primary/60">
-      Dev-only regression catalog for the core UI primitives. Imports stay pinned to
-      <code class="text-theme-primary">@/core/components/ui</code> so the shadcn-vue swap can be
-      proven visually neutral against the Playwright baselines.
+      Dev-only regression catalog for the shadcn-vue primitives in
+      <code class="text-theme-primary">@/core/components/ui</code>, captured by the Playwright visual net.
     </p>
 
-    <!-- ============ UButton ============ -->
-    <section class="mt-10" aria-labelledby="h-ubutton">
-      <h2 id="h-ubutton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UButton
+    <!-- ============ Button ============ -->
+    <section class="mt-10" aria-labelledby="h-button">
+      <h2 id="h-button" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Button
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <UButton v-for="variant in buttonVariants" :key="variant" :variant="variant">
+        <Button v-for="variant in buttonVariants" :key="variant" :variant="variant">
           {{ variant }}
-        </UButton>
+        </Button>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-3">
-        <UButton v-for="size in buttonSizes" :key="size" :size="size">Size {{ size }}</UButton>
+        <Button v-for="size in buttonSizes" :key="size" :size="size">Size {{ size }}</Button>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-3">
-        <UButton disabled>Disabled</UButton>
-        <UButton loading>Loading</UButton>
-        <UButton :icon="CheckIcon">With icon</UButton>
-        <UButton :icon-right="WrenchIcon">Icon right</UButton>
-        <UButton :icon="CheckIcon" :icon-right="WrenchIcon">Both icons</UButton>
-        <UButton block class="w-48">Block</UButton>
+        <Button disabled>Disabled</Button>
+        <Button :disabled="true">
+          <Icon icon="mdi:loading" class="animate-spin" />
+          Loading
+        </Button>
+        <Button>
+          <Icon icon="mdi:check" />
+          With icon
+        </Button>
+        <Button>
+          Icon right
+          <Icon icon="mdi:wrench" />
+        </Button>
+        <Button class="w-48">Block</Button>
       </div>
     </section>
 
-    <!-- ============ UInput ============ -->
-    <section class="mt-10" aria-labelledby="h-uinput">
-      <h2 id="h-uinput" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UInput
+    <!-- ============ Input ============ -->
+    <section class="mt-10" aria-labelledby="h-input">
+      <h2 id="h-input" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Input
       </h2>
       <div class="grid max-w-2xl gap-4">
-        <UInput v-model="inputValue" placeholder="Default input" />
-        <UInput v-for="size in inputSizes" :key="size" v-model="inputValue" :size="size" :placeholder="`Size ${size}`" />
-        <UInput v-model="inputValue" label="Dweller name" placeholder="e.g. Butch" required />
-        <UInput v-model="inputValue" label="Caps" label-icon="mdi:currency-usd" placeholder="Amount" help-text="How many caps to deposit" />
-        <UInput v-model="inputValue" label="Radiation" placeholder="Error state" error="Radiation exceeds safe levels" />
-        <UInput v-model="inputValue" placeholder="Disabled input" disabled />
-        <UInput v-model="inputValue" placeholder="With icon" :icon="CheckIcon" />
-        <UInput v-model="inputValue" placeholder="With right icon" :icon-right="WrenchIcon" />
-        <UInput v-model="inputValue" placeholder="Terminal variant" variant="terminal" />
-        <UInput v-model="inputValue" type="password" placeholder="Password" />
+        <Input v-model="inputValue" placeholder="Default input" />
+        <div class="flex flex-col gap-1">
+          <Label for="catalog-input-label">Dweller name</Label>
+          <Input id="catalog-input-label" v-model="inputValue" placeholder="e.g. Butch" required />
+        </div>
+        <Input v-model="inputValue" placeholder="Disabled input" disabled />
+        <Input v-model="inputValue" type="password" placeholder="Password" />
       </div>
     </section>
 
-    <!-- ============ UBadge ============ -->
-    <section class="mt-10" aria-labelledby="h-ubadge">
-      <h2 id="h-ubadge" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UBadge
+    <!-- ============ Badge ============ -->
+    <section class="mt-10" aria-labelledby="h-badge">
+      <h2 id="h-badge" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Badge
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <UBadge v-for="variant in badgeVariants" :key="variant" :variant="variant">{{ variant }}</UBadge>
+        <Badge v-for="variant in badgeVariants" :key="variant" :variant="variant">{{ variant }}</Badge>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-3">
-        <UBadge v-for="size in badgeSizes" :key="size" :size="size">Size {{ size }}</UBadge>
-      </div>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <UBadge variant="success" dot>Dot</UBadge>
-        <UBadge variant="warning" dot>Dot</UBadge>
-        <UBadge variant="danger" :icon="AlertIcon">With icon</UBadge>
-        <UBadge variant="info" :icon="InfoIcon">With icon</UBadge>
+        <Badge variant="default">
+          <Icon icon="mdi:alert" />
+          With icon
+        </Badge>
+        <Badge variant="outline">
+          <Icon icon="mdi:information" />
+          With icon
+        </Badge>
       </div>
     </section>
 
-    <!-- ============ UCard ============ -->
-    <section class="mt-10" aria-labelledby="h-ucard">
-      <h2 id="h-ucard" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UCard
+    <!-- ============ Card ============ -->
+    <section class="mt-10" aria-labelledby="h-card">
+      <h2 id="h-card" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Card
       </h2>
       <div class="grid gap-4 md:grid-cols-3">
-        <UCard v-for="padding in cardPaddings" :key="padding" :padding="padding">
-          <p class="text-sm text-theme-primary/80">Padding {{ padding }}</p>
-        </UCard>
-        <UCard title="Glow card" glow>
+        <Card>
+          <CardContent>
+            <p class="text-sm text-theme-primary/80">Default card</p>
+          </CardContent>
+        </Card>
+        <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0">
           <p class="text-sm text-theme-primary/80">Glow enabled</p>
-        </UCard>
-        <UCard title="CRT card" crt>
+        </Card>
+        <Card class="gap-0 rounded-lg border-2 border-theme-primary/20 p-6 ring-0 crt-screen">
           <p class="text-sm text-theme-primary/80">CRT screen effect</p>
-        </UCard>
-        <UCard title="Unbordered" :bordered="false">
-          <p class="text-sm text-theme-primary/80">No border</p>
-        </UCard>
-        <UCard title="Raised surface" surface="raised">
-          <p class="text-sm text-theme-primary/80">Raised</p>
-        </UCard>
-        <UCard title="Sunken surface" surface="sunken">
-          <p class="text-sm text-theme-primary/80">Sunken</p>
-        </UCard>
-        <UCard title="Slotted card">
-          <template #header>
-            <span class="text-sm font-bold text-theme-primary">Custom header</span>
-          </template>
-          <p class="text-sm text-theme-primary/80">Header + footer slots</p>
-          <template #footer>
-            <UButton size="sm">Footer action</UButton>
-          </template>
-        </UCard>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Slotted card</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p class="text-sm text-theme-primary/80">Header + footer composition</p>
+          </CardContent>
+          <CardFooter>
+            <Button size="sm">Footer action</Button>
+          </CardFooter>
+        </Card>
       </div>
     </section>
 
-    <!-- ============ UAlert ============ -->
-    <section class="mt-10" aria-labelledby="h-ualert">
-      <h2 id="h-ualert" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UAlert
+    <!-- ============ Alert ============ -->
+    <section class="mt-10" aria-labelledby="h-alert">
+      <h2 id="h-alert" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Alert
       </h2>
       <div class="grid max-w-2xl gap-3">
-        <UAlert variant="success" title="Success" :icon="CheckIcon">Vault created successfully</UAlert>
-        <UAlert variant="warning" title="Warning" :icon="AlertIcon">Power reserves are low</UAlert>
-        <UAlert variant="danger" title="Danger" :icon="AlertIcon">Radiation leak detected</UAlert>
-        <UAlert variant="info" title="Info" :icon="InfoIcon">New dweller arrived</UAlert>
-        <UAlert variant="success" dismissible>Dismissible alert</UAlert>
-        <UAlert variant="info">Plain alert without title or icon</UAlert>
+        <Alert variant="default">
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>Vault created successfully</AlertDescription>
+        </Alert>
+        <Alert variant="destructive">
+          <AlertTitle>Danger</AlertTitle>
+          <AlertDescription>Radiation leak detected</AlertDescription>
+        </Alert>
       </div>
     </section>
 
-    <!-- ============ UModal ============ -->
-    <section class="mt-10" aria-labelledby="h-umodal">
-      <h2 id="h-umodal" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UModal
+    <!-- ============ Dialog ============ -->
+    <section class="mt-10" aria-labelledby="h-dialog">
+      <h2 id="h-dialog" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Dialog
       </h2>
       <p class="text-sm text-theme-primary/60">
-        Rendered open (default size, title, body and footer) so capture is deterministic.
+        Rendered open (header, body and footer) so capture is deterministic.
       </p>
-      <UModal v-model="modalOpen" title="Confirm evacuation">
-        <p class="text-sm text-theme-primary/80">
-          Are you sure you want to evacuate this vault? All dwellers will be relocated.
-        </p>
-        <template #footer>
-          <UButton variant="secondary">Cancel</UButton>
-          <UButton variant="danger">Evacuate</UButton>
-        </template>
-      </UModal>
+      <Dialog v-model:open="modalOpen" :modal="false">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm evacuation</DialogTitle>
+          </DialogHeader>
+          <p class="text-sm text-theme-primary/80">
+            Are you sure you want to evacuate this vault? All dwellers will be relocated.
+          </p>
+          <DialogFooter>
+            <Button variant="secondary">Cancel</Button>
+            <Button variant="destructive">Evacuate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
 
-    <!-- ============ UTabs ============ -->
-    <section class="mt-10" aria-labelledby="h-utabs">
-      <h2 id="h-utabs" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UTabs
+    <!-- ============ Tabs ============ -->
+    <section class="mt-10" aria-labelledby="h-tabs">
+      <h2 id="h-tabs" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Tabs
       </h2>
-      <UTabs v-model="activeTab" :tabs="tabs">
-        <template #default="{ activeTab: current }">
-          <p class="text-sm text-theme-primary/80">Active tab: {{ current }}</p>
-        </template>
-      </UTabs>
+      <Tabs :model-value="activeTab" @update:model-value="setActiveTab">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="dwellers">Dwellers</TabsTrigger>
+          <TabsTrigger value="storage">Storage</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <p class="text-sm text-theme-primary/80">Overview panel</p>
+        </TabsContent>
+        <TabsContent value="dwellers">
+          <p class="text-sm text-theme-primary/80">Dwellers panel</p>
+        </TabsContent>
+        <TabsContent value="storage">
+          <p class="text-sm text-theme-primary/80">Storage panel</p>
+        </TabsContent>
+      </Tabs>
     </section>
 
-    <!-- ============ USelect ============ -->
-    <section class="mt-10" aria-labelledby="h-uselect">
-      <h2 id="h-uselect" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        USelect
+    <!-- ============ Select ============ -->
+    <section class="mt-10" aria-labelledby="h-select">
+      <h2 id="h-select" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Select
       </h2>
       <div class="grid max-w-2xl gap-4">
-        <USelect v-model="selectValue" :options="selectOptions" label="Vault" />
-        <USelect v-for="size in inputSizes" :key="size" v-model="selectValue" :options="selectOptions" :size="size" :placeholder="`Size ${size}`" />
-        <USelect v-model="selectValue" :options="selectOptions" label="Vault" help-text="Pick the vault to manage" />
-        <USelect v-model="selectValue" :options="selectOptions" label="Vault" error="This vault is not available" />
-        <USelect v-model="selectValue" :options="selectOptions" label="Vault" required />
-        <USelect v-model="selectValue" :options="selectOptions" label="Vault" disabled />
+        <div class="flex flex-col gap-1">
+          <Label for="catalog-select">Vault</Label>
+          <Select :model-value="selectValue" @update:model-value="setSelectValue">
+            <SelectTrigger id="catalog-select" class="w-full">
+              <SelectValue placeholder="Pick a vault" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="option in selectOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Select :model-value="selectValue" @update:model-value="setSelectValue">
+          <SelectTrigger size="sm" class="w-full" aria-label="Compact vault select">
+            <SelectValue placeholder="Size sm" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="option in selectOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </section>
 
-    <!-- ============ USlider ============ -->
-    <section class="mt-10" aria-labelledby="h-uslider">
-      <h2 id="h-uslider" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        USlider
+    <!-- ============ Slider ============ -->
+    <section class="mt-10" aria-labelledby="h-slider">
+      <h2 id="h-slider" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Slider
       </h2>
       <div class="grid max-w-2xl gap-6">
-        <div v-for="accent in sliderAccents" :key="accent" class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">{{ accent }}</span>
-          <USlider v-model="sliderValue" :accent="accent" :aria-label="`Slider ${accent}`" />
+        <div class="flex items-center gap-4">
+          <span class="w-24 text-sm text-theme-primary/70">Value</span>
+          <Slider :model-value="[sliderValue]" aria-label="Slider value" @update:model-value="setSlider" />
         </div>
         <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Values</span>
-          <USlider :model-value="25" aria-label="Slider 25" />
-          <USlider :model-value="50" aria-label="Slider 50" />
-          <USlider :model-value="75" aria-label="Slider 75" />
+          <span class="w-24 text-sm text-theme-primary/70">Fixed</span>
+          <Slider :model-value="[25]" aria-label="Slider 25" />
+          <Slider :model-value="[50]" aria-label="Slider 50" />
+          <Slider :model-value="[75]" aria-label="Slider 75" />
         </div>
         <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Disabled</span>
-          <USlider v-model="sliderValue" disabled aria-label="Slider disabled" />
+          <Slider :model-value="[sliderValue]" disabled aria-label="Slider disabled" />
         </div>
       </div>
     </section>
 
-    <!-- ============ UProgressBar ============ -->
-    <section class="mt-10" aria-labelledby="h-uprogressbar">
-      <h2 id="h-uprogressbar" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UProgressBar
+    <!-- ============ Progress ============ -->
+    <section class="mt-10" aria-labelledby="h-progress">
+      <h2 id="h-progress" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Progress
       </h2>
       <div class="grid max-w-2xl gap-4">
         <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Values</span>
-          <UProgressBar :model-value="0" :ariaLabel="'Progress 0'" />
-          <UProgressBar :model-value="25" :ariaLabel="'Progress 25'" />
-          <UProgressBar :model-value="50" :ariaLabel="'Progress 50'" />
-          <UProgressBar :model-value="75" :ariaLabel="'Progress 75'" />
-          <UProgressBar :model-value="100" :ariaLabel="'Progress 100'" />
-        </div>
-        <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Radiation</span>
-          <UProgressBar :model-value="80" :radiation="20" :ariaLabel="'Progress with radiation'" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="0" aria-label="Progress 0" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="25" aria-label="Progress 25" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="50" aria-label="Progress 50" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="75" aria-label="Progress 75" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="100" aria-label="Progress 100" />
         </div>
         <div class="flex items-center gap-4">
           <span class="w-24 text-sm text-theme-primary/70">Heights</span>
-          <UProgressBar :model-value="60" :height="6" :ariaLabel="'Progress height 6'" />
-          <UProgressBar :model-value="60" :height="10" :ariaLabel="'Progress height 10'" />
-          <UProgressBar :model-value="60" :height="16" :ariaLabel="'Progress height 16'" />
+          <Progress :model-value="60" class="h-1" />
+          <Progress :model-value="60" class="h-2.5" />
+          <Progress :model-value="60" class="h-4" />
         </div>
         <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">No glow</span>
-          <UProgressBar :model-value="60" :glow="false" :ariaLabel="'Progress no glow'" />
+          <span class="w-24 text-sm text-theme-primary/70">Custom color</span>
+          <Progress
+            :model-value="60"
+            class="catalog-progress bar-fill"
+            :style="{ '--bar-fill': '#facc15' }"
+          />
         </div>
         <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Animations</span>
-          <UProgressBar :model-value="60" animation="pulse" :ariaLabel="'Progress pulse'" />
-          <UProgressBar :model-value="60" animation="shimmer" :ariaLabel="'Progress shimmer'" />
-          <UProgressBar :model-value="60" animation="shine" :ariaLabel="'Progress shine'" />
-        </div>
-        <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Color</span>
-          <UProgressBar :model-value="60" color="#facc15" :ariaLabel="'Progress custom color'" />
+          <span class="w-24 text-sm text-theme-primary/70">Radiation</span>
+          <HealthRadiationBar :value="80" :radiation="20" aria-label="Health with radiation" />
         </div>
       </div>
     </section>
 
-    <!-- ============ USkeleton ============ -->
-    <section class="mt-10" aria-labelledby="h-uskeleton">
-      <h2 id="h-uskeleton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        USkeleton
+    <!-- ============ Skeleton ============ -->
+    <section class="mt-10" aria-labelledby="h-skeleton">
+      <h2 id="h-skeleton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Skeleton
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <USkeleton v-for="rounded in skeletonRounded" :key="rounded" :rounded="rounded" width="8rem" height="2rem" />
-      </div>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <USkeleton width="4rem" height="1rem" />
-        <USkeleton width="8rem" height="1.5rem" />
-        <USkeleton width="12rem" height="2rem" />
-        <USkeleton width="6rem" height="6rem" rounded="full" />
-      </div>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <USkeleton width="8rem" height="2rem" :animate="false" />
+        <Skeleton class="h-8 w-32 rounded-none" />
+        <Skeleton class="h-8 w-32 rounded-sm" />
+        <Skeleton class="h-8 w-32 rounded-md" />
+        <Skeleton class="h-8 w-32 rounded-lg" />
+        <Skeleton class="h-24 w-24 rounded-full" />
       </div>
     </section>
 
-    <!-- ============ UTooltip ============ -->
-    <section class="mt-10" aria-labelledby="h-utooltip">
-      <h2 id="h-utooltip" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UTooltip
+    <!-- ============ Tooltip ============ -->
+    <section class="mt-10" aria-labelledby="h-tooltip">
+      <h2 id="h-tooltip" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Tooltip
       </h2>
       <p class="mb-4 text-sm text-theme-primary/60">
         The spec focuses the “Tooltip top” trigger so the teleported tooltip is visible for capture.
       </p>
-      <div class="flex flex-wrap items-center gap-3">
-        <UTooltip text="Tooltip on top" position="top" :delay="0">
-          <UButton>Tooltip top</UButton>
-        </UTooltip>
-        <UTooltip text="Tooltip on bottom" position="bottom" :delay="0">
-          <UButton>Tooltip bottom</UButton>
-        </UTooltip>
-        <UTooltip text="Tooltip on left" position="left" :delay="0">
-          <UButton>Tooltip left</UButton>
-        </UTooltip>
-        <UTooltip text="Tooltip on right" position="right" :delay="0">
-          <UButton>Tooltip right</UButton>
-        </UTooltip>
-      </div>
+      <TooltipProvider :delay-duration="200">
+        <div class="flex flex-wrap items-center gap-3">
+          <Tooltip :default-open="true">
+            <TooltipTrigger as-child>
+              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+                Tooltip top
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Tooltip on top</TooltipContent>
+          </Tooltip>
+          <Tooltip :default-open="true">
+            <TooltipTrigger as-child>
+              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+                Tooltip bottom
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Tooltip on bottom</TooltipContent>
+          </Tooltip>
+          <Tooltip :default-open="true">
+            <TooltipTrigger as-child>
+              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+                Tooltip left
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Tooltip on left</TooltipContent>
+          </Tooltip>
+          <Tooltip :default-open="true">
+            <TooltipTrigger as-child>
+              <button type="button" class="rounded border border-theme-primary px-3 py-1.5 text-sm text-theme-primary">
+                Tooltip right
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Tooltip on right</TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     </section>
 
-    <!-- ============ UIconButton ============ -->
-    <section class="mt-10" aria-labelledby="h-uiconbutton">
-      <h2 id="h-uiconbutton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UIconButton
+    <!-- ============ Icon Button ============ -->
+    <section class="mt-10" aria-labelledby="h-iconbutton">
+      <h2 id="h-iconbutton" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Icon Button
       </h2>
       <div class="flex flex-wrap items-center gap-3">
-        <UIconButton icon="mdi:check" label="Confirm" />
-        <UIconButton icon="mdi:close" label="Cancel" />
-        <UIconButton icon="mdi:delete" label="Delete" variant="danger" />
-        <UIconButton icon="mdi:wrench" label="Repair" disabled />
+        <Button v-for="size in iconButtonSizes" :key="size" :size="size" variant="ghost" :aria-label="`Icon ${size}`">
+          <Icon icon="mdi:wrench" />
+        </Button>
+        <Button size="icon-sm" variant="ghost" aria-label="Delete" disabled>
+          <Icon icon="mdi:delete" class="text-danger" />
+        </Button>
       </div>
     </section>
 
-    <!-- ============ UToast ============ -->
-    <section class="mt-10" aria-labelledby="h-utoast">
-      <h2 id="h-utoast" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UToast
+    <!-- ============ Toast ============ -->
+    <section class="mt-10" aria-labelledby="h-toast">
+      <h2 id="h-toast" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Toast
       </h2>
       <p class="mb-4 text-sm text-theme-primary/60">
-        Inline fixtures; the global UToastContainer is populated on mount (top-right of the viewport).
+        Inline fixtures; the global Toaster is populated on mount (top-right of the viewport).
       </p>
       <div class="grid max-w-2xl gap-3">
-        <UToast v-for="toast in toastFixtures" :key="toast.id" :toast="toast" />
+        <Toast v-for="toast in toastFixtures" :key="toast.id" :toast="toast" />
       </div>
     </section>
 
-    <!-- ============ UToastContainer ============ -->
-    <section class="mt-10" aria-labelledby="h-utoastcontainer">
-      <h2 id="h-utoastcontainer" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
-        UToastContainer
+    <!-- ============ Toaster ============ -->
+    <section class="mt-10" aria-labelledby="h-toaster">
+      <h2 id="h-toaster" class="mb-4 border-b-2 border-theme-primary/30 pb-2 text-xl font-bold text-theme-primary">
+        Toaster
       </h2>
       <p class="text-sm text-theme-primary/60">
         Mounted globally in App.vue; seeded with four duration-0 toasts on mount (visible top-right).
@@ -434,3 +454,9 @@ const inputValue = ref('')
     </section>
   </div>
 </template>
+
+<style scoped>
+.catalog-progress :deep([data-slot='progress-indicator']) {
+  background: var(--bar-fill);
+}
+</style>

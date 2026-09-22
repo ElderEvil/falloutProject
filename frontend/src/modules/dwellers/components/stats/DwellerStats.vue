@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { UButton } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
 import type { Dweller } from '../../models/dweller'
 import { describeBonusSources, getSpecialBreakdown } from '../../models/specialBreakdown'
 import { SPECIAL_TAGLINES } from '../../models/specialGuide'
@@ -160,9 +160,9 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
   <div class="dweller-stats">
     <div class="panel-header guide-header-row">
       <h3 class="stats-title panel-title">S.P.E.C.I.A.L.</h3>
-      <UButton variant="ghost" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
+      <Button variant="ghost" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
         <Icon icon="mdi:information-outline" class="guide-icon" />
-      </UButton>
+      </Button>
     </div>
     <SpecialGuideModal v-model="guideOpen" />
     <div class="stats-grid">

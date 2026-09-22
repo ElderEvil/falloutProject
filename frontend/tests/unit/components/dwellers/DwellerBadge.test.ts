@@ -66,7 +66,7 @@ describe('DwellerBadge', () => {
     })
 
     expect(wrapper.html()).not.toContain('title=')
-    expect(wrapper.findComponent({ name: 'UTooltip' }).exists()).toBe(true)
+    expect(wrapper.find('[data-slot="tooltip-trigger"]').exists()).toBe(true)
   })
 })
 

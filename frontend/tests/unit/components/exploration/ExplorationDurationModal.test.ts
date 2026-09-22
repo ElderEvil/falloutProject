@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { config, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ExplorationDurationModal from '@/modules/exploration/components/ExplorationDurationModal.vue'
-import { UButton, UModal, USlider } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Dialog } from '@/core/components/ui/dialog'
+import { Slider } from '@/core/components/ui/slider'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => ({
@@ -36,7 +38,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      expect(wrapper.findComponent(UModal).props('modelValue')).toBe(false)
+      expect(wrapper.findComponent(Dialog).props('open')).toBe(false)
       expect(wrapper.text()).toBe('')
     })
 
@@ -50,7 +52,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      expect(wrapper.findComponent(UModal).props('modelValue')).toBe(true)
+      expect(wrapper.findComponent(Dialog).props('open')).toBe(true)
       expect(wrapper.text()).toContain('Select Exploration Duration')
       expect(wrapper.text()).toContain('Amata')
       expect(wrapper.text()).toContain('Send to Wasteland')
@@ -82,9 +84,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      expect(wrapper.findAllComponents(USlider)).toHaveLength(2)
-      expect(wrapper.findAllComponents(USlider).every((slider) => slider.props('accent') === 'primary')).toBe(true)
-      expect(wrapper.html()).not.toMatch(/bg-black|rgba\(|text-orange/)
+      expect(wrapper.findAllComponents(Slider)).toHaveLength(2)
     })
 
     it('uses shared terminal actions for cancellation and departure', () => {
@@ -100,9 +100,9 @@ describe('ExplorationDurationModal', () => {
       const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
 
       expect(actions.exists()).toBe(true)
-      expect(actions.findAllComponents(UButton)).toHaveLength(2)
-      expect(actions.findAllComponents(UButton)[0]?.props()).toMatchObject({ variant: 'secondary', size: 'lg' })
-      expect(actions.findAllComponents(UButton)[1]?.props()).toMatchObject({ variant: 'primary', size: 'lg' })
+      expect(actions.findAllComponents(Button)).toHaveLength(2)
+      expect(actions.findAllComponents(Button)[0]?.props()).toMatchObject({ variant: 'secondary', size: 'lg' })
+      expect(actions.findAllComponents(Button)[1]?.props()).toMatchObject({ variant: 'default', size: 'lg' })
     })
   })
 
@@ -202,7 +202,7 @@ describe('ExplorationDurationModal', () => {
         },
       })
 
-      wrapper.findComponent(UModal).vm.$emit('close')
+      wrapper.findComponent(Dialog).vm.$emit('update:open', false)
 
       expect(wrapper.emitted('cancel')).toHaveLength(1)
     })

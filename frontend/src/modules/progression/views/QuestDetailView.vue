@@ -8,7 +8,9 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageNavigation from '@/core/components/common/PageNavigation.vue'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
-import { UCard, UBadge, UButton } from '@/core/components/ui'
+import { Card } from '@/core/components/ui/card'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
 import type { VaultQuest } from '../models/quest'
 
 const route = useRoute()
@@ -199,7 +201,7 @@ const goBack = () => {
           <div v-else-if="error" class="error-state">
             <Icon icon="mdi:alert-circle" class="text-6xl mb-4" />
             <h2>{{ error }}</h2>
-            <UButton variant="primary" @click="goBack">Return to Quests</UButton>
+            <Button variant="default" @click="goBack">Return to Quests</Button>
           </div>
 
           <!-- Quest Detail View -->
@@ -207,19 +209,19 @@ const goBack = () => {
             <!-- Header Section -->
             <div class="quest-header-section">
               <div class="quest-badges">
-                <UBadge
+                <Badge
                   :class="[typeColor.bg, typeColor.text]"
                   class="type-badge"
                 >
                   {{ typeLabel }}
-                </UBadge>
-                <UBadge v-if="quest.quest_category" variant="secondary" class="category-badge">
+                </Badge>
+                <Badge v-if="quest.quest_category" variant="secondary" class="category-badge">
                   {{ quest.quest_category }}
-                </UBadge>
-                <UBadge v-if="isChainQuest" variant="outline" class="chain-badge">
+                </Badge>
+                <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
                   <Icon icon="mdi:link-variant" class="inline-icon" />
                   {{ chainPosition }}
-                </UBadge>
+                </Badge>
               </div>
 
               <h1 class="quest-title">{{ quest.title }}</h1>
@@ -238,12 +240,18 @@ const goBack = () => {
             <div class="quest-content-grid">
               <!-- Left Column: Description & Details -->
               <div class="quest-main-content">
-                <UCard title="Description" class="description-card">
+                <Card class="description-card gap-0">
+                  <div class="mb-4 border-b border-gray-700 pb-4">
+                    <h3 class="text-xl font-bold terminal-glow text-theme-primary">Description</h3>
+                  </div>
                   <p class="quest-description">{{ quest.long_description }}</p>
-                </UCard>
+                </Card>
 
                 <!-- Prerequisites Section -->
-                <UCard v-if="hasPrerequisites" title="Prerequisites" class="prerequisites-card">
+                <Card class="prerequisites-card gap-0">
+                  <div class="mb-4 border-b border-gray-700 pb-4">
+                    <h3 class="text-xl font-bold terminal-glow text-theme-primary">Prerequisites</h3>
+                  </div>
                   <ul class="prerequisites-list">
                     <li
                       v-for="req in quest.quest_requirements"
@@ -261,10 +269,13 @@ const goBack = () => {
                       </div>
                     </li>
                   </ul>
-                </UCard>
+                </Card>
 
                 <!-- Chain Progress Section -->
-                <UCard v-if="isChainQuest" title="Quest Chain" class="chain-card">
+                <Card class="chain-card gap-0">
+                  <div class="mb-4 border-b border-gray-700 pb-4">
+                    <h3 class="text-xl font-bold terminal-glow text-theme-primary">Quest Chain</h3>
+                  </div>
                   <div class="chain-info">
                     <p class="chain-text">
                       This quest is part of a series. Complete all quests in the chain for
@@ -281,12 +292,15 @@ const goBack = () => {
                       <span v-else>Unlocks next quest upon completion</span>
                     </div>
                   </div>
-                </UCard>
+                </Card>
               </div>
 
               <!-- Right Column: Rewards & Actions -->
               <div class="quest-sidebar">
-                <UCard title="Rewards" class="rewards-card">
+                <Card class="rewards-card gap-0">
+                  <div class="mb-4 border-b border-gray-700 pb-4">
+                    <h3 class="text-xl font-bold terminal-glow text-theme-primary">Rewards</h3>
+                  </div>
                   <div
                     v-if="quest.quest_rewards && quest.quest_rewards.length > 0"
                     class="rewards-list"
@@ -307,24 +321,24 @@ const goBack = () => {
                     <Icon icon="mdi:text" class="reward-icon" />
                     <span>{{ quest.rewards }}</span>
                   </div>
-                </UCard>
+                </Card>
 
                 <!-- Action Section -->
                 <div class="action-section">
-                  <UButton
+                  <Button
                     v-if="canStart"
-                    variant="primary"
+                    variant="default"
                     class="action-btn"
                     @click="handleStartQuest"
                   >
                     <Icon icon="mdi:play" class="btn-icon" />
                     Start Quest
-                  </UButton>
+                  </Button>
 
-                  <UButton v-else-if="isRewardReady" variant="primary" class="action-btn" @click="openClaimModal">
+                  <Button v-else-if="isRewardReady" variant="default" class="action-btn" @click="openClaimModal">
                     <Icon icon="mdi:treasure-chest" class="btn-icon" />
                     Claim Rewards
-                  </UButton>
+                  </Button>
 
                   <div v-else-if="isInProgress" class="active-message">
                     <Icon icon="mdi:progress-clock" class="message-icon" />

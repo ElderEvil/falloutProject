@@ -9,7 +9,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UTabs } from '@/core/components/ui'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { ObjectiveCard } from '../components'
 import ObjectiveCompleteModal from '../components/ObjectiveCompleteModal.vue'
 
@@ -111,8 +111,13 @@ function closeClaimModal(): void {
               />
             </div>
 
-            <UTabs v-else v-model="activeTab" :tabs="objectiveTabs">
-              <template #default>
+            <Tabs v-else :model-value="activeTab" @update:model-value="activeTab = String($event)">
+              <TabsList>
+                <TabsTrigger v-for="tab in objectiveTabs" :key="tab.key" :value="tab.key">
+                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                  {{ tab.label }}
+                </TabsTrigger>
+              </TabsList>
                 <div v-if="activeTab === 'daily'" class="tab-content">
                   <div v-if="dailyObjectives.length === 0" class="empty-state">
                     <p>No daily objectives available</p>
@@ -167,8 +172,7 @@ function closeClaimModal(): void {
                     />
                   </div>
                 </div>
-              </template>
-            </UTabs>
+            </Tabs>
           </div>
         </PageContentRail>
       </div>

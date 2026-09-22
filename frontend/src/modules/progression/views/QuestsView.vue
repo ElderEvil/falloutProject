@@ -13,7 +13,7 @@ import { useToast } from '@/core/composables/useToast'
 import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
-import { UButton, UTabs } from '@/core/components/ui'
+import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
@@ -241,8 +241,13 @@ onMounted(async () => {
               subtitle="Deploy teams, track missions & collect rewards."
             />
 
-            <UTabs v-model="activeTab" :tabs="questTabs">
-              <template #default>
+            <Tabs :model-value="activeTab" @update:model-value="activeTab = String($event)">
+              <TabsList>
+                <TabsTrigger v-for="tab in questTabs" :key="tab.key" :value="tab.key">
+                  <Icon v-if="tab.icon" :icon="tab.icon" class="mr-2 inline" :ariaHidden="true" />
+                  {{ tab.label }}
+                </TabsTrigger>
+              </TabsList>
                 <!-- Active & Available Quests -->
                 <div v-if="activeTab === 'active'" class="tab-content">
                   <div v-if="readyToClaimQuests.length > 0" class="quest-section">
@@ -338,8 +343,7 @@ onMounted(async () => {
                     />
                   </div>
                 </div>
-              </template>
-            </UTabs>
+            </Tabs>
           </div>
 
           <!-- Party Selection Modal -->

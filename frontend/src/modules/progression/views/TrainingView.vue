@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import UProgressBar from '@/core/components/ui/UProgressBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import TrainingQueuePanel from '@/modules/progression/components/training/TrainingQueuePanel.vue'
 import TrainingRoomCard from '@/modules/progression/components/training/TrainingRoomCard.vue'
 import ApprenticeSection from '@/modules/progression/components/training/ApprenticeSection.vue'
@@ -134,11 +134,10 @@ onMounted(async () => {
                 >{{ activeTrainings.length }} / {{ totalCapacity }}</span
               >
             </div>
-            <UProgressBar
+            <Progress
+              class="bar-fill h-2"
+              :style="{ '--bar-fill': 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))' }"
               :model-value="capacityPercent"
-              :height="8"
-              color="linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))"
-              :glow="false"
             />
           </div>
         </section>
@@ -239,6 +238,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+:deep(.bar-fill [data-slot='progress-indicator']) {
+  background: var(--bar-fill);
+}
+
 .training-reference {
   display: flex;
   flex-direction: column;

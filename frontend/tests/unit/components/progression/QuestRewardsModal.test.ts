@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { UButton, UModal } from '@/core/components/ui'
+import { UButton } from '@/core/components/ui'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
@@ -41,7 +41,7 @@ describe('QuestRewardsModal', () => {
       global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.findComponent(UModal).props('size')).toBe('wide')
+    expect(wrapper.find('[data-slot="dialog-content"]').classes()).toContain('max-w-xl')
     expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
     expect(wrapper.get('.quest-return-banner').classes()).toContain('border-theme-primary/30')
     expect(wrapper.get('.quest-return-banner').classes()).toContain('mb-6')

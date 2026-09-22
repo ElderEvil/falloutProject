@@ -1,5 +1,5 @@
 {
-  "count": 48,
+  "count": 47,
   "files": [
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -46,7 +46,6 @@
     "core/components/ui/UTooltip.test.ts",
     "modules/profile/components/AIUsageCard.test.ts",
     "views/ExplorationDetailView.test.ts",
-    "views/QuestsView.test.ts",
     "views/RelationshipsView.test.ts",
     "views/TrainingView.test.ts"
   ]

@@ -34,18 +34,10 @@ const tabs = [
 
         <Tabs
           :model-value="activeTab"
-          class="gap-0"
           @update:model-value="(value) => (activeTab = String(value))"
         >
-          <TabsList
-            class="mb-6 h-auto w-full justify-start gap-2 rounded-none border-b-2 border-(--color-theme-glow) bg-transparent p-0 group-data-horizontal/tabs:h-auto"
-          >
-            <TabsTrigger
-              v-for="tab in tabs"
-              :key="tab.key"
-              :value="tab.key"
-              class="-mb-0.5 h-auto flex-none rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-6 py-3 text-[0.95rem] font-semibold text-(--color-theme-glow) text-shadow-[0_0_3px_var(--color-theme-glow)] transition-all duration-200 group-data-[variant=default]/tabs-list:data-active:shadow-none! hover:bg-(--color-theme-glow) hover:text-theme-primary hover:text-shadow-[0_0_6px_var(--color-theme-glow)] data-active:border-b-theme-primary data-active:bg-(--color-theme-glow) data-active:text-theme-primary data-active:text-shadow-[0_0_8px_var(--color-theme-glow)]"
-            >
+          <TabsList>
+            <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
               {{ tab.label }}
             </TabsTrigger>
           </TabsList>

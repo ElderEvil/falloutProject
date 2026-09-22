@@ -24,6 +24,7 @@ config.global.stubs = {
   Dialog: { props: ['open'], template: '<div v-if="open" class="mock-modal"><slot /></div>' },
   DialogContent: { template: '<div><slot /></div>' },
   DialogHeader: { template: '<div><slot /></div>' },
+  DialogTitle: { template: '<div><slot /></div>' },
   Button: {
     props: ['disabled'],
     template: '<button class="mock-button" :disabled="disabled"><slot /></button>',

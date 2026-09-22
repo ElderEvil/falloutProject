@@ -269,6 +269,7 @@ const closeLunchboxModal = async () => {
 
 <template>
   <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
+    <div class="scanlines"></div>
     <SidePanel />
 
     <div
@@ -349,16 +350,9 @@ const closeLunchboxModal = async () => {
       </div>
 
       <!-- Tabs -->
-        <Tabs :model-value="activeTab" class="mb-8 gap-0" @update:model-value="(value) => selectTab(String(value))">
-          <TabsList
-            class="mb-6 h-auto w-full justify-start gap-2 rounded-none border-b-2 border-(--color-theme-glow) bg-transparent p-0 group-data-horizontal/tabs:h-auto"
-          >
-            <TabsTrigger
-              v-for="tab in tabs"
-              :key="tab.key"
-              :value="tab.key"
-              class="-mb-0.5 h-auto flex-none rounded-none border-0 border-b-2 border-b-transparent bg-transparent px-6 py-3 text-[0.95rem] font-semibold text-(--color-theme-glow) text-shadow-[0_0_3px_var(--color-theme-glow)] transition-all duration-200 group-data-[variant=default]/tabs-list:data-active:shadow-none! hover:bg-(--color-theme-glow) hover:text-theme-primary hover:text-shadow-[0_0_6px_var(--color-theme-glow)] data-active:border-b-theme-primary data-active:bg-(--color-theme-glow) data-active:text-theme-primary data-active:text-shadow-[0_0_8px_var(--color-theme-glow)]"
-            >
+        <Tabs :model-value="activeTab" @update:model-value="(value) => selectTab(String(value))">
+          <TabsList>
+            <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
               {{ tab.label }}
             </TabsTrigger>
           </TabsList>
@@ -413,3 +407,16 @@ const closeLunchboxModal = async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 50%, transparent 50%);
+  background-size: 100% 2px;
+  pointer-events: none;
+}
+</style>

@@ -3,7 +3,9 @@
  * ChangelogModal - Displays version updates and changelog information
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { UCard, UButton, UBadge } from '@/core/components/ui'
+import { Badge } from '@/core/components/ui/badge'
+import { Button } from '@/core/components/ui/button'
+import { Card } from '@/core/components/ui/card'
 import { Icon } from '@iconify/vue'
 import {
   changelogService,
@@ -141,27 +143,29 @@ onUnmounted(() => {
         class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
         @click="$emit('close')"
       >
-        <UCard
-          glow
-          crt
-          class="w-full max-w-4xl max-h-[85vh] overflow-hidden !bg-surface-warm"
+        <!-- @vue-ignore -->
+        <!-- @vue-ignore -->
+        <Card
+          class="w-full max-w-4xl max-h-[85vh] overflow-hidden gap-0 rounded-lg border-2 border-theme-primary/20 p-6 shadow-glow-md ring-0 crt-screen !bg-surface-warm"
           @click.stop
         >
-          <template #header>
+          <div class="mb-4 border-b border-gray-700 pb-4">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-3">
                 <Icon icon="mdi:history" class="h-7 w-7 text-terminal-green" />
                 <h2 class="text-2xl font-bold text-terminal-green">What's New</h2>
               </div>
-              <button
-                @click="$emit('close')"
-                class="text-gray-400 hover:text-terminal-green transition-colors p-1"
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="text-gray-400 hover:bg-transparent hover:text-terminal-green transition-colors"
                 aria-label="Close modal"
+                @click="$emit('close')"
               >
                 <Icon icon="mdi:close" class="h-6 w-6" />
-              </button>
+              </Button>
             </div>
-          </template>
+          </div>
 
           <!-- Loading state -->
           <div v-if="loading" class="flex items-center justify-center py-12">
@@ -171,7 +175,7 @@ onUnmounted(() => {
           <!-- Error state -->
           <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
             <div class="text-red-400 mb-4">{{ error }}</div>
-            <UButton variant="primary" @click="fetchChangelog">Retry</UButton>
+            <Button variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="fetchChangelog">Retry</Button>
           </div>
 
           <!-- No new versions -->
@@ -195,7 +199,7 @@ onUnmounted(() => {
                 class="flex items-center justify-between mb-4 pb-2 border-b border-terminal-green/30"
               >
                 <div class="flex items-center gap-3">
-                  <UBadge variant="success" class="text-lg"> v{{ entry.version }} </UBadge>
+                  <Badge variant="default" class="text-lg"> v{{ entry.version }} </Badge>
                   <span class="text-gray-400 text-sm font-mono">{{ entry.date_display }}</span>
                 </div>
               </div>
@@ -235,22 +239,22 @@ onUnmounted(() => {
           </div>
 
           <!-- Actions -->
-          <template #footer>
+          <div class="mt-4 border-t border-gray-700 pt-4">
             <div class="flex justify-between items-center">
               <div class="flex gap-3">
-                <UButton variant="secondary" @click="handleViewAllChangelog">
+                <Button variant="outline" class="border-2 border-theme-primary bg-transparent" @click="handleViewAllChangelog">
                   View Full Changelog
-                </UButton>
+                </Button>
               </div>
 
               <div class="flex gap-3">
-                <UButton v-if="hasNewVersions" variant="primary" @click="handleMarkAsSeen">
+                <Button v-if="hasNewVersions" variant="default" class="border-2 border-theme-primary hover:shadow-glow-md" @click="handleMarkAsSeen">
                   Got it!
-                </UButton>
+                </Button>
               </div>
             </div>
-          </template>
-        </UCard>
+          </div>
+        </Card>
       </div>
     </Transition>
   </Teleport>

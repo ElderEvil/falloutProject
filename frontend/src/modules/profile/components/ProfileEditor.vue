@@ -117,21 +117,22 @@
       </div>
 
       <div class="flex flex-col gap-3 border-t border-theme-primary/20 pt-5 sm:flex-row">
-        <UButton
+        <Button
           type="submit"
-          :loading="loading"
-          block
+          :disabled="loading"
+          class="w-full"
         >
+          <Icon v-if="loading" icon="mdi:loading" class="mr-1 animate-spin" />
           {{ loading ? 'Saving...' : 'Save Changes' }}
-        </UButton>
-        <UButton
+        </Button>
+        <Button
           type="button"
           variant="secondary"
-          block
+          class="w-full"
           @click="$emit('cancel')"
         >
           Cancel
-        </UButton>
+        </Button>
       </div>
     </form>
   </div>
@@ -141,7 +142,8 @@
 import { ref, watch, computed } from 'vue'
 import type { ProfileUpdate } from '@/modules/profile/models/profile'
 import { useTheme, type ThemeName } from '@/core/composables/useTheme'
-import { UButton } from '@/core/components/ui'
+import { Button } from '@/core/components/ui/button'
+import { Icon } from '@iconify/vue'
 
 interface Props {
   initialData: {

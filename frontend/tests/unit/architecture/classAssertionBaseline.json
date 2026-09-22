@@ -1,5 +1,5 @@
 {
-  "count": 50,
+  "count": 48,
   "files": [
     "components/combat/EquipmentCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -28,9 +28,7 @@
     "components/map/MapMarker.test.ts",
     "components/map/MarkerListPanel.test.ts",
     "components/map/WorldMap.test.ts",
-    "components/profile/ChangelogModal.test.ts",
     "components/profile/ProfileEditor.test.ts",
-    "components/profile/VaultOperationsCard.test.ts",
     "components/progression/QuestCard.test.ts",
     "components/progression/QuestRewardsModal.test.ts",
     "components/rooms/RoomDetailModal.test.ts",

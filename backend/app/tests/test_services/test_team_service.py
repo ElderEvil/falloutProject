@@ -269,6 +269,16 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
     link.duration_minutes = 60
     await async_session.commit()
 
+    await quest_service.start_quest_return(async_session, quest.id, vault.id)
+    await async_session.refresh(link)
+    await async_session.refresh(dweller)
+    assert link.return_completes_at is not None
+    assert link.is_reward_ready is False
+    assert dweller.status == DwellerStatusEnum.QUESTING
+
+    link.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    await async_session.commit()
+
     await quest_service.mark_quest_ready_to_claim(async_session, quest.id, vault.id)
     await async_session.refresh(link)
     await async_session.refresh(dweller)

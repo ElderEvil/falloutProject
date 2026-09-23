@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.136.2 (2026-09-23)
+
+### Bug Fixes
+
+* **rooms:** unify room menu build details ([#769](https://github.com/ElderEvil/falloutProject/issues/769)) e470edc
+
 ## 2.136.1 (2026-09-23)
 
 ### Code Refactoring

@@ -8,6 +8,7 @@ withDefaults(
     monogram?: string
     color: string
     label: string
+    category?: string
     showLabel?: boolean
     size?: 'sm' | 'md'
   }>(),
@@ -31,7 +32,7 @@ withDefaults(
           <span v-if="showLabel" class="badge-label">{{ label }}</span>
         </span>
       </TooltipTrigger>
-      <TooltipContent side="top">{{ label }}</TooltipContent>
+      <TooltipContent side="top">{{ category ? `${category}: ${label}` : label }}</TooltipContent>
     </Tooltip>
   </TooltipProvider>
 </template>

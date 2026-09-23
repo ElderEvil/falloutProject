@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { useDwellerDetailContext } from './DwellerDetailContext'
 import { dwellerDetailSections } from '../composables/useDwellerDetailSections'
 
@@ -18,8 +18,6 @@ watch(
 )
 
 const tabs = dwellerDetailSections.map(({ key, label }) => ({ key, label }))
-const sectionComponent = (key: string) =>
-  dwellerDetailSections.find((section) => section.key === key)?.component
 </script>
 
 <template>
@@ -30,9 +28,14 @@ const sectionComponent = (key: string) =>
           {{ tab.label }}
         </TabsTrigger>
       </TabsList>
-      <div class="tab-content">
-        <component :is="sectionComponent(activeTab)" />
-      </div>
+      <TabsContent
+        v-for="section in dwellerDetailSections"
+        :key="section.key"
+        :value="section.key"
+        class="py-2"
+      >
+        <component :is="section.component" />
+      </TabsContent>
     </Tabs>
   </div>
 </template>
@@ -45,9 +48,5 @@ const sectionComponent = (key: string) =>
   border: 2px solid var(--color-theme-glow);
   border-radius: 8px;
   box-shadow: 0 0 15px var(--color-theme-glow);
-}
-
-.tab-content {
-  min-height: 0;
 }
 </style>

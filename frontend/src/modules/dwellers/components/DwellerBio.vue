@@ -185,15 +185,14 @@ function entryHtml(text: string): string {
 
 <template>
   <div class="dweller-bio">
-    <div class="bio-header panel-header">
-      <h3 class="bio-title panel-title">Biography</h3>
+    <div class="bio-header">
       <div class="header-buttons">
         <TooltipProvider :delay-duration="200">
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
                 class="complete-dossier-button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 :disabled="isAnyGenerating"
                 @click="ctx.actions.generateAll()"
@@ -214,7 +213,7 @@ function entryHtml(text: string): string {
               <Button
                 @click="ctx.actions.generateBio()"
                 class="generate-button"
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 :disabled="isAnyGenerating"
               >
@@ -233,7 +232,7 @@ function entryHtml(text: string): string {
             <TooltipTrigger as-child>
               <Button
                 class="extend-bio-button"
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 :disabled="isAnyGenerating"
                 @click="ctx.actions.extendBio()"
@@ -312,6 +311,14 @@ function entryHtml(text: string): string {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.bio-header {
+  display: flex;
+  justify-content: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .header-buttons {

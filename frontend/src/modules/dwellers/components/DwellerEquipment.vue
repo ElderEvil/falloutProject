@@ -80,10 +80,6 @@ const modalIcon = computed(() =>
 
 <template>
   <div class="dweller-equipment">
-    <div class="panel-header">
-      <h3 class="equipment-title panel-title">Equipment</h3>
-    </div>
-
     <div class="equipment-grid">
       <!-- Weapon Slot -->
       <div class="equipment-slot">

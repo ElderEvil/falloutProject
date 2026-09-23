@@ -59,7 +59,7 @@ const exploreTooltip = computed(() =>
     <TooltipProvider :delay-duration="200">
       <Tooltip v-if="dweller.room === null && !isGone">
         <TooltipTrigger as-child>
-          <Button variant="secondary" class="w-full" @click="emit('assign')" :disabled="loading">
+          <Button variant="outline" class="w-full" @click="emit('assign')" :disabled="loading">
             <Icon
               :icon="isMatureDweller ? 'mdi:office-building' : 'mdi:school-outline'"
               class="h-5 w-5 mr-2"
@@ -76,7 +76,7 @@ const exploreTooltip = computed(() =>
 
       <Tooltip v-else-if="!isGone">
         <TooltipTrigger as-child>
-          <Button variant="secondary" class="w-full" @click="emit('unassign')" :disabled="loading">
+          <Button variant="outline" class="w-full" @click="emit('unassign')" :disabled="loading">
             <Icon icon="mdi:close-circle" class="h-5 w-5 mr-2" />
             Unassign
           </Button>
@@ -87,7 +87,7 @@ const exploreTooltip = computed(() =>
       <Tooltip v-if="!isGone">
         <TooltipTrigger as-child>
           <Button
-            variant="secondary"
+            variant="outline"
             class="w-full"
             @click="emit('send-wasteland')"
             :disabled="loading || !isMatureDweller"
@@ -101,7 +101,7 @@ const exploreTooltip = computed(() =>
 
       <Tooltip v-if="isReturning">
         <TooltipTrigger as-child>
-          <Button variant="secondary" class="w-full" disabled>
+          <Button variant="outline" class="w-full" disabled>
             <Icon icon="mdi:home-import-outline" class="h-5 w-5 mr-2" />
             Returning
           </Button>
@@ -111,7 +111,7 @@ const exploreTooltip = computed(() =>
 
       <Tooltip v-else-if="canRecall">
         <TooltipTrigger as-child>
-          <Button variant="secondary" class="w-full" @click="emit('recall')" :disabled="loading">
+          <Button variant="outline" class="w-full" @click="emit('recall')" :disabled="loading">
             <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />
             Recall
           </Button>
@@ -122,7 +122,7 @@ const exploreTooltip = computed(() =>
       <Tooltip v-if="!isGone">
         <TooltipTrigger as-child>
           <Button
-            variant="secondary"
+            variant="outline"
             class="w-full"
             @click="emit('train')"
             :disabled="loading || isTraining"

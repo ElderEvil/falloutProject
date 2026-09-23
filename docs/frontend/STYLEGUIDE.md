@@ -169,6 +169,9 @@ Utility classes in `tailwind.css` make the intent enforceable by construction:
   hover emphasis either.
 - `.badge-action` — clicking the badge does something; behaves like a button (glow on hover). Use sparingly — most
   badges are facts.
+- **Shape encodes lifetime.** Live-status chips (the dweller status badge, alert chips such as "Unassigned"/"No room",
+  role match) are squared (`--border-radius-base`); informational fact badges (age group, gender, rarity, identity)
+  stay pills. The square corner marks state that can change; the pill marks a permanent attribute.
 
 ### Buttons & space budget
 
@@ -312,6 +315,7 @@ This section records the current visual decisions for vault-management screens. 
 - Tabs only: the tab label is the header. Do not repeat the active tab name as an `h2` section title under `TabsList`.
 - Subsections inside one tab (e.g. a "rewards ready" group next to the active list) keep their own headings; per-tab titles do not.
 - Filters and toggles that belong to a tab sit in a plain row above the content, with no header row and no separator border.
+- Tab panels render through `TabsContent`, never a raw `div`, so the `tabpanel` role and its tab linkage stay intact; panels carry `py-2`.
 
 ### Information hierarchy
 

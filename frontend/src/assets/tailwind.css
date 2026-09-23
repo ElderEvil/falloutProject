@@ -445,18 +445,6 @@ body {
     margin-bottom: 1rem;
 }
 
-/* Panel section title — one heading treatment for every detail-panel tab
-   (dweller profile, appearance, stats, equipment, family). The separator is a
-   full-width rule owned by the tab's own header row, so the title itself draws
-   no line and panels cannot end up with two. */
-.panel-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-theme-primary);
-    text-shadow: 0 0 8px var(--color-theme-glow);
-    margin: 0;
-}
-
 /* Badge intents — see STYLEGUIDE → "Intent & Emphasis Semantics".
    A badge must never out-glow an adjacent button. */
 .badge-info {

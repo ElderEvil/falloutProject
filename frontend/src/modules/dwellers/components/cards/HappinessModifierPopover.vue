@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
+import { onClickOutside } from '@vueuse/core'
 import { Button } from '@/core/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -16,6 +17,12 @@ interface Props {
 const props = defineProps<Props>()
 
 const showModifiers = ref(false)
+const popoverRoot = ref<HTMLElement | null>(null)
+
+onClickOutside(popoverRoot, () => {
+  showModifiers.value = false
+})
+
 const happinessModifiers = ref<HappinessModifiers | null>(null)
 const { run: runLoadModifiers, isLoading: loadingModifiers } = useAsyncAction(
   (dwellerId: string) => happinessService.getDwellerModifiers(dwellerId),
@@ -37,7 +44,7 @@ const loadHappinessModifiers = async () => {
 </script>
 
 <template>
-  <div>
+  <div ref="popoverRoot">
     <TooltipProvider :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
@@ -102,55 +109,21 @@ const loadHappinessModifiers = async () => {
 </template>
 
 <style scoped>
-.happiness-info-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.happiness-info-button:hover:not(:disabled) {
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
-  transform: scale(1.1);
-}
-
-.happiness-info-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Floating readout: fully opaque so the card's bars and labels can never bleed
-   through, with a faint scanline texture to keep the CRT feel. */
+/* Floating readout: stays fully opaque so the card's bars and labels cannot
+   bleed through, but uses the same flat surface + faint border as the app's
+   other floating panels instead of a textured acrylic sheen. */
 .happiness-modifiers {
   position: absolute;
   right: 0;
   top: 100%;
   z-index: 10;
   min-width: 220px;
-  background-color: var(--color-surface-sunken);
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.035) 0,
-      rgba(255, 255, 255, 0.035) 1px,
-      transparent 1px,
-      transparent 3px
-    ),
-    radial-gradient(
-      120% 100% at 50% 0%,
-      color-mix(in srgb, var(--color-theme-primary) 10%, transparent),
-      transparent 70%
-    );
-  border: 1px solid var(--color-theme-primary);
+  background: var(--color-surface-canvas);
+  border: 1px solid color-mix(in srgb, var(--color-theme-primary) 20%, transparent);
   border-radius: 6px;
   padding: 0.75rem;
   margin-top: 0.5rem;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
   animation: slideDown 0.2s ease-out;
 }
 
@@ -180,24 +153,6 @@ const loadHappinessModifiers = async () => {
   color: var(--color-theme-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.close-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--color-theme-primary);
-  padding: 0.25rem;
-  border-radius: 50%;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-button:hover {
-  background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.2);
-  transform: rotate(90deg);
 }
 
 .modifiers-section {

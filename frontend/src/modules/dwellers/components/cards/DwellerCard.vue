@@ -183,7 +183,7 @@ const canUseRadaway = computed(
             <div class="supply-actions">
               <Button
                 v-if="canUseStimpak"
-                variant="secondary"
+                variant="outline"
                 size="xs"
                 aria-label="Use Stimpack"
                 title="Use one Stimpak (heals dweller)"
@@ -195,7 +195,7 @@ const canUseRadaway = computed(
               </Button>
               <Button
                 v-if="canIssueStimpack"
-                variant="ghost"
+                variant="outline"
                 size="xs"
                 aria-label="Issue Stimpack from vault"
                 :title="`Issue one Stimpak from vault (${availableStimpaksCount} available)`"
@@ -216,7 +216,7 @@ const canUseRadaway = computed(
             <div class="supply-actions">
               <Button
                 v-if="canUseRadaway"
-                variant="secondary"
+                variant="outline"
                 size="xs"
                 aria-label="Use RadAway"
                 title="Use one RadAway (reduces radiation)"
@@ -228,7 +228,7 @@ const canUseRadaway = computed(
               </Button>
               <Button
                 v-if="canIssueRadaway"
-                variant="ghost"
+                variant="outline"
                 size="xs"
                 aria-label="Issue RadAway from vault"
                 :title="`Issue one RadAway from vault (${availableRadawaysCount} available)`"

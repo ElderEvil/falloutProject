@@ -52,21 +52,12 @@ describe('DwellerAlertLine', () => {
     expect(wrapper.text()).toContain('Unhappy — 30%')
   })
 
-  it('flags an unassigned adult', () => {
-    const wrapper = mountAlertLine({ room: null, status: 'idle' })
+  it('flags an unassigned dweller with a single short label', () => {
+    const adult = mountAlertLine({ room: null, status: 'idle' })
+    expect(adult.find('.alert-chip').text()).toBe('Unassigned')
 
-    expect(wrapper.text()).toContain('Unassigned — no room')
-  })
-
-  it('flags an unassigned youth as missing an apprenticeship', () => {
-    const wrapper = mountAlertLine({
-      room: null,
-      status: 'idle',
-      is_adult: false,
-      age_group: 'child',
-    })
-
-    expect(wrapper.text()).toContain('Unassigned — no apprenticeship')
+    const youth = mountAlertLine({ room: null, status: 'idle', is_adult: false, age_group: 'child' })
+    expect(youth.find('.alert-chip').text()).toBe('Unassigned')
   })
 
   it('stays silent for a deceased dweller', () => {

@@ -7,6 +7,7 @@ import { formatIdentityLabel, RACE_CONFIG_MAP, type VisualAttributes } from '../
 interface Props {
   visualAttributes?: VisualAttributes | null
   compact?: boolean
+  hideRace?: boolean
 }
 
 interface IdentitySignal {
@@ -15,7 +16,7 @@ interface IdentitySignal {
   label: string
 }
 
-const props = withDefaults(defineProps<Props>(), { compact: false })
+const props = withDefaults(defineProps<Props>(), { compact: false, hideRace: false })
 
 const featureFlags = useFeatureFlagsStore()
 
@@ -57,9 +58,11 @@ const identitySignals = computed<IdentitySignal[]>(() => {
   const attributes = props.visualAttributes
   if (!attributes) return []
 
-  const values = featureFlags.factionMechanics
-    ? [attributes.race, attributes.faction, attributes.state_of_being]
-    : [attributes.race, attributes.state_of_being]
+  const values = [
+    props.hideRace ? undefined : attributes.race,
+    featureFlags.factionMechanics ? attributes.faction : undefined,
+    attributes.state_of_being,
+  ]
 
   return values
     .filter((value): value is NonNullable<typeof value> => value != null)

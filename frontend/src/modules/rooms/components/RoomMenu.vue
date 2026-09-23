@@ -132,16 +132,10 @@ onUnmounted(() => {
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-@media (max-width: 768px) {
-  .rooms-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  }
 }
 </style>

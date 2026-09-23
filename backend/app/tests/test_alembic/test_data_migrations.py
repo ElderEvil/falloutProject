@@ -37,6 +37,8 @@ OUTFIT_RESIST_PARENT = "f0e1d2c3b4a5"
 OUTFIT_RESIST_REVISION = "e5f6a7b8c9d0"
 RELATIONSHIP_REPAIR_PARENT = "32bf7f844093"
 RELATIONSHIP_REPAIR_REVISION = "f0e1d2c3b4a5"
+QUEST_RETURN_PARENT = "d5e6f7a8b9c0"
+QUEST_COMPLETION_REVISION = "8dca68ba234c"
 
 #: Every dweller column that has no server default at this revision, plus the flags the
 #: assertions read. Plain literal (no interpolation) so the statement stays parameterised.
@@ -453,3 +455,46 @@ class TestRepairDuplicateCommittedRelationshipsMigration:
 
         # downgrade() is a documented no-op: demoted rows stay demoted.
         assert rel_type(star_demoted) == "EX"
+
+
+class TestQuestCompletionDetailsMigration:
+    """The completion-detail columns are nullable and preserve legacy NULLs."""
+
+    def test_adds_nullable_columns_and_downgrade_drops_them(self, harness: MigrationHarness) -> None:
+        harness.upgrade(QUEST_RETURN_PARENT)
+        vault_id = _seed_vault(harness, number=904)
+        quest_id = str(uuid.uuid4())
+        harness.execute(
+            "INSERT INTO quest (id, title, short_description, long_description, requirements, rewards, "
+            "quest_type, chain_order, created_at, updated_at) "
+            "VALUES (:id, 'Legacy Quest', 'Legacy', 'A pre-migration quest.', 'None', 'None', "
+            "CAST(:quest_type AS questtype), 0, now(), now())",
+            id=quest_id,
+            quest_type="SIDE",
+        )
+        harness.execute(
+            "INSERT INTO vaultquestcompletionlink (vault_id, quest_id, is_completed, is_reward_ready, is_visible) "
+            "VALUES (:vault_id, :quest_id, true, true, true)",
+            vault_id=vault_id,
+            quest_id=quest_id,
+        )
+
+        harness.upgrade(QUEST_COMPLETION_REVISION)
+
+        # NULL is the correct state for pre-existing rows: completed_at is not
+        # derivable from return_completes_at and granted rewards were never stored.
+        assert harness.fetch(
+            "SELECT completed_at, granted_rewards FROM vaultquestcompletionlink WHERE quest_id = :quest_id",
+            quest_id=quest_id,
+        ) == [(None, None)]
+
+        harness.downgrade(QUEST_RETURN_PARENT)
+
+        assert (
+            harness.scalar(
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_name = 'vaultquestcompletionlink' "
+                "AND column_name IN ('completed_at', 'granted_rewards')"
+            )
+            == 0
+        )

@@ -281,8 +281,11 @@ class QuestService:
         quest = None
         try:
             quest = await crud.quest_crud.get(db_session, quest_id)
-            await crud.quest_crud.mark_completed(db_session, quest_id=quest_id, vault_id=vault_id)
+            completed_link = await crud.quest_crud.mark_completed(db_session, quest_id=quest_id, vault_id=vault_id)
             granted_rewards = await self._settle_quest_rewards(db_session, quest, vault_id)
+            completed_link.granted_rewards = [
+                granted_reward_adapter.validate_python(reward).model_dump(mode="json") for reward in granted_rewards
+            ]
             await db_session.commit()
         except Exception:
             await db_session.rollback()

@@ -307,6 +307,12 @@ This section records the current visual decisions for vault-management screens. 
 - Rich detail content may use a narrower, centered inner column. Exploration details use `max-w-[1200px]` inside the shared outer rail so the reading flow stays centered.
 - Keep distinct sections visibly separate; timeline/event-log blocks need top spacing from the content above them.
 
+### Tabbed interfaces
+
+- Tabs only: the tab label is the header. Do not repeat the active tab name as an `h2` section title under `TabsList`.
+- Subsections inside one tab (e.g. a "rewards ready" group next to the active list) keep their own headings; per-tab titles do not.
+- Filters and toggles that belong to a tab sit in a plain row above the content, with no header row and no separator border.
+
 ### Information hierarchy
 
 - Keep operational summaries compact: move a metric's trend beside its value instead of spending a separate row when space is limited.

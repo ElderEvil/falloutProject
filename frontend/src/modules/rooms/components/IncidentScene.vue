@@ -123,8 +123,8 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
           <strong>{{ incident.progress.label }}</strong>
           <Progress
             :model-value="progressPercent"
-            class="hazard-progress bar-fill h-2"
-            :style="{ '--bar-fill': 'var(--color-warning)' }"
+            class="h-2"
+            tone="warning"
           />
           <span
             >{{ incident.risk.rooms_affected }} room{{
@@ -258,9 +258,7 @@ const containmentGain = computed(() => Math.round(Number(latestEffect.value?.dat
   color: var(--color-warning);
 }
 
-.hazard-progress :deep([data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}.hazard-flame {
+.hazard-flame {
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;

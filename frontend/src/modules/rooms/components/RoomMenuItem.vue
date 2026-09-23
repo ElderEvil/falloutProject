@@ -109,8 +109,8 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
             v-if="isLocked"
             :model-value="populationProgress"
             aria-label="Population requirement progress"
-            class="population-progress bar-fill h-1"
-            :style="{ '--bar-fill': 'var(--color-info)' }"
+            class="population-progress h-1"
+            tone="info"
           />
         </div>
 
@@ -259,11 +259,5 @@ const categoryIcon = computed(() => categoryIcons[props.room.category.toLowerCas
   border-radius: 2px;
   background: rgb(136 204 255 / 0.2);
   box-shadow: none;
-}
-
-.population-progress :deep([data-slot='progress-indicator']) {
-  border-radius: 2px;
-  background: var(--bar-fill);
-  box-shadow: 0 0 4px rgba(136, 204, 255, 0.5);
 }
 </style>

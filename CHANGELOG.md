@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.134.1 (2026-09-23)
+
+### Bug Fixes
+
+* clean up completed quest detail layout ([#754](https://github.com/ElderEvil/falloutProject/issues/754)) e7929a5
+
 ## 2.134.0 (2026-09-23)
 
 ### Features

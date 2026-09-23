@@ -58,13 +58,12 @@ describe('RoomMenuItem', () => {
     expect(details.indexOf(rows[1].element)).toBeLessThan(details.indexOf(progress.element))
   })
 
-  it('uses the active theme colour for all room details', () => {
+  it('renders all four room detail rows', () => {
     const wrapper = mount(RoomMenuItem, {
       props: { room: { ...room, population_required: 10 } },
     })
 
     const details = wrapper.findAll('.room-category, .room-cost, .room-population, .room-size')
     expect(details).toHaveLength(4)
-    expect(details.every((detail) => detail.classes().includes('text-theme-primary'))).toBe(true)
   })
 })

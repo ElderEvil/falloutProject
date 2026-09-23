@@ -8,6 +8,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const routerPushMock = vi.hoisted(() => vi.fn())
+const routerReplaceMock = vi.hoisted(() => vi.fn())
 
 // Reactive query so tests can drive the deep-linked quest detail modal.
 const routeQuery = reactive<Record<string, string | undefined>>({})
@@ -19,6 +20,7 @@ vi.mock('vue-router', () => ({
   }),
   useRouter: () => ({
     push: routerPushMock,
+    replace: routerReplaceMock,
   }),
 }))
 
@@ -542,6 +544,64 @@ describe('QuestsView', () => {
       expect(startSpy).not.toHaveBeenCalled()
     })
 
+    it('orders available quests by required level', async () => {
+      const baseQuest = {
+        id: 'q',
+        title: 'Base',
+        short_description: 'Test quest',
+        long_description: 'Test quest description',
+        requirements: '',
+        rewards: '',
+        created_at: '2025-01-01',
+        updated_at: '2025-01-01',
+        is_visible: true,
+        is_completed: false,
+        started_at: null,
+        duration_minutes: 60,
+        quest_type: 'side',
+      }
+      questStore.vaultQuests = [
+        {
+          ...baseQuest,
+          id: 'q-hard',
+          title: 'Hard',
+          quest_requirements: [
+            { id: 'r1', quest_id: 'q-hard', requirement_type: 'level', requirement_data: { level: 20 }, is_mandatory: true },
+          ],
+        },
+        { ...baseQuest, id: 'q-any', title: 'Any' },
+        {
+          ...baseQuest,
+          id: 'q-easy',
+          title: 'Easy',
+          quest_requirements: [
+            { id: 'r2', quest_id: 'q-easy', requirement_type: 'level', requirement_data: { level: 3 }, is_mandatory: true },
+          ],
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestCard: {
+              template: '<div class="quest-card-stub">{{ quest.title }}</div>',
+              props: ['quest', 'vaultId', 'status', 'partyMembers'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
+
+      const titles = wrapper.findAll('.quest-card-stub').map((node) => node.text())
+      expect(titles).toEqual(['Any', 'Easy', 'Hard'])
+    })
+
     it('claims rewards only after a quest returns', async () => {
       questStore.vaultQuests = [
         {
@@ -691,7 +751,7 @@ describe('QuestsView', () => {
 
       await wrapper.find('.mock-quest-modal-close').trigger('click')
 
-      expect(routerPushMock).toHaveBeenCalledWith({ query: { quest: undefined } })
+      expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
     })
 
     it('routes a completed quest to its detail modal on View Details', async () => {
@@ -735,6 +795,95 @@ describe('QuestsView', () => {
       await wrapper.find('.view-btn').trigger('click')
 
       expect(routerPushMock).toHaveBeenCalledWith({ query: { quest: 'quest-9' } })
+    })
+
+    it('starts a state quest directly from the modal and closes it', async () => {
+      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Training Quest',
+          short_description: 'Train a dweller',
+          long_description: 'Training objective description.',
+          requirements: '',
+          rewards: '',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60,
+          quest_category: 'training',
+        },
+      ]
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select', 'start'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.mock-quest-modal-start').trigger('click')
+      await flushPromises()
+
+      expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-9')
+      expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
+    })
+
+    it('opens party selection instead of starting a normal quest from the modal', async () => {
+      const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
+      const partySpy = vi.spyOn(questStore, 'getParty').mockResolvedValue([])
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Exploration Quest',
+          short_description: 'Explore the wastes',
+          long_description: 'Exploration description.',
+          requirements: '',
+          rewards: '',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60,
+          quest_category: 'exploration',
+        },
+      ]
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select', 'start'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.mock-quest-modal-start').trigger('click')
+      await flushPromises()
+
+      expect(partySpy).toHaveBeenCalledWith('vault-123', 'quest-9')
+      expect(startSpy).not.toHaveBeenCalled()
     })
   })
 

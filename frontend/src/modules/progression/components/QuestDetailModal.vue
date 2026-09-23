@@ -23,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   select: [questId: string]
+  start: [questId: string]
 }>()
 
 const router = useRouter()
@@ -51,6 +52,8 @@ async function loadQuest() {
     return
   }
 
+  quest.value = null
+  partyLinks.value = []
   isLoading.value = true
   error.value = null
   try {
@@ -244,24 +247,24 @@ const openClaimModal = () => {
   showClaimModal.value = true
 }
 
-const handleStartQuest = async () => {
-  if (!props.vaultId || !props.questId) return
-  await questStore.assignQuest(props.vaultId, props.questId, true)
-  await questStore.fetchVaultQuests(props.vaultId)
-  const updatedQuest = questStore.vaultQuests.find((q) => q.id === props.questId)
-  if (updatedQuest) {
-    quest.value = updatedQuest
-  }
-  await loadParty()
+const handleStartQuest = () => {
+  if (!props.questId) return
+  emit('start', props.questId)
 }
 
+const isClaiming = ref(false)
 const confirmClaimRewards = async () => {
-  if (!props.vaultId || !props.questId) return
-  await questStore.claimQuestRewards(props.vaultId, props.questId)
-  closeClaimModal()
-  await questStore.fetchVaultQuests(props.vaultId)
-  quest.value = questStore.vaultQuests.find((item) => item.id === props.questId) ?? quest.value
-  await loadParty()
+  if (!props.vaultId || !props.questId || isClaiming.value) return
+  isClaiming.value = true
+  try {
+    await questStore.claimQuestRewards(props.vaultId, props.questId)
+    closeClaimModal()
+    await questStore.fetchVaultQuests(props.vaultId)
+    quest.value = questStore.vaultQuests.find((item) => item.id === props.questId) ?? quest.value
+    await loadParty()
+  } finally {
+    isClaiming.value = false
+  }
 }
 </script>
 
@@ -440,6 +443,7 @@ const confirmClaimRewards = async () => {
               <QuestRewardsModal
                 :quest="quest"
                 :show="showClaimModal"
+                :is-submitting="isClaiming"
                 @close="closeClaimModal"
                 @confirm="confirmClaimRewards"
               />
@@ -591,6 +595,10 @@ const confirmClaimRewards = async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
+}
+
+.quest-duo:has(> :only-child) {
+  grid-template-columns: 1fr;
 }
 
 .granted-list {

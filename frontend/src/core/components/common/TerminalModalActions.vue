@@ -8,8 +8,9 @@ const props = withDefaults(
     confirmLabel: string
     confirmIcon?: string
     alignment?: 'end' | 'between'
+    confirmDisabled?: boolean
   }>(),
-  { confirmIcon: 'mdi:check', alignment: 'end' }
+  { confirmIcon: 'mdi:check', alignment: 'end', confirmDisabled: false }
 )
 
 const emit = defineEmits<{
@@ -24,7 +25,7 @@ const emit = defineEmits<{
       <Icon icon="mdi:close" class="h-5 w-5" />
       {{ cancelLabel }}
     </Button>
-    <Button class="modal-button confirm shrink-0 whitespace-nowrap max-sm:w-full" variant="default" size="lg" @click="emit('confirm')">
+    <Button class="modal-button confirm shrink-0 whitespace-nowrap max-sm:w-full" variant="default" size="lg" :disabled="confirmDisabled" @click="emit('confirm')">
       <Icon :icon="confirmIcon" class="h-5 w-5" />
       {{ confirmLabel }}
     </Button>

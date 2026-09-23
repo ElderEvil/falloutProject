@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.133.0 (2026-09-23)
+
+### Features
+
+* **exploration:** add return leg so dwellers travel home after exploring 2eca23f
+
+### Bug Fixes
+
+* **exploration:** serialize reward claims and enforce arrival 26626ad
+* **exploration:** serialize the return transition and surface arrival globally 537f1b4
+
 ## 2.132.0 (2026-09-22)
 
 ### Features

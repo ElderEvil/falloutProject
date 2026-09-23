@@ -87,6 +87,8 @@ export interface VaultQuest extends Quest {
   duration_minutes: number | null
   return_started_at: string | null
   return_completes_at: string | null
+  completed_at: string | null
+  granted_rewards?: GrantedReward[] | null
   quest_requirements?: QuestRequirement[]
   quest_rewards?: QuestReward[]
 }
@@ -161,6 +163,24 @@ function rewardText(value: unknown): string {
 
 function rewardAmount(value: unknown): number {
   return typeof value === 'number' ? value : Number(value) || 0
+}
+
+/** Type chip colors shared by the quest card and detail badges. */
+export const QUEST_TYPE_COLORS: Record<string, { bg: string, text: string, border: string }> = {
+  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
+  side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
+  daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
+  event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
+  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
+}
+
+export function questTypeLabel(questType: string | null | undefined): string {
+  const normalized = questType || 'side'
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+export function isSideQuestType(questType: string | null | undefined): boolean {
+  return (questType || 'side') === 'side'
 }
 
 /** Humanize a backend slug for display: underscores become spaces, first letter capitalized. */

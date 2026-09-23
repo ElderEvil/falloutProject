@@ -15,7 +15,7 @@ const AUTH_ROUTES = [
   { url: '/vault/fake-id/exploration/test-id', name: 'exploration-detail' },
   { url: '/vault/fake-id/training', name: 'training' },
   { url: '/vault/fake-id/quests', name: 'quests' },
-  { url: '/vault/fake-id/quests/test-id', name: 'quest-detail' },
+  { url: '/vault/fake-id/quests?quest=test-id', name: 'quests-modal' },
   { url: '/vault/fake-id/objectives', name: 'objectives' },
   { url: '/vault/fake-id/radio', name: 'radio' },
   { url: '/vault/fake-id/relationships', name: 'relationships' },

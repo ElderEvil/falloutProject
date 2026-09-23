@@ -10,7 +10,9 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
-import { formatQuestReward, humanizeSlug, questRewardIcon } from '../models/quest'
+import QuestTypeBadge from './QuestTypeBadge.vue'
+import QuestRewardList from './QuestRewardList.vue'
+import QuestRequirementList from './QuestRequirementList.vue'
 
 const questStore = useQuestStore()
 const dwellerFilterStore = useDwellerFilterStore()
@@ -176,14 +178,6 @@ const typeColor = computed(() => {
   return typeColors[quest.quest_type] || typeColors.side
 })
 
-const typeLabel = computed(() => {
-  const questType = quest.quest_type || 'side'
-  return questType.charAt(0).toUpperCase() + questType.slice(1)
-})
-
-// Side quests share the bordered chip styling with building/exploration categories.
-const isSideQuest = computed(() => (quest.quest_type || 'side') === 'side')
-
 const isBorderedCategory = computed(() =>
   ['building', 'exploration'].includes(quest.quest_category ?? '')
 )
@@ -213,71 +207,23 @@ const hasPrerequisites = computed(() => {
 
 const prerequisitesMet = computed(() => {
   if (!hasPrerequisites.value) return true
-  // For now, assume prerequisites are met if quest is active or completed
-  // In a real implementation, this would check actual vault state
   return status !== 'available'
 })
 
-const getRequirementCount = (requirementData: Record<string, unknown>): number => {
-  const count = requirementData.count
-  return typeof count === 'number' ? count : 0
-}
-
-const statLabel = (stat: unknown): string => humanizeSlug(stat)
-
-function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
-  const level = requirementData.level
-  if (typeof level !== 'number') return false
-  if (dwellerFilterStore.dwellers.length === 0) return false
-  const required = getRequirementCount(requirementData) || 1
-  const qualified = dwellerFilterStore.dwellers.filter((d) => (d.level ?? 0) >= level).length
-  return qualified >= required
-}
-
-function isQuestRequirementMet(requirementData: Record<string, unknown>): boolean {
-  if (typeof requirementData.quest_id !== 'string') return false
-  const found = questStore.vaultQuests.find((q) => q.id === requirementData.quest_id)
-  if (!found) return false
-  return found.is_completed === true
-}
-
 function isRequirementMet(req: QuestRequirement): boolean {
-  if (req.requirement_type === 'level' && req.requirement_data) {
-    return isLevelRequirementMet(req.requirement_data)
+  const data = req.requirement_data
+  if (req.requirement_type === 'level' && data) {
+    const level = data.level
+    if (typeof level !== 'number' || dwellerFilterStore.dwellers.length === 0) return false
+    const required = (typeof data.count === 'number' ? data.count : 0) || 1
+    const qualified = dwellerFilterStore.dwellers.filter((d) => (d.level ?? 0) >= level).length
+    return qualified >= required
   }
-  if (req.requirement_type === 'quest_completed' && req.requirement_data) {
-    return isQuestRequirementMet(req.requirement_data)
+  if (req.requirement_type === 'quest_completed' && data) {
+    if (typeof data.quest_id !== 'string') return false
+    return questStore.vaultQuests.find((q) => q.id === data.quest_id)?.is_completed === true
   }
   return prerequisitesMet.value
-}
-
-function requirementIcon(req: QuestRequirement): string {
-  if (!isRequirementMet(req)) return 'mdi:lock'
-  return req.requirement_type === 'level' || req.requirement_type === 'quest_completed'
-    ? 'mdi:lock-open'
-    : 'mdi:check-circle'
-}
-
-const roomDisplayName = (requirementData: Record<string, unknown>): string => {
-  const slug = requirementData.room_type
-  if (typeof slug !== 'string' || slug.length === 0) return 'room'
-  return slug
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
-
-function questRequirementName(requirementData: Record<string, unknown>): string {
-  if (typeof requirementData.quest_name === 'string' && requirementData.quest_name.length > 0) {
-    return requirementData.quest_name
-  }
-  if (typeof requirementData.quest_id === 'string') {
-    const found =
-      questStore.vaultQuests.find((q) => q.id === requirementData.quest_id) ??
-      questStore.quests.find((q) => q.id === requirementData.quest_id)
-    if (found?.title) return found.title
-  }
-  return 'Previous quest'
 }
 
 const actionButtonText = computed(() => {
@@ -344,13 +290,7 @@ const handleAction = () => {
       <div class="quest-header">
       <h3 class="quest-title">{{ quest.title }}</h3>
       <div class="quest-badges">
-        <Badge
-          :variant="isSideQuest ? 'outline' : 'default'"
-          :style="isSideQuest ? undefined : { backgroundColor: typeColor.bg, color: typeColor.text }"
-          class="type-badge"
-        >
-          {{ typeLabel }}
-        </Badge>
+        <QuestTypeBadge :quest-type="quest.quest_type" />
         <Badge
           v-if="quest.quest_category"
           :variant="isBorderedCategory ? 'outline' : 'secondary'"
@@ -391,87 +331,13 @@ const handleAction = () => {
     <!-- Divider -->
     <div class="quest-divider"></div>
 
-    <!-- Prerequisites (if any) -->
-    <div v-if="hasPrerequisites" class="quest-section">
-      <div class="section-label">
-        <Icon icon="mdi:clipboard-check" class="inline-icon" />
-        REQUIREMENTS
-      </div>
-      <ul class="prerequisites-list">
-          <li
-            v-for="req in quest.quest_requirements"
-            :key="req.id"
-            class="prerequisite-item"
-            :class="{ met: isRequirementMet(req), unmet: !isRequirementMet(req) }"
-          >
-            <Icon
-              :icon="requirementIcon(req)"
-              class="prerequisite-icon"
-            />
-          <span class="prerequisite-text">
-            <template v-if="req.requirement_type === 'level' && req.requirement_data">
-              Requires Level {{ req.requirement_data.level || 1 }}+ dweller
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'item' && req.requirement_data">
-              Requires {{ req.requirement_data.item_name || req.requirement_data.name || req.requirement_data.item_id }}
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'attack' && req.requirement_data">
-              Requires {{ req.requirement_data.attack || 1 }}+ Attack
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-            <template v-else-if="req.requirement_type === 'stat' && req.requirement_data">
-              Requires {{ req.requirement_data.value || 1 }}+ {{ statLabel(req.requirement_data.stat) }}
-              <span v-if="getRequirementCount(req.requirement_data) > 1">
-                (x{{ getRequirementCount(req.requirement_data) }})
-              </span>
-            </template>
-                  <template v-else-if="req.requirement_type === 'room' && req.requirement_data">
-                    Build {{ getRequirementCount(req.requirement_data) || 1 }} {{ roomDisplayName(req.requirement_data) }}
-            </template>
-            <template v-else-if="req.requirement_type === 'dweller_count' && req.requirement_data">
-              Reach {{ getRequirementCount(req.requirement_data) }} dwellers
-            </template>
-            <template
-              v-else-if="req.requirement_type === 'quest_completed' && req.requirement_data"
-            >
-              Complete: {{ questRequirementName(req.requirement_data) }}
-            </template>
-            <template v-else>
-              {{ req.requirement_type }}
-            </template>
-          </span>
-        </li>
-      </ul>
-    </div>
+    <QuestRequirementList
+      v-if="hasPrerequisites"
+      :requirements="quest.quest_requirements ?? []"
+      :is-met="isRequirementMet"
+    />
 
-    <!-- Rewards -->
-    <div class="quest-section">
-      <div class="section-label">
-        <Icon icon="mdi:treasure-chest" class="inline-icon" />
-        REWARDS
-      </div>
-      <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
-        <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
-          <Icon :icon="questRewardIcon(reward)" class="reward-icon" />
-          <span class="reward-text">{{ formatQuestReward(reward) }}</span>
-          <span v-if="reward.reward_chance < 1" class="reward-chance">
-            ({{ Math.round(reward.reward_chance * 100) }}%)
-          </span>
-        </div>
-      </div>
-      <div v-else class="reward-fallback">
-        <Icon icon="mdi:text" class="reward-icon" />
-        <span>{{ quest.rewards }}</span>
-      </div>
-    </div>
+    <QuestRewardList :rewards="quest.quest_rewards ?? []" :fallback-text="quest.rewards" />
 
     <!-- Party Members (for active/available quests) -->
     <div v-if="status !== 'completed' && (partyMembers?.length ?? 0) > 0" class="quest-section">

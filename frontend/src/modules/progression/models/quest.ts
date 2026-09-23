@@ -85,8 +85,15 @@ export interface VaultQuest extends Quest {
   is_reward_ready?: boolean
   started_at: string | null
   duration_minutes: number | null
+  return_started_at: string | null
+  return_completes_at: string | null
   quest_requirements?: QuestRequirement[]
   quest_rewards?: QuestReward[]
+}
+
+/** True while a quest party is travelling home and rewards are not yet claimable. */
+export function isQuestReturning(quest: VaultQuest): boolean {
+  return quest.return_completes_at != null && !quest.is_reward_ready && !quest.is_completed
 }
 
 /**

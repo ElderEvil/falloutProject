@@ -84,7 +84,7 @@ const resolvedFill = computed(() => props.fill ?? TONE_FILL[props.tone])
     <!-- @vue-ignore -->
     <ProgressIndicator
       data-slot="progress-indicator"
-      class="bg-[var(--progress-fill)] size-full flex-1 transition-all"
+      class="bg-[var(--progress-fill)] size-full flex-1 transition-transform motion-reduce:transition-none"
       :style="`transform: translateX(-${100 - (props.modelValue ?? 0)}%);`"
     />
     <!-- @vue-ignore -->

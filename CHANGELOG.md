@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.136.3 (2026-09-23)
+
+### Code Refactoring
+
+* **ui:** unify the domain meters on one shared frame ([#767](https://github.com/ElderEvil/falloutProject/issues/767)) a1826f5
+
 ## 2.136.2 (2026-09-23)
 
 ### Bug Fixes

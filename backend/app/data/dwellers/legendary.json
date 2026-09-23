@@ -579,12 +579,13 @@
     "first_name": "Moira",
     "template_id": "moira-brown",
     "last_name": "Brown",
-    "bio": "Proprietor of Craterside Supply in Megaton and author of the Wasteland Survival Guide. Moira is relentlessly cheerful, endlessly curious, and almost immune to fear — she once asked the Wanderer to nuke, cripple, and irradiate themselves for research. Born in Rivet City's shadow, she trekked through Megaton and Canterbury Commons testing myths. Her Expert jumpsuit is patched with optimism and radiation badges. Also visited Tenpenny Tower.",
+    "bio": "Proprietor of Craterside Supply in Megaton and author of the Wasteland Survival Guide. Moira is relentlessly cheerful, endlessly curious, and almost immune to fear — she once asked the Wanderer to nuke, cripple, and irradiate themselves for research. Born in Rivet City's shadow, she trekked through Megaton and Canterbury Commons testing myths. Her Expert jumpsuit is patched with optimism and radiation badges. She surveyed the Quiet Zone from beyond the fence line and came back with three theories and no proof. Also visited Tenpenny Tower.",
     "origin_place": "Megaton",
     "visited_places": [
       "Rivet City",
       "Canterbury Commons",
-      "Tenpenny Tower"
+      "Tenpenny Tower",
+      "The Quiet Zone"
     ],
     "visual_attributes": {
       "race": "human",

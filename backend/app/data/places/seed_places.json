@@ -664,5 +664,12 @@
     "description": null,
     "roles": [],
     "group": "supermarket"
+  },
+  {
+    "name": "The Quiet Zone",
+    "kind": "place",
+    "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much.",
+    "roles": ["visited"],
+    "group": "exclusion_zone"
   }
 ]

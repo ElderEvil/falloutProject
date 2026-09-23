@@ -53,3 +53,9 @@ def test_validate_group_key_accepts_known_and_rejects_unknown() -> None:
     assert validate_group_key("gas_station") == "gas_station"
     with pytest.raises(ValueError, match="Unknown place group"):
         validate_group_key("not_a_group")
+
+
+def test_quiet_zone_resolves_to_the_exclusion_zone_group() -> None:
+    """The seeded Quiet Zone is grouped as a Restricted Exclusion Site."""
+    assert group_for_place_name("The Quiet Zone") == "exclusion_zone"
+    assert get_place_group("exclusion_zone")["label"] == "Restricted Exclusion Site"

@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -198,6 +199,8 @@ class CRUDQuest(
                     started_at=link.started_at if link else None,
                     return_started_at=link.return_started_at if link else None,
                     return_completes_at=link.return_completes_at if link else None,
+                    completed_at=link.completed_at if link else None,
+                    granted_rewards=link.granted_rewards if link else None,
                     duration_minutes=link.duration_minutes
                     if link and link.duration_minutes is not None
                     else effective_quest_duration_minutes(quest.duration_minutes),
@@ -244,7 +247,9 @@ class CRUDQuest(
         self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
     ) -> VaultQuestCompletionLink:
         """Lock and claim a quest link before its rewards settle (persistence only)."""
-        return await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_id)
+        link = await self._mark_as_complete(db_session=db_session, vault_id=vault_id, quest_entity_id=quest_id)
+        link.completed_at = datetime.utcnow()
+        return link
 
     async def get_started_state_objective_links(self, db_session: AsyncSession) -> list[VaultQuestCompletionLink]:
         """Started, incomplete, unclaimed links for building/population/training quests (backfill input)."""

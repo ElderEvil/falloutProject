@@ -8440,6 +8440,10 @@ export interface components {
             return_started_at?: string | null;
             /** Return Completes At */
             return_completes_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Granted Rewards */
+            granted_rewards?: (components["schemas"]["CapsGranted"] | components["schemas"]["ItemGranted"] | components["schemas"]["DwellerGranted"] | components["schemas"]["ResourceGranted"] | components["schemas"]["ExperienceGranted"] | components["schemas"]["MedicationGranted"])[] | null;
             /** Quest Requirements */
             quest_requirements?: components["schemas"]["QuestRequirementRead"][] | null;
             /** Quest Rewards */

@@ -532,8 +532,8 @@ test.describe('Quests page', () => {
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
 
-  test('quest detail page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/quests/fake-quest-id')
+  test('quest detail modal renders without crash', async ({ page }) => {
+    await loginAndGo(page, '/vault/fake-id/quests?quest=fake-quest-id')
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })

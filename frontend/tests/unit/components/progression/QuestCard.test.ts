@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { Progress } from '@/core/components/ui/progress'
 import QuestCard from '@/modules/progression/components/QuestCard.vue'
+import QuestTypeBadge from '@/modules/progression/components/QuestTypeBadge.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -504,7 +505,7 @@ describe('QuestCard', () => {
     })
 
     expect(wrapper.find('.type-badge').attributes('style')).toBeUndefined()
-    expect(wrapper.find('.type-badge').classes()).toContain('border-border')
+    expect(wrapper.findComponent(QuestTypeBadge).props('questType')).toBe('side')
   })
 
   it.each(['building', 'exploration'])('renders the %s category chip with the bordered outline styling', (category) => {
@@ -513,6 +514,7 @@ describe('QuestCard', () => {
       props: { quest: { ...quest, quest_category: category }, vaultId: 'vault-1', status: 'available', partyMembers: [] },
     })
 
-    expect(wrapper.find('.category-badge').classes()).toContain('border-border')
+    expect(wrapper.find('.category-badge').text()).toBe(category)
+    expect(wrapper.text()).toContain(category)
   })
 })

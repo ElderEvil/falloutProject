@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuestStore } from '@/modules/progression/stores/quest'
-import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -16,6 +15,7 @@ import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
+import QuestDetailModal from '../components/QuestDetailModal.vue'
 import type { VaultQuest } from '../models/quest'
 import { isQuestReturning } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
@@ -23,7 +23,6 @@ import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 const route = useRoute()
 const router = useRouter()
 const questStore = useQuestStore()
-const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const { filter: dwellerStore } = useDwellerStore()
@@ -58,7 +57,18 @@ const showClaimModal = ref(false)
 const claimQuest = ref<VaultQuest | null>(null)
 
 const vaultId = computed(() => route.params.id as string)
-const currentVault = computed(() => (vaultId.value ? vaultStore.loadedVaults[vaultId.value] : null))
+
+// Deep-linkable quest detail modal: `?quest=<id>` opens it while the list stays mounted.
+const selectedQuestId = computed(() => (route.query.quest as string) || '')
+
+const openQuest = (questId: string) => {
+  if (!vaultId.value) return
+  void router.push({ query: { ...route.query, quest: questId } })
+}
+
+const closeQuest = () => {
+  void router.push({ query: { ...route.query, quest: undefined } })
+}
 
 // The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
 const officeLocked = computed(() =>
@@ -188,11 +198,6 @@ const confirmClaimRewards = async () => {
   closeClaimModal()
 }
 
-const goToQuestDetail = (questId: string) => {
-  if (!vaultId.value) return
-  router.push(`/vault/${vaultId.value}/quests/${questId}`)
-}
-
 
 
 // Fetch quests on mount
@@ -272,10 +277,6 @@ onMounted(async () => {
 
                   <!-- Active Quests Section -->
                   <div v-if="travellingOrActiveQuests.length > 0" class="quest-section">
-                    <h2 class="section-title">
-                      <Icon icon="mdi:progress-check" class="inline mr-2" />
-                      ACTIVE QUESTS
-                    </h2>
                     <div class="quest-grid">
                       <QuestCard
                         v-for="quest in travellingOrActiveQuests"
@@ -303,12 +304,8 @@ onMounted(async () => {
                 <div v-if="activeTab === 'available'" class="tab-content">
                   <!-- Available Quests Section -->
                   <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
-                    <div class="section-header">
-                      <h2 class="section-title">
-                        <Icon icon="mdi:book-open-page-variant" class="inline mr-2" />
-                        AVAILABLE QUESTS
-                        <span v-if="showAllQuests" class="section-badge">(Showing All)</span>
-                      </h2>
+                    <div class="filter-row">
+                      <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                       <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
                       <label class="toggle-label">
                         <input v-model="showAllQuests" type="checkbox" class="toggle-input" />
@@ -345,15 +342,17 @@ onMounted(async () => {
                     <p>No completed quests yet</p>
                   </div>
 
-                  <div v-else class="quest-grid">
-                    <QuestCard
-                      v-for="quest in completedQuests"
-                      :key="quest.id"
-                      :quest="quest"
-                      :vault-id="vaultId"
-                      status="completed"
-                      @view="goToQuestDetail"
-                    />
+                  <div v-else class="quest-section">
+                    <div class="quest-grid">
+                      <QuestCard
+                        v-for="quest in completedQuests"
+                        :key="quest.id"
+                        :quest="quest"
+                        :vault-id="vaultId"
+                        status="completed"
+                        @view="openQuest"
+                      />
+                    </div>
                   </div>
                 </div>
             </Tabs>
@@ -374,6 +373,15 @@ onMounted(async () => {
             :show="showClaimModal"
             @close="closeClaimModal"
             @confirm="confirmClaimRewards"
+          />
+
+          <!-- Quest detail modal: deep-linked via ?quest=<id>; the list stays mounted behind it. -->
+          <QuestDetailModal
+            v-if="selectedQuestId"
+            :quest-id="selectedQuestId"
+            :vault-id="vaultId"
+            @close="closeQuest"
+            @select="openQuest"
           />
         </PageContentRail>
       </div>
@@ -453,25 +461,22 @@ onMounted(async () => {
   width: 100%;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-bottom: 24px;
-  text-align: center;
-}
-
 /* Section Title */
 .quest-section {
   margin-bottom: 32px;
 }
 
-.section-header {
+.filter-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--color-theme-glow);
+}
+
+.filter-hint {
+  font-size: 0.75rem;
+  color: var(--color-theme-accent);
 }
 
 .section-title {
@@ -486,14 +491,6 @@ onMounted(async () => {
   margin: 0;
   border-bottom: none;
   padding-bottom: 0;
-}
-
-.section-badge {
-  font-size: 0.75rem;
-  font-weight: normal;
-  color: var(--color-theme-accent);
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .toggle-label {
@@ -545,214 +542,6 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 16px;
-}
-
-/* Quest Card */
-.quest-card {
-  background: var(--color-surface-warm-dark);
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 6px;
-  padding: 16px;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-
-.quest-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-theme-primary);
-  box-shadow: 0 0 8px var(--color-theme-glow);
-}
-
-.quest-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px var(--color-theme-glow);
-}
-
-.active-quest {
-  border-color: var(--color-theme-accent);
-  background: var(--color-surface-warm-dark);
-}
-
-.active-quest::before {
-  background: var(--color-theme-accent);
-}
-
-.available-quest {
-  border-color: var(--color-theme-primary);
-}
-
-.completed-quest {
-  border-color: var(--color-gray-500);
-  opacity: 0.75;
-  background: var(--color-surface-warm-dark);
-}
-
-.completed-quest::before {
-  background: var(--color-gray-500);
-}
-
-/* Quest Header */
-.quest-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 12px;
-}
-
-.quest-title {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: var(--color-theme-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex: 1;
-}
-
-.quest-badge {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.active-badge {
-  background-color: var(--color-theme-accent);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 10px var(--color-theme-accent);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-.available-badge {
-  background-color: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-}
-
-.completed-badge {
-  background-color: var(--color-gray-500);
-  color: var(--color-gray-50);
-}
-
-/* Quest Description */
-.quest-description {
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-  opacity: 0.85;
-  margin-bottom: 12px;
-  line-height: 1.5;
-}
-
-.quest-section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-theme-primary), transparent);
-  margin: 12px 0;
-  opacity: 0.3;
-}
-
-/* Quest Details */
-.quest-details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.detail-item {
-  background-color: rgba(0, 0, 0, 0.3);
-  padding: 8px 12px;
-  border-left: 2px solid var(--color-theme-primary);
-  border-radius: 3px;
-}
-
-.detail-label {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--color-theme-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
-.detail-value {
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-}
-
-.reward-text {
-  font-weight: bold;
-  color: var(--color-theme-accent);
-}
-
-/* Action Buttons */
-.quest-action-btn {
-  width: 100%;
-  padding: 10px 16px;
-  border: 2px solid var(--color-theme-primary);
-  border-radius: 4px;
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: 'Courier New', monospace;
-}
-
-.complete-btn {
-  background-color: var(--color-theme-accent);
-  color: var(--color-terminal-background);
-  border-color: var(--color-theme-accent);
-}
-
-.complete-btn:hover {
-  background-color: var(--color-theme-primary);
-  box-shadow: 0 0 15px var(--color-theme-glow);
-  transform: translateY(-1px);
-}
-
-.start-btn {
-  background-color: transparent;
-  color: var(--color-theme-primary);
-}
-
-.start-btn:hover {
-  background-color: var(--color-theme-primary);
-  color: var(--color-terminal-background);
-  box-shadow: 0 0 20px var(--color-theme-glow);
-  transform: translateY(-2px);
-}
-
-/* Completion Stamp */
-.completion-stamp {
-  text-align: center;
-  padding: 12px;
-  background-color: rgba(0, 0, 0, 0.5);
-  border: 2px dashed var(--color-gray-500);
-  border-radius: 4px;
-  color: var(--color-gray-500);
-  font-weight: bold;
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
 /* Empty State */

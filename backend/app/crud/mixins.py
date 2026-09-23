@@ -36,6 +36,7 @@ class CompletionMixin[LinkModelType]:
             select(self.link_model)
             .where(and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_entity_id))
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         result = await db_session.execute(query)
         quest_completion_link = result.scalar_one_or_none()

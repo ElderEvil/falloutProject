@@ -215,6 +215,59 @@ async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: 
 
 
 @pytest.mark.asyncio
+async def test_get_multi_for_vault_serializes_completion_details(async_session: AsyncSession) -> None:
+    """QuestRead carries completed_at + granted_rewards; fresh links default to None."""
+    from app.models.vault_quest import VaultQuestCompletionLink
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    completed_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Completed Quest",
+            short_description="Done",
+            long_description="A quest whose completion details are persisted.",
+            requirements="None",
+            rewards="50 caps",
+        ),
+    )
+    fresh_quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Fresh Quest",
+            short_description="Not done",
+            long_description="A quest that has not been claimed yet.",
+            requirements="None",
+            rewards="50 caps",
+        ),
+    )
+    await crud.quest_crud.assign_to_vault(
+        db_session=async_session, quest_id=completed_quest.id, vault_id=vault.id, is_visible=True
+    )
+    await crud.quest_crud.assign_to_vault(
+        db_session=async_session, quest_id=fresh_quest.id, vault_id=vault.id, is_visible=True
+    )
+    completed_link = await crud.quest_crud.get_link(async_session, quest_id=completed_quest.id, vault_id=vault.id)
+    completed_link.is_completed = True
+    completed_link.completed_at = datetime.utcnow()
+    completed_link.granted_rewards = [{"reward_type": "caps", "amount": 50}]
+    await async_session.commit()
+
+    quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
+    by_title = {q.title: q for q in quests}
+
+    assert by_title["Completed Quest"].completed_at is not None
+    assert [r.model_dump(mode="json") for r in by_title["Completed Quest"].granted_rewards] == [
+        {"reward_type": "caps", "amount": 50}
+    ]
+    assert by_title["Fresh Quest"].completed_at is None
+    assert by_title["Fresh Quest"].granted_rewards is None
+
+
+@pytest.mark.asyncio
 async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
     """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
     from app.models.dweller import Dweller

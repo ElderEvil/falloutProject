@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
+import { reactive } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -8,9 +9,13 @@ import { useVaultStore } from '@/modules/vault/stores/vault'
 
 const routerPushMock = vi.hoisted(() => vi.fn())
 
+// Reactive query so tests can drive the deep-linked quest detail modal.
+const routeQuery = reactive<Record<string, string | undefined>>({})
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     params: { id: 'vault-123' },
+    query: routeQuery,
   }),
   useRouter: () => ({
     push: routerPushMock,
@@ -31,6 +36,7 @@ describe('QuestsView', () => {
     _vaultStore = useVaultStore()
 
     vi.clearAllMocks()
+    routeQuery.quest = undefined
 
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
@@ -620,7 +626,75 @@ describe('QuestsView', () => {
       ]
     })
 
-    it('routes a completed quest to its detail page on View Details', async () => {
+    it('opens the quest detail modal from the ?quest= query param', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Finished Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal" :data-quest-id="questId"><button class="mock-quest-modal-close" @click="$emit(\'close\')">Close</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+
+      const modal = wrapper.find('.mock-quest-modal')
+      expect(modal.exists()).toBe(true)
+      expect(modal.attributes('data-quest-id')).toBe('quest-9')
+    })
+
+    it('closes the quest detail modal by clearing the quest query param', async () => {
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal" :data-quest-id="questId"><button class="mock-quest-modal-close" @click="$emit(\'close\')">Close</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.mock-quest-modal').exists()).toBe(true)
+
+      await wrapper.find('.mock-quest-modal-close').trigger('click')
+
+      expect(routerPushMock).toHaveBeenCalledWith({ query: { quest: undefined } })
+    })
+
+    it('routes a completed quest to its detail modal on View Details', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-9',
@@ -660,7 +734,7 @@ describe('QuestsView', () => {
       await flushPromises()
       await wrapper.find('.view-btn').trigger('click')
 
-      expect(routerPushMock).toHaveBeenCalledWith('/vault/vault-123/quests/quest-9')
+      expect(routerPushMock).toHaveBeenCalledWith({ query: { quest: 'quest-9' } })
     })
   })
 

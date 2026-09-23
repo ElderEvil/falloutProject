@@ -169,3 +169,47 @@ async def test_vault_quest_list_serializes_return_leg_fields(
     quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
     assert quest_read["return_started_at"] is not None
     assert quest_read["return_completes_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_vault_quest_list_serializes_completion_details(
+    async_client,
+    async_session: AsyncSession,
+) -> None:
+    """The vault quest list exposes completed_at and granted_rewards."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault = await crud.vault.create(
+        async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+    )
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Completion Serialization",
+            short_description="Completion fields",
+            long_description="The list read must expose the completion details.",
+            requirements="None",
+            rewards="50 caps",
+            duration_minutes=60,
+        ),
+    )
+    async_session.add(
+        VaultQuestCompletionLink(
+            vault_id=vault.id,
+            quest_id=quest.id,
+            is_visible=True,
+            is_completed=True,
+            completed_at=datetime.utcnow(),
+            granted_rewards=[{"reward_type": "caps", "amount": 50}],
+        )
+    )
+    await async_session.commit()
+
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+    response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
+    assert quest_read["completed_at"] is not None
+    assert quest_read["granted_rewards"] == [{"reward_type": "caps", "amount": 50}]

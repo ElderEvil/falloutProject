@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
+from typing import Any
 
+import sqlalchemy as sa
 from pydantic import UUID4
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 
@@ -17,6 +20,11 @@ class VaultQuestCompletionLink(SQLModel, table=True):
     # the party is not travelling (either still questing or already home).
     return_started_at: datetime | None = Field(default=None)
     return_completes_at: datetime | None = Field(default=None)
+
+    # Completion details: stamped when the player claims the rewards. NULL means
+    # the quest has not been claimed yet; granted_rewards records what was settled.
+    completed_at: datetime | None = Field(default=None)
+    granted_rewards: list[dict[str, Any]] | None = Field(default=None, sa_column=sa.Column(JSONB, nullable=True))
 
     def is_returning(self) -> bool:
         """Whether the party is on the way home and has not arrived yet."""

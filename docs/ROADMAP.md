@@ -178,6 +178,10 @@ audit; objectives need deliberate in-game validation rather than relying only on
     medication `ITEM`s (Stimpak/RadAway) route to dweller stock so treatment can spend them, the Legendary Dweller
     `ITEM` materializes a canonical legendary template, and the storage view shows generic supplies in their own
     tab. Remaining: lunchbox opening (no open mechanic exists yet — a feature, not a correctness fix).
+  - **Known bug (next PR):** the quest-detail modal's Start Quest button calls `assignQuest` (link visibility) instead
+    of the start flow, so timed quests never get `started_at` and never actually start. Route the action through the
+    parent: state quests (`building`/`population`/`training`) start directly, others assign a party first. Pre-existing
+    in the deleted `QuestDetailView`; carried into `QuestDetailModal` by the modal conversion.
 - **Verified gap:** chains persist predecessor links and hide locked entries; **requirement-driven unlock feedback
   shipped** — the chain lock reason names the actual predecessor ("Complete 'Getting Started' first"), surfaced on
   both the read path and the start rejection. An explicit chain lifecycle (beyond predecessor gating) remains open.

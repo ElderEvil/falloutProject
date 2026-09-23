@@ -24,7 +24,9 @@ from app.schemas.exploration_event import (
     RestEventSchema,
     WeaponSchema,
 )
+from app.services import jev_service
 from app.services.exploration.event_generator import event_generator
+from app.services.exploration.triage import triage_description
 from app.services.radiation_service import apply_radiation_gain, radiation_removal_amount
 from app.services.stream_manager import sse_manager
 
@@ -95,6 +97,12 @@ class EventService:
         )
         db_session.add(exploration)
         event_records = [event_record]
+
+        if jev_service.is_configured():
+            triage = await triage_description(event.description)
+            if triage.category is not None:
+                event_record["jev_category"] = triage.category
+                orm.attributes.flag_modified(exploration, "events")
 
         # Handle event-specific logic
         if loot_event is not None and loot_event.loot:

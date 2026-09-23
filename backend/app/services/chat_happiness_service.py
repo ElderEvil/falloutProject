@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud import dweller as dweller_crud
 from app.crud.vault import vault as vault_crud
+from app.services import jev_service
 
 logger = logging.getLogger(__name__)
 
@@ -69,4 +70,43 @@ def compute_neutral_delta() -> int:
 
     Used as fallback when AI analysis fails or returns invalid data.
     """
+    return 0
+
+
+DISTRESS_QUESTION = jev_service.make_score(
+    "How distressed does the speaker sound?",
+    ["Content", "Uneasy", "Distressed"],
+)
+
+DISTRESS_CONFIDENCE = 0.8
+
+
+async def distress_adjustment(message_text: str) -> int:
+    """Score player-message distress via Jev; return a 0/-1/-2 happiness modifier.
+
+    Returns 0 for calm messages, blank input, low confidence, or Jev errors,
+    so the chat happiness path never breaks when Jev is unavailable.
+    """
+    if not message_text.strip():
+        return 0
+    try:
+        payload = await jev_service.decide(message_text, {"distress": DISTRESS_QUESTION})
+    except Exception:
+        logger.exception("Jev distress scoring failed; no happiness adjustment")
+        return 0
+    answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
+    answer = answers.get("distress")
+    if not isinstance(answer, dict):
+        return 0
+    try:
+        score = float(answer.get("score", 0.0))
+        confidence = float(answer.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        return 0
+    if confidence < DISTRESS_CONFIDENCE:
+        return 0
+    if score >= 0.75:
+        return -2
+    if score >= 0.5:
+        return -1
     return 0

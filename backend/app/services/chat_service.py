@@ -21,11 +21,13 @@ from app.schemas.chat import (
 )
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact
+from app.services import jev_service
 from app.services.access_service import get_accessible_dweller, verify_dweller_access
 from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
+from app.services.chat.guardrail import screen_message
 from app.services.chat.models import StreamBundle
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
@@ -37,6 +39,7 @@ from app.utils.exceptions import (
     AIProviderCreditsExhaustedException,
     QuotaExceededException,
     ResourceNotFoundException,
+    ValidationException,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +61,11 @@ class ChatService:
 
             quota_result = await quota_service.check_quota(user.id, db_session)
             quota_result.ensure_allowed()
+
+            if jev_service.is_configured():
+                verdict = await screen_message(message_text)
+                if verdict.blocked:
+                    raise ValidationException(verdict.reason or "Message blocked by guardrail")
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
@@ -114,6 +122,12 @@ class ChatService:
 
                 quota_result = await quota_service.check_quota(user.id, db_session)
                 quota_result.ensure_allowed()
+
+                if jev_service.is_configured():
+                    verdict = await screen_message(message_text)
+                    if verdict.blocked:
+                        yield ChatStreamError(detail=verdict.reason or "Message blocked by guardrail")
+                        return
 
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)

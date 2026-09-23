@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.135.1 (2026-09-23)
+
+### Code Refactoring
+
+* unify the dweller detail UI, control scale and family tree ([#757](https://github.com/ElderEvil/falloutProject/issues/757)) a9b9e1d
+
 ## 2.135.0 (2026-09-23)
 
 ### Features

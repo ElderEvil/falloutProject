@@ -177,8 +177,8 @@ const showWarningBanner = computed(() => {
                 }}</span>
               </div>
               <Progress
-                class="mt-1 h-1 bar-fill"
-                :style="{ '--bar-fill': promptBarColor }"
+                class="mt-1 h-1"
+                :fill="promptBarColor"
                 :model-value="
                   stats.all_time.total_tokens > 0
                     ? (stats.all_time.prompt_tokens / stats.all_time.total_tokens) * 100
@@ -198,8 +198,8 @@ const showWarningBanner = computed(() => {
                 }}</span>
               </div>
               <Progress
-                class="mt-1 h-1 bar-fill"
-                :style="{ '--bar-fill': completionBarColor }"
+                class="mt-1 h-1"
+                :fill="completionBarColor"
                 :model-value="
                   stats.all_time.total_tokens > 0
                     ? (stats.all_time.completion_tokens / stats.all_time.total_tokens) * 100
@@ -251,8 +251,8 @@ const showWarningBanner = computed(() => {
             class="relative h-6 bg-surface-sunken rounded border border-theme-primary/20 overflow-hidden"
           >
             <Progress
-              class="bar-fill h-6 rounded-none border-0"
-              :style="{ '--bar-fill': quotaFillColor }"
+              class="h-6 rounded-none border-0"
+              :fill="quotaFillColor"
               :model-value="Math.min(quotaPercentage, 100)"
             />
             <div class="absolute inset-0 flex items-center justify-center text-sm font-bold">
@@ -303,10 +303,6 @@ const showWarningBanner = computed(() => {
 </template>
 
 <style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-
 :deep(.ai-usage-card button[aria-label='Dismiss alert']:focus-visible),
 :deep([role='alert'] button[aria-label='Dismiss alert']:focus-visible) {
   outline: 2px dashed var(--color-theme-primary);

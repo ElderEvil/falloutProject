@@ -16,6 +16,8 @@ import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
+import { useAsyncAction } from '@/core/composables/useAsyncAction'
+import { setRadioMode } from '@/modules/radio/api/radio'
 import type { Room } from '@/modules/rooms/models/room'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -365,8 +367,17 @@ const handleAssignIdle = () => {
   dwellerStore.setFilterStatus('idle')
 }
 
-const handleActivateRadio = () => {
-  router.push(`/vault/${vaultId.value}`)
+const { run: runActivateRadio, isLoading: isActivatingRadio } = useAsyncAction(
+  async (currentVaultId: string, token: string) => {
+    await setRadioMode(currentVaultId, 'happiness')
+    await vaultStore.refreshVault(currentVaultId, token)
+  },
+  { context: 'Failed to activate radio mode' }
+)
+
+const handleActivateRadio = async () => {
+  if (!vaultId.value || !authStore.token || isActivatingRadio.value) return
+  await runActivateRadio(vaultId.value, authStore.token)
 }
 
 const handleViewLowHappiness = () => {

@@ -255,8 +255,11 @@ describe('ExplorationDetailView', () => {
       await flushPromises()
 
       expect(wrapper.findAllComponents(HealthRadiationBar).length).toBeGreaterThanOrEqual(1)
-      expect(wrapper.findAll('.exploration-meter')).toHaveLength(1)
-      expect(wrapper.findAll('.exploration-meter__fill.rounded-full')).toHaveLength(1)
+
+      const meter = wrapper.find('[role="progressbar"][aria-label="Exploration progress"]')
+      expect(meter.exists()).toBe(true)
+      expect(meter.attributes('aria-valuenow')).toBeDefined()
+      expect(wrapper.find('[data-slot="progress-segments"]').exists()).toBe(true)
     })
 
     it('renders stats grid with 6 stat boxes', async () => {

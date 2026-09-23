@@ -628,6 +628,39 @@ discovered per-instance or unlock as a family.
 **Success criteria:** exploration can encounter multiple distinct Red Rocket / Super Duper Mart instances sharing
 group lore and encounter behaviour, and adding a new site type is a data change rather than code.
 
+### Stalker Easter Eggs — the Quiet Zone (Phase 1 implemented; Phases 2–3 planned)
+
+**Focus**: a layered, **ambiguous homage** to STALKER's Zone — never a canon claim. Players should recognize the
+inspiration, never be told it literally exists in Fallout. Full design record and canon-safety rules:
+`docs/STALKER.md`. The essence: *an ugly, fenced, irradiated place somewhere in the wasteland. Some people claim
+it produces miracles. Most people who say that want to sell you something.*
+
+**Phase 1 — implemented on branch `feat/stalker-easter-eggs` (pending PR):**
+
+- `exclusion_zone` place group ("Restricted Exclusion Site") plus one seeded location, **The Quiet Zone**
+  (`roles: ["visited"]`, group `exclusion_zone`) in `data/places/`.
+- A discovery route: Moira Brown's curated `visited_places`/bio include The Quiet Zone, so recruiting her
+  registers the marker through the existing `map_service.register_bio_places` path.
+- Rare generated-bio rumours (`options/bios.ZONE_RUMORS`, 8 deniable first-person lines) gated by
+  `bio.zone_rumor_chance` (default `0.05`, env `BIO_ZONE_RUMOR_CHANCE`), seed-reproducible and text-only
+  (never touches `_bio_places`).
+
+**Planned:**
+
+- [ ] **Phase 2 — discovery flavour** — 1–2 tested exploration templates ("The Bolt Test", "The Red Sky"),
+  several discovery names ("The No-Return Fence", "The Glass Orchard"), and a few low-value curios. Any item
+  must be built through `utils/item_factory.py` (the guard test fails otherwise) and matched by
+  `schemas/quest.py`'s consumable-token list if it can be granted as a reward.
+- [ ] **Phase 3 — optional depth** — terminals, radio fragments, collectible survey notes, and the fake
+  "wish-granting" corporate terminal. Keep every explanation contradictory.
+
+**Rules:** no STALKER canon names, factions, creatures, or artifact names; "anomalies"/"artifacts" stay
+unverified local terminology; no rewards that prove reality-warping mechanics; text-only until real mechanics
+are deliberately designed.
+
+**Not part of this group:** vodka and Nuka-Cola "Non-Stop" belong to the consumables-behaviour work — vodka must
+not replace RadAway (`docs/backend/GAME_MECHANICS.md`: "RadAway is the only cure").
+
 ### Next Big Feature — Family Relations (future phases — foundation shipped)
 
 **Focus**: Make the existing breeding/relationship systems into a visible family experience: family trees,

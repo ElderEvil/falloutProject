@@ -103,5 +103,12 @@
     "icon": "mdi:map",
     "risk": "high",
     "description": "A stretch of the wastes too large to cross in one trip and too hostile to forget."
+  },
+  {
+    "key": "exclusion_zone",
+    "label": "Restricted Exclusion Site",
+    "icon": "mdi:fence",
+    "risk": "high",
+    "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much."
   }
 ]

@@ -8,7 +8,7 @@ from faker import Faker
 
 from app.core.enums import AgeGroupEnum, GenderEnum
 from app.core.game_config import game_config
-from app.options.bios import render_bio
+from app.options.bios import maybe_zone_rumor, render_bio
 from app.options.factions import FactionOption, faction_restrictions
 from app.options.races import STATE_OF_BEING_OPTIONS, RaceOption, race_of
 from app.schemas.dweller import LETTER_TO_STAT, STATS_RANGE_BY_RARITY, RarityEnum
@@ -159,6 +159,9 @@ def create_random_common_dweller(
     age_group = AgeGroupEnum.ELDER if birth_date <= elder_birth_threshold(now) else AgeGroupEnum.ADULT
     origin, visited = _procedural_bio_places(rng, rarity)
     identity = _roll_identity(rng)
+    bio = render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng)
+    if rumor := maybe_zone_rumor(rng, game_config.bio.zone_rumor_chance):
+        bio = f"{bio} {rumor}"
     return {
         "first_name": get_gender_based_name(gender, faker),
         "last_name": faker.last_name(),
@@ -176,7 +179,7 @@ def create_random_common_dweller(
         "stimpack": 0,
         "radaway": 0,
         "visual_attributes": identity,
-        "bio": render_bio(origin, visited, race=_race_from_attributes(identity), rng=rng),
+        "bio": bio,
         "_bio_places": (origin, visited),
         **stats,
     }

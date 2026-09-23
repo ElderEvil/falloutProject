@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { config, flushPromises, mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import QuestDetailModal from '@/modules/progression/components/QuestDetailModal.vue'
+import QuestTypeBadge from '@/modules/progression/components/QuestTypeBadge.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
@@ -159,6 +160,45 @@ describe('QuestDetailModal chain links', () => {
     expect(wrapper.find('.mock-dialog-title').text()).toBe('First Steps')
   })
 
+  it('clears the previous quest while switching to an unknown id', async () => {
+    vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
+    questStore.vaultQuests = [{ ...chainedQuest }]
+
+    wrapper = mountModal()
+    await flushPromises()
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Second Steps')
+
+    questStore.vaultQuests = []
+    await wrapper.setProps({ questId: 'missing-quest' })
+    await flushPromises()
+
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Quest')
+    expect(wrapper.text()).toContain('Quest not found')
+  })
+
+  it('ignores a slower earlier load when the quest changes', async () => {
+    let resolveFirst: () => void = () => {}
+    vi.spyOn(questStore, 'fetchVaultQuests')
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => { resolveFirst = resolve })
+      )
+      .mockResolvedValue(undefined)
+    questStore.vaultQuests = [{ ...previousQuest }, { ...chainedQuest }]
+
+    wrapper = mount(QuestDetailModal, {
+      props: { questId: 'quest-1', vaultId: 'vault-123' },
+    })
+
+    await wrapper.setProps({ questId: 'quest-2' })
+    await flushPromises()
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Second Steps')
+
+    resolveFirst()
+    await flushPromises()
+
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Second Steps')
+  })
+
   it('emits select for a chain quest when its row is clicked', async () => {
     questStore.vaultQuests = [{ ...previousQuest }, { ...chainedQuest }, { ...nextQuest }]
 
@@ -228,6 +268,27 @@ describe('QuestDetailModal start button', () => {
     expect(startButton.text()).toContain('Start Quest')
   })
 
+  it('emits start instead of assigning the quest directly', async () => {
+    const assignSpy = vi.spyOn(questStore, 'assignQuest').mockResolvedValue()
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_locked: false,
+        lock_reason: null,
+      },
+    ]
+
+    wrapper = mountModal()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.action-btn').trigger('click')
+
+    expect(wrapper.emitted('start')).toEqual([['quest-2']])
+    expect(assignSpy).not.toHaveBeenCalled()
+  })
+
   it('shows a disabled travelling-home message while the party returns', async () => {
     questStore.vaultQuests = [
       {
@@ -287,6 +348,43 @@ describe('QuestDetailModal start button', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('claims once while a claim is already in flight', async () => {
+    let resolveClaim: (value: null) => void = () => {}
+    const claimSpy = vi
+      .spyOn(questStore, 'claimQuestRewards')
+      .mockImplementation(() => new Promise<null>((resolve) => { resolveClaim = resolve }))
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_locked: false,
+        lock_reason: null,
+        is_completed: false,
+        is_reward_ready: true,
+        started_at: '2025-01-02T00:00:00Z',
+        duration_minutes: 60,
+        return_started_at: '2025-01-02T01:00:00Z',
+        return_completes_at: '2025-01-02T01:30:00Z',
+      },
+    ]
+
+    wrapper = mountModal()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.action-btn').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const confirm = wrapper.find('.confirm')
+    await confirm.trigger('click')
+    await confirm.trigger('click')
+
+    expect(claimSpy).toHaveBeenCalledTimes(1)
+
+    resolveClaim(null)
+    await flushPromises()
   })
 
   it('hides the prerequisites and chain sections when a completed quest has neither', async () => {
@@ -354,7 +452,7 @@ describe('QuestDetailModal start button', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('50 Caps')
-    expect(wrapper.text()).not.toMatch(/^\s*caps\s*$/m)
+    expect(wrapper.text()).not.toContain('caps')
   })
 
   it('omits the type, category and chain badge row', async () => {
@@ -372,7 +470,7 @@ describe('QuestDetailModal start button', () => {
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.quest-badges').exists()).toBe(false)
+    expect(wrapper.findAllComponents(QuestTypeBadge)).toHaveLength(0)
     expect(wrapper.text()).not.toContain('Side')
     expect(wrapper.text()).not.toContain('Collection')
   })
@@ -532,7 +630,6 @@ describe('QuestDetailModal completed state', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.quest-banner--completed').exists()).toBe(true)
-    expect(wrapper.find('.quest-status-line').exists()).toBe(false)
     expect(wrapper.text()).toContain('Quest Completed - Rewards Claimed')
     const expectedDate = new Date(parseStartTimeMs('2025-01-05T12:00:00Z')).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -549,8 +646,6 @@ describe('QuestDetailModal completed state', () => {
     await wrapper.vm.$nextTick()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.quest-box').exists()).toBe(false)
-    expect(wrapper.find('.quest-detail.is-completed').exists()).toBe(false)
     expect(wrapper.find('.quest-content-grid.is-completed').exists()).toBe(true)
   })
 
@@ -570,7 +665,10 @@ describe('QuestDetailModal completed state', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('REWARDS')
-    expect(wrapper.text()).not.toContain('REWARDS GRANTED')
+    const rewardHeadings = wrapper
+      .findAll('.section-label')
+      .filter((node) => node.text().includes('REWARDS'))
+    expect(rewardHeadings).toHaveLength(1)
     expect(wrapper.text()).toContain('100 caps')
     expect(wrapper.text()).toContain('Rusty Pistol')
   })

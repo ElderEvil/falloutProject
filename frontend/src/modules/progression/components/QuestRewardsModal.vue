@@ -9,6 +9,7 @@ import type { QuestReward, VaultQuest } from '../models/quest'
 interface Props {
   quest: VaultQuest | null
   show: boolean
+  isSubmitting?: boolean
 }
 
 const props = defineProps<Props>()
@@ -128,6 +129,7 @@ const rewardMeta = (reward: QuestReward): { icon: string, label: string } => {
           confirm-label="Confirm & Claim"
           confirm-icon="mdi:check-bold"
           alignment="between"
+          :confirm-disabled="isSubmitting"
           @cancel="emit('close')"
           @confirm="emit('confirm')"
         />

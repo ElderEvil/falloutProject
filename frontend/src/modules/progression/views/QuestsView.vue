@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useLocalStorage } from '@vueuse/core'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -13,11 +14,16 @@ import { usePolling } from '@/core/composables/usePolling'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/core/components/ui/select'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import QuestDetailModal from '../components/QuestDetailModal.vue'
-import type { VaultQuest } from '../models/quest'
-import { isQuestReturning } from '../models/quest'
+import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
+import {
+  compareQuestsByAvailableSort,
+  isQuestReturning,
+  isStateQuestCategory,
+} from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -48,6 +54,23 @@ const filteredAvailableQuests = computed(() => {
   )
 })
 
+const availableSort = useLocalStorage<QuestAvailableSortBy>('questAvailableSort', 'level')
+const availableSortOptions: { value: QuestAvailableSortBy, label: string }[] = [
+  { value: 'level', label: 'Required Level' },
+  { value: 'duration', label: 'Duration' },
+  { value: 'type', label: 'Type' },
+]
+
+const onAvailableSortChange = (value: unknown) => {
+  availableSort.value = String(value) as QuestAvailableSortBy
+}
+
+const sortedAvailableQuests = computed(() =>
+  [...filteredAvailableQuests.value].sort((a, b) =>
+    compareQuestsByAvailableSort(a, b, availableSort.value)
+  )
+)
+
 // Modal state
 const showPartyModal = ref(false)
 const selectedQuest = ref<VaultQuest | null>(null)
@@ -67,7 +90,7 @@ const openQuest = (questId: string) => {
 }
 
 const closeQuest = () => {
-  void router.push({ query: { ...route.query, quest: undefined } })
+  void router.replace({ query: { ...route.query, quest: undefined } })
 }
 
 // The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
@@ -133,9 +156,7 @@ const loadPartyMembers = async () => {
 
 // Handle opening party selection modal
 const handleAssignParty = async (questId: string) => {
-  const quest = [...filteredAvailableQuests.value, ...activeQuests.value].find(
-    (q) => q.id === questId
-  )
+  const quest = questStore.vaultQuests.find((q) => q.id === questId)
   if (!quest || !vaultId.value) return
 
   selectedQuest.value = quest
@@ -178,6 +199,31 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
   showPartyModal.value = false
   selectedQuest.value = null
   questPartyMembers.value = []
+  closeQuest()
+}
+
+const isStateQuest = (quest: VaultQuest) => isStateQuestCategory(quest.quest_category)
+
+// State quests settle from vault progress and start with no party; others must assign one first.
+const isStarting = ref(false)
+const handleStartFromModal = async (questId: string) => {
+  if (isStarting.value) return
+  const quest = questStore.vaultQuests.find((q) => q.id === questId)
+  if (!quest || !vaultId.value) return
+
+  if (isStateQuest(quest)) {
+    isStarting.value = true
+    try {
+      await questStore.startQuest(vaultId.value, quest.id)
+    } finally {
+      isStarting.value = false
+    }
+    // A chain click during the await can select a different quest; only close that one's modal.
+    if (selectedQuestId.value === questId) closeQuest()
+    return
+  }
+
+  await handleAssignParty(questId)
 }
 
 const handleClaimRewards = async (questId: string) => {
@@ -190,12 +236,20 @@ const closeClaimModal = () => {
   claimQuest.value = null
 }
 
+const isClaiming = ref(false)
 const confirmClaimRewards = async () => {
-  if (!vaultId.value || !claimQuest.value) return
+  const claim = claimQuest.value
+  if (!vaultId.value || !claim || isClaiming.value) return
   // The store claims and announces the granted rewards via toast; Confirm & Claim
   // is the final screen — the modal closes once delivery is confirmed.
-  await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
-  closeClaimModal()
+  isClaiming.value = true
+  try {
+    await questStore.claimQuestRewards(vaultId.value, claim.id)
+    // Cancelling can open another claim dialog while this one is pending.
+    if (claimQuest.value?.id === claim.id) closeClaimModal()
+  } finally {
+    isClaiming.value = false
+  }
 }
 
 
@@ -305,6 +359,24 @@ onMounted(async () => {
                   <!-- Available Quests Section -->
                   <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
                     <div class="filter-row">
+                      <Select :model-value="availableSort" @update:model-value="onAvailableSortChange">
+                        <SelectTrigger
+                          size="sm"
+                          class="min-w-[9rem] border-theme-glow rounded-md px-3 py-2 text-[0.8125rem] opacity-[0.85] hover:opacity-100 hover:shadow-[0_0_8px_var(--color-theme-glow)]"
+                          aria-label="Sort available quests"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            v-for="option in availableSortOptions"
+                            :key="option.value"
+                            :value="option.value"
+                          >
+                            {{ option.label }}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <span v-if="showAllQuests" class="filter-hint">(Showing All)</span>
                       <!-- Raw checkbox: no Checkbox/Switch primitive is vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->
                       <label class="toggle-label">
@@ -314,7 +386,7 @@ onMounted(async () => {
                     </div>
                     <div class="quest-grid">
                       <QuestCard
-                        v-for="quest in filteredAvailableQuests"
+                        v-for="quest in sortedAvailableQuests"
                         :key="quest.id"
                         :quest="quest"
                         :vault-id="vaultId"
@@ -371,6 +443,7 @@ onMounted(async () => {
           <QuestRewardsModal
             :quest="claimQuest"
             :show="showClaimModal"
+            :is-submitting="isClaiming"
             @close="closeClaimModal"
             @confirm="confirmClaimRewards"
           />
@@ -382,6 +455,7 @@ onMounted(async () => {
             :vault-id="vaultId"
             @close="closeQuest"
             @select="openQuest"
+            @start="handleStartFromModal"
           />
         </PageContentRail>
       </div>

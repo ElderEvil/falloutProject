@@ -82,6 +82,16 @@ describe('QuestRewardsModal', () => {
     expect(wrapper.emitted('confirm')).toHaveLength(1)
   })
 
+  it('disables the claim action while a claim is in flight', () => {
+    const wrapper = mount(QuestRewardsModal, {
+      props: { show: true, quest, isSubmitting: true },
+      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    })
+
+    const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
+    expect(actions.props('confirmDisabled')).toBe(true)
+  })
+
   it('labels authored chance rewards with their roll probability', () => {
     const chanceQuest = {
       ...quest,

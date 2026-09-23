@@ -183,6 +183,37 @@ export function isSideQuestType(questType: string | null | undefined): boolean {
   return (questType || 'side') === 'side'
 }
 
+/** State quests settle from vault progress and start without a party. */
+export function isStateQuestCategory(category: string | null | undefined): boolean {
+  return ['building', 'population', 'training'].includes(category ?? '')
+}
+
+export type QuestAvailableSortBy = 'level' | 'duration' | 'type'
+
+/** Highest dweller level the quest's level requirements demand; 0 when unconstrained. */
+export function questRequiredLevel(quest: VaultQuest): number {
+  return (quest.quest_requirements ?? []).reduce((highest, requirement) => {
+    if (requirement.requirement_type !== 'level') return highest
+    const level = requirement.requirement_data.level
+    return typeof level === 'number' ? Math.max(highest, level) : highest
+  }, 0)
+}
+
+/** Order available quests so the most reachable ones surface first; title breaks ties. */
+export function compareQuestsByAvailableSort(
+  a: VaultQuest,
+  b: VaultQuest,
+  sortBy: QuestAvailableSortBy
+): number {
+  const primary =
+    sortBy === 'duration'
+      ? (a.duration_minutes ?? 0) - (b.duration_minutes ?? 0)
+      : sortBy === 'type'
+        ? (a.quest_type ?? '').localeCompare(b.quest_type ?? '')
+        : questRequiredLevel(a) - questRequiredLevel(b)
+  return primary || a.title.localeCompare(b.title)
+}
+
 /** Humanize a backend slug for display: underscores become spaces, first letter capitalized. */
 export function humanizeSlug(value: unknown): string {
   const label = rewardText(value) || 'stat'

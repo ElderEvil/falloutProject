@@ -438,7 +438,7 @@ terminal divisions, and a nearby text value when the number matters. Use the own
 **Theme contract**
 
 - The default fill resolves through `--primary` / `--color-theme-primary`, so it renders correctly in FO3
-  green, FNV amber, and FO4 teal. Tracks and frames use the warm-neutral surface roles, never a
+  teal, FNV amber, and FO4 green. Tracks and frames use the warm-neutral surface roles, never a
   palette-specific black/green treatment.
 - Semantic tones use their tokens. New meter code must not contain FO4 green hex values, `green-*`, or green
   RGBA glows. `--color-theme-accent` is a terminal brand accent; shadcn's semantic `accent` is a hover

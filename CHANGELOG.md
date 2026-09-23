@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.137.0 (2026-09-23)
+
+### Features
+
+* the Quiet Zone — a STALKER easter egg ([#759](https://github.com/ElderEvil/falloutProject/issues/759)) 8ea9aeb
+
 ## 2.136.3 (2026-09-23)
 
 ### Code Refactoring

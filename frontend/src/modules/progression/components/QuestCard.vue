@@ -9,6 +9,8 @@ import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
+import { QUEST_TYPE_COLORS } from '../models/quest'
+import { isStateQuestCategory } from '../models/quest'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
 import QuestTypeBadge from './QuestTypeBadge.vue'
 import QuestRewardList from './QuestRewardList.vue'
@@ -164,18 +166,10 @@ onUnmounted(() => {
 })
 
 const hasParty = computed(() => partyMembers && partyMembers.length > 0)
-const isStateQuest = computed(() => ['building', 'population', 'training'].includes(quest.quest_category ?? ''))
-
-const typeColors: Record<string, { bg: string; text: string; border: string }> = {
-  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
-  side: { bg: 'var(--color-quest-side)', text: 'var(--color-theme-primary)', border: 'var(--color-quest-side)' },
-  daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
-  event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
-  repeatable: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
-}
+const isStateQuest = computed(() => isStateQuestCategory(quest.quest_category))
 
 const typeColor = computed(() => {
-  return typeColors[quest.quest_type] || typeColors.side
+  return QUEST_TYPE_COLORS[quest.quest_type] || QUEST_TYPE_COLORS.side
 })
 
 const isBorderedCategory = computed(() =>
@@ -476,7 +470,6 @@ const handleAction = () => {
   justify-content: flex-end;
 }
 
-.type-badge,
 .category-badge,
 .chain-badge,
 .locked-badge {
@@ -520,65 +513,6 @@ const handleAction = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.prerequisites-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.prerequisite-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 0.9rem;
-}
-
-.prerequisite-item.met {
-  color: var(--color-theme-primary);
-}
-
-.prerequisite-item.unmet {
-  color: var(--color-quest-muted);
-}
-
-.prerequisite-icon {
-  font-size: 1rem;
-}
-
-.prerequisite-item.met .prerequisite-icon {
-  color: var(--color-theme-primary);
-}
-
-.prerequisite-item.unmet .prerequisite-icon {
-  color: var(--color-quest-locked);
-}
-
-.rewards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.reward-item,
-.reward-fallback {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 0.9rem;
-  color: var(--color-theme-primary);
-}
-
-.reward-icon {
-  color: var(--color-theme-accent);
-}
-
-.reward-chance {
-  font-size: 0.8rem;
-  opacity: 0.7;
 }
 
 .quest-action-btn {

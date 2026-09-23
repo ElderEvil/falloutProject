@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.135.2 (2026-09-23)
+
+### Bug Fixes
+
+* **exploration:** finalize a return in one transaction ([#758](https://github.com/ElderEvil/falloutProject/issues/758)) c891a46
+
 ## 2.135.1 (2026-09-23)
 
 ### Code Refactoring

@@ -5,7 +5,9 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.notification_preferences import should_deliver_notification
 from app.crud.notification import notification as notification_crud
+from app.crud.user_profile import profile_crud
 from app.models.notification import NotificationCreate, NotificationPriority, NotificationType
 from app.services.stream_manager import sse_manager
 from app.services.websocket_manager import manager
@@ -44,6 +46,11 @@ class NotificationService:
         commit: bool = True,
     ):
         """Create a notification and send it via WebSocket."""
+        profile = await profile_crud.get_by_user_id(db, user_id)
+        if not should_deliver_notification(profile.preferences if profile else None, notification_type):
+            logger.info("Suppressed %s notification for user %s by preference", notification_type, user_id)
+            return None
+
         vault_prefix = await NotificationService._get_vault_prefix(db, vault_id)
         prefixed_message = f"{vault_prefix}{message}"
 

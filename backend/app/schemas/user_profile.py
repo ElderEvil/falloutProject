@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from pydantic import UUID4
+from pydantic import UUID4, field_validator
 from sqlmodel import SQLModel
 
+from app.core.notification_preferences import validate_notification_preferences
 from app.models.user_profile import UserProfileBase
 from app.utils.partial import optional
 
@@ -18,6 +19,13 @@ class ProfileUpdate(SQLModel):
     bio: str | None = None
     avatar_url: str | None = None
     preferences: dict | None = None
+
+    @field_validator("preferences")
+    @classmethod
+    def validate_preferences(cls, preferences: dict | None) -> dict | None:
+        if preferences is not None:
+            validate_notification_preferences(preferences)
+        return preferences
 
 
 @optional()

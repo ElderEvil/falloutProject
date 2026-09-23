@@ -137,6 +137,28 @@ describe('QuestCard', () => {
     expect(wrapper.findAllComponents(Icon).some((icon) => icon.props('icon') === 'mdi:treasure-chest')).toBe(true)
   })
 
+  it('renders a travelling quest disabled with a return ETA', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          started_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          duration_minutes: 60,
+          return_started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          return_completes_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        },
+        vaultId: 'vault-1',
+        status: 'returning',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Travelling Home')
+    expect(wrapper.find('.timer-value').text()).toMatch(/^\d{2}:\d{2}:\d{2}$/)
+  })
+
   it('shows a room requirement by display name instead of slug', () => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
@@ -392,5 +414,105 @@ describe('QuestCard', () => {
     expect(wrapper.text()).toContain("Requires Overseer's Office")
     expect(wrapper.text()).toContain('Locked')
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+  })
+
+  it('uses a medical icon for a Stimpak item reward instead of the weapon icon', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_rewards: [
+            {
+              id: 'reward-1',
+              reward_type: 'item',
+              reward_data: { item_name: 'Stimpak', rarity: 'common' },
+              reward_chance: 1,
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'ready',
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Stimpak')
+    expect(wrapper.text()).not.toContain('(common)')
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain('mdi:medical-bag')
+    expect(icons).not.toContain('mdi:sword')
+  })
+
+  it.each([
+    ['weapon', 'mdi:pistol'],
+    ['outfit', 'mdi:tshirt-crew'],
+    ['consumable', 'mdi:bottle-tonic'],
+  ])('resolves item category %s to %s', (itemType, expectedIcon) => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          quest_rewards: [
+            {
+              id: 'reward-1',
+              reward_type: 'item',
+              reward_data: { item_name: 'Test Item', item_type: itemType },
+              reward_chance: 1,
+            },
+          ],
+        },
+        vaultId: 'vault-1',
+        status: 'ready',
+        partyMembers: [],
+      },
+    })
+
+    const icons = wrapper.findAllComponents(Icon).map((icon) => icon.props('icon'))
+    expect(icons).toContain(expectedIcon)
+    expect(icons).not.toContain('mdi:sword')
+  })
+
+  it('renders the lock reason only once when the backend already names the prerequisite', () => {
+    setActivePinia(createPinia())
+    const questStore = useQuestStore()
+    questStore.vaultQuests = [{ ...quest, id: 'quest-0', title: 'Snipping Coupons' }]
+    const wrapper = mount(QuestCard, {
+      props: {
+        quest: {
+          ...quest,
+          is_locked: true,
+          lock_reason: "Complete 'Snipping Coupons' to unlock",
+          previous_quest_id: 'quest-0',
+        },
+        vaultId: 'vault-1',
+        status: 'locked',
+        isLocked: true,
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain("Complete 'Snipping Coupons' to unlock")
+    expect(wrapper.text().match(/Snipping Coupons/g) || []).toHaveLength(1)
+  })
+
+  it('renders the side quest type chip with the bordered outline styling', () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: { quest: { ...quest, quest_type: 'side' }, vaultId: 'vault-1', status: 'available', partyMembers: [] },
+    })
+
+    expect(wrapper.find('.type-badge').attributes('style')).toBeUndefined()
+    expect(wrapper.find('.type-badge').classes()).toContain('border-border')
+  })
+
+  it.each(['building', 'exploration'])('renders the %s category chip with the bordered outline styling', (category) => {
+    setActivePinia(createPinia())
+    const wrapper = mount(QuestCard, {
+      props: { quest: { ...quest, quest_category: category }, vaultId: 'vault-1', status: 'available', partyMembers: [] },
+    })
+
+    expect(wrapper.find('.category-badge').classes()).toContain('border-border')
   })
 })

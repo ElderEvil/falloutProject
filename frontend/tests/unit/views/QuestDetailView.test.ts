@@ -173,4 +173,30 @@ describe('QuestDetailView start button', () => {
     expect(startButton.exists()).toBe(true)
     expect(startButton.text()).toContain('Start Quest')
   })
+
+  it('shows a disabled travelling-home message while the party returns', async () => {
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_locked: false,
+        lock_reason: null,
+        is_completed: false,
+        is_reward_ready: false,
+        started_at: '2025-01-02T00:00:00Z',
+        duration_minutes: 60,
+        return_started_at: '2025-01-02T01:00:00Z',
+        return_completes_at: '2025-01-02T01:15:00Z',
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const travellingButton = wrapper.find('.action-btn')
+    expect(travellingButton.exists()).toBe(true)
+    expect(travellingButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Party travelling home')
+  })
 })

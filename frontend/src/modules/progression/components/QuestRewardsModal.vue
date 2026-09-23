@@ -30,7 +30,7 @@ const REWARD_META: Record<QuestReward['reward_type'], { icon: string, label: str
 }
 
 const ITEM_META: Record<string, { icon: string, label: string }> = {
-  weapon: { icon: 'mdi:sword-cross', label: 'Weapon' },
+  weapon: { icon: 'mdi:pistol', label: 'Weapon' },
   outfit: { icon: 'mdi:tshirt-crew', label: 'Outfit' },
   junk: { icon: 'mdi:cog', label: 'Junk' },
   pet: { icon: 'mdi:paw', label: 'Pet' },

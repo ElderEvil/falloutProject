@@ -50,4 +50,24 @@ describe('QuestPartyCard', () => {
 
     wrapper.unmount()
   })
+
+  it('shows a travelling badge and ETA instead of progress while the party returns', () => {
+    const wrapper = mount(QuestPartyCard, {
+      props: {
+        quest: {
+          ...quest,
+          is_reward_ready: false,
+          return_started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          return_completes_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        },
+        partyMembers: [],
+      },
+    })
+
+    expect(wrapper.text()).toContain('RETURNING')
+    expect(wrapper.text()).toContain('Travelling home')
+    expect(wrapper.findComponent(Progress).exists()).toBe(false)
+
+    wrapper.unmount()
+  })
 })

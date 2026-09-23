@@ -167,6 +167,24 @@ async def test_incident_path_surfaces_level_up(async_session: AsyncSession, vaul
 
 
 @pytest.mark.asyncio
+async def test_incident_level_up_rolls_back_with_the_round(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The incident level-up write rides the round's transaction, not its own commit."""
+    room = await _make_production_room(async_session, vault)
+    await _pin_level_one(async_session, dweller)
+    incident = Incident(vault_id=vault.id, room_id=room.id, type=IncidentType.RAIDER_ATTACK, difficulty=1)
+    async_session.add(incident)
+    await async_session.commit()
+
+    await award_combat_xp(async_session, incident, [dweller])
+    await async_session.rollback()
+
+    await async_session.refresh(dweller)
+    assert dweller.level == 1
+
+
+@pytest.mark.asyncio
 async def test_arena_path_surfaces_level_up(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     """Arena level-ups must surface exactly like the canonical path."""
     await _pin_level_one(async_session, dweller)

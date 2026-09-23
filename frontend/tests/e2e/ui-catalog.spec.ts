@@ -6,6 +6,12 @@ import { test, expect } from '@playwright/test'
 // capture a deterministic page.
 test.use({ reducedMotion: 'reduce' })
 
+const THEME_METER_FILL: Record<string, string> = {
+  fo3: 'rgb(0, 255, 159)',
+  fnv: 'rgb(255, 183, 0)',
+  fo4: 'rgb(0, 255, 0)',
+}
+
 test.describe('UI catalog', () => {
   test('renders every primitive and matches the baseline', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
@@ -29,4 +35,19 @@ test.describe('UI catalog', () => {
     const indicator = page.locator('[aria-label="Gradient fill"] [data-slot="progress-indicator"]')
     await expect(indicator).toHaveCSS('background-image', /linear-gradient/)
   })
+
+  // The meter's default fill resolves through --primary, so it must follow the
+  // runtime palette. FO3 is teal, FNV amber, FO4 green.
+  for (const [theme, fill] of Object.entries(THEME_METER_FILL)) {
+    test(`meter fill follows the ${theme} palette`, async ({ page }) => {
+      await page.addInitScript((name) => window.localStorage.setItem('theme', name), theme)
+      await page.goto('/dev/ui-catalog')
+      await expect(page.getByRole('heading', { name: 'UI Catalog' })).toBeVisible({ timeout: 10000 })
+
+      const indicator = page
+        .locator('section[aria-labelledby="h-progress"] [data-slot="progress-indicator"]')
+        .first()
+      await expect(indicator).toHaveCSS('background-color', fill)
+    })
+  }
 })

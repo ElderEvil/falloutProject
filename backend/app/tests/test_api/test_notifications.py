@@ -180,6 +180,33 @@ async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession
     assert any(row.id == notification.id for row in rows)
 
 
+async def test_live_notification_payload_includes_routing_context(
+    async_session: AsyncSession, user_with_vault: tuple, dweller_in_vault
+) -> None:
+    """SSE clients receive the vault and source dweller needed for a contextual click target."""
+    user, vault = user_with_vault
+
+    with (
+        patch("app.services.notification_service.manager") as mock_ws,
+        patch("app.services.notification_service.sse_manager") as mock_sse,
+    ):
+        await NotificationService.create_and_send(
+            async_session,
+            user_id=user.id,
+            vault_id=vault.id,
+            from_dweller_id=dweller_in_vault.id,
+            notification_type=NotificationType.LEVEL_UP,
+            title="Level Up",
+            message="You reached level 2!",
+        )
+
+    ws_payload = mock_ws.send_personal_message.call_args.args[0]
+    sse_payload = mock_sse.publish.call_args.args[2]
+    for payload in (ws_payload, sse_payload):
+        assert payload["notification"]["vault_id"] == str(vault.id)
+        assert payload["notification"]["from_dweller_id"] == str(dweller_in_vault.id)
+
+
 # =============================================================================
 # Read-state behavior (AUDIT.md P3): dismissed rows must not be counted or
 # marked read, and the reads must not be row-oriented.

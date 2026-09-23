@@ -75,6 +75,8 @@ class NotificationService:
                 "priority": notification.priority,
                 "title": notification.title,
                 "message": notification.message,
+                "vault_id": str(notification.vault_id) if notification.vault_id else None,
+                "from_dweller_id": str(notification.from_dweller_id) if notification.from_dweller_id else None,
                 "meta_data": notification.meta_data,
                 "created_at": notification.created_at.isoformat(),
             },

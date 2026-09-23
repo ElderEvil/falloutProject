@@ -16,11 +16,15 @@ const props = defineProps<{
   progressPercentage: number
   timeRemaining: string
   explorationDuration: number
+  isReturning?: boolean
 }>()
 
 const radiationPercentage = computed(() => getRadiationPercentage(props.radiation, props.maxHealth))
 const healthPercentage = computed(
-  () => (Math.min(props.health, getEffectiveMaxHealth(props.radiation, props.maxHealth)) / props.maxHealth) * 100
+  () =>
+    (Math.min(props.health, getEffectiveMaxHealth(props.radiation, props.maxHealth)) /
+      props.maxHealth) *
+    100
 )
 </script>
 
@@ -64,9 +68,9 @@ const healthPercentage = computed(
               :height="12"
               aria-label="Health"
             />
-            <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary"
-              >{{ getHealthDisplay(health, maxHealth, radiation) }}</span
-            >
+            <span class="min-w-[60px] text-right text-xs font-bold text-theme-primary">{{
+              getHealthDisplay(health, maxHealth, radiation)
+            }}</span>
           </div>
         </div>
       </div>
@@ -77,8 +81,8 @@ const healthPercentage = computed(
       <h3
         class="mb-2 flex items-center text-base font-bold text-theme-primary [text-shadow:0_0_8px_var(--color-theme-glow)]"
       >
-        <Icon icon="mdi:compass" class="mr-2" />
-        Exploring Wasteland - {{ explorationDuration }}h
+        <Icon :icon="isReturning ? 'mdi:home-import-outline' : 'mdi:compass'" class="mr-2" />
+        {{ isReturning ? 'Returning Home' : 'Exploring Wasteland' }} - {{ explorationDuration }}h
       </h3>
       <div
         class="exploration-meter exploration-meter--progress mb-2 rounded-full"
@@ -96,7 +100,7 @@ const healthPercentage = computed(
       </div>
       <div class="flex justify-between text-sm font-bold">
         <span class="text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
-          >{{ Math.round(progressPercentage) }}% Complete</span
+          >{{ Math.round(progressPercentage) }}% {{ isReturning ? 'home' : 'Complete' }}</span
         >
         <span class="text-theme-primary/80">{{ timeRemaining }}</span>
       </div>
@@ -122,7 +126,9 @@ const healthPercentage = computed(
 .exploration-meter__fill {
   height: 100%;
   background: var(--color-theme-primary);
-  box-shadow: inset 0 0 5px rgb(255 255 255 / 0.28), 0 0 8px var(--color-theme-glow);
+  box-shadow:
+    inset 0 0 5px rgb(255 255 255 / 0.28),
+    0 0 8px var(--color-theme-glow);
   transition: width 0.5s ease;
 }
 

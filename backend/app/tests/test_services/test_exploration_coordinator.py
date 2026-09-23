@@ -249,7 +249,12 @@ async def test_auto_equip_failure_does_not_break_completion(
         new_callable=AsyncMock,
         side_effect=RuntimeError("equip exploded"),
     ):
-        rewards = await exploration_coordinator.complete_exploration(async_session, exploration.id)
+        await exploration_coordinator.start_return(async_session, exploration.id)
+        await async_session.refresh(exploration)
+        exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+        async_session.add(exploration)
+        await async_session.commit()
+        rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
 
     assert rewards.caps == 5
     equipped = (await async_session.execute(select(Weapon).where(Weapon.dweller_id == dweller.id))).scalars().all()
@@ -321,7 +326,12 @@ async def test_auto_equip_keeps_strongest_found_outfit(
     exploration.start_time = datetime.utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.flush()
-    await exploration_coordinator.complete_exploration(async_session, exploration.id)
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
 
     equipped = (await async_session.execute(select(Outfit).where(Outfit.dweller_id == dweller.id))).scalars().all()
     assert [o.name for o in equipped] == ["NCR Ranger outfit"]

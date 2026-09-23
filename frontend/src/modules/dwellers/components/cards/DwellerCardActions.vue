@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import { useTrainingStore } from '@/modules/progression/stores/training'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { isMature } from '../../models/dweller'
 import type { components } from '@/core/types/api.generated'
 
@@ -26,11 +27,16 @@ const emit = defineEmits<{
 }>()
 
 const trainingStore = useTrainingStore()
+const explorationStore = useExplorationStore()
 
 const isTraining = computed(() => trainingStore.isDwellerTraining(props.dweller.id))
 
 const isMatureDweller = computed(() => isMature(props.dweller))
 const isExploring = computed(() => props.dweller.status === 'exploring')
+const exploration = computed(() => explorationStore.getExplorationByDwellerId(props.dweller.id))
+/** Recall only applies while exploring; the dweller stays `exploring` on the return leg. */
+const isReturning = computed(() => exploration.value?.status === 'returning')
+const canRecall = computed(() => exploration.value?.status === 'active')
 /** Away dwellers are out of the vault: room, training and wasteland actions do not apply. */
 const isAway = computed(
   () => props.dweller.status === 'exploring' || props.dweller.status === 'questing'
@@ -93,7 +99,17 @@ const exploreTooltip = computed(() =>
         <TooltipContent side="top">{{ exploreTooltip }}</TooltipContent>
       </Tooltip>
 
-      <Tooltip v-if="isExploring">
+      <Tooltip v-if="isReturning">
+        <TooltipTrigger as-child>
+          <Button variant="secondary" class="w-full" disabled>
+            <Icon icon="mdi:home-import-outline" class="h-5 w-5 mr-2" />
+            Returning
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Heading home from the wasteland</TooltipContent>
+      </Tooltip>
+
+      <Tooltip v-else-if="canRecall">
         <TooltipTrigger as-child>
           <Button variant="secondary" class="w-full" @click="emit('recall')" :disabled="loading">
             <Icon icon="mdi:arrow-u-left-top" class="h-5 w-5 mr-2" />

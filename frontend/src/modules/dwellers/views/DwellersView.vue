@@ -12,6 +12,7 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
+import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { happinessService } from '@/modules/dwellers/services/happinessService'
@@ -56,6 +57,7 @@ const featureFlags = useFeatureFlagsStore()
 const vaultStore = useVaultStore()
 const roomStore = useRoomStore()
 const incidentStore = useIncidentStore()
+const explorationStore = useExplorationStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
 const router = useRouter()
@@ -255,6 +257,10 @@ onMounted(async () => {
         isIncidentsLoading.value = false
       }),
       roomStore.fetchRooms(vaultId.value, authStore.token as string),
+      // Recall gating reads the exploration store; a failed load must not block the roster.
+      explorationStore
+        .fetchExplorationsByVault(vaultId.value, authStore.token as string)
+        .catch(() => undefined),
     ])
   }
 

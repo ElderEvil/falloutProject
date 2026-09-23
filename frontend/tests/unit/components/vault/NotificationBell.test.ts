@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
+import { removePendingReport, usePendingReports } from '@/modules/exploration/composables/usePendingReports'
 
 /**
  * NotificationBell SSE Watcher Regression Tests
@@ -207,6 +208,51 @@ describe('NotificationBell SSE watcher null-safety', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Hazard Team Joined')
     expect(wrapper.text()).toContain('Jane Doe joined the fire team')
+
+    wrapper.unmount()
+  })
+
+  it('surfaces an exploration completion that lands away from the exploration routes', async () => {
+    // ARRANGE: authenticated user, SSE delivers the arrival notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+    removePendingReport('exp-1')
+
+    const completionData = JSON.stringify({
+      notification: {
+        id: 'n3',
+        notification_type: 'exploration_complete',
+        title: 'Exploration Complete',
+        message: 'Lucy MacLean returned with 120 caps',
+        priority: 'normal',
+        created_at: '2026-08-11T11:00:00',
+        vault_id: 'vault-1',
+        meta_data: {
+          exploration_id: 'exp-1',
+          vault_id: 'vault-1',
+          dweller_id: 'd1',
+          dweller_name: 'Lucy MacLean',
+          rewards: { caps: 120, items: [], experience: 40, distance: 3 },
+        },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(completionData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: announced immediately, rather than only after a bell click
+    expect(toasts.value.some((t) => t.message === 'Lucy MacLean returned with 120 caps')).toBe(true)
+
+    // ASSERT: the reward report is queued without the player clicking the notification
+    const { pendingReports } = usePendingReports('vault-1')
+    expect(pendingReports.value.some((r) => r.explorationId === 'exp-1')).toBe(true)
 
     wrapper.unmount()
   })

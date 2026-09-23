@@ -19,7 +19,7 @@ from app.models.training import TrainingStatus
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationProgress
 from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
-from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration.coordinator import ERROR_NOT_ACTIVE, exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
 from app.services.user_service import user_service
@@ -55,8 +55,24 @@ class ExplorationService:
         """
         return await event_service.process_event(db_session, exploration)
 
-    async def complete_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """Complete an exploration and return rewards summary.
+    async def start_return(
+        self, db_session: AsyncSession, exploration_id: UUID4, *, recalled: bool = False
+    ) -> Exploration:
+        """Send a dweller home; rewards and loot wait until the return leg finishes.
+
+        :param db_session: Database session
+        :type db_session: AsyncSession
+        :param exploration_id: Exploration ID
+        :type exploration_id: UUID4
+        :param recalled: True for a player-initiated early recall, defaults to False
+        :type recalled: bool
+        :return: The exploration now in RETURNING state
+        :rtype: Exploration
+        """
+        return await exploration_coordinator.start_return(db_session, exploration_id, recalled=recalled)
+
+    async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
+        """Finalize an exploration whose dweller has arrived home.
 
         :param db_session: Database session
         :type db_session: AsyncSession
@@ -65,19 +81,7 @@ class ExplorationService:
         :return: Rewards summary
         :rtype: RewardsSchema
         """
-        return await exploration_coordinator.complete_exploration(db_session, exploration_id)
-
-    async def recall_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
-        """Recall a dweller early from exploration.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param exploration_id: Exploration ID
-        :type exploration_id: UUID4
-        :return: Rewards summary with reduced rewards
-        :rtype: RewardsSchema
-        """
-        return await exploration_coordinator.recall_exploration(db_session, exploration_id)
+        return await exploration_coordinator.finalize_return(db_session, exploration_id)
 
     async def send_dweller(
         self,
@@ -232,6 +236,8 @@ class ExplorationService:
             progress_percentage=exploration.progress_percentage(),
             time_remaining_seconds=exploration.time_remaining_seconds(),
             elapsed_time_seconds=exploration.elapsed_time_seconds(),
+            return_completes_at=exploration.return_completes_at,
+            return_time_remaining_seconds=exploration.return_time_remaining_seconds(),
             events=exploration.events,
             loot_collected=exploration.loot_collected,
             stimpaks=exploration.stimpaks,
@@ -240,37 +246,45 @@ class ExplorationService:
 
     async def complete_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID4
-    ) -> tuple[Exploration, RewardsSchema]:
-        """Complete exploration and return both exploration and rewards.
+    ) -> tuple[Exploration, RewardsSchema | None]:
+        """Advance a finished exploration: start the return leg, or finalize once home.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
         :type exploration_id: UUID4
-        :return: Tuple of (exploration, rewards)
-        :rtype: tuple[Exploration, RewardsSchema]
-        :raises ValueError: If exploration cannot be completed
+        :return: Tuple of (exploration, rewards); rewards are None while the dweller is still returning
+        :rtype: tuple[Exploration, RewardsSchema | None]
+        :raises ValueError: If exploration cannot be advanced
         """
-        rewards = await exploration_coordinator.complete_exploration(db_session, exploration_id)
         exploration = await crud_exploration.get(db_session, exploration_id)
-        return exploration, rewards
+
+        if exploration.is_active():
+            return await exploration_coordinator.start_return(db_session, exploration_id), None
+
+        if exploration.is_returning():
+            if exploration.return_time_remaining_seconds() > 0:
+                return exploration, None
+            rewards = await exploration_coordinator.finalize_return(db_session, exploration_id)
+            return await crud_exploration.get(db_session, exploration_id), rewards
+
+        raise ValueError(ERROR_NOT_ACTIVE)
 
     async def recall_exploration_with_data(
         self, db_session: AsyncSession, exploration_id: UUID4
-    ) -> tuple[Exploration, RewardsSchema]:
-        """Recall dweller early and return both exploration and rewards.
+    ) -> tuple[Exploration, RewardsSchema | None]:
+        """Recall dweller early: the run enters its return leg, rewards wait for arrival.
 
         :param db_session: Database session
         :type db_session: AsyncSession
         :param exploration_id: Exploration ID
         :type exploration_id: UUID4
-        :return: Tuple of (exploration, rewards)
-        :rtype: tuple[Exploration, RewardsSchema]
+        :return: Tuple of (exploration, None); rewards arrive when the dweller gets home
+        :rtype: tuple[Exploration, RewardsSchema | None]
         :raises ValueError: If exploration cannot be recalled
         """
-        rewards = await exploration_coordinator.recall_exploration(db_session, exploration_id)
-        exploration = await crud_exploration.get(db_session, exploration_id)
-        return exploration, rewards
+        exploration = await exploration_coordinator.start_return(db_session, exploration_id, recalled=True)
+        return exploration, None
 
     async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration:
         """Generate and process an event for an exploration.

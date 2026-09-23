@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 class ExplorationStats(TypedDict, total=False):
     active_count: int
     events_generated: int
+    returning: int
     completed: int
     error: str
 

@@ -6,7 +6,11 @@ import { Progress } from '@/core/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/core/components/ui/tooltip'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
 import type { Dweller, DetailedDweller } from '@/modules/dwellers/models/dweller'
-import { getProgressPercentage } from '@/modules/exploration/composables/useExplorationProgress'
+import {
+  canRecall,
+  getProgressPercentage,
+  isReadyToComplete,
+} from '@/modules/exploration/composables/useExplorationProgress'
 import ExplorerActions from './ExplorerActions.vue'
 
 interface Props {
@@ -48,7 +52,7 @@ const sortedExplorations = computed(() =>
   [...props.explorations].sort((a, b) => getProgressPercentage(b) - getProgressPercentage(a))
 )
 
-const isReady = (exploration: Exploration) => getProgressPercentage(exploration) >= 100
+const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
 
 // Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
 const isAtRisk = (dwellerId: string) => {
@@ -112,6 +116,7 @@ const riskTitle = (dwellerId: string) => {
                   <TooltipContent>{{ riskTitle(exploration.dweller_id) }}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              <Badge v-if="exploration.status === 'returning'" variant="secondary">RETURNING</Badge>
             </div>
             <span class="flex shrink-0 items-center gap-1">
               <TooltipProvider v-if="isReady(exploration)" :delay-duration="200">
@@ -198,7 +203,9 @@ const riskTitle = (dwellerId: string) => {
         <ExplorerActions
           compact
           class="explorer-actions"
-          :can-complete="getProgressPercentage(exploration) >= 100"
+          :can-complete="isReady(exploration)"
+          :can-recall="canRecall(exploration)"
+          :is-returning="exploration.status === 'returning'"
           @complete="emit('complete', exploration.id)"
           @recall="emit('recall', exploration.id)"
         />

@@ -24,9 +24,7 @@ vi.mock('@/core/composables/useEventStream', () => ({
 vi.mock('@/modules/dwellers/stores/dweller', () => ({
   useDwellerStore: vi.fn(() => ({
     filter: {
-      dwellers: [
-        { id: 'dweller-1', first_name: 'Amata', last_name: 'Almodovar' },
-      ],
+      dwellers: [{ id: 'dweller-1', first_name: 'Amata', last_name: 'Almodovar' }],
     },
   })),
 }))
@@ -147,6 +145,35 @@ describe('Exploration Store', () => {
       expect(vaultExplorations).toHaveLength(2)
       expect(vaultExplorations.every((e) => e.vault_id === 'vault-1')).toBe(true)
       expect(vaultExplorations.every((e) => e.status === 'active')).toBe(true)
+    })
+
+    it('getExplorationByDwellerId should include a dweller on the return leg', () => {
+      const store = useExplorationStore()
+      store.explorations = [{ ...mockExploration, status: 'returning' }]
+
+      expect(store.getExplorationByDwellerId('dweller-1')?.status).toBe('returning')
+    })
+
+    it('getExplorationByDwellerId should prefer an active run over a stale returning one', () => {
+      const store = useExplorationStore()
+      store.explorations = [
+        { ...mockExploration, id: 'exploration-old', status: 'returning' },
+        { ...mockExploration, id: 'exploration-new', status: 'active' },
+      ]
+
+      expect(store.getExplorationByDwellerId('dweller-1')?.id).toBe('exploration-new')
+    })
+
+    it('getActiveExplorationsForVault should include returning explorations', () => {
+      const store = useExplorationStore()
+      store.explorations = [
+        mockExploration,
+        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' },
+        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
+      ]
+
+      const vaultExplorations = store.getActiveExplorationsForVault('vault-1')
+      expect(vaultExplorations.map((e) => e.id).sort()).toEqual(['exploration-1', 'exploration-2'])
     })
   })
 

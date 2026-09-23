@@ -6672,11 +6672,11 @@ export interface components {
             exploration: components["schemas"]["ExplorationRead"];
             /**
              * Rewards Summary
-             * @description Summary of rewards: {caps: int, items: list, experience: int}
+             * @description Rewards summary, or None while the dweller is still returning
              */
-            rewards_summary: {
+            rewards_summary?: {
                 [key: string]: unknown;
-            };
+            } | null;
         };
         /**
          * ExplorationProgress
@@ -6695,6 +6695,13 @@ export interface components {
             time_remaining_seconds: number;
             /** Elapsed Time Seconds */
             elapsed_time_seconds: number;
+            /** Return Completes At */
+            return_completes_at?: string | null;
+            /**
+             * Return Time Remaining Seconds
+             * @default 0
+             */
+            return_time_remaining_seconds: number;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -6741,6 +6748,12 @@ export interface components {
             start_time: string;
             /** End Time */
             end_time: string | null;
+            /** Return Started At */
+            return_started_at: string | null;
+            /** Return Completes At */
+            return_completes_at: string | null;
+            /** Recalled Early */
+            recalled_early: boolean;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -6812,6 +6825,10 @@ export interface components {
             start_time: string;
             /** End Time */
             end_time: string | null;
+            /** Return Started At */
+            return_started_at: string | null;
+            /** Return Completes At */
+            return_completes_at: string | null;
             /** Duration */
             duration: number;
             /** Total Distance */
@@ -6859,7 +6876,7 @@ export interface components {
          * @description Status of a wasteland exploration.
          * @enum {string}
          */
-        ExplorationStatus: "active" | "completed" | "recalled";
+        ExplorationStatus: "active" | "returning" | "completed" | "recalled";
         /**
          * FactionEnum
          * @enum {string}

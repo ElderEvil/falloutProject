@@ -40,9 +40,13 @@ const dwellerName = computed(() =>
   props.dweller ? `${props.dweller.first_name} ${props.dweller.last_name}` : 'Unknown Dweller'
 )
 
-const { progress: progressPercentage, timeRemaining } = useExplorationProgress(() => props.exploration)
-
-const isReady = computed(() => progressPercentage.value >= 100)
+const {
+  progress: progressPercentage,
+  timeRemaining,
+  isReturning,
+  isReady,
+  canRecall,
+} = useExplorationProgress(() => props.exploration)
 
 // Low HP (<=30%) or heavy radiation (>=50% of max) based on live dweller vitals.
 const isAtRisk = computed(() => {
@@ -84,7 +88,15 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
               <div>
                 <div class="dweller-name">{{ dwellerName }}</div>
                 <div class="exploration-duration">{{ exploration.duration }}h expedition</div>
-                <div v-if="isReady || isAtRisk" class="badge-row">
+                <div v-if="isReturning || isReady || isAtRisk" class="badge-row">
+                  <TooltipProvider v-if="isReturning" :delay-duration="200">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span><Badge variant="secondary">RETURNING</Badge></span>
+                      </TooltipTrigger>
+                      <TooltipContent>{{ timeRemaining }}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <TooltipProvider v-if="isReady" :delay-duration="200">
                     <Tooltip>
                       <TooltipTrigger as-child>
@@ -181,7 +193,9 @@ const recentEvents = computed(() => props.exploration.events?.slice(-3).reverse(
     <!-- Actions -->
     <ExplorerActions
       compact
-      :can-complete="progressPercentage >= 100"
+      :can-complete="isReady"
+      :can-recall="canRecall"
+      :is-returning="isReturning"
       @complete="emit('complete', exploration.id)"
       @recall="emit('recall', exploration.id)"
     />

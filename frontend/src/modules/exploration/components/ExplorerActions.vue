@@ -2,12 +2,19 @@
 import { Icon } from '@iconify/vue'
 import { Button } from '@/core/components/ui/button'
 
-withDefaults(defineProps<{
-  canComplete: boolean
-  compact?: boolean
-}>(), {
-  compact: false,
-})
+withDefaults(
+  defineProps<{
+    canComplete: boolean
+    canRecall?: boolean
+    isReturning?: boolean
+    compact?: boolean
+  }>(),
+  {
+    canRecall: true,
+    isReturning: false,
+    compact: false,
+  }
+)
 
 const emit = defineEmits<{
   complete: []
@@ -17,11 +24,25 @@ const emit = defineEmits<{
 
 <template>
   <div
-    :class="compact ? 'flex gap-2 border-t border-theme-primary/20 pt-2' : 'grid grid-cols-1 gap-3 lg:grid-cols-2'"
+    :class="
+      compact
+        ? 'flex gap-2 border-t border-theme-primary/20 pt-2'
+        : 'grid grid-cols-1 gap-3 lg:grid-cols-2'
+    "
     @click.stop
   >
     <Button
-      v-if="canComplete"
+      v-if="isReturning"
+      disabled
+      variant="secondary"
+      :size="compact ? 'sm' : 'lg'"
+      :class="compact ? 'flex-1' : 'w-full'"
+    >
+      <Icon :class="compact ? 'h-5 w-5' : 'h-6 w-6'" icon="mdi:home-import-outline" />
+      {{ compact ? 'Returning' : 'Returning Home…' }}
+    </Button>
+    <Button
+      v-else-if="canComplete"
       @click="emit('complete')"
       :size="compact ? 'sm' : 'lg'"
       :class="compact ? 'flex-1' : 'w-full'"
@@ -30,6 +51,7 @@ const emit = defineEmits<{
       {{ compact ? 'Complete' : 'Complete Exploration' }}
     </Button>
     <Button
+      v-if="!isReturning && canRecall"
       @click="emit('recall')"
       variant="secondary"
       :size="compact ? 'sm' : 'lg'"

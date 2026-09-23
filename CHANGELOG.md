@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.137.1 (2026-09-23)
+
+### Bug Fixes
+
+* enforce radio recruitment population cap ([#771](https://github.com/ElderEvil/falloutProject/issues/771)) 2986358
+
 ## 2.137.0 (2026-09-23)
 
 ### Features

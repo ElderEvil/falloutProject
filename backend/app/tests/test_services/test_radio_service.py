@@ -1,7 +1,7 @@
 """Tests for radio service logic."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
@@ -189,6 +189,25 @@ async def test_check_for_recruitment_failure(
 
 
 @pytest.mark.asyncio
+async def test_check_for_recruitment_skips_full_vault_before_the_roll(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_room: Room,
+):
+    """A full vault does not roll or create a passive radio recruit."""
+    vault.population_max = 0
+    async_session.add(vault)
+    await async_session.commit()
+    rng = MagicMock()
+
+    dweller = await RadioService.check_for_recruitment(async_session, vault.id, rng=rng)
+
+    assert dweller is None
+    rng.random.assert_not_called()
+    assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 0
+
+
+@pytest.mark.asyncio
 async def test_recruit_dweller_returns_tuple(
     async_session: AsyncSession,
     vault: Vault,
@@ -256,6 +275,28 @@ async def test_manual_recruit_insufficient_caps(
 
     with pytest.raises(ValueError, match="Insufficient caps"):
         await RadioService.manual_recruit(async_session, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_manual_recruit_does_not_spend_caps_when_vault_is_full(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_room: Room,
+    radio_dweller: Dweller,
+):
+    """Manual radio recruitment leaves caps and population unchanged at capacity."""
+    vault.population_max = 1
+    vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
+    async_session.add(vault)
+    await async_session.commit()
+    initial_caps = vault.bottle_caps
+
+    with pytest.raises(ValueError, match="population capacity"):
+        await RadioService.manual_recruit(async_session, vault.id)
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps
+    assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 1
 
 
 @pytest.mark.asyncio

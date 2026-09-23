@@ -163,6 +163,13 @@ function rewardAmount(value: unknown): number {
   return typeof value === 'number' ? value : Number(value) || 0
 }
 
+/** Humanize a backend slug for display: underscores become spaces, first letter capitalized. */
+export function humanizeSlug(value: unknown): string {
+  const label = rewardText(value) || 'stat'
+  const spaced = label.replace(/_/g, ' ')
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
 /** Icon for a quest reward; item rewards resolve via category, then item name, so only unknown items use the generic icon. */
 export function questRewardIcon(reward: QuestReward): string {
   const type = reward.reward_type.toLowerCase()

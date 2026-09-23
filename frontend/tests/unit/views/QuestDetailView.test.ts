@@ -302,4 +302,46 @@ describe('QuestDetailView start button', () => {
     expect(wrapper.text()).toContain('50 Caps')
     expect(wrapper.text()).not.toMatch(/^\s*caps\s*$/m)
   })
+
+  it('renders the side type chip bordered without the gray fill', async () => {
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_completed: true,
+        quest_requirements: [],
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const badgeClasses = wrapper.find('.type-badge').classes().join(' ')
+    expect(badgeClasses).not.toContain('bg-quest-side')
+    expect(badgeClasses).toContain('border-border')
+  })
+
+  it('humanizes the category badge and prerequisite slugs', async () => {
+    questStore.vaultQuests = [
+      {
+        ...chainedQuest,
+        is_visible: true,
+        is_completed: true,
+        quest_category: 'collection',
+        quest_requirements: [
+          { id: 'req-1', requirement_type: 'dweller_count', requirement_data: {}, is_mandatory: true },
+        ],
+      },
+    ]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Collection')
+    expect(wrapper.text()).not.toContain('collection')
+    expect(wrapper.text()).toContain('Dweller count')
+    expect(wrapper.text()).not.toContain('dweller_count')
+  })
 })

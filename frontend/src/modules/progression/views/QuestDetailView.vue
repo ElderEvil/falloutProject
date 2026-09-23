@@ -13,7 +13,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { VaultQuest } from '../models/quest'
-import { formatQuestReward, isQuestReturning, questRewardIcon } from '../models/quest'
+import { formatQuestReward, humanizeSlug, isQuestReturning, questRewardIcon } from '../models/quest'
 
 const route = useRoute()
 const router = useRouter()
@@ -93,6 +93,8 @@ const typeLabel = computed(() => {
   if (!quest.value) return 'Side'
   return quest.value.quest_type.charAt(0).toUpperCase() + quest.value.quest_type.slice(1)
 })
+
+const isSideType = computed(() => (quest.value?.quest_type || 'side') === 'side')
 
 const isChainQuest = computed(() => {
   return quest.value?.chain_id !== null
@@ -253,13 +255,13 @@ const goBack = () => {
             <div class="quest-header-section">
               <div class="quest-badges">
                 <Badge
-                  :class="[typeColor.bg, typeColor.text]"
-                  class="type-badge"
+                  :variant="isSideType ? 'outline' : 'default'"
+                  :class="isSideType ? 'type-badge' : ['type-badge', typeColor.bg, typeColor.text]"
                 >
                   {{ typeLabel }}
                 </Badge>
                 <Badge v-if="quest.quest_category" variant="secondary" class="category-badge">
-                  {{ quest.quest_category }}
+                  {{ humanizeSlug(quest.quest_category) }}
                 </Badge>
                 <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
                   <Icon icon="mdi:link-variant" class="inline-icon" />
@@ -311,7 +313,7 @@ const goBack = () => {
                         class="prerequisite-icon"
                       />
                       <div class="prerequisite-details">
-                        <span class="prerequisite-type">{{ req.requirement_type }}</span>
+                        <span class="prerequisite-type">{{ humanizeSlug(req.requirement_type) }}</span>
                         <span v-if="req.is_mandatory" class="mandatory-tag">Required</span>
                       </div>
                     </li>

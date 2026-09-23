@@ -10,7 +10,7 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
-import { formatQuestReward, questRewardIcon } from '../models/quest'
+import { formatQuestReward, humanizeSlug, questRewardIcon } from '../models/quest'
 
 const questStore = useQuestStore()
 const dwellerFilterStore = useDwellerFilterStore()
@@ -223,10 +223,7 @@ const getRequirementCount = (requirementData: Record<string, unknown>): number =
   return typeof count === 'number' ? count : 0
 }
 
-const statLabel = (stat: unknown): string => {
-  const label = String(stat ?? 'stat').replace(/_/g, ' ')
-  return label.charAt(0).toUpperCase() + label.slice(1)
-}
+const statLabel = (stat: unknown): string => humanizeSlug(stat)
 
 function isLevelRequirementMet(requirementData: Record<string, unknown>): boolean {
   const level = requirementData.level

@@ -143,6 +143,13 @@ watch(currentSseEvent, (evt) => {
       enqueuePendingReport(newNotif)
       toast.success(notificationData.message)
     }
+    // A quest party arrival is also asynchronous; toast it when the rewards are claimable.
+    if (
+      notificationData.notification_type === 'quest_complete' &&
+      notificationData.meta_data?.ready_to_claim
+    ) {
+      toast.success(notificationData.message)
+    }
 })
 
 const fetchNotifications = async () => {
@@ -246,6 +253,7 @@ const getNotificationIcon = (type: string): string => {
     exploration_update: 'mdi:map-marker',
     hazard_team_joined: 'mdi:shield-account',
     level_up: 'mdi:arrow-up-bold',
+    quest_complete: 'mdi:treasure-chest',
     training_complete: 'mdi:school',
     combat_started: 'mdi:sword-cross',
     combat_victory: 'mdi:sword',

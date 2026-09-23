@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Card } from '@/core/components/ui/card'
+import { Badge } from '@/core/components/ui/badge'
 import { Progress } from '@/core/components/ui/progress'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
@@ -33,7 +34,18 @@ onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval)
 })
 
+const isReturning = computed(
+  () => props.quest.return_completes_at != null && !props.quest.is_reward_ready
+)
+
 const progressPercentage = computed(() => {
+  if (isReturning.value) {
+    if (!props.quest.return_started_at || !props.quest.return_completes_at) return 100
+    const start = parseStartTimeMs(props.quest.return_started_at)
+    const total = parseStartTimeMs(props.quest.return_completes_at) - start
+    if (total <= 0) return 100
+    return Math.min(100, Math.max(0, ((now.value - start) / total) * 100))
+  }
   if (!props.quest.started_at || !props.quest.duration_minutes) return 0
 
   const start = parseStartTimeMs(props.quest.started_at)
@@ -42,6 +54,14 @@ const progressPercentage = computed(() => {
 })
 
 const timeRemaining = computed(() => {
+  if (isReturning.value) {
+    if (!props.quest.return_completes_at) return 'Travelling home'
+    const remainingMinutes = Math.max(
+      0,
+      Math.ceil((parseStartTimeMs(props.quest.return_completes_at) - now.value) / 60_000)
+    )
+    return `Travelling home — ${remainingMinutes}m left`
+  }
   if (progressPercentage.value >= 100) return 'Rewards ready'
 
   const remainingMinutes = Math.ceil(
@@ -65,18 +85,23 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
       <div class="mission-type">
         <Icon icon="mdi:sword-cross" class="mission-icon" />
         <span>Quest party</span>
+        <Badge v-if="isReturning" variant="secondary">RETURNING</Badge>
       </div>
       <span class="mission-time">{{ timeRemaining }}</span>
     </div>
 
     <h3 class="quest-title">{{ quest.title }}</h3>
 
-    <div class="mission-progress">
+    <div v-if="!isReturning" class="mission-progress">
       <div class="progress-labels">
         <span>Mission progress</span>
         <span>{{ Math.round(progressPercentage) }}%</span>
       </div>
       <Progress :model-value="progressPercentage" class="h-2" />
+    </div>
+    <div v-else class="mission-returning">
+      <Icon icon="mdi:home-import-outline" class="returning-icon" />
+      <span>{{ timeRemaining }}</span>
     </div>
 
     <div class="party-section">
@@ -173,6 +198,25 @@ const partyCountLabel = computed(() => `${props.partyMembers.length} / 3 assigne
 .party-section,
 .party-members {
   display: grid;
+}
+
+.mission-returning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface-sunken);
+  border: 1px solid color-mix(in srgb, var(--color-theme-secondary) 40%, transparent);
+  border-radius: 4px;
+  color: var(--color-theme-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.returning-icon {
+  font-size: 1.1rem;
 }
 
 .mission-progress {

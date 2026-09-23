@@ -38,6 +38,8 @@ class QuestRead(QuestBase):
     is_completed: bool = False
     is_reward_ready: bool = False
     started_at: datetime | None = None
+    return_started_at: datetime | None = None
+    return_completes_at: datetime | None = None
     duration_minutes: int | None = None
     quest_requirements: list[QuestRequirementRead] | None = None
     quest_rewards: list[QuestRewardRead] | None = None

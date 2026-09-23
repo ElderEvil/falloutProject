@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
 import { QuestCard, PartySelectionModal } from '../components'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import type { VaultQuest } from '../models/quest'
+import { isQuestReturning } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -31,7 +32,8 @@ const toast = useToast()
 const activeTab = ref('active')
 const showAllQuests = ref(false)
 const questTabs = [
-  { key: 'active', label: 'Active & Available', icon: 'mdi:play-circle' },
+  { key: 'active', label: 'Active', icon: 'mdi:play-circle' },
+  { key: 'available', label: 'Available', icon: 'mdi:book-open-page-variant' },
   { key: 'completed', label: 'Completed', icon: 'mdi:check-circle' },
 ]
 
@@ -65,11 +67,14 @@ const officeLocked = computed(() =>
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
+const returningQuests = computed(() => questStore.questCategories.returning)
 const readyToClaimQuests = computed(() => questStore.questCategories.readyToClaim)
 const completedQuests = computed(() => questStore.questCategories.completed)
+// Travelling parties stay visible on the active tab and keep the poll alive.
+const travellingOrActiveQuests = computed(() => [...activeQuests.value, ...returningQuests.value])
 
 const refreshActiveQuests = async () => {
-  if (!vaultId.value || activeQuests.value.length === 0) return
+  if (!vaultId.value || travellingOrActiveQuests.value.length === 0) return
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
   await loadPartyMembers()
 }
@@ -80,7 +85,7 @@ const { pause: pauseQuestPolling, resume: resumeQuestPolling } = usePolling(refr
 })
 
 watch(
-  activeQuests,
+  travellingOrActiveQuests,
   (quests) => {
     if (quests.length > 0) {
       resumeQuestPolling()
@@ -246,7 +251,7 @@ onMounted(async () => {
                   {{ tab.label }}
                 </TabsTrigger>
               </TabsList>
-                <!-- Active & Available Quests -->
+                <!-- Active Quests -->
                 <div v-if="activeTab === 'active'" class="tab-content">
                   <div v-if="readyToClaimQuests.length > 0" class="quest-section">
                     <h2 class="section-title">
@@ -266,24 +271,36 @@ onMounted(async () => {
                   </div>
 
                   <!-- Active Quests Section -->
-                  <div v-if="activeQuests.length > 0" class="quest-section">
+                  <div v-if="travellingOrActiveQuests.length > 0" class="quest-section">
                     <h2 class="section-title">
                       <Icon icon="mdi:progress-check" class="inline mr-2" />
                       ACTIVE QUESTS
                     </h2>
                     <div class="quest-grid">
                       <QuestCard
-                        v-for="quest in activeQuests"
+                        v-for="quest in travellingOrActiveQuests"
                         :key="quest.id"
                         :quest="quest"
                         :vault-id="vaultId"
-                        status="active"
+                        :status="isQuestReturning(quest) ? 'returning' : 'active'"
                         :party-members="questPartyMembersMap[quest.id] || []"
                         @assign-party="handleAssignParty"
                       />
                     </div>
                   </div>
 
+                  <!-- Empty State -->
+                  <div
+                    v-if="readyToClaimQuests.length === 0 && travellingOrActiveQuests.length === 0"
+                    class="empty-state"
+                  >
+                    <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
+                    <p>No active quests. Start one from the Available tab.</p>
+                  </div>
+                </div>
+
+                <!-- Available Quests -->
+                <div v-if="activeTab === 'available'" class="tab-content">
                   <!-- Available Quests Section -->
                   <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
                     <div class="section-header">
@@ -314,10 +331,7 @@ onMounted(async () => {
                   </div>
 
                   <!-- Empty State -->
-                  <div
-                    v-if="readyToClaimQuests.length === 0 && activeQuests.length === 0 && filteredAvailableQuests.length === 0"
-                    class="empty-state"
-                  >
+                  <div v-else class="empty-state">
                     <Icon icon="mdi:inbox" class="text-8xl mb-6 opacity-30" />
                     <p v-if="showAllQuests">No quests available at the moment</p>
                     <p v-else>No unlocked quests available. Complete previous quests to unlock more.</p>

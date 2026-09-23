@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import axios from '@/core/plugins/axios'
 import type { components } from '@/core/types/api.generated'
 import type { Quest, QuestPartyMember, VaultQuest } from '../models/quest'
-import { formatGrantedReward } from '../models/quest'
+import { formatGrantedReward, isQuestReturning } from '../models/quest'
 import { useToast } from '@/core/composables/useToast'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { handleStoreError } from '@/core/utils/errorHandler'
@@ -37,6 +37,7 @@ export const useQuestStore = defineStore('quest', () => {
   // Single pass classification of all vault quests
   const questCategories = computed(() => {
     const active: VaultQuest[] = []
+    const returning: VaultQuest[] = []
     const readyToClaim: VaultQuest[] = []
     const completed: VaultQuest[] = []
     const available: VaultQuest[] = []
@@ -49,6 +50,8 @@ export const useQuestStore = defineStore('quest', () => {
         completed.push(quest)
       } else if (quest.is_reward_ready) {
         readyToClaim.push(quest)
+      } else if (quest.started_at != null && isQuestReturning(quest)) {
+        returning.push(quest)
       } else if (quest.started_at != null) {
         active.push(quest)
       } else {
@@ -56,7 +59,7 @@ export const useQuestStore = defineStore('quest', () => {
       }
     }
 
-    return { active, readyToClaim, completed, available, allVisible }
+    return { active, returning, readyToClaim, completed, available, allVisible }
   })
 
   // Actions

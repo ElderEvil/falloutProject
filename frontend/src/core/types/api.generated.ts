@@ -8436,6 +8436,10 @@ export interface components {
             is_reward_ready: boolean;
             /** Started At */
             started_at?: string | null;
+            /** Return Started At */
+            return_started_at?: string | null;
+            /** Return Completes At */
+            return_completes_at?: string | null;
             /** Quest Requirements */
             quest_requirements?: components["schemas"]["QuestRequirementRead"][] | null;
             /** Quest Rewards */

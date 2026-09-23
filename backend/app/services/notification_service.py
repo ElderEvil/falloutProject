@@ -461,6 +461,34 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_quest_party_returned(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        quest_id: UUID,
+        quest_title: str,
+        meta_data: dict[str, Any] | None = None,
+    ):
+        """Notify user that a quest party has returned and rewards are claimable."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.QUEST_COMPLETE,
+            priority=NotificationPriority.HIGH,
+            title="Quest Party Returned",
+            message=f"'{quest_title}' party has returned! Rewards are ready to claim.",
+            meta_data={
+                "quest_id": str(quest_id),
+                "vault_id": str(vault_id),
+                "quest_title": quest_title,
+                "phase": "returned",
+                "ready_to_claim": True,
+                **(meta_data or {}),
+            },
+        )
+
+    @staticmethod
     async def notify_objective_completed(
         db: AsyncSession,
         user_id: UUID,

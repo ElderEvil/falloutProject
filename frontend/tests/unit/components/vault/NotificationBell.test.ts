@@ -257,6 +257,95 @@ describe('NotificationBell SSE watcher null-safety', () => {
     wrapper.unmount()
   })
 
+  it('toasts a quest arrival when the party returns ready to claim', async () => {
+    // ARRANGE: authenticated user, SSE delivers the quest arrival notification
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const questNotifData = JSON.stringify({
+      notification: {
+        id: 'n4',
+        notification_type: 'quest_complete',
+        title: 'Quest Party Returned',
+        message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
+        priority: 'high',
+        created_at: '2026-08-11T12:00:00',
+        vault_id: 'vault-1',
+        meta_data: {
+          quest_id: 'quest-1',
+          vault_id: 'vault-1',
+          quest_title: 'A Pier into the Future',
+          phase: 'returned',
+          ready_to_claim: true,
+        },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(questNotifData, 'notification')], { hang: true })
+    )
+
+    // ACT: mount (onMounted starts SSE) and let the stream flush
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: announced immediately (progression red line)
+    expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(true)
+
+    // ASSERT: the event also produced a bell entry with the treasure-chest icon
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Quest Party Returned')
+    expect(wrapper.find('[data-icon="mdi:treasure-chest"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('does not toast a quest_complete notification that is not ready to claim', async () => {
+    // ARRANGE: authenticated user, SSE delivers a quest_complete without ready_to_claim
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    const { toasts } = useToast()
+    toasts.value = []
+
+    const questNotifData = JSON.stringify({
+      notification: {
+        id: 'n5',
+        notification_type: 'quest_complete',
+        title: 'Quest Party Returned',
+        message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
+        priority: 'high',
+        created_at: '2026-08-11T12:00:00',
+        vault_id: 'vault-1',
+        meta_data: {
+          quest_id: 'quest-1',
+          vault_id: 'vault-1',
+          quest_title: 'A Pier into the Future',
+          phase: 'returned',
+          ready_to_claim: false,
+        },
+      },
+    })
+    fetchMock.mockResolvedValue(
+      createMockResponse([encodeSse(questNotifData, 'notification')], { hang: true })
+    )
+
+    // ACT
+    const wrapper = mount(NotificationBell)
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+
+    // ASSERT: no toast, but the bell entry still exists
+    expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(false)
+    await wrapper.find('button[title="Notifications"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Quest Party Returned')
+
+    wrapper.unmount()
+  })
+
   it('does not throw on the watcher getter when unauthenticated', async () => {
     // ARRANGE: no token — onMounted skips startSse, sse.value stays undefined
     fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))

@@ -167,11 +167,30 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      const completedTab = wrapper.findAll('[role="tab"]')[2]
       await completedTab.trigger('mousedown')
       await flushPromises()
 
       expect(completedTab.attributes('aria-selected')).toBe('true')
+    })
+
+    it('should switch to available tab when clicked', async () => {
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
+
+      expect(availableTab.attributes('aria-selected')).toBe('true')
     })
   })
 
@@ -263,7 +282,40 @@ describe('QuestsView', () => {
       expect(questStore.fetchPartiesForActiveQuests).toHaveBeenCalledWith('vault-123')
     })
 
-    it('should display available quests in second section', async () => {
+    it('renders travelling quests without a claim action and keeps polling', async () => {
+      questStore.vaultQuests = [
+        {
+          id: 'quest-1',
+          title: 'Travelling Quest',
+          short_description: 'Test quest',
+          long_description: 'Test quest description',
+          requirements: 'Level 5',
+          rewards: '50 caps',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+          return_started_at: '2025-01-02T01:00:00Z',
+          return_completes_at: '2025-01-02T01:15:00Z',
+        },
+      ]
+
+      wrapper = mount(QuestsView, {
+        global: { stubs: { SidePanel: true, Icon: true } },
+      })
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Travelling Quest')
+      expect(wrapper.text()).not.toContain('Claim Rewards')
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
+    })
+
+    it('should display available quests in the available tab', async () => {
       questStore.vaultQuests = [
         {
           id: 'quest-1',
@@ -291,6 +343,10 @@ describe('QuestsView', () => {
       })
 
       await wrapper.vm.$nextTick()
+
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
 
       expect(wrapper.text()).toContain('Available Quest')
     })
@@ -337,6 +393,10 @@ describe('QuestsView', () => {
       })
       await wrapper.vm.$nextTick()
 
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
+
       expect(wrapper.text()).toContain('First Quest')
       expect(wrapper.text()).not.toContain('Locked Quest')
 
@@ -374,7 +434,7 @@ describe('QuestsView', () => {
       await wrapper.vm.$nextTick()
 
       // Switch to completed tab
-      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      const completedTab = wrapper.findAll('[role="tab"]')[2]
       await completedTab.trigger('mousedown')
       await flushPromises()
 
@@ -397,7 +457,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.text()).toContain('No unlocked quests available')
+      expect(wrapper.text()).toContain('No active quests')
     })
   })
 
@@ -464,6 +524,10 @@ describe('QuestsView', () => {
       })
 
       await wrapper.vm.$nextTick()
+
+      const availableTab = wrapper.findAll('[role="tab"]')[1]
+      await availableTab.trigger('mousedown')
+      await flushPromises()
 
       // Find the button inside QuestCard and click it
       const startButton = wrapper.find('.start-btn')
@@ -591,7 +655,7 @@ describe('QuestsView', () => {
 
       await wrapper.vm.$nextTick()
 
-      const completedTab = wrapper.findAll('[role="tab"]')[1]
+      const completedTab = wrapper.findAll('[role="tab"]')[2]
       await completedTab.trigger('mousedown')
       await flushPromises()
       await wrapper.find('.view-btn').trigger('click')

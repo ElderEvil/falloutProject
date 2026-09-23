@@ -85,8 +85,115 @@ export interface VaultQuest extends Quest {
   is_reward_ready?: boolean
   started_at: string | null
   duration_minutes: number | null
+  return_started_at: string | null
+  return_completes_at: string | null
   quest_requirements?: QuestRequirement[]
   quest_rewards?: QuestReward[]
+}
+
+/** True while a quest party is travelling home and rewards are not yet claimable. */
+export function isQuestReturning(quest: VaultQuest): boolean {
+  return quest.return_completes_at != null && !quest.is_reward_ready && !quest.is_completed
+}
+
+/** Human-readable label for a quest reward (amount + name), shared by card and detail views. */
+export function formatQuestReward(reward: QuestReward): string {
+  const data = reward.reward_data || {}
+  const itemData = reward.item_data || {}
+  const type = reward.reward_type.toLowerCase()
+
+  switch (type) {
+    case 'caps':
+      return `${rewardAmount(data.amount)} Caps`
+    case 'resource': {
+      const resourceType = rewardText(data.resource_type) || 'resource'
+      return `${rewardAmount(data.amount)} ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}`
+    }
+    case 'experience':
+      return `${rewardAmount(data.amount)} XP`
+    case 'item': {
+      const itemName
+        = rewardText(data.item_name) || rewardText(itemData.name) || rewardText(data.name) || 'Unknown Item'
+      const category = rewardText(reward.item_data?.item_type ?? reward.reward_data?.item_type).toLowerCase()
+      const lowerName = itemName.toLowerCase()
+      const isConsumable
+        = category === 'consumable' || lowerName.includes('stimpak') || lowerName.includes('radaway')
+      const rarityValue = rewardText(itemData.rarity) || rewardText(data.rarity)
+      const rarity = !isConsumable && rarityValue ? ` (${rarityValue})` : ''
+      return `${itemName}${rarity}`
+    }
+    case 'dweller': {
+      const template = rewardText(data.template_id).replaceAll('-', ' ')
+      const raw = rewardText(data.first_name) || rewardText(data.name) || template || 'New Dweller'
+      const name = raw.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
+      const rarityValue = rewardText(data.rarity)
+      const rarity = rarityValue ? ` (${rarityValue})` : ''
+      return `${name}${rarity}`
+    }
+    case 'stimpak': {
+      const amt = Number(data.amount) || 1
+      return `${amt} Stimpak${amt > 1 ? 's' : ''}`
+    }
+    case 'radaway': {
+      const amt = Number(data.amount) || 1
+      return `${amt} Radaway${amt > 1 ? 's' : ''}`
+    }
+    case 'lunchbox':
+      return 'Lunchbox (3 items + 1 dweller)'
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1)
+  }
+}
+
+/** Item-category icons for quest rewards. Weapons use the gun icon per quest UI convention. */
+const QUEST_ITEM_ICONS: Record<string, string> = {
+  weapon: 'mdi:pistol',
+  outfit: 'mdi:tshirt-crew',
+  junk: 'mdi:cog',
+  pet: 'mdi:paw',
+  consumable: 'mdi:bottle-tonic',
+  lunchbox: 'mdi:gift',
+}
+
+function rewardText(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function rewardAmount(value: unknown): number {
+  return typeof value === 'number' ? value : Number(value) || 0
+}
+
+/** Icon for a quest reward; item rewards resolve via category, then item name, so only unknown items use the generic icon. */
+export function questRewardIcon(reward: QuestReward): string {
+  const type = reward.reward_type.toLowerCase()
+  if (type === 'item') {
+    const category = rewardText(reward.item_data?.item_type ?? reward.reward_data?.item_type).toLowerCase()
+    if (category && QUEST_ITEM_ICONS[category]) return QUEST_ITEM_ICONS[category]
+    const itemName = rewardText(
+      reward.reward_data?.item_name || reward.item_data?.name || reward.reward_data?.name
+    ).toLowerCase()
+    if (itemName.includes('stimpak')) return 'mdi:medical-bag'
+    if (itemName.includes('radaway')) return 'mdi:pill'
+    return 'mdi:package-variant'
+  }
+  switch (type) {
+    case 'caps':
+      return 'mdi:currency-usd'
+    case 'resource':
+      return 'mdi:package-variant'
+    case 'experience':
+      return 'mdi:star'
+    case 'dweller':
+      return 'mdi:account-plus'
+    case 'stimpak':
+      return 'mdi:medical-bag'
+    case 'radaway':
+      return 'mdi:pill'
+    case 'lunchbox':
+      return 'mdi:gift'
+    default:
+      return 'mdi:gift'
+  }
 }
 
 /**

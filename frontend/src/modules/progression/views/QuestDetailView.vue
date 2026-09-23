@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useQuestStore } from '../stores/quest'
@@ -11,7 +11,9 @@ import QuestRewardsModal from '../components/QuestRewardsModal.vue'
 import { Card } from '@/core/components/ui/card'
 import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
+import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { VaultQuest } from '../models/quest'
+import { isQuestReturning } from '../models/quest'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,6 +61,8 @@ onMounted(async () => {
           is_completed: false,
           started_at: null,
           duration_minutes: null,
+          return_started_at: null,
+          return_completes_at: null,
         }
       } else {
         error.value = 'Quest not found'
@@ -125,13 +129,21 @@ const canStart = computed(() => {
   return (
     Boolean(quest.value?.is_visible) &&
     !quest.value?.is_completed &&
+    quest.value?.started_at == null &&
     prerequisitesMet.value &&
     !quest.value?.is_locked
   )
 })
 
+const isReturning = computed(() => (quest.value ? isQuestReturning(quest.value) : false))
+
 const isInProgress = computed(() => {
-  return quest.value?.started_at != null && !quest.value?.is_completed && !quest.value?.is_reward_ready
+  return (
+    quest.value?.started_at != null &&
+    !quest.value?.is_completed &&
+    !quest.value?.is_reward_ready &&
+    !isReturning.value
+  )
 })
 
 const isCompleted = computed(() => {
@@ -140,8 +152,41 @@ const isCompleted = computed(() => {
 const isRewardReady = computed(() => quest.value?.is_reward_ready && !quest.value?.is_completed)
 const showClaimModal = ref(false)
 
+// Live countdown for the travelling-home message.
+const now = ref(Date.now())
+let returnTimer: ReturnType<typeof setInterval> | null = null
+const returnMinutesRemaining = computed(() => {
+  if (!quest.value?.return_completes_at) return 0
+  const remaining = parseStartTimeMs(quest.value.return_completes_at) - now.value
+  return Math.max(0, Math.ceil(remaining / 60_000))
+})
+
+onMounted(() => {
+  returnTimer = setInterval(() => {
+    now.value = Date.now()
+    if (isReturning.value && returnMinutesRemaining.value <= 0) void refreshQuestAfterArrival()
+  }, 30_000)
+})
+
+onUnmounted(() => {
+  if (returnTimer) clearInterval(returnTimer)
+})
+
 const closeClaimModal = () => {
   showClaimModal.value = false
+}
+
+let isRefreshingQuest = false
+async function refreshQuestAfterArrival() {
+  if (!vaultId.value || !questId.value || isRefreshingQuest) return
+  isRefreshingQuest = true
+  try {
+    await questStore.fetchVaultQuests(vaultId.value)
+    const updated = questStore.vaultQuests.find((q) => q.id === questId.value)
+    if (updated) quest.value = updated
+  } finally {
+    isRefreshingQuest = false
+  }
 }
 
 const openClaimModal = () => {
@@ -227,6 +272,10 @@ const goBack = () => {
               <div v-if="isCompleted" class="completion-banner">
                 <Icon icon="mdi:check-circle" class="banner-icon" />
                 Quest Completed
+              </div>
+              <div v-else-if="isReturning" class="returning-banner">
+                <Icon icon="mdi:home-import-outline" class="banner-icon" />
+                Party Travelling Home
               </div>
               <div v-else-if="isInProgress" class="active-banner">
                 <Icon icon="mdi:progress-check" class="banner-icon" />
@@ -336,6 +385,11 @@ const goBack = () => {
                   <Button v-else-if="isRewardReady" variant="default" class="action-btn" @click="openClaimModal">
                     <Icon icon="mdi:treasure-chest" class="btn-icon" />
                     Claim Rewards
+                  </Button>
+
+                  <Button v-else-if="isReturning" disabled variant="secondary" class="action-btn">
+                    <Icon icon="mdi:home-import-outline" class="btn-icon" />
+                    Party travelling home — returns in {{ returnMinutesRemaining }}m
                   </Button>
 
                   <div v-else-if="isInProgress" class="active-message">
@@ -469,6 +523,19 @@ const goBack = () => {
   border: 2px solid var(--color-theme-accent);
   border-radius: 4px;
   color: var(--color-theme-accent);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.returning-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--color-theme-glow);
+  border: 2px solid var(--color-theme-secondary);
+  border-radius: 4px;
+  color: var(--color-theme-secondary);
   font-weight: bold;
   font-size: 1.1rem;
 }

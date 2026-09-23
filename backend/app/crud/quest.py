@@ -106,6 +106,8 @@ class CRUDQuest(
                     is_completed=False,
                     is_reward_ready=False,
                     started_at=None,
+                    return_started_at=None,
+                    return_completes_at=None,
                     quest_requirements=[
                         QuestRequirementRead(
                             id=req.id,
@@ -194,6 +196,8 @@ class CRUDQuest(
                     is_completed=link.is_completed if link else False,
                     is_reward_ready=link.is_reward_ready if link else False,
                     started_at=link.started_at if link else None,
+                    return_started_at=link.return_started_at if link else None,
+                    return_completes_at=link.return_completes_at if link else None,
                     duration_minutes=link.duration_minutes
                     if link and link.duration_minutes is not None
                     else effective_quest_duration_minutes(quest.duration_minutes),
@@ -264,11 +268,16 @@ class CRUDQuest(
         expires_at: Any,
         vault_id: UUID4 | None = None,
     ) -> list[VaultQuestCompletionLink]:
-        """Started, unfinished links whose quest duration has elapsed, optionally per vault."""
+        """Started, unfinished links whose quest duration has elapsed, optionally per vault.
+
+        Links already on their return leg are excluded: their work window has
+        passed and the return window is owned by the arrival pass.
+        """
         conditions = [
             ~VaultQuestCompletionLink.is_completed,
             ~VaultQuestCompletionLink.is_reward_ready,
             VaultQuestCompletionLink.started_at.isnot(None),
+            VaultQuestCompletionLink.return_completes_at.is_(None),
             expires_at <= now,
         ]
         if vault_id is not None:
@@ -276,6 +285,43 @@ class CRUDQuest(
         return list(
             (await db_session.execute(select(VaultQuestCompletionLink).join(Quest).where(*conditions))).scalars().all()
         )
+
+    async def get_arrived_party_links(
+        self,
+        db_session: AsyncSession,
+        *,
+        now: Any,
+        vault_id: UUID4 | None = None,
+    ) -> list[VaultQuestCompletionLink]:
+        """Returning links whose party has arrived home and is still unclaimed."""
+        conditions = [
+            ~VaultQuestCompletionLink.is_completed,
+            ~VaultQuestCompletionLink.is_reward_ready,
+            VaultQuestCompletionLink.return_completes_at.isnot(None),
+            VaultQuestCompletionLink.return_completes_at <= now,
+        ]
+        if vault_id is not None:
+            conditions.append(VaultQuestCompletionLink.vault_id == vault_id)
+        return list((await db_session.execute(select(VaultQuestCompletionLink).where(*conditions))).scalars().all())
+
+    async def get_link_for_update(
+        self, db_session: AsyncSession, *, quest_id: UUID4, vault_id: UUID4
+    ) -> VaultQuestCompletionLink | None:
+        """One quest link locked FOR UPDATE (return/finalize serialization).
+
+        ``populate_existing`` refreshes the identity-map instance so a caller
+        revalidates against the committed state, not a stale in-session copy.
+        """
+        result = await db_session.execute(
+            select(VaultQuestCompletionLink)
+            .where(
+                VaultQuestCompletionLink.quest_id == quest_id,
+                VaultQuestCompletionLink.vault_id == vault_id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalars().one_or_none()
 
     async def get_completed_quest_ids(self, db_session: AsyncSession, vault_id: UUID4) -> set[UUID4]:
         """IDs of quests the vault has completed."""

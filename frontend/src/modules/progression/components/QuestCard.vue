@@ -10,6 +10,7 @@ import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { parseStartTimeMs } from '@/modules/exploration/composables/useExplorationProgress'
 import type { QuestPartyMember, QuestRequirement, VaultQuest } from '../models/quest'
+import { formatQuestReward, questRewardIcon } from '../models/quest'
 
 const questStore = useQuestStore()
 const dwellerFilterStore = useDwellerFilterStore()
@@ -17,7 +18,7 @@ const dwellerFilterStore = useDwellerFilterStore()
 interface Props {
   quest: VaultQuest
   vaultId: string
-  status: 'available' | 'active' | 'ready' | 'completed' | 'locked'
+  status: 'available' | 'active' | 'returning' | 'ready' | 'completed' | 'locked'
   partyMembers?: DwellerShort[]
   isLocked?: boolean
 }
@@ -35,6 +36,29 @@ const timeRemaining = ref<string | null>(null)
 let timerInterval: ReturnType<typeof setInterval> | null = null
 
 const updateTimer = () => {
+  if (status === 'returning') {
+    if (!quest.return_completes_at) {
+      timeRemaining.value = null
+      return
+    }
+    const remaining = parseStartTimeMs(quest.return_completes_at) - Date.now()
+    if (remaining <= 0) {
+      timeRemaining.value = '00:00:00'
+      if (timerInterval) {
+        clearInterval(timerInterval)
+        timerInterval = null
+      }
+      return
+    }
+    const hours = Math.floor(remaining / (1000 * 60 * 60))
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
+    timeRemaining.value = `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    return
+  }
+
   if (!quest.started_at || !quest.duration_minutes) {
     timeRemaining.value = null
     return
@@ -72,14 +96,35 @@ const questProgress = computed(() => {
   return Math.min(100, Math.max(0, (elapsed / (quest.duration_minutes * 60 * 1000)) * 100))
 })
 
-const displayedQuestProgress = computed(() => (status === 'ready' ? 100 : questProgress.value))
-const questProgressLabel = computed(() => `${Math.round(displayedQuestProgress.value)}% complete`)
+const returnProgress = computed(() => {
+  void timeRemaining.value
+  if (!quest.return_started_at || !quest.return_completes_at) return 0
+
+  const start = parseStartTimeMs(quest.return_started_at)
+  const total = parseStartTimeMs(quest.return_completes_at) - start
+  if (total <= 0) return 100
+  return Math.min(100, Math.max(0, ((Date.now() - start) / total) * 100))
+})
+
+const displayedQuestProgress = computed(() => {
+  if (status === 'ready') return 100
+  if (status === 'returning') return returnProgress.value
+  return questProgress.value
+})
+const questProgressLabel = computed(() => {
+  if (status === 'returning') return `${Math.round(displayedQuestProgress.value)}% home`
+  return `${Math.round(displayedQuestProgress.value)}% complete`
+})
 
 const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
   }
-  if (status === 'active' && quest.started_at && quest.duration_minutes) {
+  if (
+    (status === 'active' || status === 'returning') &&
+    quest.started_at &&
+    quest.duration_minutes
+  ) {
     updateTimer()
     timerInterval = setInterval(updateTimer, 1000)
   }
@@ -93,9 +138,13 @@ const stopTimer = () => {
 }
 
 watch(
-  () => [status, quest.started_at],
+  () => [status, quest.started_at, quest.return_completes_at],
   () => {
-    if (status === 'active' && quest.started_at && quest.duration_minutes) {
+    if (
+      (status === 'active' || status === 'returning') &&
+      quest.started_at &&
+      quest.duration_minutes
+    ) {
       startTimer()
     } else {
       stopTimer()
@@ -132,6 +181,13 @@ const typeLabel = computed(() => {
   return questType.charAt(0).toUpperCase() + questType.slice(1)
 })
 
+// Side quests share the bordered chip styling with building/exploration categories.
+const isSideQuest = computed(() => (quest.quest_type || 'side') === 'side')
+
+const isBorderedCategory = computed(() =>
+  ['building', 'exploration'].includes(quest.quest_category ?? '')
+)
+
 const isChainQuest = computed(() => {
   return quest.chain_id !== null
 })
@@ -150,79 +206,6 @@ const previousQuestName = computed(() => {
     questStore.quests.find((q) => q.id === quest.previous_quest_id)
   return previousQuest?.title || null
 })
-
-const formatDwellerName = (name: string) => name.replace(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
-
-// Format reward details for display
-const formatReward = (reward: {
-  reward_type: string
-  reward_data: Record<string, unknown>
-  reward_chance: number
-  item_data?: Record<string, unknown>
-}) => {
-  const data = reward.reward_data || {}
-  const itemData = reward.item_data || {}
-  const type = reward.reward_type.toLowerCase()
-
-  switch (type) {
-    case 'caps':
-      return `${data.amount || 0} Caps`
-    case 'resource': {
-      const resourceType = String(data.resource_type || 'resource')
-      return `${data.amount || 0} ${resourceType.charAt(0).toUpperCase() + resourceType.slice(1)}`
-    }
-    case 'experience':
-      return `${data.amount || 0} XP`
-    case 'item': {
-      const itemName = String(data.item_name || itemData.name || data.name || 'Unknown Item')
-      const rarity = itemData.rarity || data.rarity ? ` (${String(itemData.rarity || data.rarity)})` : ''
-      return `${itemName}${rarity}`
-    }
-    case 'dweller': {
-      const name = formatDwellerName(
-        String(data.first_name || data.name || String(data.template_id || '').replaceAll('-', ' ') || 'New Dweller')
-      )
-      const rarity = data.rarity ? ` (${String(data.rarity)})` : ''
-      return `${name}${rarity}`
-    }
-    case 'stimpak': {
-      const amt = Number(data.amount) || 1
-      return `${amt} Stimpak${amt > 1 ? 's' : ''}`
-    }
-    case 'radaway': {
-      const amt = Number(data.amount) || 1
-      return `${amt} Radaway${amt > 1 ? 's' : ''}`
-    }
-    case 'lunchbox':
-      return 'Lunchbox (3 items + 1 dweller)'
-    default:
-      return type.charAt(0).toUpperCase() + type.slice(1)
-  }
-}
-
-// Get reward icon based on type
-const getRewardIcon = (rewardType: string) => {
-  switch (rewardType.toLowerCase()) {
-    case 'caps':
-      return 'mdi:currency-usd'
-    case 'resource':
-      return 'mdi:package-variant'
-    case 'experience':
-      return 'mdi:star'
-    case 'item':
-      return 'mdi:sword'
-    case 'dweller':
-      return 'mdi:account-plus'
-    case 'stimpak':
-      return 'mdi:medical-bag'
-    case 'radaway':
-      return 'mdi:pill'
-    case 'lunchbox':
-      return 'mdi:gift'
-    default:
-      return 'mdi:gift'
-  }
-}
 
 const hasPrerequisites = computed(() => {
   return quest.quest_requirements && quest.quest_requirements.length > 0
@@ -305,6 +288,7 @@ const actionButtonText = computed(() => {
   return {
     available: isStateQuest.value ? 'Check Objective' : 'Start Quest',
     active: 'In Progress',
+    returning: 'Travelling Home',
     ready: 'Claim Rewards',
     completed: 'View Details',
     locked: 'Locked',
@@ -316,6 +300,7 @@ const cardBorderColor = computed(() => {
   return {
     available: typeColor.value.border,
     active: 'var(--color-theme-accent)',
+    returning: 'var(--color-theme-secondary)',
     ready: 'var(--color-rarity-legendary)',
     completed: 'var(--color-quest-muted)',
     locked: 'var(--color-quest-locked)',
@@ -323,7 +308,7 @@ const cardBorderColor = computed(() => {
 })
 
 const isButtonDisabled = computed(() => {
-  return isLocked || status === 'active'
+  return isLocked || status === 'active' || status === 'returning'
 })
 
 const handleAction = () => {
@@ -339,6 +324,7 @@ const handleAction = () => {
       }
       break
     case 'active':
+    case 'returning':
       break
     case 'ready':
       emit('claim', quest.id)
@@ -362,12 +348,17 @@ const handleAction = () => {
       <h3 class="quest-title">{{ quest.title }}</h3>
       <div class="quest-badges">
         <Badge
-          :style="{ backgroundColor: typeColor.bg, color: typeColor.text }"
+          :variant="isSideQuest ? 'outline' : 'default'"
+          :style="isSideQuest ? undefined : { backgroundColor: typeColor.bg, color: typeColor.text }"
           class="type-badge"
         >
           {{ typeLabel }}
         </Badge>
-        <Badge v-if="quest.quest_category" variant="secondary" class="category-badge">
+        <Badge
+          v-if="quest.quest_category"
+          :variant="isBorderedCategory ? 'outline' : 'secondary'"
+          class="category-badge"
+        >
           {{ quest.quest_category }}
         </Badge>
         <Badge v-if="isChainQuest" variant="outline" class="chain-badge">
@@ -394,7 +385,7 @@ const handleAction = () => {
         <Icon icon="mdi:lock" class="locked-icon" />
         {{ quest.lock_reason }}
       </div>
-      <div v-if="previousQuestName" class="locked-message">
+      <div v-if="previousQuestName && !quest.lock_reason" class="locked-message">
         <Icon icon="mdi:arrow-left" class="locked-icon" />
         Complete "{{ previousQuestName }}" to unlock
       </div>
@@ -472,8 +463,8 @@ const handleAction = () => {
       </div>
       <div v-if="quest.quest_rewards && quest.quest_rewards.length > 0" class="rewards-list">
         <div v-for="reward in quest.quest_rewards" :key="reward.id" class="reward-item">
-          <Icon :icon="getRewardIcon(reward.reward_type)" class="reward-icon" />
-          <span class="reward-text">{{ formatReward(reward) }}</span>
+          <Icon :icon="questRewardIcon(reward)" class="reward-icon" />
+          <span class="reward-text">{{ formatQuestReward(reward) }}</span>
           <span v-if="reward.reward_chance < 1" class="reward-chance">
             ({{ Math.round(reward.reward_chance * 100) }}%)
           </span>
@@ -501,11 +492,20 @@ const handleAction = () => {
     </div>
 
     <!-- Timed quest progress stays visible until its reward is claimed -->
-    <div v-if="(status === 'active' && timeRemaining) || (status === 'ready' && !isStateQuest)" class="quest-timer">
+    <div
+      v-if="
+        (status === 'active' && timeRemaining) ||
+        (status === 'returning' && timeRemaining) ||
+        (status === 'ready' && !isStateQuest)
+      "
+      class="quest-timer"
+    >
       <div class="timer-header">
         <div class="timer-status">
           <Icon icon="mdi:clock-outline" class="timer-icon" />
-          <span class="timer-label">{{ status === 'ready' ? 'Complete' : 'Time Remaining' }}</span>
+          <span class="timer-label">
+            {{ status === 'ready' ? 'Complete' : status === 'returning' ? 'Travelling Home' : 'Time Remaining' }}
+          </span>
         </div>
         <span class="timer-value">{{ status === 'ready' ? 'Ready to claim' : timeRemaining }}</span>
       </div>
@@ -534,6 +534,8 @@ const handleAction = () => {
               ? 'mdi:eye'
               : status === 'ready'
                 ? 'mdi:treasure-chest'
+              : status === 'returning'
+                ? 'mdi:home-import-outline'
               : status === 'active'
                 ? 'mdi:progress-clock'
                 : isStateQuest

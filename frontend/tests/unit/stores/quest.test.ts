@@ -140,6 +140,78 @@ describe('Quest Store', () => {
       expect(store.questCategories.available).toHaveLength(1)
       expect(store.questCategories.available[0].id).toBe('2')
     })
+
+    it('classifies a travelling quest into the returning bucket', () => {
+      const store = useQuestStore()
+      store.vaultQuests = [
+        {
+          id: '1',
+          title: 'Travelling Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+          return_started_at: '2025-01-02T01:00:00Z',
+          return_completes_at: '2025-01-02T01:15:00Z',
+        },
+      ]
+
+      expect(store.questCategories.returning).toHaveLength(1)
+      expect(store.questCategories.returning[0].id).toBe('1')
+      expect(store.questCategories.active).toHaveLength(0)
+      expect(store.questCategories.readyToClaim).toHaveLength(0)
+    })
+
+    it('prefers the arrived and completed buckets over returning', () => {
+      const store = useQuestStore()
+      store.vaultQuests = [
+        {
+          id: 'arrived',
+          title: 'Arrived Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          is_reward_ready: true,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+          return_started_at: '2025-01-02T01:00:00Z',
+          return_completes_at: '2025-01-02T01:15:00Z',
+        },
+        {
+          id: 'done',
+          title: 'Done Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: true,
+          is_reward_ready: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+          return_started_at: '2025-01-02T01:00:00Z',
+          return_completes_at: '2025-01-02T01:15:00Z',
+        },
+      ]
+
+      expect(store.questCategories.returning).toHaveLength(0)
+      expect(store.questCategories.readyToClaim.map((q) => q.id)).toEqual(['arrived'])
+      expect(store.questCategories.completed.map((q) => q.id)).toEqual(['done'])
+    })
   })
 
   describe('fetchAllQuests', () => {

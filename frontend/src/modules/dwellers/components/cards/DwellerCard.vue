@@ -166,8 +166,8 @@ const canUseRadaway = computed(
           </div>
         </div>
         <Progress
-          class="bar-fill h-2.5"
-          :style="{ '--bar-fill': happinessColor }"
+          class="h-2.5"
+          :fill="happinessColor"
           :model-value="dweller.happiness"
         />
 
@@ -262,10 +262,6 @@ const canUseRadaway = computed(
 </template>
 
 <style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-
 .dweller-card {
   display: flex;
   flex-direction: column;

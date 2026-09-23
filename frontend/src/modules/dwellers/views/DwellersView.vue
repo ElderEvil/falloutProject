@@ -536,7 +536,7 @@ const handleTreatIrradiated = async () => {
   flex: 1;
   margin-left: 240px; /* Width of expanded side panel */
   transition: margin-left 0.3s ease;
-  font-weight: 600; /* Bold font for better readability */
+  font-weight: 700; /* Bold font for better readability */
   letter-spacing: 0.025em; /* Slight letter spacing for clarity */
   line-height: 1.6; /* Better line height for readability */
 }

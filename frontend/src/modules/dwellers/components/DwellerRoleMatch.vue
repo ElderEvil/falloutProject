@@ -45,7 +45,7 @@ const tooltip = computed(() =>
   gap: 0.3rem;
   padding: 0.1rem 0.5rem;
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--border-radius-base);
   font-size: 0.7rem;
   white-space: nowrap;
 }

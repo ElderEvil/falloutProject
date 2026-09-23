@@ -14,7 +14,7 @@ export interface DwellerSection {
 export const dwellerDetailSections: DwellerSection[] = [
   { key: 'profile', label: 'Profile', component: markRaw(DwellerBio) },
   { key: 'appearance', label: 'Appearance', component: markRaw(DwellerAppearance) },
-  { key: 'stats', label: 'Stats', component: markRaw(DwellerStats) },
+  { key: 'stats', label: 'SPECIAL', component: markRaw(DwellerStats) },
   { key: 'equipment', label: 'Equipment', component: markRaw(DwellerEquipment) },
   { key: 'family', label: 'Family', component: markRaw(FamilyTreePanel) },
 ]

@@ -187,6 +187,7 @@ onMounted(() => {
   flex: 1;
   margin-left: 240px; /* Width of expanded side panel */
   transition: margin-left 0.3s ease;
+  font-weight: 700;
 }
 
 .main-content.collapsed {

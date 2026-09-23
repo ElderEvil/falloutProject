@@ -389,6 +389,7 @@ const glowIntensityOptions: { value: EffectIntensity; label: string; description
   flex: 1;
   margin-left: 240px;
   transition: margin-left 0.3s ease;
+  font-weight: 700;
 }
 
 .main-content.collapsed {

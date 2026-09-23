@@ -120,9 +120,9 @@ describe('DwellerBio', () => {
       expect(wrapper.find('.bio-text').exists()).toBe(true)
     })
 
-    it('should render a bio header', () => {
+    it('should render a bio header without a duplicated section title', () => {
       expect(wrapper.find('.bio-header').exists()).toBe(true)
-      expect(wrapper.find('.bio-title').text()).toBe('Biography')
+      expect(wrapper.find('.panel-title').exists()).toBe(false)
     })
   })
 

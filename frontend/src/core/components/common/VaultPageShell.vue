@@ -29,7 +29,7 @@ const { isCollapsed } = useSidePanel()
   min-width: 0;
   margin-left: 240px;
   transition: margin-left 0.3s ease;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.025em;
   line-height: 1.6;
 }

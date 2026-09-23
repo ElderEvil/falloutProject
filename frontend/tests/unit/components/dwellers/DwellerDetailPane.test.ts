@@ -70,9 +70,9 @@ describe('DwellerDetailPane header lockup', () => {
     const wrapper = mountPane()
 
     const badges = wrapper.findAll('.dweller-badge')
-    expect(badges.find((b) => b.attributes('aria-label') === 'Female')).toBeDefined()
-    expect(badges.find((b) => b.attributes('aria-label') === 'Rare')).toBeDefined()
-    expect(badges.find((b) => b.attributes('aria-label') === 'Adult')).toBeDefined()
+    expect(badges.find((b) => b.attributes('aria-label') === 'Gender: Female')).toBeDefined()
+    expect(badges.find((b) => b.attributes('aria-label') === 'Rarity: Rare')).toBeDefined()
+    expect(badges.find((b) => b.attributes('aria-label') === 'Age group: Adult')).toBeDefined()
   })
 
   it('shows the race, faction and state-of-being chips', () => {

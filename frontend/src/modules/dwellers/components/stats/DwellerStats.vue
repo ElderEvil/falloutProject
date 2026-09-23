@@ -158,9 +158,8 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 
 <template>
   <div class="dweller-stats">
-    <div class="panel-header guide-header-row">
-      <h3 class="stats-title panel-title">S.P.E.C.I.A.L.</h3>
-      <Button variant="ghost" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
+    <div class="guide-header-row">
+      <Button variant="outline" size="sm" aria-label="Open SPECIAL field guide" @click="guideOpen = true">
         <Icon icon="mdi:information-outline" class="guide-icon" />
       </Button>
     </div>
@@ -277,7 +276,8 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 .guide-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
 }
 
 .guide-icon {
@@ -301,6 +301,7 @@ const modifierRows = computed<Array<{ label: string; value: string; icon: string
 .stat-item:hover {
   background: rgba(0, 0, 0, 0.5);
   border-left-color: var(--color-theme-primary);
+  transform: translateX(2px);
 }
 
 .stat-header {

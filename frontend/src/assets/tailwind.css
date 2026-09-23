@@ -79,6 +79,12 @@
     /* === TYPOGRAPHY === */
     --font-family-mono: "Courier New", Courier, monospace;
     --font-family-base: var(--font-family-mono);
+    /* The font-mono/font-sans utilities must resolve to the app's mono stack;
+       Tailwind's built-in defaults are a different family, which left buttons
+       inside a font-mono container rendering in a different font than the
+       labels beside them. */
+    --font-mono: var(--font-family-mono);
+    --font-sans: var(--font-family-mono);
 
     /* Font Sizes */
     --font-size-xs: 0.75rem; /* 12px */
@@ -261,6 +267,7 @@ body {
     background-color: var(--color-terminal-background);
     color: var(--color-theme-primary);
     font-family: var(--font-family-mono);
+    font-weight: 500;
     text-shadow: 0 0 10px var(--color-theme-glow);
     min-height: 100vh;
     line-height: var(--line-height-normal);
@@ -443,18 +450,6 @@ body {
     border-bottom: 2px solid var(--color-theme-glow);
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
-}
-
-/* Panel section title — one heading treatment for every detail-panel tab
-   (dweller profile, appearance, stats, equipment, family). The separator is a
-   full-width rule owned by the tab's own header row, so the title itself draws
-   no line and panels cannot end up with two. */
-.panel-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--color-theme-primary);
-    text-shadow: 0 0 8px var(--color-theme-glow);
-    margin: 0;
 }
 
 /* Badge intents — see STYLEGUIDE → "Intent & Emphasis Semantics".

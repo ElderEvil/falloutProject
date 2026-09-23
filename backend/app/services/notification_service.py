@@ -351,6 +351,26 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_radio_auto_switched_to_happiness(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        population: int,
+        population_max: int,
+    ):
+        """Notify the overseer that a full vault redirected its radio broadcast."""
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.RADIO_AUTO_SWITCHED_TO_HAPPINESS,
+            priority=NotificationPriority.NORMAL,
+            title="Radio Switched to Happiness",
+            message="Vault population limit reached. Radio Studio has switched to happiness mode.",
+            meta_data={"population": population, "population_max": population_max},
+        )
+
+    @staticmethod
     async def notify_dweller_died(
         db: AsyncSession,
         user_id: UUID,

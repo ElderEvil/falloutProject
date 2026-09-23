@@ -85,6 +85,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "QUEST_COMPLETE",
         "ACHIEVEMENT_UNLOCKED",
         "RADIO_NEW_DWELLER",
+        "RADIO_AUTO_SWITCHED_TO_HAPPINESS",
         "MAP_REGISTRATION_FAILED",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},

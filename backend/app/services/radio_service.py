@@ -47,6 +47,26 @@ class RadioService:
         return f"Vault population capacity reached ({population}/{vault.population_max})"
 
     @staticmethod
+    async def _switch_full_vault_to_happiness(
+        db_session: AsyncSession,
+        vault: Vault,
+        population: int,
+    ) -> None:
+        """Redirect a full vault's radio broadcast and tell its overseer why."""
+        vault.radio_mode = "happiness"
+        db_session.add(vault)
+        await db_session.commit()
+
+        if vault.user_id and vault.population_max is not None:
+            await notification_service.notify_radio_auto_switched_to_happiness(
+                db_session,
+                user_id=vault.user_id,
+                vault_id=vault.id,
+                population=population,
+                population_max=vault.population_max,
+            )
+
+    @staticmethod
     async def get_radio_rooms(
         db_session: AsyncSession,
         vault_id: UUID4,
@@ -138,14 +158,15 @@ class RadioService:
         if vault.radio_mode != "recruitment":
             return None
 
-        population = await crud.dweller.count_living_in_vault(db_session, vault_id)
-        if RadioService._population_limit_reached(vault, population):
-            return None
-
         # Get radio rooms
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
 
         if not radio_rooms:
+            return None
+
+        population = await crud.dweller.count_living_in_vault(db_session, vault_id)
+        if RadioService._population_limit_reached(vault, population):
+            await RadioService._switch_full_vault_to_happiness(db_session, vault, population)
             return None
 
         # Calculate recruitment rate
@@ -153,9 +174,11 @@ class RadioService:
 
         # Roll for recruitment
         if rng.random() < rate:
-            vault, population = await RadioService._lock_vault_for_recruitment(db_session, vault_id)
-            if vault.radio_mode != "recruitment" or RadioService._population_limit_reached(vault, population):
-                return None
+            async with db_session.begin_nested() as capacity_check:
+                vault, population = await RadioService._lock_vault_for_recruitment(db_session, vault_id)
+                if vault.radio_mode != "recruitment" or RadioService._population_limit_reached(vault, population):
+                    await capacity_check.rollback()
+                    return None
             dweller, _ = await RadioService._recruit_dweller(db_session, vault_id)
             logger.info(
                 "Radio recruitment successful: %s %s joined vault %s",

@@ -9,7 +9,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.game_config import game_config
+from app.crud.notification import notification as notification_crud
 from app.models.dweller import Dweller
+from app.models.notification import NotificationType
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.factions import faction_restrictions
@@ -204,7 +206,11 @@ async def test_check_for_recruitment_skips_full_vault_before_the_roll(
 
     assert dweller is None
     rng.random.assert_not_called()
+    await async_session.refresh(vault)
+    assert vault.radio_mode == "happiness"
     assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 0
+    notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
+    assert notifications[0].notification_type == NotificationType.RADIO_AUTO_SWITCHED_TO_HAPPINESS
 
 
 @pytest.mark.asyncio

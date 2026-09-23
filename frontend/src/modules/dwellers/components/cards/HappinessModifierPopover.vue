@@ -19,7 +19,12 @@ const props = defineProps<Props>()
 const showModifiers = ref(false)
 const popoverRoot = ref<HTMLElement | null>(null)
 
+// Cancels a pending open: dismissing outside while the fetch is in flight must
+// not be undone when the response lands.
+let openRequest = 0
+
 onClickOutside(popoverRoot, () => {
+  openRequest += 1
   showModifiers.value = false
 })
 
@@ -35,8 +40,9 @@ const loadHappinessModifiers = async () => {
     return
   }
 
+  const request = ++openRequest
   const response = await runLoadModifiers(props.dwellerId)
-  if (response) {
+  if (response && request === openRequest) {
     happinessModifiers.value = response.data
     showModifiers.value = true
   }

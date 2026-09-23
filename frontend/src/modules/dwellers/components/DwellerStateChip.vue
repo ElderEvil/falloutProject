@@ -29,19 +29,31 @@ const sizeClasses = computed(() => {
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="200">
+  <TooltipProvider v-if="title" :delay-duration="200">
     <Tooltip>
       <TooltipTrigger as-child>
         <div
           v-bind="$attrs"
           class="state-chip inline-flex items-center gap-1 rounded border transition-all"
           :class="sizeClasses.container"
+          :role="label ? undefined : 'img'"
+          :aria-label="label ? undefined : title"
         >
           <Icon :icon="icon" :class="sizeClasses.icon" />
           <span v-if="label" :class="[sizeClasses.text, 'font-medium']">{{ label }}</span>
         </div>
       </TooltipTrigger>
-      <TooltipContent v-if="title" side="top">{{ title }}</TooltipContent>
+      <TooltipContent side="top">{{ title }}</TooltipContent>
     </Tooltip>
   </TooltipProvider>
+
+  <div
+    v-else
+    v-bind="$attrs"
+    class="state-chip inline-flex items-center gap-1 rounded border transition-all"
+    :class="sizeClasses.container"
+  >
+    <Icon :icon="icon" :class="sizeClasses.icon" />
+    <span v-if="label" :class="[sizeClasses.text, 'font-medium']">{{ label }}</span>
+  </div>
 </template>

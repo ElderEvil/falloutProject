@@ -73,8 +73,10 @@ const IDENTITY_FIELDS = new Set(['race', 'faction', 'age', 'state_of_being'])
 const hasSubstantialAttributes = computed(() => {
   const va = visualAttributes.value
   if (!va) return false
-  const keys = Object.keys(va)
-  return keys.some((k) => !IDENTITY_FIELDS.has(k))
+  return Object.entries(va).some(([key, value]) => {
+    if (IDENTITY_FIELDS.has(key) || value == null || value === '') return false
+    return !Array.isArray(value) || value.length > 0
+  })
 })
 
 /** True if AI can still generate (no substantial attributes yet). */

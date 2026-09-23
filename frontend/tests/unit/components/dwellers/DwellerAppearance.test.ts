@@ -34,6 +34,15 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
+  it('shows the empty state when every non-identity field is empty', async () => {
+    const wrapper = mountAppearance({ race: 'human', hair_style: null, eye_color: '' })
+
+    await nextTick()
+
+    expect(wrapper.find('.appearance-content').exists()).toBe(false)
+    expect(wrapper.text()).toContain('No appearance yet')
+  })
+
   it('renders generated attributes once they are substantial', async () => {
     const wrapper = mountAppearance({ race: 'human', hair_style: 'ponytail', eye_color: 'green' })
 

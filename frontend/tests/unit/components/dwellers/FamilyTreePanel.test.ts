@@ -99,6 +99,17 @@ describe('FamilyTreePanel', () => {
     expect(deadNode.text()).toContain('Mom')
   })
 
+  it('announces deceased relatives in text, not only through the skull icon', () => {
+    const lineage = {
+      ...mockLineage,
+      parents: [{ ...mockLineage.parents[0]!, is_dead: true }],
+    }
+    stubStore(lineage)
+    const { wrapper } = mountPanel()
+
+    expect(wrapper.find('.tree-node-dead').text()).toContain('(deceased)')
+  })
+
   it('calls navigateToDweller with the clicked member id', async () => {
     stubStore()
     const { wrapper, ctx } = mountPanel()

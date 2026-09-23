@@ -59,6 +59,7 @@ const selfAge = computed(() => {
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
                 {{ member.first_name }} {{ member.last_name }}
+                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
               <span class="member-age">{{ ageLabel(member.age_group) }}</span>
             </span>
@@ -96,6 +97,7 @@ const selfAge = computed(() => {
                   <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
                 {{ member.first_name }} {{ member.last_name }}
+                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
                   <span class="member-age">{{ ageLabel(member.age_group) }}</span>
                   <span class="member-relation">
@@ -126,6 +128,7 @@ const selfAge = computed(() => {
                 <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
                 {{ member.first_name }} {{ member.last_name }}
+                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
                 <span class="member-age">{{ ageLabel(member.age_group) }}</span>
               </span>
@@ -151,6 +154,7 @@ const selfAge = computed(() => {
               <span class="member-name">
                 <Icon v-if="isDead(member)" icon="mdi:skull" class="node-icon" />
                 {{ member.first_name }} {{ member.last_name }}
+                <span v-if="isDead(member)" class="sr-only">(deceased)</span>
               </span>
               <span class="member-age">{{ ageLabel(member.age_group) }}</span>
             </span>

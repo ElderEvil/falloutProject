@@ -12,6 +12,7 @@ from app.models.exploration import Exploration
 from app.schemas.exploration_event import RewardsSchema
 from app.services.exploration.event_service import event_service
 from app.services.exploration.rewards_service import rewards_service
+from app.services.leveling_service import leveling_service
 from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException
 
@@ -67,6 +68,10 @@ class ExplorationCoordinator:
     async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID4) -> RewardsSchema:
         """Finalize an arrived exploration: restore the dweller, release loot, grant rewards.
 
+        The terminal transition, the dweller restore and the reward settlement commit
+        exactly once. A failure rolls all three back, so the run stays RETURNING and the
+        next tick retries it instead of leaving an arrived run with no rewards.
+
         Args:
             db_session: Database session
             exploration_id: Exploration ID
@@ -88,24 +93,32 @@ class ExplorationCoordinator:
         recalled_early = exploration.recalled_early
         progress = exploration.exploring_progress_percentage()
 
-        # Mark as arrived before releasing anything, so a mid-flight failure cannot
-        # grant rewards twice on the next tick.
-        await crud_exploration.finalize_return(db_session, exploration_id=exploration_id)
+        try:
+            await crud_exploration.finalize_return(db_session, exploration_id=exploration_id)
+            await self._update_dweller_status_after_return(db_session, exploration)
+            if recalled_early:
+                rewards = await rewards_service.apply_rewards(db_session, exploration, progress / 100, commit=False)
+                rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
+            else:
+                rewards = await rewards_service.apply_rewards(db_session, exploration, commit=False)
+            await db_session.commit()
+        except Exception:
+            notification_service.discard_deferred_notifications(db_session)
+            leveling_service.discard_deferred_level_ups(db_session)
+            rewards_service.discard_pending_rewards(db_session)
+            await db_session.rollback()
+            raise
 
-        await self._update_dweller_status_after_return(db_session, exploration)
-
-        if recalled_early:
-            rewards = await rewards_service.apply_rewards(db_session, exploration, progress_multiplier=progress / 100)
-            rewards = rewards.model_copy(update={"progress_percentage": progress, "recalled_early": True})
-        else:
-            rewards = await rewards_service.apply_rewards(db_session, exploration)
-
+        await notification_service.deliver_deferred_notifications(db_session)
+        await leveling_service.deliver_deferred_level_ups(db_session)
+        await rewards_service.deliver_pending_reward_events(db_session)
         await self._notify_arrival(db_session, exploration, rewards)
         await event_service.publish_sse(
             exploration,
             "exploration_recalled" if recalled_early else "exploration_complete",
             rewards=rewards.model_dump(mode="json"),
         )
+        await rewards_service.apply_pending_auto_equip(db_session, exploration)
 
         return rewards
 
@@ -158,7 +171,7 @@ class ExplorationCoordinator:
             # No room - set to IDLE
             new_status = DwellerStatusEnum.IDLE
 
-        await dweller_crud.update(db_session, exploration.dweller_id, DwellerUpdate(status=new_status))
+        await dweller_crud.update(db_session, exploration.dweller_id, DwellerUpdate(status=new_status), commit=False)
 
 
 # Singleton instance

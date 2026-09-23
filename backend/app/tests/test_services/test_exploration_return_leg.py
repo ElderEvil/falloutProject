@@ -1,6 +1,7 @@
 """Tests for the exploration return leg (half the exploring time)."""
 
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -168,3 +169,48 @@ async def test_tick_sends_dweller_home_then_finalizes(
     assert second["completed"] == 1
     await async_session.refresh(exploration)
     assert exploration.status == ExplorationStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_rolls_back_terminal_transition_when_rewards_fail(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+):
+    """A reward failure mid-finalization must roll back the terminal transition.
+
+    Finalization is one transaction: if reward settlement raises, the run must stay
+    RETURNING (and the dweller unrestored) so the next tick retries it instead of
+    leaving a run marked arrived with no rewards granted.
+    """
+    exploration = await _expired_exploration(async_session, vault, dweller)
+
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = datetime.utcnow() - timedelta(seconds=1)
+    exploration.total_caps_found = 250
+    vault.bottle_caps = 0
+    async_session.add_all([exploration, vault])
+    await async_session.commit()
+
+    with (
+        patch.object(
+            rewards_service,
+            "apply_rewards",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("reward settlement exploded"),
+        ),
+        pytest.raises(RuntimeError, match="reward settlement exploded"),
+    ):
+        await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(dweller)
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert dweller.status == DwellerStatusEnum.EXPLORING
+
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    await async_session.refresh(vault)
+    assert exploration.status == ExplorationStatus.COMPLETED
+    assert vault.bottle_caps == 250

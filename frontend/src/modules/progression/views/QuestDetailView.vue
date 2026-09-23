@@ -164,6 +164,7 @@ const returnMinutesRemaining = computed(() => {
 onMounted(() => {
   returnTimer = setInterval(() => {
     now.value = Date.now()
+    if (isReturning.value && returnMinutesRemaining.value <= 0) void refreshQuestAfterArrival()
   }, 30_000)
 })
 
@@ -173,6 +174,19 @@ onUnmounted(() => {
 
 const closeClaimModal = () => {
   showClaimModal.value = false
+}
+
+let isRefreshingQuest = false
+async function refreshQuestAfterArrival() {
+  if (!vaultId.value || !questId.value || isRefreshingQuest) return
+  isRefreshingQuest = true
+  try {
+    await questStore.fetchVaultQuests(vaultId.value)
+    const updated = questStore.vaultQuests.find((q) => q.id === questId.value)
+    if (updated) quest.value = updated
+  } finally {
+    isRefreshingQuest = false
+  }
 }
 
 const openClaimModal = () => {

@@ -5,6 +5,13 @@ import { computed } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { ProgressIndicator, ProgressRoot } from 'reka-ui'
 import { cn } from '@/core/utils/cn'
+import {
+  METER_FRAME_TERMINAL,
+  METER_SIZE_CLASS,
+  METER_TICKS_CLASS,
+  METER_TICKS_STYLE,
+  METER_TRACK_BASE,
+} from './meter'
 
 type ProgressSize = 'xs' | 'sm' | 'md'
 type ProgressTone = 'default' | 'info' | 'warning' | 'danger' | 'success'
@@ -46,12 +53,6 @@ const delegatedProps = reactiveOmit(
   'valueText',
 )
 
-const SIZE_CLASS: Record<ProgressSize, string> = {
-  xs: 'h-1',
-  sm: 'h-1.5',
-  md: 'h-2.5',
-}
-
 // Resolve through the theme tokens so a runtime palette swap re-resolves; an
 // explicit `fill` wins over the tone.
 const TONE_FILL: Record<ProgressTone, string> = {
@@ -75,8 +76,9 @@ const resolvedFill = computed(() => props.fill ?? TONE_FILL[props.tone])
     :style="{ '--progress-fill': resolvedFill }"
     :class="
       cn(
-        'bg-muted rounded-full relative flex w-full items-center overflow-x-hidden',
-        SIZE_CLASS[props.size],
+        METER_TRACK_BASE,
+        METER_SIZE_CLASS[props.size],
+        props.segmented && METER_FRAME_TERMINAL,
         props.class,
       )
     "
@@ -94,16 +96,8 @@ const resolvedFill = computed(() => props.fill ?? TONE_FILL[props.tone])
       v-if="segmented"
       data-slot="progress-segments"
       aria-hidden="true"
-      class="pointer-events-none absolute inset-0"
-      style="
-        background: repeating-linear-gradient(
-          90deg,
-          transparent 0,
-          transparent calc(12.5% - 1px),
-          rgb(0 0 0 / 0.5) calc(12.5% - 1px),
-          rgb(0 0 0 / 0.5) 12.5%
-        );
-      "
+      :class="METER_TICKS_CLASS"
+      :style="METER_TICKS_STYLE"
     />
   </ProgressRoot>
 </template>

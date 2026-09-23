@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
+import { Progress } from '@/core/components/ui/progress'
 import { getEffectiveMaxHealth, getHealthDisplay, getRadiationPercentage } from '@/modules/dwellers/models/dweller'
 
 const props = defineProps<{
@@ -84,20 +85,13 @@ const healthPercentage = computed(
         <Icon :icon="isReturning ? 'mdi:home-import-outline' : 'mdi:compass'" class="mr-2" />
         {{ isReturning ? 'Returning Home' : 'Exploring Wasteland' }} - {{ explorationDuration }}h
       </h3>
-      <div
-        class="exploration-meter exploration-meter--progress mb-2 rounded-full"
-        role="progressbar"
-        aria-label="Exploration progress"
-        :aria-valuenow="progressPercentage"
-        aria-valuemin="0"
-        aria-valuemax="100"
-      >
-        <div
-          class="exploration-meter__fill rounded-full"
-          :style="{ width: `${progressPercentage}%` }"
-        ></div>
-        <div class="exploration-meter__segments" aria-hidden="true"></div>
-      </div>
+      <Progress
+        class="mb-2 h-5"
+        :model-value="progressPercentage"
+        segmented
+        label="Exploration progress"
+        :value-text="`${Math.round(progressPercentage)}%`"
+      />
       <div class="flex justify-between text-sm font-bold">
         <span class="text-theme-primary [text-shadow:0_0_5px_var(--color-theme-glow)]"
           >{{ Math.round(progressPercentage) }}% {{ isReturning ? 'home' : 'Complete' }}</span
@@ -107,41 +101,3 @@ const healthPercentage = computed(
     </div>
   </div>
 </template>
-
-<style scoped>
-.exploration-meter {
-  position: relative;
-  display: block;
-  flex: 1;
-  overflow: hidden;
-  border: 1px solid rgb(from var(--color-theme-primary) r g b / 0.65);
-  background: var(--color-surface-sunken);
-  box-shadow: inset 0 0 8px var(--color-surface-canvas);
-}
-
-.exploration-meter--progress {
-  height: 1.25rem;
-}
-
-.exploration-meter__fill {
-  height: 100%;
-  background: var(--color-theme-primary);
-  box-shadow:
-    inset 0 0 5px rgb(255 255 255 / 0.28),
-    0 0 8px var(--color-theme-glow);
-  transition: width 0.5s ease;
-}
-
-.exploration-meter__segments {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(12.5% - 1px),
-    rgb(0 0 0 / 0.5) calc(12.5% - 1px),
-    rgb(0 0 0 / 0.5) 12.5%
-  );
-}
-</style>

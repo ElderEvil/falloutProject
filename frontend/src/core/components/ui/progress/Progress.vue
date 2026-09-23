@@ -81,10 +81,12 @@ const resolvedFill = computed(() => props.fill ?? TONE_FILL[props.tone])
       )
     "
   >
+    <!-- The `background` shorthand, not `bg-[…]`: a `fill` may be a gradient, and
+         `background-color` silently drops one (rendering no fill at all). -->
     <!-- @vue-ignore -->
     <ProgressIndicator
       data-slot="progress-indicator"
-      class="bg-[var(--progress-fill)] size-full flex-1 transition-transform motion-reduce:transition-none"
+      class="[background:var(--progress-fill)] size-full flex-1 transition-transform motion-reduce:transition-none"
       :style="`transform: translateX(-${100 - (props.modelValue ?? 0)}%);`"
     />
     <!-- @vue-ignore -->

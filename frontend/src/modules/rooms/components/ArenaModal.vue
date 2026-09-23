@@ -319,8 +319,8 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
             <div class="roster-hp-bar">
               <Progress
                 :model-value="hpPercent(entry)"
-                class="bar-fill h-1"
-                :style="{ '--bar-fill': hpFillColor(entry) }"
+                class="h-1"
+                :fill="hpFillColor(entry)"
               />
             </div>
             <TooltipProvider v-if="!isFighting" :delay-duration="200">
@@ -542,10 +542,6 @@ const hpFillColor = (entry: ArenaRosterEntry) => HP_FILL_COLOR[hpClass(entry)] ?
 
 .roster-hp-bar {
   width: 48px;
-}
-
-.roster-hp-bar :deep([data-slot='progress-indicator']) {
-  background: var(--bar-fill);
 }
 
 .roster-remove {

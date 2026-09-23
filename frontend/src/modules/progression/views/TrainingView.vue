@@ -133,8 +133,8 @@ onMounted(async () => {
               >
             </div>
             <Progress
-              class="bar-fill h-2"
-              :style="{ '--bar-fill': 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))' }"
+              class="h-2"
+              :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
               :model-value="capacityPercent"
             />
           </div>
@@ -236,10 +236,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-
 .training-reference {
   display: flex;
   flex-direction: column;

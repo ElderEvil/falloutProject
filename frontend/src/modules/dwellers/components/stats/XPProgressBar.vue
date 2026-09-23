@@ -76,22 +76,18 @@ const fillGradient = computed(() =>
       </TooltipProvider>
     </div>
     <Progress
-      class="xp-progress bar-fill h-2.5"
+      class="xp-progress h-2.5"
       :class="{
         'xp-progress--pulse': barAnimation === 'pulse',
         'xp-progress--shimmer': barAnimation === 'shimmer',
       }"
-      :style="{ '--bar-fill': fillGradient }"
+      :fill="fillGradient"
       :model-value="progressPercentage"
     />
   </div>
 </template>
 
 <style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-
 .xp-progress--pulse :deep([data-slot='progress-indicator']) {
   animation: xp-pulse 1.5s ease-in-out infinite;
 }

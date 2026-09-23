@@ -205,13 +205,21 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
 const isStateQuest = (quest: VaultQuest) => isStateQuestCategory(quest.quest_category)
 
 // State quests settle from vault progress and start with no party; others must assign one first.
+const isStarting = ref(false)
 const handleStartFromModal = async (questId: string) => {
+  if (isStarting.value) return
   const quest = questStore.vaultQuests.find((q) => q.id === questId)
   if (!quest || !vaultId.value) return
 
   if (isStateQuest(quest)) {
-    await questStore.startQuest(vaultId.value, quest.id)
-    closeQuest()
+    isStarting.value = true
+    try {
+      await questStore.startQuest(vaultId.value, quest.id)
+    } finally {
+      isStarting.value = false
+    }
+    // A chain click during the await can select a different quest; only close that one's modal.
+    if (selectedQuestId.value === questId) closeQuest()
     return
   }
 
@@ -230,13 +238,15 @@ const closeClaimModal = () => {
 
 const isClaiming = ref(false)
 const confirmClaimRewards = async () => {
-  if (!vaultId.value || !claimQuest.value || isClaiming.value) return
+  const claim = claimQuest.value
+  if (!vaultId.value || !claim || isClaiming.value) return
   // The store claims and announces the granted rewards via toast; Confirm & Claim
   // is the final screen — the modal closes once delivery is confirmed.
   isClaiming.value = true
   try {
-    await questStore.claimQuestRewards(vaultId.value, claimQuest.value.id)
-    closeClaimModal()
+    await questStore.claimQuestRewards(vaultId.value, claim.id)
+    // Cancelling can open another claim dialog while this one is pending.
+    if (claimQuest.value?.id === claim.id) closeClaimModal()
   } finally {
     isClaiming.value = false
   }

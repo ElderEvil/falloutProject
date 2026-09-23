@@ -176,6 +176,29 @@ describe('QuestDetailModal chain links', () => {
     expect(wrapper.text()).toContain('Quest not found')
   })
 
+  it('ignores a slower earlier load when the quest changes', async () => {
+    let resolveFirst: () => void = () => {}
+    vi.spyOn(questStore, 'fetchVaultQuests')
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => { resolveFirst = resolve })
+      )
+      .mockResolvedValue(undefined)
+    questStore.vaultQuests = [{ ...previousQuest }, { ...chainedQuest }]
+
+    wrapper = mount(QuestDetailModal, {
+      props: { questId: 'quest-1', vaultId: 'vault-123' },
+    })
+
+    await wrapper.setProps({ questId: 'quest-2' })
+    await flushPromises()
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Second Steps')
+
+    resolveFirst()
+    await flushPromises()
+
+    expect(wrapper.find('.mock-dialog-title').text()).toBe('Second Steps')
+  })
+
   it('emits select for a chain quest when its row is clicked', async () => {
     questStore.vaultQuests = [{ ...previousQuest }, { ...chainedQuest }, { ...nextQuest }]
 

@@ -841,6 +841,55 @@ describe('QuestsView', () => {
       expect(routerReplaceMock).toHaveBeenCalledWith({ query: { quest: undefined } })
     })
 
+    it('starts a state quest once when the start action repeats', async () => {
+      let resolveStart: () => void = () => {}
+      const startSpy = vi
+        .spyOn(questStore, 'startQuest')
+        .mockImplementation(() => new Promise<void>((resolve) => { resolveStart = resolve }))
+      questStore.vaultQuests = [
+        {
+          id: 'quest-9',
+          title: 'Training Quest',
+          short_description: 'Train a dweller',
+          long_description: 'Training objective description.',
+          requirements: '',
+          rewards: '',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: null,
+          duration_minutes: 60,
+          quest_category: 'training',
+        },
+      ]
+      routeQuery.quest = 'quest-9'
+
+      wrapper = mount(QuestsView, {
+        global: {
+          stubs: {
+            SidePanel: true,
+            Icon: true,
+            QuestDetailModal: {
+              template:
+                '<div class="mock-quest-modal"><button class="mock-quest-modal-start" @click="$emit(\'start\', questId)">Start</button></div>',
+              props: ['questId', 'vaultId'],
+              emits: ['close', 'select', 'start'],
+            },
+          },
+        },
+      })
+
+      await wrapper.vm.$nextTick()
+      await wrapper.find('.mock-quest-modal-start').trigger('click')
+      await wrapper.find('.mock-quest-modal-start').trigger('click')
+
+      expect(startSpy).toHaveBeenCalledTimes(1)
+
+      resolveStart()
+      await flushPromises()
+    })
+
     it('opens party selection instead of starting a normal quest from the modal', async () => {
       const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
       const partySpy = vi.spyOn(questStore, 'getParty').mockResolvedValue([])

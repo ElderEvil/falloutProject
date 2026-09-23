@@ -36,17 +36,25 @@ const partyLinks = ref<QuestPartyMember[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 
+// Bumped on every quest change so a slower earlier load can never write over a newer one.
+let loadGeneration = 0
+
 async function loadParty() {
-  if (!props.vaultId || !props.questId) return
+  const generation = loadGeneration
+  const { vaultId, questId } = props
+  if (!vaultId || !questId) return
   try {
-    partyLinks.value = await questStore.getParty(props.vaultId, props.questId)
+    const links = await questStore.getParty(vaultId, questId)
+    if (generation === loadGeneration) partyLinks.value = links
   } catch {
-    partyLinks.value = []
+    if (generation === loadGeneration) partyLinks.value = []
   }
 }
 
 async function loadQuest() {
-  if (!props.vaultId || !props.questId) {
+  const generation = ++loadGeneration
+  const { vaultId, questId } = props
+  if (!vaultId || !questId) {
     error.value = 'Missing vault or quest ID'
     isLoading.value = false
     return
@@ -57,14 +65,16 @@ async function loadQuest() {
   isLoading.value = true
   error.value = null
   try {
-    await questStore.fetchVaultQuests(props.vaultId)
-    const vaultQuest = questStore.vaultQuests.find((q) => q.id === props.questId)
+    await questStore.fetchVaultQuests(vaultId)
+    if (generation !== loadGeneration) return
+    const vaultQuest = questStore.vaultQuests.find((q) => q.id === questId)
 
     if (vaultQuest) {
       quest.value = vaultQuest
     } else {
       await questStore.fetchAllQuests()
-      const generalQuest = questStore.quests.find((q) => q.id === props.questId)
+      if (generation !== loadGeneration) return
+      const generalQuest = questStore.quests.find((q) => q.id === questId)
       if (generalQuest) {
         quest.value = {
           ...generalQuest,
@@ -84,19 +94,19 @@ async function loadQuest() {
     }
 
     const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
-    if (props.vaultId && token) {
-      await dwellerStore.fetchDwellersByVault(props.vaultId, token)
+    if (token) {
+      await dwellerStore.fetchDwellersByVault(vaultId, token)
     }
     void loadParty()
   } catch {
-    error.value = 'Failed to load quest details'
+    if (generation === loadGeneration) error.value = 'Failed to load quest details'
   } finally {
-    isLoading.value = false
+    if (generation === loadGeneration) isLoading.value = false
   }
 }
 
-// Chain navigation reuses this component, so reload when the quest prop changes.
-watch(() => props.questId, () => void loadQuest(), { immediate: true })
+// Chain navigation reuses this component, so reload when the selected quest changes.
+watch([() => props.vaultId, () => props.questId], () => void loadQuest(), { immediate: true })
 
 const isChainQuest = computed(() => {
   return Boolean(quest.value?.chain_id)
@@ -254,13 +264,16 @@ const handleStartQuest = () => {
 
 const isClaiming = ref(false)
 const confirmClaimRewards = async () => {
-  if (!props.vaultId || !props.questId || isClaiming.value) return
+  const { vaultId, questId } = props
+  if (!vaultId || !questId || isClaiming.value) return
   isClaiming.value = true
   try {
-    await questStore.claimQuestRewards(props.vaultId, props.questId)
+    await questStore.claimQuestRewards(vaultId, questId)
+    // Chain navigation can move the modal to another quest while the claim is pending.
+    if (props.questId !== questId) return
     closeClaimModal()
-    await questStore.fetchVaultQuests(props.vaultId)
-    quest.value = questStore.vaultQuests.find((item) => item.id === props.questId) ?? quest.value
+    await questStore.fetchVaultQuests(vaultId)
+    quest.value = questStore.vaultQuests.find((item) => item.id === questId) ?? quest.value
     await loadParty()
   } finally {
     isClaiming.value = false

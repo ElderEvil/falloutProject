@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.136.0 (2026-09-23)
+
+### Features
+
+* **ui:** let Progress own its fill, tone, size and segments ([#762](https://github.com/ElderEvil/falloutProject/issues/762)) 2cab39c
+
 ## 2.135.2 (2026-09-23)
 
 ### Bug Fixes

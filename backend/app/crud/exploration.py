@@ -34,8 +34,18 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         return list(result.scalars().all())
 
     async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID4) -> Exploration | None:
-        """One exploration locked FOR UPDATE (reward claiming serialization)."""
-        result = await db_session.execute(select(Exploration).where(Exploration.id == exploration_id).with_for_update())
+        """One exploration locked FOR UPDATE (reward claiming serialization).
+
+        ``populate_existing`` refreshes the instance even when the row is already in
+        the session's identity map, so a tick that loaded the run earlier revalidates
+        against the current committed state instead of a stale one.
+        """
+        result = await db_session.execute(
+            select(Exploration)
+            .where(Exploration.id == exploration_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_dweller(
@@ -81,12 +91,11 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         *,
         exploration_id: UUID4,
     ) -> Exploration:
-        """Finalize an arrived exploration into its terminal outcome."""
+        """Stage an arrived exploration's terminal outcome for the caller's transaction."""
         exploration = await self.get(db_session, exploration_id)
         exploration.finalize_return()
         db_session.add(exploration)
-        await db_session.commit()
-        await db_session.refresh(exploration)
+        await db_session.flush()
         return exploration
 
     async def add_event(

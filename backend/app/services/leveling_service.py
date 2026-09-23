@@ -59,12 +59,15 @@ class LevelingService:
             current_level
         )
 
-    async def check_level_up(self, db_session: AsyncSession, dweller: Dweller) -> tuple[bool, int]:
+    async def check_level_up(
+        self, db_session: AsyncSession, dweller: Dweller, *, commit: bool = True
+    ) -> tuple[bool, int]:
         """Check if dweller has enough XP to level up.
 
         Args:
             db_session: Database session
             dweller: Dweller to check
+            commit: Whether the level-up write commits (False lets a caller batch it)
 
         Returns:
             Tuple of (leveled_up: bool, levels_gained: int)
@@ -90,12 +93,14 @@ class LevelingService:
                 f"Dweller {dweller.id} eligible for {levels_gained} level-up(s) "
                 f"(current: {dweller.level}, target: {current_level})"
             )
-            await self.level_up_dweller(db_session, dweller, levels_gained)
+            await self.level_up_dweller(db_session, dweller, levels_gained, commit=commit)
             return True, levels_gained
 
         return False, 0
 
-    async def level_up_dweller(self, db_session: AsyncSession, dweller: Dweller, levels: int = 1) -> Dweller:
+    async def level_up_dweller(
+        self, db_session: AsyncSession, dweller: Dweller, levels: int = 1, *, commit: bool = True
+    ) -> Dweller:
         """Level up a dweller.
 
         Increases:
@@ -107,6 +112,7 @@ class LevelingService:
             db_session: Database session
             dweller: Dweller to level up
             levels: Number of levels to gain (default 1)
+            commit: Whether the level-up write commits (False lets a caller batch it)
 
         Returns:
             Updated dweller
@@ -138,6 +144,7 @@ class LevelingService:
             db_session,
             dweller.id,
             DwellerUpdate(level=new_level, max_health=new_max_health, health=new_health),
+            commit=commit,
         )
 
         # Refresh to get updated values

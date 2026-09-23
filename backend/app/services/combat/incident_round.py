@@ -303,9 +303,9 @@ async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers
         dweller.experience = max(0, dweller.experience + xp_per_dweller)
         db_session.add(dweller)
 
-        # Check for level-up; the notification parks until the round commits
-        # and drains deferred deliveries (see process_incident).
-        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller)
+        # The level-up write and its notification ride the round's single commit;
+        # process_incident drains the parked deliveries afterwards.
+        leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller, commit=False)
         if leveled_up:
             await leveling_service.settle_level_up(
                 db_session,

@@ -321,17 +321,41 @@ const setSlider = (value: number[] | undefined) => {
           <Progress :model-value="100" aria-label="Progress 100" />
         </div>
         <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Heights</span>
-          <Progress :model-value="60" class="h-1" />
-          <Progress :model-value="60" class="h-2.5" />
-          <Progress :model-value="60" class="h-4" />
+          <span class="w-24 text-sm text-theme-primary/70">Sizes</span>
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" size="xs" label="Extra small" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" size="sm" label="Small" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" size="md" label="Medium" />
         </div>
         <div class="flex items-center gap-4">
-          <span class="w-24 text-sm text-theme-primary/70">Custom color</span>
+          <span class="w-24 text-sm text-theme-primary/70">Tones</span>
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" tone="default" label="Default tone" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" tone="info" label="Info tone" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" tone="warning" label="Warning tone" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" tone="danger" label="Danger tone" />
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" tone="success" label="Success tone" />
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="w-24 text-sm text-theme-primary/70">Dynamic fill</span>
+          <!-- @vue-ignore -->
+          <Progress :model-value="60" fill="#facc15" label="Dynamic fill" value-text="60%" />
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="w-24 text-sm text-theme-primary/70">Segmented</span>
+          <!-- @vue-ignore -->
           <Progress
             :model-value="60"
-            class="catalog-progress bar-fill"
-            :style="{ '--bar-fill': '#facc15' }"
+            size="md"
+            segmented
+            label="Segmented progress"
+            value-text="60%"
           />
         </div>
         <div class="flex items-center gap-4">
@@ -454,9 +478,3 @@ const setSlider = (value: number[] | undefined) => {
     </section>
   </div>
 </template>
-
-<style scoped>
-.catalog-progress :deep([data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-</style>

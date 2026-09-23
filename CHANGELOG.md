@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.136.1 (2026-09-23)
+
+### Code Refactoring
+
+* **ui:** migrate the remaining Progress callers off the --bar-fill hack ([#764](https://github.com/ElderEvil/falloutProject/issues/764)) 05c0df7
+
 ## 2.136.0 (2026-09-23)
 
 ### Features

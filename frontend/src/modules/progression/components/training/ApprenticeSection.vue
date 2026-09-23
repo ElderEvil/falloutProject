@@ -162,8 +162,8 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
             }}</span>
           </div>
           <Progress
-            class="bar-fill h-2.5"
-            :style="{ '--bar-fill': 'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))' }"
+            class="h-2.5"
+            :fill="'linear-gradient(to right, var(--color-theme-primary), var(--color-theme-accent))'"
             :model-value="apprentice.progressPercent"
           />
         </div>
@@ -171,9 +171,3 @@ const apprenticeCards = computed<ApprenticeProgress[]>(() => {
     </div>
   </section>
 </template>
-
-<style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-</style>

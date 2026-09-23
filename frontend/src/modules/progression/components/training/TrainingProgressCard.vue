@@ -176,8 +176,8 @@ const handleComplete = () => {
     <div class="flex items-center gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-1.5">
         <Progress
-          class="bar-fill h-2"
-          :style="{ '--bar-fill': fillGradient }"
+          class="h-2"
+          :fill="fillGradient"
           :model-value="progressPercentage"
         />
         <span class="w-9 shrink-0 text-right font-mono text-xs text-theme-primary"
@@ -215,10 +215,6 @@ const handleComplete = () => {
 </template>
 
 <style scoped>
-:deep(.bar-fill [data-slot='progress-indicator']) {
-  background: var(--bar-fill);
-}
-
 .completion-ready {
   box-shadow:
     0 0 14px var(--color-theme-accent),

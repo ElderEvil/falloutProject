@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.133.1 (2026-09-23)
+
+### Bug Fixes
+
+* make Activate Radio Mode switch the radio instead of navigating 906dae5, closes #736
+
 ## 2.133.0 (2026-09-23)
 
 ### Features

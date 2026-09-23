@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.134.0 (2026-09-23)
+
+### Features
+
+* **quests:** add return-leg fields and migration 572b389
+* **quests:** expose return ETA in quest read schema a63d5d8
+* **quests:** render travelling party in quest views and cards 940d971
+* **quests:** start and finalize return leg in quest service 3558b42
+* **quests:** surface travelling state in quest store and classifier a73cca3
+* **quests:** toast quest party arrival on the global stream 0f6a805
+
+### Bug Fixes
+
+* **quests:** refresh detail view when the return ETA passes 246e2ee
+
 ## 2.133.1 (2026-09-23)
 
 ### Bug Fixes
